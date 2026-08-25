@@ -115,9 +115,7 @@ export class FastRefreshSession<Props> {
 
     this.register(next.default);
     const compatible =
-      next.signature === undefined ||
-      this.family.signature === undefined ||
-      next.signature === this.family.signature;
+      next.signature === undefined || this.family.signature === undefined || next.signature === this.family.signature;
     if (this.runtimeManaged) {
       this.activeType = next.default;
       this.lastGood = next;

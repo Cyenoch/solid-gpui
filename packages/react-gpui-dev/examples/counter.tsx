@@ -1,12 +1,5 @@
 import { createElement, useState, type ReactNode } from "../../react-gpui/node_modules/react";
-import {
-  Pressable,
-  StdioTransport,
-  Text,
-  View,
-  createRoot,
-  type Root,
-} from "@react-gpui/core";
+import { Pressable, StdioTransport, Text, View, createRoot, type Root } from "@react-gpui/core";
 import { installFastRefreshTransform } from "../src/transform";
 
 await installFastRefreshTransform(new URL(".", import.meta.url).pathname);
@@ -16,7 +9,7 @@ type RefreshHost = {
   implementation?: () => ReactNode;
   stable?: () => ReactNode;
 };
-const host = (globalThis as { __reactGpuiRefresh?: RefreshHost }).__reactGpuiRefresh ??= {};
+const host = ((globalThis as { __reactGpuiRefresh?: RefreshHost }).__reactGpuiRefresh ??= {});
 
 function Counter() {
   const [count, setCount] = useState(0);

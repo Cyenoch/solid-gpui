@@ -96,17 +96,12 @@ export async function installFastRefreshTransform(sourceRoot = process.cwd()): P
     setup(build) {
       const normalizedRoot = sourceRoot.replace(/\/+$/, "");
       const escapedRoot = normalizedRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const sourceFilter = new RegExp(
-        `^${escapedRoot}/(?!node_modules/).*(?:[cm]?[jt]sx?)$`,
-      );
-      build.onLoad(
-        { filter: sourceFilter },
-        async ({ path }) => {
-          const source = await Bun.file(path).text();
-          const code = await transformRefreshSource(source, path);
-          return { contents: code, loader: loaderFor(path) };
-        },
-      );
+      const sourceFilter = new RegExp(`^${escapedRoot}/(?!node_modules/).*(?:[cm]?[jt]sx?)$`);
+      build.onLoad({ filter: sourceFilter }, async ({ path }) => {
+        const source = await Bun.file(path).text();
+        const code = await transformRefreshSource(source, path);
+        return { contents: code, loader: loaderFor(path) };
+      });
     },
   });
   installed = true;

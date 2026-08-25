@@ -9,7 +9,12 @@ export {
   type RefreshRoot,
 } from "./fast-refresh";
 export {
-  installFastRefreshTransform,
-  performReactRefresh,
-  transformRefreshSource,
-} from "./transform";
+  render,
+  type CommandResultOptions,
+  type RenderOptions,
+  type RenderResult,
+  type TestNode,
+  type TestNodeHandle,
+  type TestNodePredicate,
+} from "./testing";
+export { installFastRefreshTransform, performReactRefresh, transformRefreshSource } from "./transform";

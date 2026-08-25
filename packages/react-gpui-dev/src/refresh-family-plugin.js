@@ -30,9 +30,7 @@ module.exports = function refreshFamilyPlugin({ types: t }) {
           path.node.generator,
           path.node.async,
         );
-        implementation.body.body.unshift(
-          t.expressionStatement(t.callExpression(signatureName, [])),
-        );
+        implementation.body.body.unshift(t.expressionStatement(t.callExpression(signatureName, [])));
         const moduleId = `${state.filename}:${name}`;
         const family = t.callExpression(t.identifier("__reactGpuiFamily"), [
           t.stringLiteral(moduleId),
@@ -40,14 +38,9 @@ module.exports = function refreshFamilyPlugin({ types: t }) {
           t.stringLiteral(hookNames.join("|")),
         ]);
         const signatureDeclaration = t.variableDeclaration("const", [
-          t.variableDeclarator(
-            signatureName,
-            t.callExpression(t.identifier("$RefreshSig$"), []),
-          ),
+          t.variableDeclarator(signatureName, t.callExpression(t.identifier("$RefreshSig$"), [])),
         ]);
-        const declaration = t.variableDeclaration("const", [
-          t.variableDeclarator(t.identifier(name), family),
-        ]);
+        const declaration = t.variableDeclaration("const", [t.variableDeclarator(t.identifier(name), family)]);
         const parent = path.parentPath;
         if (parent.isExportDefaultDeclaration()) {
           parent.replaceWithMultiple([
@@ -56,10 +49,7 @@ module.exports = function refreshFamilyPlugin({ types: t }) {
             t.exportDefaultDeclaration(t.identifier(name)),
           ]);
         } else if (parent.isExportNamedDeclaration()) {
-          parent.replaceWithMultiple([
-            signatureDeclaration,
-            t.exportNamedDeclaration(declaration),
-          ]);
+          parent.replaceWithMultiple([signatureDeclaration, t.exportNamedDeclaration(declaration)]);
         } else {
           path.replaceWithMultiple([signatureDeclaration, declaration]);
         }

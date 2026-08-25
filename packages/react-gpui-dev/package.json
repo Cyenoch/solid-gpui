@@ -1,23 +1,53 @@
 {
   "name": "@react-gpui/dev",
   "version": "0.1.0",
-  "private": true,
+  "description": "Fast Refresh transforms and runtime support for React GPUI development.",
+  "license": "Apache-2.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "bun run clean && bun run build:js && bun run build:types",
+    "build:js": "bun build ./src/index.ts --outdir ./dist --target bun --format esm --external @babel/core --external @babel/plugin-transform-react-jsx --external @msgpack/msgpack --external @react-gpui/core --external react --external react-refresh",
+    "build:types": "bunx tsc --project tsconfig.build.json",
+    "format": "prettier --check \"src/**/*.{ts,tsx,js,json}\" \"examples/**/*.{ts,tsx,js,json}\" \"*.json\"",
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit",
+    "pack:dry-run": "bun pm pack --dry-run"
+  },
   "dependencies": {
     "@babel/core": "7.28.4",
     "@babel/plugin-transform-react-jsx": "7.27.1",
-    "@react-gpui/core": "file:../react-gpui",
-    "react": "19.2.8",
-    "react-refresh": "0.18.0",
-    "react-test-renderer": "19.2.8"
+    "@msgpack/msgpack": "3.0.0",
+    "react-refresh": "0.18.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0"
   },
   "devDependencies": {
+    "@react-gpui/core": "file:../react-gpui",
     "@types/react": "19.2.2",
     "@types/react-test-renderer": "19.1.0",
+    "bun-types": "1.1.29",
+    "prettier": "3.6.2",
+    "react": "19.2.8",
+    "react-test-renderer": "19.2.8",
     "typescript": "5.9.3"
-  },
-  "scripts": {
-    "typecheck": "bunx tsc --noEmit",
-    "test": "bun test"
   }
 }

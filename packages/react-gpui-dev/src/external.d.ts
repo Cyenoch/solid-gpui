@@ -27,5 +27,3 @@ declare module "@babel/plugin-transform-react-jsx" {
   const plugin: unknown;
   export default plugin;
 }
-
-

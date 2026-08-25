@@ -22,7 +22,6 @@ class RootHarness implements RefreshRoot {
   }
 }
 
-
 afterAll(async () => {
   await rm(`${import.meta.dir}/.refresh-integration`, { recursive: true, force: true });
 });
@@ -60,7 +59,7 @@ async function importParent(
   void revision;
   const childUrl = await transformedDataUrl(childSourceText, childPath);
   const parentUrl = await transformedDataUrl(parentSourceText(childUrl), parentPath);
-  const module = await import(parentUrl) as { default: () => ReactElement };
+  const module = (await import(parentUrl)) as { default: () => ReactElement };
   return { default: module.default };
 }
 
