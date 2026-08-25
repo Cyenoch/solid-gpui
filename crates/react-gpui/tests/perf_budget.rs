@@ -1,5 +1,5 @@
 use react_gpui::{
-    Node, NodeStore, Patch, PatchOperation, Snapshot, Style, KIND_VIEW, UPDATE_STYLE,
+    KIND_VIEW, Node, NodeStore, Patch, PatchOperation, Snapshot, Style, UPDATE_STYLE,
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

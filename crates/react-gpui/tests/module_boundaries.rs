@@ -17,7 +17,13 @@ const RENDERER_CHILD_MODULES: &[&str] = &[
     "input.rs",
     "paint.rs",
 ];
-const PROTOCOL_CHILD_MODULES: &[&str] = &["wire.rs"];
+const PROTOCOL_CHILD_MODULES: &[&str] = &[
+    "wire/mod.rs",
+    "wire/snapshot_patch.rs",
+    "wire/node.rs",
+    "wire/command.rs",
+    "wire/event.rs",
+];
 
 // These are the current intentional parent/sibling edges. A new edge must be
 // reviewed and added here explicitly rather than becoming an accidental cycle.
