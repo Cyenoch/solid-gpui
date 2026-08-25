@@ -1,0 +1,7 @@
+# protocol-golden-v1
+# id	header_hex	payload_hex	rust_expected	ts_expected
+empty	00000000		ok	ok
+truncated-header	00		truncated	pending
+truncated-payload	04000000	01	truncated	pending
+maximum-plus-one	01000001		oversize	oversize
+maximum-exact	00000001		truncated	pending

@@ -1,0 +1,607 @@
+use std::fmt::Write as _;
+use std::fs;
+use std::path::PathBuf;
+
+use react_gpui::protocol::{KeyAction, UPDATE_FOCUSABLE};
+use react_gpui::{
+    AccessibilityProperties, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE,
+    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
+    COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
+    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties,
+    KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, Node,
+    PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style,
+    TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
+    TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER,
+    UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
+};
+
+fn hex(bytes: &[u8]) -> String {
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(&mut output, "{byte:02x}").expect("write to String");
+    }
+    output
+}
+
+fn style() -> Style {
+    Style {
+        width: Some(1.5),
+        height: Some(2.25),
+        flex_direction: Some(2),
+        flex_grow: Some(3.5),
+        padding: Some(4.5),
+        gap: Some(5.25),
+        justify_content: Some(6),
+        align_items: Some(5),
+        border_radius: Some(7.5),
+        border_width: Some(1.25),
+        border_color_rgba: Some(0x1234_5678),
+        font_size: Some(14.5),
+        font_weight: Some(700),
+        background_rgba: Some(0x1122_3344),
+        color_rgba: Some(0xaabb_ccdd),
+        opacity: Some(0.75),
+        transition: Some(Transition {
+            duration_ms: 250,
+            delay_ms: 15,
+            easing: Easing::EaseInOut,
+            properties: TRANSITION_OPACITY
+                | TRANSITION_BACKGROUND_COLOR
+                | TRANSITION_WIDTH
+                | TRANSITION_HEIGHT,
+        }),
+        overflow: Some(3),
+        line_clamp: Some(4),
+        text_overflow: Some(2),
+        margin_top: Some(1.5),
+        margin_right: Some(2.5),
+        margin_bottom: Some(3.5),
+        margin_left: Some(4.5),
+        font_style: Some(1),
+        text_decoration: Some(2),
+        line_height: Some(6.5),
+        min_width: Some(10.5),
+        max_width: Some(20.5),
+        min_height: Some(30.5),
+        max_height: Some(40.5),
+        flex_shrink: Some(0.75),
+        align_self: Some(6),
+    }
+}
+
+fn accessibility() -> AccessibilityProperties {
+    AccessibilityProperties {
+        role: 5,
+        label: Some("golden label".into()),
+        description: Some("golden description".into()),
+        disabled: false,
+        checked: Some(true),
+        selected: Some(false),
+        value: Some("42".into()),
+    }
+}
+
+fn snapshot() -> Snapshot {
+    let mut root = Node::new(1, 0, 0, KIND_VIEW);
+    root.style = Some(style());
+    root.accessibility = Some(accessibility());
+    let mut text = Node::new(2, 1, 0, KIND_TEXT);
+    text.text = Some("hello".into());
+    let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
+    raw.text = Some("raw 😀".into());
+    let mut pressable = Node::new(4, 1, 1, KIND_PRESSABLE);
+    pressable.listener_id = 7;
+    pressable.accessibility = Some(accessibility());
+    let mut input = Node::new(5, 1, 2, KIND_TEXT_INPUT);
+    input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+        value: "text".into(),
+        placeholder: Some("placeholder".into()),
+        multiline: false,
+        disabled: false,
+        controlled: true,
+        ack_edit_seq: 4,
+        selection_start: 1,
+        selection_end: 3,
+        marked_start: Some(1),
+        marked_end: Some(2),
+        max_length: Some(8),
+    }));
+    let mut list = Node::new(6, 1, 3, KIND_VIRTUAL_LIST);
+    list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+        item_count: 20,
+        range_start: 2,
+        range_end: 9,
+        estimated_item_size: 24.5,
+        overscan: 3,
+    }));
+    let mut image = Node::new(7, 1, 4, 7);
+    image.host_properties = Some(HostProperties::Image(ImageProperties {
+        source: "assets/😀.png".into(),
+        object_fit: 3,
+    }));
+    Snapshot::new(
+        7,
+        3,
+        0,
+        42,
+        vec![root, text, raw, pressable, input, list, image],
+    )
+}
+
+fn patch() -> Patch {
+    let mut created = Node::new(8, 1, 5, KIND_PRESSABLE);
+    created.listener_id = 11;
+    Patch::new(
+        7,
+        3,
+        42,
+        43,
+        vec![
+            PatchOperation::Create(created),
+            PatchOperation::Update {
+                id: 4,
+                mask: UPDATE_STYLE
+                    | UPDATE_TEXT
+                    | UPDATE_LISTENER
+                    | UPDATE_PROPERTIES
+                    | UPDATE_ACCESSIBILITY
+                    | UPDATE_FOCUSABLE,
+                style: Some(style()),
+                text: Some("updated".into()),
+                listener_id: 12,
+                host_properties: Some(HostProperties::Image(ImageProperties {
+                    source: "assets/logo.png".into(),
+                    object_fit: 2,
+                })),
+                accessibility: Some(accessibility()),
+                focusable: true,
+            },
+            PatchOperation::Move {
+                id: 4,
+                parent_id: 1,
+                index: 0,
+            },
+            PatchOperation::Delete { id: 6 },
+        ],
+    )
+}
+
+fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&str>) -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id: kind + 100,
+        node_id,
+        kind,
+        payload,
+        title: title.map(str::to_owned),
+    }
+}
+fn surface_command(title: &str, width: u32, height: u32) -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id: 117,
+        node_id: 1,
+        kind: COMMAND_OPEN_SURFACE,
+        payload: Some((width, height)),
+        title: Some(title.to_owned()),
+    }
+}
+
+fn emit(rows: &mut Vec<String>, id: &str, kind: &str, bytes: Vec<u8>) {
+    rows.push(format!("{id}\t{kind}\t{}", hex(&bytes)));
+}
+
+fn main() {
+    let output = std::env::args()
+        .nth(1)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("fixtures/protocol/rust_to_ts.hex"));
+    let mut rows = Vec::new();
+    emit(
+        &mut rows,
+        "rust-snapshot-all-kinds",
+        "snapshot",
+        snapshot().encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-patch-all-operations",
+        "patch",
+        patch().encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-press",
+        "event",
+        Event::press(7, 3, 42, 1, 4, 7).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-hover",
+        "event",
+        Event::hover(7, 3, 42, 10, 4, 7).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-text-unicode",
+        "event",
+        Event::text_input(
+            EVENT_CHANGE,
+            7,
+            3,
+            42,
+            2,
+            5,
+            9,
+            TextInputEvent {
+                text: "hé😀".into(),
+                selection_start: 2,
+                selection_end: 4,
+                marked_start: Some(2),
+                marked_end: Some(3),
+                edit_seq: 8,
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-key",
+        "event",
+        Event::key(
+            7,
+            3,
+            42,
+            3,
+            4,
+            7,
+            "Enter".into(),
+            vec!["ctrl".into(), "shift".into()],
+            KeyAction::Repeat,
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-pointer",
+        "event",
+        Event::pointer(
+            EVENT_POINTER,
+            7,
+            3,
+            42,
+            4,
+            4,
+            7,
+            5,
+            vec!["cmd".into()],
+            EVENT_POINTER_UP,
+            2,
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-scroll",
+        "event",
+        Event::scroll(
+            7,
+            3,
+            42,
+            5,
+            1,
+            0,
+            SCROLL_DELTA_PIXELS,
+            3.5,
+            -2.25,
+            10.0,
+            20.5,
+            vec!["alt".into()],
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-visible",
+        "event",
+        Event::visible_range(7, 3, 42, 6, 6, 13, 2, 9)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-animation",
+        "event",
+        Event::animation_complete(7, 3, 42, 7, 1, 0, 4)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            8,
+            CommandResult {
+                request_id: 109,
+                command: COMMAND_OPEN_URL,
+                node_id: 1,
+                success: false,
+                error: Some("rejected".into()),
+                value: None,
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-window-resize",
+        "event",
+        Event::window_resize(7, 3, 42, 11, 1, 0, 800.5, 600.5)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-window-activation",
+        "event",
+        Event::window_activation(7, 3, 42, 12, 1, 0, true)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-size",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            13,
+            CommandResult {
+                request_id: 110,
+                command: COMMAND_GET_WINDOW_SIZE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Pair((800.5, 600.5))),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-focus",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            14,
+            CommandResult {
+                request_id: 111,
+                command: COMMAND_GET_FOCUS,
+                node_id: 4,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Bool(true)),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-clipboard",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            15,
+            CommandResult {
+                request_id: 112,
+                command: COMMAND_CLIPBOARD_READ,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Text("pasted text".into())),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-submit",
+        "event",
+        Event::submit(7, 3, 42, 9, 5, 9).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-submit-text",
+        "event",
+        Event::submit_with_text(7, 3, 42, 16, 5, 9, "submitted text".into())
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-surface-closed",
+        "event",
+        Event::surface_closed(7, 3, 42, 17).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-open-surface",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            18,
+            CommandResult {
+                request_id: 117,
+                command: COMMAND_OPEN_SURFACE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Number(41.0)),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-focus",
+        "command",
+        command(COMMAND_FOCUS, 4, None, None).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-selection",
+        "command",
+        command(COMMAND_SET_SELECTION, 5, Some((2, 4)), None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-scroll-index",
+        "command",
+        command(COMMAND_SCROLL_TO_INDEX, 6, Some((9, 0)), None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-scroll-end",
+        "command",
+        command(COMMAND_SCROLL_TO_END, 6, None, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-title",
+        "command",
+        command(COMMAND_SET_TITLE, 1, None, Some("Golden 😀 title"))
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-resize",
+        "command",
+        command(COMMAND_RESIZE_WINDOW, 1, Some((800, 600)), None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-zoom",
+        "command",
+        command(COMMAND_ZOOM_WINDOW, 1, None, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-fullscreen",
+        "command",
+        command(COMMAND_TOGGLE_FULLSCREEN, 1, None, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-url",
+        "command",
+        command(COMMAND_OPEN_URL, 1, None, Some("https://example.com/😀"))
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-get-window-size",
+        "command",
+        command(COMMAND_GET_WINDOW_SIZE, 1, None, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-get-focus",
+        "command",
+        command(COMMAND_GET_FOCUS, 4, None, None).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-clipboard-write",
+        "command",
+        command(COMMAND_CLIPBOARD_WRITE, 1, None, Some("clipboard text"))
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-clipboard-read",
+        "command",
+        command(COMMAND_CLIPBOARD_READ, 1, None, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-open-surface",
+        "command",
+        surface_command("Child", 640, 480).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-focus-next",
+        "command",
+        command(COMMAND_FOCUS_NEXT, 1, None, None).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-focus-prev",
+        "command",
+        command(COMMAND_FOCUS_PREV, 1, None, None).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-blur",
+        "command",
+        command(COMMAND_BLUR, 4, None, None).encode().unwrap(),
+    );
+    rows.sort();
+    let text = format!(
+        "# protocol-golden-v1\n# id\tmessage\tpayload_hex\n{}\n",
+        rows.join("\n")
+    );
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent).expect("create fixture directory");
+    }
+    fs::write(output, text).expect("write Rust golden vectors");
+}
