@@ -299,6 +299,13 @@ from this work tree.
   to the five split wire modules with zero bare `wire.rs` paths. The six-example
   index is aligned, and examples cover `onLayout`, drag handlers, `reversed`,
   `setSelection`, and `scrollToIndex`/`scrollToEnd`.
+- Headless end-to-end command coverage now drives all 18 commands through a
+  real `TestAppContext`/surface registry: focus/getFocus assertions, clipboard
+  read/write, static menu to `EVENT_ACTION`, notification capture, and
+  multi-surface registration. Eleven event paths carry A-level assertions;
+  Zoom, file dialogs, and input-driving remain explicitly graded lower because
+  they require platform/display semantics. The incremental command roundtrip
+  suite adds **3.5 s** of coverage.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
@@ -310,6 +317,9 @@ from this work tree.
 - EventWire visitors now propagate decode errors for type-mismatched payloads
   directly; the previous sentinel-based malformed payload relied on
   cross-variant rejection by coincidence.
+- `EventWire` CommandResult validation now accepts `COMMAND_CLIPBOARD_WRITE`;
+  clipboard command acknowledgements were previously dropped at the protocol
+  layer. This extends the earlier kind `6`-`12` CommandResult validation fix.
 
 ### Changed
 
