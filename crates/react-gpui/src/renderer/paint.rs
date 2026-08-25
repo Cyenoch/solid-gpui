@@ -428,6 +428,25 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
     if let Some(height) = style.height {
         element = element.h(px(height));
     }
+    if let Some(position) = style.position {
+        element = if position == 1 {
+            element.absolute()
+        } else {
+            element.relative()
+        };
+    }
+    if let Some(left) = style.left {
+        element = element.left(px(left));
+    }
+    if let Some(top) = style.top {
+        element = element.top(px(top));
+    }
+    if let Some(right) = style.right {
+        element = element.right(px(right));
+    }
+    if let Some(bottom) = style.bottom {
+        element = element.bottom(px(bottom));
+    }
     if let Some(direction) = style.flex_direction {
         element = match direction {
             1 => element.flex_row(),

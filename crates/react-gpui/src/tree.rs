@@ -1178,6 +1178,12 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
             reason: "flexDirection must be 0 (unset), 1 (row), or 2 (column)",
         });
     }
+    if style.position.is_some_and(|position| position > 1) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "position must be 0 (relative) or 1 (absolute)",
+        });
+    }
     if style
         .overflow
         .is_some_and(|overflow| !(1..=3).contains(&overflow))
@@ -1277,6 +1283,17 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
             return Err(TreeError::InvalidStyle {
                 node_id,
                 reason: "numeric style values must be finite and non-negative",
+            });
+        }
+    }
+    for value in [style.left, style.top, style.right, style.bottom]
+        .into_iter()
+        .flatten()
+    {
+        if !value.is_finite() {
+            return Err(TreeError::InvalidStyle {
+                node_id,
+                reason: "position insets must be finite",
             });
         }
     }

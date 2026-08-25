@@ -85,6 +85,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#2d6cdf",
   },
   buttonLabel: { fontWeight: "bold", color: "#ffffff" },
+  badgeAnchor: { position: "relative", minHeight: 100 },
+  badge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: "#2d6cdf",
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  menuAnchor: { position: "relative", alignSelf: "flex-start" },
+  menu: {
+    position: "absolute",
+    top: 42,
+    width: 180,
+    padding: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: "#b8c5d8",
+    backgroundColor: "#ffffff",
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -102,6 +125,7 @@ const styles = StyleSheet.create({
 function Gallery() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [presses, setPresses] = useState(0);
   const activityStyle = useMemo<Style>(
     () => ({
@@ -144,12 +168,26 @@ function Gallery() {
             onChangeText={setQuery}
             accessibilityLabel="Activity filter"
           />
+          <View style={styles.menuAnchor}>
+            <Pressable style={styles.button} onPress={() => setMenuOpen((value) => !value)}>
+              <Text style={styles.buttonLabel}>{menuOpen ? "Hide menu" : "Show menu"}</Text>
+            </Pressable>
+            {menuOpen ? (
+              <View style={styles.menu}>
+                <Text style={styles.rowTitle}>Absolute menu</Text>
+                <Text style={styles.rowDetail}>Anchored with top/left offsets.</Text>
+              </View>
+            ) : null}
+          </View>
           <Pressable style={styles.button} onPress={() => setActive((value) => !value)}>
             <Text style={styles.buttonLabel}>{active ? "Deactivate" : "Activate"} transition</Text>
           </Pressable>
-          <View style={activityStyle}>
-            <Text style={styles.panelTitle}>{active ? "Live panel" : "Standby panel"}</Text>
-            <Text style={styles.subtitle}>This panel animates opacity and background color.</Text>
+          <View style={styles.badgeAnchor}>
+            <View style={activityStyle}>
+              <Text style={styles.panelTitle}>{active ? "Live panel" : "Standby panel"}</Text>
+              <Text style={styles.subtitle}>This panel animates opacity and background color.</Text>
+            </View>
+            <Text style={styles.badge}>LIVE</Text>
           </View>
         </View>
         <View style={styles.panel}>

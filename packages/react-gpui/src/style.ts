@@ -1,3 +1,4 @@
+export type Position = "relative" | "absolute";
 export type FlexDirection = "row" | "column";
 export type JustifyContent = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
@@ -47,6 +48,11 @@ export interface Style {
   readonly maxHeight?: number;
   readonly flexShrink?: number;
   readonly alignSelf?: AlignSelf;
+  readonly position?: Position;
+  readonly left?: number;
+  readonly top?: number;
+  readonly right?: number;
+  readonly bottom?: number;
   readonly backgroundColor?: string;
   readonly color?: string;
   readonly opacity?: number;
@@ -90,6 +96,11 @@ export type EncodedStyle = readonly [
   number | null,
   number | null,
   number | null,
+  0 | 1,
+  number | null,
+  number | null,
+  number | null,
+  number | null,
 ];
 
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
@@ -123,6 +134,11 @@ const STYLE_KEYS: Record<string, true> = {
   maxHeight: true,
   flexShrink: true,
   alignSelf: true,
+  position: true,
+  left: true,
+  top: true,
+  right: true,
+  bottom: true,
   backgroundColor: true,
   color: true,
   opacity: true,
@@ -146,6 +162,16 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
   const style = value as Style;
   if (style.width !== undefined) assertNumber("width", style.width, true);
   if (style.height !== undefined) assertNumber("height", style.height, true);
+  if (style.position !== undefined && style.position !== "relative" && style.position !== "absolute")
+    throw new TypeError("position must be relative or absolute");
+  for (const [name, offset] of [
+    ["left", style.left],
+    ["top", style.top],
+    ["right", style.right],
+    ["bottom", style.bottom],
+  ] as const) {
+    if (offset !== undefined) assertNumber(name, offset, false);
+  }
   if (style.flexGrow !== undefined) assertNumber("flexGrow", style.flexGrow, true);
   if (style.padding !== undefined) assertNumber("padding", style.padding, true);
   if (style.gap !== undefined) assertNumber("gap", style.gap, true);
@@ -390,6 +416,11 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
     style.maxHeight ?? null,
     style.flexShrink ?? null,
     alignSelf,
+    style.position === undefined ? 0 : style.position === "relative" ? 0 : 1,
+    style.left ?? null,
+    style.top ?? null,
+    style.right ?? null,
+    style.bottom ?? null,
   ]) as EncodedStyle;
   ENCODED_STYLE_CACHE.set(style, encoded);
   return encoded;

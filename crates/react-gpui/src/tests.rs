@@ -676,6 +676,11 @@ fn style_values_must_be_finite_and_non_negative() {
         max_height: Some(200.0),
         flex_shrink: Some(1.0),
         align_self: Some(5),
+        position: Some(1),
+        left: Some(-8.0),
+        top: Some(4.0),
+        right: None,
+        bottom: Some(6.0),
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
@@ -709,6 +714,11 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         max_height: Some(200.0),
         flex_shrink: Some(0.5),
         align_self: Some(5),
+        position: Some(1),
+        left: Some(-8.0),
+        top: Some(4.0),
+        right: Some(12.0),
+        bottom: Some(6.0),
         transition: Some(Transition {
             duration_ms: 100,
             delay_ms: 0,

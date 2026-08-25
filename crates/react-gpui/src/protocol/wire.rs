@@ -688,6 +688,11 @@ struct StyleWire(
     Option<f32>,
     Option<f32>,
     Option<u32>,
+    Option<u32>,
+    Option<f32>,
+    Option<f32>,
+    Option<f32>,
+    Option<f32>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -965,6 +970,11 @@ impl From<&Style> for StyleWire {
             style.max_height,
             style.flex_shrink,
             style.align_self,
+            style.position,
+            style.left,
+            style.top,
+            style.right,
+            style.bottom,
         )
     }
 }
@@ -1005,6 +1015,11 @@ impl From<StyleWire> for Style {
             max_height: style.30,
             flex_shrink: style.31,
             align_self: style.32,
+            position: style.33,
+            left: style.34,
+            top: style.35,
+            right: style.36,
+            bottom: style.37,
         }
     }
 }
@@ -1103,6 +1118,11 @@ fn validate_host_kind(
 
 fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError> {
     if style.2.is_some_and(|direction| direction > 2)
+        || style.33.is_some_and(|position| position > 1)
+        || [style.34, style.35, style.36, style.37]
+            .into_iter()
+            .flatten()
+            .any(|value| !value.is_finite())
         || style.10.is_some_and(|justify| !(1..=6).contains(&justify))
         || style.11.is_some_and(|align| !(1..=5).contains(&align))
         || style

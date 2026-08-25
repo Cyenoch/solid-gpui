@@ -51,20 +51,21 @@ root.render(<Counter />);
 - `fontStyle` — `"normal"` or `"italic"`; `textDecoration` — `"none"`, `"underline"`, or `"lineThrough"`.
 - `lineHeight`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, and `flexShrink` — finite, non-negative pixel/flex values.
 - `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
+- `position` — `"relative"` (default post-layout correction) or `"absolute"` (anchored to the closest positioned ancestor/origin); `left`, `top`, `right`, and `bottom` — finite pixel offsets, including negative values.
 
-The transport uses one fixed positional 33-slot style tuple: slots `0..19`
-remain unchanged and the fields above append at slots `20..32`; omitted fields
-are encoded as `null` (not sparse-map entries). TypeScript and Rust strongly
-share this positional order and validate the same enum and numeric ranges.
-`letterSpacing`, `boxShadow`, and `cursor` remain intentionally unsupported:
-they do not have a stable cross-platform GPUI contract in this renderer.
+The transport uses one fixed positional 38-slot style tuple: slots `0..19`
+remain unchanged, the existing fields occupy `20..32`, and positioning appends
+`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`; omitted fields
+are encoded as `null` except position, whose default code `0` means relative.
+Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
+exposed; overlay layering follows subtree paint/hit-test order.
 
 `fontFamily` is intentionally not exposed: GPUI accepts `SharedString`, but the
 backend does not guarantee a safe fallback for an arbitrary missing primary
-family. Unknown fields, invalid colors, non-finite values, negative numeric
-fields, zero `fontSize`, invalid alignment/weight/overflow/font-style/
-decoration values, invalid easing values, and duplicate transition properties
-are rejected.
+
+- Unknown fields, invalid colors, non-finite values, negative numeric fields other than positioning insets, zero `fontSize`, invalid alignment/weight/overflow/font-style/
+  decoration values, invalid easing values, and duplicate transition properties
+  are rejected.
 
 ## Image
 

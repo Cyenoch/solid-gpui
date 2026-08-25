@@ -377,6 +377,11 @@ pub struct Style {
     pub max_height: Option<f32>,
     pub flex_shrink: Option<f32>,
     pub align_self: Option<u32>,
+    pub position: Option<u32>,
+    pub left: Option<f32>,
+    pub top: Option<f32>,
+    pub right: Option<f32>,
+    pub bottom: Option<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -70,6 +70,11 @@ fn style() -> Style {
         max_height: Some(40.5),
         flex_shrink: Some(0.75),
         align_self: Some(6),
+        position: Some(1),
+        left: Some(-8.0),
+        top: Some(4.0),
+        right: Some(12.0),
+        bottom: Some(6.0),
     }
 }
 

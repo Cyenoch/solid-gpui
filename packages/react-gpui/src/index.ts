@@ -80,6 +80,7 @@ export {
   type AlignItems,
   type AlignSelf,
   type FlexDirection,
+  type Position,
   type FontStyle,
   type FontWeight,
   type JustifyContent,
