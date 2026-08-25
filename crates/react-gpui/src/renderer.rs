@@ -491,6 +491,32 @@ mod input_tests {
             .expect("animated root snapshot");
         root
     }
+    #[test]
+    fn accessibility_role_mapping_matches_protocol_roles() {
+        assert_eq!(super::paint::accessibility_role(1), None);
+        assert_eq!(
+            super::paint::accessibility_role(2),
+            Some(gpui::accesskit::Role::Button)
+        );
+        assert_eq!(
+            super::paint::accessibility_role(3),
+            Some(gpui::accesskit::Role::Label)
+        );
+        assert_eq!(
+            super::paint::accessibility_role(4),
+            Some(gpui::accesskit::Role::TextInput)
+        );
+        assert_eq!(
+            super::paint::accessibility_role(5),
+            Some(gpui::accesskit::Role::CheckBox)
+        );
+        assert_eq!(
+            super::paint::accessibility_role(6),
+            Some(gpui::accesskit::Role::Heading)
+        );
+        assert_eq!(super::paint::accessibility_role(7), None);
+    }
+
     fn virtual_list_snapshot(estimated_item_size: f32) -> Snapshot {
         let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
         list.listener_id = 12;

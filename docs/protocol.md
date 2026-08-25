@@ -183,10 +183,17 @@ specified in §5 and [ADR-0004](adr/0004-dual-length-semantics.md).
 |        0 | role        | u32             | `0=unspecified`, `1=generic`, `2=button`, `3=text`, `4=textbox`, `5=checkbox`, `6=heading`; values above 6 are rejected. | `props.ts:101-108`; `tree.rs:984-989` |
 |        1 | label       | string or null  | Accessible label.                                                                                                        | `wire.rs:451-458`; `props.ts:118-125` |
 |        2 | description | string or null  | Accessible description.                                                                                                  | Same sources.                         |
-|        3 | disabled    | boolean         | Native disabled state exposed to accessibility.                                                                          | Same sources.                         |
+|        3 | disabled    | boolean         | Retained and validated, but not exposed in AccessKit: GPUI 0.2.2 has no public AX disabled-state builder. Pressable interaction/focus behavior still honors `disabled`. | Same sources; `renderer/paint.rs:626-628` |
 |        4 | checked     | boolean or null | Non-null only with role `5=checkbox`.                                                                                    | `props.ts:113-116`; `tree.rs:991-995` |
 |        5 | selected    | boolean or null | Optional selected state.                                                                                                 | `wire.rs:456-458`                     |
 |        6 | value       | string or null  | Optional accessible value.                                                                                               | Same sources.                         |
+The native painter applies recognized roles, labels, descriptions, checked
+(`AccessKit::Toggled::True/False`), selected, values, and stable IDs to the
+GPUI element. `generic` intentionally remains GPUI's role-less container and
+does not produce an AccessKit node, so its other fields are not exposed.
+Image, VirtualList, and RawText branches use the same accessibility helper.
+The stock headless TestPlatform has no active AccessKit adapter; display-backed
+desktop verification is required for a real tree inspection.
 
 ### Style tuple: all 38 slots
 

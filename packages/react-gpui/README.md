@@ -60,6 +60,28 @@ filesystem paths from the desktop drop. Browser runtimes do not promise
 filesystem path drops.
 Enter/leave/move lifecycle events are intentionally not exposed in this
 minimal surface; `onDragOver` is the target notification.
+## Accessibility
+
+Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
+node has a recognized role and stable host ID:
+
+| React role | GPUI/AccessKit role | Label/description | Checked/selected | Value |
+| --- | --- | --- | --- | --- |
+| `button` | `Button` | supported | selected supported | supported |
+| `text` | `Label` | supported | selected supported | supported |
+| `textbox` | `TextInput` | supported | selected supported | supported |
+| `checkbox` | `CheckBox` | supported | `checked` maps to toggled true/false; selected supported | supported |
+| `heading` | `Heading` | supported | selected supported | supported |
+| `generic` | GPUI's role-less container | not exposed as an AX node | not exposed | not exposed |
+
+`accessibilityDisabled` is retained and validated on the wire, but GPUI 0.2.2
+does not expose a public AX disabled-state builder. Pressable interaction and
+focus behavior still honor `disabled`; only the AccessKit disabled flag is
+unsupported until GPUI exposes that surface. Stock headless/TestPlatform runs
+cannot activate or inspect an AccessKit tree; verify the final tree on a real
+desktop adapter (for example with `Window::debug_a11y_tree_json` and a screen
+reader).
+
 
 
 ## Styles
@@ -138,6 +160,15 @@ therefore explicit renderer termination, not uncaught stream exceptions.
 `createProcessTerminationHandler(exit?)` is provided for process examples: it
 logs the termination and exits with code `1`, with an injectable exit function
 for tests. `MemoryTransport` remains an in-memory healthy transport.
+
+Advanced custom I/O uses the exported `ByteInput`/`ByteOutput` contracts and
+their `ByteInputListener`, `ByteInputEventListener`, `ByteOutputEventListener`,
+and `DrainListener` types. `StdioTransportOptions` and
+`DEFAULT_MAX_PENDING_BYTES` tune the pending queue; `TransportChunk`,
+`TransportListener`, `TransportTerminationListener`,
+`TransportTerminationDetails`, `TransportTerminatedError`, and
+`createProcessTerminationHandler` cover chunk conversion, termination
+diagnostics, and injected process exits.
 
 ## Multiple native surfaces
 

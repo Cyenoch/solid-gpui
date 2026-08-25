@@ -244,7 +244,12 @@ impl ReactRoot {
             };
             let image_element =
                 img(ImageSource::from(PathBuf::from(&image.source))).object_fit(object_fit);
-            return measure_node(node, apply_style(image_element, style).into_any(), entity);
+            let image_element = apply_style(image_element, style);
+            return measure_node(
+                node,
+                apply_accessibility(image_element, node).into_any(),
+                entity,
+            );
         }
         if node.kind == KIND_VIRTUAL_LIST {
             let Some(HostProperties::VirtualList(list)) = node.host_properties.as_ref() else {
@@ -307,7 +312,17 @@ impl ReactRoot {
             )
             .track_scroll(&handle);
             list_element = apply_style(list_element, style);
-            return list_element.into_any();
+            if node.accessibility.is_none() {
+                return measure_node(node, list_element.into_any(), entity);
+            }
+            let list_element = div()
+                .id(ElementId::Integer(((node.id as u64) << 32) | u64::MAX))
+                .child(list_element);
+            return measure_node(
+                node,
+                apply_accessibility(list_element, node).into_any(),
+                entity,
+            );
         }
         let mut element = div().id(ElementId::Integer(node.id as u64));
         if node.id == 1 {
@@ -318,14 +333,13 @@ impl ReactRoot {
             element = apply_text_style(element, style);
         }
         if node.kind == KIND_RAW_TEXT {
-            return element
-                .child(
-                    node.text
-                        .as_ref()
-                        .map(|text| SharedString::new(Arc::clone(text)))
-                        .unwrap_or_default(),
-                )
-                .into_any();
+            let element = element.child(
+                node.text
+                    .as_ref()
+                    .map(|text| SharedString::new(Arc::clone(text)))
+                    .unwrap_or_default(),
+            );
+            return apply_accessibility(element, node).into_any();
         }
         if node.kind == KIND_TEXT {
             if let Some(text) = node.text_content.as_ref() {
@@ -580,22 +594,28 @@ impl ReactRoot {
     }
 }
 
+pub(super) fn accessibility_role(role: u32) -> Option<gpui::accesskit::Role> {
+    match role {
+        1 => None,
+        2 => Some(gpui::accesskit::Role::Button),
+        3 => Some(gpui::accesskit::Role::Label),
+        4 => Some(gpui::accesskit::Role::TextInput),
+        5 => Some(gpui::accesskit::Role::CheckBox),
+        6 => Some(gpui::accesskit::Role::Heading),
+        _ => None,
+    }
+}
+
 fn apply_accessibility<E: StatefulInteractiveElement>(mut element: E, node: &StoredNode) -> E {
     let Some(accessibility) = node.accessibility.as_ref() else {
         return element;
     };
-    let role = match accessibility.role {
-        1 => gpui::accesskit::Role::GenericContainer,
-        2 => gpui::accesskit::Role::Button,
-        3 => gpui::accesskit::Role::Label,
-        4 => gpui::accesskit::Role::TextInput,
-        5 => gpui::accesskit::Role::CheckBox,
-        6 => gpui::accesskit::Role::Heading,
-        _ => return element,
+    let Some(role) = accessibility_role(accessibility.role) else {
+        // GenericContainer is intentionally omitted by GPUI's AccessKit tree;
+        // unknown roles are rejected for snapshots and ignored for safety here.
+        return element;
     };
-    if role != gpui::accesskit::Role::GenericContainer {
-        element = element.role(role);
-    }
+    element = element.role(role);
     element = element.accessibility_id(Arc::clone(&node.accessibility_id));
     if let Some(label) = &accessibility.label {
         element = element.aria_label(label.clone());
@@ -607,6 +627,7 @@ fn apply_accessibility<E: StatefulInteractiveElement>(mut element: E, node: &Sto
         element = element.aria_selected(selected);
     }
     if let Some(checked) = accessibility.checked {
+        // AccessKit 0.24 calls the checked/unchecked states True/False.
         element = element.aria_toggled(if checked {
             gpui::accesskit::Toggled::True
         } else {
@@ -616,6 +637,8 @@ fn apply_accessibility<E: StatefulInteractiveElement>(mut element: E, node: &Sto
     if let Some(value) = &accessibility.value {
         element = element.aria_value(value.clone());
     }
+    // GPUI 0.2.2 exposes no public aria-disabled builder. The wire field is
+    // retained for compatibility, but cannot honestly be advertised in AX.
     element
 }
 

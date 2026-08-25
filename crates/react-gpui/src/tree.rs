@@ -543,6 +543,14 @@ impl NodeStore {
                 },
             )?;
         }
+        if mask & UPDATE_ACCESSIBILITY != 0 {
+            validate_accessibility_shape(id, accessibility.as_ref()).map_err(|_| {
+                TreeError::InvalidPatchOperation {
+                    operation,
+                    reason: "invalid accessibility properties",
+                }
+            })?;
+        }
         if mask & UPDATE_ACCESSIBILITY != 0
             && accessibility.is_none()
             && node.accessibility.is_some()
@@ -981,19 +989,27 @@ fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
         });
     }
     validate_host_properties_shape(node.id, node.kind, node.host_properties.as_ref())?;
-    if let Some(accessibility) = &node.accessibility {
-        if accessibility.role > 6 {
-            return Err(TreeError::InvalidProperties {
-                node_id: node.id,
-                reason: "unsupported accessibility role",
-            });
-        }
-        if accessibility.checked.is_some() && accessibility.role != 5 {
-            return Err(TreeError::InvalidProperties {
-                node_id: node.id,
-                reason: "checked requires checkbox role",
-            });
-        }
+    validate_accessibility_shape(node.id, node.accessibility.as_ref())?;
+    Ok(())
+}
+fn validate_accessibility_shape(
+    node_id: u32,
+    accessibility: Option<&AccessibilityProperties>,
+) -> Result<(), TreeError> {
+    let Some(accessibility) = accessibility else {
+        return Ok(());
+    };
+    if accessibility.role > 6 {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "unsupported accessibility role",
+        });
+    }
+    if accessibility.checked.is_some() && accessibility.role != 5 {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "checked requires checkbox role",
+        });
     }
     Ok(())
 }

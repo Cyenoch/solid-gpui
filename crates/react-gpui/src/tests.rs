@@ -406,6 +406,43 @@ fn accessibility_properties_validate_and_keep_stable_ids() {
         Err(TreeError::InvalidProperties { .. })
     ));
 }
+#[test]
+fn accessibility_patch_updates_validate_role_and_checked_constraints() {
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(synthetic_root(1))
+        .expect("initial root");
+    let invalid = AccessibilityProperties {
+        role: 2,
+        label: None,
+        description: None,
+        disabled: false,
+        checked: Some(true),
+        selected: None,
+        value: None,
+    };
+    let patch = Patch::new(
+        7,
+        3,
+        1,
+        2,
+        vec![PatchOperation::Update {
+            id: 1,
+            mask: UPDATE_ACCESSIBILITY,
+            style: None,
+            text: None,
+            listener_id: 0,
+            host_properties: None,
+            accessibility: Some(invalid),
+            focusable: false,
+        }],
+    );
+    assert!(matches!(
+        store.apply_patch(patch),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    assert!(store.get(1).unwrap().accessibility.is_none());
+}
 
 #[test]
 fn invalid_revision_is_rejected_and_last_good_tree_is_retained() {
