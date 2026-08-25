@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { StdioTransport, Text, TextInput, View, createRoot, StyleSheet, type TextInputHandle } from "../src/index";
+import {
+  StdioTransport,
+  Text,
+  TextInput,
+  View,
+  StyleSheet,
+  createProcessTerminationHandler,
+  createRoot,
+  type TextInputHandle,
+} from "../src/index";
 
 const styles = StyleSheet.create({
   root: { flexDirection: "column", flexGrow: 1, gap: 8, padding: 16, backgroundColor: "#ffffff" },
@@ -17,12 +26,29 @@ function TwoInputs() {
   return (
     <View style={styles.root} accessibilityRole="generic" accessibilityLabel="Text input demo">
       <Text style={styles.label}>First: {first}</Text>
-      <TextInput ref={firstRef} style={styles.input} value={first} onChangeText={setFirst} accessibilityLabel="First name" accessibilityDescription="The first controlled text input" />
+      <TextInput
+        ref={firstRef}
+        style={styles.input}
+        value={first}
+        onChangeText={setFirst}
+        accessibilityLabel="First name"
+        accessibilityDescription="The first controlled text input"
+      />
       <Text style={styles.label}>Second: {second}</Text>
-      <TextInput style={styles.input} value={second} onChangeText={setSecond} accessibilityLabel="Second name" accessibilityDescription="The second controlled text input" />
+      <TextInput
+        style={styles.input}
+        value={second}
+        onChangeText={setSecond}
+        accessibilityLabel="Second name"
+        accessibilityDescription="The second controlled text input"
+      />
     </View>
   );
 }
 
-const root = createRoot(new StdioTransport(), { surfaceId: 1, epoch: 1 });
+const root = createRoot(new StdioTransport(), {
+  surfaceId: 1,
+  epoch: 1,
+  onTransportTermination: createProcessTerminationHandler(),
+});
 root.render(<TwoInputs />);

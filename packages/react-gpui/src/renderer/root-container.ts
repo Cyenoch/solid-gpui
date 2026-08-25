@@ -1,0 +1,613 @@
+import {
+  COMMAND_BLUR,
+  COMMAND_FOCUS,
+  COMMAND_FOCUS_NEXT,
+  COMMAND_FOCUS_PREV,
+  COMMAND_GET_FOCUS,
+  COMMAND_GET_WINDOW_SIZE,
+  COMMAND_CLIPBOARD_READ,
+  COMMAND_CLIPBOARD_WRITE,
+  COMMAND_KIND,
+  COMMAND_OPEN_URL,
+  COMMAND_OPEN_SURFACE,
+  COMMAND_RESIZE_WINDOW,
+  COMMAND_SCROLL_TO_END,
+  COMMAND_SCROLL_TO_INDEX,
+  COMMAND_SET_SELECTION,
+  COMMAND_TOGGLE_FULLSCREEN,
+  COMMAND_ZOOM_WINDOW,
+  FrameDecoder,
+  MAX_CLIPBOARD_TEXT_BYTES,
+  PROTOCOL_VERSION,
+  UPDATE_ACCESSIBILITY,
+  UPDATE_LISTENER,
+  UPDATE_PROPERTIES,
+  UPDATE_STYLE,
+  UPDATE_TEXT,
+  decodeEvent,
+  encodeFrame,
+  type Command,
+  type Patch,
+  type PatchOperation,
+  type PressEventFrame,
+  type SnapshotNode,
+  utf8ByteLength,
+} from "../protocol";
+import { TransportTerminatedError, type Transport, type TransportTerminationListener } from "../transport";
+import { accessibilityWire, assertU32Option, hostPropertiesWire, KIND_CODES, nextU32 } from "./props";
+import { encodeStyle } from "../style";
+import { dispatchEvent, type DispatchContext } from "./dispatch";
+import { NodeGraph } from "./nodes";
+import type {
+  HostKind,
+  HostNodeInternal,
+  HostProps,
+  PendingCommand,
+  TextInputCallbacks,
+  WindowActivationHandler,
+  WindowResizeHandler,
+} from "./types";
+
+export class RootContainer implements DispatchContext {
+  readonly nodes: NodeGraph;
+  readonly children: HostNodeInternal[];
+  readonly syntheticRoot: HostNodeInternal;
+  readonly listeners: Map<number, HostNodeInternal>;
+  readonly nodesById: Map<number, HostNodeInternal>;
+  readonly surfaceId: number;
+  private readonly pendingCommands = new Map<number, PendingCommand>();
+  private nextRequestId = 1;
+  readonly epoch: number;
+  revision = 0;
+  bootstrapped = false;
+  readonly inputListeners: Map<number, TextInputCallbacks>;
+  private readonly createdIds: Set<number>;
+  private readonly deletedRoots: Set<number>;
+  private readonly movedIds: Set<number>;
+  private readonly updatedMasks: Map<number, number>;
+  invalid = false;
+  unmounted = false;
+  validationError: Error | undefined;
+  unhandledError: Error | undefined;
+  private lastEventSequence = 0;
+  private hasEventSequence = false;
+  private readonly decoder: FrameDecoder;
+  private readonly unsubscribe: () => void;
+  private readonly unsubscribeTermination: () => void;
+  private readonly onTransportTermination: TransportTerminationListener | undefined;
+  readonly onWindowResize: WindowResizeHandler | undefined;
+  readonly onWindowActivation: WindowActivationHandler | undefined;
+  private readonly surfaceClosedHandler: (() => void) | undefined;
+  private readonly scheduleDispatch: (dispatch: () => void) => void;
+  private transportTerminated = false;
+  private terminationError: TransportTerminatedError | undefined;
+
+  constructor(
+    readonly transport: Transport,
+    surfaceId: number,
+    epoch: number,
+    maxFrameSize: number,
+    scheduleDispatch: (dispatch: () => void) => void,
+    onTransportTermination?: TransportTerminationListener,
+    onWindowResize?: WindowResizeHandler,
+    onWindowActivation?: WindowActivationHandler,
+    onSurfaceClosed?: () => void,
+  ) {
+    this.surfaceId = assertU32Option("surfaceId", surfaceId);
+    this.epoch = assertU32Option("epoch", epoch);
+    this.nodes = new NodeGraph(this);
+    this.children = this.nodes.children;
+    this.syntheticRoot = this.nodes.syntheticRoot;
+    this.listeners = this.nodes.listeners;
+    this.nodesById = this.nodes.nodesById;
+    this.inputListeners = this.nodes.inputListeners;
+    this.createdIds = this.nodes.createdIds;
+    this.deletedRoots = this.nodes.deletedRoots;
+    this.movedIds = this.nodes.movedIds;
+    this.updatedMasks = this.nodes.updatedMasks;
+    this.scheduleDispatch = scheduleDispatch;
+    this.onTransportTermination = onTransportTermination;
+    this.onWindowResize = onWindowResize;
+    this.onWindowActivation = onWindowActivation;
+    this.surfaceClosedHandler = onSurfaceClosed;
+    this.decoder = new FrameDecoder(maxFrameSize);
+    this.unsubscribe = transport.onData((chunk) => this.receive(chunk));
+    this.unsubscribeTermination = transport.onTermination((error) => this.handleTransportTermination(error));
+  }
+  private handleTransportTermination(error: TransportTerminatedError): void {
+    if (this.unmounted || this.transportTerminated) return;
+    this.transportTerminated = true;
+    this.terminationError = error;
+    this.invalid = true;
+    for (const pending of this.pendingCommands.values()) pending.reject(error);
+    this.pendingCommands.clear();
+    this.onTransportTermination?.(error);
+  }
+
+  private submitFrame(frame: Uint8Array): boolean {
+    if (this.transportTerminated) return false;
+    try {
+      this.transport.submit(frame);
+      return true;
+    } catch (error) {
+      if (error instanceof TransportTerminatedError) {
+        this.handleTransportTermination(error);
+        return false;
+      }
+      throw error;
+    }
+  }
+  allocateNode(kind: HostKind): HostNodeInternal {
+    const node = this.nodes.allocateNode(kind);
+    if (this.bootstrapped) this.createdIds.add(node.id);
+    return node;
+  }
+
+  allocateListener(node: HostNodeInternal): number {
+    return this.nodes.allocateListener(node);
+  }
+  setNodeProps(node: HostNodeInternal, props: HostProps): void {
+    this.nodes.setNodeProps(node, props);
+  }
+  updateNodeProps(node: HostNodeInternal, props: HostProps): number {
+    return this.nodes.updateNodeProps(node, props);
+  }
+  detachFromParent(node: HostNodeInternal): void {
+    this.nodes.detachFromParent(node);
+  }
+  refreshChildIndexes(parent: HostNodeInternal): void {
+    this.nodes.refreshChildIndexes(parent);
+  }
+  detachSubtree(node: HostNodeInternal): void {
+    this.nodes.detachSubtree(node);
+  }
+
+  private submitCommandFrame(command: Command): Promise<unknown> {
+    const requestId = command[5];
+    return new Promise<unknown>((resolve, reject) => {
+      this.pendingCommands.set(requestId, { resolve, reject });
+      try {
+        if (!this.submitFrame(encodeFrame(command))) {
+          this.pendingCommands.delete(requestId);
+          reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
+        }
+      } catch (error) {
+        this.pendingCommands.delete(requestId);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
+  submitCommand(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<void> {
+    return this.submitCommandValue(node, kind, payload).then(() => undefined);
+  }
+  submitCommandValue(
+    node: HostNodeInternal,
+    kind: number,
+    payload: readonly [number, number] | null,
+  ): Promise<unknown> {
+    if (this.transportTerminated) {
+      return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
+    }
+    if (this.unmounted || !node.attached) return Promise.reject(new Error("host node is unavailable"));
+    const isInput = node.kind === "TextInput";
+    const isList = node.kind === "VirtualList";
+    const isView = node.kind === "View";
+    if (!isInput && !isList && !isView) return Promise.reject(new Error("host node does not support commands"));
+    if (isView && !node.focusable) return Promise.reject(new Error("View is not focusable"));
+    if (
+      isInput &&
+      !([COMMAND_FOCUS, COMMAND_BLUR, COMMAND_SET_SELECTION, COMMAND_GET_FOCUS] as number[]).includes(kind)
+    )
+      return Promise.reject(new Error("unknown TextInput command"));
+    if (isView && !([COMMAND_FOCUS, COMMAND_BLUR, COMMAND_GET_FOCUS] as number[]).includes(kind))
+      return Promise.reject(new Error("unknown View command"));
+    if (isList && !([COMMAND_SCROLL_TO_INDEX, COMMAND_SCROLL_TO_END] as number[]).includes(kind))
+      return Promise.reject(new Error("unknown VirtualList command"));
+    if (
+      kind === COMMAND_SET_SELECTION &&
+      (payload === null ||
+        !payload.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff) ||
+        payload[0] > payload[1])
+    )
+      return Promise.reject(new Error("invalid UTF-16 selection"));
+    if (
+      kind === COMMAND_SCROLL_TO_INDEX &&
+      (payload === null ||
+        !Number.isInteger(payload[0]) ||
+        payload[0] < 0 ||
+        payload[0] > 0xffff_ffff ||
+        (node.hostProperties && "itemCount" in node.hostProperties && payload[0] >= node.hostProperties.itemCount))
+    )
+      return Promise.reject(new Error("VirtualList index is out of range"));
+    let requestId: number;
+    try {
+      requestId = this.nextRequestId;
+      this.nextRequestId = nextU32(this.nextRequestId, "command request id");
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    const command: Command = [
+      PROTOCOL_VERSION,
+      COMMAND_KIND,
+      this.surfaceId,
+      this.epoch,
+      this.revision,
+      requestId,
+      node.id,
+      kind as Command[7],
+      payload,
+    ];
+    return this.submitCommandFrame(command);
+  }
+  setTitle(title: string): Promise<void> {
+    if (this.transportTerminated) {
+      return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
+    }
+    if (this.unmounted) return Promise.reject(new Error("root is unmounted"));
+    if (typeof title !== "string" || title.length === 0 || [...title].length > 256) {
+      return Promise.reject(new TypeError("title must be a non-empty string of at most 256 characters"));
+    }
+    let requestId: number;
+    try {
+      requestId = this.nextRequestId;
+      this.nextRequestId = nextU32(this.nextRequestId, "command request id");
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    const command: Command = [
+      PROTOCOL_VERSION,
+      COMMAND_KIND,
+      this.surfaceId,
+      this.epoch,
+      this.revision,
+      requestId,
+      1,
+      6,
+      title,
+    ];
+    return this.submitCommandFrame(command).then(() => undefined);
+  }
+
+  beginRender(): void {
+    this.invalid = false;
+    this.validationError = undefined;
+    this.unhandledError = undefined;
+    this.clearMutations();
+  }
+
+  recordUnhandledError(error: unknown): void {
+    this.unhandledError = error instanceof Error ? error : new Error(String(error));
+  }
+  private submitSurfaceCommandValue(
+    kind:
+      | typeof COMMAND_RESIZE_WINDOW
+      | typeof COMMAND_ZOOM_WINDOW
+      | typeof COMMAND_TOGGLE_FULLSCREEN
+      | typeof COMMAND_OPEN_URL
+      | typeof COMMAND_FOCUS_NEXT
+      | typeof COMMAND_FOCUS_PREV
+      | typeof COMMAND_GET_WINDOW_SIZE
+      | typeof COMMAND_CLIPBOARD_WRITE
+      | typeof COMMAND_CLIPBOARD_READ
+      | typeof COMMAND_OPEN_SURFACE,
+    payload: readonly [number, number] | readonly [string, readonly [number, number]] | string | null,
+  ): Promise<unknown> {
+    if (this.transportTerminated) {
+      return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
+    }
+    if (this.unmounted) return Promise.reject(new Error("root is unmounted"));
+    let requestId: number;
+    try {
+      requestId = this.nextRequestId;
+      this.nextRequestId = nextU32(this.nextRequestId, "command request id");
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    const command: Command = [
+      PROTOCOL_VERSION,
+      COMMAND_KIND,
+      this.surfaceId,
+      this.epoch,
+      this.revision,
+      requestId,
+      1,
+      kind,
+      payload,
+    ];
+    return this.submitCommandFrame(command);
+  }
+  private submitSurfaceCommand(
+    kind:
+      | typeof COMMAND_RESIZE_WINDOW
+      | typeof COMMAND_ZOOM_WINDOW
+      | typeof COMMAND_TOGGLE_FULLSCREEN
+      | typeof COMMAND_OPEN_URL
+      | typeof COMMAND_FOCUS_NEXT
+      | typeof COMMAND_FOCUS_PREV,
+    payload: readonly [number, number] | string | null,
+  ): Promise<void> {
+    return this.submitSurfaceCommandValue(kind, payload).then(() => undefined);
+  }
+
+  resize(width: number, height: number): Promise<void> {
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 1 ||
+      width > 16_384 ||
+      height < 1 ||
+      height > 16_384
+    )
+      return Promise.reject(new RangeError("window size must be integer pixels in the range 1..16384"));
+    return this.submitSurfaceCommand(COMMAND_RESIZE_WINDOW, [width, height]);
+  }
+
+  zoom(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_ZOOM_WINDOW, null);
+  }
+
+  toggleFullscreen(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_TOGGLE_FULLSCREEN, null);
+  }
+
+  openUrl(url: string): Promise<void> {
+    if (
+      typeof url !== "string" ||
+      utf8ByteLength(url) > 2048 ||
+      /\s/.test(url) ||
+      (!url.startsWith("http://") && !url.startsWith("https://")) ||
+      url.slice(url.indexOf("://") + 3).length === 0
+    )
+      return Promise.reject(new TypeError("url must be a non-empty http or https URL of at most 2048 UTF-8 bytes"));
+    return this.submitSurfaceCommand(COMMAND_OPEN_URL, url);
+  }
+  openSurface(
+    options: { readonly title?: string; readonly width?: number; readonly height?: number } = {},
+  ): Promise<number> {
+    const title = options.title ?? "";
+    const width = options.width ?? 0;
+    const height = options.height ?? 0;
+    if (typeof title !== "string" || [...title].length > 256)
+      return Promise.reject(new TypeError("surface title must be at most 256 characters"));
+    if (
+      !Number.isInteger(width) ||
+      !Number.isInteger(height) ||
+      width < 0 ||
+      width > 16_384 ||
+      height < 0 ||
+      height > 16_384 ||
+      (width === 0) !== (height === 0)
+    )
+      return Promise.reject(new RangeError("surface size must be 0x0 or integer pixels in the range 1..16384"));
+    const payload: readonly [string, readonly [number, number]] = [title, [width, height]];
+    return this.submitSurfaceCommandValue(COMMAND_OPEN_SURFACE, payload).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 1 ||
+        typeof value[1] !== "number" ||
+        !Number.isInteger(value[1]) ||
+        value[1] < 1 ||
+        value[1] > 0xffff_ffff
+      )
+        throw new Error("native openSurface returned an invalid surface id");
+      return value[1];
+    });
+  }
+  focusNext(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_FOCUS_NEXT, null);
+  }
+
+  focusPrev(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_FOCUS_PREV, null);
+  }
+  getWindowSize(): Promise<[number, number]> {
+    return this.submitSurfaceCommandValue(COMMAND_GET_WINDOW_SIZE, null).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 2 ||
+        !Array.isArray(value[1]) ||
+        value[1].length !== 2 ||
+        typeof value[1][0] !== "number" ||
+        !Number.isFinite(value[1][0]) ||
+        value[1][0] < 0 ||
+        typeof value[1][1] !== "number" ||
+        !Number.isFinite(value[1][1]) ||
+        value[1][1] < 0
+      )
+        throw new Error("native getWindowSize returned an invalid value");
+      return [value[1][0], value[1][1]];
+    });
+  }
+  setClipboardText(text: string): Promise<void> {
+    if (typeof text !== "string") return Promise.reject(new TypeError("clipboard text must be a string"));
+    if (utf8ByteLength(text) > MAX_CLIPBOARD_TEXT_BYTES)
+      return Promise.reject(new RangeError("clipboard text exceeds the supported size"));
+    return this.submitSurfaceCommandValue(COMMAND_CLIPBOARD_WRITE, text).then(() => undefined);
+  }
+
+  getClipboardText(): Promise<string> {
+    return this.submitSurfaceCommandValue(COMMAND_CLIPBOARD_READ, null).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 4 ||
+        typeof value[1] !== "string" ||
+        utf8ByteLength(value[1]) > MAX_CLIPBOARD_TEXT_BYTES
+      )
+        throw new Error("native getClipboardText returned an invalid value");
+      return value[1];
+    });
+  }
+
+  throwIfUnhandledError(): void {
+    if (this.unhandledError !== undefined) {
+      const error = this.unhandledError;
+      this.unhandledError = undefined;
+      throw error;
+    }
+  }
+
+  markMoved(node: HostNodeInternal): void {
+    this.nodes.markMoved(node, this.bootstrapped);
+  }
+
+  markUpdated(node: HostNodeInternal, mask: number): void {
+    this.nodes.markUpdated(node, mask, this.bootstrapped);
+  }
+
+  markDeleted(node: HostNodeInternal): void {
+    this.nodes.markDeleted(node, this.bootstrapped);
+  }
+
+  private clearMutations(): void {
+    this.nodes.clearMutations();
+  }
+  private snapshotNodes(): SnapshotNode[] {
+    return this.nodes.snapshotNodes();
+  }
+
+  private nodeDepth(node: HostNodeInternal): number {
+    return this.nodes.nodeDepth(node);
+  }
+
+  private nativeParentId(node: HostNodeInternal): number {
+    return this.nodes.nativeParentId(node);
+  }
+
+  commit(): void {
+    if (this.invalid) {
+      this.invalid = false;
+      this.clearMutations();
+      return;
+    }
+    const baseRevision = this.revision;
+    const revision = nextU32(baseRevision, "revision");
+    if (!this.bootstrapped) {
+      if (
+        !this.submitFrame(
+          encodeFrame([PROTOCOL_VERSION, 1, this.surfaceId, this.epoch, baseRevision, revision, this.snapshotNodes()]),
+        )
+      ) {
+        this.clearMutations();
+        return;
+      }
+    } else {
+      const operations: PatchOperation[] = [];
+      const created = [...this.createdIds]
+        .map((id) => this.nodesById.get(id))
+        .filter((node): node is HostNodeInternal => node !== undefined)
+        .sort((a, b) => this.nodeDepth(a) - this.nodeDepth(b) || a.id - b.id);
+      for (const node of created) {
+        operations.push([
+          1,
+          node.id,
+          this.nativeParentId(node),
+          node.index,
+          KIND_CODES[node.kind],
+          encodeStyle(node.style),
+          node.kind === "RawText" ? node.text : null,
+          node.listenerId,
+          hostPropertiesWire(node.hostProperties),
+          accessibilityWire(node.accessibility),
+          node.focusable,
+        ]);
+      }
+      const moved = [...this.movedIds]
+        .map((id) => this.nodesById.get(id))
+        .filter((node): node is HostNodeInternal => node !== undefined && !this.createdIds.has(node.id))
+        .sort((a, b) => this.nodeDepth(a) - this.nodeDepth(b) || a.id - b.id);
+      for (const node of moved) {
+        operations.push([3, node.id, this.nativeParentId(node), node.index]);
+      }
+      for (const [id, mask] of [...this.updatedMasks.entries()].sort(([a], [b]) => a - b)) {
+        const node = this.nodesById.get(id);
+        if (node === undefined || this.createdIds.has(id)) continue;
+        operations.push([
+          2,
+          id,
+          mask,
+          mask & UPDATE_STYLE ? encodeStyle(node.style) : null,
+          mask & UPDATE_TEXT && node.kind === "RawText" ? node.text : null,
+          mask & UPDATE_LISTENER ? node.listenerId : 0,
+          mask & UPDATE_PROPERTIES ? hostPropertiesWire(node.hostProperties) : null,
+          mask & UPDATE_ACCESSIBILITY ? accessibilityWire(node.accessibility) : null,
+          node.focusable,
+        ]);
+      }
+      for (const id of [...this.deletedRoots].sort((a, b) => a - b)) {
+        if (!this.createdIds.has(id) && !this.nodesById.has(id)) operations.push([4, id]);
+      }
+      const patch: Patch = [PROTOCOL_VERSION, 3, this.surfaceId, this.epoch, baseRevision, revision, operations];
+      if (!this.submitFrame(encodeFrame(patch))) {
+        this.clearMutations();
+        return;
+      }
+    }
+    this.revision = revision;
+    this.bootstrapped = true;
+    this.clearMutations();
+  }
+
+  receive(chunk: Uint8Array | ArrayBuffer): void {
+    let payloads: Uint8Array[];
+    try {
+      payloads = this.decoder.push(chunk);
+    } catch {
+      return;
+    }
+    if (payloads.length === 0) return;
+    this.scheduleDispatch(() => {
+      for (const payload of payloads) dispatchEvent(this, decodeEvent(payload));
+    });
+  }
+  onSurfaceClosed(): void {
+    if (this.unmounted) return;
+    this.dispose();
+    this.surfaceClosedHandler?.();
+  }
+  acceptEvent(event: PressEventFrame): boolean {
+    if (
+      this.unmounted ||
+      this.transportTerminated ||
+      event[2] !== this.surfaceId ||
+      event[3] !== this.epoch ||
+      event[4] > this.revision ||
+      (this.hasEventSequence && event[5] <= this.lastEventSequence)
+    )
+      return false;
+    this.lastEventSequence = event[5];
+    this.hasEventSequence = true;
+    return true;
+  }
+  findListener(listenerId: number): HostNodeInternal | undefined {
+    return this.listeners.get(listenerId);
+  }
+  findNode(nodeId: number): HostNodeInternal | undefined {
+    return this.nodesById.get(nodeId);
+  }
+  findInputCallbacks(listenerId: number): TextInputCallbacks | undefined {
+    return this.inputListeners.get(listenerId);
+  }
+  resolveCommandResult(requestId: number, success: boolean, errorPayload: unknown, value?: unknown): void {
+    const pending = this.pendingCommands.get(requestId);
+    if (pending === undefined) return;
+    this.pendingCommands.delete(requestId);
+    if (success) pending.resolve(value);
+    else pending.reject(new Error(String(errorPayload ?? "native command failed")));
+  }
+
+  dispose(): void {
+    if (this.unmounted) return;
+    this.unmounted = true;
+    this.unsubscribe();
+    this.unsubscribeTermination();
+    for (const pending of this.pendingCommands.values()) pending.reject(new Error("root is unmounted"));
+    this.pendingCommands.clear();
+    for (const node of this.children) this.detachSubtree(node);
+    this.children.length = 0;
+    this.listeners.clear();
+  }
+}

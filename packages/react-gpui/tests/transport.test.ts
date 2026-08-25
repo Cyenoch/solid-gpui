@@ -1,25 +1,51 @@
 import { describe, expect, it } from "bun:test";
+import { createRoot } from "../src/renderer";
 import {
   DEFAULT_MAX_PENDING_BYTES,
   StdioTransport,
+  createProcessTerminationHandler,
   type ByteInput,
+  type ByteInputEventListener,
+  type ByteInputListener,
   type ByteOutput,
+  type ByteOutputEventListener,
   type TransportChunk,
 } from "../src/transport";
 
 class FakeInput implements ByteInput {
-  private listener: ((chunk: TransportChunk) => void) | undefined;
+  private listener: ByteInputListener | undefined;
+  private endListener: (() => void) | undefined;
+  private closeListener: (() => void) | undefined;
+  private errorListener: ((error: unknown) => void) | undefined;
 
-  on(event: "data", listener: (chunk: TransportChunk) => void): void {
-    if (event === "data") this.listener = listener;
+  on(event: "data" | "end" | "close" | "error", listener: ByteInputEventListener): void {
+    if (event === "data") this.listener = listener as ByteInputListener;
+    else if (event === "end") this.endListener = listener as () => void;
+    else if (event === "close") this.closeListener = listener as () => void;
+    else this.errorListener = listener as (error: unknown) => void;
   }
 
-  off(event: "data", listener: (chunk: TransportChunk) => void): void {
+  off(event: "data" | "end" | "close" | "error", listener: ByteInputEventListener): void {
     if (event === "data" && this.listener === listener) this.listener = undefined;
+    if (event === "end" && this.endListener === listener) this.endListener = undefined;
+    if (event === "close" && this.closeListener === listener) this.closeListener = undefined;
+    if (event === "error" && this.errorListener === listener) this.errorListener = undefined;
   }
 
   emit(chunk: Uint8Array): void {
     this.listener?.(chunk);
+  }
+
+  emitEnd(): void {
+    this.endListener?.();
+  }
+
+  emitClose(): void {
+    this.closeListener?.();
+  }
+
+  emitError(error: unknown): void {
+    this.errorListener?.(error);
   }
 
   listenerCount(): number {
@@ -31,26 +57,47 @@ class FakeOutput implements ByteOutput {
   readonly writes: Uint8Array[] = [];
   private readonly results: boolean[];
   private drainListener: (() => void) | undefined;
+  private closeListener: (() => void) | undefined;
+  private errorListener: ((error: unknown) => void) | undefined;
+  private writeError: unknown;
 
   constructor(results: boolean[]) {
     this.results = [...results];
+    this.writeError = undefined;
   }
 
   write(frame: Uint8Array): boolean {
+    if (this.writeError !== undefined) throw this.writeError;
     this.writes.push(frame.slice());
     return this.results.shift() ?? true;
   }
 
-  on(event: "drain", listener: () => void): void {
-    if (event === "drain") this.drainListener = listener;
+  on(event: "drain" | "error" | "close", listener: ByteOutputEventListener): void {
+    if (event === "drain") this.drainListener = listener as () => void;
+    else if (event === "close") this.closeListener = listener as () => void;
+    else this.errorListener = listener as (error: unknown) => void;
   }
 
-  off(event: "drain", listener: () => void): void {
+  off(event: "drain" | "error" | "close", listener: ByteOutputEventListener): void {
     if (event === "drain" && this.drainListener === listener) this.drainListener = undefined;
+    if (event === "close" && this.closeListener === listener) this.closeListener = undefined;
+    if (event === "error" && this.errorListener === listener) this.errorListener = undefined;
   }
 
   emitDrain(): void {
     this.drainListener?.();
+  }
+
+  emitClose(): void {
+    this.closeListener?.();
+  }
+
+  emitError(error: unknown): void {
+    this.errorListener?.(error);
+  }
+
+  failWrites(error: unknown): void {
+    this.writeError = error;
   }
 
   listenerCount(): number {
@@ -116,9 +163,7 @@ describe("StdioTransport backpressure", () => {
     const transport = new StdioTransport(output, input);
     transport.submit(frame(1));
     transport.submit(new Uint8Array(DEFAULT_MAX_PENDING_BYTES));
-    expect(() => transport.submit(frame(2))).toThrow(
-      `pending output queue exceeds ${DEFAULT_MAX_PENDING_BYTES} bytes`,
-    );
+    expect(() => transport.submit(frame(2))).toThrow(`pending output queue exceeds ${DEFAULT_MAX_PENDING_BYTES} bytes`);
     transport.dispose();
   });
 
@@ -144,5 +189,75 @@ describe("StdioTransport backpressure", () => {
     expect(input.listenerCount()).toBe(0);
     expect(output.listenerCount()).toBe(0);
     expect(() => transport.submit(frame(3))).toThrow("StdioTransport is disposed");
+  });
+
+  it("notifies once and exits through an injected handler when input closes", () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([]);
+    const transport = new StdioTransport(output, input);
+    const exits: number[] = [];
+    const errors: string[] = [];
+    transport.onTermination((error) => errors.push(error.message));
+    transport.onTermination(createProcessTerminationHandler((code) => exits.push(code)));
+
+    input.emitClose();
+    input.emitEnd();
+    output.emitClose();
+
+    expect(errors).toHaveLength(1);
+    expect(exits).toEqual([1]);
+    expect(() => transport.submit(frame(1))).toThrow("StdioTransport input closed");
+  });
+
+  it("terminates on a synchronous EPIPE write failure and rejects later submits", () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([]);
+    const transport = new StdioTransport(output, input);
+    const errors: string[] = [];
+    transport.onTermination((error) => errors.push(error.message));
+    output.failWrites(new Error("EPIPE"));
+
+    expect(() => transport.submit(frame(1))).toThrow("StdioTransport output write failed: EPIPE");
+    expect(() => transport.submit(frame(2))).toThrow("StdioTransport output write failed: EPIPE");
+    expect(errors).toHaveLength(1);
+    expect(input.listenerCount()).toBe(0);
+    expect(output.listenerCount()).toBe(0);
+  });
+
+  it("delivers transport termination through createRoot without a global exit", () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([]);
+    const transport = new StdioTransport(output, input);
+    const errors: string[] = [];
+    const root = createRoot(transport, {
+      onTransportTermination: (error) => errors.push(error.message),
+    });
+
+    root.render(null);
+    input.emitEnd();
+    input.emitClose();
+
+    expect(errors).toHaveLength(1);
+    root.unmount();
+  });
+
+  it("keeps a pending overflow as RangeError before a later termination", () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([false]);
+    const transport = new StdioTransport(output, input, { maxPendingBytes: 3 });
+    const errors: string[] = [];
+    transport.onTermination((error) => errors.push(error.message));
+
+    transport.submit(frame(1));
+    transport.submit(frame(2));
+    transport.submit(frame(3));
+    transport.submit(frame(4));
+    expect(() => transport.submit(frame(5))).toThrow("pending output queue exceeds 3 bytes");
+    expect(errors).toHaveLength(0);
+
+    input.emitEnd();
+
+    expect(errors).toHaveLength(1);
+    expect(() => transport.submit(frame(6))).toThrow("StdioTransport input ended");
   });
 });

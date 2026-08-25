@@ -28,7 +28,13 @@ declare module "react-reconciler" {
     createInstance(type: string, props: TProps, container: TContainer, context: TContext): TInstance;
     createTextInstance(text: string, container: TContainer, context: TContext): TInstance;
     appendInitialChild(parent: TInstance, child: TInstance): void;
-    finalizeInitialChildren(instance: TInstance, type: string, props: TProps, container: TContainer, context: TContext): boolean;
+    finalizeInitialChildren(
+      instance: TInstance,
+      type: string,
+      props: TProps,
+      container: TContainer,
+      context: TContext,
+    ): boolean;
     shouldSetTextContent(type: string, props: TProps): boolean;
     commitUpdate(instance: TInstance, type: string, oldProps: TProps, newProps: TProps, internalHandle?: unknown): void;
     commitTextUpdate(instance: TInstance, oldText: string, newText: string): void;

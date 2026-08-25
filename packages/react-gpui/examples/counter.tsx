@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, StdioTransport, Text, View, createRoot } from "../src/index";
+import {
+  Pressable,
+  StyleSheet,
+  StdioTransport,
+  Text,
+  View,
+  createProcessTerminationHandler,
+  createRoot,
+} from "../src/index";
 
 const styles = StyleSheet.create({
   root: { flexDirection: "column", flexGrow: 1, gap: 8, padding: 16, backgroundColor: "#ffffff" },
@@ -21,5 +29,9 @@ function Counter() {
   );
 }
 
-const root = createRoot(new StdioTransport(), { surfaceId: 1, epoch: 1 });
+const root = createRoot(new StdioTransport(), {
+  surfaceId: 1,
+  epoch: 1,
+  onTransportTermination: createProcessTerminationHandler(),
+});
 root.render(<Counter />);
