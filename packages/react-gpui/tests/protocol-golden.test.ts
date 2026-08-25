@@ -34,7 +34,7 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
     expect(nodes).toHaveLength(8);
     expect(nodes.map((node) => node[3])).toEqual([1, 2, 4, 3, 5, 6, 7, 3]);
     expect(nodes.slice(4).map((node) => (node[7] as readonly unknown[] | null)?.[0])).toEqual([1, 2, 3, 4]);
-    expect((nodes[0][4] as readonly unknown[]).length).toBe(38);
+    expect((nodes[0][4] as readonly unknown[]).length).toBe(39);
   }
   if (vector.id === "rust-patch-all-operations" || vector.id === "ts-patch-all-operations") {
     const patch = decoded as readonly unknown[];

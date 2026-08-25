@@ -75,6 +75,7 @@ fn style() -> Style {
         top: Some(4.0),
         right: Some(12.0),
         bottom: Some(6.0),
+        cursor: Some(2),
     }
 }
 

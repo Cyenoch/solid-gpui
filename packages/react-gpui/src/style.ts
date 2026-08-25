@@ -1,5 +1,25 @@
 export type Position = "relative" | "absolute";
 export type FlexDirection = "row" | "column";
+export type CursorStyle =
+  | "default"
+  | "text"
+  | "pointer"
+  | "grab"
+  | "grabbing"
+  | "not-allowed"
+  | "context-menu"
+  | "crosshair"
+  | "vertical-text"
+  | "alias"
+  | "copy"
+  | "no-drop"
+  | "move"
+  | "ew-resize"
+  | "ns-resize"
+  | "nesw-resize"
+  | "nwse-resize"
+  | "col-resize"
+  | "row-resize";
 export type JustifyContent = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
 export type FontWeight = "normal" | "medium" | "semibold" | "bold" | "heavy";
@@ -53,6 +73,7 @@ export interface Style {
   readonly top?: number;
   readonly right?: number;
   readonly bottom?: number;
+  readonly cursor?: CursorStyle;
   readonly backgroundColor?: string;
   readonly color?: string;
   readonly opacity?: number;
@@ -101,6 +122,7 @@ export type EncodedStyle = readonly [
   number | null,
   number | null,
   number | null,
+  number | null,
 ];
 
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
@@ -138,6 +160,7 @@ const STYLE_KEYS: Record<string, true> = {
   left: true,
   top: true,
   right: true,
+  cursor: true,
   bottom: true,
   backgroundColor: true,
   color: true,
@@ -240,6 +263,32 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
   ) {
     throw new TypeError("alignSelf is invalid");
   }
+  if (
+    style.cursor !== undefined &&
+    ![
+      "default",
+      "text",
+      "pointer",
+      "grab",
+      "grabbing",
+      "not-allowed",
+      "context-menu",
+      "crosshair",
+      "vertical-text",
+      "alias",
+      "copy",
+      "no-drop",
+      "move",
+      "ew-resize",
+      "ns-resize",
+      "nesw-resize",
+      "nwse-resize",
+      "col-resize",
+      "row-resize",
+    ].includes(style.cursor)
+  ) {
+    throw new TypeError("cursor is invalid");
+  }
   if (style.opacity !== undefined) {
     assertNumber("opacity", style.opacity, true);
     if (style.opacity > 1) throw new TypeError("opacity must be between 0 and 1");
@@ -289,6 +338,50 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     }
   }
   return style;
+}
+
+function encodeCursor(cursor: CursorStyle | undefined): number | null {
+  switch (cursor) {
+    case undefined:
+    case "default":
+      return null;
+    case "text":
+      return 1;
+    case "pointer":
+      return 2;
+    case "grab":
+      return 3;
+    case "grabbing":
+      return 4;
+    case "not-allowed":
+      return 5;
+    case "context-menu":
+      return 6;
+    case "crosshair":
+      return 7;
+    case "vertical-text":
+      return 8;
+    case "alias":
+      return 9;
+    case "copy":
+      return 10;
+    case "no-drop":
+      return 11;
+    case "move":
+      return 12;
+    case "ew-resize":
+      return 13;
+    case "ns-resize":
+      return 14;
+    case "nesw-resize":
+      return 15;
+    case "nwse-resize":
+      return 16;
+    case "col-resize":
+      return 17;
+    case "row-resize":
+      return 18;
+  }
 }
 
 export function encodeColor(color: string): number {
@@ -421,6 +514,7 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
     style.top ?? null,
     style.right ?? null,
     style.bottom ?? null,
+    encodeCursor(style.cursor),
   ]) as EncodedStyle;
   ENCODED_STYLE_CACHE.set(style, encoded);
   return encoded;

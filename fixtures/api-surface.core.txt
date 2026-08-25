@@ -17,6 +17,7 @@ createRoot	value
 createStyleSheet	value
 createSurfaceHost	value
 createWindowSizeStore	value
+CursorStyle	type
 DEFAULT_MAX_PENDING_BYTES	value
 DragDropHandler	type
 Draggable	type

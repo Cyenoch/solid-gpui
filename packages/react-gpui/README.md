@@ -107,11 +107,13 @@ reader).
 - `lineHeight`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, and `flexShrink` — finite, non-negative pixel/flex values.
 - `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
 - `position` — `"relative"` (default post-layout correction) or `"absolute"` (anchored to the closest positioned ancestor/origin); `left`, `top`, `right`, and `bottom` — finite pixel offsets, including negative values.
+- `cursor` — `"default"`, `"text"`, `"pointer"`, `"grab"`, `"grabbing"`, `"not-allowed"`, `"context-menu"`, `"crosshair"`, `"vertical-text"`, `"alias"`, `"copy"`, `"no-drop"`, `"move"`, `"ew-resize"`, `"ns-resize"`, `"nesw-resize"`, `"nwse-resize"`, `"col-resize"`, or `"row-resize"`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors.
 
-The transport uses one fixed positional 38-slot style tuple: slots `0..19`
+The transport uses one fixed positional 39-slot style tuple: slots `0..19`
 remain unchanged, the existing fields occupy `20..32`, and positioning appends
-`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`; omitted fields
-are encoded as `null` except position, whose default code `0` means relative.
+`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`, `38=cursor`;
+omitted fields are encoded as `null` except position, whose default code `0`
+means relative, and cursor, whose default code `0` means Arrow.
 Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
 exposed; overlay layering follows subtree paint/hit-test order.
 

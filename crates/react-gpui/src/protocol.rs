@@ -390,6 +390,7 @@ pub struct Style {
     pub top: Option<f32>,
     pub right: Option<f32>,
     pub bottom: Option<f32>,
+    pub cursor: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

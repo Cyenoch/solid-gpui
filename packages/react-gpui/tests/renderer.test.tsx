@@ -505,6 +505,7 @@ describe("styles", () => {
         maxHeight: 600,
         flexShrink: 0.5,
         alignSelf: "center",
+        cursor: "pointer",
       },
     });
     expect(Object.isFrozen(styles)).toBe(true);
@@ -551,6 +552,7 @@ describe("styles", () => {
       null,
       null,
       null,
+      2,
     ]);
     root.render(<View style={{ opacity: 0, transition: { durationMs: 100 } }} />);
     expect(((message(transport, 1)[6] as readonly unknown[][])[0][3] as readonly unknown[])[9]).toEqual([
@@ -579,6 +581,7 @@ describe("styles", () => {
     expect(() => StyleSheet.create({ bad: { fontStyle: "oblique" as never } })).toThrow();
     expect(() => StyleSheet.create({ bad: { textDecoration: "double" as never } })).toThrow();
     expect(() => StyleSheet.create({ bad: { alignSelf: "invalid" as never } })).toThrow();
+    expect(() => StyleSheet.create({ bad: { cursor: "unsupported" as never } })).toThrow();
     expect(() => StyleSheet.create({ positioned: { position: "fixed" as never } })).toThrow();
     expect(() =>
       StyleSheet.create({
@@ -591,8 +594,7 @@ it("encodes absolute positioning and negative inset offsets", () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 87, epoch: 88 });
   root.render(<View style={{ position: "absolute", left: -8, top: 4, right: 12, bottom: 6 }} />);
-  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([1, -8, 4, 12, 6]);
-  root.unmount();
+  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([1, -8, 4, 12, 6, null]);
 });
 it("encodes Image host properties and rejects Image children", () => {
   const transport = new MemoryTransport();

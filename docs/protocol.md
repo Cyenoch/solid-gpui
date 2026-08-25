@@ -195,9 +195,9 @@ Image, VirtualList, and RawText branches use the same accessibility helper.
 The stock headless TestPlatform has no active AccessKit adapter; display-backed
 desktop verification is required for a real tree inspection.
 
-### Style tuple: all 38 slots
+### Style tuple: all 39 slots
 
-`style` is positional and always has 38 slots when present. `null` means the
+`style` is positional and always has 39 slots when present. `null` means the
 field is unset. Color values are encoded RGBA u32 values from TypeScript
 `#RRGGBB`/`#RRGGBBAA` strings. Numeric length/size fields are finite,
 non-negative numbers except `fontSize`, which must be positive, `opacity`,
@@ -244,6 +244,7 @@ pixel offsets (`style.ts:105-280`; `wire.rs:1104-1171`).
 |   35 | top             | f32 or null                                        | Finite pixel offset; negative values are allowed.                                                                                                                                                                                                                                                                                                      | Same sources.                                                               |
 |   36 | right           | f32 or null                                        | Finite pixel offset; negative values are allowed.                                                                                                                                                                                                                                                                                                      | Same sources.                                                               |
 |   37 | bottom          | f32 or null                                        | Finite pixel offset; negative values are allowed.                                                                                                                                                                                                                                                                                                      | Same sources.                                                               |
+|   38 | cursor          | u32 or null                                        | Cursor code: `0=default`, `1=text`, `2=pointer`, `3=grab`, `4=grabbing`, `5=not-allowed`, `6=context-menu`, `7=crosshair`, `8=vertical-text`, `9=alias`, `10=copy`, `11=no-drop`, `12=move`, `13=ew-resize`, `14=ns-resize`, `15=nesw-resize`, `16=nwse-resize`, `17=col-resize`, `18=row-resize`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors. | `style.ts:1-21,127-165,342-384,515-516`; `protocol.rs:353-394`; `wire.rs:700-741,1002-1091`; `renderer/paint.rs:783-806` |
 
 Transition property lists reject duplicates and unsupported properties before
 encoding (`style.ts:251-262`). The Rust side independently validates ranges,

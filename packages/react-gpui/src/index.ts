@@ -85,6 +85,7 @@ export {
   createStyleSheet,
   type AlignItems,
   type AlignSelf,
+  type CursorStyle,
   type FlexDirection,
   type Position,
   type FontStyle,

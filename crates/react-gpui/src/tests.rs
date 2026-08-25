@@ -720,6 +720,7 @@ fn style_values_must_be_finite_and_non_negative() {
         top: Some(4.0),
         right: None,
         bottom: Some(6.0),
+        cursor: None,
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
@@ -758,6 +759,7 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         top: Some(4.0),
         right: Some(12.0),
         bottom: Some(6.0),
+        cursor: Some(18),
         transition: Some(Transition {
             duration_ms: 100,
             delay_ms: 0,
@@ -809,6 +811,10 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         },
         Style {
             align_self: Some(8),
+            ..Style::default()
+        },
+        Style {
+            cursor: Some(19),
             ..Style::default()
         },
     ] {

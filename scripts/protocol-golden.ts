@@ -41,6 +41,7 @@ const fullStyle = [
   4,
   12,
   6,
+  2,
 ];
 const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8];

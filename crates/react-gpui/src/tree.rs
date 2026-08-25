@@ -1212,6 +1212,12 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
             reason: "position must be 0 (relative) or 1 (absolute)",
         });
     }
+    if style.cursor.is_some_and(|cursor| cursor > 18) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "cursor must be a supported style code",
+        });
+    }
     if style
         .overflow
         .is_some_and(|overflow| !(1..=3).contains(&overflow))
