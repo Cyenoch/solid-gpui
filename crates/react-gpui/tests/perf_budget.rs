@@ -1,8 +1,8 @@
-use std::time::{Duration, Instant};
-
 use react_gpui::{
-    KIND_VIEW, Node, NodeStore, Patch, PatchOperation, Snapshot, Style, UPDATE_STYLE,
+    Node, NodeStore, Patch, PatchOperation, Snapshot, Style, KIND_VIEW, UPDATE_STYLE,
 };
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 const NODE_COUNT: usize = 10_000;
 const PATCH_OPERATION_COUNT: usize = 1_000;
@@ -17,6 +17,13 @@ const SNAPSHOT_APPLY_BUDGET: Duration = Duration::from_secs(2);
 const PATCH_ENCODE_BUDGET: Duration = Duration::from_secs(2);
 const PATCH_DECODE_BUDGET: Duration = Duration::from_secs(2);
 const PATCH_APPLY_BUDGET: Duration = Duration::from_secs(2);
+// 2026-08-26 current baseline: snapshot encode 8.190 ms, decode 15.620 ms,
+// apply 22.710 ms; patch encode 0.795 ms, decode 2.861 ms, apply 79.480 ms.
+// New budgets are measured * 10 on 2026-08-26 after the final local run:
+// style full 85.895 ms, style null 13.809 ms, layout report 47.661 ms.
+const STYLE_FULL_BUDGET: Duration = Duration::from_millis(860);
+const STYLE_NULL_BUDGET: Duration = Duration::from_millis(140);
+const LAYOUT_BATCH_BUDGET: Duration = Duration::from_millis(480);
 
 fn build_snapshot() -> Snapshot {
     let mut nodes = Vec::with_capacity(NODE_COUNT);
@@ -38,6 +45,58 @@ fn build_snapshot() -> Snapshot {
         nodes.push(Node::new(id, parent_id, index, KIND_VIEW));
     }
     Snapshot::new(7, 3, 0, 1, nodes)
+}
+fn full_style() -> Style {
+    Style {
+        width: Some(120.0),
+        height: Some(48.0),
+        flex_direction: Some(2),
+        flex_grow: Some(1.0),
+        padding: Some(8.0),
+        gap: Some(4.0),
+        justify_content: Some(4),
+        align_items: Some(4),
+        border_radius: Some(6.0),
+        border_width: Some(1.0),
+        border_color_rgba: Some(0x1122_3344),
+        font_size: Some(14.0),
+        font_weight: Some(600),
+        background_rgba: Some(0x2233_4455),
+        color_rgba: Some(0xff00_00ff),
+        opacity: Some(0.9),
+        overflow: Some(2),
+        line_clamp: Some(3),
+        text_overflow: Some(2),
+        margin_top: Some(1.0),
+        margin_right: Some(2.0),
+        margin_bottom: Some(3.0),
+        margin_left: Some(4.0),
+        font_style: Some(1),
+        text_decoration: Some(2),
+        line_height: Some(18.0),
+        min_width: Some(10.0),
+        max_width: Some(400.0),
+        min_height: Some(20.0),
+        max_height: Some(200.0),
+        flex_shrink: Some(0.5),
+        align_self: Some(5),
+        position: Some(1),
+        left: Some(-4.0),
+        top: Some(2.0),
+        right: Some(8.0),
+        bottom: Some(6.0),
+        cursor: Some(18),
+        ..Style::default()
+    }
+}
+
+fn build_styled_snapshot() -> Snapshot {
+    let mut snapshot = build_snapshot();
+    let style = full_style();
+    for node in &mut snapshot.nodes {
+        node.style = Some(style.clone());
+    }
+    snapshot
 }
 
 fn build_patch() -> Patch {
@@ -131,4 +190,54 @@ fn protocol_and_tree_smoke_budget() {
     store.apply_patch(decoded_patch).expect("apply patch");
     assert_budget("patch apply", started.elapsed(), PATCH_APPLY_BUDGET);
     assert_eq!(store.revision(), 2);
+}
+
+#[test]
+fn style_full_and_null_roundtrip_budget() {
+    let full = build_styled_snapshot();
+    let null = build_snapshot();
+    for (name, snapshot, budget) in [
+        ("style full", full, STYLE_FULL_BUDGET),
+        ("style null", null, STYLE_NULL_BUDGET),
+    ] {
+        let started = Instant::now();
+        let payload = snapshot.encode().expect("encode styled snapshot");
+        let encoded = started.elapsed();
+        let started = Instant::now();
+        let decoded = Snapshot::decode(&payload).expect("decode styled snapshot");
+        let decoded_elapsed = started.elapsed();
+        assert_eq!(decoded, snapshot);
+        assert_budget(
+            &format!("{name} encode+decode"),
+            encoded + decoded_elapsed,
+            budget,
+        );
+        eprintln!(
+            "perf_budget: {name}: encode {:.3} ms, decode {:.3} ms",
+            encoded.as_secs_f64() * 1_000.0,
+            decoded_elapsed.as_secs_f64() * 1_000.0,
+        );
+    }
+}
+
+#[test]
+fn layout_report_enqueue_and_dedupe_budget() {
+    const REPORT_COUNT: u32 = 100_000;
+    let started = Instant::now();
+    let mut last = HashMap::<u32, (u32, u32)>::with_capacity(10_000);
+    let mut emitted = 0u32;
+    for index in 0..REPORT_COUNT {
+        let node_id = index % 10_000;
+        let frame = (index % 64, index / 64);
+        if last.get(&node_id) != Some(&frame) {
+            last.insert(node_id, frame);
+            emitted += 1;
+        }
+        if last.get(&node_id) != Some(&frame) {
+            unreachable!("same frame must dedupe");
+        }
+    }
+    let elapsed = started.elapsed();
+    assert!(emitted > 0);
+    assert_budget("layout report enqueue+dedupe", elapsed, LAYOUT_BATCH_BUDGET);
 }
