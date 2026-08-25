@@ -1,0 +1,16 @@
+[package]
+name = "react-gpui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Validated snapshot protocol and native tree for the React GPUI host"
+
+[dependencies]
+futures.workspace = true
+gpui.workspace = true
+rmp-serde.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }

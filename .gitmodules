@@ -1,0 +1,4 @@
+[submodule "references/zed"]
+	path = references/zed
+	url = https://github.com/zed-industries/zed.git
+	shallow = true

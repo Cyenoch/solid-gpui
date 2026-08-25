@@ -1,0 +1,16 @@
+[package]
+name = "react-gpui-bun"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[features]
+default = []
+embedded-bun = []
+
+[dependencies]
+react-gpui = { path = "../react-gpui" }
+thiserror.workspace = true
+
+[build-dependencies]

@@ -1,0 +1,15 @@
+[package]
+name = "react-gpui-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+embedded-bun = ["dep:react-gpui-bun", "react-gpui-bun/embedded-bun"]
+
+[dependencies]
+gpui.workspace = true
+gpui-platform = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui_platform" }
+react-gpui-bun = { path = "../react-gpui-bun", optional = true }
+react-gpui = { path = "../react-gpui" }

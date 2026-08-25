@@ -1,0 +1,471 @@
+diff --git a/src/bun_bin/Cargo.toml b/src/bun_bin/Cargo.toml
+index 94839e8d12..e0d99c3a83 100644
+--- a/src/bun_bin/Cargo.toml
++++ b/src/bun_bin/Cargo.toml
+@@ -13,6 +13,9 @@ name = "bun_rust"
+ path = "lib.rs"
+ crate-type = ["staticlib"]
+ 
++[features]
++react-gpui-embed = []
++
+ [lints]
+ workspace = true
+ 
+diff --git a/src/bun_bin/lib.rs b/src/bun_bin/lib.rs
+index 20d649583c..af6521b611 100644
+--- a/src/bun_bin/lib.rs
++++ b/src/bun_bin/lib.rs
+@@ -33,7 +33,11 @@
+ 
+ #![warn(unused_must_use)]
+ 
+-use core::ffi::{c_char, c_int};
++#[cfg(not(feature = "react-gpui-embed"))]
++use core::ffi::c_char;
++use core::ffi::c_int;
++
++use std::ptr;
+ 
+ mod c_abi_exports;
+ 
+@@ -41,6 +45,7 @@ mod c_abi_exports;
+ // (`sys_epoll_pwait2`, …) reach the linker.
+ use bun_platform as _;
+ 
++#[cfg(not(feature = "react-gpui-embed"))]
+ use bun_core::Global;
+ use bun_core::StackCheck;
+ use bun_core::output;
+@@ -149,6 +154,7 @@ pub(crate) extern "C" fn __lsan_default_suppressions() -> *const core::ffi::c_ch
+ /// # Safety
+ /// `argv` must point to `argc` valid NUL-terminated C strings that live for
+ /// the entire process — guaranteed by the C runtime that calls this symbol.
++#[cfg(not(feature = "react-gpui-embed"))]
+ #[unsafe(no_mangle)]
+ pub(crate) unsafe extern "C" fn main(argc: c_int, argv: *const *const c_char) -> c_int {
+     // 0. Capture argv FIRST — before the crash handler, whose panic path
+@@ -191,6 +197,7 @@ pub(crate) unsafe extern "C" fn main(argc: c_int, argv: *const *const c_char) ->
+     output::stdio::init();
+     let _flush = output::flush_guard();
+ 
++
+     // 5. Per-thread stack-limit cache for the JS recursion guard.
+     StackCheck::configure_thread();
+     bun_io::ParentDeathWatchdog::install();
+@@ -236,3 +243,76 @@ fn use_mimalloc_in_dependencies() {
+         );
+     }
+ }
++
++
++/// Run one module on a caller-owned runtime thread without entering CLI
++/// dispatch or terminating the host process.
++///
++/// # Safety
++///
++/// `entry` must point to `len` readable bytes for the duration of the call.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn bun_embedded_eval(
++    entry: *const u8,
++    len: usize,
++) -> c_int {
++    if entry.is_null() || len == 0 {
++        return 2;
++    }
++
++    // SAFETY: the caller owns the byte range for the duration of this call.
++    let entry = unsafe { core::slice::from_raw_parts(entry, len) };
++    // These process-level hooks are normally installed by `main`; the
++    // embedding entry performs the same initialization on its dedicated
++    // thread, without changing the host's process lifetime.
++    unsafe { bun_core::init_argv(0, ptr::null()) };
++    bun_crash_handler::init();
++    use_mimalloc_in_dependencies();
++    output::stdio::init();
++    StackCheck::configure_thread();
++    bun_io::ParentDeathWatchdog::install();
++
++    match bun_runtime::embedded::eval_entry_point(entry) {
++        Ok(code) => code as c_int,
++        Err(error) => {
++            eprintln!("bun embedded eval failed: {error}");
++            1
++        }
++    }
++}
++
++/// Run one module with a host-owned bounded byte callback bridge.
++///
++/// # Safety
++///
++/// `entry` is readable for `len` bytes and `io` points to a callback table
++/// that remains alive until this call returns. Callback implementations must
++/// not unwind through this ABI.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn bun_embedded_eval_with_io(
++    entry: *const u8,
++    len: usize,
++    io: *const bun_runtime::embedded::EmbeddedIoCallbacks,
++) -> c_int {
++    if entry.is_null() || len == 0 || io.is_null() {
++        return 2;
++    }
++
++    // SAFETY: validated above; the caller owns both ranges for this call.
++    let entry = unsafe { core::slice::from_raw_parts(entry, len) };
++    let io = unsafe { &*io };
++    unsafe { bun_core::init_argv(0, ptr::null()) };
++    bun_crash_handler::init();
++    use_mimalloc_in_dependencies();
++    output::stdio::init();
++    StackCheck::configure_thread();
++    bun_io::ParentDeathWatchdog::install();
++
++    match bun_runtime::embedded::eval_entry_point_with_io(entry, io) {
++        Ok(code) => code as c_int,
++        Err(error) => {
++            eprintln!("bun embedded eval failed: {error}");
++            1
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/jsc/VirtualMachine.rs b/src/jsc/VirtualMachine.rs
+index 3a0e43b786..aa57359bd7 100644
+--- a/src/jsc/VirtualMachine.rs
++++ b/src/jsc/VirtualMachine.rs
+@@ -1745,6 +1745,24 @@ impl VirtualMachine {
+         bun_core::Global::exit(u32::from(self.exit_handler.exit_code))
+     }
+ 
++    /// Tear down this VM without terminating the process.
++    ///
++    /// Embedding hosts own the thread that calls this method. The pointer is
++    /// consumed by `teardown`; callers must not access it after return.
++    ///
++    /// # Safety
++    ///
++    /// `this` is the current thread's live VM, no other thread can reach it,
++    /// and `on_exit` has already run.
++    pub unsafe fn teardown_embedded(this: *mut Self) -> u8 {
++        // SAFETY: the caller provides the live VM and has completed exit
++        // handlers; this is the same contract as `teardown`.
++        let code = unsafe { (*this).exit_handler.exit_code };
++        // SAFETY: same contract, and `teardown` consumes the allocation.
++        unsafe { Self::teardown(this, Teardown::MainThreadExit) };
++        code
++    }
++
+     /// Checkpoint + close the sqlite connections *this* VM opened, while it is
+     /// alive and no user script will touch them again. Never another VM's: a
+     /// worker still running when the main thread exits without joining it owns
+diff --git a/src/runtime/lib.rs b/src/runtime/lib.rs
+index b07914cca9..b2dddfe0c6 100644
+--- a/src/runtime/lib.rs
++++ b/src/runtime/lib.rs
+@@ -27,6 +27,8 @@ pub mod socket;
+ #[path = "webcore.rs"]
+ pub mod webcore;
+ 
++pub mod embedded;
++
+ pub mod bake;
+ pub mod cli;
+ pub mod shell;
+diff --git a/src/runtime/embedded.rs b/src/runtime/embedded.rs
+new file mode 100644
+index 0000000000..253cc146b5
+--- /dev/null
++++ b/src/runtime/embedded.rs
+@@ -0,0 +1,290 @@
++//! Embedding entrypoint for hosts that keep Bun on a dedicated thread.
++//!
++//! This path deliberately bypasses `Cli::start`: CLI dispatch is process
++//! oriented and many command branches terminate through `Global::exit`.
++//! Embedding starts the real JSC VM directly, loads one module, drives Bun's
++//! event loop, and tears down that VM before returning to the caller.
++
++use std::cell::{Cell, RefCell};
++use std::ffi::c_void;
++
++use bun_jsc::js_function::CreateJSFunctionOptions;
++use bun_jsc::virtual_machine::{InitOptions, VirtualMachine};
++use bun_jsc::{CallFrame, JSFunction, JSGlobalObject, JSValue, JsResult};
++
++/// Host-owned byte transport callbacks. Both callbacks run synchronously on
++/// the Bun/JSC thread; they must not touch GPUI or enter JavaScript.
++#[repr(C)]
++pub struct EmbeddedIoCallbacks {
++    pub context: *mut c_void,
++    pub write_commit: unsafe extern "C" fn(*mut c_void, *const u8, usize) -> bool,
++    /// Returns zero when no event is ready, `usize::MAX` when the input is
++    /// closed, or the number of bytes copied into `out`.
++    pub read_event: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> usize,
++    /// Returns zero when no source reload is ready, `usize::MAX` when closed,
++    /// or the number of UTF-8 path bytes copied into `out`.
++    pub read_refresh: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> usize,
++}
++thread_local! {
++    static IO_CALLBACKS: Cell<*const EmbeddedIoCallbacks> = const { Cell::new(core::ptr::null()) };
++}
++
++thread_local! {
++    static EVENT_BUFFER: RefCell<Vec<u8>> = RefCell::new(vec![0; 16 * 1024 * 1024]);
++}
++
++fn callbacks() -> Option<&'static EmbeddedIoCallbacks> {
++    IO_CALLBACKS.with(|slot| {
++        let ptr = slot.get();
++        if ptr.is_null() {
++            None
++        } else {
++            // SAFETY: the caller keeps the callback table alive for the whole
++            // `eval_entry_point_with_io` call on this same thread.
++            Some(unsafe { &*ptr })
++        }
++    })
++}
++
++#[bun_jsc::host_fn]
++fn react_gpui_write(global: &JSGlobalObject, frame: &CallFrame) -> JsResult<JSValue> {
++    let args = frame.arguments();
++    let Some(value) = args.first().copied() else {
++        return Err(global.throw_invalid_arguments(format_args!(
++            "react_gpui_write requires a Uint8Array"
++        )));
++    };
++    let Some(buffer) = value.as_array_buffer(global) else {
++        return Err(global.throw_invalid_arguments(format_args!(
++            "react_gpui_write requires a Uint8Array"
++        )));
++    };
++    let Some(io) = callbacks() else {
++        return Err(global.throw(format_args!("embedded Bun transport is shut down")));
++    };
++    let bytes = buffer.byte_slice();
++    // SAFETY: callback table and byte slice are valid for this synchronous call.
++    let accepted = unsafe { (io.write_commit)(io.context, bytes.as_ptr(), bytes.len()) };
++    if accepted {
++        Ok(JSValue::js_boolean(true))
++    } else {
++        Err(global.throw(format_args!("embedded Bun commit queue is closed")))
++    }
++}
++
++#[bun_jsc::host_fn]
++fn react_gpui_read(global: &JSGlobalObject, _frame: &CallFrame) -> JsResult<JSValue> {
++    let Some(io) = callbacks() else {
++        return Ok(JSValue::FALSE);
++    };
++    let (ptr, cap) = EVENT_BUFFER.with(|buffer| {
++        let mut buffer = buffer.borrow_mut();
++        (buffer.as_mut_ptr(), buffer.len())
++    });
++    // SAFETY: callback table is valid and `ptr` addresses the reusable
++    // thread-local buffer for this synchronous call.
++    let length = unsafe { (io.read_event)(io.context, ptr, cap) };
++    if length == 0 {
++        return Ok(JSValue::NULL);
++    }
++    if length == usize::MAX {
++        return Ok(JSValue::FALSE);
++    }
++    if length > cap {
++        return Err(global.throw(format_args!(
++            "embedded Bun event callback exceeded frame limit"
++        )));
++    }
++    let bytes = EVENT_BUFFER.with(|buffer| buffer.borrow()[..length].to_vec());
++    JSValue::create_buffer_from_box(global, bytes.into_boxed_slice())
++}
++
++#[bun_jsc::host_fn]
++fn react_gpui_read_refresh(
++    global: &JSGlobalObject,
++    _frame: &CallFrame,
++) -> JsResult<JSValue> {
++    let Some(io) = callbacks() else {
++        return Ok(JSValue::FALSE);
++    };
++    let (ptr, cap) = EVENT_BUFFER.with(|buffer| {
++        let mut buffer = buffer.borrow_mut();
++        (buffer.as_mut_ptr(), buffer.len())
++    });
++    // SAFETY: callback table is valid and `ptr` addresses the reusable
++    // thread-local buffer for this synchronous call.
++    let length = unsafe { (io.read_refresh)(io.context, ptr, cap) };
++    if length == 0 {
++        return Ok(JSValue::NULL);
++    }
++    if length == usize::MAX {
++        return Ok(JSValue::FALSE);
++    }
++    if length > cap {
++        return Err(global.throw(format_args!(
++            "embedded Bun refresh callback exceeded frame limit"
++        )));
++    }
++    let bytes = EVENT_BUFFER.with(|buffer| buffer.borrow()[..length].to_vec());
++    JSValue::create_buffer_from_box(global, bytes.into_boxed_slice())
++}
++
++fn install_io_globals(vm: &VirtualMachine) {
++    let global = vm.global();
++    let target = global.to_js_value();
++    target.put(
++        global,
++        "__react_gpui_write",
++        JSFunction::create(
++            global,
++            bun_core::String::static_(b"__react_gpui_write"),
++            __jsc_host_react_gpui_write,
++            1,
++            CreateJSFunctionOptions::default(),
++        ),
++    );
++    target.put(
++        global,
++        "__react_gpui_read",
++        JSFunction::create(
++            global,
++            bun_core::String::static_(b"__react_gpui_read"),
++            __jsc_host_react_gpui_read,
++            0,
++            CreateJSFunctionOptions::default(),
++        ),
++    );
++    target.put(
++        global,
++        "__react_gpui_read_refresh",
++        JSFunction::create(
++            global,
++            bun_core::String::static_(b"__react_gpui_read_refresh"),
++            __jsc_host_react_gpui_read_refresh,
++            0,
++            CreateJSFunctionOptions::default(),
++        ),
++    );
++}
++
++fn quote_module_path(path: &[u8]) -> String {
++    let path = String::from_utf8_lossy(path);
++    path.replace('\\', "\\\\")
++        .replace('"', "\\\"")
++        .replace('\n', "\\n")
++        .replace('\r', "\\r")
++}
++
++fn callback_wrapper(entry_path: &[u8]) -> Box<[u8]> {
++    let entry = quote_module_path(entry_path);
++    format!(
++        "const __rgpListeners = [];\n\
++         const __rgpInput = {{ on(kind, fn) {{ if (kind === 'data') __rgpListeners.push(fn); return this; }},\n\
++         off(kind, fn) {{ if (kind === 'data') {{ const i = __rgpListeners.indexOf(fn); if (i >= 0) __rgpListeners.splice(i, 1); }} }},\n\
++         removeListener(kind, fn) {{ this.off(kind, fn); }} }};\n\
++         const __rgpOutput = {{ write(frame) {{ return globalThis.__react_gpui_write(frame); }},\n\
++         on() {{ return this; }} }};\n\
++         Object.defineProperty(process, 'stdin', {{ value: __rgpInput, configurable: true }});\n\
++         Object.defineProperty(process, 'stdout', {{ value: __rgpOutput, configurable: true }});\n\
++         let __rgpRefreshPending = false;\n\
++         const __rgpScheduleRefresh = () => {{\n\
++           if (__rgpRefreshPending) return;\n\
++           __rgpRefreshPending = true;\n\
++           queueMicrotask(() => {{\n\
++             __rgpRefreshPending = false;\n\
++             globalThis.RefreshRuntime?.performReactRefresh?.();\n\
++           }});\n\
++         }};\n\
++         const __rgpTimer = setInterval(() => {{\n\
++           const refresh = globalThis.__react_gpui_read_refresh();\n\
++           if (refresh === false) {{ clearInterval(__rgpTimer); return; }}\n\
++           if (refresh !== null) {{\n\
++             const path = new TextDecoder().decode(refresh);\n\
++             import(`${{path}}?react_gpui_refresh=${{Date.now()}}`).then(() => {{
++               __rgpScheduleRefresh();
++             }}).catch((error) => {{
++               console.error(`[react-gpui] Fast Refresh kept the last-good tree: ${{error}}`);
++             }});
++           }}\n\
++           const frame = globalThis.__react_gpui_read();\n\
++           if (frame === false) {{ clearInterval(__rgpTimer); return; }}\n\
++           if (frame !== null) for (const listener of __rgpListeners) listener(frame);\n\
++         }}, 0);\n\
++         await import(\"{entry}\");\n",
++        entry = entry,
++    )
++    .into_bytes()
++    .into_boxed_slice()
++}
++
++/// Evaluate one Bun module on the calling thread and return its exit code.
++pub fn eval_entry_point(entry_path: &[u8]) -> crate::Result<u8> {
++    eval_entry_point_inner(entry_path, None)
++}
++
++/// Evaluate one module with the callback bridge installed for the JS transport
++/// wrapper. The callback table is borrowed only for this synchronous call.
++pub fn eval_entry_point_with_io(
++    entry_path: &[u8],
++    io: &EmbeddedIoCallbacks,
++) -> crate::Result<u8> {
++    eval_entry_point_inner(entry_path, Some(io))
++}
++
++fn eval_entry_point_inner(
++    entry_path: &[u8],
++    io: Option<&EmbeddedIoCallbacks>,
++) -> crate::Result<u8> {
++    bun_jsc::initialize(false);
++    bun_ast::initialize_store();
++
++    let vm_ptr = VirtualMachine::init(InitOptions {
++        is_main_thread: true,
++        ..Default::default()
++    })?;
++    // SAFETY: `init` returns the unique VM allocated for this thread.
++    let vm = unsafe { &mut *vm_ptr };
++    vm.is_main_thread = true;
++    bun_jsc::virtual_machine::IS_MAIN_THREAD_VM.set(true);
++    let api_lock = vm.global().vm().get_api_lock();
++    if io.is_some() {
++        install_io_globals(vm);
++        IO_CALLBACKS.with(|slot| slot.set(io.map_or(core::ptr::null(), core::ptr::from_ref)));
++    }
++
++    let mut entry_owner = entry_path.to_vec().into_boxed_slice();
++    let mut wrapper_owner = io.map(|_| callback_wrapper(entry_path));
++    let run_entry = if let Some(wrapper) = wrapper_owner.as_mut() {
++        let path = b"/[eval]";
++        vm.module_loader.eval_source = Some(Box::new(bun_ast::Source::init_path_string(
++            path,
++            &wrapper[..],
++        )));
++        path.as_slice()
++    } else {
++        entry_owner.as_mut()
++    };
++    vm.set_main(run_entry);
++    vm.load_extra_env_and_source_code_printer();
++
++    let eval_result = vm.load_entry_point(run_entry).map(|_| ());
++    if eval_result.is_ok() {
++        while vm.is_event_loop_alive() {
++            vm.tick();
++            vm.auto_tick_active();
++        }
++    }
++    vm.on_before_exit();
++    vm.on_exit();
++    let code = vm.exit_handler.exit_code;
++
++    // Teardown must run while the API lock is held. The lock's Drop would
++    // dereference the destroyed JSC VM, so consume the guard after teardown.
++    unsafe { VirtualMachine::teardown_embedded(vm_ptr) };
++    core::mem::forget(api_lock);
++    IO_CALLBACKS.with(|slot| slot.set(core::ptr::null()));
++    drop(wrapper_owner);
++    drop(entry_owner);
++    eval_result?;
++    Ok(code)
++}
