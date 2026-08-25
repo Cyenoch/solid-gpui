@@ -160,6 +160,7 @@ export function inputFor(node: HostNodeInternal, props: HostProps): TextInputWir
     selectionEnd: node.latestNativeSelection?.end ?? previousInput?.selectionEnd ?? 0,
     markedStart: node.latestNativeSelection?.markedStart ?? previousInput?.markedStart ?? null,
     markedEnd: node.latestNativeSelection?.markedEnd ?? previousInput?.markedEnd ?? null,
+    selectionReversed: node.latestNativeSelection?.reversed ?? previousInput?.selectionReversed ?? false,
     maxLength,
   };
 }
@@ -251,6 +252,7 @@ export function hostPropertiesWire(
       value.markedStart,
       value.markedEnd,
       value.maxLength,
+      value.selectionReversed,
     ];
   if ("source" in value) return [3, value.source, value.objectFit];
   if ("dragType" in value) return [4, value.dragType];

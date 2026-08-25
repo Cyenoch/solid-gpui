@@ -121,6 +121,7 @@ fn snapshot() -> Snapshot {
         marked_start: Some(1),
         marked_end: Some(2),
         max_length: Some(8),
+        selection_reversed: false,
     }));
     let mut list = Node::new(6, 1, 3, KIND_VIRTUAL_LIST);
     list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
@@ -314,6 +315,7 @@ fn main() {
                 marked_start: Some(2),
                 marked_end: Some(3),
                 edit_seq: 8,
+                reversed: true,
             },
         )
         .encode()

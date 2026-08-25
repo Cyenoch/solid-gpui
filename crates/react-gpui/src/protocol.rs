@@ -314,6 +314,7 @@ pub struct TextInputProperties {
     pub marked_start: Option<u32>,
     pub marked_end: Option<u32>,
     pub max_length: Option<u32>,
+    pub selection_reversed: bool,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImageProperties {
@@ -402,6 +403,7 @@ pub struct TextInputEvent {
     pub marked_start: Option<u32>,
     pub marked_end: Option<u32>,
     pub edit_seq: u32,
+    pub reversed: bool,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyAction {

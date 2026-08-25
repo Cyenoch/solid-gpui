@@ -1,6 +1,5 @@
 use super::*;
 use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct NodeWire(
     u32,
@@ -17,14 +16,32 @@ pub(super) struct NodeWire(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(super) enum HostPropertiesWire {
-    TextInput(TextInputWire),
+    TextInputNew(TextInputWireNew),
+    TextInputOld(TextInputWireOld),
     VirtualList(VirtualListWire),
     Image(ImageWire),
     Drag(DragWire),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct TextInputWire(
+pub(super) struct TextInputWireNew(
+    u32,
+    String,
+    Option<String>,
+    bool,
+    bool,
+    bool,
+    u32,
+    u32,
+    u32,
+    Option<u32>,
+    Option<u32>,
+    Option<u32>,
+    bool,
+);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct TextInputWireOld(
     u32,
     String,
     Option<String>,
@@ -266,7 +283,21 @@ impl From<TransitionWire> for Transition {
 impl From<&HostProperties> for HostPropertiesWire {
     fn from(value: &HostProperties) -> Self {
         match value {
-            HostProperties::TextInput(value) => Self::TextInput(TextInputWire::from(value)),
+            HostProperties::TextInput(value) => Self::TextInputNew(TextInputWireNew(
+                1,
+                value.value.clone(),
+                value.placeholder.clone(),
+                value.multiline,
+                value.disabled,
+                value.controlled,
+                value.ack_edit_seq,
+                value.selection_start,
+                value.selection_end,
+                value.marked_start,
+                value.marked_end,
+                value.max_length,
+                value.selection_reversed,
+            )),
             HostProperties::VirtualList(value) => Self::VirtualList(VirtualListWire::from(value)),
             HostProperties::Image(value) => Self::Image(ImageWire::from(value)),
             HostProperties::Drag(value) => Self::Drag(DragWire(4, value.drag_type.clone())),
@@ -284,22 +315,29 @@ pub(super) fn valid_drag_type(drag_type: Option<&str>) -> bool {
     })
 }
 
+fn validate_text_input(value: TextInputProperties) -> Result<HostProperties, ProtocolError> {
+    if value.selection_start > value.selection_end
+        || value.marked_start.is_some() != value.marked_end.is_some()
+        || value
+            .marked_start
+            .zip(value.marked_end)
+            .is_some_and(|(start, end)| start > end)
+    {
+        return Err(ProtocolError::InvalidHostProperties);
+    }
+    Ok(HostProperties::TextInput(value))
+}
+
 impl TryFrom<HostPropertiesWire> for HostProperties {
     type Error = ProtocolError;
 
     fn try_from(value: HostPropertiesWire) -> Result<Self, Self::Error> {
         match value {
-            HostPropertiesWire::TextInput(value) if value.0 == 1 => {
-                if value.7 > value.8
-                    || value.9.is_some() != value.10.is_some()
-                    || value
-                        .9
-                        .zip(value.10)
-                        .is_some_and(|(start, end)| start > end)
-                {
-                    return Err(ProtocolError::InvalidHostProperties);
-                }
-                Ok(Self::TextInput(TextInputProperties::from(value)))
+            HostPropertiesWire::TextInputNew(value) => {
+                validate_text_input(TextInputProperties::from(value))
+            }
+            HostPropertiesWire::TextInputOld(value) => {
+                validate_text_input(TextInputProperties::from(value))
             }
             HostPropertiesWire::VirtualList(value) if value.0 == 2 => {
                 if value.2 > value.3 || value.3 > value.1 || !value.4.is_finite() || value.4 <= 0.0
@@ -402,7 +440,7 @@ pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError
     Ok(())
 }
 
-impl From<&TextInputProperties> for TextInputWire {
+impl From<&TextInputProperties> for TextInputWireNew {
     fn from(value: &TextInputProperties) -> Self {
         Self(
             1,
@@ -417,17 +455,18 @@ impl From<&TextInputProperties> for TextInputWire {
             value.marked_start,
             value.marked_end,
             value.max_length,
+            value.selection_reversed,
         )
     }
 }
-
 impl From<&ImageProperties> for ImageWire {
     fn from(value: &ImageProperties) -> Self {
         Self(3, value.source.clone(), value.object_fit)
     }
 }
-impl From<TextInputWire> for TextInputProperties {
-    fn from(value: TextInputWire) -> Self {
+
+impl From<TextInputWireNew> for TextInputProperties {
+    fn from(value: TextInputWireNew) -> Self {
         Self {
             value: value.1,
             placeholder: value.2,
@@ -440,6 +479,26 @@ impl From<TextInputWire> for TextInputProperties {
             marked_start: value.9,
             marked_end: value.10,
             max_length: value.11,
+            selection_reversed: value.12,
+        }
+    }
+}
+
+impl From<TextInputWireOld> for TextInputProperties {
+    fn from(value: TextInputWireOld) -> Self {
+        Self {
+            value: value.1,
+            placeholder: value.2,
+            multiline: value.3,
+            disabled: value.4,
+            controlled: value.5,
+            ack_edit_seq: value.6,
+            selection_start: value.7,
+            selection_end: value.8,
+            marked_start: value.9,
+            marked_end: value.10,
+            max_length: value.11,
+            selection_reversed: false,
         }
     }
 }

@@ -284,6 +284,7 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     selection: {
       start: textPayload[2],
       end: textPayload[3],
+      reversed: textPayload.length === 8 ? textPayload[7] : false,
       composing: textPayload[4] === null ? null : { start: textPayload[4], end: textPayload[5] as number },
     },
     editSeq: textPayload[6],
@@ -294,6 +295,7 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   node.latestNativeSelection = {
     start: textEvent.selection.start,
     end: textEvent.selection.end,
+    reversed: textEvent.selection.reversed,
     markedStart: textEvent.selection.composing?.start ?? null,
     markedEnd: textEvent.selection.composing?.end ?? null,
   };

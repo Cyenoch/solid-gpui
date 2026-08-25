@@ -66,6 +66,7 @@ fn process_event_writer_backpressures_bytes_without_blocking_and_shutdown_joins(
             marked_start: None,
             marked_end: None,
             edit_seq: 0,
+            reversed: false,
         },
     );
 
@@ -109,6 +110,7 @@ fn concurrent_process_shutdowns_do_not_deadlock_writer_join() {
             marked_start: None,
             marked_end: None,
             edit_seq: 0,
+            reversed: false,
         },
     );
     let _ = runtime.send_event(&event);
@@ -188,6 +190,7 @@ fn outbound_event_metadata_includes_wire_identity_without_payload() {
             marked_start: Some(1),
             marked_end: Some(3),
             edit_seq: 5,
+            reversed: false,
         },
     );
 

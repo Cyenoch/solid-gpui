@@ -45,7 +45,7 @@ const fullStyle = [
   3,
 ];
 const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
-const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8];
+const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8, false];
 const virtualList = [2, 20, 2, 9, 24.5, 3];
 const image = [3, "assets/😀.png", 3];
 const drag = [4, "card"];
@@ -139,7 +139,7 @@ const rows = [
     [2, 120, 20, 1, true, null, null],
   ]),
   row("ts-event-command-result-menus", "event", [3, 2, 7, 3, 42, 23, 1, 0, 6, [2, 121, 21, 1, true, null, null]]),
-  row("ts-event-text-unicode", "event", [3, 2, 7, 3, 42, 2, 5, 9, 2, [1, "hé😀", 2, 4, 2, 3, 8]]),
+  row("ts-event-text-unicode", "event", [3, 2, 7, 3, 42, 2, 5, 9, 2, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
   row("ts-event-key", "event", [3, 2, 7, 3, 42, 3, 4, 7, 9, [5, "Enter", ["ctrl", "shift"], 2]]),
   row("ts-event-pointer", "event", [3, 2, 7, 3, 42, 4, 4, 7, 10, [6, 5, ["cmd"], 2, 2]]),
   row("ts-event-scroll", "event", [3, 2, 7, 3, 42, 5, 1, 0, 12, [7, 1, 3.5, -2.25, 10, 20.5, ["alt"]]]),

@@ -461,6 +461,7 @@ mod input_tests {
             marked_start: None,
             marked_end: None,
             max_length: None,
+            selection_reversed: false,
         }
     }
     fn transition(properties: u32) -> Transition {
@@ -515,6 +516,21 @@ mod input_tests {
             Some(gpui::accesskit::Role::Heading)
         );
         assert_eq!(super::paint::accessibility_role(7), None);
+    }
+    #[test]
+    fn placeholder_display_is_visual_only() {
+        assert_eq!(
+            super::paint::input_display_text(String::new(), Some("Name")),
+            ("Name".into(), true)
+        );
+        assert_eq!(
+            super::paint::input_display_text("actual".into(), Some("Name")),
+            ("actual".into(), false)
+        );
+        assert_eq!(
+            super::paint::input_display_text(String::new(), None),
+            ("".into(), false)
+        );
     }
 
     fn virtual_list_snapshot(estimated_item_size: f32) -> Snapshot {

@@ -360,7 +360,11 @@ impl WindowResizeWire {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TextInputEventWire(u32, String, u32, u32, Option<u32>, Option<u32>, u32);
+#[serde(untagged)]
+enum TextInputEventWire {
+    New((u32, String, u32, u32, Option<u32>, Option<u32>, u32, bool)),
+    Old((u32, String, u32, u32, Option<u32>, Option<u32>, u32)),
+}
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum CommandResultWire {
@@ -400,7 +404,7 @@ struct ScrollEventWire(u32, u32, f32, f32, f32, f32, Vec<String>);
 
 impl From<&TextInputEvent> for TextInputEventWire {
     fn from(event: &TextInputEvent) -> Self {
-        Self(
+        Self::New((
             1,
             event.text.clone(),
             event.selection_start,
@@ -408,7 +412,8 @@ impl From<&TextInputEvent> for TextInputEventWire {
             event.marked_start,
             event.marked_end,
             event.edit_seq,
-        )
+            event.reversed,
+        ))
     }
 }
 
@@ -416,31 +421,72 @@ impl TryFrom<TextInputEventWire> for TextInputEvent {
     type Error = ProtocolError;
 
     fn try_from(event: TextInputEventWire) -> Result<Self, Self::Error> {
-        if event.0 != 1
-            || event.selection_start() > event.selection_end()
-            || (event.4.is_some() != event.5.is_some())
-            || event.4.zip(event.5).is_some_and(|(start, end)| start > end)
+        let (
+            tag,
+            text,
+            selection_start,
+            selection_end,
+            marked_start,
+            marked_end,
+            edit_seq,
+            reversed,
+        ) = match event {
+            TextInputEventWire::New((
+                tag,
+                text,
+                selection_start,
+                selection_end,
+                marked_start,
+                marked_end,
+                edit_seq,
+                reversed,
+            )) => (
+                tag,
+                text,
+                selection_start,
+                selection_end,
+                marked_start,
+                marked_end,
+                edit_seq,
+                reversed,
+            ),
+            TextInputEventWire::Old((
+                tag,
+                text,
+                selection_start,
+                selection_end,
+                marked_start,
+                marked_end,
+                edit_seq,
+            )) => (
+                tag,
+                text,
+                selection_start,
+                selection_end,
+                marked_start,
+                marked_end,
+                edit_seq,
+                false,
+            ),
+        };
+        if tag != 1
+            || selection_start > selection_end
+            || (marked_start.is_some() != marked_end.is_some())
+            || marked_start
+                .zip(marked_end)
+                .is_some_and(|(start, end)| start > end)
         {
             return Err(ProtocolError::InvalidTextInputEvent);
         }
         Ok(Self {
-            text: event.1,
-            selection_start: event.2,
-            selection_end: event.3,
-            marked_start: event.4,
-            marked_end: event.5,
-            edit_seq: event.6,
+            text,
+            selection_start,
+            selection_end,
+            marked_start,
+            marked_end,
+            edit_seq,
+            reversed,
         })
-    }
-}
-
-impl TextInputEventWire {
-    fn selection_start(&self) -> u32 {
-        self.2
-    }
-
-    fn selection_end(&self) -> u32 {
-        self.3
     }
 }
 impl From<&KeyEvent> for KeyEventWire {

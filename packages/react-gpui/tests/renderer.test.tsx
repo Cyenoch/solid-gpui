@@ -243,6 +243,23 @@ describe("protocol framing", () => {
     expect(decodeEvent(external.slice(4))).not.toBeNull();
     expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
+  it("accepts legacy seven-slot text input events with reversed=false", () => {
+    const legacy = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 5, 2, 7, 2, [1, "legacy", 2, 2, null, null, 3]] as never);
+    expect(decodeEvent(legacy.slice(4))).not.toBeNull();
+    const invalid = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      6,
+      2,
+      7,
+      2,
+      [1, "invalid", 2, 2, null, null, 3, "not-bool"],
+    ] as never);
+    expect(decodeEvent(invalid.slice(4))).toBeNull();
+  });
 });
 describe("window observation and value commands", () => {
   it("dispatches resize and activation events to root callbacks", () => {
@@ -869,12 +886,12 @@ describe("renderer commits", () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 25, epoch: 26 });
     const changes: string[] = [];
-    const selections: number[] = [];
+    const selections: Array<{ start: number; reversed: boolean }> = [];
     root.render(
       <View>
         <TextInput
           onChangeText={(value) => changes.push(value)}
-          onSelectionChange={(selection) => selections.push(selection.start)}
+          onSelectionChange={(selection) => selections.push({ start: selection.start, reversed: selection.reversed })}
         />
         <TextInput onChangeText={(value) => changes.push(`second:${value}`)} />
       </View>,
@@ -893,7 +910,7 @@ describe("renderer commits", () => {
         node[0] as number,
         node[6] as number,
         2,
-        [1, text, 2, 2, null, null, sequence],
+        [1, text, 2, 2, null, null, sequence, false],
       ]);
     transport.push(event(second, "second", 1));
     transport.push(event(first, "first", 2));
@@ -908,11 +925,28 @@ describe("renderer commits", () => {
         first[0] as number,
         first[6] as number,
         3,
-        [1, "first", 2, 2, null, null, 2],
+        [1, "first", 2, 2, null, null, 2, false],
+      ]),
+    );
+    transport.push(
+      encodeFrame([
+        PROTOCOL_VERSION,
+        2,
+        25,
+        26,
+        1,
+        4,
+        first[0] as number,
+        first[6] as number,
+        3,
+        [1, "first", 2, 2, null, null, 2, true],
       ]),
     );
     expect(changes).toEqual(["second:second", "first"]);
-    expect(selections).toEqual([2]);
+    expect(selections).toEqual([
+      { start: 2, reversed: false },
+      { start: 2, reversed: true },
+    ]);
   });
   it("preserves uncontrolled defaults and acknowledges controlled native edits", () => {
     const uncontrolledTransport = new MemoryTransport();
@@ -940,12 +974,12 @@ describe("renderer commits", () => {
         input[0] as number,
         input[6] as number,
         2,
-        [1, "native", 6, 6, null, null, 1],
+        [1, "native", 6, 6, null, null, 1, false],
       ]),
     );
     const patch = message(controlledTransport, 1);
     const propertyUpdate = (patch[6] as readonly unknown[][]).find((operation) => (operation[2] as number) & 8);
-    expect(propertyUpdate?.[6]).toEqual([1, "native", null, false, false, true, 1, 6, 6, null, null, null]);
+    expect(propertyUpdate?.[6]).toEqual([1, "native", null, false, false, true, 1, 6, 6, null, null, null, false]);
   });
   it("encodes TextInput maxLength, clamps controlled edits, and dispatches submit", () => {
     const transport = new MemoryTransport();
@@ -960,7 +994,7 @@ describe("renderer commits", () => {
       />,
     );
     const input = snapshots(transport)[0][6].find((node) => node[3] === 5) as readonly unknown[];
-    expect(input[7]).toEqual([1, "", null, false, false, false, 0, 0, 0, null, null, 4]);
+    expect(input[7]).toEqual([1, "", null, false, false, false, 0, 0, 0, null, null, 4, false]);
     transport.push(
       encodeFrame([
         PROTOCOL_VERSION,
@@ -972,7 +1006,7 @@ describe("renderer commits", () => {
         input[0] as number,
         input[6] as number,
         2,
-        [1, "12345", 5, 5, null, null, 1],
+        [1, "12345", 5, 5, null, null, 1, false],
       ]),
     );
     transport.push(

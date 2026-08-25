@@ -18,6 +18,7 @@ use super::ReactRoot;
 pub(super) struct NativeInputState {
     pub(super) text: String,
     pub(super) selection: Range<usize>,
+    pub(super) selection_reversed: bool,
     pub(super) marked: Option<Range<usize>>,
     pub(super) edit_seq: u32,
     pub(super) focused: bool,
@@ -74,6 +75,7 @@ impl NativeInputState {
         let replacement = replacement.as_deref().unwrap_or(text);
         let cursor = replace_utf16(&mut self.text, range, replacement);
         self.selection = cursor..cursor;
+        self.selection_reversed = false;
         self.marked = None;
         self.edit_seq = self.edit_seq.wrapping_add(1);
     }
@@ -100,6 +102,7 @@ impl NativeInputState {
         self.marked = Some(start..inserted_end);
         let selected = selected.unwrap_or(inserted_end..inserted_end);
         self.selection = selected.start.min(inserted_end)..selected.end.min(inserted_end);
+        self.selection_reversed = false;
         self.edit_seq = self.edit_seq.wrapping_add(1);
     }
 
@@ -114,6 +117,7 @@ impl NativeInputState {
 
     pub(super) fn set_selection(&mut self, selection: Range<usize>) {
         self.selection = selection;
+        self.selection_reversed = false;
     }
 
     pub(super) fn apply_controlled(&mut self, input: &TextInputProperties) {
@@ -125,6 +129,7 @@ impl NativeInputState {
             self.selection = input.selection_start as usize..input.selection_end as usize;
             self.selection.start = self.selection.start.min(self.text.encode_utf16().count());
             self.selection.end = self.selection.end.min(self.text.encode_utf16().count());
+            self.selection_reversed = input.selection_reversed;
             self.marked = input
                 .marked_start
                 .map(|start| start as usize..input.marked_end.unwrap_or(start) as usize);
@@ -182,6 +187,7 @@ impl ReactRoot {
                     .or_insert_with(|| NativeInputState {
                         text: input.value.clone(),
                         selection: input.selection_start as usize..input.selection_end as usize,
+                        selection_reversed: input.selection_reversed,
                         marked: input.marked_start.map(|start| {
                             start as usize..input.marked_end.unwrap_or(start) as usize
                         }),
@@ -230,6 +236,7 @@ impl ReactRoot {
                 marked_start: state.marked.as_ref().map(|range| range.start as u32),
                 marked_end: state.marked.as_ref().map(|range| range.end as u32),
                 edit_seq: state.edit_seq,
+                reversed: state.selection_reversed,
             },
         );
         send_event_or_exit(self.runtime.as_ref(), "TextInput event", &event);
@@ -348,7 +355,7 @@ impl EntityInputHandler for ReactRoot {
         let state = self.active_input_state()?;
         Some(UTF16Selection {
             range: state.selection.clone(),
-            reversed: false,
+            reversed: state.selection_reversed,
         })
     }
 
@@ -443,5 +450,17 @@ mod tests {
         assert_eq!(state.text, "a😀b");
         assert_eq!(state.selection, 3..3);
         assert_eq!(state.text.encode_utf16().count(), 4);
+    }
+    #[test]
+    fn text_edits_clear_reversed_selection_orientation() {
+        let mut state = NativeInputState {
+            text: "abcd".into(),
+            selection: 1..3,
+            selection_reversed: true,
+            ..Default::default()
+        };
+        state.replace(None, "x");
+        assert_eq!(state.selection, 2..2);
+        assert!(!state.selection_reversed);
     }
 }

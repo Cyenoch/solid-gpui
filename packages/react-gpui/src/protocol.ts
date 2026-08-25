@@ -104,6 +104,7 @@ export type TextInputPropertiesWire = readonly [
   number | null,
   number | null,
   number | null,
+  boolean,
 ];
 export type VirtualListPropertiesWire = readonly [2, number, number, number, number, number];
 export type ImagePropertiesWire = readonly [3, string, 1 | 2 | 3 | 4 | 5];
@@ -227,7 +228,7 @@ export type CommandValuePayload =
 export type CommandResultPayload =
   | readonly [2, number, number, number, boolean, string | null]
   | readonly [2, number, number, number, boolean, string | null, CommandValuePayload | null];
-export type TextInputEventPayload = readonly [1, string, number, number, number | null, number | null, number];
+export type TextInputEventPayload = readonly [1, string, number, number, number | null, number | null, number, boolean];
 export type VisibleRangePayload = readonly [3, number, number];
 export type AnimationCompletePayload = readonly [4, number];
 export type KeyEventPayload = readonly [5, string, readonly string[], 1 | 2 | 3];
@@ -416,9 +417,12 @@ export function decodeWireForGolden(payload: Uint8Array): unknown {
 function validateHostProperties(value: unknown): value is HostPropertiesWire {
   if (!Array.isArray(value)) return false;
   if (value[0] === 1) {
-    if (value.length !== 12 || typeof value[1] !== "string" || (value[2] !== null && typeof value[2] !== "string"))
-      return false;
-    if (typeof value[3] !== "boolean" || typeof value[4] !== "boolean" || typeof value[5] !== "boolean") return false;
+    if (
+      (value.length !== 12 && value.length !== 13) ||
+      typeof value[1] !== "string" ||
+      (value[2] !== null && typeof value[2] !== "string")
+    )
+      if (typeof value[3] !== "boolean" || typeof value[4] !== "boolean" || typeof value[5] !== "boolean") return false;
     for (const [index, name] of [
       [6, "ackEditSeq"],
       [7, "selectionStart"],
@@ -449,6 +453,7 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
         return false;
       }
     }
+    if (value.length === 13 && typeof value[12] !== "boolean") return false;
     return true;
   }
   if (value[0] === 2) {
@@ -656,7 +661,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     return true;
   }
   if (eventType < EVENT_CHANGE || eventType > EVENT_BLUR) return false;
-  if (payload.length !== 7 || payload[0] !== 1 || typeof payload[1] !== "string") return false;
+  if ((payload.length !== 7 && payload.length !== 8) || payload[0] !== 1 || typeof payload[1] !== "string")
+    return false;
   try {
     assertU32("selectionStart", payload[2]);
     assertU32("selectionEnd", payload[3]);
@@ -664,6 +670,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   } catch {
     return false;
   }
+  if (payload.length === 8 && typeof payload[7] !== "boolean") return false;
   if (payload[2] > payload[3] || (payload[4] === null) !== (payload[5] === null)) return false;
   if (
     payload[4] !== null &&

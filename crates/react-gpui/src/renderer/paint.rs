@@ -136,6 +136,15 @@ fn measure_node(node: &StoredNode, element: AnyElement, entity: &Entity<ReactRoo
     .into_any()
 }
 
+pub(super) fn input_display_text(actual: String, placeholder: Option<&str>) -> (String, bool) {
+    if actual.is_empty()
+        && let Some(placeholder) = placeholder.filter(|value| !value.is_empty())
+    {
+        return (placeholder.to_owned(), true);
+    }
+    (actual, false)
+}
+
 impl ReactRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
         let style = self.style_for_node(node);
@@ -218,11 +227,16 @@ impl ReactRoot {
                     );
                 });
             }
-            let display_text = self
+            let actual_text = self
                 .input_states
                 .get(&node.id)
                 .map(|state| state.text.clone())
                 .unwrap_or_else(|| input.value.clone());
+            let (display_text, showing_placeholder) =
+                input_display_text(actual_text, input.placeholder.as_deref());
+            if showing_placeholder {
+                input_element = input_element.text_color(rgba(0x00000033));
+            }
             let input_element = input_element
                 .child(SharedString::from(display_text))
                 .id(ElementId::Integer(node.id as u64))

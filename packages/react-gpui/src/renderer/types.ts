@@ -43,6 +43,7 @@ export interface TextInputProps extends AccessibilityProps {
   readonly onSelectionChange?: (selection: {
     start: number;
     end: number;
+    reversed: boolean;
     composing?: { start: number; end: number } | null;
   }) => void;
   readonly onFocus?: () => void;
@@ -58,7 +59,12 @@ export interface TextInputProps extends AccessibilityProps {
 export interface TextInputEvent {
   readonly type: "change" | "selection" | "focus" | "blur";
   readonly text: string;
-  readonly selection: { start: number; end: number; composing: { start: number; end: number } | null };
+  readonly selection: {
+    start: number;
+    end: number;
+    reversed: boolean;
+    composing: { start: number; end: number } | null;
+  };
   readonly editSeq: number;
   readonly target: HostNode;
 }
@@ -242,6 +248,7 @@ export interface TextInputWire {
   readonly markedStart: number | null;
   readonly markedEnd: number | null;
   readonly maxLength: number | null;
+  readonly selectionReversed: boolean;
 }
 export interface ImageWire {
   readonly source: string;
@@ -309,7 +316,13 @@ export interface HostNodeInternal extends HostNode {
   latestNativeText: string | null;
   latestNativeEditSeq: number;
   layoutCallback?: LayoutHandler;
-  latestNativeSelection: { start: number; end: number; markedStart: number | null; markedEnd: number | null } | null;
+  latestNativeSelection: {
+    start: number;
+    end: number;
+    reversed: boolean;
+    markedStart: number | null;
+    markedEnd: number | null;
+  } | null;
   blur?: () => Promise<void>;
   isFocused?: () => Promise<boolean>;
   setSelection?: (start: number, end: number) => Promise<void>;

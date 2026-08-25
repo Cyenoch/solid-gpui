@@ -55,6 +55,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
             marked_start: Some(0),
             marked_end: Some(1),
             edit_seq: 3,
+            reversed: true,
         },
     );
     let text_payload = text_event.encode().unwrap();
@@ -89,6 +90,38 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         ..command.clone()
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
+}
+#[test]
+fn legacy_text_input_event_defaults_reversed_to_false() {
+    let legacy = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        21u32,
+        2u32,
+        44u32,
+        EVENT_CHANGE,
+        Some((
+            1u32,
+            "legacy".to_owned(),
+            2u32,
+            2u32,
+            None::<u32>,
+            None::<u32>,
+            3u32,
+        )),
+    ))
+    .unwrap();
+    let decoded = Event::decode(&legacy).unwrap();
+    assert!(matches!(
+        decoded.payload,
+        Some(EventPayload::TextInput(TextInputEvent {
+            reversed: false,
+            ..
+        }))
+    ));
 }
 
 #[test]
@@ -330,6 +363,7 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
         marked_start: None,
         marked_end: None,
         max_length: Some(5),
+        selection_reversed: true,
     }));
     let mut list = Node::new(3, 1, 1, KIND_VIRTUAL_LIST);
     list.listener_id = 12;
@@ -507,6 +541,7 @@ fn protocol_v3_rejects_mismatched_host_property_kind_on_decode() {
         marked_start: None,
         marked_end: None,
         max_length: None,
+        selection_reversed: false,
     }));
     let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), node]);
     assert!(matches!(

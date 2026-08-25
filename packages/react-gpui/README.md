@@ -475,6 +475,13 @@ the listener.
 JavaScript also clamps the value delivered to controlled `onChangeText`
 callbacks using UTF-16 units. `onSubmitEditing` is emitted for Enter on a
 focused single-line input; Enter in a multiline input remains text insertion.
+Empty native text renders `placeholder` as muted guidance text without changing
+the value, selection, UTF-16 length, or IME ranges. `onSelectionChange`
+includes a `reversed` head-orientation bit; `setSelection(start, end)` remains
+an ordered-range command and does not set orientation. IME candidate positioning
+is currently an element-level bounds approximation and point-to-character
+lookup returns the current selection end; precise text-layout integration is
+deferred.
 
 `onSubmitEditing` has the breaking type `(value: string) => void`; the value is
 the authoritative native text at Enter time, including a valid empty string.
