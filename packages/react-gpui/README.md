@@ -166,9 +166,8 @@ their `ByteInputListener`, `ByteInputEventListener`, `ByteOutputEventListener`,
 and `DrainListener` types. `StdioTransportOptions` and
 `DEFAULT_MAX_PENDING_BYTES` tune the pending queue; `TransportChunk`,
 `TransportListener`, `TransportTerminationListener`,
-`TransportTerminationDetails`, `TransportTerminatedError`, and
-`createProcessTerminationHandler` cover chunk conversion, termination
-diagnostics, and injected process exits.
+`TransportTerminatedError`, and `createProcessTerminationHandler` cover chunk
+conversion, termination diagnostics, and injected process exits.
 
 ## Multiple native surfaces
 

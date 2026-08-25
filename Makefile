@@ -1,4 +1,4 @@
-.PHONY: ci rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-pack-smoke protocol-golden-generate embedded-bun host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke release-prep
+.PHONY: ci rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke release-prep
 
 ci: rust-format rust-check bun-ci
 
@@ -37,6 +37,9 @@ protocol-golden-generate:
 	mkdir -p fixtures/protocol
 	cargo run -p react-gpui --example protocol_golden --locked -- fixtures/protocol/rust_to_ts.hex
 	bun scripts/protocol-golden.ts fixtures/protocol
+
+api-surface-generate: bun-build
+	bun scripts/api-surface.ts
 
 bun-ci: bun-format bun-typecheck bun-test bun-pack-smoke
 

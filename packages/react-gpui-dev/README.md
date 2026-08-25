@@ -62,6 +62,12 @@ event. `unmount()` is idempotent. Render errors are not swallowed: a consumer
 Error Boundary can recover, while an unbounded render error is thrown to the
 test.
 
+For advanced assertions, `RenderOptions` controls the explicit surface/epoch
+and window callbacks; `RenderResult` exposes the real `Root`, frames, decoded
+commits, and raw dispatch. `TestNode`, `TestNodeHandle`, and
+`TestNodePredicate` provide typed retained-node predicates, while
+`CommandResultOptions` describes inferred command acknowledgements.
+
 The testing API is intentionally a development dependency. It shares the
 consumer's core and React installation rather than bundling another renderer
 runtime.

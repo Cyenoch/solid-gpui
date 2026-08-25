@@ -154,6 +154,15 @@ make bun-pack-smoke
 make bun-ci
 ```
 
+The core and development package public export names are locked by
+`fixtures/api-surface.core.txt` and `fixtures/api-surface.dev.txt`; the locks
+cover value/type names, not internal type structure. If an API surface test
+fails, review the change and explicitly regenerate both snapshots with:
+
+```sh
+make api-surface-generate
+```
+
 The embedded Bun build is intentionally not part of `make ci` because it
 clones and compiles the pinned Bun/JSC source graph. Run its locked host
 feature check and embedded adapter tests explicitly with:
