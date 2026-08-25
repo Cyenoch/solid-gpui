@@ -70,6 +70,7 @@ fn valid_command() -> Command {
         payload: None,
         title: None,
         body: None,
+        actions: None,
         menus: None,
     }
 }

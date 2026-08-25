@@ -1,8 +1,8 @@
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use gpui::{
-    App, AppContext, Bounds, Context, Entity, Subscription, TitlebarOptions, WindowBounds,
-    WindowHandle, WindowId, WindowOptions, px, size,
+    App, AppContext, Bounds, Context, Entity, Subscription, SystemNotificationResponse,
+    TitlebarOptions, WindowBounds, WindowHandle, WindowId, WindowOptions, px, size,
 };
 use react_gpui::{
     COMMAND_OPEN_SURFACE, Command, CommandValue, MenuAction, Patch, ProcessAdapter, ProtocolError,
@@ -327,6 +327,28 @@ impl SurfaceRegistry {
         let root = surface.root.clone();
         root.update(cx, |root, _| root.emit_action(action));
     }
+    fn emit_notification_response(
+        &mut self,
+        response: SystemNotificationResponse,
+        cx: &mut Context<Self>,
+    ) {
+        let tag = response.tag.to_string();
+        let Some(surface_id) = tag
+            .strip_prefix("react-gpui:")
+            .and_then(|value| value.split_once(':'))
+            .and_then(|(surface_id, _)| surface_id.parse::<u32>().ok())
+        else {
+            return;
+        };
+        let Some(surface) = self.surfaces.get(&surface_id) else {
+            return;
+        };
+        let root = surface.root.clone();
+        let action_id = response.action_id.map(|action| action.to_string());
+        root.update(cx, |root, _| {
+            root.emit_notification_response(tag, action_id)
+        });
+    }
 
     fn window_closed(&mut self, window_id: WindowId, cx: &mut Context<Self>) -> bool {
         let Some(surface_id) = self.windows.get(&window_id).copied() else {
@@ -497,6 +519,14 @@ fn main() {
                 });
             }
         });
+        let registry_for_notification = registry.downgrade();
+        cx.on_system_notification_response(move |response, cx| {
+            if let Some(registry) = registry_for_notification.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.emit_notification_response(response, cx)
+                });
+            }
+        });
 
         let registry_for_close = registry.downgrade();
         let close_subscription = cx.on_window_closed(move |cx, window_id| {
@@ -540,10 +570,9 @@ pub mod test_support {
         COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
         COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
         COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT,
-        KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION,
-        TextInputProperties, VirtualListProperties,
+        KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node,
+        NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties, VirtualListProperties,
     };
-
     fn command(
         request_id: u32,
         kind: u32,
@@ -565,8 +594,27 @@ pub mod test_support {
             payload,
             title: title.map(str::to_owned),
             body: body.map(str::to_owned),
+            actions: None,
             menus,
         }
+    }
+    fn notification_command(
+        request_id: u32,
+        title: &str,
+        body: &str,
+        actions: Vec<NotificationActionDefinition>,
+    ) -> Command {
+        let mut command = command(
+            request_id,
+            COMMAND_SHOW_NOTIFICATION,
+            1,
+            None,
+            Some(title),
+            Some(body),
+            None,
+        );
+        command.actions = Some(actions);
+        command
     }
 
     fn snapshot() -> Snapshot {
@@ -660,6 +708,18 @@ pub mod test_support {
             .expect("route test command");
         draw_surface(registry, cx, command.surface_id);
     }
+    fn install_notification_callback(registry: &Entity<SurfaceRegistry>, cx: &mut TestAppContext) {
+        let registry = registry.downgrade();
+        cx.update(|cx| {
+            cx.on_system_notification_response(move |response, cx| {
+                if let Some(registry) = registry.upgrade() {
+                    registry.update(cx, |registry, cx| {
+                        registry.emit_notification_response(response, cx)
+                    });
+                }
+            });
+        });
+    }
 
     fn take_events(runtime: &InMemoryAdapter) -> Vec<react_gpui::Event> {
         let mut events = Vec::new();
@@ -689,6 +749,7 @@ pub mod test_support {
             .expect("open initial test surface");
         let window = draw_surface(&registry, cx, 1);
 
+        install_notification_callback(&registry, cx);
         let action_registry = registry.downgrade();
         cx.update(|cx| {
             cx.on_action(move |action: &MenuAction, cx| {
@@ -1006,6 +1067,7 @@ pub mod test_support {
             .update(cx, |registry, cx| registry.open_initial(cx))
             .expect("open initial dialog test surface");
         let window = draw_surface(&registry, cx, 1);
+        install_notification_callback(&registry, cx);
         let snapshot_payload = snapshot().encode().expect("encode dialog snapshot");
         registry
             .update(cx, |registry, cx| {
@@ -1265,6 +1327,110 @@ pub mod test_support {
             take_events(&close_runtime)
                 .iter()
                 .all(|event| event.event_type != react_gpui::EVENT_COMMAND_RESULT)
+        );
+    }
+    pub fn notification_response_roundtrip(cx: &mut TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+        registry
+            .update(cx, |registry, cx| registry.open_initial(cx))
+            .expect("open notification test surface");
+        let window = draw_surface(&registry, cx, 1);
+        install_notification_callback(&registry, cx);
+        cx.update(|cx| {
+            cx.set_app_identity("com.example.react-gpui", "React GPUI");
+        });
+        let snapshot_payload = snapshot().encode().expect("encode notification snapshot");
+        registry
+            .update(cx, |registry, cx| {
+                registry.route_payload(&snapshot_payload, cx)
+            })
+            .expect("route notification snapshot");
+        draw_surface(&registry, cx, 1);
+
+        route_command(
+            &registry,
+            cx,
+            notification_command(
+                201,
+                "Build",
+                "Finished",
+                vec![
+                    NotificationActionDefinition {
+                        id: "open".to_owned(),
+                        label: "Open".to_owned(),
+                    },
+                    NotificationActionDefinition {
+                        id: "dismiss".to_owned(),
+                        label: "Dismiss".to_owned(),
+                    },
+                ],
+            ),
+        );
+        assert!(command_result(&take_events(&runtime), 201).success);
+        let notification = cx
+            .shown_system_notifications()
+            .last()
+            .cloned()
+            .expect("shown notification");
+        assert_eq!(notification.actions.len(), 2);
+        assert_eq!(notification.actions[0].id.as_ref(), "open");
+        assert_eq!(notification.actions[0].label.as_ref(), "Open");
+
+        cx.simulate_system_notification_response(SystemNotificationResponse {
+            tag: notification.tag.clone(),
+            action_id: Some("open".into()),
+        });
+        cx.run_until_parked();
+        let response = take_events(&runtime)
+            .into_iter()
+            .find(|event| event.event_type == react_gpui::EVENT_NOTIFICATION_RESPONSE)
+            .expect("notification action response event");
+        assert_eq!(
+            response.payload,
+            Some(EventPayload::NotificationResponse(
+                react_gpui::NotificationResponseEvent {
+                    tag: notification.tag.to_string(),
+                    action_id: Some("open".to_owned()),
+                }
+            ))
+        );
+
+        cx.simulate_system_notification_response(SystemNotificationResponse {
+            tag: notification.tag.clone(),
+            action_id: None,
+        });
+        cx.run_until_parked();
+        let response = take_events(&runtime)
+            .into_iter()
+            .find(|event| event.event_type == react_gpui::EVENT_NOTIFICATION_RESPONSE)
+            .expect("notification body response event");
+        assert_eq!(
+            response.payload,
+            Some(EventPayload::NotificationResponse(
+                react_gpui::NotificationResponseEvent {
+                    tag: notification.tag.to_string(),
+                    action_id: None,
+                }
+            ))
+        );
+
+        let window_id = window.window_id();
+        window
+            .update(cx, |_, window, _| window.remove_window())
+            .expect("remove notification test surface");
+        registry.update(cx, |registry, cx| {
+            assert!(registry.window_closed(window_id, cx));
+        });
+        cx.simulate_system_notification_response(SystemNotificationResponse {
+            tag: notification.tag,
+            action_id: Some("open".into()),
+        });
+        cx.run_until_parked();
+        assert!(
+            take_events(&runtime)
+                .iter()
+                .all(|event| event.event_type != react_gpui::EVENT_NOTIFICATION_RESPONSE)
         );
     }
 }

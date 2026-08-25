@@ -12,6 +12,7 @@ import {
   EVENT_KEY,
   EVENT_KEY_DOWN,
   EVENT_KEY_REPEAT,
+  EVENT_NOTIFICATION_RESPONSE,
   EVENT_POINTER,
   EVENT_POINTER_DOWN,
   EVENT_PRESS,
@@ -56,6 +57,7 @@ export interface DispatchContext {
   findNode(nodeId: number): HostNodeInternal | undefined;
   findInputCallbacks(listenerId: number): TextInputCallbacks | undefined;
   resolveCommandResult(requestId: number, success: boolean, errorPayload: unknown, value?: unknown): void;
+  onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void;
   onAction?: (action: string) => void;
   onSurfaceClosed?: () => void;
   onWindowResize?: (width: number, height: number) => void;
@@ -73,6 +75,17 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   if (event[8] === EVENT_ACTION) {
     if (typeof payload !== "string") return;
     context.onAction?.(payload);
+    return;
+  }
+  if (event[8] === EVENT_NOTIFICATION_RESPONSE) {
+    if (
+      !Array.isArray(payload) ||
+      payload.length !== 2 ||
+      typeof payload[0] !== "string" ||
+      (payload[1] !== null && typeof payload[1] !== "string")
+    )
+      return;
+    context.onNotificationResponse?.({ tag: payload[0], actionId: payload[1] });
     return;
   }
   if (event[8] === EVENT_COMMAND_RESULT) {

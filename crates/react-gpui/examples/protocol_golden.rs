@@ -12,11 +12,11 @@ use react_gpui::{
     COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
     DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties,
     ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
-    KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION, Patch,
-    PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
-    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
-    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
-    UPDATE_TEXT, VirtualListProperties, WindowAppearance,
+    KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
+    PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style,
+    TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
+    TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER,
+    UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties, WindowAppearance,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -199,6 +199,7 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         payload,
         title: title.map(str::to_owned),
         body: None,
+        actions: None,
         menus: None,
     }
 }
@@ -215,6 +216,7 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         payload: Some((width, height)),
         title: Some(title.to_owned()),
         body: None,
+        actions: None,
         menus: None,
     }
 }
@@ -231,6 +233,10 @@ fn notification_command(title: &str, body: &str) -> Command {
         payload: None,
         title: Some(title.to_owned()),
         body: Some(body.to_owned()),
+        actions: Some(vec![NotificationActionDefinition {
+            id: "open".into(),
+            label: "Open".into(),
+        }]),
         menus: None,
     }
 }
@@ -248,6 +254,7 @@ fn menus_command() -> Command {
         payload: None,
         title: None,
         body: None,
+        actions: None,
         menus: Some(vec![MenuDefinition {
             title: "File".into(),
             items: vec![
@@ -577,6 +584,14 @@ fn main() {
         "rust-event-action",
         "event",
         Event::action(7, 3, 42, 21, "open".into()).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-notification-response",
+        "event",
+        Event::notification_response(7, 3, 42, 22, "react-gpui:7:120".into(), Some("open".into()))
+            .encode()
+            .unwrap(),
     );
     emit(
         &mut rows,

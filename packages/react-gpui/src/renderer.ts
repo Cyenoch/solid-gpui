@@ -37,6 +37,7 @@ import type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  NotificationResponseHandler,
   MenuDefinition,
 } from "./renderer/types";
 import type { Transport, TransportTerminationListener } from "./transport";
@@ -77,6 +78,8 @@ export type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  NotificationResponse,
+  NotificationResponseHandler,
   MenuDefinition,
   MenuItem,
 } from "./renderer/types";
@@ -91,6 +94,7 @@ export interface RootOptions {
   readonly onClose?: () => void;
   readonly onWindowResize?: WindowResizeHandler;
   readonly onWindowActivation?: WindowActivationHandler;
+  readonly onNotificationResponse?: NotificationResponseHandler;
   readonly onAction?: (action: string) => void;
   readonly onAppearance?: (appearance: Appearance) => void;
 }
@@ -108,11 +112,15 @@ export interface PickFilesOptions {
 export interface PickSavePathOptions {
   readonly defaultName?: string;
 }
+export interface NotificationAction {
+  readonly id: string;
+  readonly label: string;
+}
 export interface NotificationOptions {
   readonly title: string;
   readonly body: string;
+  readonly actions?: readonly NotificationAction[];
 }
-
 export interface Root {
   render(element: ReactNode): void;
   setTitle(title: string): Promise<void>;
@@ -163,6 +171,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     },
     options.onAction,
     options.onAppearance,
+    options.onNotificationResponse,
   );
   const reconcilerRoot = renderer.createContainer(
     container,

@@ -52,6 +52,9 @@ export {
   type VirtualListProps,
   type WindowActivationHandler,
   type WindowResizeHandler,
+  type NotificationResponse,
+  type NotificationResponseHandler,
+  type NotificationAction,
 } from "./renderer";
 export type {
   MenuDefinition,

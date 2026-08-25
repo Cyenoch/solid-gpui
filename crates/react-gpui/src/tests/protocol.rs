@@ -74,6 +74,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         payload: Some((2, 3)),
         title: None,
         body: None,
+        actions: None,
         menus: None,
     };
     assert_eq!(
@@ -86,6 +87,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         payload: None,
         title: Some("React GPUI".into()),
         body: None,
+        actions: None,
         menus: None,
         ..command.clone()
     };
@@ -139,6 +141,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: Some((800, 600)),
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -153,6 +156,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -167,6 +171,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -181,6 +186,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: Some("https://example.com/docs".into()),
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -195,6 +201,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: Some("clipboard text".into()),
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -209,6 +216,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
     ];
@@ -232,6 +240,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: None,
         };
         assert_eq!(
@@ -252,6 +261,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: Some((0, 600)),
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -266,6 +276,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: Some("file:///tmp/example".into()),
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -280,6 +291,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: None,
         },
         Command {
@@ -294,6 +306,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             payload: None,
             title: Some("x".repeat((1 << 20) + 1)),
             body: None,
+            actions: None,
             menus: None,
         },
     ] {
@@ -314,6 +327,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
         payload: None,
         title: None,
         body: None,
+        actions: None,
         menus: None,
     };
     assert!(matches!(

@@ -32,9 +32,10 @@ import {
   COMMAND_OPEN_URL,
   COMMAND_RESIZE_WINDOW,
   COMMAND_TOGGLE_FULLSCREEN,
-  EVENT_ACTION,
-  EVENT_SURFACE_CLOSED,
   COMMAND_ZOOM_WINDOW,
+  EVENT_ACTION,
+  EVENT_NOTIFICATION_RESPONSE,
+  EVENT_SURFACE_CLOSED,
   EVENT_HOVER,
   EVENT_KEY,
   EVENT_POINTER,
@@ -1571,10 +1572,12 @@ describe("renderer commits", () => {
   it("frames notifications and static menus and dispatches action events", async () => {
     const transport = new MemoryTransport();
     const actions: string[] = [];
+    const responses: Array<{ tag: string; actionId: string | null }> = [];
     const root = createRoot(transport, {
       surfaceId: 81,
       epoch: 82,
       onAction: (action) => actions.push(action),
+      onNotificationResponse: (response) => responses.push(response),
     });
     root.render(<View />);
     const complete = (sequence: number, requestId: number, command: number) =>
@@ -1603,12 +1606,42 @@ describe("renderer commits", () => {
     transport.push(complete(1, 1, COMMAND_SET_MENUS));
     await menus;
 
-    const notification = root.showNotification({ title: "Done", body: "Finished" });
-    expect(message(transport, 2)).toEqual([3, 4, 81, 82, 1, 2, 1, COMMAND_SHOW_NOTIFICATION, ["Done", "Finished"]]);
+    const notification = root.showNotification({
+      title: "Done",
+      body: "Finished",
+      actions: [{ id: "open", label: "Open" }],
+    });
+    expect(message(transport, 2)).toEqual([
+      3,
+      4,
+      81,
+      82,
+      1,
+      2,
+      1,
+      COMMAND_SHOW_NOTIFICATION,
+      ["Done", "Finished", [["open", "Open"]]],
+    ]);
     transport.push(complete(2, 2, COMMAND_SHOW_NOTIFICATION));
-    await notification;
-
-    transport.push(encodeFrame([3, 2, 81, 82, 1, 3, 1, 0, EVENT_ACTION, "open"]));
+    await expect(
+      root.showNotification({
+        title: "Too many",
+        body: "Buttons",
+        actions: [
+          { id: "one", label: "One" },
+          { id: "two", label: "Two" },
+          { id: "three", label: "Three" },
+          { id: "four", label: "Four" },
+        ],
+      }),
+    ).rejects.toThrow("at most three");
+    transport.push(encodeFrame([3, 2, 81, 82, 1, 3, 1, 0, EVENT_NOTIFICATION_RESPONSE, ["react-gpui:81:2", "open"]]));
+    transport.push(encodeFrame([3, 2, 81, 82, 1, 4, 1, 0, EVENT_NOTIFICATION_RESPONSE, ["react-gpui:81:2", null]]));
+    expect(responses).toEqual([
+      { tag: "react-gpui:81:2", actionId: "open" },
+      { tag: "react-gpui:81:2", actionId: null },
+    ]);
+    transport.push(encodeFrame([3, 2, 81, 82, 1, 5, 1, 0, EVENT_ACTION, "open"]));
     expect(actions).toEqual(["open"]);
     root.unmount();
   });

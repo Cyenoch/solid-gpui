@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError> {
     let payload = match command.kind {
         COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => {
-            if command.body.is_some() || command.menus.is_some() {
+            if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
             match (&command.payload, &command.title) {
@@ -18,7 +18,7 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             }
         }
         COMMAND_FILE_DIALOG_SAVE => {
-            if command.body.is_some() || command.menus.is_some() {
+            if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
             match (&command.payload, &command.title) {
@@ -30,9 +30,19 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             &command.payload,
             &command.title,
             &command.body,
+            &command.actions,
             &command.menus,
         ) {
-            (None, Some(title), Some(body), None) => Some(CommandPayloadWire::StringPair((
+            (None, Some(title), Some(body), Some(actions), None)
+                if actions.len() <= 3 && actions.iter().all(valid_notification_action) =>
+            {
+                Some(CommandPayloadWire::StringPairWithActions((
+                    title.clone(),
+                    body.clone(),
+                    actions.iter().map(NotificationActionWire::from).collect(),
+                )))
+            }
+            (None, Some(title), Some(body), None, None) => Some(CommandPayloadWire::StringPair((
                 title.clone(),
                 body.clone(),
             ))),
@@ -42,15 +52,16 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             &command.payload,
             &command.title,
             &command.body,
+            &command.actions,
             &command.menus,
         ) {
-            (None, None, None, Some(menus)) => Some(CommandPayloadWire::Menus(
+            (None, None, None, None, Some(menus)) => Some(CommandPayloadWire::Menus(
                 menus.iter().map(MenuWire::from).collect(),
             )),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
         _ => {
-            if command.body.is_some() || command.menus.is_some() {
+            if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
             match (&command.payload, &command.title) {
@@ -160,6 +171,12 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (None, Some(default_name), None)
             }
             (COMMAND_FILE_DIALOG_SAVE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (
+                COMMAND_SHOW_NOTIFICATION,
+                Some(CommandPayloadWire::StringPairWithActions((title, body, actions))),
+            ) if wire.6 == 1 && title.len() <= 256 && body.len() <= 1024 && actions.len() <= 3 => {
+                (None, Some(title), Some(body))
+            }
             (COMMAND_SHOW_NOTIFICATION, Some(CommandPayloadWire::StringPair((title, body))))
                 if wire.6 == 1 && title.len() <= 256 && body.len() <= 1024 =>
             {
@@ -221,13 +238,27 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             _ => return Err(ProtocolError::InvalidCommandPayload),
         };
     let menus = if wire.7 == COMMAND_SET_MENUS {
-        match command_payload {
+        match command_payload.clone() {
             Some(CommandPayloadWire::Menus(menus)) => Some(
                 menus
                     .into_iter()
                     .map(MenuDefinition::try_from)
                     .collect::<Result<Vec<_>, _>>()?,
             ),
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        }
+    } else {
+        None
+    };
+    let actions = if wire.7 == COMMAND_SHOW_NOTIFICATION {
+        match command_payload {
+            Some(CommandPayloadWire::StringPairWithActions((_, _, actions))) => Some(
+                actions
+                    .into_iter()
+                    .map(NotificationActionDefinition::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            Some(CommandPayloadWire::StringPair(_)) => None,
             _ => return Err(ProtocolError::InvalidCommandPayload),
         }
     } else {
@@ -242,6 +273,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         request_id: wire.5,
         node_id: wire.6,
         kind: wire.7,
+        actions,
         payload,
         title,
         body,
@@ -254,8 +286,37 @@ enum CommandPayloadWire {
     Pair((u32, u32)),
     Title(String),
     StringPair((String, String)),
+    StringPairWithActions((String, String, Vec<NotificationActionWire>)),
     StringWithPair((String, (u32, u32))),
     Menus(Vec<MenuWire>),
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct NotificationActionWire(String, String);
+impl From<&NotificationActionDefinition> for NotificationActionWire {
+    fn from(action: &NotificationActionDefinition) -> Self {
+        Self(action.id.clone(), action.label.clone())
+    }
+}
+
+impl TryFrom<NotificationActionWire> for NotificationActionDefinition {
+    type Error = ProtocolError;
+
+    fn try_from(action: NotificationActionWire) -> Result<Self, Self::Error> {
+        if action.0.is_empty() || action.0.len() > 64 || action.1.is_empty() || action.1.len() > 256
+        {
+            return Err(ProtocolError::InvalidCommandPayload);
+        }
+        Ok(Self {
+            id: action.0,
+            label: action.1,
+        })
+    }
+}
+fn valid_notification_action(action: &NotificationActionDefinition) -> bool {
+    !action.id.is_empty()
+        && action.id.len() <= 64
+        && !action.label.is_empty()
+        && action.label.len() <= 256
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MenuWire(String, Vec<MenuItemWire>);
@@ -374,6 +435,7 @@ mod tests {
             payload: Some((640, 480)),
             title: Some("child".to_owned()),
             body: None,
+            actions: None,
             menus: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
@@ -395,6 +457,7 @@ mod tests {
             payload: Some((640, 480)),
             title: Some(String::new()),
             body: None,
+            actions: None,
             menus: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
@@ -451,6 +514,7 @@ mod tests {
             payload: Some((1, 1)),
             title: Some("Choose".to_owned()),
             body: None,
+            actions: None,
             menus: None,
         };
         assert_eq!(
@@ -471,6 +535,7 @@ mod tests {
             payload: None,
             title: Some("report.txt".to_owned()),
             body: None,
+            actions: None,
             menus: None,
         };
         assert_eq!(
@@ -502,6 +567,16 @@ mod tests {
             payload: None,
             title: Some("Done".to_owned()),
             body: Some("Finished".to_owned()),
+            actions: Some(vec![
+                NotificationActionDefinition {
+                    id: "open".to_owned(),
+                    label: "Open".to_owned(),
+                },
+                NotificationActionDefinition {
+                    id: "close".to_owned(),
+                    label: "Close".to_owned(),
+                },
+            ]),
             menus: None,
         };
         assert_eq!(
@@ -522,6 +597,7 @@ mod tests {
             payload: None,
             title: None,
             body: None,
+            actions: None,
             menus: Some(vec![MenuDefinition {
                 title: "File".to_owned(),
                 items: vec![
@@ -552,8 +628,20 @@ mod tests {
             Event::decode(&action.encode().expect("encode action")).unwrap(),
             action
         );
-    }
 
+        let response = Event::notification_response(
+            1,
+            2,
+            3,
+            5,
+            "react-gpui:1:7".to_owned(),
+            Some("open".to_owned()),
+        );
+        assert_eq!(
+            Event::decode(&response.encode().expect("encode notification response")).unwrap(),
+            response
+        );
+    }
     #[test]
     fn surface_closed_event_round_trips_without_payload() {
         let event = Event::surface_closed(7, 8, 9, 10);

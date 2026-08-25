@@ -30,6 +30,7 @@ pub const EVENT_ACTION: u32 = 17;
 pub const EVENT_WINDOW_APPEARANCE: u32 = 18;
 pub const EVENT_LAYOUT: u32 = 19;
 pub const EVENT_DRAG: u32 = 20;
+pub const EVENT_NOTIFICATION_RESPONSE: u32 = 21;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -185,6 +186,11 @@ impl Patch {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotificationActionDefinition {
+    pub id: String,
+    pub label: String,
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct MenuDefinition {
     pub title: String,
@@ -220,6 +226,7 @@ pub struct Command {
     pub payload: Option<(u32, u32)>,
     pub title: Option<String>,
     pub body: Option<String>,
+    pub actions: Option<Vec<NotificationActionDefinition>>,
     pub menus: Option<Vec<MenuDefinition>>,
 }
 
@@ -511,8 +518,14 @@ pub enum EventPayload {
     ExternalFileDrop {
         paths: Vec<String>,
     },
+    NotificationResponse(NotificationResponseEvent),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NotificationResponseEvent {
+    pub tag: String,
+    pub action_id: Option<String>,
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub protocol: u32,
@@ -940,6 +953,29 @@ impl Event {
             listener_id: 0,
             event_type: EVENT_ACTION,
             payload: Some(EventPayload::EventAction { action }),
+        }
+    }
+    pub fn notification_response(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        tag: String,
+        action_id: Option<String>,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id: 1,
+            listener_id: 0,
+            event_type: EVENT_NOTIFICATION_RESPONSE,
+            payload: Some(EventPayload::NotificationResponse(
+                NotificationResponseEvent { tag, action_id },
+            )),
         }
     }
 

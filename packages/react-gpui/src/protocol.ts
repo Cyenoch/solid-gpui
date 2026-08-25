@@ -36,6 +36,7 @@ export const EVENT_ACTION = 17 as const;
 export const EVENT_WINDOW_APPEARANCE = 18 as const;
 export const EVENT_LAYOUT = 19 as const;
 export const EVENT_DRAG = 20 as const;
+export const EVENT_NOTIFICATION_RESPONSE = 21 as const;
 export const DRAG_OVER = 1 as const;
 export const DRAG_DROP = 2 as const;
 export const DRAG_EXTERNAL_FILE_DROP = 3 as const;
@@ -215,6 +216,7 @@ export type Command = readonly [
     | readonly [number, number]
     | readonly [string, readonly [number, number]]
     | readonly [string, string]
+    | readonly [string, string, readonly (readonly [string, string])[]]
     | string
     | MenuPayload
     | null
@@ -245,6 +247,7 @@ export type DragEventPayload =
   | readonly [typeof DRAG_OVER, string]
   | readonly [typeof DRAG_DROP, string]
   | readonly [typeof DRAG_EXTERNAL_FILE_DROP, readonly string[]];
+export type NotificationResponseEventPayload = readonly [string, string | null];
 export type EventPayload =
   | TextInputEventPayload
   | CommandResultPayload
@@ -259,7 +262,8 @@ export type EventPayload =
   | ActionEventPayload
   | WindowAppearanceEventPayload
   | LayoutEventPayload
-  | DragEventPayload;
+  | DragEventPayload
+  | NotificationResponseEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -290,6 +294,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_WINDOW_APPEARANCE
     | typeof EVENT_LAYOUT
     | typeof EVENT_DRAG
+    | typeof EVENT_NOTIFICATION_RESPONSE
   ),
   EventPayload | null,
 ];
@@ -534,6 +539,17 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     }
     return false;
   }
+  if (eventType === EVENT_NOTIFICATION_RESPONSE) {
+    return (
+      Array.isArray(payload) &&
+      payload.length === 2 &&
+      typeof payload[0] === "string" &&
+      payload[0].length > 0 &&
+      [...payload[0]].length <= 256 &&
+      (payload[1] === null ||
+        (typeof payload[1] === "string" && payload[1].length > 0 && utf8ByteLength(payload[1]) <= 64))
+    );
+  }
   if (eventType === EVENT_ACTION)
     return typeof payload === "string" && payload.length > 0 && [...payload].length <= 256;
   if (eventType === EVENT_WINDOW_APPEARANCE) return payload === "light" || payload === "dark";
@@ -702,11 +718,19 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
       return null;
     }
   }
-  if (typeof value[8] !== "number" || !Number.isInteger(value[8]) || value[8] < EVENT_PRESS || value[8] > EVENT_DRAG)
+  if (
+    typeof value[8] !== "number" ||
+    !Number.isInteger(value[8]) ||
+    value[8] < EVENT_PRESS ||
+    value[8] > EVENT_NOTIFICATION_RESPONSE
+  )
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;
-  if (value[8] === EVENT_ACTION && (value[6] !== 1 || value[7] !== 0)) return null;
-  if (value[8] === EVENT_WINDOW_APPEARANCE && (value[6] !== 1 || value[7] !== 0)) return null;
+  if (
+    (value[8] === EVENT_ACTION || value[8] === EVENT_WINDOW_APPEARANCE || value[8] === EVENT_NOTIFICATION_RESPONSE) &&
+    (value[6] !== 1 || value[7] !== 0)
+  )
+    return null;
   if (value[8] === EVENT_DRAG && (value[6] === 0 || value[7] === 0)) return null;
   return validateEventPayload(value[8], value[9]) ? (value as unknown as PressEventFrame) : null;
 }

@@ -43,7 +43,10 @@ MemoryTransport	both
 MenuDefinition	type
 MenuItem	type
 NamedStyles	type
+NotificationAction	type
 NotificationOptions	type
+NotificationResponse	type
+NotificationResponseHandler	type
 Overflow	type
 PickFilesOptions	type
 PickSavePathOptions	type

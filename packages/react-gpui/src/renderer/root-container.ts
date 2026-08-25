@@ -74,6 +74,9 @@ export class RootContainer implements DispatchContext {
   private readonly deletedRoots: Set<number>;
   private readonly movedIds: Set<number>;
   private readonly updatedMasks: Map<number, number>;
+  private readonly scheduleDispatch: (dispatch: () => void) => void;
+  private transportTerminated = false;
+  private terminationError: TransportTerminatedError | undefined;
   invalid = false;
   unmounted = false;
   validationError: Error | undefined;
@@ -86,13 +89,12 @@ export class RootContainer implements DispatchContext {
   private readonly onTransportTermination: TransportTerminationListener | undefined;
   readonly onWindowResize: WindowResizeHandler | undefined;
   readonly onWindowActivation: WindowActivationHandler | undefined;
-  readonly onAppearance: ((appearance: Appearance) => void) | undefined;
   private readonly surfaceClosedHandler: (() => void) | undefined;
   readonly onAction: ((action: string) => void) | undefined;
-  private readonly scheduleDispatch: (dispatch: () => void) => void;
-  private transportTerminated = false;
-  private terminationError: TransportTerminatedError | undefined;
-
+  readonly onAppearance: ((appearance: Appearance) => void) | undefined;
+  readonly onNotificationResponse:
+    | ((response: { readonly tag: string; readonly actionId: string | null }) => void)
+    | undefined;
   constructor(
     readonly transport: Transport,
     surfaceId: number,
@@ -105,6 +107,7 @@ export class RootContainer implements DispatchContext {
     onSurfaceClosed?: () => void,
     onAction?: (action: string) => void,
     onAppearance?: (appearance: Appearance) => void,
+    onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void,
   ) {
     this.surfaceId = assertU32Option("surfaceId", surfaceId);
     this.epoch = assertU32Option("epoch", epoch);
@@ -125,6 +128,7 @@ export class RootContainer implements DispatchContext {
     this.surfaceClosedHandler = onSurfaceClosed;
     this.onAction = onAction;
     this.onAppearance = onAppearance;
+    this.onNotificationResponse = onNotificationResponse;
     this.decoder = new FrameDecoder(maxFrameSize);
     this.unsubscribe = transport.onData((chunk) => this.receive(chunk));
     this.unsubscribeTermination = transport.onTermination((error) => this.handleTransportTermination(error));
@@ -314,6 +318,7 @@ export class RootContainer implements DispatchContext {
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
       | readonly [string, string]
+      | readonly [string, string, readonly (readonly [string, string])[]]
       | string
       | MenuPayload
       | null,
@@ -464,15 +469,37 @@ export class RootContainer implements DispatchContext {
     });
   }
 
-  showNotification(options: { readonly title: string; readonly body: string }): Promise<void> {
-    const { title, body } = options;
+  showNotification(options: {
+    readonly title: string;
+    readonly body: string;
+    readonly actions?: readonly { readonly id: string; readonly label: string }[];
+  }): Promise<void> {
+    const { title, body, actions } = options;
     if (typeof title !== "string" || utf8ByteLength(title) > 256)
       return Promise.reject(new TypeError("notification title must be at most 256 UTF-8 bytes"));
     if (typeof body !== "string" || utf8ByteLength(body) > 1024)
       return Promise.reject(new TypeError("notification body must be at most 1024 UTF-8 bytes"));
-    return this.submitSurfaceCommandValue(COMMAND_SHOW_NOTIFICATION, [title, body]).then(() => undefined);
+    if (
+      actions !== undefined &&
+      (!Array.isArray(actions) ||
+        actions.length > 3 ||
+        actions.some(
+          (action) =>
+            typeof action.id !== "string" ||
+            action.id.length === 0 ||
+            utf8ByteLength(action.id) > 64 ||
+            typeof action.label !== "string" ||
+            action.label.length === 0 ||
+            utf8ByteLength(action.label) > 256,
+        ))
+    )
+      return Promise.reject(new TypeError("notification actions must contain at most three bounded id/label pairs"));
+    const payload: readonly [string, string] | readonly [string, string, readonly (readonly [string, string])[]] =
+      actions === undefined
+        ? [title, body]
+        : [title, body, actions.map((action) => [action.id, action.label] as const)];
+    return this.submitSurfaceCommandValue(COMMAND_SHOW_NOTIFICATION, payload).then(() => undefined);
   }
-
   setMenus(menus: readonly MenuDefinition[]): Promise<void> {
     try {
       const encodeItem = (item: MenuItem): MenuItemPayload => {

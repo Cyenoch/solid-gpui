@@ -174,10 +174,9 @@ for root-only versus Host Node ownership and CommandResult value tags.
   `Submit`, `Key`, `Pointer`, and `Hover`.
 - **Scrolling and lists:** `Scroll`, `VisibleRange`, and `Layout`.
 - **Window/surface lifecycle:** `WindowResize`, `WindowActivation`,
-  `WindowAppearance`, `SurfaceClosed`, and `Action`.
+  `WindowAppearance`, `SurfaceClosed`, `Action`, and `NotificationResponse`.
 - **Command acknowledgement:** `CommandResult`, including optional typed
   number, pair, boolean, string, and newer surface values.
-
 Callbacks are semantic notifications, not cancellable browser events. Event
 18 appearance values are `"light"` and `"dark"`; palette selection is owned by
 the application. See [protocol.md](protocol.md#3-event-directory) for payload
@@ -317,6 +316,9 @@ await root.setMenus([
 Re-send the complete `setMenus` definition when `disabled` or `checked` state
 changes. Omitted flags default to `false`; disabled actions are unavailable to
 native activation and checked actions use the native toggled indicator.
+Register `onNotificationResponse` in `createRoot` options for
+`{ tag, actionId }` responses; body activation uses `actionId: null`, and a
+closed surface drops late responses.
 
 ### Transport termination and crash diagnostics
 

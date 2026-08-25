@@ -3,7 +3,8 @@ use std::sync::atomic::Ordering;
 
 use gpui::{
     ClipboardEntry, ClipboardItem, Context, Menu as GpuiMenu, MenuItem as GpuiMenuItem,
-    PathPromptOptions, ScrollStrategy, SystemNotification, Window, px, size,
+    PathPromptOptions, ScrollStrategy, SystemNotification, SystemNotificationAction, Window, px,
+    size,
 };
 
 use super::ReactRoot;
@@ -180,9 +181,25 @@ impl ReactRoot {
                 {
                     success = false;
                     error = Some("showNotification payload is invalid".to_owned());
+                } else if command
+                    .actions
+                    .as_ref()
+                    .is_some_and(|actions| actions.len() > 3)
+                {
+                    success = false;
+                    error = Some("showNotification supports at most three actions".to_owned());
                 } else {
                     let title = command.title.as_deref().unwrap_or_default();
                     let body = command.body.as_deref().unwrap_or_default();
+                    let actions = command
+                        .actions
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|action| SystemNotificationAction {
+                            id: action.id.into(),
+                            label: action.label.into(),
+                        })
+                        .collect();
                     cx.show_system_notification(SystemNotification {
                         tag: format!(
                             "react-gpui:{}:{}",
@@ -192,7 +209,7 @@ impl ReactRoot {
                         .into(),
                         title: title.into(),
                         body: body.into(),
-                        actions: Vec::new(),
+                        actions,
                     });
                 }
             } else if matches!(

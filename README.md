@@ -96,6 +96,11 @@ await root.setMenus([
 ]);
 ```
 
+Optional notification actions use bounded `{ id, label }` pairs (at most three).
+Register `onNotificationResponse: ({ tag, actionId }) => ...` in root options;
+`actionId` is `null` for body activation, and responses for closed surfaces are
+dropped. Notification delivery and response support are platform best effort.
+
 Pass `onAction: (action) => ...` in `createRoot` options to receive the
 selected string action. Menu state is static and state-driven: changing
 `disabled` or `checked` re-sends the complete `setMenus` definition; omitted

@@ -178,6 +178,18 @@ impl ReactRoot {
         );
         send_event_or_exit(self.runtime.as_ref(), "menu action event", &event);
     }
+    /// Emit a response to a host system notification for this root surface.
+    pub fn emit_notification_response(&self, tag: String, action_id: Option<String>) {
+        let event = Event::notification_response(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            tag,
+            action_id,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "notification response event", &event);
+    }
 
     /// Decode, validate, atomically commit, and notify exactly once. This
     /// method is intended to run from a GPUI foreground callback.

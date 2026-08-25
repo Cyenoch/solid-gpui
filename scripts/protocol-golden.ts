@@ -90,6 +90,7 @@ const rows = [
   row("ts-event-submit-text", "event", [3, 2, 7, 3, 42, 16, 5, 9, 13, "submitted text"]),
   row("ts-event-surface-closed", "event", [3, 2, 7, 3, 42, 17, 0, 0, 16, null]),
   row("ts-event-action", "event", [3, 2, 7, 3, 42, 21, 1, 0, 17, "open"]),
+  row("ts-event-notification-response", "event", [3, 2, 7, 3, 42, 22, 1, 0, 21, ["react-gpui:7:120", "open"]]),
   row("ts-event-command-result-open-surface", "event", [
     3,
     2,
@@ -195,7 +196,7 @@ const rows = [
   row("ts-command-open-surface", "command", [3, 4, 7, 3, 42, 117, 1, 17, ["Child", [640, 480]]]),
   row("ts-command-file-dialog-open", "command", [3, 4, 7, 3, 42, 118, 1, 18, ["Choose", [1, 1]]]),
   row("ts-command-file-dialog-save", "command", [3, 4, 7, 3, 42, 119, 1, 19, "report.json"]),
-  row("ts-command-notification", "command", [3, 4, 7, 3, 42, 120, 1, 20, ["Done", "Finished"]]),
+  row("ts-command-notification", "command", [3, 4, 7, 3, 42, 120, 1, 20, ["Done", "Finished", [["open", "Open"]]]]),
   row("ts-command-set-menus", "command", [
     3,
     4,

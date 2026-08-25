@@ -39,6 +39,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_WINDOW_APPEARANCE
             | EVENT_LAYOUT
             | EVENT_DRAG
+            | EVENT_NOTIFICATION_RESPONSE
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -122,6 +123,19 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 && action.chars().count() <= 256 =>
         {
             Some(EventPayload::EventAction { action })
+        }
+        (EVENT_NOTIFICATION_RESPONSE, Some(EventPayloadWire::Notification((tag, action_id))))
+            if wire.6 == 1
+                && wire.7 == 0
+                && !tag.is_empty()
+                && tag.chars().count() <= 256
+                && action_id
+                    .as_ref()
+                    .is_none_or(|action| !action.is_empty() && action.len() <= 64) =>
+        {
+            Some(EventPayload::NotificationResponse(
+                NotificationResponseEvent { tag, action_id },
+            ))
         }
         (EVENT_WINDOW_APPEARANCE, Some(EventPayloadWire::WindowAppearance(appearance)))
             if wire.6 == 1 && wire.7 == 0 && matches!(appearance.as_str(), "light" | "dark") =>
@@ -281,6 +295,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<String>>()?
                 .flatten()
                 .map(EventPayloadWire::WindowAppearance),
+            EVENT_NOTIFICATION_RESPONSE => sequence
+                .next_element::<Option<(String, Option<String>)>>()?
+                .flatten()
+                .map(EventPayloadWire::Notification),
             EVENT_PRESS | EVENT_HOVER => {
                 let payload: Option<Option<de::IgnoredAny>> = sequence.next_element()?;
                 if payload.flatten().is_some() {
@@ -331,6 +349,7 @@ enum EventPayloadWire {
     WindowActivation(bool),
     Action(String),
     WindowAppearance(String),
+    Notification((String, Option<String>)),
     Layout((f32, f32, f32, f32)),
     Drag(DragPayloadWire),
 }
@@ -725,6 +744,9 @@ impl From<&EventPayload> for EventPayloadWire {
             }
             EventPayload::WindowActivation { active } => Self::WindowActivation(*active),
             EventPayload::EventAction { action } => Self::Action(action.clone()),
+            EventPayload::NotificationResponse(response) => {
+                Self::Notification((response.tag.clone(), response.action_id.clone()))
+            }
             EventPayload::WindowAppearance { appearance } => {
                 Self::WindowAppearance(appearance.as_str().to_owned())
             }

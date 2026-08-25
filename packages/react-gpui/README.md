@@ -244,16 +244,21 @@ display-backed macOS Quartz host run and is not exercised in headless CI.
 
 ## System notifications and menus
 
-`showNotification` is a one-way, root-scoped request:
+`showNotification` submits a root-scoped request. Optional action buttons are
+limited to three bounded `{ id, label }` pairs:
 
 ```tsx
-await root.showNotification({ title: "Build finished", body: "Artifacts are ready." });
+await root.showNotification({
+  title: "Build finished",
+  body: "Artifacts are ready.",
+  actions: [{ id: "open", label: "Open" }],
+});
 ```
 
-Success means the host submitted a `SystemNotification`; operating-system
-authorization and delivery are best effort. The host owns the internal tag and
-does not expose actions, dismissal, or response callbacks in this interface.
-Windows AppUserModel identity is a host packaging concern.
+Register `onNotificationResponse` in the root options to receive
+`{ tag, actionId }`; `actionId` is `null` for body activation. The host
+generates tags and drops responses for closed surfaces. Delivery and response
+support are platform best effort; Web/test platforms may be no-ops.
 
 Static application menus use string action names and optional `disabled` and
 `checked` state:
