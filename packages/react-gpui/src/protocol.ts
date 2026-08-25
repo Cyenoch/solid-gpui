@@ -176,6 +176,7 @@ export type Patch = readonly [
 export type MenuItemPayload =
   | readonly [0]
   | readonly [1, string]
+  | readonly [1, string, readonly [boolean, boolean]]
   | readonly [2, readonly [string, readonly MenuItemPayload[]]];
 export type MenuPayload = readonly (readonly [string, readonly MenuItemPayload[]])[];
 

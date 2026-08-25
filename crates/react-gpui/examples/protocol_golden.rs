@@ -251,11 +251,19 @@ fn menus_command() -> Command {
         menus: Some(vec![MenuDefinition {
             title: "File".into(),
             items: vec![
-                MenuItemDefinition::Action("open".into()),
+                MenuItemDefinition::Action {
+                    name: "open".into(),
+                    disabled: true,
+                    checked: true,
+                },
                 MenuItemDefinition::Separator,
                 MenuItemDefinition::Submenu(MenuDefinition {
                     title: "More".into(),
-                    items: vec![MenuItemDefinition::Action("other".into())],
+                    items: vec![MenuItemDefinition::Action {
+                        name: "other".into(),
+                        disabled: false,
+                        checked: false,
+                    }],
                 }),
             ],
         }]),

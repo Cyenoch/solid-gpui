@@ -157,7 +157,7 @@ export interface LayoutFrame {
 export type LayoutHandler = (frame: LayoutFrame) => void;
 export type MenuItem =
   | { readonly type: "separator" }
-  | { readonly type: "action"; readonly name: string }
+  | { readonly type: "action"; readonly name: string; readonly disabled?: boolean; readonly checked?: boolean }
   | { readonly type: "submenu"; readonly title: string; readonly items: readonly MenuItem[] };
 export interface MenuDefinition {
   readonly title: string;

@@ -1583,7 +1583,7 @@ describe("renderer commits", () => {
       {
         title: "File",
         items: [
-          { type: "action", name: "open" },
+          { type: "action", name: "open", disabled: true, checked: true },
           { type: "separator" },
           { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
         ],
@@ -1598,7 +1598,7 @@ describe("renderer commits", () => {
       1,
       1,
       COMMAND_SET_MENUS,
-      [["File", [[1, "open"], [0], [2, ["More", [[1, "other"]]]]]]],
+      [["File", [[1, "open", [true, true]], [0], [2, ["More", [[1, "other"]]]]]]],
     ]);
     transport.push(complete(1, 1, COMMAND_SET_MENUS));
     await menus;

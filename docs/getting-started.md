@@ -302,12 +302,21 @@ if (savePath !== null) console.log(savePath);
 
 ### Notification and menus
 
-Notifications are one-way; menus are static definitions:
+Notifications are one-way; menus are static, state-driven definitions:
 
 ```tsx
 await root.showNotification({ title: "Build finished", body: "Artifacts ready." });
-await root.setMenus([{ title: "File", items: [{ type: "action", name: "open" }] }]);
+await root.setMenus([
+  {
+    title: "File",
+    items: [{ type: "action", name: "open", disabled: !canOpen, checked: isOpen }],
+  },
+]);
 ```
+
+Re-send the complete `setMenus` definition when `disabled` or `checked` state
+changes. Omitted flags default to `false`; disabled actions are unavailable to
+native activation and checked actions use the native toggled indicator.
 
 ### Transport termination and crash diagnostics
 

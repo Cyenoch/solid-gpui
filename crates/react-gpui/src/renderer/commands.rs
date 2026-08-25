@@ -23,9 +23,13 @@ impl ReactRoot {
     fn menu_item(item: MenuItemDefinition) -> GpuiMenuItem {
         match item {
             MenuItemDefinition::Separator => GpuiMenuItem::separator(),
-            MenuItemDefinition::Action(name) => {
-                GpuiMenuItem::action(name.clone(), MenuAction { name })
-            }
+            MenuItemDefinition::Action {
+                name,
+                disabled,
+                checked,
+            } => GpuiMenuItem::action(name.clone(), MenuAction { name })
+                .checked(checked)
+                .disabled(disabled),
             MenuItemDefinition::Submenu(menu) => GpuiMenuItem::submenu(
                 GpuiMenu::new(menu.title).items(menu.items.into_iter().map(Self::menu_item)),
             ),
@@ -538,5 +542,29 @@ impl ReactRoot {
         if refresh {
             window.refresh();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_action_states_map_to_gpui_menu_item_flags() {
+        let item = ReactRoot::menu_item(MenuItemDefinition::Action {
+            name: "open".to_owned(),
+            disabled: true,
+            checked: true,
+        });
+        assert!(item.is_disabled());
+        assert!(item.is_checked());
+
+        let item = ReactRoot::menu_item(MenuItemDefinition::Action {
+            name: "other".to_owned(),
+            disabled: false,
+            checked: false,
+        });
+        assert!(!item.is_disabled());
+        assert!(!item.is_checked());
     }
 }

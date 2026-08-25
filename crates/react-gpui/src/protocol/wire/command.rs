@@ -265,6 +265,7 @@ struct MenuWire(String, Vec<MenuItemWire>);
 enum MenuItemWire {
     Separator((u32,)),
     Action((u32, String)),
+    ActionWithOptions((u32, String, (bool, bool))),
     Submenu((u32, MenuWire)),
 }
 fn valid_menu_text(value: &str) -> bool {
@@ -279,12 +280,22 @@ impl From<&MenuDefinition> for MenuWire {
         )
     }
 }
-
 impl From<&MenuItemDefinition> for MenuItemWire {
     fn from(item: &MenuItemDefinition) -> Self {
         match item {
             MenuItemDefinition::Separator => Self::Separator((0,)),
-            MenuItemDefinition::Action(action) => Self::Action((1, action.clone())),
+            MenuItemDefinition::Action {
+                name,
+                disabled,
+                checked,
+            } if *disabled || *checked => {
+                Self::ActionWithOptions((1, name.clone(), (*disabled, *checked)))
+            }
+            MenuItemDefinition::Action {
+                name,
+                disabled: _,
+                checked: _,
+            } => Self::Action((1, name.clone())),
             MenuItemDefinition::Submenu(menu) => Self::Submenu((2, MenuWire::from(menu))),
         }
     }
@@ -314,8 +325,19 @@ impl TryFrom<MenuItemWire> for MenuItemDefinition {
     fn try_from(item: MenuItemWire) -> Result<Self, Self::Error> {
         match item {
             MenuItemWire::Separator((0,)) => Ok(Self::Separator),
-            MenuItemWire::Action((1, action)) if valid_menu_text(&action) => {
-                Ok(Self::Action(action))
+            MenuItemWire::Action((1, action)) if valid_menu_text(&action) => Ok(Self::Action {
+                name: action,
+                disabled: false,
+                checked: false,
+            }),
+            MenuItemWire::ActionWithOptions((1, action, (disabled, checked)))
+                if valid_menu_text(&action) =>
+            {
+                Ok(Self::Action {
+                    name: action,
+                    disabled,
+                    checked,
+                })
             }
             MenuItemWire::Submenu((2, menu)) => Ok(Self::Submenu(MenuDefinition::try_from(menu)?)),
             _ => Err(ProtocolError::InvalidCommandPayload),
@@ -503,11 +525,19 @@ mod tests {
             menus: Some(vec![MenuDefinition {
                 title: "File".to_owned(),
                 items: vec![
-                    MenuItemDefinition::Action("open".to_owned()),
+                    MenuItemDefinition::Action {
+                        name: "open".to_owned(),
+                        disabled: true,
+                        checked: true,
+                    },
                     MenuItemDefinition::Separator,
                     MenuItemDefinition::Submenu(MenuDefinition {
                         title: "More".to_owned(),
-                        items: vec![MenuItemDefinition::Action("other".to_owned())],
+                        items: vec![MenuItemDefinition::Action {
+                            name: "other".to_owned(),
+                            disabled: false,
+                            checked: false,
+                        }],
                     }),
                 ],
             }]),

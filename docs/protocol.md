@@ -348,7 +348,7 @@ checks in `commands.rs:186-331`.
 |   18 | FileDialogOpen   | Root-only (`nodeId=1`)                                               | `[title,[directories,multiple]]`, with both flags encoded as `0`/`1`                                                                    | Asynchronously opens the native picker with `files = !directories`, `directories`, and `multiple`. A selection completes with value tag `5`; cancellation is `success=true` with its optional value absent/null; platform failure is `success=false`. | `root-container.ts:402-425`; `wire/command.rs:150-156,325-336`; `commands.rs:21-88`           |
 |   19 | FileDialogSave   | Root-only (`nodeId=1`)                                               | `defaultName` string (empty means no suggestion)                                                                                        | Asynchronously opens the native save picker. A selected path completes with value tag `4`; cancellation is `success=true` with its optional value absent/null; platform failure is `success=false`. GPUI's raw save API has no title/prompt option.   | `root-container.ts:428-444`; `wire/command.rs:157-162,325-336`; `commands.rs:89-132`          |
 |   20 | ShowNotification | Root-only (`nodeId=1`)                                               | `[title,body]`, title UTF-8 ≤256 bytes and body UTF-8 ≤1024 bytes                                                                       | Fire-and-forget submission to `App::show_system_notification`; success means submitted to the platform, not delivered. Host generates its internal tag and sends no actions or response callback.                                                     | `root-container.ts:461-468`; `wire/command.rs:163-168,325-336`; `commands.rs:203-226`         |
-|   21 | SetMenus         | Root-only (`nodeId=1`)                                               | `[[menuTitle,[item...]], ...]`; item `[0]` separator, `[1,actionName]`, or `[2,[submenuTitle,[item...]]]`                               | Replaces the application menu tree. Native action selection emits Event 17; dynamic enablement, accelerators, and keybinding registration are not part of this command.                                                                               | `root-container.ts:470-514`; `wire/command.rs:169-172,223-235,293-322,325-336`; `commands.rs:53-74`   |
+|   21 | SetMenus         | Root-only (`nodeId=1`)                                               | `[[menuTitle,[item...]], ...]`; item `[0]` separator, `[1,actionName]` or `[1,actionName,[disabled,checked]]` (boolean flags), or `[2,[submenuTitle,[item...]]]` | Replaces the application menu tree. Omitted action flags default to `false`; state changes re-send the complete definition. Native action selection emits Event 17; disabled actions are unavailable to native activation and checked actions use GPUI's toggled indicator. | `root-container.ts:476-514`; `wire/command.rs:169-172,223-235,293-344`; `commands.rs:23-44` |
 
 FileDialogOpen and FileDialogSave are the asynchronous exceptions to the
 otherwise immediate command path. The host starts the GPUI foreground picker,
@@ -364,11 +364,13 @@ and is not configured by the React wire. Headless coverage uses TestPlatform;
 success only means the host submitted the notification.
 
 SetMenus uses GPUI's typed `Action` bridge internally. The host wraps each
-string action name in a host-owned action and routes the active window's
-selection as Event 17. GPUI's native menu is process-wide, so the active
-surface owns the event; menu updates replace the current tree. Platform
-implementations differ: macOS installs an NSMenu, while Linux/Windows retain
-owned menu data for their UI integrations and Web/test platforms are no-ops.
+string action name in a host-owned action, applies the action's checked and
+disabled flags, and routes the active window's selection as Event 17. GPUI's
+native menu is process-wide, so the active surface owns the event; menu updates
+replace the current tree and JavaScript state changes must re-send the complete
+definition. Platform implementations differ: macOS installs an NSMenu, while
+Linux/Windows retain owned menu data for their UI integrations and Web/test
+platforms are no-ops.
 
 Every processed command produces a CommandResult event with the original
 request ID, command, node ID, success flag, nullable error, and optional value

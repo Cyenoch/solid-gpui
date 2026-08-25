@@ -918,7 +918,11 @@ pub mod test_support {
                 None,
                 Some(vec![MenuDefinition {
                     title: "Test".to_owned(),
-                    items: vec![MenuItemDefinition::Action("test-action".to_owned())],
+                    items: vec![MenuItemDefinition::Action {
+                        name: "test-action".to_owned(),
+                        disabled: false,
+                        checked: false,
+                    }],
                 }]),
             ),
         );

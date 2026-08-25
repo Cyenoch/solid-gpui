@@ -255,14 +255,15 @@ authorization and delivery are best effort. The host owns the internal tag and
 does not expose actions, dismissal, or response callbacks in this interface.
 Windows AppUserModel identity is a host packaging concern.
 
-Static application menus use string action names:
+Static application menus use string action names and optional `disabled` and
+`checked` state:
 
 ```tsx
 await root.setMenus([
   {
     title: "File",
     items: [
-      { type: "action", name: "open" },
+      { type: "action", name: "open", disabled: !canOpen, checked: isOpen },
       { type: "separator" },
       { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
     ],
@@ -271,10 +272,11 @@ await root.setMenus([
 ```
 
 Register `onAction` in the root options to receive a selected action string.
-Menu replacement is static for this version: dynamic enablement, accelerator
-labels, and keybinding registration are intentionally out of scope. Web and
-test platforms may not install native menus; headless tests exercise wire and
-dispatch behavior.
+Menu replacement is static: state changes re-send the complete `setMenus`
+definition, with omitted flags defaulting to `false`; there is no incremental
+menu-state command. Disabled actions are unavailable to native activation, and
+checked actions use GPUI's toggled indicator. Web and test platforms may not
+install native menus; headless tests exercise wire and dispatch behavior.
 
 ## Debugging
 

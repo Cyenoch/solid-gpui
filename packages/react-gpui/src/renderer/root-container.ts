@@ -480,7 +480,14 @@ export class RootContainer implements DispatchContext {
         if (item.type === "action") {
           if (typeof item.name !== "string" || item.name.length === 0 || [...item.name].length > 256)
             throw new TypeError("menu action name must be 1..256 Unicode scalar values");
-          return [1, item.name];
+          if (
+            (item.disabled !== undefined && typeof item.disabled !== "boolean") ||
+            (item.checked !== undefined && typeof item.checked !== "boolean")
+          )
+            throw new TypeError("menu action disabled/checked states must be boolean");
+          const disabled = item.disabled ?? false;
+          const checked = item.checked ?? false;
+          return disabled || checked ? [1, item.name, [disabled, checked]] : [1, item.name];
         }
         if (
           typeof item.title !== "string" ||

@@ -88,7 +88,7 @@ await root.setMenus([
   {
     title: "File",
     items: [
-      { type: "action", name: "open" },
+      { type: "action", name: "open", disabled: !canOpen, checked: isOpen },
       { type: "separator" },
       { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
     ],
@@ -97,11 +97,14 @@ await root.setMenus([
 ```
 
 Pass `onAction: (action) => ...` in `createRoot` options to receive the
-selected string action. This first menu slice intentionally omits dynamic
-enablement, accelerator labels, and keybinding registration. Notifications
-are fire-and-forget platform submissions: delivery and authorization are not
-guaranteed, Web/test menu implementations may be no-ops, and Windows
-AppUserModel identity remains a host packaging concern.
+selected string action. Menu state is static and state-driven: changing
+`disabled` or `checked` re-sends the complete `setMenus` definition; omitted
+flags default to `false`, and there is no incremental menu-state command.
+Disabled actions are unavailable to native activation, while checked actions
+use GPUI's toggled indicator. Notifications are fire-and-forget platform
+submissions: delivery and authorization are not guaranteed, Web/test menu
+implementations may be no-ops, and Windows AppUserModel identity remains a
+host packaging concern.
 
 A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
 

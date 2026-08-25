@@ -194,7 +194,11 @@ pub struct MenuDefinition {
 #[derive(Debug, Clone, PartialEq)]
 pub enum MenuItemDefinition {
     Separator,
-    Action(String),
+    Action {
+        name: String,
+        disabled: bool,
+        checked: bool,
+    },
     Submenu(MenuDefinition),
 }
 #[derive(Clone, Debug, PartialEq, gpui::Action)]

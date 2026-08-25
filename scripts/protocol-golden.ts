@@ -205,7 +205,7 @@ const rows = [
     121,
     1,
     21,
-    [["File", [[1, "open"], [0], [2, ["More", [[1, "other"]]]]]]],
+    [["File", [[1, "open", [true, true]], [0], [2, ["More", [[1, "other"]]]]]]],
   ]),
   row("ts-command-get-focus", "command", [3, 4, 7, 3, 42, 114, 4, 14, null]),
   row("ts-command-blur", "command", [3, 4, 7, 3, 42, 102, 4, 2, null]),
