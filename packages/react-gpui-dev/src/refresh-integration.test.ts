@@ -46,7 +46,9 @@ async function writeModule(path: string, source: string): Promise<void> {
 }
 async function transformedDataUrl(source: string, path: string): Promise<string> {
   const code = await transformRefreshSource(source, path);
-  return `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`;
+  const reactUrl = import.meta.resolve("react");
+  const dataCode = code.replaceAll('"react"', JSON.stringify(reactUrl));
+  return `data:text/javascript;base64,${Buffer.from(dataCode).toString("base64")}`;
 }
 
 async function importParent(
