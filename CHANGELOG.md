@@ -240,6 +240,18 @@ from this work tree.
 - The capability-gap review records multiline text input, text selection,
   `pointerEvents`, and rotation as backlog items with native-source evidence;
   current documentation makes no unsupported capability claims.
+- Performance budgets now use post-30-round baselines: patch application is
+  79.48 ms versus the historical 76 ms (`~1.05x`, with no regression), with
+  segmented timings; the 39-slot full/null style comparison is 85.9/13.8 ms,
+  demonstrating the null fast path; layout batching is 47.7 ms. TypeScript
+  surface routing measures 5.8/9.2 ms for surfaces 2/8, while press, scroll,
+  and drag dispatch hot paths retain explicit budgets. Workloads are measured
+  at ×10 and every baseline carries a date comment.
+- The Rust test suite moves the 1,922-line `tests.rs` into five domain modules
+  while preserving the 64-test count. The 1,991-line wire implementation is
+  split by message family into `mod.rs`, `snapshot_patch.rs`, `node.rs`,
+  `command.rs`, and `event.rs`; module-boundary guardrails stay synchronized,
+  and the pure move changes no public surface.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
