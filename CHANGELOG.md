@@ -337,6 +337,14 @@ from this work tree.
   511 renderer command frames with zero command results because headless GPUI
   command processing is display-bound; this limitation is reported, not hidden.
   The run is leak-smoke evidence, not multi-hour soak proof.
+- The DX timing audit records warm `make ci` at 9.57s, Rust format/check at
+  0.12/2.19s, clean Rust check at 32.31s versus 0.47s after a one-file touch,
+  cold Bun installs at 0.01/0.07s, Bun tests at 1.15s core and 0.40s dev,
+  and release-host startup to first Snapshot at 45ms. A clean-cache
+  `make embedded-bun` takes 137.16s versus 0.82s warm because of the pinned
+  Bun/GPUI graph; this is inherent cold-build cost, not an optimization target.
+  Shared Makefile install/build outputs make parallelization riskier than its
+  small warm-CI benefit, so no build-time optimization was made.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
