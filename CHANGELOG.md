@@ -306,6 +306,18 @@ from this work tree.
   Zoom, file dialogs, and input-driving remain explicitly graded lower because
   they require platform/display semantics. The incremental command roundtrip
   suite adds **3.5 s** of coverage.
+- Dialog command round trips now cover multi/single-file and directory opens
+  through value tag 5, save through tag 4, cancellation as `success=true` with
+  a missing value, malformed-frame routing rejection, non-UTF-8 path host error
+  receipts, and safe WeakEntity callback dropping after surface close. These
+  close the remaining audited paths; TestPlatform's lack of a provider-error
+  injection surface is recorded as a matrix limitation.
+- Headless long-run stability invariants now exercise 50,000 cycles across 10
+  surfaces and 100,020 frames in 0.78 seconds: listener lifetimes stay
+  constant, every command Promise settles, surface IDs remain monotonic, frame
+  bounds and error counters stay clean, and press/scroll callbacks reach all
+  iterations. A 60-second process soak remains an optional manual run and was
+  not performed.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
