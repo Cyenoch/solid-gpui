@@ -252,6 +252,17 @@ from this work tree.
   split by message family into `mod.rs`, `snapshot_patch.rs`, `node.rs`,
   `command.rs`, and `event.rs`; module-boundary guardrails stay synchronized,
   and the pure move changes no public surface.
+- `flexDirection` now accepts all four GPUI/Taffy values, including
+  `row-reverse` and `column-reverse`, and mirrors physical layout as a
+  layout-only operation. RTL/bidi text direction and caret behavior remain
+  unsupported and are documented as such.
+- `textAlign` supports `left`, `center`, and `right` at style slot 39, locking
+  the 40-slot style tuple and its cross-language validation.
+- ADR-0008 records the error philosophy across the four seams: consumer
+  Error-Boundary ownership for render failures, fail-fast protocol validation,
+  local blank-image degradation, and host-fatal GPUI paint panics. Resync,
+  `catch_unwind`, and swallowed errors are rejected; getting-started now has the
+  error-boundary table and explicitly documents shared multi-surface termination.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
