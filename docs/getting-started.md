@@ -327,12 +327,12 @@ the metadata-only tap report.
 The failure owner determines the recovery behavior. React Error Boundaries are
 consumer code; the other rows are host/runtime contracts:
 
-| Failure | Current behavior | Owner/recovery |
-| --- | --- | --- |
-| React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted. | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one. |
-| Bad Snapshot/Patch frame or tree invariant | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry. | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
-| Image resource failure | The Image node remains in the tree and GPUI renders blank output; no `Image` error callback exists in this protocol. | Ship/validate the asset or render a separate fallback; other nodes continue. |
-| GPUI paint panic/internal invariant | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path. | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame. |
+| Failure                                      | Current behavior                                                                                                         | Owner/recovery                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted.                                           | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one.           |
+| Bad Snapshot/Patch frame or tree invariant   | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry.                     | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
+| Image resource failure                       | The Image node remains in the tree and GPUI renders blank output; no `Image` error callback exists in this protocol.     | Ship/validate the asset or render a separate fallback; other nodes continue.                                          |
+| GPUI paint panic/internal invariant          | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path. | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame.           |
 
 The strict protocol choice is intentional: v3 revisions and Surface/epoch
 identity require both sides to agree on the same tree. The full rationale,
@@ -361,6 +361,7 @@ These are current constraints, not a roadmap:
 - Generic transforms (`transform.scale`, `transform.translateX`,
   `transform.translateY`) are unsupported. Positioning is the explicit
   `relative`/`absolute` plus inset fields.
+- `flexDirection: row-reverse/column-reverse` is a physical layout mirror only; explicit container/text base direction (RTL) and bidi caret/IME semantics are unsupported pending upstream GPUI APIs.
 - On Windows, some cursor variants (`alias`, `copy`, and similar) fall back to the default arrow; cursor changes are a no-op in headless environments.
 - `Image.source` is a host-local path. There is no `Image` `onError` callback,
   remote URL fetch, or inline image-byte transport; missing images are silent
