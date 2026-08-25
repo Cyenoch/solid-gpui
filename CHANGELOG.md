@@ -263,6 +263,18 @@ from this work tree.
   local blank-image degradation, and host-fatal GPUI paint panics. Resync,
   `catch_unwind`, and swallowed errors are rejected; getting-started now has the
   error-boundary table and explicitly documents shared multi-surface termination.
+- TextInput placeholders render as gray, visual-only native text when the
+  native value is empty, following GPUI example semantics without entering
+  `value`, selection, or UTF-16 state. Selection direction now flows end to end:
+  `NativeInputState` tracks it, `UTF16Selection::reversed` returns the real
+  direction, 13-slot host tuples carry it, legacy 8-slot events decode with
+  `reversed: false`, and TypeScript selection events expose `reversed`.
+  `setSelection` retains ordered command semantics; IME candidate and click
+  positioning remain documented approximate placeholders pending exact geometry.
+- v0.2.0 cut preparation validates a safe `release-prep 0.2.0` dry-run, counts
+  71 Unreleased entries (64/3/4), verifies archive naming follows the Cargo
+  version, and records a local ignored `.scratch` checklist with five human
+  decisions and a seven-step mechanical sequence.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
