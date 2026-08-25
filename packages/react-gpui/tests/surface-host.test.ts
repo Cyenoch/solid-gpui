@@ -130,6 +130,18 @@ describe("SurfaceHost", () => {
     second.unmount();
     host.dispose();
   });
+  it("rejects pending commands when one surface closes", async () => {
+    const transport = new MemoryTransport();
+    const host = createSurfaceHost(transport);
+    const root = host.createRoot({ surfaceId: 23 });
+    root.render(null);
+    const pending = root.pickFiles().catch((error: unknown) => error);
+
+    transport.push(surfaceClosed(23, 1, 1));
+
+    await expect(pending).resolves.toMatchObject({ message: "root is unmounted" });
+    host.dispose();
+  });
 
   it("rejects pending root commands on shared termination", async () => {
     const transport = new TerminatingTransport();
@@ -139,12 +151,27 @@ describe("SurfaceHost", () => {
     first.render(null);
     second.render(null);
     const firstPending = first.setTitle("first").catch((error: unknown) => error);
-    const secondPending = second.setTitle("second").catch((error: unknown) => error);
+    const secondPending = second.pickSavePath({ defaultName: "second.txt" }).catch((error: unknown) => error);
 
     transport.terminate();
 
     await expect(firstPending).resolves.toBeInstanceOf(TransportTerminatedError);
     await expect(secondPending).resolves.toBeInstanceOf(TransportTerminatedError);
     host.dispose();
+  });
+  it("rejects every root's pending command on host disposal", async () => {
+    const transport = new MemoryTransport();
+    const host = createSurfaceHost(transport);
+    const first = host.createRoot({ surfaceId: 41 });
+    const second = host.createRoot({ surfaceId: 42 });
+    first.render(null);
+    second.render(null);
+    const firstPending = first.pickFiles().catch((error: unknown) => error);
+    const secondPending = second.pickSavePath().catch((error: unknown) => error);
+
+    host.dispose();
+
+    await expect(firstPending).resolves.toMatchObject({ message: "SurfaceHost is disposed" });
+    await expect(secondPending).resolves.toMatchObject({ message: "SurfaceHost is disposed" });
   });
 });

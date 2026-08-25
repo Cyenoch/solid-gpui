@@ -32,6 +32,7 @@ import {
   COMMAND_RESIZE_WINDOW,
   COMMAND_TOGGLE_FULLSCREEN,
   EVENT_ACTION,
+  EVENT_SURFACE_CLOSED,
   COMMAND_ZOOM_WINDOW,
   EVENT_HOVER,
   EVENT_KEY,
@@ -1416,6 +1417,47 @@ describe("renderer commits", () => {
     transport.push(encodeFrame([3, 2, 81, 82, 1, 3, 1, 0, EVENT_ACTION, "open"]));
     expect(actions).toEqual(["open"]);
     root.unmount();
+  });
+  it("rejects pending commands when a root unmounts", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 83, epoch: 84 });
+    const pending = root.pickFiles().catch((error: unknown) => error);
+    root.unmount();
+    await expect(pending).resolves.toMatchObject({ message: "root is unmounted" });
+  });
+
+  it("rejects all commands and drops events after surface close", async () => {
+    const transport = new MemoryTransport();
+    const actions: string[] = [];
+    const root = createRoot(transport, {
+      surfaceId: 85,
+      epoch: 86,
+      onAction: (action) => actions.push(action),
+    });
+    root.render(<View />);
+    transport.push(encodeFrame([3, 2, 85, 86, 1, 1, 0, 0, EVENT_SURFACE_CLOSED, null]));
+
+    const pending = [
+      root.setTitle("closed"),
+      root.resize(640, 480),
+      root.getWindowSize(),
+      root.setClipboardText("closed"),
+      root.getClipboardText(),
+      root.zoom(),
+      root.toggleFullscreen(),
+      root.openSurface(),
+      root.pickFiles(),
+      root.pickSavePath(),
+      root.showNotification({ title: "closed", body: "closed" }),
+      root.setMenus([]),
+      root.openUrl("https://example.com"),
+      root.focusNext(),
+      root.focusPrev(),
+    ];
+    for (const command of pending) await expect(command).rejects.toThrow("unmounted root");
+
+    transport.push(encodeFrame([3, 2, 85, 86, 1, 2, 1, 0, EVENT_ACTION, "ignored"]));
+    expect(actions).toEqual([]);
   });
   it("frames root focus traversal commands", async () => {
     const transport = new MemoryTransport();
