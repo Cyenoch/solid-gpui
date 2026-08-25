@@ -137,6 +137,16 @@ describe("@react-gpui/dev headless renderer", () => {
     result.unmount();
   });
 
+  it("commandResult resolves typed path values for file dialogs", async () => {
+    const result = render(<View />);
+    const pending = result.root.pickFiles();
+    const command = result.commits().find((value) => Array.isArray(value) && value[1] === 4) as readonly unknown[];
+    expect(command?.[5]).toBe(1);
+    result.commandResult(Number(command[5]), { value: ["/tmp/a.txt", "/tmp/b.txt"] });
+    await expect(pending).resolves.toEqual(["/tmp/a.txt", "/tmp/b.txt"]);
+    result.unmount();
+  });
+
   it("dispatchFrame is the raw framed-event escape hatch", () => {
     const pressed: string[] = [];
     const result = render(

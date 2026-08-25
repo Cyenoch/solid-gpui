@@ -21,6 +21,7 @@ import {
   COMMAND_CLIPBOARD_WRITE,
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
+  COMMAND_SCROLL_TO_END,
   COMMAND_SET_MENUS,
   COMMAND_SHOW_NOTIFICATION,
   COMMAND_FOCUS,
@@ -1140,6 +1141,23 @@ describe("renderer commits", () => {
     ]);
     transport.push(resultFrame);
     await scroll;
+    const scrollEnd = ref.current?.scrollToEnd();
+    expect(message(transport, 3).slice(0, 9)).toEqual([3, 4, 41, 42, 2, 2, list[0], COMMAND_SCROLL_TO_END, null]);
+    transport.push(
+      encodeFrame([
+        3,
+        2,
+        41,
+        42,
+        2,
+        3,
+        list[0] as number,
+        0,
+        6,
+        [2, 2, COMMAND_SCROLL_TO_END, list[0] as number, true, null],
+      ]),
+    );
+    await scrollEnd;
   });
   it("deduplicates repeated VisibleRange commits and calls onEndReached once", () => {
     const transport = new MemoryTransport();
@@ -1424,21 +1442,32 @@ describe("renderer commits", () => {
     root.unmount();
   });
 
-  it("exposes focus and blur commands on focusable View refs", () => {
+  it("round-trips focus, blur, and setTitle command receipts", async () => {
     const transport = new MemoryTransport();
     const ref = createRef<ViewHandle>();
     const root = createRoot(transport, { surfaceId: 67, epoch: 68 });
     root.render(<View ref={ref} focusable />);
-    const focusPromise = ref.current?.focus();
-    focusPromise?.catch(() => undefined);
-    expect((message(transport, 1) as readonly unknown[])[7]).toBe(COMMAND_FOCUS);
-    const blurPromise = ref.current?.blur();
-    blurPromise?.catch(() => undefined);
-    expect((message(transport, 2) as readonly unknown[])[7]).toBe(COMMAND_BLUR);
+    const complete = (sequence: number, requestId: number, command: number, nodeId: number) =>
+      encodeFrame([3, 2, 67, 68, 1, sequence, nodeId, 0, 6, [2, requestId, command, nodeId, true, null]]);
+
+    const focusPromise = ref.current!.focus();
+    const focusCommand = message(transport, 1);
+    expect(focusCommand[7]).toBe(COMMAND_FOCUS);
+    transport.push(complete(1, Number(focusCommand[5]), COMMAND_FOCUS, Number(focusCommand[6])));
+    await expect(focusPromise).resolves.toBeUndefined();
+
+    const blurPromise = ref.current!.blur();
+    const blurCommand = message(transport, 2);
+    expect(blurCommand[7]).toBe(COMMAND_BLUR);
+    transport.push(complete(2, Number(blurCommand[5]), COMMAND_BLUR, Number(blurCommand[6])));
+    await expect(blurPromise).resolves.toBeUndefined();
+
     const titlePromise = root.setTitle("React GPUI");
-    titlePromise.catch(() => undefined);
-    expect((message(transport, 3) as readonly unknown[])[7]).toBe(6);
-    expect((message(transport, 3) as readonly unknown[])[8]).toBe("React GPUI");
+    const titleCommand = message(transport, 3);
+    expect(titleCommand[7]).toBe(6);
+    expect(titleCommand[8]).toBe("React GPUI");
+    transport.push(complete(3, Number(titleCommand[5]), 6, 1));
+    await expect(titlePromise).resolves.toBeUndefined();
     root.unmount();
   });
   it("frames root-level resize, zoom, fullscreen, and URL commands", async () => {
@@ -1482,6 +1511,8 @@ describe("renderer commits", () => {
       requestId: number,
       command: number,
       value: readonly unknown[] | null | undefined = undefined,
+      success = true,
+      error: string | null = null,
     ) =>
       encodeFrame([
         3,
@@ -1493,7 +1524,9 @@ describe("renderer commits", () => {
         1,
         0,
         6,
-        value === undefined ? [2, requestId, command, 1, true, null] : [2, requestId, command, 1, true, null, value],
+        value === undefined
+          ? [2, requestId, command, 1, success, error]
+          : [2, requestId, command, 1, success, error, value],
       ] as never);
 
     const files = root.pickFiles({ title: "Open files", multiple: true });
@@ -1510,6 +1543,29 @@ describe("renderer commits", () => {
     expect(message(transport, 3)).toEqual([3, 4, 79, 80, 1, 3, 1, COMMAND_FILE_DIALOG_SAVE, "report.json"]);
     transport.push(complete(3, 3, COMMAND_FILE_DIALOG_SAVE, [4, "/tmp/report.json"]));
     await expect(save).resolves.toBe("/tmp/report.json");
+
+    const failedFiles = root.pickFiles();
+    const failedFilesCommand = message(transport, 4);
+    transport.push(
+      complete(4, Number(failedFilesCommand[5]), COMMAND_FILE_DIALOG_OPEN, undefined, false, "dialog failed"),
+    );
+    await expect(failedFiles).rejects.toThrow("dialog failed");
+
+    const malformedFiles = root.pickFiles();
+    const malformedFilesCommand = message(transport, 5);
+    transport.push(complete(5, Number(malformedFilesCommand[5]), COMMAND_FILE_DIALOG_OPEN, [4, "/tmp/not-paths"]));
+    await expect(malformedFiles).rejects.toThrow("native pickFiles returned an invalid value");
+
+    const malformedSave = root.pickSavePath();
+    const malformedSaveCommand = message(transport, 6);
+    transport.push(complete(6, Number(malformedSaveCommand[5]), COMMAND_FILE_DIALOG_SAVE, [5, ["/tmp/not-text"]]));
+    await expect(malformedSave).rejects.toThrow("native pickSavePath returned an invalid value");
+    const failedSave = root.pickSavePath();
+    const failedSaveCommand = message(transport, 7);
+    transport.push(
+      complete(7, Number(failedSaveCommand[5]), COMMAND_FILE_DIALOG_SAVE, undefined, false, "save failed"),
+    );
+    await expect(failedSave).rejects.toThrow("save failed");
     root.unmount();
   });
   it("frames notifications and static menus and dispatches action events", async () => {

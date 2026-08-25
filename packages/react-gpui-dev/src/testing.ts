@@ -60,7 +60,7 @@ export interface CommandResultOptions {
   readonly nodeId?: number;
   readonly success?: boolean;
   readonly error?: string | null;
-  readonly value?: number | readonly [number, number] | boolean | string | null;
+  readonly value?: number | readonly [number, number] | readonly string[] | boolean | string | null;
 }
 
 export interface RenderOptions {
@@ -230,7 +230,9 @@ function eventFrame(
 
 function commandValue(value: CommandResultOptions["value"]): WirePayload | null {
   if (value === undefined || value === null) return null;
-  if (Array.isArray(value)) return [2, value];
+  if (Array.isArray(value)) {
+    return value.every((item) => typeof item === "string") ? [5, value] : [2, value];
+  }
   if (typeof value === "number") return [1, value];
   if (typeof value === "boolean") return [3, value];
   return [4, value];

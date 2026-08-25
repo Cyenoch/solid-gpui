@@ -70,10 +70,14 @@ describe("SurfaceHost", () => {
 
     transport.push(commandResult(1, 1, 1, 1, COMMAND_OPEN_SURFACE, [1, 41]));
     await expect(opened).resolves.toBe(41);
+    const malformed = source.openSurface();
+    expect(message(transport, 2)[7]).toBe(COMMAND_OPEN_SURFACE);
+    transport.push(commandResult(1, 1, 2, 2, COMMAND_OPEN_SURFACE, [2, [41, 42]]));
+    await expect(malformed).rejects.toThrow("invalid surface id");
 
     const root = host.createRoot({ surfaceId: 41 });
     root.render(null);
-    expect(message(transport, 2)[2]).toBe(41);
+    expect(message(transport, 3)[2]).toBe(41);
     root.unmount();
     source.unmount();
     host.dispose();
