@@ -1,2 +1,5 @@
 /target/
 node_modules/
+/packages/react-gpui/dist/
+/packages/react-gpui-dev/dist/
+/dist/

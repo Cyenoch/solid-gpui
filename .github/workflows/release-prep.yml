@@ -1,0 +1,63 @@
+name: Release Prep
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Strict MAJOR.MINOR.PATCH version with a matching CHANGELOG section"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-prep-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RELEASE_VERSION: ${{ inputs.version }}
+
+jobs:
+  release-prep:
+    name: Candidate version and package verification
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up pinned Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache release Bun installs
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bun-version', 'packages/react-gpui/bun.lock', 'packages/react-gpui-dev/bun.lock') }}-release
+          restore-keys: |
+            bun-${{ runner.os }}-${{ runner.arch }}-release-
+
+      - name: Synchronize candidate version and frozen locks
+        run: make release-prep VERSION="$RELEASE_VERSION"
+
+      - name: Run complete candidate CI gate
+        run: make ci
+
+      - name: Pack core candidate (no publish)
+        run: cd packages/react-gpui && bun pm pack --filename "$RUNNER_TEMP/react-gpui-core-$RELEASE_VERSION.tgz" --quiet
+
+      - name: Pack dev candidate (no publish)
+        run: cd packages/react-gpui-dev && bun pm pack --filename "$RUNNER_TEMP/react-gpui-dev-$RELEASE_VERSION.tgz" --quiet
+
+      - name: Upload candidate package tarballs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: react-gpui-release-prep-${{ inputs.version }}
+          path: ${{ runner.temp }}/react-gpui-*.tgz
+          if-no-files-found: error
+          retention-days: 7

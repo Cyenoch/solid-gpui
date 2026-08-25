@@ -1,0 +1,46 @@
+name: Embedded Host Candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-embedded-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  embedded-candidate:
+    name: Build and rehearse embedded host
+    runs-on: macos-26 # Embedded Bun requires the macOS 26 SDK/toolchain
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up pinned Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Cache embedded release build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: embedded-candidate-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '.bun-version', 'crates/react-gpui-bun/build.rs', 'crates/react-gpui-bun/bun_embed.patch') }}
+          restore-keys: |
+            embedded-candidate-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Run embedded feature gate first
+        run: make embedded-bun
+
+      - name: Rehearse extracted-style embedded candidate
+        run: make host-embedded-candidate-smoke
