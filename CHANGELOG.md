@@ -51,7 +51,7 @@ from this work tree.
   `BLACK=900`; `fontFamily` remains intentionally unsupported and is documented
   as such.
 - Protocol decoding has deterministic seeded fuzz coverage with 1,039 Rust
-  cases and 1,035 TypeScript cases; no panic was found.
+  cases and 1,034 TypeScript cases; no panic was found.
 - Pointer and hover events plus `ViewHandle` focus/blur are supported: the node
   tuple has ten fields with field 10 as `focusable` (there is no node field
   11); pointer payloads use tag `6` with button/action codes, and hover uses
@@ -150,7 +150,7 @@ from this work tree.
   transform scale/translate and borderRadius transitions remain unsupported
   because the GPUI transformation path is SVG-only and borderRadius is not
   animated.
-- `docs/protocol.md` is now the authoritative 406-line protocol reference with
+- `docs/protocol.md` is now the authoritative 485-line protocol reference with
   source line citations, event/command indexes, evolution rules, and fixture
   walkthroughs; README keeps only the overview to avoid dual-source drift.
 - Multi-window surfaces now use root-only `COMMAND_OPEN_SURFACE=17` with
@@ -170,9 +170,10 @@ from this work tree.
   errors reject, and tag-5 results require non-empty paths. Save-dialog titles
   remain unsupported where the platform cannot apply them; the TestPlatform
   stub is headless-testable, while real dialogs remain display-backed.
-- The work tree is organized into eight thematic checkpoints
-  (`65c71cc` through `ca9bd23`), including the pre-existing StdioTransport
-  backpressure tests.
+- The work tree is organized into eleven reachable thematic checkpoints
+  (`65c71cc` through `a1c8d95`), including the pre-existing StdioTransport
+  backpressure tests; superseded checkpoint `ca9bd23` was replaced by
+  reachable commit `9fab40d`.
 
 ### Fixed
 

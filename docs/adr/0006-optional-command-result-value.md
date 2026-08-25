@@ -19,10 +19,10 @@ seventh item:
 `[2,requestId,command,nodeId,success,error,value?]`
 
 The optional value is tagged and validated by its command contract. Current
-tags are number, window-size pair, boolean, and string. A missing tail is a
-valid acknowledgement with no value, not a failure. Senders only append the
-tail when a command has a value to return; receivers preserve the six-field
-form for older peers.
+tags are number, window-size pair, boolean, string, and selected path list.
+A missing tail is a valid acknowledgement with no value, not a failure.
+Senders only append the tail when a command has a value to return; receivers
+preserve the six-field form for older peers.
 
 ## Alternatives rejected
 
