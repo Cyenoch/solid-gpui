@@ -2,6 +2,13 @@
   "name": "@react-gpui/core",
   "version": "0.1.0",
   "description": "React custom renderer for the native GPUI host.",
+  "keywords": [
+    "react",
+    "gpui",
+    "custom-renderer",
+    "native-ui",
+    "bun"
+  ],
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

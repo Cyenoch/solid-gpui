@@ -2,6 +2,14 @@
   "name": "@react-gpui/dev",
   "version": "0.1.0",
   "description": "Fast Refresh transforms and runtime support for React GPUI development.",
+  "keywords": [
+    "react",
+    "gpui",
+    "fast-refresh",
+    "babel",
+    "bun",
+    "testing"
+  ],
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

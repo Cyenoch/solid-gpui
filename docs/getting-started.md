@@ -362,4 +362,4 @@ These are current constraints, not a roadmap:
 For protocol field-level constraints, invalid values, event payloads, command
 ownership, style slot numbers, and evolution rules, use
 [docs/protocol.md](protocol.md). For contribution and native-reference work,
-use the repository's contributor documentation instead.
+use [CONTRIBUTING.md](../CONTRIBUTING.md).

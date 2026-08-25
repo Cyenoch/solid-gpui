@@ -3,6 +3,7 @@ name = "react-gpui-bun"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "In-process Bun and JavaScriptCore adapter for the React GPUI host."
 build = "build.rs"
 
 [features]

@@ -3,3 +3,5 @@ node_modules/
 /packages/react-gpui/dist/
 /packages/react-gpui-dev/dist/
 /dist/
+/build_script_build
+/.scratch/

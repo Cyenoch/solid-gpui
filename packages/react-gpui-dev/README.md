@@ -2,6 +2,10 @@
 
 `@react-gpui/dev` provides the Fast Refresh transform, stable component-family proxies, and last-good-tree refresh session used while developing React GPUI entries.
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+
+[Getting started](../../docs/getting-started.md) · [Protocol](../../docs/protocol.md) · [Contributing](../../CONTRIBUTING.md)
+
 ## Public API
 
 ```ts
@@ -71,6 +75,11 @@ commits, and raw dispatch. `TestNode`, `TestNodeHandle`, and
 The testing API is intentionally a development dependency. It shares the
 consumer's core and React installation rather than bundling another renderer
 runtime.
+
+## Example
+
+[`examples/counter.tsx`](examples/counter.tsx) is a minimal Fast Refresh entry
+that can be used while developing a core renderer surface.
 
 ## Local development
 

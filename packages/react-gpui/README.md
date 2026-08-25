@@ -2,6 +2,10 @@
 
 `@react-gpui/core` is a React custom renderer for the Rust GPUI host. React components, hooks, context, fragments, and JavaScript event closures keep their normal React semantics; each React commit becomes one atomic Commit Batch: a Snapshot bootstrap for a new surface epoch or a Patch afterward.
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+
+[Getting started](../../docs/getting-started.md) · [Protocol](../../docs/protocol.md) · [Contributing](../../CONTRIBUTING.md)
+
 ## JSX
 
 ```tsx
@@ -525,6 +529,17 @@ transformed element would require a new hitbox/layout/painting contract.
 GPUI retains one animation state per node, samples easing on frame ticks,
 retargets from the current sample, cancels deleted nodes, and honors reduced
 motion. Completion is emitted once as the tagged AnimationComplete event.
+
+## Examples
+
+The source tree includes focused entries for the main host surfaces:
+
+- [`counter.tsx`](examples/counter.tsx) — the smallest process-runtime smoke entry.
+- [`gallery.tsx`](examples/gallery.tsx) — composed layout, drag, appearance, and animation coverage.
+- [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, and virtual-list integration.
+- [`keyboard.tsx`](examples/keyboard.tsx) — focus and native key notifications.
+- [`text-input.tsx`](examples/text-input.tsx) — two controlled text inputs and focus.
+- [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan.
 
 ## Local commands
 
