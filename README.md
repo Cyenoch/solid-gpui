@@ -6,6 +6,11 @@ React GPUI is a first vertical slice that renders React trees into one or more G
 
 The V3 path is working end to end: the React custom renderer emits an immutable Snapshot bootstrap followed by incremental Patches, the Rust host validates and applies them, native press/TextInput/VirtualList/keyboard/animation events return to JavaScript listener callbacks, and the host can select either `ProcessAdapter` or the in-process `EmbeddedBunAdapter`. Embedded Bun builds the pinned Bun/JSC graph from `crates/react-gpui-bun/bun_embed.patch`; Fast Refresh lives in `packages/react-gpui-dev`.
 
+TextInput supports muted visual-only `placeholder` guidance when native text is
+empty; selection notifications carry UTF-16 ranges plus a `reversed` head
+orientation bit, while ordered `setSelection(start, end)` remains an explicit
+range command.
+
 ## Architecture
 
 ```text

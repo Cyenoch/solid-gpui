@@ -100,7 +100,7 @@ Important differences from web React:
 
 - There is no DOM, CSS cascade, browser event cancellation, browser storage, or
   browser URL/navigation model.
-- Styles are a validated GPUI/Taffy-oriented subset with 38 positional slots,
+- Styles are a validated GPUI/Taffy-oriented subset with 40 positional slots,
   not CSS. Read [protocol.md](protocol.md) for the exact slot contract and the
   package README for the consumer-facing names.
 - Text, images, lists, focus, and commands are native host concepts. A
@@ -123,12 +123,15 @@ Important differences from web React:
 | `Image`          | `source`, `objectFit`, `style`, `onLayout`, accessibility props                                                                                            | `source` is a host-resolved path; missing images are silent blank output.                                                           |
 
 `Image` cannot have children. Text input, list, and image host properties are
-validated tagged tuples. See [protocol.md](protocol.md) for the node tuple,
-accessibility tuple, host-property tags, and every wire constraint.
+validated tagged tuples. Empty native TextInput value renders `placeholder` as
+muted visual guidance without changing `value`, selection, or UTF-16 length;
+selection callbacks include the UTF-16 head-orientation `reversed` bit. See
+[protocol.md](protocol.md) for the node tuple, accessibility tuple,
+host-property tags, and every wire constraint.
 
 ### Styles by class
 
-The public `Style` names map to a fixed 38-slot tuple. Do not hand-author the
+The public `Style` names map to a fixed 40-slot tuple. Do not hand-author the
 wire tuple; use the object fields and `StyleSheet.create`:
 
 - **Layout:** `width`, `height`, `flexDirection`, `flexGrow`, `flexShrink`,
@@ -146,7 +149,7 @@ wire tuple; use the object fields and `StyleSheet.create`:
 
 Colors are `#RRGGBB` or `#RRGGBBAA`; numeric fields are validated before a
 Commit Batch is emitted. The complete positional table and enum codes live in
-[protocol.md](protocol.md#style-tuple-all-38-slots).
+[protocol.md](protocol.md#style-tuple-all-40-slots).
 
 ### Root commands
 

@@ -221,10 +221,10 @@ from this work tree.
   `toggled`, and patch role/checked validation is complete. No upstream public
   builder exposes `disabled`, so it remains explicitly unsupported; AX-tree
   verification remains display-backed.
-- Public API snapshots now lock core's 94 and dev's 18 exports by name and kind.
-  The generator is excluded from CI artifact-locking mode, advanced
-  customization-surface exports are documented, and pack-smoke coverage is
-  extended.
+- Public API snapshots initially locked core's 94 and dev's 18 exports by name
+  and kind. Subsequent cursor and text-alignment additions now leave the
+  checked-in fixtures at core 96 and dev 18; the generator runs against built
+  artifacts, and pack-smoke coverage remains extended.
 - Cursor styling exposes all 19 GPUI-aligned `CursorStyle` enum values in an
   appended 39th style slot. Windows variants without an exact mapping fall back
   to the default cursor, and cursor changes are a headless no-op. API snapshot
@@ -248,10 +248,11 @@ from this work tree.
   and drag dispatch hot paths retain explicit budgets. Workloads are measured
   at ×10 and every baseline carries a date comment.
 - The Rust test suite moves the 1,922-line `tests.rs` into five domain modules
-  while preserving the 64-test count. The 1,991-line wire implementation is
-  split by message family into `mod.rs`, `snapshot_patch.rs`, `node.rs`,
-  `command.rs`, and `event.rs`; module-boundary guardrails stay synchronized,
-  and the pure move changes no public surface.
+  while preserving the 64-test count at that refactor checkpoint. The 1,991-line
+  wire implementation is split by message family into `mod.rs`,
+  `snapshot_patch.rs`, `node.rs`, `command.rs`, and `event.rs`;
+  module-boundary guardrails stay synchronized, and the pure move changes no
+  public surface.
 - `flexDirection` now accepts all four GPUI/Taffy values, including
   `row-reverse` and `column-reverse`, and mirrors physical layout as a
   layout-only operation. RTL/bidi text direction and caret behavior remain
