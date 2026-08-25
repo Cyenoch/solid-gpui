@@ -95,6 +95,7 @@ impl ReactRoot {
             virtual_item_sizes: HashMap::new(),
             pending_visible_ranges: Rc::new(RefCell::new(HashMap::new())),
             reported_visible_ranges: HashMap::new(),
+            reported_layout_bounds: HashMap::new(),
             animation_states: HashMap::new(),
             animation_styles: HashMap::new(),
             frame_styles: HashMap::new(),
@@ -179,6 +180,7 @@ impl ReactRoot {
                 || snapshot.surface_id != self.store.surface_id()
                 || snapshot.epoch != self.store.epoch();
             self.store.apply_snapshot(snapshot)?;
+            self.reported_layout_bounds.clear();
             if reset_native_state {
                 self.reset_native_state();
             }
@@ -197,6 +199,8 @@ impl ReactRoot {
                 })
                 .collect();
             self.store.apply_patch(patch)?;
+            self.reported_layout_bounds
+                .retain(|id, _| !affected.contains(id));
             self.reconcile_input_states(cx, Some(&affected));
             self.reconcile_virtual_lists_for(Some(&affected));
             self.reconcile_animation_states(cx, Some(&affected));
@@ -213,6 +217,7 @@ impl ReactRoot {
         self.virtual_handles.clear();
         self.virtual_item_sizes.clear();
         self.reported_visible_ranges.clear();
+        self.reported_layout_bounds.clear();
         self.pending_visible_ranges.borrow_mut().clear();
         self.animation_states.clear();
         self.animation_styles.clear();
@@ -301,6 +306,35 @@ impl ReactRoot {
             "VirtualList visible range event",
             &event,
         );
+    }
+    fn emit_layout_bounds(&mut self, node_id: u32, frame: (f32, f32, f32, f32)) {
+        if ![frame.0, frame.1, frame.2, frame.3]
+            .into_iter()
+            .all(f32::is_finite)
+            || self.reported_layout_bounds.get(&node_id) == Some(&frame)
+        {
+            return;
+        }
+        let Some(node) = self.store.get(node_id) else {
+            return;
+        };
+        if node.listener_id == 0 {
+            return;
+        }
+        self.reported_layout_bounds.insert(node_id, frame);
+        let event = Event::layout(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            node_id,
+            node.listener_id,
+            frame.0,
+            frame.1,
+            frame.2,
+            frame.3,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "layout event", &event);
     }
     fn ensure_window_observers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.window_observers.is_some() {
@@ -820,6 +854,51 @@ mod input_tests {
         assert_eq!(
             changed.payload,
             Some(EventPayload::VisibleRange { start: 1, end: 5 })
+        );
+    }
+
+    #[test]
+    fn layout_events_are_deduplicated_per_node_and_preserve_float_bounds() {
+        let runtime = InMemoryAdapter::new();
+        let mut root = ReactRoot::new(runtime.clone());
+        let mut node = Node::new(2, 1, 0, KIND_VIEW);
+        node.listener_id = 7;
+        root.store
+            .apply_snapshot(Snapshot::new(
+                7,
+                3,
+                0,
+                1,
+                vec![Node::new(1, 0, 0, KIND_VIEW), node],
+            ))
+            .expect("layout snapshot");
+        root.emit_layout_bounds(2, (12.5, -3.25, 100.0, 48.75));
+        root.emit_layout_bounds(2, (12.5, -3.25, 100.0, 48.75));
+        let first = runtime
+            .take_event()
+            .expect("first layout result")
+            .expect("first layout event");
+        assert_eq!(
+            first.payload,
+            Some(EventPayload::Layout {
+                x: 12.5,
+                y: -3.25,
+                width: 100.0,
+                height: 48.75,
+            })
+        );
+        assert!(
+            runtime
+                .take_event()
+                .expect("layout dedupe result")
+                .is_none()
+        );
+        root.emit_layout_bounds(2, (12.5, -3.25, 101.0, 48.75));
+        assert!(
+            runtime
+                .take_event()
+                .expect("changed layout result")
+                .is_some()
         );
     }
 

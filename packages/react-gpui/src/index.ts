@@ -32,6 +32,8 @@ export {
   type ScrollDeltaKind,
   type ScrollEvent,
   type ScrollHandler,
+  type LayoutFrame,
+  type LayoutHandler,
   type PressEventType,
   type PressHandler,
   type Root,

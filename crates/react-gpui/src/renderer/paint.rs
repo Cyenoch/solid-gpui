@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, Element, ElementId, ElementInputHandler, Entity, ImageSource, InteractiveElement,
-    MouseButton, ObjectFit, ParentElement, SharedString, StatefulInteractiveElement, Styled,
-    StyledImage, div, img, px, rgba, uniform_list,
+    AnyElement, App, Bounds, Element, ElementId, ElementInputHandler, Entity, GlobalElementId,
+    ImageSource, InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton,
+    ObjectFit, ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled,
+    StyledImage, Window, div, img, px, rgba, uniform_list,
 };
 
 use crate::protocol::{
@@ -21,6 +21,100 @@ use crate::tree::{
 use super::ReactRoot;
 use super::committed_child_index;
 use super::events::{emit_key_event, emit_pointer_event, emit_scroll_event};
+struct MeasuredElement {
+    element: AnyElement,
+    entity: Entity<ReactRoot>,
+    node_id: u32,
+}
+
+impl IntoElement for MeasuredElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for MeasuredElement {
+    type RequestLayoutState = ();
+    type PrepaintState = Option<gpui::FocusHandle>;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        (self.element.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let frame = (
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
+        if [frame.0, frame.1, frame.2, frame.3]
+            .into_iter()
+            .all(f32::is_finite)
+        {
+            let entity = self.entity.clone();
+            let node_id = self.node_id;
+            window.on_next_frame(move |_, app| {
+                entity.update(app, |root, _| root.emit_layout_bounds(node_id, frame));
+            });
+        }
+        self.element.prepaint(window, cx)
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.element.paint(window, cx);
+    }
+}
+
+fn measure_node(node: &StoredNode, element: AnyElement, entity: &Entity<ReactRoot>) -> AnyElement {
+    if node.listener_id == 0
+        || !matches!(
+            node.kind,
+            KIND_VIEW | KIND_PRESSABLE | KIND_TEXT | KIND_IMAGE
+        )
+    {
+        return element;
+    }
+    MeasuredElement {
+        element,
+        entity: entity.clone(),
+        node_id: node.id,
+    }
+    .into_any()
+}
 
 impl ReactRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
@@ -130,7 +224,7 @@ impl ReactRoot {
             };
             let image_element =
                 img(ImageSource::from(PathBuf::from(&image.source))).object_fit(object_fit);
-            return apply_style(image_element, style).into_any();
+            return measure_node(node, apply_style(image_element, style).into_any(), entity);
         }
         if node.kind == KIND_VIRTUAL_LIST {
             let Some(HostProperties::VirtualList(list)) = node.host_properties.as_ref() else {
@@ -377,7 +471,7 @@ impl ReactRoot {
                 );
             });
         }
-        element.into_any()
+        measure_node(node, element.into_any(), entity)
     }
 }
 

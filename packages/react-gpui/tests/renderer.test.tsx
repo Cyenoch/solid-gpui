@@ -43,6 +43,7 @@ import {
   EVENT_SUBMIT,
   EVENT_WINDOW_ACTIVATION,
   EVENT_WINDOW_RESIZE,
+  EVENT_LAYOUT,
   SCROLL_DELTA_LINES,
   SCROLL_DELTA_PIXELS,
   decodeEvent,
@@ -213,6 +214,23 @@ describe("protocol framing", () => {
     expect(decodeEvent(valid.slice(4))).not.toBeNull();
     expect(decodeEvent(save.slice(4))).not.toBeNull();
     expect(decodeEvent(empty.slice(4))).toBeNull();
+  });
+  it("decodes finite layout frames and rejects non-finite bounds", () => {
+    const valid = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 4, 7, EVENT_LAYOUT, [12.5, -3.25, 100, 48.75]]);
+    const invalid = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      2,
+      4,
+      7,
+      EVENT_LAYOUT,
+      [12.5, -3.25, Number.NaN, 48.75],
+    ] as never);
+    expect(decodeEvent(valid.slice(4))).not.toBeNull();
+    expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
 });
 describe("window observation and value commands", () => {
@@ -1273,6 +1291,7 @@ describe("renderer commits", () => {
       encodeFrame([
         PROTOCOL_VERSION,
         2,
+
         69,
         70,
         1,
@@ -1301,6 +1320,20 @@ describe("renderer commits", () => {
       ["pixels", 12.5, -8, 40, 24, ["shift"]],
       ["lines", 2, -1.5, 40, 24, ["cmd"]],
     ]);
+    root.unmount();
+  });
+  it("dispatches layout frames to eligible host callbacks", () => {
+    const transport = new MemoryTransport();
+    const received: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const root = createRoot(transport, { surfaceId: 71, epoch: 72 });
+    root.render(<View onLayout={(frame) => received.push(frame)} />);
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    transport.push(
+      encodeFrame([PROTOCOL_VERSION, 2, 71, 72, 1, 1, nodeId, listener, EVENT_LAYOUT, [12.5, -3.25, 100, 48.75]]),
+    );
+    expect(received).toEqual([{ x: 12.5, y: -3.25, width: 100, height: 48.75 }]);
     root.unmount();
   });
 

@@ -32,6 +32,11 @@ root.render(<Counter />);
 ```
 
 `View`, `Text`, and `Pressable` accept `ref` values that resolve to typed host nodes. `Pressable` accepts `onPress`; callbacks stay in JavaScript and receive a semantic press notification. There is intentionally no synchronous `preventDefault()` because the transport cannot cancel a native action synchronously.
+`View`, `Text`, `Pressable`, and `Image` accept `onLayout={(frame) => ...}`.
+The callback receives `{ x, y, width, height }` in window pixels after native
+post-layout measurement. The first report is delivered on the next frame;
+identical finite frames are deduplicated. Layout reports are asynchronous and
+are not available for `TextInput`, `VirtualList`, or virtualized rows.
 
 ## Styles
 

@@ -70,6 +70,7 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      layoutCallback: undefined,
       listener: undefined,
       focusable: false,
       disabled: false,
@@ -102,6 +103,7 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      layoutCallback: undefined,
       listener: undefined,
       focusable: false,
       disabled: false,
@@ -183,6 +185,10 @@ export class NodeGraph {
     node.hoverCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onHoverChange : undefined;
     node.scrollCallback = node.kind === "View" ? props.onScroll : undefined;
+    node.layoutCallback =
+      node.kind === "View" || node.kind === "Pressable" || node.kind === "Text" || node.kind === "Image"
+        ? props.onLayout
+        : undefined;
     if (node.hoverCallback === undefined) node.hovered = false;
     node.inputCallbacks = null;
     node.visibleRangeCallback = node.kind === "VirtualList" ? props.__onVisibleRange : undefined;
@@ -204,6 +210,7 @@ export class NodeGraph {
         (node.pointerCallbacks.down !== undefined || node.pointerCallbacks.up !== undefined)) ||
       node.hoverCallback !== undefined ||
       node.scrollCallback !== undefined ||
+      node.layoutCallback !== undefined ||
       Object.values(node.inputCallbacks ?? {}).some((callback) => callback !== undefined) ||
       node.visibleRangeCallback !== undefined ||
       node.animationCompleteCallback !== undefined;

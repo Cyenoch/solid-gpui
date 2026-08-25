@@ -135,6 +135,13 @@ export interface ScrollEvent {
 export type WindowResizeHandler = (width: number, height: number) => void;
 export type WindowActivationHandler = (active: boolean) => void;
 export type ScrollHandler = (event: ScrollEvent) => void;
+export interface LayoutFrame {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+export type LayoutHandler = (frame: LayoutFrame) => void;
 export type MenuItem =
   | { readonly type: "separator" }
   | { readonly type: "action"; readonly name: string }
@@ -152,16 +159,19 @@ export interface ViewProps extends AccessibilityProps {
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
   readonly onScroll?: ScrollHandler;
+  readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
 }
 export interface ImageProps extends AccessibilityProps {
   readonly source: string;
   readonly objectFit?: ImageObjectFit;
   readonly style?: StyleProp;
+  readonly onLayout?: LayoutHandler;
   readonly children?: never;
 }
 export interface TextProps extends AccessibilityProps {
   readonly style?: StyleProp;
+  readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
 }
 export interface PressableProps extends AccessibilityProps {
@@ -173,6 +183,7 @@ export interface PressableProps extends AccessibilityProps {
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
+  readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
 }
 export interface HostProps extends AccessibilityProps {
@@ -189,6 +200,7 @@ export interface HostProps extends AccessibilityProps {
   readonly maxLength?: number;
   readonly source?: string;
   readonly objectFit?: ImageObjectFit;
+  readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
   readonly __itemCount?: number;
   readonly __rangeStart?: number;
@@ -268,6 +280,7 @@ export interface HostNodeInternal extends HostNode {
   hostProperties: TextInputWire | VirtualListWire | ImageWire | null;
   latestNativeText: string | null;
   latestNativeEditSeq: number;
+  layoutCallback?: LayoutHandler;
   latestNativeSelection: { start: number; end: number; markedStart: number | null; markedEnd: number | null } | null;
   blur?: () => Promise<void>;
   isFocused?: () => Promise<boolean>;

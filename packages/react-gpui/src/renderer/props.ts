@@ -44,6 +44,7 @@ const ACCESSIBILITY_PROPS: Record<string, true> = {
 const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
   View: {
     style: true,
+    onLayout: true,
     focusable: true,
     onKeyDown: true,
     onPointerDown: true,
@@ -54,9 +55,10 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     ref: true,
     ...ACCESSIBILITY_PROPS,
   },
-  Text: { style: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
+  Text: { style: true, onLayout: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
   Pressable: {
     style: true,
+    onLayout: true,
     onPress: true,
     focusable: true,
     onKeyDown: true,
@@ -98,7 +100,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     __onAnimationComplete: true,
     ...ACCESSIBILITY_PROPS,
   },
-  Image: { style: true, source: true, objectFit: true, ref: true, ...ACCESSIBILITY_PROPS },
+  Image: { style: true, source: true, objectFit: true, onLayout: true, ref: true, ...ACCESSIBILITY_PROPS },
   RawText: { children: true, ref: true },
 };
 const ROLE_CODES: Record<NonNullable<AccessibilityProps["accessibilityRole"]>, number> = {
@@ -265,6 +267,12 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   for (const key of Object.keys(props)) {
     if (!ALLOWED_PROPS[kind][key]) throw new TypeError(`Unsupported ${kind} prop: ${key}`);
   }
+  if (
+    (kind === "View" || kind === "Text" || kind === "Pressable" || kind === "Image") &&
+    props.onLayout !== undefined &&
+    typeof props.onLayout !== "function"
+  )
+    throw new TypeError(`${kind} onLayout must be a function`);
   if (kind !== "RawText") validateStyle(props.style);
   if (kind === "Pressable" && props.onPress !== undefined && typeof props.onPress !== "function") {
     throw new TypeError("Pressable onPress must be a function");

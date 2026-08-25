@@ -18,8 +18,9 @@ import {
   EVENT_SURFACE_CLOSED,
   EVENT_VISIBLE_RANGE,
   EVENT_WINDOW_ACTIVATION,
-  EVENT_WINDOW_RESIZE,
   EVENT_WINDOW_APPEARANCE,
+  EVENT_WINDOW_RESIZE,
+  EVENT_LAYOUT,
   POINTER_BUTTON_BACK,
   POINTER_BUTTON_FORWARD,
   POINTER_BUTTON_LEFT,
@@ -99,6 +100,21 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   if (event[8] === EVENT_WINDOW_APPEARANCE) {
     if (payload !== "light" && payload !== "dark") return;
     context.onAppearance?.(payload);
+    return;
+  }
+  if (event[8] === EVENT_LAYOUT) {
+    const node = context.findListener(event[7]);
+    if (
+      node === undefined ||
+      !node.attached ||
+      node.id !== event[6] ||
+      node.listenerId !== event[7] ||
+      node.layoutCallback === undefined ||
+      !Array.isArray(payload) ||
+      !payload.every((value) => typeof value === "number" && Number.isFinite(value))
+    )
+      return;
+    node.layoutCallback({ x: payload[0], y: payload[1], width: payload[2], height: payload[3] });
     return;
   }
   if (event[8] === EVENT_PRESS) {

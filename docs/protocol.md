@@ -135,8 +135,8 @@ retained tree's current revision (`tree.rs:862-934`).
 |        5 | u32                    | Native event sequence. The receiver rejects a sequence not greater than the last accepted sequence.                                                   | `protocol.ts:222`; `root-container.ts:528-538`            |
 |        6 | u32                    | Target Host Node ID; root-level window events use synthetic root node `1`.                                                                            | `protocol.ts:223`; `protocol.rs:424`; `dispatch.ts:67-80` |
 |        7 | u32                    | Listener ID; `CommandResult` uses listener `0`, while target events use the mounted listener.                                                         | `protocol.ts:224`; `protocol.rs:425,701-703`              |
-|        8 | u32                    | Event type `1..17`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:629-636`; `wire.rs:282-398`                  |
-|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:458-608`; `wire.rs:303-398`                  |
+|        8 | u32                    | Event type `1..19`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:629-636`; `wire.rs:347-477`                  |
+|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:458-615`; `wire.rs:303-477`                  |
 
 ### Node tuple
 
@@ -279,6 +279,7 @@ two-number array; Rust accepts integer/float32 combinations through
 | 16 | SurfaceClosed | `null` | Emitted before native teardown; `nodeId=0`, `listenerId=0`, and `surfaceId` identifies the closed surface. The matching root invokes `onClose`. | `protocol.ts:34,244,604`; `protocol.rs:22,693-710`; `wire.rs:347` |
 | 17 | Action | string | Root action selected from the native application menu; `nodeId=1`, `listenerId=0`, non-empty and at most 256 Unicode scalar values. | `protocol.ts:35,260,462-463,634-636`; `protocol.rs:29,438-440,713-733`; `wire.rs:298-300,376-380` |
 | 18 | WindowAppearance | `"light" | "dark"` | Root-level `nodeId=1`, `listenerId=0`; vibrant GPUI variants fold to these two semantic values. Initial registration emits a value, and changes are coalesced with the existing next-frame window observation. | `protocol.ts:36,471-476,638-648`; `protocol.rs:30,439-467,740-759`; `renderer.rs:301-380`; `wire.rs:366,450-459,799-802,1570-1573` |
+| 19 | Layout | `[x,y,width,height]` | Finite f32 bounds for a mounted View, Pressable, Text, or Image with `onLayout`; target node/listener identify the callback. Native measurement reports after post-layout prepaint, defers the first callback to the next frame, and deduplicates exact frames. | `protocol.ts:37,231,476-483,649-660`; `protocol.rs:31,468,762-791`; `renderer/paint.rs`; `renderer.rs:309-335`; `wire.rs:461-473,803-807,1590-1595` |
 
 ### CommandResult value tags
 

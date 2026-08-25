@@ -364,6 +364,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_SURFACE_CLOSED
             | EVENT_ACTION
             | EVENT_WINDOW_APPEARANCE
+            | EVENT_LAYOUT
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -456,6 +457,18 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 WindowAppearance::Light
             };
             Some(EventPayload::WindowAppearance { appearance })
+        }
+        (EVENT_LAYOUT, Some(EventPayloadWire::Layout((x, y, width, height))))
+            if wire.6 != 0
+                && wire.7 != 0
+                && [x, y, width, height].into_iter().all(f32::is_finite) =>
+        {
+            Some(EventPayload::Layout {
+                x,
+                y,
+                width,
+                height,
+            })
         }
         (EVENT_SUBMIT, Some(EventPayloadWire::Submit(text))) => Some(EventPayload::Submit { text }),
         (EVENT_SURFACE_CLOSED, None) if wire.6 == 0 && wire.7 == 0 => None,
@@ -788,6 +801,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<bool>>()?
                 .flatten()
                 .map(EventPayloadWire::WindowActivation),
+            EVENT_LAYOUT => sequence
+                .next_element::<Option<(f32, f32, f32, f32)>>()?
+                .flatten()
+                .map(EventPayloadWire::Layout),
             EVENT_SUBMIT => sequence
                 .next_element::<Option<String>>()?
                 .flatten()
@@ -850,6 +867,7 @@ enum EventPayloadWire {
     WindowActivation(bool),
     Action(String),
     WindowAppearance(String),
+    Layout((f32, f32, f32, f32)),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -1569,6 +1587,12 @@ impl From<&EventPayload> for EventPayloadWire {
             EventPayload::WindowAppearance { appearance } => {
                 Self::WindowAppearance(appearance.as_str().to_owned())
             }
+            EventPayload::Layout {
+                x,
+                y,
+                width,
+                height,
+            } => Self::Layout((*x, *y, *width, *height)),
         }
     }
 }

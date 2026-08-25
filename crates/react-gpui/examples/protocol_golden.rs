@@ -431,6 +431,14 @@ fn main() {
     );
     emit(
         &mut rows,
+        "rust-event-layout",
+        "event",
+        Event::layout(7, 3, 42, 17, 4, 7, 12.5, -3.25, 100.0, 48.75)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
         "rust-event-command-result-size",
         "event",
         Event::command_result(

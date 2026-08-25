@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, HostProperties, KeyAction};
+use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, EVENT_LAYOUT, HostProperties, KeyAction};
 
 fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {
     Snapshot::new(7, 3, revision.saturating_sub(1), revision, nodes)
@@ -869,6 +869,30 @@ fn scroll_events_round_trip_pixels_and_lines_and_reject_invalid_payloads() {
             Err(ProtocolError::InvalidEventPayload)
         ));
     }
+}
+
+#[test]
+fn layout_events_round_trip_and_reject_non_finite_bounds() {
+    let event = Event::layout(7, 3, 1, 6, 9, 11, 12.5, -3.25, 100.0, 48.75);
+    assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+
+    let malformed = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        7u32,
+        9u32,
+        11u32,
+        EVENT_LAYOUT,
+        Some((12.5f32, -3.25f32, f32::NAN, 48.75f32)),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&malformed),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
 }
 
 #[test]

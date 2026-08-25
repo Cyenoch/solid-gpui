@@ -145,6 +145,7 @@ const rows = [
   row("ts-event-window-resize", "event", [3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5]]),
   row("ts-event-window-activation", "event", [3, 2, 7, 3, 42, 12, 1, 0, 15, true]),
   row("ts-event-window-appearance", "event", [3, 2, 7, 3, 42, 16, 1, 0, 18, "dark"]),
+  row("ts-event-layout", "event", [3, 2, 7, 3, 42, 17, 4, 7, 19, [12.5, -3.25, 100, 48.75]]),
   row("ts-event-command-result-size", "event", [
     3,
     2,

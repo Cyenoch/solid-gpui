@@ -28,6 +28,7 @@ pub const EVENT_WINDOW_ACTIVATION: u32 = 15;
 pub const EVENT_SURFACE_CLOSED: u32 = 16;
 pub const EVENT_ACTION: u32 = 17;
 pub const EVENT_WINDOW_APPEARANCE: u32 = 18;
+pub const EVENT_LAYOUT: u32 = 19;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -455,16 +456,38 @@ impl WindowAppearance {
 pub enum EventPayload {
     TextInput(TextInputEvent),
     CommandResult(CommandResult),
-    VisibleRange { start: u32, end: u32 },
-    AnimationComplete { generation: u32 },
+    VisibleRange {
+        start: u32,
+        end: u32,
+    },
+    AnimationComplete {
+        generation: u32,
+    },
     Key(KeyEvent),
     Pointer(PointerEvent),
     Scroll(ScrollEvent),
-    Submit { text: String },
-    WindowResize { width: f32, height: f32 },
-    WindowActivation { active: bool },
-    EventAction { action: String },
-    WindowAppearance { appearance: WindowAppearance },
+    Submit {
+        text: String,
+    },
+    WindowResize {
+        width: f32,
+        height: f32,
+    },
+    WindowActivation {
+        active: bool,
+    },
+    EventAction {
+        action: String,
+    },
+    WindowAppearance {
+        appearance: WindowAppearance,
+    },
+    Layout {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -755,6 +778,37 @@ impl Event {
             listener_id: 0,
             event_type: EVENT_WINDOW_APPEARANCE,
             payload: Some(EventPayload::WindowAppearance { appearance }),
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn layout(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            event_type: EVENT_LAYOUT,
+            payload: Some(EventPayload::Layout {
+                x,
+                y,
+                width,
+                height,
+            }),
         }
     }
 
