@@ -318,6 +318,14 @@ from this work tree.
   bounds and error counters stay clean, and press/scroll callbacks reach all
   iterations. A 60-second process soak remains an optional manual run and was
   not performed.
+- TypeScript capability coverage now exercises all 21 commands at A level,
+  including the tag-5 path helper and malformed-value rejection semantics;
+  command receipts, surface routing, clipboard, menus/actions, dialogs, and
+  window operations are asserted through the headless harness.
+- The final documentation freeze check found zero drift after both golden/API
+  generators, zero broken local links across 45 scanned links, and synchronized
+  the 272-line readiness report with **81** Unreleased entries. External badge
+  URLs were not network-HEAD checked; no publication decision is implied.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
