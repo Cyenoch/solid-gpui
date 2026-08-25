@@ -225,6 +225,21 @@ from this work tree.
   The generator is excluded from CI artifact-locking mode, advanced
   customization-surface exports are documented, and pack-smoke coverage is
   extended.
+- Cursor styling exposes all 19 GPUI-aligned `CursorStyle` enum values in an
+  appended 39th style slot. Windows variants without an exact mapping fall back
+  to the default cursor, and cursor changes are a headless no-op. API snapshot
+  generation now runs against the built exports for the first time, updating
+  the checked-in fixtures.
+- Repository release hygiene removes the accidental `build_script_build`
+  artifact and ignores it plus local `.scratch` evidence; package keywords and
+  the Bun-crate description are complete, core/dev pack dry-runs verify 18/8
+  files, and Cargo metadata is complete except for the repository omitted
+  truthfully because no git remote is configured. `CONTRIBUTING.md` and
+  package README first-screen license badges plus getting-started/protocol/
+  contributing links are now present.
+- The capability-gap review records multiline text input, text selection,
+  `pointerEvents`, and rotation as backlog items with native-source evidence;
+  current documentation makes no unsupported capability claims.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
