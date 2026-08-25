@@ -6,8 +6,8 @@ use thiserror::Error;
 use crate::protocol::{
     AccessibilityProperties, HostProperties, Node, PATCH_MESSAGE, PROTOCOL_VERSION, Patch,
     PatchOperation, SNAPSHOT_MESSAGE, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
-    TRANSITION_OPACITY, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
-    UPDATE_TEXT,
+    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, UPDATE_ACCESSIBILITY,
+    UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
 };
 pub const KIND_VIEW: u32 = 1;
 pub const KIND_TEXT: u32 = 2;
@@ -15,6 +15,7 @@ pub const KIND_PRESSABLE: u32 = 3;
 pub const KIND_RAW_TEXT: u32 = 4;
 pub const KIND_TEXT_INPUT: u32 = 5;
 pub const KIND_VIRTUAL_LIST: u32 = 6;
+pub const KIND_IMAGE: u32 = 7;
 
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum TreeError {
@@ -67,7 +68,7 @@ pub enum TreeError {
     InvalidKind { node_id: u32, kind: u32 },
     #[error("node {node_id} has invalid text for kind {kind}")]
     InvalidText { node_id: u32, kind: u32 },
-    #[error("node {node_id} has listener {listener_id}, but only Pressable may have listeners")]
+    #[error("node {node_id} has unsupported listener {listener_id}")]
     InvalidListener { node_id: u32, listener_id: u32 },
     #[error("node {node_id} has invalid child {child_id}: {reason}")]
     InvalidChild {
@@ -116,6 +117,7 @@ pub struct StoredNode {
     pub listener_id: u32,
     pub host_properties: Option<HostProperties>,
     pub accessibility: Option<AccessibilityProperties>,
+    pub focusable: bool,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -272,6 +274,7 @@ impl NodeStore {
                     listener_id: node.listener_id,
                     host_properties: node.host_properties.clone(),
                     accessibility: node.accessibility.clone(),
+                    focusable: node.focusable,
                     accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -341,6 +344,7 @@ impl NodeStore {
                     listener_id,
                     host_properties,
                     accessibility,
+                    focusable,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -350,6 +354,7 @@ impl NodeStore {
                     *listener_id,
                     host_properties.clone(),
                     accessibility.clone(),
+                    *focusable,
                     undo,
                     stats,
                     &mut affected_parents,
@@ -436,6 +441,7 @@ impl NodeStore {
             listener_id: node.listener_id,
             host_properties: node.host_properties.clone(),
             accessibility: node.accessibility.clone(),
+            focusable: node.focusable,
             accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -452,6 +458,9 @@ impl NodeStore {
         Ok(())
     }
 
+    // Patch fields stay positional to mirror protocol validation; bookkeeping
+    // references are kept explicit for atomic rollback.
+    #[allow(clippy::too_many_arguments)]
     fn apply_update(
         &mut self,
         operation: usize,
@@ -462,6 +471,7 @@ impl NodeStore {
         listener_id: u32,
         host_properties: Option<HostProperties>,
         accessibility: Option<AccessibilityProperties>,
+        focusable: bool,
         undo: &mut Vec<Undo>,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
@@ -472,7 +482,8 @@ impl NodeStore {
                     | UPDATE_TEXT
                     | UPDATE_LISTENER
                     | UPDATE_PROPERTIES
-                    | UPDATE_ACCESSIBILITY)
+                    | UPDATE_ACCESSIBILITY
+                    | UPDATE_FOCUSABLE)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -494,13 +505,28 @@ impl NodeStore {
                 reason: "text updates require RawText",
             });
         }
-        if mask & UPDATE_LISTENER != 0
+        if mask & UPDATE_FOCUSABLE != 0 && node.kind != KIND_VIEW {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "focusable updates require View",
+            });
+        }
+        let resulting_listener = if mask & UPDATE_LISTENER != 0 {
+            listener_id
+        } else {
+            node.listener_id
+        };
+        let resulting_style = if mask & UPDATE_STYLE != 0 {
+            style.as_ref()
+        } else {
+            node.style.as_ref()
+        };
+        if resulting_listener != 0
             && node.kind != KIND_PRESSABLE
             && node.kind != KIND_TEXT_INPUT
             && node.kind != KIND_VIRTUAL_LIST
-            && node
-                .style
-                .as_ref()
+            && node.kind != KIND_VIEW
+            && resulting_style
                 .and_then(|style| style.transition.as_ref())
                 .is_none()
         {
@@ -537,6 +563,9 @@ impl NodeStore {
         if mask & UPDATE_STYLE != 0 {
             target.style = style;
         }
+        if mask & UPDATE_FOCUSABLE != 0 {
+            target.focusable = focusable;
+        }
         if mask & UPDATE_LISTENER != 0 {
             target.listener_id = listener_id;
         }
@@ -557,6 +586,9 @@ impl NodeStore {
         Ok(())
     }
 
+    // Patch fields stay positional to mirror protocol validation; bookkeeping
+    // references are kept explicit for atomic rollback.
+    #[allow(clippy::too_many_arguments)]
     fn apply_move(
         &mut self,
         operation: usize,
@@ -911,6 +943,7 @@ fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             | KIND_TEXT_INPUT
             | KIND_RAW_TEXT
             | KIND_VIRTUAL_LIST
+            | KIND_IMAGE
     ) {
         return Err(TreeError::InvalidKind {
             node_id: node.id,
@@ -925,10 +958,17 @@ fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             kind: node.kind,
         });
     }
+    if node.focusable && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) {
+        return Err(TreeError::InvalidProperties {
+            node_id: node.id,
+            reason: "only View and Pressable nodes may be focusable",
+        });
+    }
     if node.listener_id != 0
         && node.kind != KIND_PRESSABLE
         && node.kind != KIND_TEXT_INPUT
         && node.kind != KIND_VIRTUAL_LIST
+        && node.kind != KIND_VIEW
         && node
             .style
             .as_ref()
@@ -989,7 +1029,19 @@ fn validate_host_properties_shape(
                 });
             }
         }
-        (None, KIND_TEXT_INPUT | KIND_VIRTUAL_LIST) => {
+        (Some(HostProperties::Image(image)), KIND_IMAGE) => {
+            if image.source.is_empty()
+                || image.source.len() > 1024
+                || image.source.chars().any(char::is_control)
+                || !(1..=5).contains(&image.object_fit)
+            {
+                return Err(TreeError::InvalidProperties {
+                    node_id,
+                    reason: "invalid Image source or object fit",
+                });
+            }
+        }
+        (None, KIND_TEXT_INPUT | KIND_VIRTUAL_LIST | KIND_IMAGE) => {
             return Err(TreeError::InvalidProperties {
                 node_id,
                 reason: "host node requires kind-specific properties",
@@ -1016,6 +1068,13 @@ fn validate_parent_child_kinds(
     child_id: u32,
     child_kind: u32,
 ) -> Result<(), TreeError> {
+    if parent_kind == KIND_IMAGE {
+        return Err(TreeError::InvalidChild {
+            node_id: parent_id,
+            child_id,
+            reason: "Image cannot contain children",
+        });
+    }
     if parent_kind == KIND_RAW_TEXT {
         return Err(TreeError::InvalidChild {
             node_id: parent_id,
@@ -1119,12 +1178,96 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
             reason: "flexDirection must be 0 (unset), 1 (row), or 2 (column)",
         });
     }
+    if style
+        .overflow
+        .is_some_and(|overflow| !(1..=3).contains(&overflow))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "overflow must be 1 (visible), 2 (hidden), or 3 (scroll)",
+        });
+    }
+    if style
+        .line_clamp
+        .is_some_and(|line_clamp| !(1..=100).contains(&line_clamp))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "lineClamp must be 1..=100",
+        });
+    }
+    if style
+        .text_overflow
+        .is_some_and(|text_overflow| !matches!(text_overflow, 1 | 2))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "textOverflow must be 1 (clip) or 2 (ellipsis)",
+        });
+    }
+    if style
+        .justify_content
+        .is_some_and(|justify| !(1..=6).contains(&justify))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "justifyContent must be 1..6",
+        });
+    }
+    if style
+        .align_items
+        .is_some_and(|align| !(1..=5).contains(&align))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "alignItems must be 1..5",
+        });
+    }
+    if style
+        .font_style
+        .is_some_and(|font_style| !matches!(font_style, 0 | 1))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "fontStyle must be 0 (normal) or 1 (italic)",
+        });
+    }
+    if style
+        .text_decoration
+        .is_some_and(|decoration| !(0..=2).contains(&decoration))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "textDecoration must be 0 (none), 1 (underline), or 2 (lineThrough)",
+        });
+    }
+    if style
+        .align_self
+        .is_some_and(|align| !(1..=7).contains(&align))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "alignSelf must be 1..7",
+        });
+    }
     for value in [
         style.width,
         style.height,
         style.flex_grow,
         style.padding,
         style.gap,
+        style.margin_top,
+        style.margin_right,
+        style.margin_bottom,
+        style.margin_left,
+        style.line_height,
+        style.min_width,
+        style.max_width,
+        style.min_height,
+        style.max_height,
+        style.flex_shrink,
+        style.border_radius,
+        style.border_width,
         style.opacity,
     ]
     .into_iter()
@@ -1133,9 +1276,27 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
         if !value.is_finite() || value < 0.0 {
             return Err(TreeError::InvalidStyle {
                 node_id,
-                reason: "dimensions, flexGrow, padding, gap, and opacity must be finite and non-negative",
+                reason: "numeric style values must be finite and non-negative",
             });
         }
+    }
+    if style
+        .font_size
+        .is_some_and(|size| !size.is_finite() || size <= 0.0)
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "fontSize must be finite and positive",
+        });
+    }
+    if style
+        .font_weight
+        .is_some_and(|weight| !matches!(weight, 400 | 500 | 600 | 700 | 900))
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "fontWeight must be 400, 500, 600, 700, or 900",
+        });
     }
     if style.opacity.is_some_and(|opacity| opacity > 1.0) {
         return Err(TreeError::InvalidStyle {
@@ -1143,16 +1304,20 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
             reason: "opacity must be between 0 and 1",
         });
     }
-    if let Some(transition) = style.transition.as_ref() {
-        if transition.properties == 0
-            || transition.properties & !(TRANSITION_OPACITY | TRANSITION_BACKGROUND_COLOR) != 0
-            || transition.easing as u32 > 3
-        {
-            return Err(TreeError::InvalidStyle {
-                node_id,
-                reason: "transition properties or easing are invalid",
-            });
-        }
+    if let Some(transition) = style.transition.as_ref()
+        && (transition.properties == 0
+            || transition.properties
+                & !(TRANSITION_OPACITY
+                    | TRANSITION_BACKGROUND_COLOR
+                    | TRANSITION_WIDTH
+                    | TRANSITION_HEIGHT)
+                != 0
+            || transition.easing as u32 > 3)
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "transition properties or easing are invalid",
+        });
     }
     Ok(())
 }

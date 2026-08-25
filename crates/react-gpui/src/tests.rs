@@ -1,6 +1,10 @@
 use std::io::Cursor;
+use std::process::Command as ProcessCommand;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use super::*;
+use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, KeyAction};
 
 fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {
     Snapshot::new(7, 3, revision.saturating_sub(1), revision, nodes)
@@ -51,6 +55,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
             listener_id: 44,
             host_properties: None,
             accessibility: None,
+            focusable: false,
         }],
     );
     let text_event = Event::text_input(
@@ -84,11 +89,193 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         node_id: 4,
         kind: COMMAND_SET_SELECTION,
         payload: Some((2, 3)),
+        title: None,
     };
     assert_eq!(
         Command::decode(&command.encode().unwrap()).unwrap(),
         command
     );
+    let title = Command {
+        kind: COMMAND_SET_TITLE,
+        node_id: 1,
+        payload: None,
+        title: Some("React GPUI".into()),
+        ..command.clone()
+    };
+    assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
+}
+#[test]
+fn surface_commands_round_trip_and_reject_invalid_arguments() {
+    let commands = [
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 1,
+            node_id: 1,
+            kind: COMMAND_RESIZE_WINDOW,
+            payload: Some((800, 600)),
+            title: None,
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 2,
+            node_id: 1,
+            kind: COMMAND_ZOOM_WINDOW,
+            payload: None,
+            title: None,
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 3,
+            node_id: 1,
+            kind: COMMAND_TOGGLE_FULLSCREEN,
+            payload: None,
+            title: None,
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 4,
+            node_id: 1,
+            kind: COMMAND_OPEN_URL,
+            payload: None,
+            title: Some("https://example.com/docs".into()),
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 5,
+            node_id: 1,
+            kind: COMMAND_CLIPBOARD_WRITE,
+            payload: None,
+            title: Some("clipboard text".into()),
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 6,
+            node_id: 1,
+            kind: COMMAND_CLIPBOARD_READ,
+            payload: None,
+            title: None,
+        },
+    ];
+    for command in commands {
+        assert_eq!(
+            Command::decode(&command.encode().unwrap()).unwrap(),
+            command
+        );
+    }
+
+    for (request_id, kind) in [(5, COMMAND_FOCUS_NEXT), (6, COMMAND_FOCUS_PREV)] {
+        let command = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id,
+            node_id: 1,
+            kind,
+            payload: None,
+            title: None,
+        };
+        assert_eq!(
+            Command::decode(&command.encode().unwrap()).unwrap(),
+            command
+        );
+    }
+    for command in [
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 5,
+            node_id: 2,
+            kind: COMMAND_RESIZE_WINDOW,
+            payload: Some((0, 600)),
+            title: None,
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 6,
+            node_id: 1,
+            kind: COMMAND_OPEN_URL,
+            payload: None,
+            title: Some("file:///tmp/example".into()),
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 7,
+            node_id: 2,
+            kind: COMMAND_ZOOM_WINDOW,
+            payload: None,
+            title: None,
+        },
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 8,
+            node_id: 1,
+            kind: COMMAND_CLIPBOARD_WRITE,
+            payload: None,
+            title: Some("x".repeat((1 << 20) + 1)),
+        },
+    ] {
+        assert!(matches!(
+            Command::decode(&command.encode().unwrap()),
+            Err(ProtocolError::InvalidCommandPayload)
+        ));
+    }
+    let unknown = Command {
+        protocol: PROTOCOL_VERSION,
+        message: COMMAND_MESSAGE,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 1,
+        request_id: 8,
+        node_id: 1,
+        kind: 99,
+        payload: None,
+        title: None,
+    };
+    assert!(matches!(
+        Command::decode(&unknown.encode().unwrap()),
+        Err(ProtocolError::UnknownCommand(99))
+    ));
 }
 
 #[test]
@@ -295,9 +482,18 @@ fn text_containment_listener_and_child_indexes_are_validated() {
         Some("Count: 0")
     );
 
-    let mut listener_on_view = view_node(2, 1, 0);
-    listener_on_view.listener_id = 9;
-    let invalid_listener = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), listener_on_view]);
+    let mut pointer_listener_on_view = view_node(2, 1, 0);
+    pointer_listener_on_view.listener_id = 9;
+    let pointer_listener_snapshot = root_snapshot(
+        1,
+        vec![Node::new(1, 0, 0, KIND_VIEW), pointer_listener_on_view],
+    );
+    NodeStore::default()
+        .apply_snapshot(pointer_listener_snapshot)
+        .unwrap();
+    let mut invalid_listener = Node::new(2, 1, 0, KIND_TEXT);
+    invalid_listener.listener_id = 9;
+    let invalid_listener = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), invalid_listener]);
     assert!(matches!(
         NodeStore::default().apply_snapshot(invalid_listener),
         Err(TreeError::InvalidListener { .. })
@@ -344,6 +540,70 @@ fn style_values_must_be_finite_and_non_negative() {
             flex_direction: Some(3),
             ..Style::default()
         },
+        Style {
+            justify_content: Some(7),
+            ..Style::default()
+        },
+        Style {
+            align_items: Some(6),
+            ..Style::default()
+        },
+        Style {
+            border_radius: Some(-1.0),
+            ..Style::default()
+        },
+        Style {
+            font_size: Some(0.0),
+            ..Style::default()
+        },
+        Style {
+            font_weight: Some(800),
+            ..Style::default()
+        },
+        Style {
+            overflow: Some(4),
+            ..Style::default()
+        },
+        Style {
+            line_clamp: Some(0),
+            ..Style::default()
+        },
+        Style {
+            line_clamp: Some(101),
+            ..Style::default()
+        },
+        Style {
+            text_overflow: Some(3),
+            ..Style::default()
+        },
+        Style {
+            margin_top: Some(-1.0),
+            ..Style::default()
+        },
+        Style {
+            line_height: Some(f32::NAN),
+            ..Style::default()
+        },
+        Style {
+            min_width: Some(f32::INFINITY),
+            ..Style::default()
+        },
+        Style {
+            flex_shrink: Some(-1.0),
+            ..Style::default()
+        },
+        Style {
+            font_style: Some(2),
+            ..Style::default()
+        },
+        Style {
+            text_decoration: Some(3),
+            ..Style::default()
+        },
+        Style {
+            align_self: Some(8),
+            ..Style::default()
+        },
     ] {
         let mut root = Node::new(1, 0, 0, KIND_VIEW);
         root.style = Some(style);
@@ -362,13 +622,215 @@ fn style_values_must_be_finite_and_non_negative() {
         padding: Some(4.0),
         gap: Some(2.0),
         background_rgba: Some(0xff00ffff),
+        justify_content: Some(4),
+        align_items: Some(5),
+        border_radius: Some(3.0),
+        border_width: Some(2.0),
+        border_color_rgba: Some(0x11223344),
+        font_size: Some(14.0),
+        font_weight: Some(600),
         color_rgba: Some(0xffffffff),
         opacity: None,
         transition: None,
+        overflow: Some(3),
+        line_clamp: Some(3),
+        text_overflow: Some(2),
+        margin_top: Some(1.0),
+        margin_right: Some(2.0),
+        margin_bottom: Some(3.0),
+        margin_left: Some(4.0),
+        font_style: Some(1),
+        text_decoration: Some(2),
+        line_height: Some(18.0),
+        min_width: Some(4.0),
+        max_width: Some(400.0),
+        min_height: Some(4.0),
+        max_height: Some(200.0),
+        flex_shrink: Some(1.0),
+        align_self: Some(5),
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
         .unwrap();
+}
+
+#[test]
+fn style_wire_round_trips_layout_border_and_text_fields() {
+    let mut node = Node::new(1, 0, 0, KIND_VIEW);
+    node.style = Some(Style {
+        justify_content: Some(6),
+        align_items: Some(4),
+        border_radius: Some(8.0),
+        border_width: Some(2.0),
+        border_color_rgba: Some(0x12345678),
+        font_size: Some(16.0),
+        font_weight: Some(900),
+        overflow: Some(3),
+        line_clamp: Some(3),
+        text_overflow: Some(2),
+        margin_top: Some(1.0),
+        margin_right: Some(2.0),
+        margin_bottom: Some(3.0),
+        margin_left: Some(4.0),
+        font_style: Some(1),
+        text_decoration: Some(2),
+        line_height: Some(18.0),
+        min_width: Some(4.0),
+        max_width: Some(400.0),
+        min_height: Some(4.0),
+        max_height: Some(200.0),
+        flex_shrink: Some(0.5),
+        align_self: Some(5),
+        transition: Some(Transition {
+            duration_ms: 100,
+            delay_ms: 0,
+            easing: Easing::Linear,
+            properties: TRANSITION_WIDTH | TRANSITION_HEIGHT,
+        }),
+        ..Style::default()
+    });
+    let snapshot = root_snapshot(1, vec![node]);
+    let decoded = Snapshot::decode(&snapshot.encode().unwrap()).unwrap();
+    assert_eq!(decoded, snapshot);
+    for style in [
+        Style {
+            overflow: Some(4),
+            ..Style::default()
+        },
+        Style {
+            line_clamp: Some(0),
+            ..Style::default()
+        },
+        Style {
+            line_clamp: Some(101),
+            ..Style::default()
+        },
+        Style {
+            text_overflow: Some(3),
+            ..Style::default()
+        },
+        Style {
+            margin_top: Some(-1.0),
+            ..Style::default()
+        },
+        Style {
+            font_style: Some(2),
+            ..Style::default()
+        },
+        Style {
+            text_decoration: Some(3),
+            ..Style::default()
+        },
+        Style {
+            transition: Some(Transition {
+                duration_ms: 100,
+                delay_ms: 0,
+                easing: Easing::Linear,
+                properties: 16,
+            }),
+            ..Style::default()
+        },
+        Style {
+            align_self: Some(8),
+            ..Style::default()
+        },
+    ] {
+        let mut invalid = Node::new(1, 0, 0, KIND_VIEW);
+        invalid.style = Some(style);
+        assert!(matches!(
+            Snapshot::decode(&root_snapshot(1, vec![invalid]).encode().unwrap()),
+            Err(ProtocolError::InvalidStyle)
+        ));
+    }
+}
+
+#[test]
+fn pointer_and_hover_events_round_trip_and_reject_invalid_buttons() {
+    let pointer = Event::pointer(
+        EVENT_POINTER,
+        7,
+        3,
+        1,
+        2,
+        9,
+        11,
+        POINTER_BUTTON_BACK,
+        vec!["cmd".to_owned(), "shift".to_owned()],
+        EVENT_POINTER_UP,
+        2,
+    );
+    assert_eq!(Event::decode(&pointer.encode().unwrap()).unwrap(), pointer);
+
+    let hover = Event::hover(7, 3, 1, 3, 9, 11);
+    assert_eq!(Event::decode(&hover.encode().unwrap()).unwrap(), hover);
+    let submit = Event::submit(7, 3, 1, 4, 2, 11);
+    assert_eq!(Event::decode(&submit.encode().unwrap()).unwrap(), submit);
+
+    let malformed = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        4u32,
+        9u32,
+        11u32,
+        EVENT_POINTER,
+        Some((6u32, 9u32, Vec::<String>::new(), EVENT_POINTER_DOWN, 1u32)),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&malformed),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
+}
+
+#[test]
+fn scroll_events_round_trip_pixels_and_lines_and_reject_invalid_payloads() {
+    for (delta_kind, dx, dy) in [
+        (SCROLL_DELTA_PIXELS, 12.5, -8.0),
+        (SCROLL_DELTA_LINES, 2.0, -1.5),
+    ] {
+        let scroll = Event::scroll(
+            7,
+            3,
+            1,
+            5,
+            9,
+            11,
+            delta_kind,
+            dx,
+            dy,
+            42.0,
+            24.0,
+            vec!["shift".into(), "cmd".into()],
+        );
+        assert_eq!(Event::decode(&scroll.encode().unwrap()).unwrap(), scroll);
+    }
+
+    for (delta_kind, dx, dy) in [
+        (99u32, 1.0, 2.0),
+        (SCROLL_DELTA_PIXELS, f32::NAN, 2.0),
+        (SCROLL_DELTA_LINES, 1.0, f32::INFINITY),
+    ] {
+        let malformed = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            6u32,
+            9u32,
+            11u32,
+            EVENT_SCROLL,
+            Some((7u32, delta_kind, dx, dy, 42.0f32, 24.0f32, vec!["shift"])),
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&malformed),
+            Err(ProtocolError::InvalidEventPayload)
+        ));
+    }
 }
 
 #[test]
@@ -384,6 +846,189 @@ fn in_memory_runtime_round_trips_framed_commit_and_event() {
     assert_eq!(runtime.take_event().unwrap(), Some(event));
     runtime.close().unwrap();
     assert_eq!(runtime.recv_commit().unwrap(), None);
+}
+
+#[test]
+fn process_runtime_reports_unexpected_clean_eof_and_exit_status() {
+    let mut command = ProcessCommand::new("sh");
+    command.args(["-c", "exit 37"]);
+    let runtime = ProcessAdapter::spawn(command).unwrap();
+
+    assert_eq!(runtime.recv_commit().unwrap(), None);
+    let status = runtime.status();
+    assert_eq!(
+        status,
+        RuntimeStatus::Exited {
+            code: Some(37),
+            signal: None,
+        }
+    );
+    assert!(status.is_failure());
+}
+
+#[test]
+fn process_runtime_marks_explicit_shutdown_without_failure() {
+    let mut command = ProcessCommand::new("sh");
+    command.args(["-c", "sleep 10"]);
+    let runtime = ProcessAdapter::spawn(command).unwrap();
+
+    runtime.shutdown().unwrap();
+
+    let status = runtime.status();
+    assert_eq!(status, RuntimeStatus::Shutdown);
+    assert!(!status.is_failure());
+}
+
+#[test]
+fn process_event_writer_backpressures_bytes_without_blocking_and_shutdown_joins() {
+    let mut command = ProcessCommand::new("sh");
+    command.args(["-c", "sleep 5"]);
+    let runtime = ProcessAdapter::spawn(command).unwrap();
+    let event = Event::text_input(
+        EVENT_CHANGE,
+        7,
+        3,
+        1,
+        1,
+        2,
+        3,
+        TextInputEvent {
+            text: "x".repeat(1024 * 1024),
+            selection_start: 0,
+            selection_end: 0,
+            marked_start: None,
+            marked_end: None,
+            edit_seq: 0,
+        },
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut accepted = 0;
+    let error = loop {
+        assert!(
+            Instant::now() < deadline,
+            "event queue did not backpressure"
+        );
+        match runtime.send_event(&event) {
+            Ok(()) => accepted += 1,
+            Err(error) => break error,
+        }
+    };
+    assert!(accepted > 0);
+    assert!(error.to_string().contains("byte capacity"));
+
+    let shutdown_started = Instant::now();
+    runtime.shutdown().unwrap();
+    assert!(shutdown_started.elapsed() < Duration::from_secs(1));
+}
+
+#[test]
+fn concurrent_process_shutdowns_do_not_deadlock_writer_join() {
+    let mut command = ProcessCommand::new("sh");
+    command.args(["-c", "sleep 5"]);
+    let runtime = ProcessAdapter::spawn(command).unwrap();
+    let event = Event::text_input(
+        EVENT_CHANGE,
+        7,
+        3,
+        1,
+        1,
+        2,
+        3,
+        TextInputEvent {
+            text: "x".repeat(1024 * 1024),
+            selection_start: 0,
+            selection_end: 0,
+            marked_start: None,
+            marked_end: None,
+            edit_seq: 0,
+        },
+    );
+    let _ = runtime.send_event(&event);
+
+    let (sender, receiver) = std::sync::mpsc::channel();
+    for _ in 0..2 {
+        let runtime = Arc::clone(&runtime);
+        let sender = sender.clone();
+        std::thread::spawn(move || sender.send(runtime.shutdown()).unwrap());
+    }
+    drop(sender);
+    for _ in 0..2 {
+        let result = receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("concurrent shutdown timed out");
+        assert!(result.is_ok());
+    }
+}
+
+#[test]
+fn process_event_writer_kills_closed_stdin_child_for_reader_eof() {
+    let mut command = ProcessCommand::new("sh");
+    command.args(["-c", "exec 0<&-; printf '\\000\\000\\000\\000'; sleep 5"]);
+    let runtime = ProcessAdapter::spawn(command).unwrap();
+    assert_eq!(runtime.recv_commit().unwrap(), Some(Vec::new()));
+    let event = Event::press(7, 3, 1, 1, 2, 3);
+    let _ = runtime.send_event(&event);
+
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let reader_runtime = Arc::clone(&runtime);
+    let reader = std::thread::spawn(move || {
+        sender
+            .send(reader_runtime.recv_commit())
+            .expect("send reader result");
+    });
+    let result = match receiver.recv_timeout(Duration::from_secs(1)) {
+        Ok(result) => result,
+        Err(error) => {
+            let _ = runtime.shutdown();
+            let _ = reader.join();
+            panic!("writer failure did not close commit reader: {error}");
+        }
+    };
+    reader.join().unwrap();
+
+    assert_eq!(result.unwrap(), None);
+    assert!(runtime.event_writer_error().is_some());
+    assert_eq!(runtime.status(), RuntimeStatus::Failed);
+    let later_error = runtime.send_event(&event).unwrap_err().to_string();
+    assert!(later_error.contains("event writer failed"));
+    runtime.shutdown().unwrap();
+}
+
+#[test]
+fn outbound_event_failure_during_shutdown_is_not_fatal() {
+    let runtime = InMemoryAdapter::new();
+    runtime.close().unwrap();
+    let event = Event::press(7, 3, 1, 1, 1, 10);
+
+    assert!(!send_event_or_exit(runtime.as_ref(), "press event", &event));
+}
+
+#[test]
+fn outbound_event_metadata_includes_wire_identity_without_payload() {
+    let event = Event::text_input(
+        EVENT_CHANGE,
+        7,
+        3,
+        11,
+        19,
+        23,
+        29,
+        TextInputEvent {
+            text: "secret input".to_owned(),
+            selection_start: 2,
+            selection_end: 4,
+            marked_start: Some(1),
+            marked_end: Some(3),
+            edit_seq: 5,
+        },
+    );
+
+    assert_eq!(
+        crate::transport::format_event_metadata(&event),
+        "event_type=2, surface_id=7, epoch=3, revision=11, sequence=19, node_id=23, listener_id=29"
+    );
+    assert!(!crate::transport::format_event_metadata(&event).contains("secret input"));
 }
 
 #[test]
@@ -417,6 +1062,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 listener_id: 0,
                 host_properties: None,
                 accessibility: None,
+                focusable: false,
             }],
         ))
         .unwrap();
@@ -447,6 +1093,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 listener_id: 44,
                 host_properties: None,
                 accessibility: None,
+                focusable: false,
             }],
         ))
         .unwrap();
@@ -512,6 +1159,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 listener_id: 0,
                 host_properties: None,
                 accessibility: None,
+                focusable: false,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -575,6 +1223,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 listener_id: 0,
                 host_properties: None,
                 accessibility: None,
+                focusable: false,
             }],
         ))
         .unwrap();
@@ -599,6 +1248,7 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
         selection_end: 2,
         marked_start: None,
         marked_end: None,
+        max_length: Some(5),
     }));
     let mut list = Node::new(3, 1, 1, KIND_VIRTUAL_LIST);
     list.listener_id = 12;
@@ -623,6 +1273,10 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
     for event in [
         Event::visible_range(7, 3, 1, 2, 3, 12, 10, 20),
         Event::animation_complete(7, 3, 1, 3, 3, 12, 9),
+        Event::window_resize(7, 3, 1, 5, 1, 0, 640.0, 480.0),
+        Event::window_activation(7, 3, 1, 6, 1, 0, true),
+        Event::submit(7, 3, 1, 7, 5, 12),
+        Event::submit_with_text(7, 3, 1, 8, 5, 12, "submitted text".into()),
         Event::command_result(
             7,
             3,
@@ -634,11 +1288,194 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
                 node_id: 3,
                 success: true,
                 error: None,
+                value: None,
             },
         ),
     ] {
         assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
     }
+}
+#[test]
+fn window_resize_wire_accepts_integer_dimensions() {
+    let payload = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        1u32,
+        1u32,
+        0u32,
+        EVENT_WINDOW_RESIZE,
+        Some((800u32, 600u32)),
+    ))
+    .unwrap();
+    let event = Event::decode(&payload).unwrap();
+    assert_eq!(
+        event.payload,
+        Some(EventPayload::WindowResize {
+            width: 800.0,
+            height: 600.0,
+        })
+    );
+}
+#[test]
+fn window_activation_wire_rejects_non_boolean_payloads() {
+    let payload = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        1u32,
+        1u32,
+        0u32,
+        EVENT_WINDOW_ACTIVATION,
+        Some((0u32, 1u32)),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&payload),
+        Err(ProtocolError::Decode(_))
+    ));
+}
+
+#[test]
+fn command_result_accepts_surface_command_kinds() {
+    for command in [
+        COMMAND_SET_TITLE,
+        COMMAND_RESIZE_WINDOW,
+        COMMAND_ZOOM_WINDOW,
+        COMMAND_TOGGLE_FULLSCREEN,
+        COMMAND_OPEN_URL,
+        COMMAND_FOCUS_NEXT,
+        COMMAND_FOCUS_PREV,
+        COMMAND_GET_WINDOW_SIZE,
+        COMMAND_GET_FOCUS,
+    ] {
+        let event = Event::command_result(
+            7,
+            3,
+            1,
+            command,
+            CommandResult {
+                request_id: 5,
+                command,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: None,
+            },
+        );
+        assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+    }
+    for (command, value) in [
+        (COMMAND_GET_WINDOW_SIZE, CommandValue::Pair((640.0, 480.0))),
+        (COMMAND_GET_FOCUS, CommandValue::Bool(true)),
+        (
+            COMMAND_CLIPBOARD_READ,
+            CommandValue::Text("clipboard text".to_owned()),
+        ),
+    ] {
+        let event = Event::command_result(
+            7,
+            3,
+            1,
+            command,
+            CommandResult {
+                request_id: 6,
+                command,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(value),
+            },
+        );
+        assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+    }
+    let old_wire = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        7u32,
+        1u32,
+        0u32,
+        6u32,
+        Some((
+            2u32,
+            77u32,
+            COMMAND_FOCUS,
+            1u32,
+            true,
+            Option::<String>::None,
+        )),
+    ))
+    .unwrap();
+    let decoded = Event::decode(&old_wire).unwrap();
+    match decoded.payload {
+        Some(EventPayload::CommandResult(result)) => assert_eq!(result.value, None),
+        _ => panic!("old CommandResult wire did not decode"),
+    }
+}
+#[test]
+fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
+    let mut image = Node::new(2, 1, 0, KIND_IMAGE);
+    image.host_properties = Some(HostProperties::Image(ImageProperties {
+        source: "assets/icon.png".into(),
+        object_fit: 2,
+    }));
+    let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), image]);
+    assert_eq!(
+        Snapshot::decode(&snapshot.encode().unwrap()).unwrap(),
+        snapshot
+    );
+    NodeStore::default().apply_snapshot(snapshot).unwrap();
+
+    for properties in [
+        ImageProperties {
+            source: String::new(),
+            object_fit: 2,
+        },
+        ImageProperties {
+            source: "bad\npath".into(),
+            object_fit: 2,
+        },
+        ImageProperties {
+            source: "assets/icon.png".into(),
+            object_fit: 6,
+        },
+    ] {
+        let mut invalid = Node::new(2, 1, 0, KIND_IMAGE);
+        invalid.host_properties = Some(HostProperties::Image(properties));
+        assert!(matches!(
+            Snapshot::decode(
+                &Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), invalid])
+                    .encode()
+                    .unwrap()
+            ),
+            Err(ProtocolError::InvalidHostProperties)
+        ));
+    }
+
+    let mut child = Node::new(3, 2, 0, KIND_TEXT);
+    child.text = None;
+    let mut image = Node::new(2, 1, 0, KIND_IMAGE);
+    image.host_properties = Some(HostProperties::Image(ImageProperties {
+        source: "assets/icon.png".into(),
+        object_fit: 2,
+    }));
+    assert!(matches!(
+        NodeStore::default().apply_snapshot(Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), image, child],
+        )),
+        Err(TreeError::InvalidChild { .. })
+    ));
 }
 #[test]
 fn protocol_v3_rejects_mismatched_host_property_kind_on_decode() {
@@ -654,6 +1491,7 @@ fn protocol_v3_rejects_mismatched_host_property_kind_on_decode() {
         selection_end: 0,
         marked_start: None,
         marked_end: None,
+        max_length: None,
     }));
     let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), node]);
     assert!(matches!(
@@ -679,7 +1517,7 @@ fn protocol_v3_rejects_event_payload_tag_mismatches() {
     .unwrap();
     assert!(matches!(
         Event::decode(&malformed),
-        Err(ProtocolError::InvalidEventPayload)
+        Err(ProtocolError::Decode(_))
     ));
     let malformed_command = rmp_serde::to_vec(&(
         3u32,
@@ -696,6 +1534,25 @@ fn protocol_v3_rejects_event_payload_tag_mismatches() {
     .unwrap();
     let decoded = Event::decode(&malformed_command);
     assert!(matches!(decoded, Err(ProtocolError::InvalidEventPayload)));
+    for event_type in [EVENT_PRESS, EVENT_HOVER] {
+        let malformed_null_payload = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            3u32,
+            1u32,
+            0u32,
+            event_type,
+            Some("unexpected"),
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&malformed_null_payload),
+            Err(ProtocolError::Decode(_))
+        ));
+    }
 }
 
 #[test]
@@ -737,6 +1594,7 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
                 overscan: 1,
             })),
             accessibility: None,
+            focusable: false,
         }],
     );
     assert!(matches!(
@@ -744,4 +1602,73 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
         Err(TreeError::InvalidPatchOperation { .. })
     ));
     assert_eq!(store.revision(), 1);
+}
+
+#[test]
+fn key_event_payload_tag_round_trips_with_compact_action_and_modifiers() {
+    let event = Event::key(
+        7,
+        3,
+        1,
+        8,
+        2,
+        44,
+        "ArrowLeft".into(),
+        vec!["shift".into(), "cmd".into()],
+        KeyAction::Repeat,
+    );
+    let payload = event.encode().unwrap();
+    assert_eq!(Event::decode(&payload).unwrap(), event);
+
+    let malformed = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        9u32,
+        2u32,
+        44u32,
+        EVENT_KEY,
+        Some((5u32, "A", vec!["shift", "shift"], EVENT_KEY_DOWN)),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&malformed),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
+}
+
+#[test]
+fn focusable_view_and_pressable_listener_combinations_are_validated() {
+    let mut valid = Node::new(2, 1, 0, KIND_VIEW);
+    valid.focusable = true;
+    valid.listener_id = 9;
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), valid]))
+        .unwrap();
+    assert!(store.get(2).unwrap().focusable);
+
+    let mut invalid_listener = Node::new(2, 1, 0, KIND_TEXT);
+    invalid_listener.listener_id = 9;
+    assert!(matches!(
+        NodeStore::default().apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), invalid_listener]
+        )),
+        Err(TreeError::InvalidListener { .. })
+    ));
+
+    let mut valid_pressable = Node::new(2, 1, 0, KIND_PRESSABLE);
+    valid_pressable.focusable = true;
+    valid_pressable.listener_id = 9;
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), valid_pressable],
+        ))
+        .unwrap();
+    assert!(store.get(2).unwrap().focusable);
 }
