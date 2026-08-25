@@ -127,6 +127,11 @@ function Gallery() {
   const [active, setActive] = useState(false);
   const [activityRows, setActivityRows] = useState(rows);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [layout, setLayout] = useState("not measured");
+  const [externalDrop, setExternalDrop] = useState("none");
+  const [pointer, setPointer] = useState("none");
+  const [hovered, setHovered] = useState(false);
+  const [scrollDelta, setScrollDelta] = useState(0);
   const moveActivity = (targetId: number, dragType: string) => {
     const prefix = "activity:";
     if (!dragType.startsWith(prefix)) return;
@@ -175,11 +180,26 @@ function Gallery() {
           <Text style={styles.subtitle}>Native panels, input, lists, events, and transitions.</Text>
         </View>
         <Text style={styles.subtitle}>Presses: {presses}</Text>
+        <Text style={styles.subtitle}>
+          Layout: {layout}; pointer: {pointer}; hover: {hovered ? "yes" : "no"}; dropped: {externalDrop}
+        </Text>
       </View>
       <View style={styles.panels}>
-        <View style={styles.panel}>
+        <View
+          style={styles.panel}
+          onLayout={(frame) => setLayout(`${Math.round(frame.width)}x${Math.round(frame.height)}`)}
+          onExternalFileDrop={(paths) => setExternalDrop(`${paths.length} file(s)`)}
+        >
           <Text style={styles.panelTitle}>Compose</Text>
           <Text style={styles.showcase}>Margins, bounds, italic, underline, and line height.</Text>
+          <View
+            style={{ height: 72, flexShrink: 0, overflow: "scroll", borderWidth: 1, padding: 8 }}
+            onScroll={(event) => setScrollDelta(Math.round(event.dy))}
+          >
+            <Text>Scroll this panel to exercise View onScroll notifications.</Text>
+            <Text>Scroll delta: {scrollDelta}</Text>
+            <Text>Native wheel events remain semantic notifications.</Text>
+          </View>
           <Text style={styles.label}>Filter activity</Text>
           <TextInput
             style={styles.input}
@@ -189,7 +209,13 @@ function Gallery() {
             accessibilityLabel="Activity filter"
           />
           <View style={styles.menuAnchor}>
-            <Pressable style={styles.button} onPress={() => setMenuOpen((value) => !value)}>
+            <Pressable
+              style={styles.button}
+              onPress={() => setMenuOpen((value) => !value)}
+              onPointerDown={() => setPointer("down")}
+              onPointerUp={() => setPointer("up")}
+              onHoverChange={setHovered}
+            >
               <Text style={styles.buttonLabel}>{menuOpen ? "Hide menu" : "Show menu"}</Text>
             </Pressable>
             {menuOpen ? (

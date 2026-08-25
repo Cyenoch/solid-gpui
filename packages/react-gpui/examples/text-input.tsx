@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Pressable,
   StdioTransport,
   Text,
   TextInput,
@@ -18,8 +19,11 @@ const styles = StyleSheet.create({
 
 function TwoInputs() {
   const [first, setFirst] = useState("");
-  const [second, setSecond] = useState("");
+  const [second, setSecond] = useState("Uncontrolled input");
+  const [firstStatus, setFirstStatus] = useState("unfocused");
+  const [selection, setSelection] = useState("0-0");
   const firstRef = useRef<TextInputHandle>(null);
+  const secondRef = useRef<TextInputHandle>(null);
   useEffect(() => {
     void firstRef.current?.focus();
   }, []);
@@ -31,17 +35,32 @@ function TwoInputs() {
         style={styles.input}
         value={first}
         onChangeText={setFirst}
+        onFocus={() => setFirstStatus("focused")}
+        onBlur={() => setFirstStatus("blurred")}
+        onSelectionChange={(value) => setSelection(`${value.start}-${value.end}${value.reversed ? " (reversed)" : ""}`)}
         accessibilityLabel="First name"
         accessibilityDescription="The first controlled text input"
       />
+      <Text style={styles.label}>
+        First input: {firstStatus}; selection: {selection}
+      </Text>
+      <Pressable onPress={() => void firstRef.current?.setSelection(0, first.length)}>
+        <Text>Select first input</Text>
+      </Pressable>
       <Text style={styles.label}>Second: {second}</Text>
       <TextInput
+        ref={secondRef}
         style={styles.input}
-        value={second}
+        defaultValue={second}
         onChangeText={setSecond}
+        multiline
+        maxLength={64}
         accessibilityLabel="Second name"
-        accessibilityDescription="The second controlled text input"
+        accessibilityDescription="The second uncontrolled multiline text input"
       />
+      <Pressable onPress={() => void secondRef.current?.blur()}>
+        <Text>Blur second input</Text>
+      </Pressable>
     </View>
   );
 }

@@ -553,11 +553,11 @@ motion. Completion is emitted once as the tagged AnimationComplete event.
 The source tree includes focused entries for the main host surfaces:
 
 - [`counter.tsx`](examples/counter.tsx) — the smallest process-runtime smoke entry.
-- [`gallery.tsx`](examples/gallery.tsx) — composed layout, drag, appearance, and animation coverage.
-- [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, and virtual-list integration.
+- [`gallery.tsx`](examples/gallery.tsx) — composed layout, pointer/scroll/drop, drag, appearance, and animation coverage.
+- [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, accessibility, and virtual-list integration.
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus and native key notifications.
-- [`text-input.tsx`](examples/text-input.tsx) — two controlled text inputs and focus.
-- [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan.
+- [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, selection, multiline limits, and focus handles.
+- [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 
 ## Local commands
 
