@@ -207,6 +207,14 @@ from this work tree.
   backpressure tests; superseded checkpoint `ca9bd23` was replaced by
   reachable commit `9fab40d`.
 
+- Drag events expose `EVENT_DRAG=20` with `[1,type]`, `[2,type]`, and
+  `[3,paths]` payloads; View/Pressable gain draggable, onDragOver notification,
+  typed onDrop, and onExternalFileDrop. Drag data stays on the JavaScript side
+  keyed by type, the host can_drop simplification and fixed 24x24 preview are
+  documented, and drag visuals remain display-backed.
+- `docs/getting-started.md` adds a 365-line consumer guide covering setup, the
+  architecture model, quick references, nine cookbooks, debugging pointers,
+  and current boundaries; all snippets were typechecked.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
