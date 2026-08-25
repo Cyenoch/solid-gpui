@@ -28,6 +28,19 @@ from this work tree.
   (72.97 seconds), the 0.2.0 version-cut rationale, human decision items, and
   five documentation-drift corrections at
   `.scratch/release-productionization/release-readiness.md`.
+- Absolute positioning extends the style tuple from 33 to 38 slots with
+  `position: "relative" | "absolute"` and `left`/`top`/`right`/`bottom`
+  insets. Negative finite offsets preserve GPUI semantics; relative means
+  post-layout displacement and absolute means anchoring, with combined
+  stretching delegated to documented Taffy behavior. There is no `zIndex`;
+  paint order remains subtree order. `examples/gallery.tsx` includes overlay
+  coverage.
+- System appearance observation uses `EVENT_WINDOW_APPEARANCE=18` with the
+  `"light" | "dark"` string enum. Vibrant variants fold to these semantic
+  values in line with Zed; the existing coalesced window observer always emits
+  an initial frame. `RootOptions.onAppearance` and the explicit
+  `createAppearanceStore`/`useAppearance` bridge are provided; application code
+  owns theme-color policy.
 - Runtime termination handling distinguishes explicit shutdown from unexpected
   EOF, non-zero process exit, protocol failure, and retained failed status; the
   host exposes these outcomes as observable CLI failures.
