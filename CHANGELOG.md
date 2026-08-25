@@ -41,6 +41,17 @@ from this work tree.
   an initial frame. `RootOptions.onAppearance` and the explicit
   `createAppearanceStore`/`useAppearance` bridge are provided; application code
   owns theme-color policy.
+- Layout measurement emits `EVENT_LAYOUT=19` with `[x,y,width,height]` through
+  the `MeasuredElement` prepaint seam; `on_next_frame` batches delivery,
+  defers the initial frame, and applies exact deduplication/invalidation.
+  `View`, `Pressable`, `Text`, and `Image` expose `onLayout`; display-backed
+  numeric verification remains a release validation item.
+- Dependency governance refreshed `@msgpack/msgpack` to 3.1.3 and Cargo
+  `core-foundation` to 0.10.1 plus `rand` to 0.8.8. `@types/react` and
+  `bun-types` upgrade attempts were rolled back after real TypeScript failures;
+  `cargo-audit` is unavailable so no vulnerability conclusion is claimed.
+  The GPUI pin, toolchain, and Rust 1.98 decision remain human-owned.
+  The 219-line audit is at `.scratch/release-productionization/dependency-audit.md`.
 - Runtime termination handling distinguishes explicit shutdown from unexpected
   EOF, non-zero process exit, protocol failure, and retained failed status; the
   host exposes these outcomes as observable CLI failures.
