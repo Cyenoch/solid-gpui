@@ -20,6 +20,14 @@ from this work tree.
   `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
   carry host exit codes and the last 50 stderr lines. README Troubleshooting
   documents reproduction and an optional APM sample.
+- Pending-command lifecycle regression coverage locks seven paths: surface
+  close, transport-termination fan-out, unmount, every command family on a
+  closed root, silent event drops, and host disposal; dangling Promises are
+  treated as a zero-tolerance failure.
+- The release-readiness evidence package records the fresh five-gate matrix
+  (72.97 seconds), the 0.2.0 version-cut rationale, human decision items, and
+  five documentation-drift corrections at
+  `.scratch/release-productionization/release-readiness.md`.
 - Runtime termination handling distinguishes explicit shutdown from unexpected
   EOF, non-zero process exit, protocol failure, and retained failed status; the
   host exposes these outcomes as observable CLI failures.
