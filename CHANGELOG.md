@@ -326,6 +326,17 @@ from this work tree.
   generators, zero broken local links across 45 scanned links, and synchronized
   the 272-line readiness report with **81** Unreleased entries. External badge
   URLs were not network-HEAD checked; no publication decision is implied.
+- Static menu action items now accept `[1,name,[disabled,checked]]` with legacy
+  `[1,name]` compatibility; GPUI MenuItem flags map disabled and checked,
+  and each static `setMenus` call fully re-sends the menu definition.
+  Disabled actions do not activate natively; TestPlatform has no native menu
+  structure capture, which remains an explicit test boundary.
+- The 60-second process soak smoke recorded host RSS first/last/peak
+  **77,504/77,584/77,584 KiB** (`+80 KiB`, `+0.10%`, slope **80 KiB/min**),
+  exact tap frame matching **5,626 = 5,626**, and clean SIGTERM exit. It sent
+  511 renderer command frames with zero command results because headless GPUI
+  command processing is display-bound; this limitation is reported, not hidden.
+  The run is leak-smoke evidence, not multi-hour soak proof.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
