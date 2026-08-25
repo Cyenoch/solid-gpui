@@ -37,13 +37,58 @@ root.render(<Counter />);
 
 `StyleSheet.create` is a validated, frozen style-recipe helper; styles are not CSS. V3 fields are:
 
-- `width`, `height`, `flexGrow`, `padding`, and `gap` — finite, non-negative numbers.
+- `width`, `height`, `flexGrow`, `padding`, `gap`, `borderRadius`, and `borderWidth` — finite, non-negative numbers.
+- `fontSize` — a finite, positive number in pixels; it applies to `Text` and `RawText`.
 - `flexDirection` — `"row"` or `"column"`.
-- `backgroundColor` and `color` — `#RRGGBB` or `#RRGGBBAA`, packed as RGBA `u32` values on the wire.
-- `opacity` — a number from `0` through `1`.
-- `transition` — `{ durationMs, delayMs?, easing?, properties?, onComplete? }`; easing defaults to `"easeInOut"` and completion callbacks remain JavaScript-side.
+- `justifyContent` — `"flex-start"`, `"center"`, `"flex-end"`, `"space-between"`, `"space-around"`, or `"space-evenly"`.
+- `alignItems` — `"flex-start"`, `"center"`, `"flex-end"`, `"stretch"`, or `"baseline"`.
+- `borderColor`, `backgroundColor`, and `color` — `#RRGGBB` or `#RRGGBBAA`, packed as RGBA `u32` values on the wire.
+- `fontWeight` — `"normal"` (400), `"medium"` (500), `"semibold"` (600), `"bold"` (700), or `"heavy"` (900); it applies to `Text` and `RawText`.
+- `overflow` — `"visible"`, `"hidden"`, or `"scroll"`; only `"scroll"` makes a `View` a scrollable container.
+- `lineClamp` — a positive integer from `1` through `100`; setting it implies `overflow: "hidden"` when `overflow` is omitted, while an explicit `overflow` value takes precedence.
+- `textOverflow` — `"clip"` clears text truncation or `"ellipsis"` maps to GPUI's ellipsis behavior.
+- `marginTop`, `marginRight`, `marginBottom`, and `marginLeft` — finite, non-negative pixel values.
+- `fontStyle` — `"normal"` or `"italic"`; `textDecoration` — `"none"`, `"underline"`, or `"lineThrough"`.
+- `lineHeight`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, and `flexShrink` — finite, non-negative pixel/flex values.
+- `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
 
-Unknown fields, invalid colors, non-finite values, negative numeric fields, invalid easing values, and duplicate transition properties are rejected.
+The transport uses one fixed positional 33-slot style tuple: slots `0..19`
+remain unchanged and the fields above append at slots `20..32`; omitted fields
+are encoded as `null` (not sparse-map entries). TypeScript and Rust strongly
+share this positional order and validate the same enum and numeric ranges.
+`letterSpacing`, `boxShadow`, and `cursor` remain intentionally unsupported:
+they do not have a stable cross-platform GPUI contract in this renderer.
+
+`fontFamily` is intentionally not exposed: GPUI accepts `SharedString`, but the
+backend does not guarantee a safe fallback for an arbitrary missing primary
+family. Unknown fields, invalid colors, non-finite values, negative numeric
+fields, zero `fontSize`, invalid alignment/weight/overflow/font-style/
+decoration values, invalid easing values, and duplicate transition properties
+are rejected.
+
+## Image
+
+`Image` uses a host-side file path and an `objectFit` value (`"fill"`,
+`"contain"`, `"cover"`, `"scaleDown"`, or `"none"`):
+
+```tsx
+<Image source="assets/logo.png" objectFit="contain" style={{ width: 120, height: 48 }} />
+```
+
+Paths are resolved by the host process: relative paths use the host process
+working directory, while absolute paths are recommended for production
+packaging. Image nodes do not accept children and reuse generic style fields
+such as width, height, and border radius. Loading is asynchronous through
+GPUI's image cache; a missing or undecodable file renders as silent blank
+space with no JavaScript failure callback in this protocol version.
+
+For a sidecar asset shipped next to an ESM/Bun example, derive an absolute
+host-visible path and ship the file alongside the example:
+
+```tsx
+const avatarSource = new URL("./todo-avatar.svg", import.meta.url).pathname;
+<Image source={avatarSource} style={{ width: 32, height: 32 }} />;
+```
 
 ## Transport and framing
 
@@ -52,13 +97,238 @@ Unknown fields, invalid colors, non-finite values, negative numeric fields, inva
 - `submit(frame)` sends a complete renderer-to-host frame. The frame is a four-byte little-endian payload length followed by MessagePack bytes.
 - `onData(listener)` delivers host-to-renderer bytes. Input may be fragmented or coalesced; the package incrementally decodes frames and enforces the 16 MiB maximum frame size.
 
-Snapshots use `[3,1,surfaceId,epoch,baseRevision,revision,nodes]` for bootstrap; later commits use Patch `[3,3,surfaceId,epoch,baseRevision,revision,operations]` with positional Create, Update, Move, and Delete operations. Node records are `[id,parentId,index,kind,style,text,listenerId,hostProperties,accessibility]`; `hostProperties` is a tagged TextInput or VirtualList tuple. Events use exactly `[3,2,surface,epoch,revision,sequence,node,listener,eventType,payload|null]`; payload tags are TextInput `1`, CommandResult `2`, VisibleRange `3`, and AnimationComplete `4`. Node and listener IDs are `u32` values.
+- The complete v3 wire reference—message matrix, node/host-property/accessibility/style slots, event and command directories, limits, fixture walkthroughs, and evolution rules—is [`../../docs/protocol.md`](../../docs/protocol.md). This README keeps only the framing and transport lifecycle summary.
+
+`StdioTransport` observes input `end`/`close`/`error` and output `close`/`error`.
+The first such failure enters an idempotent terminated state, removes stream
+listeners, clears pending frames, and notifies `createRoot` through
+`onTransportTermination`; the callback receives a contextual
+`TransportTerminatedError`. Output write failures and host disappearance are
+therefore explicit renderer termination, not uncaught stream exceptions.
+`createProcessTerminationHandler(exit?)` is provided for process examples: it
+logs the termination and exits with code `1`, with an injectable exit function
+for tests. `MemoryTransport` remains an in-memory healthy transport.
+
+## Multiple native surfaces
+
+Use `createSurfaceHost` when several native windows share one transport. It
+owns one reader and routes each event to the root registered for that
+`surfaceId`; `SurfaceHost` itself has no global open-window command. The
+compatibility `createRoot(transport)` path remains valid for a single surface.
+
+```tsx
+import { createSurfaceHost } from "@react-gpui/core";
+
+const host = createSurfaceHost(transport);
+const root = host.createRoot({ surfaceId: 1 });
+root.render(<Main />);
+
+// The request belongs to `root`; omitted values become "" and [0, 0].
+const surfaceId = await root.openSurface({ title: "Inspector", width: 640, height: 480 });
+const inspector = host.createRoot({
+  surfaceId,
+  onClose: () => console.log("Inspector closed"),
+});
+inspector.render(<Inspector />);
+```
+
+The `openSurface` promise resolves with the new positive native `surfaceId`
+from CommandResult value tag `1`. Only after that handshake should the caller
+register the new root and render it. The command is sent with the requesting
+root's `surfaceId` and `nodeId=1`; unknown surfaces are rejected rather than
+implicitly opened. A native close emits `EVENT_SURFACE_CLOSED` before teardown,
+routes only to its root, and invokes `onClose`. Closing the final native window
+terminates the host runtime/process. Headless tests cover demultiplexing and
+close routing; actual Quartz multi-window display behavior requires a
+macOS display-backed host run.
+
+## Debugging
+
+Set `REACT_GPUI_TAP` to a JSONL path before constructing a `StdioTransport` or
+native runtime adapter to observe protocol metadata:
+
+```sh
+REACT_GPUI_TAP="${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl" bun run examples/counter.tsx
+python3 ../../scripts/protocol-tap-report.py "${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl"
+```
+
+Each process opens its own path with truncation; do not use one shared path for
+multiple processes. Tap records include monotonic milliseconds, direction,
+peer, message kind, complete framed byte count (including the four-byte
+length), and a strictly increasing per-file sequence. Event and command
+subtype numbers, command request IDs, and command-result success values are
+included when available. Payload contents are never written.
+
+The tap is capped at 64 MiB. On reaching the cap it writes a final
+`tap_stopped` record with `reason="capacity"` and then disables itself. An
+unopenable path prints one warning to stderr and leaves transport operation
+unchanged; tapping is never fatal. `MemoryTransport` does not tap.
+
+The report script accepts multiple JSONL files, merges records by monotonic
+time, and prints duration, frame rate, kind counts, byte min/median/max,
+event-subtype counts, request-ID-correlated command success, and p50/p95 frame
+intervals.
+
+The tap-on overhead was measured once with 10,000 seven-byte snapshot frames
+through `StdioTransport` (tap off 18.03 ms, tap on 33.65 ms, about 1.56 μs per
+frame of incremental wall time); this is informational and not a performance
+gate.
 
 ## Commit and event semantics
 
-A completed React commit produces exactly one atomic Commit Batch: a complete Snapshot during bootstrap or one incremental Patch afterward, rather than one transport call per host mutation or prop. Listener IDs remain stable while a host node remains mounted; changing a callback function updates only the JavaScript callback table, while 0↔nonzero listener transitions update the native listener field. TextInput native edits are acknowledged with editSeq and preserve uncontrolled defaults. Press, TextInput, VisibleRange, and AnimationComplete events are semantic notifications, not cancellable browser events.
+A completed React commit produces exactly one atomic Commit Batch: a complete Snapshot during bootstrap or one incremental Patch afterward, rather than one transport call per host mutation or prop. Listener IDs remain stable while a host node remains mounted; changing a callback function updates only the JavaScript callback table, while 0↔nonzero listener transitions update the native listener field. TextInput native edits are acknowledged with editSeq and preserve uncontrolled defaults. Press, TextInput, VisibleRange, AnimationComplete, Keyboard, Pointer, Hover, and Scroll events are semantic notifications, not cancellable browser events.
 
-`TextInput` is controlled with `value`/`onChangeText` or initialized once with `defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`, `onBlur`, `multiline`, `disabled`, and accessibility props; native edits carry UTF-16 selection/marked ranges and editSeq acknowledgements.
+## Keyboard
+
+`View` and focusable `Pressable` nodes can opt into native keyboard delivery
+with `focusable` and `onKeyDown`; `TextInput` accepts `onKeyDown` while always
+remaining focusable. The callback receives a semantic notification with the
+native key name, a compact modifier list, and an action:
+
+```tsx
+<Pressable
+  focusable
+  onKeyDown={({ key, modifiers, action }) => {
+    console.log(action, [...modifiers, key].join("+"));
+  }}
+/>
+```
+
+GPUI registers key handlers on the focused dispatch path. `down` is emitted for
+the initial key press, `repeat` for a held-key notification reported by GPUI,
+and `up` when the key is released. Modifier names are `cmd`, `ctrl`, `alt`,
+`shift`, and `function`; `cmd` represents GPUI's platform modifier slot.
+Keyboard events are semantic notifications and cannot be synchronously canceled.
+
+## Pointer and focus
+
+`View` and `Pressable` accept `onPointerDown`, `onPointerUp`, and
+`onHoverChange`. Pointer events are semantic notifications with button codes
+left/right/middle/back/forward, the compact modifier names above, and a
+`clickCount`; Pressable's existing `onPress` notification remains unchanged.
+Hover uses a null wire payload and alternates the `onHoverChange` boolean on
+ordered enter/leave edges from GPUI's `.on_hover` callback.
+
+`View` refs expose `focus()`, `blur()`, and `isFocused(): Promise<boolean>`;
+focusable Pressables use the same native focus graph but their public ref does
+not add synchronous focus state. These commands reject for non-focusable views.
+Focusable `View` and `Pressable` nodes participate in the native tab-stop
+graph when `focusable` is true and a listener is present. Pressable Enter/Space
+activation is supplied by GPUI's `.on_click` keyboard synthesis: an unmodified
+keydown→keyup pair with stable focus emits the existing `onPress` notification,
+so applications do not add a second keyboard activation handler.
+`Pressable.disabled` removes focus, press/key/pointer/hover interaction and
+automatically reports `accessibilityDisabled`; it does not change opacity.
+`TextInput` remains always focusable and accepts `onKeyDown` through the same
+bubble key listener wire. GPUI checks text-input/IME preference before keymap
+bindings, so this listener does not use capture phase. Escape edit cancellation
+is demonstrated in `examples/todo.tsx`.
+
+`Root.focusNext()` and `Root.focusPrev()` delegate traversal to the native
+tab-stop graph and return Promise acknowledgements. A `CommandResult` may omit
+its optional value for backward compatibility; value tags are
+`[1,number]`, `[2,[width,height]]`, `[3,bool]`, and `[4,string]`.
+`Root.setTitle(title)` sends root command `COMMAND_SET_TITLE=6`; title must be
+non-empty and at most 256 Unicode code points. The command returns a Promise
+resolved by the native CommandResult.
+`Root.resize(width, height)` resizes the window client area in integer pixels
+from `1` through `16384`. `Root.getWindowSize()` returns a
+`Promise<[number, number]>` of logical client-area pixels via
+`COMMAND_GET_WINDOW_SIZE=13`. `Root.zoom()` and `Root.toggleFullscreen()`
+expose GPUI's platform toggle semantics (they are not absolute state setters).
+`Root.openUrl(url)` accepts only non-empty `http://` or `https://` URLs up to
+2048 characters; `file:` and other schemes are rejected. Centering,
+`revealPath`, and `openWithSystem` are intentionally unsupported because GPUI
+only exposes centering during initial `WindowBounds` construction and path
+operations require a separate permission/Path design.
+`Root.setClipboardText(text)` and `Root.getClipboardText()` use root commands
+15 and 16. Clipboard strings are capped at 1 MiB UTF-8 bytes; oversized writes
+reject locally, while an oversized host clipboard rejects with
+`clipboard text exceeds the supported size`. A clipboard with no text content
+rejects with `clipboard has no text content`; an empty string stored as text is
+still a successful read.
+
+`createRoot` accepts `onWindowResize(width, height)` and
+`onWindowActivation(active)` options. Resize values are logical pixels and
+the resize callback receives the latest size once per frame after coalescing;
+it also receives one initial size after the first native frame. Activation
+delivers its initial value on observer registration and then only changes.
+Scale-factor-only changes have no independent callback.
+
+The resize callback is root-level, so React applications need a small explicit
+state bridge. The package exports `createWindowSizeStore` and `useWindowSize`;
+there is intentionally no implicit global root:
+
+```tsx
+import { createRoot, createWindowSizeStore, Text, useWindowSize } from "@react-gpui/core";
+
+const windowSizeStore = createWindowSizeStore();
+const root = createRoot(transport, {
+  onWindowResize: (width, height) => windowSizeStore.set(width, height),
+});
+
+function App() {
+  const { width, height } = useWindowSize(windowSizeStore);
+  return (
+    <Text>
+      {width < 720 ? "Compact" : "Wide"} ({height}px high)
+    </Text>
+  );
+}
+
+root.render(<App />);
+```
+
+`examples/todo.tsx` uses the same exported store/hook pattern. The store
+starts from a caller-provided estimate (`{ width: 1024, height: 720 }` by
+default) and updates when the native callback fires.
+
+## Scroll
+
+`View` accepts `onScroll` for native wheel notifications. The callback receives
+the delta kind (`"pixels"` or `"lines"`), finite `dx`/`dy` values, the window
+coordinate (`x`/`y`), and the compact modifier list:
+
+```tsx
+<View
+  onScroll={({ deltaKind, dx, dy, x, y, modifiers }) => {
+    console.log(deltaKind, dx, dy, x, y, modifiers);
+  }}
+/>
+```
+
+GPUI's `ScrollDelta::Pixels` and `ScrollDelta::Lines` are preserved as the two
+wire kinds. `touch_phase` is intentionally not serialized because scroll is a
+semantic notification rather than a cancellable gesture lifecycle. `VirtualList`
+continues to report its existing `VisibleRange` notification and does not also
+accept `onScroll`.
+
+`overflow: "scroll"` makes a `View` a scrollable container; `overflow: "visible"`
+and `"hidden"` do not. The same View may use `onScroll` to observe its native
+wheel notifications. `VirtualList` is unaffected and its `uniform_list` owns
+scrolling. Scrollbar appearance and width remain GPUI platform defaults and
+are not controlled by this protocol.
+
+`TextInput` is controlled with `value`/`onChangeText` or initialized once with
+`defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`,
+`onBlur`, `onSubmitEditing`, `onKeyDown`, `multiline`, `disabled`, `maxLength`,
+and accessibility props; native edits carry UTF-16 selection/marked ranges and
+editSeq acknowledgements. `onKeyDown` uses the bubble phase; GPUI gives
+text-input/IME preference precedence over keymap bindings before dispatching
+the listener.
+`maxLength` is enforced natively before an edit enters the Rust input state;
+JavaScript also clamps the value delivered to controlled `onChangeText`
+callbacks using UTF-16 units. `onSubmitEditing` is emitted for Enter on a
+focused single-line input; Enter in a multiline input remains text insertion.
+
+`onSubmitEditing` has the breaking type `(value: string) => void`; the value is
+the authoritative native text at Enter time, including a valid empty string.
+Old null-payload submit frames remain decoder-compatible and dispatch as `""`;
+new hosts always send the text payload. `examples/todo.tsx` submits native text
+directly instead of relying on a draft closure.
+`secureTextEntry` and `keyboardType` are intentionally unsupported: the desktop
+GPUI surface has no password-obscuring text primitive or soft-keyboard layout
+semantic.
 
 ## VirtualList
 
@@ -78,28 +348,43 @@ A completed React commit produces exactly one atomic Commit Batch: a complete Sn
 
 Only the committed visible range is reconciled into host rows, so a 100,000-item array does not produce 100,000 host nodes. A `VirtualListHandle` ref exposes Promise-returning `scrollToIndex(index)` and `scrollToEnd()` methods. Native GPUI uses one persistent fixed-height `uniform_list` scroll handle per node and reports the actual next-frame range with overscan.
 The list must have a finite viewport height (for example `style={{ height: 400 }}`) or be inside a parent that supplies a bounded height; `uniform_list` uses that bound to render only visible rows.
+
+Rows are expected to remain within the supplied `estimatedItemSize`; dynamic
+editing, wrapping, or multiline content does not provide a measurement
+callback. There is no `emptyState`/`emptyRenderer` prop, so render an empty
+message outside the list when `data.length === 0`.
+
 ## Native animation
 
-`opacity` and `backgroundColor` can transition natively without per-frame JavaScript commits:
+`opacity`, `backgroundColor`, `width`, and `height` can transition natively
+without per-frame JavaScript commits:
 
 ```tsx
 <View
   style={{
-    opacity: visible ? 1 : 0,
-    backgroundColor: "#2d6cdf",
+    width: expanded ? 420 : 260,
+    height: expanded ? 120 : 64,
+    opacity: expanded ? 1 : 0.72,
     transition: {
       durationMs: 180,
-      delayMs: 20,
       easing: "easeOut",
-      properties: ["opacity", "backgroundColor"],
+      properties: ["width", "height", "opacity"],
       onComplete: (generation) => console.log("completed", generation),
     },
   }}
 />
 ```
 
-GPUI retains one animation state per node, samples easing and RGBA values on frame ticks, retargets from the current sample, cancels deleted nodes, and honors reduced motion. Completion is emitted once as the tagged AnimationComplete event.
-
+Width/height transitions rewrite layout dimensions on every native frame, so
+they trigger layout reflow; static width/height without `transition` remains a
+single immediate layout update. `transform.scale`, `transform.translateX`, and
+`transform.translateY` are intentionally unsupported: GPUI's public
+`Transformation`/`with_transformation` contract is SVG-only, and a generic
+transformed element would require a new hitbox/layout/painting contract.
+`borderRadius` and other low-value scalar transitions are also not exposed.
+GPUI retains one animation state per node, samples easing on frame ticks,
+retargets from the current sample, cancels deleted nodes, and honors reduced
+motion. Completion is emitted once as the tagged AnimationComplete event.
 
 ## Local commands
 
@@ -107,12 +392,19 @@ From this directory:
 
 ```sh
 bun install --frozen-lockfile
-bunx tsc --noEmit
-bun test
-bun run examples/counter.tsx
+bun run format
+bun run typecheck
+bun run test
+bun run build
+bun pm pack --dry-run
 ```
 
-The counter example is intended to run as the renderer child of `react-gpui-host` from the repository root:
+`bun run build` first removes `dist/`, then writes ESM JavaScript and
+declarations there. The package export points only at those built files; source,
+tests, and examples are not included in the tarball.
+
+The counter example is intended to run from the repository root while
+developing:
 
 ```sh
 cargo run -p react-gpui-host -- bun run packages/react-gpui/examples/counter.tsx

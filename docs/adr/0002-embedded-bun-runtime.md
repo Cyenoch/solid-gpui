@@ -29,6 +29,57 @@ calling `Global::exit`.
 selects it with `--runtime process` (the default) or the embedded runtime with
 `--runtime embedded` and the `embedded-bun` Cargo feature.
 
+Embedded polling exposes `CommitPoll::Commit`, `CommitPoll::Timeout`, and
+`CommitPoll::Ended`; a temporary timeout is never represented as EOF. A
+disconnected commit channel honors explicit `Shutdown`, while natural nonzero
+runtime completion remains a protocol error and natural completion with any
+status is visible through `RuntimeStatus`.
+
+Fast Refresh queue submission is serialized with close under a lifecycle mutex:
+shutdown closes the lifecycle before joining the watcher, so no refresh path
+can enqueue after the embedded runtime has entered its terminal state.
+
+## Runtime termination contract
+
+`RuntimeAdapter` exposes a lifecycle status in addition to framed commit/event
+transport. A `Shutdown` status means the host explicitly initiated application
+shutdown and is not an error. Any `recv_commit` EOF while the adapter is not in
+`Shutdown` is an unexpected runtime termination, including a clean child exit;
+the host reports the exit code or signal when available, closes the GPUI
+application, and exits nonzero. A framing, decode, or commit-validation error is
+also terminal, is printed to stderr with its protocol context, closes the
+application, and exits nonzero.
+
+A `Failed` status denotes a retained process event-writer I/O failure and is
+reported by later sends or status observations; the host fatal helper consumes
+the send error when it must terminate.
+
+Outbound Native Event and CommandResult send failures use the same fatal
+contract: stderr includes the event context and non-sensitive wire identity
+(event type, surface, epoch, revision, sequence, node, and listener), never
+payload text; the runtime is shut down and the host exits nonzero. A send
+failure observed after explicit application shutdown is ignored as a
+consequence of closing the runtime.
+
+The blocking commit reader owns no GPUI state. It sends payloads and terminal
+outcomes through its bounded channel. All host callers use the same fatal
+handler; GPUI surface callbacks invoke it on the foreground, and the handler
+itself touches no GPUI state. Explicit application shutdown remains success
+even when it closes the runtime's streams.
+
+`ProcessAdapter` never writes a Native Event from the GPUI caller. A dedicated
+`react-gpui-event-writer` thread owns `ChildStdin` and drains an ordered queue
+bounded to 32 payloads and 16 MiB of queued payload bytes; a single maximum-size
+protocol payload still fits an empty queue. `send_event` encodes once and
+transfers ownership without waiting. Frame or byte capacity returns
+`WouldBlock`; writer I/O failure is retained and invokes a child-stop callback
+without holding the queue lock. Confirmed child death closes stdout so the
+commit reader wakes and reports the retained `RuntimeStatus::Failed`. Shutdown
+marks the adapter, kills and waits for the child to release blocked writes,
+closes the queue, and joins the writer only after child exit is confirmed. A
+kill/wait error returns without blocking on an unconfirmed writer join; a later
+idempotent shutdown can retry and join.
+
 ## Fast Refresh
 
 The development runtime installs React Refresh's actual runtime globals and a
