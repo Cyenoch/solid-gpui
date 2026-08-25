@@ -17,7 +17,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use react_gpui::{Event, MAX_FRAME_LENGTH, ProtocolError, RuntimeAdapter};
+use react_gpui::transport::ProtocolTap;
+#[cfg(feature = "embedded-bun")]
+use react_gpui::transport::protocol_tap_from_env;
+use react_gpui::{Event, MAX_FRAME_LENGTH, ProtocolError, RuntimeAdapter, RuntimeStatus};
 use thiserror::Error;
 
 #[cfg(feature = "embedded-bun")]
@@ -48,7 +51,10 @@ struct State {
     refresh: Mutex<Option<SyncSender<Vec<u8>>>>,
     #[cfg(feature = "embedded-bun")]
     refresh_rx: Mutex<Receiver<Vec<u8>>>,
+    #[cfg(feature = "embedded-bun")]
+    refresh_lifecycle: Mutex<()>,
     closed: AtomicBool,
+    shutdown_requested: AtomicBool,
     runtime_status: Mutex<Option<i32>>,
     #[cfg(feature = "embedded-bun")]
     commits_seen: std::sync::atomic::AtomicUsize,
@@ -82,10 +88,20 @@ pub enum EmbeddedBunError {
     Event(#[from] ProtocolError),
 }
 
+/// Result of waiting for one embedded commit without conflating a timeout
+/// with runtime termination.
+#[derive(Debug, Eq, PartialEq)]
+pub enum CommitPoll {
+    Commit(Vec<u8>),
+    Timeout,
+    Ended,
+}
+
 /// A concrete in-process RuntimeAdapter backed by Bun/JSC on a dedicated
 /// runtime thread.
 pub struct EmbeddedBunAdapter {
     state: Arc<State>,
+    tap: ProtocolTap,
 }
 
 impl EmbeddedBunAdapter {
@@ -93,6 +109,8 @@ impl EmbeddedBunAdapter {
     ///
     /// The entry path is copied before the runtime thread starts. No GPUI
     /// object, Rust closure, or JavaScript value is transferred to Bun.
+    // The disabled-feature cfg branch must return before the embedded body.
+    #[allow(clippy::needless_return)]
     pub fn start(entry: impl AsRef<Path>) -> Result<Arc<Self>, EmbeddedBunError> {
         let entry = entry.as_ref();
         let entry = std::fs::canonicalize(entry)
@@ -106,6 +124,7 @@ impl EmbeddedBunAdapter {
 
         #[cfg(feature = "embedded-bun")]
         {
+            let tap = protocol_tap_from_env();
             let (commit_tx, commit_rx) = mpsc::sync_channel(CHANNEL_CAPACITY);
             let (event_tx, event_rx) = mpsc::sync_channel(CHANNEL_CAPACITY);
             let (refresh_tx, refresh_rx) = mpsc::sync_channel(CHANNEL_CAPACITY);
@@ -116,7 +135,9 @@ impl EmbeddedBunAdapter {
                 event_rx: Mutex::new(event_rx),
                 refresh: Mutex::new(Some(refresh_tx)),
                 refresh_rx: Mutex::new(refresh_rx),
+                refresh_lifecycle: Mutex::new(()),
                 closed: AtomicBool::new(false),
+                shutdown_requested: AtomicBool::new(false),
                 runtime_status: Mutex::new(None),
                 commits_seen: std::sync::atomic::AtomicUsize::new(0),
                 refreshes_queued: std::sync::atomic::AtomicUsize::new(0),
@@ -153,7 +174,10 @@ impl EmbeddedBunAdapter {
                     if let Ok(mut runtime_status) = state_for_thread.runtime_status.lock() {
                         *runtime_status = Some(status);
                     }
-                    state_for_thread.closed.store(true, Ordering::Release);
+                    {
+                        let _lifecycle = state_for_thread.refresh_lifecycle.lock().ok();
+                        state_for_thread.closed.store(true, Ordering::Release);
+                    }
                     state_for_thread
                         .events
                         .lock()
@@ -177,7 +201,7 @@ impl EmbeddedBunAdapter {
                 .lock()
                 .map_err(|_| EmbeddedBunError::ThreadStart)? = Some(handle);
 
-            Ok(Arc::new(Self { state }))
+            Ok(Arc::new(Self { state, tap }))
         }
     }
 
@@ -203,22 +227,46 @@ impl EmbeddedBunAdapter {
         self.state.refreshes_queued.load(Ordering::Acquire)
     }
 
-    /// Bounded wait variant used by startup/smoke callers so a broken Bun
-    /// entrypoint cannot leave the host waiting forever.
-    pub fn recv_commit_timeout(&self, timeout: Duration) -> Result<Option<Vec<u8>>, ProtocolError> {
+    /// Wait for one commit, preserving timeout versus runtime termination.
+    pub fn recv_commit_timeout(&self, timeout: Duration) -> Result<CommitPoll, ProtocolError> {
         let receiver = self.state.commits.lock().map_err(|_| {
             ProtocolError::Io(std::io::Error::other("embedded commit lock poisoned"))
         })?;
         match receiver.recv_timeout(timeout) {
-            Ok(commit) => Ok(Some(commit)),
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Ok(None),
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Ok(None),
+            Ok(commit) => Ok(CommitPoll::Commit(commit)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Ok(CommitPoll::Timeout),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                self.disconnected_commit().map(|_| CommitPoll::Ended)
+            }
         }
+    }
+
+    fn disconnected_commit(&self) -> Result<Option<Vec<u8>>, ProtocolError> {
+        if self.state.shutdown_requested.load(Ordering::Acquire) {
+            return Ok(None);
+        }
+        let status = self
+            .state
+            .runtime_status
+            .lock()
+            .ok()
+            .and_then(|status| *status);
+        if let Some(status) = status.filter(|status| *status != 0) {
+            return Err(ProtocolError::Io(std::io::Error::other(format!(
+                "embedded Bun runtime exited with status {status}"
+            ))));
+        }
+        Ok(None)
     }
 
     /// Queue a source module for Fast Refresh in the existing Bun VM.
     #[cfg(feature = "embedded-bun")]
     pub fn refresh_entry(&self, entry: impl AsRef<Path>) -> Result<(), EmbeddedBunError> {
+        let _lifecycle = self
+            .state
+            .refresh_lifecycle
+            .lock()
+            .map_err(|_| EmbeddedBunError::Closed)?;
         if self.state.closed.load(Ordering::Acquire) {
             return Err(EmbeddedBunError::Closed);
         }
@@ -271,7 +319,40 @@ impl EmbeddedBunAdapter {
         Ok(())
     }
 
+    fn status(&self) -> RuntimeStatus {
+        if self.state.shutdown_requested.load(Ordering::Acquire) {
+            return RuntimeStatus::Shutdown;
+        }
+        if let Some(status) = self
+            .state
+            .runtime_status
+            .lock()
+            .ok()
+            .and_then(|status| *status)
+        {
+            return RuntimeStatus::Exited {
+                code: Some(status),
+                signal: None,
+            };
+        }
+        if self.state.closed.load(Ordering::Acquire) {
+            RuntimeStatus::Exited {
+                code: None,
+                signal: None,
+            }
+        } else {
+            RuntimeStatus::Running
+        }
+    }
+
     fn join_runtime(&self) {
+        self.state.shutdown_requested.store(true, Ordering::Release);
+        #[cfg(feature = "embedded-bun")]
+        {
+            let _lifecycle = self.state.refresh_lifecycle.lock().ok();
+            self.state.closed.store(true, Ordering::Release);
+        }
+        #[cfg(not(feature = "embedded-bun"))]
         self.state.closed.store(true, Ordering::Release);
         #[cfg(feature = "embedded-bun")]
         {
@@ -302,20 +383,7 @@ impl RuntimeAdapter for EmbeddedBunAdapter {
         })?;
         match receiver.recv() {
             Ok(commit) => Ok(Some(commit)),
-            Err(_) => {
-                let status = self
-                    .state
-                    .runtime_status
-                    .lock()
-                    .ok()
-                    .and_then(|status| *status);
-                if let Some(status) = status.filter(|status| *status != 0) {
-                    return Err(ProtocolError::Io(std::io::Error::other(format!(
-                        "embedded Bun runtime exited with status {status}"
-                    ))));
-                }
-                Ok(None)
-            }
+            Err(_) => self.disconnected_commit(),
         }
     }
 
@@ -346,17 +414,31 @@ impl RuntimeAdapter for EmbeddedBunAdapter {
                     "embedded event queue closed",
                 ))
             })?;
-        sender.send(frame).map_err(|_| {
+        let tap_frame = self.tap.is_enabled().then(|| frame.clone());
+        let result = sender.send(frame).map_err(|_| {
             ProtocolError::Io(std::io::Error::new(
                 std::io::ErrorKind::BrokenPipe,
                 "embedded event queue closed",
             ))
-        })
+        });
+        if result.is_ok()
+            && let Some(tap_frame) = tap_frame
+        {
+            self.tap.record_outbound_frame(&tap_frame);
+        }
+        result
     }
 
     fn shutdown(&self) -> Result<(), ProtocolError> {
         self.join_runtime();
         Ok(())
+    }
+
+    fn status(&self) -> RuntimeStatus {
+        EmbeddedBunAdapter::status(self)
+    }
+    fn tap_inbound_payload(&self, payload: &[u8]) {
+        self.tap.record_inbound_payload(payload);
     }
 }
 

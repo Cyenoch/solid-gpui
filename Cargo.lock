@@ -4211,6 +4211,7 @@ dependencies = [
 name = "react-gpui-host"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "gpui",
  "gpui_platform",
  "react-gpui",

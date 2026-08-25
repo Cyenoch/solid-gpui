@@ -50,10 +50,10 @@ fn try_output(command: &mut Command) -> Option<String> {
 }
 
 fn find_ninja(out_dir: &Path) -> PathBuf {
-    if let Some(found) = try_output(&mut Command::new("sh").args(["-c", "command -v ninja"])) {
-        if !found.is_empty() {
-            return PathBuf::from(found);
-        }
+    if let Some(found) = try_output(Command::new("sh").args(["-c", "command -v ninja"]))
+        && !found.is_empty()
+    {
+        return PathBuf::from(found);
     }
 
     let install_root = out_dir.join("ninja");
@@ -62,7 +62,7 @@ fn find_ninja(out_dir: &Path) -> PathBuf {
         fs::create_dir_all(&install_root)
             .unwrap_or_else(|error| panic!("creating Ninja cache failed: {error}"));
         run(
-            &mut Command::new("python3").args([
+            Command::new("python3").args([
                 "-m",
                 "pip",
                 "install",
@@ -88,7 +88,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
     let source = out_dir.join("bun-source");
     if !source.join(".git").is_dir() {
         run(
-            &mut Command::new("git").args([
+            Command::new("git").args([
                 "clone",
                 "--filter=blob:none",
                 "--no-checkout",
@@ -99,7 +99,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         );
     }
     run(
-        &mut Command::new("git").args([
+        Command::new("git").args([
             "-C",
             source.to_str().unwrap_or(""),
             "fetch",
@@ -110,7 +110,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         "fetching pinned Bun revision",
     );
     run(
-        &mut Command::new("git").args([
+        Command::new("git").args([
             "-C",
             source.to_str().unwrap_or(""),
             "checkout",
@@ -120,7 +120,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         "checking out pinned Bun revision",
     );
     run(
-        &mut Command::new("git").args([
+        Command::new("git").args([
             "-C",
             source.to_str().unwrap_or(""),
             "reset",
@@ -130,11 +130,11 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         "resetting pinned Bun source",
     );
     run(
-        &mut Command::new("git").args(["-C", source.to_str().unwrap_or(""), "clean", "-fd"]),
+        Command::new("git").args(["-C", source.to_str().unwrap_or(""), "clean", "-fd"]),
         "cleaning generated Bun source",
     );
     let actual = output(
-        &mut Command::new("git").args(["-C", source.to_str().unwrap_or(""), "rev-parse", "HEAD"]),
+        Command::new("git").args(["-C", source.to_str().unwrap_or(""), "rev-parse", "HEAD"]),
         "verifying Bun revision",
     );
     if actual != BUN_REVISION {
@@ -151,7 +151,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
     let source = checkout_bun(out_dir);
     let patch = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("bun_embed.patch");
     run(
-        &mut Command::new("git").args([
+        Command::new("git").args([
             "-C",
             source.to_str().unwrap_or(""),
             "apply",
@@ -161,7 +161,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
         "checking Bun embedding patch",
     );
     run(
-        &mut Command::new("git").args([
+        Command::new("git").args([
             "-C",
             source.to_str().unwrap_or(""),
             "apply",
@@ -172,14 +172,14 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
 
     let build_dir = out_dir.join("bun-build");
     let bun = output(
-        &mut Command::new("sh").args(["-c", "command -v bun"]),
+        Command::new("sh").args(["-c", "command -v bun"]),
         "locating Bun build driver",
     );
     if bun.is_empty() {
         panic!("Bun 1.4 is required in PATH to build the pinned embedding library");
     }
     run(
-        &mut Command::new(&bun).current_dir(&source).args([
+        Command::new(&bun).current_dir(&source).args([
             "scripts/build.ts",
             "--profile=debug-no-asan",
             "--configure-only",
@@ -191,7 +191,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
 
     let ninja = find_ninja(out_dir);
     run(
-        &mut Command::new(&ninja).args([
+        Command::new(&ninja).args([
             "-d",
             "keeprsp",
             "-C",
@@ -237,16 +237,16 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
         .unwrap_or_else(|error| panic!("writing Bun embedding response file failed: {error}"));
 
     let sdk = output(
-        &mut Command::new("xcrun").args(["--show-sdk-path"]),
+        Command::new("xcrun").args(["--show-sdk-path"]),
         "locating macOS SDK",
     );
     let cxx = output(
-        &mut Command::new("sh").args(["-c", "command -v clang++"]),
+        Command::new("sh").args(["-c", "command -v clang++"]),
         "locating C++ linker",
     );
     let library = build_dir.join("libbun_embed.dylib");
     run(
-        &mut Command::new(cxx).current_dir(&build_dir).args([
+        Command::new(cxx).current_dir(&build_dir).args([
             "-dynamiclib",
             &format!("@{}", embed_rsp.display()),
             "-fsanitize=null",
