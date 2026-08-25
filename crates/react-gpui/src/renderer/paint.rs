@@ -6,8 +6,9 @@ use std::sync::atomic::Ordering;
 use gpui::{
     AnyElement, App, AppContext, Bounds, Element, ElementId, ElementInputHandler, Entity,
     ExternalPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
-    IntoElement, LayoutId, MouseButton, ObjectFit, ParentElement, Pixels, Render, SharedString,
-    StatefulInteractiveElement, Styled, StyledImage, Window, div, img, px, rgba, uniform_list,
+    IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render,
+    ShapedLine, SharedString, StatefulInteractiveElement, Styled, StyledImage, TextAlign, TextRun,
+    Window, div, fill, hsla, img, point, px, relative, rgba, size, uniform_list,
 };
 
 use crate::protocol::{
@@ -41,6 +42,190 @@ impl Render for DragPreview {
             .opacity(0.45)
     }
 }
+struct TextInputElement {
+    entity: Entity<ReactRoot>,
+    node_id: u32,
+    focus: gpui::FocusHandle,
+    fallback_text: String,
+    placeholder: String,
+}
+
+struct TextInputPrepaint {
+    line: ShapedLine,
+    cursor: Option<PaintQuad>,
+    selection: Option<PaintQuad>,
+    content: String,
+    placeholder: bool,
+}
+
+impl IntoElement for TextInputElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for TextInputElement {
+    type RequestLayoutState = ();
+    type PrepaintState = TextInputPrepaint;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = gpui::Style::default();
+        style.size.width = relative(1.).into();
+        style.size.height = window.line_height().into();
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let root = self.entity.read(cx);
+        let (content, selection) = root
+            .input_states
+            .get(&self.node_id)
+            .map(|state| (state.text.clone(), state.selection.clone()))
+            .unwrap_or_else(|| (self.fallback_text.clone(), 0..0));
+        let (display_text, is_placeholder) =
+            input_display_text(content.clone(), Some(&self.placeholder));
+        let text_style = window.text_style();
+        let text_color = if is_placeholder {
+            hsla(0.0, 0.0, 0.0, 0.2)
+        } else {
+            text_style.color
+        };
+        let run = TextRun {
+            len: display_text.len(),
+            font: text_style.font(),
+            color: text_color,
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+        let font_size = text_style.font_size.to_pixels(window.rem_size());
+        let line = window.text_system().shape_line(
+            SharedString::from(display_text),
+            font_size,
+            &[run],
+            None,
+        );
+        let (cursor, selection_quad) = if is_placeholder || selection.start == selection.end {
+            let byte_offset = if is_placeholder {
+                0
+            } else {
+                super::input::utf16_byte_index(&content, selection.start)
+            };
+            let x = line.x_for_index(byte_offset);
+            (
+                Some(fill(
+                    Bounds::new(
+                        bounds.origin + point(x, px(0.0)),
+                        size(px(2.0), bounds.size.height),
+                    ),
+                    rgba(0x2d6cdfff),
+                )),
+                None,
+            )
+        } else {
+            let start = super::input::utf16_byte_index(&content, selection.start);
+            let end = super::input::utf16_byte_index(&content, selection.end);
+            (
+                None,
+                Some(fill(
+                    Bounds::from_corners(
+                        bounds.origin + point(line.x_for_index(start), px(0.0)),
+                        bounds.origin + point(line.x_for_index(end), bounds.size.height),
+                    ),
+                    rgba(0x2d6cdf40),
+                )),
+            )
+        };
+        TextInputPrepaint {
+            line,
+            cursor,
+            selection: selection_quad,
+            content,
+            placeholder: is_placeholder,
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.focus.is_focused(window) {
+            self.entity
+                .update(cx, |root, _| root.set_input_focus(self.node_id, true));
+        }
+        window.handle_input(
+            &self.focus,
+            ElementInputHandler::new(bounds, self.entity.clone()),
+            cx,
+        );
+        if let Some(selection) = prepaint.selection.take() {
+            window.paint_quad(selection);
+        }
+        let _ = prepaint.line.paint(
+            bounds.origin,
+            window.line_height(),
+            TextAlign::Left,
+            Some(bounds.size.width),
+            window,
+            cx,
+        );
+        if self.focus.is_focused(window)
+            && let Some(cursor) = prepaint.cursor.take()
+        {
+            window.paint_quad(cursor);
+        }
+        let line = prepaint.line.clone();
+        let content = prepaint.content.clone();
+        let placeholder = prepaint.placeholder;
+        let node_id = self.node_id;
+        self.entity.update(cx, |root, _| {
+            if placeholder {
+                root.text_input_layouts.remove(&node_id);
+            } else {
+                root.text_input_layouts.insert(
+                    node_id,
+                    super::TextInputLayout {
+                        line,
+                        bounds,
+                        content,
+                        placeholder,
+                    },
+                );
+            }
+        });
+    }
+}
+
 struct MeasuredElement {
     element: AnyElement,
     entity: Entity<ReactRoot>,
@@ -161,18 +346,26 @@ impl ReactRoot {
             let input_focus = focus.clone();
             let input_id = node.id;
             let mut input_element = apply_style(div(), style);
-            input_element = input_element.on_children_prepainted(move |bounds, window, app| {
-                if input_focus.is_focused(window) {
-                    input_entity.update(app, |root, _| root.set_input_focus(input_id, true));
-                    if let Some(bounds) = bounds.into_iter().next() {
-                        window.handle_input(
-                            &input_focus,
-                            ElementInputHandler::new(bounds, input_entity.clone()),
-                            app,
-                        );
+            let actual_text = self
+                .input_states
+                .get(&node.id)
+                .map(|state| state.text.clone())
+                .unwrap_or_else(|| input.value.clone());
+            let use_custom_text_element = !input.multiline && !actual_text.contains('\n');
+            if !use_custom_text_element {
+                input_element = input_element.on_children_prepainted(move |bounds, window, app| {
+                    if input_focus.is_focused(window) {
+                        input_entity.update(app, |root, _| root.set_input_focus(input_id, true));
+                        if let Some(bounds) = bounds.into_iter().next() {
+                            window.handle_input(
+                                &input_focus,
+                                ElementInputHandler::new(bounds, input_entity.clone()),
+                                app,
+                            );
+                        }
                     }
-                }
-            });
+                });
+            }
             let submit_entity = entity.clone();
             let submit_focus = focus.clone();
             let input_multiline = input.multiline;
@@ -227,13 +420,22 @@ impl ReactRoot {
                     );
                 });
             }
-            let actual_text = self
-                .input_states
-                .get(&node.id)
-                .map(|state| state.text.clone())
-                .unwrap_or_else(|| input.value.clone());
             let (display_text, showing_placeholder) =
                 input_display_text(actual_text, input.placeholder.as_deref());
+            if use_custom_text_element {
+                let input_element = input_element
+                    .child(TextInputElement {
+                        entity: entity.clone(),
+                        node_id: input_id,
+                        focus: focus.clone(),
+                        fallback_text: input.value.clone(),
+                        placeholder: input.placeholder.clone().unwrap_or_default(),
+                    })
+                    .id(ElementId::Integer(node.id as u64))
+                    .focusable()
+                    .track_focus(&focus);
+                return apply_accessibility(input_element, node).into_any();
+            }
             if showing_placeholder {
                 input_element = input_element.text_color(rgba(0x00000033));
             }

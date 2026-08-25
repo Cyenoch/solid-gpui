@@ -148,6 +148,8 @@ impl ReactRoot {
                 matches!(node.host_properties, Some(HostProperties::TextInput(_)))
             })
         });
+        self.text_input_layouts
+            .retain(|id, _| self.input_states.contains_key(id));
         self.focus_handles.retain(|id, _| {
             self.input_states.contains_key(id)
                 || self.store.get(*id).is_some_and(|node| {
@@ -181,6 +183,7 @@ impl ReactRoot {
                 continue;
             };
             if let Some(HostProperties::TextInput(input)) = node.host_properties.clone() {
+                self.text_input_layouts.remove(&id);
                 let state = self
                     .input_states
                     .entry(id)
@@ -298,7 +301,7 @@ impl ReactRoot {
     }
 }
 
-fn utf16_byte_index(text: &str, offset: usize) -> usize {
+pub(super) fn utf16_byte_index(text: &str, offset: usize) -> usize {
     let mut units = 0;
     for (index, ch) in text.char_indices() {
         if units >= offset {
@@ -310,6 +313,18 @@ fn utf16_byte_index(text: &str, offset: usize) -> usize {
         }
     }
     text.len()
+}
+pub(super) fn utf8_byte_to_utf16(text: &str, offset: usize) -> usize {
+    let mut byte_index = 0;
+    let mut utf16_index = 0;
+    for ch in text.chars() {
+        if byte_index >= offset {
+            break;
+        }
+        byte_index += ch.len_utf8();
+        utf16_index += ch.len_utf16();
+    }
+    utf16_index
 }
 
 fn replace_utf16(text: &mut String, range: Range<usize>, replacement: &str) -> usize {
@@ -387,6 +402,9 @@ impl EntityInputHandler for ReactRoot {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if let Some(id) = self.active_input {
+            self.text_input_layouts.remove(&id);
+        }
         if let Some(state) = self.active_input_state_mut() {
             state.replace(range, text);
             cx.notify();
@@ -405,6 +423,9 @@ impl EntityInputHandler for ReactRoot {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if let Some(id) = self.active_input {
+            self.text_input_layouts.remove(&id);
+        }
         if let Some(state) = self.active_input_state_mut() {
             state.replace_marked(range, new_text, new_selected_range);
             cx.notify();
@@ -417,21 +438,56 @@ impl EntityInputHandler for ReactRoot {
 
     fn bounds_for_range(
         &mut self,
-        _range_utf16: Range<usize>,
+        range_utf16: Range<usize>,
         element_bounds: Bounds<gpui::Pixels>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<gpui::Pixels>> {
-        Some(element_bounds)
+        let Some(id) = self.active_input else {
+            return Some(element_bounds);
+        };
+        let Some(state) = self.input_states.get(&id) else {
+            return Some(element_bounds);
+        };
+        let Some(layout) = self.text_input_layouts.get(&id) else {
+            return Some(element_bounds);
+        };
+        if layout.placeholder || layout.content != state.text {
+            debug_assert_eq!(layout.content, state.text);
+            return Some(element_bounds);
+        }
+        let start = utf16_byte_index(&state.text, range_utf16.start);
+        let end = utf16_byte_index(&state.text, range_utf16.end);
+        Some(Bounds::from_corners(
+            gpui::point(
+                layout.bounds.origin.x + layout.line.x_for_index(start),
+                layout.bounds.origin.y,
+            ),
+            gpui::point(
+                layout.bounds.origin.x + layout.line.x_for_index(end),
+                layout.bounds.origin.y + layout.bounds.size.height,
+            ),
+        ))
     }
 
     fn character_index_for_point(
         &mut self,
-        _point: Point<gpui::Pixels>,
+        point: Point<gpui::Pixels>,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<usize> {
-        self.active_input_state().map(|state| state.selection.end)
+        let id = self.active_input?;
+        let state = self.input_states.get(&id)?;
+        let Some(layout) = self.text_input_layouts.get(&id) else {
+            return Some(state.selection.end);
+        };
+        if layout.placeholder || layout.content != state.text {
+            debug_assert_eq!(layout.content, state.text);
+            return Some(state.selection.end);
+        }
+        let local = layout.bounds.localize(&point)?;
+        let utf8_offset = layout.line.closest_index_for_x(local.x);
+        Some(utf8_byte_to_utf16(&layout.content, utf8_offset))
     }
 }
 #[cfg(test)]
@@ -462,5 +518,20 @@ mod tests {
         state.replace(None, "x");
         assert_eq!(state.selection, 2..2);
         assert!(!state.selection_reversed);
+    }
+
+    #[test]
+    fn utf16_and_utf8_offsets_round_trip_at_astral_boundaries() {
+        let text = "a😀中";
+        assert_eq!(utf16_byte_index(text, 0), 0);
+        assert_eq!(utf16_byte_index(text, 1), 1);
+        assert_eq!(utf16_byte_index(text, 2), 5);
+        assert_eq!(utf16_byte_index(text, 3), 5);
+        assert_eq!(utf16_byte_index(text, 4), 8);
+        assert_eq!(utf16_byte_index(text, 5), 8);
+        assert_eq!(utf8_byte_to_utf16(text, 0), 0);
+        assert_eq!(utf8_byte_to_utf16(text, 1), 1);
+        assert_eq!(utf8_byte_to_utf16(text, 5), 3);
+        assert_eq!(utf8_byte_to_utf16(text, 8), 4);
     }
 }

@@ -5,8 +5,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use gpui::{
-    Context, Element, FocusHandle, IntoElement, Render, Styled, Subscription,
-    UniformListScrollHandle, Window, WindowAppearance as GpuiWindowAppearance, div,
+    Bounds, Context, Element, FocusHandle, IntoElement, Pixels, Render, ShapedLine, Styled,
+    Subscription, UniformListScrollHandle, Window, WindowAppearance as GpuiWindowAppearance, div,
 };
 use thiserror::Error;
 
@@ -54,15 +54,20 @@ fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppeara
         GpuiWindowAppearance::Dark | GpuiWindowAppearance::VibrantDark => WindowAppearance::Dark,
     }
 }
+pub(super) struct TextInputLayout {
+    pub(super) line: ShapedLine,
+    pub(super) bounds: Bounds<Pixels>,
+    pub(super) content: String,
+    pub(super) placeholder: bool,
+}
 
-/// The sole persistent GPUI entity for a React surface. The tree itself is
-/// retained in `NodeStore`; GPUI element values are rebuilt ephemerally in
 /// `render` and never become application state.
 pub struct ReactRoot {
     store: NodeStore,
     runtime: Arc<dyn RuntimeAdapter>,
     next_sequence: Arc<AtomicU32>,
     input_states: HashMap<u32, NativeInputState>,
+    text_input_layouts: HashMap<u32, TextInputLayout>,
     focus_handles: HashMap<u32, FocusHandle>,
     active_input: Option<u32>,
     commands: Vec<Command>,
@@ -90,6 +95,7 @@ impl ReactRoot {
             runtime,
             next_sequence: Arc::new(AtomicU32::new(1)),
             input_states: HashMap::new(),
+            text_input_layouts: HashMap::new(),
             focus_handles: HashMap::new(),
             active_input: None,
             commands: Vec::new(),
@@ -215,6 +221,7 @@ impl ReactRoot {
     }
     fn reset_native_state(&mut self) {
         self.input_states.clear();
+        self.text_input_layouts.clear();
         self.focus_handles.clear();
         self.active_input = None;
         self.active_drag_type.borrow_mut().take();

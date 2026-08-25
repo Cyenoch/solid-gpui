@@ -296,10 +296,12 @@ two-number array; Rust accepts integer/float32 combinations through
 | 18 | WindowAppearance | `"light" | "dark"` | Root-level `nodeId=1`, `listenerId=0`; vibrant GPUI variants fold to these two semantic values. Initial registration emits a value, and changes are coalesced with the existing next-frame window observation. | `protocol.ts:36,471-476,638-648`; `protocol.rs:30,439-467,740-759`; `renderer.rs:301-380`; `wire.rs:366,450-459,799-802,1570-1573` |
 | 19 | Layout | `[x,y,width,height]` | Finite f32 bounds for a mounted View, Pressable, Text, or Image with `onLayout`; target node/listener identify the callback. Native measurement reports after post-layout prepaint, defers the first callback to the next frame, and deduplicates exact frames. | `protocol.ts:37,231,476-483,649-660`; `protocol.rs:31,468,762-791`; `renderer/paint.rs`; `renderer.rs:309-335`; `wire.rs:461-473,803-807,1590-1595` |
 | 20 | Drag | `[1,type]`, `[2,type]`, or `[3,[path,...]]` | Node-level drag notifications. Tag `1` is drag-over, tag `2` is internal drop, and tag `3` is external file drop. Types are safe non-empty strings (up to 128 scalars); external paths are ordered strings (up to 256 paths, 4096 bytes each). `onDragOver` is notification-only; native accepts drops without a JS can-drop round trip. | `protocol.ts:38-41,241-244,485-520,687-693`; `protocol.rs:32,497-499,824-910`; `wire.rs:367-368,474-489,810-813,873-900,1641-1648` |
-TextInput geometry remains intentionally approximate: `bounds_for_range`
-returns the element bounds and `character_index_for_point` returns the current
-selection end. Precise IME candidate and click positioning requires a future
-layout-owning text element.
+Single-line TextInput geometry is backed by its shaped native text layout:
+`bounds_for_range` maps UTF-16 selection offsets through the shaped line and
+`character_index_for_point` localizes the point before mapping its x coordinate
+back to UTF-16. Placeholder text and stale/missing layouts fall back to the
+element bounds/current selection; multiline (and newline-containing) input
+continues to use the approximate path.
 
 ### CommandResult value tags
 
