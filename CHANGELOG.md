@@ -10,6 +10,16 @@ from this work tree.
 
 ### Added
 
+- System notifications use `SHOW_NOTIFICATION=20` with `[title, body]` and a
+  constrained fire-and-forget API; delivery varies by platform, host identity
+  is a prerequisite, and tags, actions, and response callbacks are not exposed.
+- Static menus use nested `SET_MENUS=21` wire payloads and
+  `EVENT_ACTION=17` string action events, with `RootOptions.onAction`; dynamic
+  enablement and keybinding registration remain intentionally unsupported.
+- Crash diagnostics install a host panic hook with
+  `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
+  carry host exit codes and the last 50 stderr lines. README Troubleshooting
+  documents reproduction and an optional APM sample.
 - Runtime termination handling distinguishes explicit shutdown from unexpected
   EOF, non-zero process exit, protocol failure, and retained failed status; the
   host exposes these outcomes as observable CLI failures.
@@ -153,6 +163,16 @@ from this work tree.
   commits, nodes, press/key/input/submit/visibleRange/commandResult,
   dispatchFrame, and constant guard tests; the pack smoke consumes the helpers
   and the README documents the headless workflow.
+- File-dialog commands expose `FILE_DIALOG_OPEN=18` with
+  `[title,[directories,multiple]]` and `FILE_DIALOG_SAVE=19` with one
+  `defaultName` string; `files=!directories` are complementary, cancellation
+  is a successful missing-value response mapped to Promise `null`, platform
+  errors reject, and tag-5 results require non-empty paths. Save-dialog titles
+  remain unsupported where the platform cannot apply them; the TestPlatform
+  stub is headless-testable, while real dialogs remain display-backed.
+- The work tree is organized into eight thematic checkpoints
+  (`65c71cc` through `ca9bd23`), including the pre-existing StdioTransport
+  backpressure tests.
 
 ### Fixed
 

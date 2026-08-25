@@ -71,9 +71,7 @@ function detailsFromCause(cause: unknown): TransportTerminationDetails {
   return {
     exitCode: typeof value.exitCode === "number" && Number.isInteger(value.exitCode) ? value.exitCode : undefined,
     stderrTail:
-      typeof value.stderrTail === "string"
-        ? value.stderrTail.split(/\r?\n/).slice(-50).join("\n")
-        : undefined,
+      typeof value.stderrTail === "string" ? value.stderrTail.split(/\r?\n/).slice(-50).join("\n") : undefined,
   };
 }
 
