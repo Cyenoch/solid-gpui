@@ -344,6 +344,7 @@ These are current constraints, not a roadmap:
 - Generic transforms (`transform.scale`, `transform.translateX`,
   `transform.translateY`) are unsupported. Positioning is the explicit
   `relative`/`absolute` plus inset fields.
+- On Windows, some cursor variants (`alias`, `copy`, and similar) fall back to the default arrow; cursor changes are a no-op in headless environments.
 - `Image.source` is a host-local path. There is no `Image` `onError` callback,
   remote URL fetch, or inline image-byte transport; missing images are silent
   blank output.
