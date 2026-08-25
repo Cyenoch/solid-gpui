@@ -163,6 +163,7 @@ impl ReactRoot {
             .is_some_and(|id| !self.input_states.contains_key(&id))
         {
             self.active_input = None;
+            self.text_input_drag_anchor = None;
         }
         let ids: Vec<u32> = match affected {
             Some(ids) => ids.iter().copied().collect(),
@@ -277,6 +278,7 @@ impl ReactRoot {
                 if let Some(state) = self.input_states.get_mut(&previous) {
                     state.focused = false;
                 }
+                self.text_input_drag_anchor = None;
                 self.emit_input_event(previous, EVENT_BLUR);
             }
             self.active_input = Some(node_id);
@@ -288,6 +290,7 @@ impl ReactRoot {
         if !changed {
             if !focused && self.active_input == Some(node_id) {
                 self.active_input = None;
+                self.text_input_drag_anchor = None;
             }
             return;
         }
@@ -297,7 +300,145 @@ impl ReactRoot {
         self.emit_input_event(node_id, if focused { EVENT_FOCUS } else { EVENT_BLUR });
         if !focused && self.active_input == Some(node_id) {
             self.active_input = None;
+            self.text_input_drag_anchor = None;
         }
+    }
+
+    fn text_input_index_for_point(
+        &mut self,
+        node_id: u32,
+        point: Point<gpui::Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        self.active_input = Some(node_id);
+        let fallback = self
+            .input_states
+            .get(&node_id)
+            .map(|state| state.selection.end)?;
+        Some(
+            EntityInputHandler::character_index_for_point(self, point, window, cx)
+                .unwrap_or(fallback),
+        )
+    }
+
+    pub(super) fn begin_text_input_selection(
+        &mut self,
+        node_id: u32,
+        point: Point<gpui::Pixels>,
+        extend: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_input_focus(node_id, true);
+        let fallback = self
+            .input_states
+            .get(&node_id)
+            .map(|state| state.selection.end)
+            .unwrap_or_default();
+        let index = self
+            .text_input_index_for_point(node_id, point, window, cx)
+            .unwrap_or(fallback);
+        let anchor = self
+            .input_states
+            .get(&node_id)
+            .map(|state| {
+                if extend {
+                    if state.selection_reversed {
+                        state.selection.end
+                    } else {
+                        state.selection.start
+                    }
+                } else {
+                    index
+                }
+            })
+            .unwrap_or(index);
+        self.text_input_drag_anchor = Some((node_id, anchor));
+        let (selection, reversed) = selection_from_anchor(anchor, index);
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.selection = selection;
+            state.selection_reversed = reversed;
+        }
+        self.emit_input_event(node_id, EVENT_SELECTION);
+        cx.notify();
+    }
+
+    pub(super) fn update_text_input_selection(
+        &mut self,
+        node_id: u32,
+        point: Point<gpui::Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((anchor_node, anchor)) = self.text_input_drag_anchor else {
+            return;
+        };
+        if anchor_node != node_id {
+            return;
+        }
+        let fallback = self
+            .input_states
+            .get(&node_id)
+            .map(|state| state.selection.end)
+            .unwrap_or(anchor);
+        let index = self
+            .text_input_index_for_point(node_id, point, window, cx)
+            .unwrap_or(fallback);
+        let (selection, reversed) = selection_from_anchor(anchor, index);
+        let changed = self.input_states.get(&node_id).is_some_and(|state| {
+            state.selection != selection || state.selection_reversed != reversed
+        });
+        if !changed {
+            return;
+        }
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.selection = selection;
+            state.selection_reversed = reversed;
+        }
+        self.emit_input_event(node_id, EVENT_SELECTION);
+        cx.notify();
+    }
+
+    pub(super) fn end_text_input_selection(&mut self, node_id: u32) {
+        if self
+            .text_input_drag_anchor
+            .is_some_and(|(anchor_node, _)| anchor_node == node_id)
+        {
+            self.text_input_drag_anchor = None;
+        }
+    }
+
+    pub(super) fn handle_text_input_navigation(
+        &mut self,
+        node_id: u32,
+        key: &str,
+        extend: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(state) = self.input_states.get(&node_id) else {
+            return;
+        };
+        let Some((selection, reversed)) = move_selection(
+            &state.text,
+            &state.selection,
+            state.selection_reversed,
+            key,
+            extend,
+        ) else {
+            return;
+        };
+        let changed = state.selection != selection || state.selection_reversed != reversed;
+        if !changed {
+            return;
+        }
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.selection = selection;
+            state.selection_reversed = reversed;
+        }
+        self.active_input = Some(node_id);
+        self.emit_input_event(node_id, EVENT_SELECTION);
+        cx.notify();
     }
 }
 
@@ -325,6 +466,82 @@ pub(super) fn utf8_byte_to_utf16(text: &str, offset: usize) -> usize {
         utf16_index += ch.len_utf16();
     }
     utf16_index
+}
+pub(super) fn selection_from_anchor(anchor: usize, head: usize) -> (Range<usize>, bool) {
+    if head < anchor {
+        (head..anchor, true)
+    } else {
+        (anchor..head, false)
+    }
+}
+
+fn previous_utf16_boundary(text: &str, offset: usize) -> usize {
+    let mut current = 0;
+    for character in text.chars() {
+        let next = current + character.len_utf16();
+        if next >= offset {
+            return current;
+        }
+        current = next;
+    }
+    current
+}
+
+fn next_utf16_boundary(text: &str, offset: usize) -> usize {
+    let mut current = 0;
+    for character in text.chars() {
+        let next = current + character.len_utf16();
+        if offset < next {
+            return next;
+        }
+        current = next;
+    }
+    current
+}
+
+pub(super) fn move_selection(
+    text: &str,
+    selection: &Range<usize>,
+    reversed: bool,
+    key: &str,
+    extend: bool,
+) -> Option<(Range<usize>, bool)> {
+    let is_left = key == "left";
+    let is_right = key == "right";
+    let is_home = key == "home" || key == "up";
+    let is_end = key == "end" || key == "down";
+    if !is_left && !is_right && !is_home && !is_end {
+        return None;
+    }
+
+    let (anchor, head) = if reversed {
+        (selection.end, selection.start)
+    } else {
+        (selection.start, selection.end)
+    };
+    let next_head = if is_left {
+        if !extend && !selection.is_empty() {
+            selection.start
+        } else {
+            previous_utf16_boundary(text, head)
+        }
+    } else if is_right {
+        if !extend && !selection.is_empty() {
+            selection.end
+        } else {
+            next_utf16_boundary(text, head)
+        }
+    } else if is_home {
+        0
+    } else {
+        text.encode_utf16().count()
+    };
+
+    if extend {
+        Some(selection_from_anchor(anchor, next_head))
+    } else {
+        Some((next_head..next_head, false))
+    }
 }
 
 fn replace_utf16(text: &mut String, range: Range<usize>, replacement: &str) -> usize {
@@ -533,5 +750,37 @@ mod tests {
         assert_eq!(utf8_byte_to_utf16(text, 1), 1);
         assert_eq!(utf8_byte_to_utf16(text, 5), 3);
         assert_eq!(utf8_byte_to_utf16(text, 8), 4);
+    }
+
+    #[test]
+    fn selection_anchor_normalizes_drag_direction_and_preserves_reversed_head() {
+        assert_eq!(selection_from_anchor(5, 2), (2..5, true));
+        assert_eq!(selection_from_anchor(2, 5), (2..5, false));
+        assert_eq!(selection_from_anchor(3, 3), (3..3, false));
+    }
+
+    #[test]
+    fn shift_navigation_respects_utf16_boundaries_and_home_end_aliases() {
+        let text = "a😀b";
+        assert_eq!(
+            move_selection(text, &(3..3), false, "left", true),
+            Some((1..3, true))
+        );
+        assert_eq!(
+            move_selection(text, &(1..3), true, "right", true),
+            Some((3..3, false))
+        );
+        assert_eq!(
+            move_selection(text, &(1..3), true, "right", false),
+            Some((3..3, false))
+        );
+        assert_eq!(
+            move_selection(text, &(1..1), false, "up", true),
+            Some((0..1, true))
+        );
+        assert_eq!(
+            move_selection(text, &(1..1), false, "down", false),
+            Some((4..4, false))
+        );
     }
 }

@@ -70,6 +70,7 @@ pub struct ReactRoot {
     text_input_layouts: HashMap<u32, TextInputLayout>,
     focus_handles: HashMap<u32, FocusHandle>,
     active_input: Option<u32>,
+    text_input_drag_anchor: Option<(u32, usize)>,
     commands: Vec<Command>,
     virtual_handles: HashMap<u32, UniformListScrollHandle>,
     virtual_item_sizes: HashMap<u32, f32>,
@@ -98,6 +99,7 @@ impl ReactRoot {
             text_input_layouts: HashMap::new(),
             focus_handles: HashMap::new(),
             active_input: None,
+            text_input_drag_anchor: None,
             commands: Vec::new(),
             virtual_handles: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
@@ -224,6 +226,7 @@ impl ReactRoot {
         self.text_input_layouts.clear();
         self.focus_handles.clear();
         self.active_input = None;
+        self.text_input_drag_anchor = None;
         self.active_drag_type.borrow_mut().take();
         self.virtual_handles.clear();
         self.virtual_item_sizes.clear();

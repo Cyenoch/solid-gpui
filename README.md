@@ -11,6 +11,13 @@ empty; selection notifications carry UTF-16 ranges plus a `reversed` head
 orientation bit, while ordered `setSelection(start, end)` remains an explicit
 range command.
 
+Single-line TextInput supports click-to-place, drag selection, UTF-16-safe
+Shift+arrow/Home/End extension, and a visible selection highlight. The caret
+remains always visible rather than blinking so keyboard focus and the insertion
+point stay available to users who benefit from reduced visual timing demands.
+Multiline input, Ctrl/Cmd word-boundary movement, and double-/triple-click
+selection remain outside this renderer's minimal interaction contract.
+
 ## Architecture
 
 ```text

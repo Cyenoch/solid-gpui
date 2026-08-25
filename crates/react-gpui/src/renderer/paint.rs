@@ -156,7 +156,7 @@ impl Element for TextInputElement {
                         bounds.origin + point(line.x_for_index(start), px(0.0)),
                         bounds.origin + point(line.x_for_index(end), bounds.size.height),
                     ),
-                    rgba(0x2d6cdf40),
+                    rgba(0x2d6cdf66),
                 )),
             )
         };
@@ -378,6 +378,22 @@ impl ReactRoot {
                     submit_entity.update(app, |root, _| root.emit_submit_event(input_id));
                 }
             });
+            if use_custom_text_element {
+                let navigation_entity = entity.clone();
+                input_element = input_element.on_key_down(move |event, _, app| {
+                    let modifiers = event.keystroke.modifiers;
+                    if !modifiers.control && !modifiers.alt && !modifiers.platform {
+                        navigation_entity.update(app, |root, cx| {
+                            root.handle_text_input_navigation(
+                                input_id,
+                                &event.keystroke.key,
+                                modifiers.shift,
+                                cx,
+                            );
+                        });
+                    }
+                });
+            }
             if node.listener_id != 0 {
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
@@ -419,6 +435,40 @@ impl ReactRoot {
                         KeyAction::Up,
                     );
                 });
+            }
+            if use_custom_text_element {
+                let mouse_entity = entity.clone();
+                let mouse_focus = focus.clone();
+                input_element =
+                    input_element.on_mouse_down(MouseButton::Left, move |event, window, app| {
+                        window.focus(&mouse_focus, app);
+                        mouse_entity.update(app, |root, cx| {
+                            root.begin_text_input_selection(
+                                input_id,
+                                event.position,
+                                event.modifiers.shift,
+                                window,
+                                cx,
+                            );
+                        });
+                    });
+                let mouse_entity = entity.clone();
+                input_element = input_element.on_mouse_move(move |event, window, app| {
+                    if event.dragging() {
+                        mouse_entity.update(app, |root, cx| {
+                            root.update_text_input_selection(input_id, event.position, window, cx);
+                        });
+                    }
+                });
+                let mouse_entity = entity.clone();
+                input_element = input_element.on_mouse_up(MouseButton::Left, move |_, _, app| {
+                    mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
+                });
+                let mouse_entity = entity.clone();
+                input_element =
+                    input_element.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
+                        mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
+                    });
             }
             let (display_text, showing_placeholder) =
                 input_display_text(actual_text, input.placeholder.as_deref());
