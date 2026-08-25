@@ -534,13 +534,14 @@ pub mod test_support {
     use super::*;
     use gpui::TestAppContext;
     use react_gpui::{
-        COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FOCUS,
-        COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
-        COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
-        COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-        COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties,
-        InMemoryAdapter, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition,
-        MenuItemDefinition, Node, PROTOCOL_VERSION, TextInputProperties, VirtualListProperties,
+        COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
+        COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
+        COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
+        COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
+        COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
+        COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT,
+        KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION,
+        TextInputProperties, VirtualListProperties,
     };
 
     fn command(
@@ -991,6 +992,276 @@ pub mod test_support {
         assert!(take_events(&runtime).iter().any(|event| {
             event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 2
         }));
+    }
+    pub fn dialog_command_roundtrip(cx: &mut TestAppContext) {
+        use std::path::PathBuf;
+
+        let runtime = InMemoryAdapter::new();
+        let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+        registry
+            .update(cx, |registry, cx| registry.open_initial(cx))
+            .expect("open initial dialog test surface");
+        let window = draw_surface(&registry, cx, 1);
+        let snapshot_payload = snapshot().encode().expect("encode dialog snapshot");
+        registry
+            .update(cx, |registry, cx| {
+                registry.route_payload(&snapshot_payload, cx)
+            })
+            .expect("route dialog snapshot");
+        draw_surface(&registry, cx, 1);
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                101,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((0, 1)),
+                Some("Choose files"),
+                None,
+                None,
+            ),
+        );
+        assert!(cx.did_prompt_for_paths());
+        cx.simulate_path_prompt_response(|options| {
+            assert!(options.files);
+            assert!(options.multiple);
+            Some(vec![
+                PathBuf::from("/tmp/one.txt"),
+                PathBuf::from("/tmp/two.txt"),
+            ])
+        });
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let events = take_events(&runtime);
+        let result = command_result(&events, 101);
+        assert!(result.success);
+        assert_eq!(
+            result.value,
+            Some(react_gpui::CommandValue::Paths(vec![
+                "/tmp/one.txt".to_owned(),
+                "/tmp/two.txt".to_owned(),
+            ]))
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                102,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((0, 0)),
+                Some("Choose one"),
+                None,
+                None,
+            ),
+        );
+        cx.simulate_path_prompt_response(|options| {
+            assert!(options.files);
+            assert!(!options.multiple);
+            Some(vec![PathBuf::from("/tmp/one.txt")])
+        });
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let result = command_result(&take_events(&runtime), 102);
+        assert!(result.success);
+        assert_eq!(
+            result.value,
+            Some(react_gpui::CommandValue::Paths(vec![
+                "/tmp/one.txt".to_owned()
+            ]))
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                103,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((1, 0)),
+                Some("Choose directory"),
+                None,
+                None,
+            ),
+        );
+        cx.simulate_path_prompt_response(|options| {
+            assert!(!options.files);
+            assert!(!options.multiple);
+            Some(vec![PathBuf::from("/tmp/directory")])
+        });
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let result = command_result(&take_events(&runtime), 103);
+        assert!(result.success);
+        assert_eq!(
+            result.value,
+            Some(react_gpui::CommandValue::Paths(vec![
+                "/tmp/directory".to_owned()
+            ]))
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                104,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((0, 0)),
+                Some("Cancel"),
+                None,
+                None,
+            ),
+        );
+        cx.simulate_path_prompt_response(|_| None);
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let result = command_result(&take_events(&runtime), 104);
+        assert!(result.success);
+        assert!(result.value.is_none());
+        #[cfg(unix)]
+        {
+            use std::ffi::OsString;
+            use std::os::unix::ffi::OsStringExt;
+
+            route_command(
+                &registry,
+                cx,
+                command(
+                    109,
+                    COMMAND_FILE_DIALOG_OPEN,
+                    1,
+                    Some((0, 0)),
+                    Some("Invalid UTF-8"),
+                    None,
+                    None,
+                ),
+            );
+            cx.simulate_path_prompt_response(|_| {
+                Some(vec![PathBuf::from(OsString::from_vec(vec![0xff]))])
+            });
+            cx.run_until_parked();
+            advance_frame(window, cx);
+            let result = command_result(&take_events(&runtime), 109);
+            assert!(!result.success);
+            assert!(result.error.is_some_and(|error| error.contains("UTF-8")));
+        }
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                105,
+                COMMAND_FILE_DIALOG_SAVE,
+                1,
+                None,
+                Some("output.txt"),
+                None,
+                None,
+            ),
+        );
+        cx.simulate_new_path_selection(|_| Some(PathBuf::from("/tmp/output.txt")));
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let result = command_result(&take_events(&runtime), 105);
+        assert!(result.success);
+        assert_eq!(
+            result.value,
+            Some(react_gpui::CommandValue::Text("/tmp/output.txt".to_owned()))
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                106,
+                COMMAND_FILE_DIALOG_SAVE,
+                1,
+                None,
+                Some("Cancel"),
+                None,
+                None,
+            ),
+        );
+        cx.simulate_new_path_selection(|_| None);
+        cx.run_until_parked();
+        advance_frame(window, cx);
+        let result = command_result(&take_events(&runtime), 106);
+        assert!(result.success);
+        assert!(result.value.is_none());
+
+        for invalid in [
+            command(
+                107,
+                COMMAND_FILE_DIALOG_OPEN,
+                2,
+                Some((0, 0)),
+                Some("not root"),
+                None,
+                None,
+            ),
+            command(
+                108,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((2, 0)),
+                Some("bad flags"),
+                None,
+                None,
+            ),
+        ] {
+            let payload = invalid.encode().expect("encode invalid dialog frame");
+            assert!(
+                registry
+                    .update(cx, |registry, cx| registry.route_payload(&payload, cx))
+                    .is_err()
+            );
+        }
+
+        let close_runtime = InMemoryAdapter::new();
+        let close_registry = cx.new(|_| SurfaceRegistry::new(close_runtime.clone()));
+        close_registry
+            .update(cx, |registry, cx| registry.open_initial(cx))
+            .expect("open close-safety test surface");
+        let close_window = draw_surface(&close_registry, cx, 1);
+        let close_snapshot = snapshot().encode().expect("encode close snapshot");
+        close_registry
+            .update(cx, |registry, cx| {
+                registry.route_payload(&close_snapshot, cx)
+            })
+            .expect("route close snapshot");
+        draw_surface(&close_registry, cx, 1);
+        route_command(
+            &close_registry,
+            cx,
+            command(
+                110,
+                COMMAND_FILE_DIALOG_OPEN,
+                1,
+                Some((0, 0)),
+                Some("close me"),
+                None,
+                None,
+            ),
+        );
+        assert!(cx.did_prompt_for_paths());
+        let close_window_id = close_window.window_id();
+        close_window
+            .update(cx, |_, window, _| window.remove_window())
+            .expect("remove close-safety test window");
+        close_registry.update(cx, |registry, cx| {
+            assert!(registry.window_closed(close_window_id, cx));
+        });
+        cx.simulate_path_prompt_response(|_| Some(vec![PathBuf::from("/tmp/dropped")]));
+        cx.run_until_parked();
+        assert!(
+            take_events(&close_runtime)
+                .iter()
+                .all(|event| event.event_type != react_gpui::EVENT_COMMAND_RESULT)
+        );
     }
 }
 
