@@ -32,6 +32,7 @@ export const EVENT_SUBMIT = 13 as const;
 export const EVENT_WINDOW_RESIZE = 14 as const;
 export const EVENT_WINDOW_ACTIVATION = 15 as const;
 export const EVENT_SURFACE_CLOSED = 16 as const;
+export const EVENT_ACTION = 17 as const;
 export const EVENT_POINTER_DOWN = 1 as const;
 export const EVENT_POINTER_UP = 2 as const;
 export const POINTER_BUTTON_LEFT = 1 as const;
@@ -63,7 +64,8 @@ export const COMMAND_CLIPBOARD_READ = 16 as const;
 export const COMMAND_OPEN_SURFACE = 17 as const;
 export const COMMAND_FILE_DIALOG_OPEN = 18 as const;
 export const COMMAND_FILE_DIALOG_SAVE = 19 as const;
-export const KIND_IMAGE = 7 as const;
+export const COMMAND_SHOW_NOTIFICATION = 20 as const;
+export const COMMAND_SET_MENUS = 21 as const;
 export const IMAGE_OBJECT_FIT_FILL = 1 as const;
 export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
 export const IMAGE_OBJECT_FIT_COVER = 3 as const;
@@ -159,6 +161,11 @@ export type Patch = readonly [
   number,
   readonly PatchOperation[],
 ];
+export type MenuItemPayload =
+  | readonly [0]
+  | readonly [1, string]
+  | readonly [2, readonly [string, readonly MenuItemPayload[]]];
+export type MenuPayload = readonly (readonly [string, readonly MenuItemPayload[]])[];
 
 export type Command = readonly [
   typeof PROTOCOL_VERSION,
@@ -188,8 +195,17 @@ export type Command = readonly [
     | typeof COMMAND_OPEN_SURFACE
     | typeof COMMAND_FILE_DIALOG_OPEN
     | typeof COMMAND_FILE_DIALOG_SAVE
+    | typeof COMMAND_SHOW_NOTIFICATION
+    | typeof COMMAND_SET_MENUS
   ),
-  readonly [number, number] | readonly [string, readonly [number, number]] | string | null,
+  (
+    | readonly [number, number]
+    | readonly [string, readonly [number, number]]
+    | readonly [string, string]
+    | string
+    | MenuPayload
+    | null
+  ),
 ];
 export type CommandValuePayload =
   | readonly [1, number]
@@ -209,6 +225,7 @@ export type ScrollEventPayload = readonly [7, 1 | 2, number, number, number, num
 export type SubmitEventPayload = string;
 export type WindowResizeEventPayload = readonly [number, number];
 export type WindowActivationEventPayload = boolean;
+export type ActionEventPayload = string;
 export type EventPayload =
   | TextInputEventPayload
   | CommandResultPayload
@@ -219,7 +236,8 @@ export type EventPayload =
   | ScrollEventPayload
   | SubmitEventPayload
   | WindowResizeEventPayload
-  | WindowActivationEventPayload;
+  | WindowActivationEventPayload
+  | ActionEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -246,6 +264,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_WINDOW_RESIZE
     | typeof EVENT_WINDOW_ACTIVATION
     | typeof EVENT_SURFACE_CLOSED
+    | typeof EVENT_ACTION
   ),
   EventPayload | null,
 ];
@@ -447,6 +466,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   if (eventType === EVENT_PRESS || eventType === EVENT_HOVER || eventType === EVENT_SURFACE_CLOSED)
     return payload === null;
   if (eventType === EVENT_SUBMIT) return payload === null || typeof payload === "string";
+  if (eventType === EVENT_ACTION)
+    return typeof payload === "string" && payload.length > 0 && [...payload].length <= 256;
   if (eventType === EVENT_WINDOW_ACTIVATION) return typeof payload === "boolean";
   if (eventType === EVENT_WINDOW_RESIZE) {
     return (
@@ -543,6 +564,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
           COMMAND_OPEN_SURFACE,
           COMMAND_FILE_DIALOG_OPEN,
           COMMAND_FILE_DIALOG_SAVE,
+          COMMAND_SHOW_NOTIFICATION,
+          COMMAND_SET_MENUS,
         ] as readonly number[]
       ).includes(payload[2] as number)
     )
@@ -608,13 +631,9 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
       return null;
     }
   }
-  if (
-    typeof value[8] !== "number" ||
-    !Number.isInteger(value[8]) ||
-    value[8] < EVENT_PRESS ||
-    value[8] > EVENT_SURFACE_CLOSED
-  )
+  if (typeof value[8] !== "number" || !Number.isInteger(value[8]) || value[8] < EVENT_PRESS || value[8] > EVENT_ACTION)
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;
+  if (value[8] === EVENT_ACTION && (value[6] !== 1 || value[7] !== 0)) return null;
   return validateEventPayload(value[8], value[9]) ? (value as unknown as PressEventFrame) : null;
 }

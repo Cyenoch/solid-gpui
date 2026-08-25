@@ -12,6 +12,8 @@ import {
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
+  COMMAND_SET_MENUS,
+  COMMAND_SHOW_NOTIFICATION,
   COMMAND_RESIZE_WINDOW,
   COMMAND_SCROLL_TO_END,
   COMMAND_SCROLL_TO_INDEX,
@@ -29,6 +31,8 @@ import {
   decodeEvent,
   encodeFrame,
   type Command,
+  type MenuItemPayload,
+  type MenuPayload,
   type Patch,
   type PatchOperation,
   type PressEventFrame,
@@ -44,6 +48,8 @@ import type {
   HostKind,
   HostNodeInternal,
   HostProps,
+  MenuDefinition,
+  MenuItem,
   PendingCommand,
   TextInputCallbacks,
   WindowActivationHandler,
@@ -80,6 +86,7 @@ export class RootContainer implements DispatchContext {
   readonly onWindowResize: WindowResizeHandler | undefined;
   readonly onWindowActivation: WindowActivationHandler | undefined;
   private readonly surfaceClosedHandler: (() => void) | undefined;
+  readonly onAction: ((action: string) => void) | undefined;
   private readonly scheduleDispatch: (dispatch: () => void) => void;
   private transportTerminated = false;
   private terminationError: TransportTerminatedError | undefined;
@@ -94,6 +101,7 @@ export class RootContainer implements DispatchContext {
     onWindowResize?: WindowResizeHandler,
     onWindowActivation?: WindowActivationHandler,
     onSurfaceClosed?: () => void,
+    onAction?: (action: string) => void,
   ) {
     this.surfaceId = assertU32Option("surfaceId", surfaceId);
     this.epoch = assertU32Option("epoch", epoch);
@@ -112,6 +120,7 @@ export class RootContainer implements DispatchContext {
     this.onWindowResize = onWindowResize;
     this.onWindowActivation = onWindowActivation;
     this.surfaceClosedHandler = onSurfaceClosed;
+    this.onAction = onAction;
     this.decoder = new FrameDecoder(maxFrameSize);
     this.unsubscribe = transport.onData((chunk) => this.receive(chunk));
     this.unsubscribeTermination = transport.onTermination((error) => this.handleTransportTermination(error));
@@ -294,8 +303,16 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_CLIPBOARD_READ
       | typeof COMMAND_OPEN_SURFACE
       | typeof COMMAND_FILE_DIALOG_OPEN
-      | typeof COMMAND_FILE_DIALOG_SAVE,
-    payload: readonly [number, number] | readonly [string, readonly [number, number]] | string | null,
+      | typeof COMMAND_FILE_DIALOG_SAVE
+      | typeof COMMAND_SHOW_NOTIFICATION
+      | typeof COMMAND_SET_MENUS,
+    payload:
+      | readonly [number, number]
+      | readonly [string, readonly [number, number]]
+      | readonly [string, string]
+      | string
+      | MenuPayload
+      | null,
   ): Promise<unknown> {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
@@ -411,7 +428,7 @@ export class RootContainer implements DispatchContext {
       return Promise.reject(new TypeError("file dialog options must be boolean"));
     const payload: readonly [string, readonly [number, number]] = [title, [directories ? 1 : 0, multiple ? 1 : 0]];
     return this.submitSurfaceCommandValue(COMMAND_FILE_DIALOG_OPEN, payload).then((value) => {
-      if (value === undefined) return null;
+      if (value === undefined || value === null) return null;
       if (
         !Array.isArray(value) ||
         value.length !== 2 ||
@@ -430,7 +447,7 @@ export class RootContainer implements DispatchContext {
     if (typeof defaultName !== "string" || [...defaultName].length > 256)
       return Promise.reject(new TypeError("save dialog defaultName must be at most 256 characters"));
     return this.submitSurfaceCommandValue(COMMAND_FILE_DIALOG_SAVE, defaultName).then((value) => {
-      if (value === undefined) return null;
+      if (value === undefined || value === null) return null;
       if (
         !Array.isArray(value) ||
         value.length !== 2 ||
@@ -441,6 +458,49 @@ export class RootContainer implements DispatchContext {
         throw new Error("native pickSavePath returned an invalid value");
       return value[1];
     });
+  }
+
+  showNotification(options: { readonly title: string; readonly body: string }): Promise<void> {
+    const { title, body } = options;
+    if (typeof title !== "string" || utf8ByteLength(title) > 256)
+      return Promise.reject(new TypeError("notification title must be at most 256 UTF-8 bytes"));
+    if (typeof body !== "string" || utf8ByteLength(body) > 1024)
+      return Promise.reject(new TypeError("notification body must be at most 1024 UTF-8 bytes"));
+    return this.submitSurfaceCommandValue(COMMAND_SHOW_NOTIFICATION, [title, body]).then(() => undefined);
+  }
+
+  setMenus(menus: readonly MenuDefinition[]): Promise<void> {
+    try {
+      const encodeItem = (item: MenuItem): MenuItemPayload => {
+        if (item.type === "separator") return [0];
+        if (item.type === "action") {
+          if (typeof item.name !== "string" || item.name.length === 0 || [...item.name].length > 256)
+            throw new TypeError("menu action name must be 1..256 Unicode scalar values");
+          return [1, item.name];
+        }
+        if (
+          typeof item.title !== "string" ||
+          item.title.length === 0 ||
+          [...item.title].length > 256 ||
+          !Array.isArray(item.items)
+        )
+          throw new TypeError("submenu title must be 1..256 Unicode scalar values");
+        return [2, [item.title, item.items.map(encodeItem)]];
+      };
+      const payload: MenuPayload = menus.map((menu) => {
+        if (
+          typeof menu.title !== "string" ||
+          menu.title.length === 0 ||
+          [...menu.title].length > 256 ||
+          !Array.isArray(menu.items)
+        )
+          throw new TypeError("menu title must be 1..256 Unicode scalar values");
+        return [menu.title, menu.items.map(encodeItem)];
+      });
+      return this.submitSurfaceCommandValue(COMMAND_SET_MENUS, payload).then(() => undefined);
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   focusNext(): Promise<void> {

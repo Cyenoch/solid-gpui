@@ -21,6 +21,8 @@ import {
   COMMAND_CLIPBOARD_WRITE,
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
+  COMMAND_SET_MENUS,
+  COMMAND_SHOW_NOTIFICATION,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
   COMMAND_FOCUS_PREV,
@@ -29,6 +31,7 @@ import {
   COMMAND_OPEN_URL,
   COMMAND_RESIZE_WINDOW,
   COMMAND_TOGGLE_FULLSCREEN,
+  EVENT_ACTION,
   COMMAND_ZOOM_WINDOW,
   EVENT_HOVER,
   EVENT_KEY,
@@ -1339,7 +1342,7 @@ describe("renderer commits", () => {
       sequence: number,
       requestId: number,
       command: number,
-      value: readonly unknown[] | undefined = undefined,
+      value: readonly unknown[] | null | undefined = undefined,
     ) =>
       encodeFrame([
         3,
@@ -1361,13 +1364,57 @@ describe("renderer commits", () => {
 
     const canceled = root.pickFiles({ directories: true });
     expect(message(transport, 2)).toEqual([3, 4, 79, 80, 1, 2, 1, COMMAND_FILE_DIALOG_OPEN, ["", [1, 0]]]);
-    transport.push(complete(2, 2, COMMAND_FILE_DIALOG_OPEN));
+    transport.push(complete(2, 2, COMMAND_FILE_DIALOG_OPEN, null));
     await expect(canceled).resolves.toBeNull();
 
     const save = root.pickSavePath({ defaultName: "report.json" });
     expect(message(transport, 3)).toEqual([3, 4, 79, 80, 1, 3, 1, COMMAND_FILE_DIALOG_SAVE, "report.json"]);
     transport.push(complete(3, 3, COMMAND_FILE_DIALOG_SAVE, [4, "/tmp/report.json"]));
     await expect(save).resolves.toBe("/tmp/report.json");
+    root.unmount();
+  });
+  it("frames notifications and static menus and dispatches action events", async () => {
+    const transport = new MemoryTransport();
+    const actions: string[] = [];
+    const root = createRoot(transport, {
+      surfaceId: 81,
+      epoch: 82,
+      onAction: (action) => actions.push(action),
+    });
+    root.render(<View />);
+    const complete = (sequence: number, requestId: number, command: number) =>
+      encodeFrame([3, 2, 81, 82, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null]]);
+    const menus = root.setMenus([
+      {
+        title: "File",
+        items: [
+          { type: "action", name: "open" },
+          { type: "separator" },
+          { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
+        ],
+      },
+    ]);
+    expect(message(transport, 1)).toEqual([
+      3,
+      4,
+      81,
+      82,
+      1,
+      1,
+      1,
+      COMMAND_SET_MENUS,
+      [["File", [[1, "open"], [0], [2, ["More", [[1, "other"]]]]]]],
+    ]);
+    transport.push(complete(1, 1, COMMAND_SET_MENUS));
+    await menus;
+
+    const notification = root.showNotification({ title: "Done", body: "Finished" });
+    expect(message(transport, 2)).toEqual([3, 4, 81, 82, 1, 2, 1, COMMAND_SHOW_NOTIFICATION, ["Done", "Finished"]]);
+    transport.push(complete(2, 2, COMMAND_SHOW_NOTIFICATION));
+    await notification;
+
+    transport.push(encodeFrame([3, 2, 81, 82, 1, 3, 1, 0, EVENT_ACTION, "open"]));
+    expect(actions).toEqual(["open"]);
     root.unmount();
   });
   it("frames root focus traversal commands", async () => {

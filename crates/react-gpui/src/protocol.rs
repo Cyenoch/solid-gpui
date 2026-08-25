@@ -26,6 +26,7 @@ pub const EVENT_SUBMIT: u32 = 13;
 pub const EVENT_WINDOW_RESIZE: u32 = 14;
 pub const EVENT_WINDOW_ACTIVATION: u32 = 15;
 pub const EVENT_SURFACE_CLOSED: u32 = 16;
+pub const EVENT_ACTION: u32 = 17;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -58,6 +59,8 @@ pub const COMMAND_CLIPBOARD_READ: u32 = 16;
 pub const COMMAND_OPEN_SURFACE: u32 = 17;
 pub const COMMAND_FILE_DIALOG_OPEN: u32 = 18;
 pub const COMMAND_FILE_DIALOG_SAVE: u32 = 19;
+pub const COMMAND_SHOW_NOTIFICATION: u32 = 20;
+pub const COMMAND_SET_MENUS: u32 = 21;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 
@@ -180,6 +183,24 @@ impl Patch {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct MenuDefinition {
+    pub title: String,
+    pub items: Vec<MenuItemDefinition>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MenuItemDefinition {
+    Separator,
+    Action(String),
+    Submenu(MenuDefinition),
+}
+#[derive(Clone, Debug, PartialEq, gpui::Action)]
+#[action(namespace = react_gpui, no_json)]
+pub struct MenuAction {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Command {
     pub protocol: u32,
     pub message: u32,
@@ -191,6 +212,8 @@ pub struct Command {
     pub kind: u32,
     pub payload: Option<(u32, u32)>,
     pub title: Option<String>,
+    pub body: Option<String>,
+    pub menus: Option<Vec<MenuDefinition>>,
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire
@@ -419,6 +442,7 @@ pub enum EventPayload {
     Submit { text: String },
     WindowResize { width: f32, height: f32 },
     WindowActivation { active: bool },
+    EventAction { action: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -689,6 +713,27 @@ impl Event {
             listener_id,
             event_type: EVENT_WINDOW_ACTIVATION,
             payload: Some(EventPayload::WindowActivation { active }),
+        }
+    }
+
+    pub fn action(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        action: String,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id: 1,
+            listener_id: 0,
+            event_type: EVENT_ACTION,
+            payload: Some(EventPayload::EventAction { action }),
         }
     }
 

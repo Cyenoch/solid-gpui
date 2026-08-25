@@ -89,24 +89,61 @@ pub(super) fn decode_patch(payload: &[u8]) -> Result<Patch, ProtocolError> {
 
 pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError> {
     let payload = match command.kind {
-        COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => match (&command.payload, &command.title)
-        {
-            (Some(payload), Some(title)) => Some(CommandPayloadWire::StringWithPair((
+        COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => {
+            if command.body.is_some() || command.menus.is_some() {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.payload, &command.title) {
+                (Some(payload), Some(title)) => Some(CommandPayloadWire::StringWithPair((
+                    title.clone(),
+                    *payload,
+                ))),
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
+        COMMAND_FILE_DIALOG_SAVE => {
+            if command.body.is_some() || command.menus.is_some() {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.payload, &command.title) {
+                (None, Some(default_name)) => Some(CommandPayloadWire::Title(default_name.clone())),
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
+        COMMAND_SHOW_NOTIFICATION => match (
+            &command.payload,
+            &command.title,
+            &command.body,
+            &command.menus,
+        ) {
+            (None, Some(title), Some(body), None) => Some(CommandPayloadWire::StringPair((
                 title.clone(),
-                *payload,
+                body.clone(),
             ))),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
-        COMMAND_FILE_DIALOG_SAVE => match (&command.payload, &command.title) {
-            (None, Some(default_name)) => Some(CommandPayloadWire::Title(default_name.clone())),
+        COMMAND_SET_MENUS => match (
+            &command.payload,
+            &command.title,
+            &command.body,
+            &command.menus,
+        ) {
+            (None, None, None, Some(menus)) => Some(CommandPayloadWire::Menus(
+                menus.iter().map(MenuWire::from).collect(),
+            )),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
-        _ => match (&command.payload, &command.title) {
-            (Some(payload), None) => Some(CommandPayloadWire::Pair(*payload)),
-            (None, Some(title)) => Some(CommandPayloadWire::Title(title.clone())),
-            (None, None) => None,
-            (Some(_), Some(_)) => return Err(ProtocolError::InvalidCommandPayload),
-        },
+        _ => {
+            if command.body.is_some() || command.menus.is_some() {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.payload, &command.title) {
+                (Some(payload), None) => Some(CommandPayloadWire::Pair(*payload)),
+                (None, Some(title)) => Some(CommandPayloadWire::Title(title.clone())),
+                (None, None) => None,
+                (Some(_), Some(_)) => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
     };
     rmp_serde::to_vec(&CommandWire(
         command.protocol,
@@ -165,13 +202,16 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_OPEN_SURFACE
             | COMMAND_FILE_DIALOG_OPEN
             | COMMAND_FILE_DIALOG_SAVE
+            | COMMAND_SHOW_NOTIFICATION
+            | COMMAND_SET_MENUS
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
     // The untagged wire enum only describes shapes. The command kind selects
     // the meaning, so the same [string,[u32,u32]] shape is validated
     // independently for OpenSurface versus FileDialogOpen.
-    let (payload, title, _): (Option<(u32, u32)>, Option<String>, Option<String>) =
+    let command_payload = wire.8.clone();
+    let (payload, title, body): (Option<(u32, u32)>, Option<String>, Option<String>) =
         match (wire.7, wire.8) {
             (COMMAND_SET_TITLE, Some(CommandPayloadWire::Title(title)))
                 if wire.6 == 1 && !title.is_empty() && title.chars().count() <= 256 =>
@@ -204,6 +244,16 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (None, Some(default_name), None)
             }
             (COMMAND_FILE_DIALOG_SAVE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_SHOW_NOTIFICATION, Some(CommandPayloadWire::StringPair((title, body))))
+                if wire.6 == 1 && title.len() <= 256 && body.len() <= 1024 =>
+            {
+                (None, Some(title), Some(body))
+            }
+            (COMMAND_SHOW_NOTIFICATION, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_SET_MENUS, Some(CommandPayloadWire::Menus(_))) if wire.6 == 1 => {
+                (None, None, None)
+            }
+            (COMMAND_SET_MENUS, _) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_OPEN_URL, Some(CommandPayloadWire::Title(url)))
                 if wire.6 == 1 && valid_http_url(&url) =>
             {
@@ -254,6 +304,19 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             }
             _ => return Err(ProtocolError::InvalidCommandPayload),
         };
+    let menus = if wire.7 == COMMAND_SET_MENUS {
+        match command_payload {
+            Some(CommandPayloadWire::Menus(menus)) => Some(
+                menus
+                    .into_iter()
+                    .map(MenuDefinition::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        }
+    } else {
+        None
+    };
     Ok(Command {
         protocol: wire.0,
         message: wire.1,
@@ -265,6 +328,8 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         kind: wire.7,
         payload,
         title,
+        body,
+        menus,
     })
 }
 
@@ -297,6 +362,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_WINDOW_RESIZE
             | EVENT_WINDOW_ACTIVATION
             | EVENT_SURFACE_CLOSED
+            | EVENT_ACTION
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -328,6 +394,8 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_OPEN_SURFACE
                         | COMMAND_FILE_DIALOG_OPEN
                         | COMMAND_FILE_DIALOG_SAVE
+                        | COMMAND_SHOW_NOTIFICATION
+                        | COMMAND_SET_MENUS
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);
@@ -370,6 +438,14 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
         (EVENT_WINDOW_ACTIVATION, Some(EventPayloadWire::WindowActivation(active))) => {
             Some(EventPayload::WindowActivation { active })
         }
+        (EVENT_ACTION, Some(EventPayloadWire::Action(action)))
+            if wire.6 == 1
+                && wire.7 == 0
+                && !action.is_empty()
+                && action.chars().count() <= 256 =>
+        {
+            Some(EventPayload::EventAction { action })
+        }
         (EVENT_SUBMIT, Some(EventPayloadWire::Submit(text))) => Some(EventPayload::Submit { text }),
         (EVENT_SURFACE_CLOSED, None) if wire.6 == 0 && wire.7 == 0 => None,
         (EVENT_HOVER | EVENT_SUBMIT, None) => None,
@@ -388,17 +464,83 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
         payload,
     })
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 struct SnapshotWire(u32, u32, u32, u32, u32, u32, Vec<NodeWire>);
 #[derive(Debug, Serialize, Deserialize)]
 struct PatchWire(u32, u32, u32, u32, u32, u32, Vec<OperationWire>);
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 enum CommandPayloadWire {
     Pair((u32, u32)),
     Title(String),
+    StringPair((String, String)),
     StringWithPair((String, (u32, u32))),
+    Menus(Vec<MenuWire>),
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MenuWire(String, Vec<MenuItemWire>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum MenuItemWire {
+    Separator((u32,)),
+    Action((u32, String)),
+    Submenu((u32, MenuWire)),
+}
+fn valid_menu_text(value: &str) -> bool {
+    !value.is_empty() && value.chars().count() <= 256
+}
+
+impl From<&MenuDefinition> for MenuWire {
+    fn from(menu: &MenuDefinition) -> Self {
+        Self(
+            menu.title.clone(),
+            menu.items.iter().map(MenuItemWire::from).collect(),
+        )
+    }
+}
+
+impl From<&MenuItemDefinition> for MenuItemWire {
+    fn from(item: &MenuItemDefinition) -> Self {
+        match item {
+            MenuItemDefinition::Separator => Self::Separator((0,)),
+            MenuItemDefinition::Action(action) => Self::Action((1, action.clone())),
+            MenuItemDefinition::Submenu(menu) => Self::Submenu((2, MenuWire::from(menu))),
+        }
+    }
+}
+
+impl TryFrom<MenuWire> for MenuDefinition {
+    type Error = ProtocolError;
+
+    fn try_from(menu: MenuWire) -> Result<Self, Self::Error> {
+        if !valid_menu_text(&menu.0) {
+            return Err(ProtocolError::InvalidCommandPayload);
+        }
+        Ok(Self {
+            title: menu.0,
+            items: menu
+                .1
+                .into_iter()
+                .map(MenuItemDefinition::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl TryFrom<MenuItemWire> for MenuItemDefinition {
+    type Error = ProtocolError;
+
+    fn try_from(item: MenuItemWire) -> Result<Self, Self::Error> {
+        match item {
+            MenuItemWire::Separator((0,)) => Ok(Self::Separator),
+            MenuItemWire::Action((1, action)) if valid_menu_text(&action) => {
+                Ok(Self::Action(action))
+            }
+            MenuItemWire::Submenu((2, menu)) => Ok(Self::Submenu(MenuDefinition::try_from(menu)?)),
+            _ => Err(ProtocolError::InvalidCommandPayload),
+        }
+    }
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct CommandWire(
@@ -634,6 +776,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<String>>()?
                 .flatten()
                 .map(EventPayloadWire::Submit),
+            EVENT_ACTION => sequence
+                .next_element::<Option<String>>()?
+                .flatten()
+                .map(EventPayloadWire::Action),
             EVENT_PRESS | EVENT_HOVER => {
                 let payload: Option<Option<de::IgnoredAny>> = sequence.next_element()?;
                 if payload.flatten().is_some() {
@@ -669,7 +815,6 @@ impl<'de> Deserialize<'de> for EventWire {
         deserializer.deserialize_tuple(10, EventWireVisitor)
     }
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum EventPayloadWire {
@@ -683,8 +828,8 @@ enum EventPayloadWire {
     Scroll(ScrollEventWire),
     Submit(String),
     WindowActivation(bool),
+    Action(String),
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum WindowResizeWire {
@@ -1385,6 +1530,7 @@ impl From<&EventPayload> for EventPayloadWire {
                 Self::WindowResize(WindowResizeWire::FloatFloat((*width, *height)))
             }
             EventPayload::WindowActivation { active } => Self::WindowActivation(*active),
+            EventPayload::EventAction { action } => Self::Action(action.clone()),
         }
     }
 }
@@ -1534,6 +1680,8 @@ mod tests {
             kind: COMMAND_OPEN_SURFACE,
             payload: Some((640, 480)),
             title: Some("child".to_owned()),
+            body: None,
+            menus: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
             .expect("decode open surface");
@@ -1553,6 +1701,8 @@ mod tests {
             kind: COMMAND_OPEN_SURFACE,
             payload: Some((640, 480)),
             title: Some(String::new()),
+            body: None,
+            menus: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
             command.protocol,
@@ -1607,6 +1757,8 @@ mod tests {
             kind: COMMAND_FILE_DIALOG_OPEN,
             payload: Some((1, 1)),
             title: Some("Choose".to_owned()),
+            body: None,
+            menus: None,
         };
         assert_eq!(
             Command::decode(&open.encode().expect("encode open dialog"))
@@ -1625,6 +1777,8 @@ mod tests {
             kind: COMMAND_FILE_DIALOG_SAVE,
             payload: None,
             title: Some("report.txt".to_owned()),
+            body: None,
+            menus: None,
         };
         assert_eq!(
             Command::decode(&save.encode().expect("encode save dialog"))
@@ -1638,6 +1792,64 @@ mod tests {
         };
         assert!(
             Command::decode(&invalid_open.encode().expect("encode invalid open dialog")).is_err()
+        );
+    }
+
+    #[test]
+    fn notification_and_menu_commands_and_action_events_round_trip() {
+        let notification = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 7,
+            node_id: 1,
+            kind: COMMAND_SHOW_NOTIFICATION,
+            payload: None,
+            title: Some("Done".to_owned()),
+            body: Some("Finished".to_owned()),
+            menus: None,
+        };
+        assert_eq!(
+            Command::decode(&notification.encode().expect("encode notification"))
+                .expect("decode notification"),
+            notification
+        );
+
+        let menus = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 8,
+            node_id: 1,
+            kind: COMMAND_SET_MENUS,
+            payload: None,
+            title: None,
+            body: None,
+            menus: Some(vec![MenuDefinition {
+                title: "File".to_owned(),
+                items: vec![
+                    MenuItemDefinition::Action("open".to_owned()),
+                    MenuItemDefinition::Separator,
+                    MenuItemDefinition::Submenu(MenuDefinition {
+                        title: "More".to_owned(),
+                        items: vec![MenuItemDefinition::Action("other".to_owned())],
+                    }),
+                ],
+            }]),
+        };
+        assert_eq!(
+            Command::decode(&menus.encode().expect("encode menus")).expect("decode menus"),
+            menus
+        );
+
+        let action = Event::action(1, 2, 3, 4, "open".to_owned());
+        assert_eq!(
+            Event::decode(&action.encode().expect("encode action")).unwrap(),
+            action
         );
     }
 

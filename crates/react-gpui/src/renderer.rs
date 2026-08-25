@@ -147,6 +147,17 @@ impl ReactRoot {
         );
         send_event_or_exit(self.runtime.as_ref(), "surface closed event", &event);
     }
+    /// Emit a host menu action for the owning root surface.
+    pub fn emit_action(&self, action: String) {
+        let event = Event::action(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            action,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "menu action event", &event);
+    }
 
     /// Decode, validate, atomically commit, and notify exactly once. This
     /// method is intended to run from a GPUI foreground callback.

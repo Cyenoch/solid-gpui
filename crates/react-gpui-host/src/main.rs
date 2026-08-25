@@ -489,6 +489,14 @@ fn main() {
             let _ = runtime_for_quit.shutdown();
             std::process::exit(1);
         }
+        let registry_for_action = registry.downgrade();
+        cx.on_action(move |action: &MenuAction, cx| {
+            if let Some(registry) = registry_for_action.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.emit_action(action.name.clone(), cx)
+                });
+            }
+        });
 
         let registry_for_close = registry.downgrade();
         let close_subscription = cx.on_window_closed(move |cx, window_id| {

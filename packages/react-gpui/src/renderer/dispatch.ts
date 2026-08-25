@@ -1,4 +1,5 @@
 import {
+  EVENT_ACTION,
   EVENT_ANIMATION_COMPLETE,
   EVENT_BLUR,
   EVENT_CHANGE,
@@ -48,6 +49,7 @@ export interface DispatchContext {
   findNode(nodeId: number): HostNodeInternal | undefined;
   findInputCallbacks(listenerId: number): TextInputCallbacks | undefined;
   resolveCommandResult(requestId: number, success: boolean, errorPayload: unknown, value?: unknown): void;
+  onAction?: (action: string) => void;
   onSurfaceClosed?: () => void;
   onWindowResize?: (width: number, height: number) => void;
   onWindowActivation?: (active: boolean) => void;
@@ -60,6 +62,11 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     return;
   }
   const payload = event[9];
+  if (event[8] === EVENT_ACTION) {
+    if (typeof payload !== "string") return;
+    context.onAction?.(payload);
+    return;
+  }
   if (event[8] === EVENT_COMMAND_RESULT) {
     if (!Array.isArray(payload) || payload[0] !== 2) return;
     context.resolveCommandResult(

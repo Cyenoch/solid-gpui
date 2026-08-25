@@ -8,10 +8,11 @@ use react_gpui::{
     COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT,
     COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE,
     COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
-    Command, CommandResult, CommandValue, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing,
-    Event, HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT,
-    KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, Node, PROTOCOL_VERSION, Patch, PatchOperation,
+    COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
+    COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
+    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties,
+    KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
+    MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION, Patch, PatchOperation,
     SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
     TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition,
     UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
@@ -181,6 +182,8 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         kind,
         payload,
         title: title.map(str::to_owned),
+        body: None,
+        menus: None,
     }
 }
 fn surface_command(title: &str, width: u32, height: u32) -> Command {
@@ -195,6 +198,51 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         kind: COMMAND_OPEN_SURFACE,
         payload: Some((width, height)),
         title: Some(title.to_owned()),
+        body: None,
+        menus: None,
+    }
+}
+fn notification_command(title: &str, body: &str) -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id: 120,
+        node_id: 1,
+        kind: COMMAND_SHOW_NOTIFICATION,
+        payload: None,
+        title: Some(title.to_owned()),
+        body: Some(body.to_owned()),
+        menus: None,
+    }
+}
+
+fn menus_command() -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id: 121,
+        node_id: 1,
+        kind: COMMAND_SET_MENUS,
+        payload: None,
+        title: None,
+        body: None,
+        menus: Some(vec![MenuDefinition {
+            title: "File".into(),
+            items: vec![
+                MenuItemDefinition::Action("open".into()),
+                MenuItemDefinition::Separator,
+                MenuItemDefinition::Submenu(MenuDefinition {
+                    title: "More".into(),
+                    items: vec![MenuItemDefinition::Action("other".into())],
+                }),
+            ],
+        }]),
     }
 }
 
@@ -453,6 +501,12 @@ fn main() {
     );
     emit(
         &mut rows,
+        "rust-event-action",
+        "event",
+        Event::action(7, 3, 42, 21, "open".into()).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
         "rust-event-command-result-open-surface",
         "event",
         Event::command_result(
@@ -512,6 +566,48 @@ fn main() {
                 success: true,
                 error: None,
                 value: Some(CommandValue::Text("/tmp/report.json".into())),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-notification",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            22,
+            CommandResult {
+                request_id: 120,
+                command: COMMAND_SHOW_NOTIFICATION,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: None,
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-menus",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            23,
+            CommandResult {
+                request_id: 121,
+                command: COMMAND_SET_MENUS,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: None,
             },
         )
         .encode()
@@ -638,6 +734,18 @@ fn main() {
         command(COMMAND_FILE_DIALOG_SAVE, 1, None, Some("report.json"))
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-notification",
+        "command",
+        notification_command("Done", "Finished").encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-set-menus",
+        "command",
+        menus_command().encode().unwrap(),
     );
     emit(
         &mut rows,

@@ -2,7 +2,8 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    ClipboardEntry, ClipboardItem, Context, PathPromptOptions, ScrollStrategy, Window, px, size,
+    ClipboardEntry, ClipboardItem, Context, Menu as GpuiMenu, MenuItem as GpuiMenuItem,
+    PathPromptOptions, ScrollStrategy, SystemNotification, Window, px, size,
 };
 
 use super::ReactRoot;
@@ -10,14 +11,33 @@ use crate::protocol::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
     COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
-    EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_TEXT_BYTES, MAX_WINDOW_DIMENSION,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
+    Command, CommandResult, CommandValue, EVENT_SELECTION, Event, HostProperties,
+    MAX_CLIPBOARD_TEXT_BYTES, MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
 use crate::tree::{KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
 
 impl ReactRoot {
+    fn menu_item(item: MenuItemDefinition) -> GpuiMenuItem {
+        match item {
+            MenuItemDefinition::Separator => GpuiMenuItem::separator(),
+            MenuItemDefinition::Action(name) => {
+                GpuiMenuItem::action(name.clone(), MenuAction { name })
+            }
+            MenuItemDefinition::Submenu(menu) => GpuiMenuItem::submenu(
+                GpuiMenu::new(menu.title).items(menu.items.into_iter().map(Self::menu_item)),
+            ),
+        }
+    }
+
+    fn set_menus(&self, menus: Vec<MenuDefinition>, cx: &mut Context<Self>) {
+        cx.set_menus(menus.into_iter().map(|menu| {
+            GpuiMenu::new(menu.title).items(menu.items.into_iter().map(Self::menu_item))
+        }));
+    }
+
     fn spawn_open_file_dialog(&self, command: Command, cx: &mut Context<Self>) {
         let Some((directories, multiple)) = command.payload else {
             return;
@@ -132,6 +152,45 @@ impl ReactRoot {
             } else if command.after_revision != self.store.revision() {
                 success = false;
                 error = Some("command revision is stale".to_string());
+            } else if command.kind == COMMAND_SET_MENUS {
+                if command.node_id != 1
+                    || command.payload.is_some()
+                    || command.title.is_some()
+                    || command.body.is_some()
+                {
+                    success = false;
+                    error = Some("setMenus payload is invalid".to_owned());
+                } else if let Some(menus) = command.menus.clone() {
+                    self.set_menus(menus, cx);
+                } else {
+                    success = false;
+                    error = Some("setMenus payload is required".to_owned());
+                }
+            } else if command.kind == COMMAND_SHOW_NOTIFICATION {
+                if command.node_id != 1 {
+                    success = false;
+                    error = Some("showNotification requires the root container".to_owned());
+                } else if command.payload.is_some()
+                    || command.title.is_none()
+                    || command.body.is_none()
+                {
+                    success = false;
+                    error = Some("showNotification payload is invalid".to_owned());
+                } else {
+                    let title = command.title.as_deref().unwrap_or_default();
+                    let body = command.body.as_deref().unwrap_or_default();
+                    cx.show_system_notification(SystemNotification {
+                        tag: format!(
+                            "react-gpui:{}:{}",
+                            self.store.surface_id(),
+                            command.request_id
+                        )
+                        .into(),
+                        title: title.into(),
+                        body: body.into(),
+                        actions: Vec::new(),
+                    });
+                }
             } else if matches!(
                 command.kind,
                 COMMAND_FILE_DIALOG_OPEN | COMMAND_FILE_DIALOG_SAVE

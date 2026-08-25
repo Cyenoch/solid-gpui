@@ -34,6 +34,7 @@ import type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  MenuDefinition,
 } from "./renderer/types";
 import type { Transport, TransportTerminationListener } from "./transport";
 export type {
@@ -66,8 +67,9 @@ export type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  MenuDefinition,
+  MenuItem,
 } from "./renderer/types";
-
 const renderer = Reconciler(hostConfig);
 let nextSurfaceId = 1;
 
@@ -79,6 +81,7 @@ export interface RootOptions {
   readonly onClose?: () => void;
   readonly onWindowResize?: WindowResizeHandler;
   readonly onWindowActivation?: WindowActivationHandler;
+  readonly onAction?: (action: string) => void;
 }
 export interface SurfaceOpenOptions {
   readonly title?: string;
@@ -94,6 +97,10 @@ export interface PickFilesOptions {
 export interface PickSavePathOptions {
   readonly defaultName?: string;
 }
+export interface NotificationOptions {
+  readonly title: string;
+  readonly body: string;
+}
 
 export interface Root {
   render(element: ReactNode): void;
@@ -107,6 +114,8 @@ export interface Root {
   openSurface(options?: SurfaceOpenOptions): Promise<number>;
   pickFiles(options?: PickFilesOptions): Promise<string[] | null>;
   pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
+  showNotification(options: NotificationOptions): Promise<void>;
+  setMenus(menus: readonly MenuDefinition[]): Promise<void>;
   openUrl(url: string): Promise<void>;
   focusNext(): Promise<void>;
   focusPrev(): Promise<void>;
@@ -141,6 +150,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
       closed = true;
       options.onClose?.();
     },
+    options.onAction,
   );
   const reconcilerRoot = renderer.createContainer(
     container,
@@ -203,6 +213,14 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     pickSavePath(options: PickSavePathOptions = {}): Promise<string | null> {
       if (closed) return Promise.reject(new Error("Cannot pick a save path from an unmounted root"));
       return container.pickSavePath(options);
+    },
+    showNotification(options: NotificationOptions): Promise<void> {
+      if (closed) return Promise.reject(new Error("Cannot show a notification from an unmounted root"));
+      return container.showNotification(options);
+    },
+    setMenus(menus: readonly MenuDefinition[]): Promise<void> {
+      if (closed) return Promise.reject(new Error("Cannot set menus on an unmounted root"));
+      return container.setMenus(menus);
     },
     toggleFullscreen(): Promise<void> {
       if (closed) return Promise.reject(new Error("Cannot toggle fullscreen on an unmounted root"));

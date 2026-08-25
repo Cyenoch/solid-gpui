@@ -47,7 +47,14 @@ export {
   type WindowActivationHandler,
   type WindowResizeHandler,
 } from "./renderer";
-export type { PickFilesOptions, PickSavePathOptions, SurfaceOpenOptions } from "./renderer";
+export type {
+  MenuDefinition,
+  MenuItem,
+  NotificationOptions,
+  PickFilesOptions,
+  PickSavePathOptions,
+  SurfaceOpenOptions,
+} from "./renderer";
 export { createSurfaceHost, type SurfaceHost, type SurfaceHostOptions } from "./surface-host";
 export {
   DEFAULT_MAX_PENDING_BYTES,

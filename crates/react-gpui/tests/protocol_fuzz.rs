@@ -69,6 +69,8 @@ fn valid_command() -> Command {
         kind: COMMAND_FOCUS,
         payload: None,
         title: None,
+        body: None,
+        menus: None,
     }
 }
 

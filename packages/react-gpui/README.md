@@ -167,6 +167,40 @@ Headless tests cover command validation, asynchronous completion, cancellation,
 and value routing. Actual NSOpenPanel/NSSavePanel interaction requires a
 display-backed macOS Quartz host run and is not exercised in headless CI.
 
+## System notifications and menus
+
+`showNotification` is a one-way, root-scoped request:
+
+```tsx
+await root.showNotification({ title: "Build finished", body: "Artifacts are ready." });
+```
+
+Success means the host submitted a `SystemNotification`; operating-system
+authorization and delivery are best effort. The host owns the internal tag and
+does not expose actions, dismissal, or response callbacks in this interface.
+Windows AppUserModel identity is a host packaging concern.
+
+Static application menus use string action names:
+
+```tsx
+await root.setMenus([
+  {
+    title: "File",
+    items: [
+      { type: "action", name: "open" },
+      { type: "separator" },
+      { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
+    ],
+  },
+]);
+```
+
+Register `onAction` in the root options to receive a selected action string.
+Menu replacement is static for this version: dynamic enablement, accelerator
+labels, and keybinding registration are intentionally out of scope. Web and
+test platforms may not install native menus; headless tests exercise wire and
+dispatch behavior.
+
 ## Debugging
 
 Set `REACT_GPUI_TAP` to a JSONL path before constructing a `StdioTransport` or

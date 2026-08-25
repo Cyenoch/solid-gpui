@@ -90,6 +90,8 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         kind: COMMAND_SET_SELECTION,
         payload: Some((2, 3)),
         title: None,
+        body: None,
+        menus: None,
     };
     assert_eq!(
         Command::decode(&command.encode().unwrap()).unwrap(),
@@ -100,6 +102,8 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         node_id: 1,
         payload: None,
         title: Some("React GPUI".into()),
+        body: None,
+        menus: None,
         ..command.clone()
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
@@ -118,6 +122,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_RESIZE_WINDOW,
             payload: Some((800, 600)),
             title: None,
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -130,6 +136,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_ZOOM_WINDOW,
             payload: None,
             title: None,
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -142,6 +150,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_TOGGLE_FULLSCREEN,
             payload: None,
             title: None,
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -154,6 +164,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_OPEN_URL,
             payload: None,
             title: Some("https://example.com/docs".into()),
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -166,6 +178,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_CLIPBOARD_WRITE,
             payload: None,
             title: Some("clipboard text".into()),
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -178,6 +192,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_CLIPBOARD_READ,
             payload: None,
             title: None,
+            body: None,
+            menus: None,
         },
     ];
     for command in commands {
@@ -199,6 +215,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind,
             payload: None,
             title: None,
+            body: None,
+            menus: None,
         };
         assert_eq!(
             Command::decode(&command.encode().unwrap()).unwrap(),
@@ -217,6 +235,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_RESIZE_WINDOW,
             payload: Some((0, 600)),
             title: None,
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -229,6 +249,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_OPEN_URL,
             payload: None,
             title: Some("file:///tmp/example".into()),
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -241,6 +263,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_ZOOM_WINDOW,
             payload: None,
             title: None,
+            body: None,
+            menus: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -253,6 +277,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             kind: COMMAND_CLIPBOARD_WRITE,
             payload: None,
             title: Some("x".repeat((1 << 20) + 1)),
+            body: None,
+            menus: None,
         },
     ] {
         assert!(matches!(
@@ -271,6 +297,8 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
         kind: 99,
         payload: None,
         title: None,
+        body: None,
+        menus: None,
     };
     assert!(matches!(
         Command::decode(&unknown.encode().unwrap()),
@@ -1351,6 +1379,8 @@ fn command_result_accepts_surface_command_kinds() {
         COMMAND_OPEN_SURFACE,
         COMMAND_FILE_DIALOG_OPEN,
         COMMAND_FILE_DIALOG_SAVE,
+        COMMAND_SHOW_NOTIFICATION,
+        COMMAND_SET_MENUS,
         COMMAND_FOCUS_NEXT,
         COMMAND_FOCUS_PREV,
         COMMAND_GET_WINDOW_SIZE,

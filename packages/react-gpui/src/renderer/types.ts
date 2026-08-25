@@ -135,6 +135,14 @@ export interface ScrollEvent {
 export type WindowResizeHandler = (width: number, height: number) => void;
 export type WindowActivationHandler = (active: boolean) => void;
 export type ScrollHandler = (event: ScrollEvent) => void;
+export type MenuItem =
+  | { readonly type: "separator" }
+  | { readonly type: "action"; readonly name: string }
+  | { readonly type: "submenu"; readonly title: string; readonly items: readonly MenuItem[] };
+export interface MenuDefinition {
+  readonly title: string;
+  readonly items: readonly MenuItem[];
+}
 
 export interface ViewProps extends AccessibilityProps {
   readonly style?: StyleProp;
