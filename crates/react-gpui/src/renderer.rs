@@ -70,6 +70,7 @@ pub struct ReactRoot {
     virtual_item_sizes: HashMap<u32, f32>,
     pending_visible_ranges: Rc<RefCell<HashMap<u32, (u32, u32)>>>,
     reported_visible_ranges: HashMap<u32, (u32, u32)>,
+    reported_layout_bounds: HashMap<u32, (f32, f32, f32, f32)>,
     animation_states: HashMap<u32, AnimationState>,
     animation_styles: HashMap<u32, Option<Style>>,
     frame_styles: HashMap<u32, Style>,
