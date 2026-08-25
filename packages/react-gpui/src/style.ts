@@ -1,5 +1,5 @@
 export type Position = "relative" | "absolute";
-export type FlexDirection = "row" | "column";
+export type FlexDirection = "row" | "column" | "row-reverse" | "column-reverse";
 export type CursorStyle =
   | "default"
   | "text"
@@ -20,6 +20,7 @@ export type CursorStyle =
   | "nwse-resize"
   | "col-resize"
   | "row-resize";
+export type TextAlign = "left" | "center" | "right";
 export type JustifyContent = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
 export type FontWeight = "normal" | "medium" | "semibold" | "bold" | "heavy";
@@ -74,6 +75,7 @@ export interface Style {
   readonly right?: number;
   readonly bottom?: number;
   readonly cursor?: CursorStyle;
+  readonly textAlign?: TextAlign;
   readonly backgroundColor?: string;
   readonly color?: string;
   readonly opacity?: number;
@@ -86,7 +88,7 @@ export type EncodedTransition = readonly [number, number, 0 | 1 | 2 | 3, number]
 export type EncodedStyle = readonly [
   number | null,
   number | null,
-  0 | 1 | 2,
+  0 | 1 | 2 | 3 | 4,
   number | null,
   number | null,
   number | null,
@@ -118,6 +120,7 @@ export type EncodedStyle = readonly [
   number | null,
   number | null,
   0 | 1,
+  number | null,
   number | null,
   number | null,
   number | null,
@@ -159,6 +162,7 @@ const STYLE_KEYS: Record<string, true> = {
   position: true,
   left: true,
   top: true,
+  textAlign: true,
   right: true,
   cursor: true,
   bottom: true,
@@ -293,8 +297,14 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     assertNumber("opacity", style.opacity, true);
     if (style.opacity > 1) throw new TypeError("opacity must be between 0 and 1");
   }
-  if (style.flexDirection !== undefined && style.flexDirection !== "row" && style.flexDirection !== "column") {
-    throw new TypeError("flexDirection must be row or column");
+  if (
+    style.flexDirection !== undefined &&
+    !["row", "column", "row-reverse", "column-reverse"].includes(style.flexDirection)
+  ) {
+    throw new TypeError("flexDirection is invalid");
+  }
+  if (style.textAlign !== undefined && !["left", "center", "right"].includes(style.textAlign)) {
+    throw new TypeError("textAlign is invalid");
   }
   for (const key of ["borderColor", "backgroundColor", "color"] as const) {
     const color = style[key];
@@ -478,7 +488,15 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
   const encoded = Object.freeze([
     style.width ?? null,
     style.height ?? null,
-    style.flexDirection === undefined ? 0 : style.flexDirection === "row" ? 1 : 2,
+    style.flexDirection === undefined
+      ? 0
+      : style.flexDirection === "row"
+        ? 1
+        : style.flexDirection === "column"
+          ? 2
+          : style.flexDirection === "row-reverse"
+            ? 3
+            : 4,
     style.flexGrow ?? null,
     style.padding ?? null,
     style.gap ?? null,
@@ -515,6 +533,7 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
     style.right ?? null,
     style.bottom ?? null,
     encodeCursor(style.cursor),
+    style.textAlign === undefined ? 0 : style.textAlign === "left" ? 1 : style.textAlign === "center" ? 2 : 3,
   ]) as EncodedStyle;
   ENCODED_STYLE_CACHE.set(style, encoded);
   return encoded;

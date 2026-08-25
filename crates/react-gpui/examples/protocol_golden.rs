@@ -76,6 +76,7 @@ fn style() -> Style {
         right: Some(12.0),
         bottom: Some(6.0),
         cursor: Some(2),
+        text_align: Some(3),
     }
 }
 

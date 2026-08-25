@@ -1200,10 +1200,10 @@ fn validate_reachable(
 
 fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> {
     let Some(style) = style else { return Ok(()) };
-    if style.flex_direction.is_some_and(|direction| direction > 2) {
+    if style.flex_direction.is_some_and(|direction| direction > 4) {
         return Err(TreeError::InvalidStyle {
             node_id,
-            reason: "flexDirection must be 0 (unset), 1 (row), or 2 (column)",
+            reason: "flexDirection must be 0 (unset), 1 row, 2 column, 3 row-reverse, or 4 column-reverse",
         });
     }
     if style.position.is_some_and(|position| position > 1) {
@@ -1216,6 +1216,12 @@ fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> 
         return Err(TreeError::InvalidStyle {
             node_id,
             reason: "cursor must be a supported style code",
+        });
+    }
+    if style.text_align.is_some_and(|align| align > 3) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "textAlign must be 0 (unset), 1 left, 2 center, or 3 right",
         });
     }
     if style

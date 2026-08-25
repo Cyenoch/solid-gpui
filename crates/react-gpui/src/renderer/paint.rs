@@ -673,6 +673,8 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
         element = match direction {
             1 => element.flex_row(),
             2 => element.flex_col(),
+            3 => element.flex_row_reverse(),
+            4 => element.flex_col_reverse(),
             _ => element,
         };
     }
@@ -830,6 +832,14 @@ fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
     }
     if let Some(line_height) = style.line_height {
         element = element.line_height(px(line_height));
+    }
+    if let Some(align) = style.text_align {
+        element = match align {
+            1 => element.text_left(),
+            2 => element.text_center(),
+            3 => element.text_right(),
+            _ => element,
+        };
     }
     if let Some(line_clamp) = style.line_clamp {
         element.text_style().line_clamp = Some(line_clamp as usize);

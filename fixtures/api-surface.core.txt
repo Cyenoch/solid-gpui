@@ -70,6 +70,7 @@ SurfaceHost	type
 SurfaceHostOptions	type
 SurfaceOpenOptions	type
 Text	value
+TextAlign	type
 TextDecoration	type
 TextInput	value
 TextInputHandle	type

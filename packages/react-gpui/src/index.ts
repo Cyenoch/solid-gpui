@@ -87,6 +87,7 @@ export {
   type AlignSelf,
   type CursorStyle,
   type FlexDirection,
+  type TextAlign,
   type Position,
   type FontStyle,
   type FontWeight,

@@ -273,7 +273,11 @@ fn style_values_must_be_finite_and_non_negative() {
             ..Style::default()
         },
         Style {
-            flex_direction: Some(3),
+            flex_direction: Some(5),
+            ..Style::default()
+        },
+        Style {
+            text_align: Some(4),
             ..Style::default()
         },
         Style {
@@ -353,7 +357,7 @@ fn style_values_must_be_finite_and_non_negative() {
     valid.style = Some(Style {
         width: Some(10.0),
         height: Some(20.0),
-        flex_direction: Some(2),
+        flex_direction: Some(3),
         flex_grow: Some(0.5),
         padding: Some(4.0),
         gap: Some(2.0),
@@ -390,6 +394,7 @@ fn style_values_must_be_finite_and_non_negative() {
         right: None,
         bottom: Some(6.0),
         cursor: None,
+        text_align: Some(3),
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
@@ -429,6 +434,7 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         right: Some(12.0),
         bottom: Some(6.0),
         cursor: Some(18),
+        text_align: Some(3),
         transition: Some(Transition {
             duration_ms: 100,
             delay_ms: 0,

@@ -94,7 +94,7 @@ reader).
 
 - `width`, `height`, `flexGrow`, `padding`, `gap`, `borderRadius`, and `borderWidth` — finite, non-negative numbers.
 - `fontSize` — a finite, positive number in pixels; it applies to `Text` and `RawText`.
-- `flexDirection` — `"row"` or `"column"`.
+- `flexDirection` — `"row"`, `"column"`, `"row-reverse"`, or `"column-reverse"`; reverse values mirror the physical flex axis and are not an RTL base direction.
 - `justifyContent` — `"flex-start"`, `"center"`, `"flex-end"`, `"space-between"`, `"space-around"`, or `"space-evenly"`.
 - `alignItems` — `"flex-start"`, `"center"`, `"flex-end"`, `"stretch"`, or `"baseline"`.
 - `borderColor`, `backgroundColor`, and `color` — `#RRGGBB` or `#RRGGBBAA`, packed as RGBA `u32` values on the wire.
@@ -108,12 +108,14 @@ reader).
 - `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
 - `position` — `"relative"` (default post-layout correction) or `"absolute"` (anchored to the closest positioned ancestor/origin); `left`, `top`, `right`, and `bottom` — finite pixel offsets, including negative values.
 - `cursor` — `"default"`, `"text"`, `"pointer"`, `"grab"`, `"grabbing"`, `"not-allowed"`, `"context-menu"`, `"crosshair"`, `"vertical-text"`, `"alias"`, `"copy"`, `"no-drop"`, `"move"`, `"ew-resize"`, `"ns-resize"`, `"nesw-resize"`, `"nwse-resize"`, `"col-resize"`, or `"row-resize"`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors.
+- `textAlign` — `"left"`, `"center"`, or `"right"` for physical text alignment on `Text` and `RawText`; logical RTL start/end alignment is unsupported.
 
-The transport uses one fixed positional 39-slot style tuple: slots `0..19`
+The transport uses one fixed positional 40-slot style tuple: slots `0..19`
 remain unchanged, the existing fields occupy `20..32`, and positioning appends
-`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`, `38=cursor`;
-omitted fields are encoded as `null` except position, whose default code `0`
-means relative, and cursor, whose default code `0` means Arrow.
+`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`, `38=cursor`,
+`39=textAlign`; omitted fields are encoded as `null` except position and text
+alignment, whose default codes are `0` (relative and unset respectively), and
+cursor, whose default code `0` means Arrow.
 Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
 exposed; overlay layering follows subtree paint/hit-test order.
 

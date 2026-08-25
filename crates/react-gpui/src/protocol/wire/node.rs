@@ -96,6 +96,7 @@ pub(super) struct StyleWire(
     Option<f32>,
     Option<f32>,
     Option<u32>,
+    Option<u32>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,6 +184,7 @@ impl From<&Style> for StyleWire {
             style.right,
             style.bottom,
             style.cursor,
+            style.text_align,
         )
     }
 }
@@ -229,6 +231,7 @@ impl From<StyleWire> for Style {
             right: style.36,
             bottom: style.37,
             cursor: style.38,
+            text_align: style.39,
         }
     }
 }
@@ -338,9 +341,10 @@ fn validate_host_kind(
 }
 
 pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError> {
-    if style.2.is_some_and(|direction| direction > 2)
+    if style.2.is_some_and(|direction| direction > 4)
         || style.33.is_some_and(|position| position > 1)
         || style.38.is_some_and(|cursor| cursor > 18)
+        || style.39.is_some_and(|align| align > 3)
         || [style.34, style.35, style.36, style.37]
             .into_iter()
             .flatten()

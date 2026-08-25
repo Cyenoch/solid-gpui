@@ -506,6 +506,7 @@ describe("styles", () => {
         flexShrink: 0.5,
         alignSelf: "center",
         cursor: "pointer",
+        textAlign: "center",
       },
     });
     expect(Object.isFrozen(styles)).toBe(true);
@@ -553,6 +554,7 @@ describe("styles", () => {
       null,
       null,
       2,
+      2,
     ]);
     root.render(<View style={{ opacity: 0, transition: { durationMs: 100 } }} />);
     expect(((message(transport, 1)[6] as readonly unknown[][])[0][3] as readonly unknown[])[9]).toEqual([
@@ -582,6 +584,7 @@ describe("styles", () => {
     expect(() => StyleSheet.create({ bad: { textDecoration: "double" as never } })).toThrow();
     expect(() => StyleSheet.create({ bad: { alignSelf: "invalid" as never } })).toThrow();
     expect(() => StyleSheet.create({ bad: { cursor: "unsupported" as never } })).toThrow();
+    expect(() => StyleSheet.create({ bad: { textAlign: "justify" as never } })).toThrow();
     expect(() => StyleSheet.create({ positioned: { position: "fixed" as never } })).toThrow();
     expect(() =>
       StyleSheet.create({
@@ -590,11 +593,20 @@ describe("styles", () => {
     ).not.toThrow();
   });
 });
+it("encodes reverse flex directions and physical text alignment", () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport, { surfaceId: 89, epoch: 90 });
+  root.render(<View style={{ flexDirection: "row-reverse", textAlign: "right" }} />);
+  const encoded = snapshots(transport)[0][6][1][4] as readonly unknown[];
+  expect(encoded[2]).toBe(3);
+  expect(encoded[39]).toBe(3);
+  root.unmount();
+});
 it("encodes absolute positioning and negative inset offsets", () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 87, epoch: 88 });
   root.render(<View style={{ position: "absolute", left: -8, top: 4, right: 12, bottom: 6 }} />);
-  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([1, -8, 4, 12, 6, null]);
+  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([1, -8, 4, 12, 6, null, 0]);
 });
 it("encodes Image host properties and rejects Image children", () => {
   const transport = new MemoryTransport();

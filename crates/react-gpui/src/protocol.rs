@@ -391,6 +391,7 @@ pub struct Style {
     pub right: Option<f32>,
     pub bottom: Option<f32>,
     pub cursor: Option<u32>,
+    pub text_align: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
