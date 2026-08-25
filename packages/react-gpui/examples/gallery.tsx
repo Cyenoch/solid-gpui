@@ -125,6 +125,24 @@ const styles = StyleSheet.create({
 function Gallery() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(false);
+  const [activityRows, setActivityRows] = useState(rows);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const moveActivity = (targetId: number, dragType: string) => {
+    const prefix = "activity:";
+    if (!dragType.startsWith(prefix)) return;
+    const sourceId = Number(dragType.slice(prefix.length));
+    if (!Number.isInteger(sourceId) || sourceId === targetId) return;
+    setActivityRows((current) => {
+      const sourceIndex = current.findIndex((row) => row.id === sourceId);
+      const targetIndex = current.findIndex((row) => row.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const next = [...current];
+      const [source] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, source);
+      return next;
+    });
+    setDragOverId(null);
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [presses, setPresses] = useState(0);
   const activityStyle = useMemo<Style>(
@@ -145,7 +163,9 @@ function Gallery() {
     [active],
   );
   const visibleRows =
-    query.trim() === "" ? rows : rows.filter((row) => row.title.toLowerCase().includes(query.toLowerCase()));
+    query.trim() === ""
+      ? activityRows
+      : activityRows.filter((row) => row.title.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <View style={styles.screen} accessibilityRole="generic" accessibilityLabel="React GPUI capability gallery">
@@ -191,13 +211,23 @@ function Gallery() {
           </View>
         </View>
         <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Virtual activity</Text>
+          <Text style={styles.panelTitle}>Virtual activity (drag to reorder)</Text>
           <VirtualList<Row>
             style={{ height: 360, flexGrow: 0 }}
             data={visibleRows}
             itemKey={(row) => row.id}
             renderItem={(row) => (
-              <View style={styles.row}>
+              <View
+                style={{
+                  ...styles.row,
+                  borderColor: dragOverId === row.id ? "#2d6cdf" : "#e1e7f0",
+                }}
+                draggable={{ type: `activity:${row.id}`, data: row }}
+                onDragOver={(type) => {
+                  if (type.startsWith("activity:")) setDragOverId(row.id);
+                }}
+                onDrop={(type) => moveActivity(row.id, type)}
+              >
                 <Text style={styles.rowTitle}>{row.title}</Text>
                 <Text style={styles.rowDetail}>{row.detail}</Text>
               </View>

@@ -1003,6 +1003,18 @@ fn validate_host_properties_shape(
     host_properties: Option<&HostProperties>,
 ) -> Result<(), TreeError> {
     match (host_properties, kind) {
+        (Some(HostProperties::Drag(drag)), KIND_VIEW | KIND_PRESSABLE) => {
+            if drag.drag_type.as_ref().is_some_and(|value| {
+                value.is_empty()
+                    || value.chars().count() > 128
+                    || value.chars().any(char::is_control)
+            }) {
+                return Err(TreeError::InvalidProperties {
+                    node_id,
+                    reason: "invalid drag type",
+                });
+            }
+        }
         (Some(HostProperties::TextInput(input)), KIND_TEXT_INPUT) => {
             if input.marked_start.is_some() != input.marked_end.is_some()
                 || input

@@ -29,6 +29,7 @@ pub const EVENT_SURFACE_CLOSED: u32 = 16;
 pub const EVENT_ACTION: u32 = 17;
 pub const EVENT_WINDOW_APPEARANCE: u32 = 18;
 pub const EVENT_LAYOUT: u32 = 19;
+pub const EVENT_DRAG: u32 = 20;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -297,6 +298,7 @@ pub enum HostProperties {
     TextInput(TextInputProperties),
     VirtualList(VirtualListProperties),
     Image(ImageProperties),
+    Drag(DragProperties),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -317,6 +319,10 @@ pub struct TextInputProperties {
 pub struct ImageProperties {
     pub source: String,
     pub object_fit: u32,
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct DragProperties {
+    pub drag_type: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -487,6 +493,15 @@ pub enum EventPayload {
         y: f32,
         width: f32,
         height: f32,
+    },
+    DragOver {
+        drag_type: String,
+    },
+    DragDrop {
+        drag_type: String,
+    },
+    ExternalFileDrop {
+        paths: Vec<String>,
     },
 }
 
@@ -810,6 +825,93 @@ impl Event {
                 height,
             }),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn drag_event(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        payload: EventPayload,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            event_type: EVENT_DRAG,
+            payload: Some(payload),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn drag_over(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        drag_type: String,
+    ) -> Self {
+        Self::drag_event(
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            EventPayload::DragOver { drag_type },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn drag_drop(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        drag_type: String,
+    ) -> Self {
+        Self::drag_event(
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            EventPayload::DragDrop { drag_type },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn external_file_drop(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        paths: Vec<String>,
+    ) -> Self {
+        Self::drag_event(
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            EventPayload::ExternalFileDrop { paths },
+        )
     }
 
     pub fn action(

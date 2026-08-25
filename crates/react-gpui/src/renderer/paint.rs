@@ -4,10 +4,10 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, App, Bounds, Element, ElementId, ElementInputHandler, Entity, GlobalElementId,
-    ImageSource, InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton,
-    ObjectFit, ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled,
-    StyledImage, Window, div, img, px, rgba, uniform_list,
+    AnyElement, App, AppContext, Bounds, Element, ElementId, ElementInputHandler, Entity,
+    ExternalPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
+    IntoElement, LayoutId, MouseButton, ObjectFit, ParentElement, Pixels, Render, SharedString,
+    StatefulInteractiveElement, Styled, StyledImage, Window, div, img, px, rgba, uniform_list,
 };
 
 use crate::protocol::{
@@ -21,7 +21,26 @@ use crate::tree::{
 
 use super::ReactRoot;
 use super::committed_child_index;
-use super::events::{emit_key_event, emit_pointer_event, emit_scroll_event};
+use super::events::{
+    emit_drag_drop, emit_drag_over, emit_external_file_drop, emit_key_event, emit_pointer_event,
+    emit_scroll_event,
+};
+#[derive(Clone)]
+struct ReactDragPayload {
+    drag_type: String,
+}
+
+struct DragPreview;
+
+impl Render for DragPreview {
+    fn render(&mut self, _window: &mut Window, _cx: &mut gpui::Context<Self>) -> impl IntoElement {
+        div()
+            .w(px(24.0))
+            .h(px(24.0))
+            .bg(rgba(0x4c8dffff))
+            .opacity(0.45)
+    }
+}
 struct MeasuredElement {
     element: AnyElement,
     entity: Entity<ReactRoot>,
@@ -471,6 +490,91 @@ impl ReactRoot {
                     event,
                 );
             });
+        }
+        if let Some(HostProperties::Drag(drag)) = node.host_properties.as_ref() {
+            if let Some(drag_type) = drag.drag_type.clone() {
+                let active_drag_type = Rc::clone(&self.active_drag_type);
+                element =
+                    element.on_drag(ReactDragPayload { drag_type }, move |value, _, _, cx| {
+                        *active_drag_type.borrow_mut() = Some(value.drag_type.clone());
+                        cx.new(|_| DragPreview)
+                    });
+            }
+            if node.listener_id != 0 {
+                let active_drag_type = Rc::clone(&self.active_drag_type);
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                let surface_id = self.store.surface_id();
+                let epoch = self.store.epoch();
+                let revision = self.store.revision();
+                let node_id = node.id;
+                let listener_id = node.listener_id;
+                element = element.on_mouse_move(move |_event, _, cx| {
+                    if !cx.has_active_drag() {
+                        active_drag_type.borrow_mut().take();
+                        return;
+                    }
+                    let Some(drag_type) = active_drag_type.borrow().clone() else {
+                        return;
+                    };
+                    emit_drag_over(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        &drag_type,
+                    );
+                });
+                let active_drag_type = Rc::clone(&self.active_drag_type);
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                let surface_id = self.store.surface_id();
+                let epoch = self.store.epoch();
+                let revision = self.store.revision();
+                let node_id = node.id;
+                let listener_id = node.listener_id;
+                element = element.on_drop(move |drag: &ReactDragPayload, _, _| {
+                    active_drag_type.borrow_mut().take();
+                    emit_drag_drop(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        &drag.drag_type,
+                    );
+                });
+                let active_drag_type = Rc::clone(&self.active_drag_type);
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                let surface_id = self.store.surface_id();
+                let epoch = self.store.epoch();
+                let revision = self.store.revision();
+                let node_id = node.id;
+                let listener_id = node.listener_id;
+                element = element.on_drop(move |paths: &ExternalPaths, _, _| {
+                    active_drag_type.borrow_mut().take();
+                    emit_external_file_drop(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        paths
+                            .paths()
+                            .iter()
+                            .map(|path| path.to_string_lossy().into_owned())
+                            .collect(),
+                    );
+                });
+            }
         }
         measure_node(node, element.into_any(), entity)
     }

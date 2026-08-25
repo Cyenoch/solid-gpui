@@ -46,6 +46,7 @@ const accessibility = [5, "golden label", "golden description", false, true, fal
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8];
 const virtualList = [2, 20, 2, 9, 24.5, 3];
 const image = [3, "assets/😀.png", 3];
+const drag = [4, "card"];
 
 function hex(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("hex");
@@ -60,8 +61,9 @@ const input = [5, 1, 2, 5, null, null, 0, textInput, null, false];
 const rawText = [3, 2, 0, 4, null, "raw 😀", 0, null, null, false];
 const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false];
 const list = [6, 1, 3, 6, null, null, 0, virtualList, null, false];
+const dragNode = [8, 1, 5, 3, null, null, 11, drag, null, false];
 const imageNode = [7, 1, 4, 7, null, null, 0, image, null, false];
-const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode]];
+const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode, dragNode]];
 const patch = [
   3,
   3,
@@ -70,7 +72,7 @@ const patch = [
   42,
   43,
   [
-    [1, 8, 1, 5, 3, null, null, 11, null, null, false],
+    [1, 8, 1, 5, 3, null, null, 11, drag, null, false],
     [2, 4, 63, fullStyle, "updated", 12, [3, "assets/logo.png", 2], accessibility, true],
     [3, 4, 1, 0],
     [4, 6],
@@ -146,6 +148,9 @@ const rows = [
   row("ts-event-window-activation", "event", [3, 2, 7, 3, 42, 12, 1, 0, 15, true]),
   row("ts-event-window-appearance", "event", [3, 2, 7, 3, 42, 16, 1, 0, 18, "dark"]),
   row("ts-event-layout", "event", [3, 2, 7, 3, 42, 17, 4, 7, 19, [12.5, -3.25, 100, 48.75]]),
+  row("ts-event-drag-over", "event", [3, 2, 7, 3, 42, 18, 8, 11, 20, [1, "card"]]),
+  row("ts-event-drag-drop", "event", [3, 2, 7, 3, 42, 19, 8, 11, 20, [2, "card"]]),
+  row("ts-event-drag-external", "event", [3, 2, 7, 3, 42, 20, 8, 11, 20, [3, ["/tmp/a.txt", "/tmp/b"]]]),
   row("ts-event-command-result-size", "event", [
     3,
     2,

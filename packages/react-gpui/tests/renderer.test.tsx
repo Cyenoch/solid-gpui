@@ -44,6 +44,7 @@ import {
   EVENT_WINDOW_ACTIVATION,
   EVENT_WINDOW_RESIZE,
   EVENT_LAYOUT,
+  EVENT_DRAG,
   SCROLL_DELTA_LINES,
   SCROLL_DELTA_PIXELS,
   decodeEvent,
@@ -230,6 +231,16 @@ describe("protocol framing", () => {
       [12.5, -3.25, Number.NaN, 48.75],
     ] as never);
     expect(decodeEvent(valid.slice(4))).not.toBeNull();
+    expect(decodeEvent(invalid.slice(4))).toBeNull();
+  });
+  it("decodes drag over, drop, and external file payloads", () => {
+    const over = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 4, 7, EVENT_DRAG, [1, "card"]]);
+    const drop = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 4, 7, EVENT_DRAG, [2, "card"]]);
+    const external = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 4, 7, EVENT_DRAG, [3, ["/tmp/a.txt"]]]);
+    const invalid = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 4, 0, 7, EVENT_DRAG, [1, "card"]] as never);
+    expect(decodeEvent(over.slice(4))).not.toBeNull();
+    expect(decodeEvent(drop.slice(4))).not.toBeNull();
+    expect(decodeEvent(external.slice(4))).not.toBeNull();
     expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
 });
@@ -1334,6 +1345,34 @@ describe("renderer commits", () => {
       encodeFrame([PROTOCOL_VERSION, 2, 71, 72, 1, 1, nodeId, listener, EVENT_LAYOUT, [12.5, -3.25, 100, 48.75]]),
     );
     expect(received).toEqual([{ x: 12.5, y: -3.25, width: 100, height: 48.75 }]);
+    root.unmount();
+  });
+  it("dispatches internal drag notifications and external file drops", () => {
+    const transport = new MemoryTransport();
+    const over: string[] = [];
+    const dropped: string[] = [];
+    const files: string[][] = [];
+    const root = createRoot(transport, { surfaceId: 73, epoch: 74 });
+    root.render(
+      <View
+        draggable={{ type: "card", data: { id: 1 } }}
+        onDragOver={(type) => over.push(type)}
+        onDrop={(type) => dropped.push(type)}
+        onExternalFileDrop={(paths) => files.push(paths)}
+      />,
+    );
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    expect(node[7]).toEqual([4, "card"]);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 1, nodeId, listener, EVENT_DRAG, [1, "card"]]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 2, nodeId, listener, EVENT_DRAG, [2, "card"]]));
+    transport.push(
+      encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 3, nodeId, listener, EVENT_DRAG, [3, ["/tmp/a.txt", "/tmp/b"]]]),
+    );
+    expect(over).toEqual(["card"]);
+    expect(dropped).toEqual(["card"]);
+    expect(files).toEqual([["/tmp/a.txt", "/tmp/b"]]);
     root.unmount();
   });
 

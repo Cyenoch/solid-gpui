@@ -35,6 +35,10 @@ export const EVENT_SURFACE_CLOSED = 16 as const;
 export const EVENT_ACTION = 17 as const;
 export const EVENT_WINDOW_APPEARANCE = 18 as const;
 export const EVENT_LAYOUT = 19 as const;
+export const EVENT_DRAG = 20 as const;
+export const DRAG_OVER = 1 as const;
+export const DRAG_DROP = 2 as const;
+export const DRAG_EXTERNAL_FILE_DROP = 3 as const;
 export const EVENT_POINTER_DOWN = 1 as const;
 export const EVENT_POINTER_UP = 2 as const;
 export const POINTER_BUTTON_LEFT = 1 as const;
@@ -103,7 +107,12 @@ export type TextInputPropertiesWire = readonly [
 ];
 export type VirtualListPropertiesWire = readonly [2, number, number, number, number, number];
 export type ImagePropertiesWire = readonly [3, string, 1 | 2 | 3 | 4 | 5];
-export type HostPropertiesWire = TextInputPropertiesWire | VirtualListPropertiesWire | ImagePropertiesWire;
+export type DragPropertiesWire = readonly [4, string | null];
+export type HostPropertiesWire =
+  | TextInputPropertiesWire
+  | VirtualListPropertiesWire
+  | ImagePropertiesWire
+  | DragPropertiesWire;
 
 export type SnapshotNode = readonly [
   number,
@@ -230,6 +239,10 @@ export type WindowActivationEventPayload = boolean;
 export type ActionEventPayload = string;
 export type WindowAppearanceEventPayload = "light" | "dark";
 export type LayoutEventPayload = readonly [number, number, number, number];
+export type DragEventPayload =
+  | readonly [typeof DRAG_OVER, string]
+  | readonly [typeof DRAG_DROP, string]
+  | readonly [typeof DRAG_EXTERNAL_FILE_DROP, readonly string[]];
 export type EventPayload =
   | TextInputEventPayload
   | CommandResultPayload
@@ -243,7 +256,8 @@ export type EventPayload =
   | WindowActivationEventPayload
   | ActionEventPayload
   | WindowAppearanceEventPayload
-  | LayoutEventPayload;
+  | LayoutEventPayload
+  | DragEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -273,6 +287,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_ACTION
     | typeof EVENT_WINDOW_APPEARANCE
     | typeof EVENT_LAYOUT
+    | typeof EVENT_DRAG
   ),
   EventPayload | null,
 ];
@@ -467,9 +482,18 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
       value[2] <= 5
     );
   }
+  if (value[0] === 4) {
+    return (
+      value.length === 2 &&
+      (value[1] === null ||
+        (typeof value[1] === "string" &&
+          value[1].length > 0 &&
+          [...value[1]].length <= 128 &&
+          !/[\u0000-\u001f\u007f]/.test(value[1])))
+    );
+  }
   return false;
 }
-
 function validateEventPayload(eventType: number, payload: unknown): payload is EventPayload | null {
   if (eventType === EVENT_PRESS || eventType === EVENT_HOVER || eventType === EVENT_SURFACE_CLOSED)
     return payload === null;
@@ -480,6 +504,29 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       payload.length === 4 &&
       payload.every((value) => typeof value === "number" && Number.isFinite(value))
     );
+  }
+  if (eventType === EVENT_DRAG) {
+    if (!Array.isArray(payload) || payload.length !== 2) {
+      return false;
+    }
+    if (payload[0] === DRAG_OVER || payload[0] === DRAG_DROP) {
+      return (
+        typeof payload[1] === "string" &&
+        payload[1].length > 0 &&
+        [...payload[1]].length <= 128 &&
+        !/[\u0000-\u001f\u007f]/.test(payload[1])
+      );
+    }
+    if (payload[0] === DRAG_EXTERNAL_FILE_DROP && Array.isArray(payload[1])) {
+      return (
+        payload[1].length > 0 &&
+        payload[1].every(
+          (path) =>
+            typeof path === "string" && path.length > 0 && path.length <= 4096 && !/[\u0000-\u001f\u007f]/.test(path),
+        )
+      );
+    }
+    return false;
   }
   if (eventType === EVENT_ACTION)
     return typeof payload === "string" && payload.length > 0 && [...payload].length <= 256;
@@ -647,10 +694,11 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
       return null;
     }
   }
-  if (typeof value[8] !== "number" || !Number.isInteger(value[8]) || value[8] < EVENT_PRESS || value[8] > EVENT_LAYOUT)
+  if (typeof value[8] !== "number" || !Number.isInteger(value[8]) || value[8] < EVENT_PRESS || value[8] > EVENT_DRAG)
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;
   if (value[8] === EVENT_ACTION && (value[6] !== 1 || value[7] !== 0)) return null;
   if (value[8] === EVENT_WINDOW_APPEARANCE && (value[6] !== 1 || value[7] !== 0)) return null;
+  if (value[8] === EVENT_DRAG && (value[6] === 0 || value[7] === 0)) return null;
   return validateEventPayload(value[8], value[9]) ? (value as unknown as PressEventFrame) : null;
 }

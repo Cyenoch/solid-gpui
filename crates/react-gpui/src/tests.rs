@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, EVENT_LAYOUT, HostProperties, KeyAction};
+use crate::protocol::{
+    DragProperties, EVENT_DRAG, EVENT_KEY, EVENT_KEY_DOWN, EVENT_LAYOUT, HostProperties, KeyAction,
+};
 
 fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {
     Snapshot::new(7, 3, revision.saturating_sub(1), revision, nodes)
@@ -893,6 +895,53 @@ fn layout_events_round_trip_and_reject_non_finite_bounds() {
         Event::decode(&malformed),
         Err(ProtocolError::InvalidEventPayload)
     ));
+}
+#[test]
+fn drag_events_round_trip_all_payload_kinds_and_reject_invalid_paths() {
+    let events = [
+        Event::drag_over(7, 3, 1, 7, 9, 11, "card".into()),
+        Event::drag_drop(7, 3, 1, 8, 9, 11, "card".into()),
+        Event::external_file_drop(
+            7,
+            3,
+            1,
+            9,
+            9,
+            11,
+            vec!["/tmp/a.txt".into(), "/tmp/b".into()],
+        ),
+    ];
+    for event in events {
+        assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+    }
+
+    let malformed = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        10u32,
+        9u32,
+        11u32,
+        EVENT_DRAG,
+        Some((3u32, vec!["".to_owned()])),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&malformed),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
+
+    let mut node = Node::new(2, 1, 0, KIND_VIEW);
+    node.host_properties = Some(HostProperties::Drag(DragProperties {
+        drag_type: Some("card".into()),
+    }));
+    let snapshot = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), node]);
+    assert_eq!(
+        Snapshot::decode(&snapshot.encode().unwrap()).unwrap(),
+        snapshot
+    );
 }
 
 #[test]

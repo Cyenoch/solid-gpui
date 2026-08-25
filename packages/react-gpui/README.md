@@ -37,6 +37,30 @@ The callback receives `{ x, y, width, height }` in window pixels after native
 post-layout measurement. The first report is delivered on the next frame;
 identical finite frames are deduplicated. Layout reports are asynchronous and
 are not available for `TextInput`, `VirtualList`, or virtualized rows.
+## Drag and drop
+
+`View` and `Pressable` support internal drag sources and drop targets:
+
+```tsx
+<View
+  draggable={{ type: "activity", data: { id: activity.id } }}
+  onDragOver={(type) => setDragType(type)}
+  onDrop={(type) => moveActivity(type)}
+  onExternalFileDrop={(paths) => importFiles(paths)}
+/>
+```
+
+`draggable.type` is the only value sent over the native protocol; `data` stays
+in JavaScript for application-side association. GPUI starts an internal drag
+after its native pointer threshold and renders a fixed 24×24 translucent
+preview; custom drag previews are not exposed. `onDragOver` is a notification
+only and its return value is not a native `can_drop` decision. `onDrop`
+receives the drag type, while `onExternalFileDrop` receives ordered local
+filesystem paths from the desktop drop. Browser runtimes do not promise
+filesystem path drops.
+Enter/leave/move lifecycle events are intentionally not exposed in this
+minimal surface; `onDragOver` is the target notification.
+
 
 ## Styles
 

@@ -135,8 +135,8 @@ retained tree's current revision (`tree.rs:862-934`).
 |        5 | u32                    | Native event sequence. The receiver rejects a sequence not greater than the last accepted sequence.                                                   | `protocol.ts:222`; `root-container.ts:528-538`            |
 |        6 | u32                    | Target Host Node ID; root-level window events use synthetic root node `1`.                                                                            | `protocol.ts:223`; `protocol.rs:424`; `dispatch.ts:67-80` |
 |        7 | u32                    | Listener ID; `CommandResult` uses listener `0`, while target events use the mounted listener.                                                         | `protocol.ts:224`; `protocol.rs:425,701-703`              |
-|        8 | u32                    | Event type `1..19`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:629-636`; `wire.rs:347-477`                  |
-|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:458-615`; `wire.rs:303-477`                  |
+|        8 | u32                    | Event type `1..20`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:687-693`; `wire.rs:347-493`                  |
+|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:488-558`; `wire.rs:303-493`                  |
 
 ### Node tuple
 
@@ -153,7 +153,7 @@ host properties, accessibility, and parent-child shape (`tree.rs:937-1100`).
 |        4 | `style`          | 33-slot array or null | Encoded Style; see the complete slot table below.                                          | `style.ts:58-93,276-393`; `wire.rs:462-496` |
 |        5 | `text`           | string or null        | Must be non-null only for RawText; all other kinds use null.                               | `tree.rs:953-959`                           |
 |        6 | `listenerId`     | u32                   | Identifies a JavaScript listener table entry; zero means no listener.                      | `protocol.rs:229`; `tree.rs:967-981`        |
-|        7 | `hostProperties` | tagged array or null  | Required for TextInput, VirtualList, and Image; forbidden for other kinds.                 | `wire.rs:420-448`; `tree.rs:1000-1057`      |
+|        7 | `hostProperties` | tagged array or null  | Required for TextInput, VirtualList, and Image; optional on View/Pressable when drag metadata is present; forbidden for other kinds. | `wire.rs:420-448,641-645`; `tree.rs:1000-1068` |
 |        8 | `accessibility`  | 7-slot array or null  | Accessibility metadata; checked requires checkbox role.                                    | `wire.rs:450-459`; `tree.rs:983-997`        |
 |        9 | `focusable`      | boolean               | Current retained-tree validation permits focusability only on View and Pressable.          | `tree.rs:961-965`                           |
 
@@ -171,6 +171,7 @@ shape to match the node kind.
 |   1 | TextInput   | `[1,value,placeholder,multiline,disabled,controlled,ackEditSeq,selectionStart,selectionEnd,markedStart,markedEnd,maxLength]`; strings may be null only where shown; sequence/selection/maxLength are u32; marked positions are both null or both numbers, and ranges are ordered. | `protocol.ts:83-99,358-395`; `wire.rs:428-442,854-887`; `tree.rs:1005-1019` |
 |   2 | VirtualList | `[2,itemCount,rangeStart,rangeEnd,estimatedItemSize,overscan]`; counts/ranges/overscan are u32, `rangeStart <= rangeEnd <= itemCount`, and estimated size is finite and positive.                                                                                                 | `protocol.ts:97,396-412`; `wire.rs:444-445,871-877`; `tree.rs:1020-1031`    |
 |   3 | Image       | `[3,source,objectFit]`; source is non-empty, at most 1024 UTF-8 bytes, and has no control character; object fit is `1..5`.                                                                                                                                                        | `protocol.ts:414-425`; `wire.rs:447-448,850-886`; `tree.rs:1032-1043`       |
+|   4 | View/Pressable | `[4,dragType|null]`; dragType is optional for drop-only nodes and otherwise a non-empty safe string up to 128 Unicode scalars. | `protocol.ts:107-115,485-495`; `wire.rs:645,667-669,1117-1150`; `tree.rs:1005-1018` |
 
 TextInput `maxLength` is a u32 protocol value; its text-unit meaning is
 specified in §5 and [ADR-0004](adr/0004-dual-length-semantics.md).
@@ -280,6 +281,7 @@ two-number array; Rust accepts integer/float32 combinations through
 | 17 | Action | string | Root action selected from the native application menu; `nodeId=1`, `listenerId=0`, non-empty and at most 256 Unicode scalar values. | `protocol.ts:35,260,462-463,634-636`; `protocol.rs:29,438-440,713-733`; `wire.rs:298-300,376-380` |
 | 18 | WindowAppearance | `"light" | "dark"` | Root-level `nodeId=1`, `listenerId=0`; vibrant GPUI variants fold to these two semantic values. Initial registration emits a value, and changes are coalesced with the existing next-frame window observation. | `protocol.ts:36,471-476,638-648`; `protocol.rs:30,439-467,740-759`; `renderer.rs:301-380`; `wire.rs:366,450-459,799-802,1570-1573` |
 | 19 | Layout | `[x,y,width,height]` | Finite f32 bounds for a mounted View, Pressable, Text, or Image with `onLayout`; target node/listener identify the callback. Native measurement reports after post-layout prepaint, defers the first callback to the next frame, and deduplicates exact frames. | `protocol.ts:37,231,476-483,649-660`; `protocol.rs:31,468,762-791`; `renderer/paint.rs`; `renderer.rs:309-335`; `wire.rs:461-473,803-807,1590-1595` |
+| 20 | Drag | `[1,type]`, `[2,type]`, or `[3,[path,...]]` | Node-level drag notifications. Tag `1` is drag-over, tag `2` is internal drop, and tag `3` is external file drop. Types are safe non-empty strings (up to 128 scalars); external paths are ordered strings (up to 256 paths, 4096 bytes each). `onDragOver` is notification-only; native accepts drops without a JS can-drop round trip. | `protocol.ts:38-41,241-244,485-520,687-693`; `protocol.rs:32,497-499,824-910`; `wire.rs:367-368,474-489,810-813,873-900,1641-1648` |
 
 ### CommandResult value tags
 

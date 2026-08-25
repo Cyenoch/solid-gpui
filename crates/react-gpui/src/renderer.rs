@@ -70,6 +70,7 @@ pub struct ReactRoot {
     virtual_item_sizes: HashMap<u32, f32>,
     pending_visible_ranges: Rc<RefCell<HashMap<u32, (u32, u32)>>>,
     reported_visible_ranges: HashMap<u32, (u32, u32)>,
+    active_drag_type: Rc<RefCell<Option<String>>>,
     reported_layout_bounds: HashMap<u32, (f32, f32, f32, f32)>,
     animation_states: HashMap<u32, AnimationState>,
     animation_styles: HashMap<u32, Option<Style>>,
@@ -96,6 +97,7 @@ impl ReactRoot {
             virtual_item_sizes: HashMap::new(),
             pending_visible_ranges: Rc::new(RefCell::new(HashMap::new())),
             reported_visible_ranges: HashMap::new(),
+            active_drag_type: Rc::new(RefCell::new(None)),
             reported_layout_bounds: HashMap::new(),
             animation_states: HashMap::new(),
             animation_styles: HashMap::new(),
@@ -215,6 +217,7 @@ impl ReactRoot {
         self.input_states.clear();
         self.focus_handles.clear();
         self.active_input = None;
+        self.active_drag_type.borrow_mut().take();
         self.virtual_handles.clear();
         self.virtual_item_sizes.clear();
         self.reported_visible_ranges.clear();

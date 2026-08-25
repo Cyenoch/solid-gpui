@@ -134,3 +134,71 @@ pub(super) fn emit_scroll_event(
     );
     send_event_or_exit(runtime, "scroll event", &event);
 }
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_drag_over(
+    runtime: &dyn RuntimeAdapter,
+    sequence: &AtomicU32,
+    surface_id: u32,
+    epoch: u32,
+    revision: u32,
+    node_id: u32,
+    listener_id: u32,
+    drag_type: &str,
+) {
+    let event = Event::drag_over(
+        surface_id,
+        epoch,
+        revision,
+        sequence.fetch_add(1, Ordering::Relaxed),
+        node_id,
+        listener_id,
+        drag_type.to_owned(),
+    );
+    send_event_or_exit(runtime, "drag over event", &event);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_drag_drop(
+    runtime: &dyn RuntimeAdapter,
+    sequence: &AtomicU32,
+    surface_id: u32,
+    epoch: u32,
+    revision: u32,
+    node_id: u32,
+    listener_id: u32,
+    drag_type: &str,
+) {
+    let event = Event::drag_drop(
+        surface_id,
+        epoch,
+        revision,
+        sequence.fetch_add(1, Ordering::Relaxed),
+        node_id,
+        listener_id,
+        drag_type.to_owned(),
+    );
+    send_event_or_exit(runtime, "drag drop event", &event);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_external_file_drop(
+    runtime: &dyn RuntimeAdapter,
+    sequence: &AtomicU32,
+    surface_id: u32,
+    epoch: u32,
+    revision: u32,
+    node_id: u32,
+    listener_id: u32,
+    paths: Vec<String>,
+) {
+    let event = Event::external_file_drop(
+        surface_id,
+        epoch,
+        revision,
+        sequence.fetch_add(1, Ordering::Relaxed),
+        node_id,
+        listener_id,
+        paths,
+    );
+    send_event_or_exit(runtime, "external file drop event", &event);
+}

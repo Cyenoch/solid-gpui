@@ -90,7 +90,7 @@ fn assert_representative_fields(vector: &Vector) {
     match vector.id.as_str() {
         "rust-snapshot-all-kinds" | "ts-snapshot-all-kinds" => {
             let snapshot = Snapshot::decode(&vector.payload).expect("snapshot fixture");
-            assert_eq!(snapshot.nodes.len(), 7);
+            assert_eq!(snapshot.nodes.len(), 8);
             assert!(matches!(
                 snapshot.nodes[4].host_properties,
                 Some(HostProperties::TextInput(_))
@@ -104,6 +104,10 @@ fn assert_representative_fields(vector: &Vector) {
                 Some(HostProperties::Image(_))
             ));
             assert!(snapshot.nodes[0].style.is_some());
+            assert!(matches!(
+                snapshot.nodes[7].host_properties,
+                Some(HostProperties::Drag(_))
+            ));
         }
         "rust-patch-all-operations" | "ts-patch-all-operations" => {
             let patch = Patch::decode(&vector.payload).expect("patch fixture");

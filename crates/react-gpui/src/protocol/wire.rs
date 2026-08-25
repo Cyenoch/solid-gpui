@@ -365,6 +365,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_ACTION
             | EVENT_WINDOW_APPEARANCE
             | EVENT_LAYOUT
+            | EVENT_DRAG
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -469,6 +470,24 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 width,
                 height,
             })
+        }
+        (EVENT_DRAG, Some(EventPayloadWire::Drag(payload))) if wire.6 != 0 && wire.7 != 0 => {
+            match payload {
+                DragPayloadWire::Text((1, drag_type)) if valid_drag_type(Some(&drag_type)) => {
+                    Some(EventPayload::DragOver { drag_type })
+                }
+                DragPayloadWire::Text((2, drag_type)) if valid_drag_type(Some(&drag_type)) => {
+                    Some(EventPayload::DragDrop { drag_type })
+                }
+                DragPayloadWire::Paths((3, paths))
+                    if !paths.is_empty()
+                        && paths.len() <= 256
+                        && paths.iter().all(|path| valid_external_path(path)) =>
+                {
+                    Some(EventPayload::ExternalFileDrop { paths })
+                }
+                _ => return Err(ProtocolError::InvalidEventPayload),
+            }
         }
         (EVENT_SUBMIT, Some(EventPayloadWire::Submit(text))) => Some(EventPayload::Submit { text }),
         (EVENT_SURFACE_CLOSED, None) if wire.6 == 0 && wire.7 == 0 => None,
@@ -642,6 +661,7 @@ enum HostPropertiesWire {
     TextInput(TextInputWire),
     VirtualList(VirtualListWire),
     Image(ImageWire),
+    Drag(DragWire),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -662,10 +682,10 @@ struct TextInputWire(
 
 #[derive(Debug, Serialize, Deserialize)]
 struct VirtualListWire(u32, u32, u32, u32, f32, u32);
-
 #[derive(Debug, Serialize, Deserialize)]
 struct ImageWire(u32, String, u32);
-
+#[derive(Debug, Serialize, Deserialize)]
+struct DragWire(u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 struct AccessibilityWire(
     u32,
@@ -805,6 +825,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<(f32, f32, f32, f32)>>()?
                 .flatten()
                 .map(EventPayloadWire::Layout),
+            EVENT_DRAG => sequence
+                .next_element::<Option<DragPayloadWire>>()?
+                .flatten()
+                .map(EventPayloadWire::Drag),
             EVENT_SUBMIT => sequence
                 .next_element::<Option<String>>()?
                 .flatten()
@@ -868,6 +892,13 @@ enum EventPayloadWire {
     Action(String),
     WindowAppearance(String),
     Layout((f32, f32, f32, f32)),
+    Drag(DragPayloadWire),
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum DragPayloadWire {
+    Text((u32, String)),
+    Paths((u32, Vec<String>)),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -1091,12 +1122,22 @@ impl From<&HostProperties> for HostPropertiesWire {
             HostProperties::TextInput(value) => Self::TextInput(TextInputWire::from(value)),
             HostProperties::VirtualList(value) => Self::VirtualList(VirtualListWire::from(value)),
             HostProperties::Image(value) => Self::Image(ImageWire::from(value)),
+            HostProperties::Drag(value) => Self::Drag(DragWire(4, value.drag_type.clone())),
         }
     }
 }
 
 fn valid_image_source(source: &str) -> bool {
     !source.is_empty() && source.len() <= 1024 && !source.chars().any(char::is_control)
+}
+
+fn valid_drag_type(drag_type: Option<&str>) -> bool {
+    drag_type.is_none_or(|value| {
+        !value.is_empty() && value.chars().count() <= 128 && !value.chars().any(char::is_control)
+    })
+}
+fn valid_external_path(path: &str) -> bool {
+    !path.is_empty() && path.len() <= 4096 && !path.chars().any(char::is_control)
 }
 
 impl TryFrom<HostPropertiesWire> for HostProperties {
@@ -1131,6 +1172,11 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
                     object_fit: value.2,
                 }))
             }
+            HostPropertiesWire::Drag(value)
+                if value.0 == 4 && valid_drag_type(value.1.as_deref()) =>
+            {
+                Ok(Self::Drag(DragProperties { drag_type: value.1 }))
+            }
             _ => Err(ProtocolError::InvalidHostProperties),
         }
     }
@@ -1140,7 +1186,8 @@ fn validate_host_kind(
     host_properties: Option<&HostProperties>,
 ) -> Result<(), ProtocolError> {
     match (kind, host_properties) {
-        (5, Some(HostProperties::TextInput(_)))
+        (1 | 3, Some(HostProperties::Drag(_)))
+        | (5, Some(HostProperties::TextInput(_)))
         | (6, Some(HostProperties::VirtualList(_)))
         | (7, Some(HostProperties::Image(_))) => Ok(()),
         (5..=7, None) => Err(ProtocolError::InvalidHostProperties),
@@ -1593,6 +1640,15 @@ impl From<&EventPayload> for EventPayloadWire {
                 width,
                 height,
             } => Self::Layout((*x, *y, *width, *height)),
+            EventPayload::DragOver { drag_type } => {
+                Self::Drag(DragPayloadWire::Text((1, drag_type.clone())))
+            }
+            EventPayload::DragDrop { drag_type } => {
+                Self::Drag(DragPayloadWire::Text((2, drag_type.clone())))
+            }
+            EventPayload::ExternalFileDrop { paths } => {
+                Self::Drag(DragPayloadWire::Paths((3, paths.clone())))
+            }
         }
     }
 }

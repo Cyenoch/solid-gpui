@@ -118,6 +118,13 @@ export interface PointerEvent {
 }
 export type PointerHandler = (event: PointerEvent) => void;
 export type HoverHandler = (hovered: boolean) => void;
+export interface Draggable {
+  readonly type: string;
+  readonly data?: unknown;
+}
+export type DragOverHandler = (dragType: string) => void;
+export type DragDropHandler = (dragType: string) => void;
+export type ExternalFileDropHandler = (paths: string[]) => void;
 export interface ViewHandle extends HostNode {
   focus(): Promise<void>;
   blur(): Promise<void>;
@@ -160,6 +167,10 @@ export interface ViewProps extends AccessibilityProps {
   readonly onHoverChange?: HoverHandler;
   readonly onScroll?: ScrollHandler;
   readonly onLayout?: LayoutHandler;
+  readonly draggable?: Draggable;
+  readonly onDragOver?: DragOverHandler;
+  readonly onDrop?: DragDropHandler;
+  readonly onExternalFileDrop?: ExternalFileDropHandler;
   readonly children?: ReactNode;
 }
 export interface ImageProps extends AccessibilityProps {
@@ -180,10 +191,14 @@ export interface PressableProps extends AccessibilityProps {
   readonly focusable?: boolean;
   readonly onKeyDown?: KeyHandler;
   readonly disabled?: boolean;
+  readonly onLayout?: LayoutHandler;
+  readonly draggable?: Draggable;
+  readonly onDragOver?: DragOverHandler;
+  readonly onDrop?: DragDropHandler;
+  readonly onExternalFileDrop?: ExternalFileDropHandler;
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
-  readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
 }
 export interface HostProps extends AccessibilityProps {
@@ -198,6 +213,10 @@ export interface HostProps extends AccessibilityProps {
   readonly onScroll?: ScrollHandler;
   readonly onSubmitEditing?: (value: string) => void;
   readonly maxLength?: number;
+  readonly draggable?: Draggable;
+  readonly onDragOver?: DragOverHandler;
+  readonly onDrop?: DragDropHandler;
+  readonly onExternalFileDrop?: ExternalFileDropHandler;
   readonly source?: string;
   readonly objectFit?: ImageObjectFit;
   readonly onLayout?: LayoutHandler;
@@ -235,6 +254,9 @@ export interface VirtualListWire {
   readonly estimatedItemSize: number;
   readonly overscan: number;
 }
+export interface DragWire {
+  readonly dragType: string | null;
+}
 export interface AccessibilityWire {
   readonly role: number;
   readonly label: string | null;
@@ -259,6 +281,11 @@ export interface PointerCallbacks {
   readonly down?: (event: PointerEvent) => void;
   readonly up?: (event: PointerEvent) => void;
 }
+export interface DragCallbacks {
+  readonly over?: DragOverHandler;
+  readonly drop?: DragDropHandler;
+  readonly externalFileDrop?: ExternalFileDropHandler;
+}
 export interface HostNodeInternal extends HostNode {
   readonly kind: HostKind;
   readonly root: RootOwner;
@@ -277,7 +304,8 @@ export interface HostNodeInternal extends HostNode {
   focusable: boolean;
   disabled: boolean;
   focus?: () => Promise<void>;
-  hostProperties: TextInputWire | VirtualListWire | ImageWire | null;
+  dragCallbacks: DragCallbacks;
+  hostProperties: TextInputWire | VirtualListWire | ImageWire | DragWire | null;
   latestNativeText: string | null;
   latestNativeEditSeq: number;
   layoutCallback?: LayoutHandler;

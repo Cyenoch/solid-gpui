@@ -10,13 +10,13 @@ use react_gpui::{
     COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
     COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
     COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
-    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties,
-    KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION, Patch, PatchOperation,
-    SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
-    TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition,
-    UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
-    VirtualListProperties, WindowAppearance,
+    DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties,
+    ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node, PROTOCOL_VERSION, Patch,
+    PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
+    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
+    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
+    UPDATE_TEXT, VirtualListProperties, WindowAppearance,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -101,6 +101,11 @@ fn snapshot() -> Snapshot {
     let mut pressable = Node::new(4, 1, 1, KIND_PRESSABLE);
     pressable.listener_id = 7;
     pressable.accessibility = Some(accessibility());
+    let mut drag = Node::new(8, 1, 5, KIND_PRESSABLE);
+    drag.listener_id = 11;
+    drag.host_properties = Some(HostProperties::Drag(DragProperties {
+        drag_type: Some("card".into()),
+    }));
     let mut input = Node::new(5, 1, 2, KIND_TEXT_INPUT);
     input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
         value: "text".into(),
@@ -133,13 +138,16 @@ fn snapshot() -> Snapshot {
         3,
         0,
         42,
-        vec![root, text, raw, pressable, input, list, image],
+        vec![root, text, raw, pressable, input, list, image, drag],
     )
 }
 
 fn patch() -> Patch {
     let mut created = Node::new(8, 1, 5, KIND_PRESSABLE);
     created.listener_id = 11;
+    created.host_properties = Some(HostProperties::Drag(DragProperties {
+        drag_type: Some("card".into()),
+    }));
     Patch::new(
         7,
         3,
@@ -428,6 +436,38 @@ fn main() {
         Event::window_appearance(7, 3, 42, 16, WindowAppearance::Dark)
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-drag-over",
+        "event",
+        Event::drag_over(7, 3, 42, 18, 8, 11, "card".into())
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-drag-drop",
+        "event",
+        Event::drag_drop(7, 3, 42, 19, 8, 11, "card".into())
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-drag-external",
+        "event",
+        Event::external_file_drop(
+            7,
+            3,
+            42,
+            20,
+            8,
+            11,
+            vec!["/tmp/a.txt".into(), "/tmp/b".into()],
+        )
+        .encode()
+        .unwrap(),
     );
     emit(
         &mut rows,

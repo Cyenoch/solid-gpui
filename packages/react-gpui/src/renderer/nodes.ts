@@ -16,6 +16,7 @@ import { encodeStyle } from "../style";
 import {
   accessibilityFor,
   accessibilityWire,
+  dragFor,
   hostPropertiesWire,
   imageFor,
   inputFor,
@@ -70,6 +71,7 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      dragCallbacks: {},
       layoutCallback: undefined,
       listener: undefined,
       focusable: false,
@@ -103,6 +105,7 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      dragCallbacks: {},
       layoutCallback: undefined,
       listener: undefined,
       focusable: false,
@@ -168,7 +171,9 @@ export class NodeGraph {
           ? virtualListFor(node, props)
           : node.kind === "Image"
             ? imageFor(node, props)
-            : null;
+            : node.kind === "View" || node.kind === "Pressable"
+              ? dragFor(node, props)
+              : null;
     node.accessibility = accessibilityFor(node.kind, props);
     node.disabled = (node.kind === "Pressable" || node.kind === "TextInput") && props.disabled === true;
     node.focusable =
@@ -185,6 +190,14 @@ export class NodeGraph {
     node.hoverCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onHoverChange : undefined;
     node.scrollCallback = node.kind === "View" ? props.onScroll : undefined;
+    node.dragCallbacks =
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable")
+        ? {
+            over: props.onDragOver,
+            drop: props.onDrop,
+            externalFileDrop: props.onExternalFileDrop,
+          }
+        : {};
     node.layoutCallback =
       node.kind === "View" || node.kind === "Pressable" || node.kind === "Text" || node.kind === "Image"
         ? props.onLayout
@@ -211,6 +224,7 @@ export class NodeGraph {
       node.hoverCallback !== undefined ||
       node.scrollCallback !== undefined ||
       node.layoutCallback !== undefined ||
+      Object.values(node.dragCallbacks).some((callback) => callback !== undefined) ||
       Object.values(node.inputCallbacks ?? {}).some((callback) => callback !== undefined) ||
       node.visibleRangeCallback !== undefined ||
       node.animationCompleteCallback !== undefined;

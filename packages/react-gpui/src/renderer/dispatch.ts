@@ -1,4 +1,7 @@
 import {
+  DRAG_DROP,
+  DRAG_EXTERNAL_FILE_DROP,
+  DRAG_OVER,
   EVENT_ACTION,
   EVENT_ANIMATION_COMPLETE,
   EVENT_BLUR,
@@ -21,6 +24,7 @@ import {
   EVENT_WINDOW_APPEARANCE,
   EVENT_WINDOW_RESIZE,
   EVENT_LAYOUT,
+  EVENT_DRAG,
   POINTER_BUTTON_BACK,
   POINTER_BUTTON_FORWARD,
   POINTER_BUTTON_LEFT,
@@ -115,6 +119,29 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     )
       return;
     node.layoutCallback({ x: payload[0], y: payload[1], width: payload[2], height: payload[3] });
+    return;
+  }
+  if (event[8] === EVENT_DRAG) {
+    const node = context.findListener(event[7]);
+    if (
+      node === undefined ||
+      !node.attached ||
+      node.id !== event[6] ||
+      node.listenerId !== event[7] ||
+      !Array.isArray(payload) ||
+      payload.length !== 2
+    )
+      return;
+    if ((payload[0] === DRAG_OVER || payload[0] === DRAG_DROP) && typeof payload[1] === "string") {
+      if (payload[0] === DRAG_OVER) node.dragCallbacks.over?.(payload[1]);
+      else node.dragCallbacks.drop?.(payload[1]);
+    } else if (
+      payload[0] === DRAG_EXTERNAL_FILE_DROP &&
+      Array.isArray(payload[1]) &&
+      payload[1].every((path) => typeof path === "string")
+    ) {
+      node.dragCallbacks.externalFileDrop?.([...payload[1]]);
+    }
     return;
   }
   if (event[8] === EVENT_PRESS) {

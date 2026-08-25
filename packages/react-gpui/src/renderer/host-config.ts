@@ -121,7 +121,11 @@ export const hostConfig = {
       oldProps.onPointerDown !== newProps.onPointerDown ||
       oldProps.onPointerUp !== newProps.onPointerUp ||
       oldProps.onHoverChange !== newProps.onHoverChange ||
-      oldProps.onScroll !== newProps.onScroll;
+      oldProps.onScroll !== newProps.onScroll ||
+      oldProps.draggable !== newProps.draggable ||
+      oldProps.onDragOver !== newProps.onDragOver ||
+      oldProps.onDrop !== newProps.onDrop ||
+      oldProps.onExternalFileDrop !== newProps.onExternalFileDrop;
     return (
       oldProps.style !== newProps.style ||
       oldProps.onPress !== newProps.onPress ||

@@ -13,6 +13,7 @@ import type {
   TextInputProps,
   TextInputWire,
   VirtualListWire,
+  DragWire,
 } from "./types";
 
 export const KIND_CODES: Record<HostKind, 1 | 2 | 3 | 4 | 5 | 6 | 7> = {
@@ -45,6 +46,10 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
   View: {
     style: true,
     onLayout: true,
+    draggable: true,
+    onDragOver: true,
+    onDrop: true,
+    onExternalFileDrop: true,
     focusable: true,
     onKeyDown: true,
     onPointerDown: true,
@@ -60,9 +65,13 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     style: true,
     onLayout: true,
     onPress: true,
+    disabled: true,
+    draggable: true,
+    onDragOver: true,
+    onDrop: true,
+    onExternalFileDrop: true,
     focusable: true,
     onKeyDown: true,
-    disabled: true,
     onPointerDown: true,
     onPointerUp: true,
     onHoverChange: true,
@@ -212,9 +221,20 @@ export function virtualListFor(node: HostNodeInternal, props: HostProps): Virtua
   assertU32Option("VirtualList overscan", overscan);
   return { itemCount, rangeStart, rangeEnd, estimatedItemSize, overscan };
 }
+export function dragFor(node: HostNodeInternal, props: HostProps): DragWire | null {
+  if (node.kind === "Pressable" && props.disabled === true) return null;
+  if (
+    props.draggable === undefined &&
+    props.onDragOver === undefined &&
+    props.onDrop === undefined &&
+    props.onExternalFileDrop === undefined
+  )
+    return null;
+  return { dragType: props.draggable?.type ?? null };
+}
 
 export function hostPropertiesWire(
-  value: TextInputWire | VirtualListWire | ImageWire | null,
+  value: TextInputWire | VirtualListWire | ImageWire | DragWire | null,
 ): HostPropertiesWire | null {
   if (value === null) return null;
   if ("value" in value)
@@ -233,6 +253,7 @@ export function hostPropertiesWire(
       value.maxLength,
     ];
   if ("source" in value) return [3, value.source, value.objectFit];
+  if ("dragType" in value) return [4, value.dragType];
   return [2, value.itemCount, value.rangeStart, value.rangeEnd, value.estimatedItemSize, value.overscan];
 }
 export function accessibilityWire(value: AccessibilityWire | null): readonly unknown[] | null {
@@ -284,6 +305,24 @@ export function validateProps(kind: HostKind, props: HostProps): void {
       throw new TypeError(`${kind} onPointerUp must be a function`);
     if (props.onHoverChange !== undefined && typeof props.onHoverChange !== "function")
       throw new TypeError(`${kind} onHoverChange must be a function`);
+    if (props.draggable !== undefined) {
+      const draggable = props.draggable;
+      if (
+        draggable === null ||
+        typeof draggable !== "object" ||
+        typeof draggable.type !== "string" ||
+        draggable.type.length === 0 ||
+        [...draggable.type].length > 128 ||
+        /[\u0000-\u001f\u007f]/.test(draggable.type)
+      )
+        throw new TypeError(`${kind} draggable.type must be a non-empty safe string`);
+    }
+    if (props.onDragOver !== undefined && typeof props.onDragOver !== "function")
+      throw new TypeError(`${kind} onDragOver must be a function`);
+    if (props.onDrop !== undefined && typeof props.onDrop !== "function")
+      throw new TypeError(`${kind} onDrop must be a function`);
+    if (props.onExternalFileDrop !== undefined && typeof props.onExternalFileDrop !== "function")
+      throw new TypeError(`${kind} onExternalFileDrop must be a function`);
   }
   if (kind === "Pressable") {
     if (props.focusable !== undefined && typeof props.focusable !== "boolean")
