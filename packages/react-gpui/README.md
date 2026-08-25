@@ -175,6 +175,13 @@ and `DrainListener` types. `StdioTransportOptions` and
 `TransportTerminatedError`, and `createProcessTerminationHandler` cover chunk
 conversion, termination diagnostics, and injected process exits.
 
+Error handling is deliberately split by seam: unhandled React render errors
+are synchronously thrown to the consumer, bad Commit Batches are fatal to the
+shared Runtime Adapter, expected Image load failures render blank, and GPUI
+paint panics are host-fatal rather than caught per node. See
+[ADR-0008](../../docs/adr/0008-error-handling-philosophy.md) for the recovery
+contract and rejected alternatives.
+
 ## Multiple native surfaces
 
 Use `createSurfaceHost` when several native windows share one transport. It

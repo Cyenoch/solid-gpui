@@ -322,6 +322,23 @@ For host crash artifacts, set `REACT_GPUI_CRASH_DIR` (the host also accepts
 section](../README.md#troubleshooting) for crash files, `REACT_GPUI_TAP`, and
 the metadata-only tap report.
 
+## Error and recovery boundaries
+
+The failure owner determines the recovery behavior. React Error Boundaries are
+consumer code; the other rows are host/runtime contracts:
+
+| Failure | Current behavior | Owner/recovery |
+| --- | --- | --- |
+| React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted. | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one. |
+| Bad Snapshot/Patch frame or tree invariant | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry. | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
+| Image resource failure | The Image node remains in the tree and GPUI renders blank output; no `Image` error callback exists in this protocol. | Ship/validate the asset or render a separate fallback; other nodes continue. |
+| GPUI paint panic/internal invariant | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path. | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame. |
+
+The strict protocol choice is intentional: v3 revisions and Surface/epoch
+identity require both sides to agree on the same tree. The full rationale,
+rejected resync/ignore/catch-and-continue alternatives, and focused test
+evidence are in [ADR-0008](adr/0008-error-handling-philosophy.md).
+
 ## Testing without a display
 
 Install the dev testing package for component-level tests:
