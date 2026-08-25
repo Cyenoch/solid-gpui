@@ -1,0 +1,365 @@
+# React GPUI: getting started
+
+This guide is for an application consumer, not a protocol contributor. It gets
+a small React surface running first, then points to the deeper references.
+The single authoritative wire reference is [Protocol v3](protocol.md); this
+guide stays at the application level.
+
+## Five-minute start
+
+### 1. Install the pinned toolchain
+
+The repository is locked to:
+
+- Bun `1.4.0` (`.bun-version`)
+- Rust `1.97.1` (`rust-toolchain.toml`)
+
+A consumer package needs React 19 and the core package:
+
+```sh
+bun add react @react-gpui/core
+```
+
+The native host is a separate executable. A published/release workflow uses
+the host binary from the `dist/react-gpui-host-*.tar.gz` candidate archive
+(produced by `make host-release-bundle`). During local development, build and
+run the host from the repository instead:
+
+```sh
+cargo run -p react-gpui-host -- --runtime process bun run path/to/counter.tsx
+```
+
+The `--runtime process` host starts Bun as a child process and connects its
+stdin/stdout to `StdioTransport`. The host command must own that pipe; running a
+`StdioTransport` entry directly without a host does not create a native
+surface. The optional embedded runtime is a separate macOS/JSC build:
+
+```sh
+cargo run -p react-gpui-host --features embedded-bun -- \
+  --runtime embedded path/to/counter.tsx
+```
+
+### 2. Render one surface
+
+Save this as `counter.tsx` and run it with the process-host command above. The
+example is intentionally complete rather than importing repository-only
+helpers:
+
+```tsx
+import React, { useState } from "react";
+import { Pressable, StdioTransport, Text, View, createProcessTerminationHandler, createRoot } from "@react-gpui/core";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <View style={{ flexDirection: "column", gap: 8, padding: 16 }}>
+      <Text>Count: {count}</Text>
+      <Pressable onPress={() => setCount((current) => current + 1)}>
+        <Text>Increment</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const root = createRoot(new StdioTransport(), {
+  surfaceId: 1,
+  epoch: 1,
+  onTransportTermination: createProcessTerminationHandler(),
+});
+root.render(<Counter />);
+```
+
+`surfaceId` identifies the native Surface and `epoch` identifies its current
+lifecycle generation. Start with one root/surface; use `createSurfaceHost` only
+when the application needs multiple native windows.
+
+## Core model
+
+React GPUI is a renderer, not a DOM implementation:
+
+```text
+React render/commit
+        │
+        ▼
+Commit Batch (Snapshot first, Patch afterward)
+        │  MessagePack frame through Runtime Adapter
+        ▼
+Rust host → validated Host Node tree → GPUI/Taffy layout and drawing
+        │
+        └── Native Event frame → matching JavaScript Root callback
+```
+
+React/Bun own Fiber, hooks, context, fragments, and JavaScript closures. The
+host owns the validated retained tree, native input/focus state, layout, and
+painting. A Commit Batch is atomic at the protocol seam: it is not a stream of
+per-prop DOM mutations. Native Events are semantic notifications such as
+press, text input, key, pointer, scroll, list range, layout, window lifecycle,
+and command acknowledgement.
+
+Important differences from web React:
+
+- There is no DOM, CSS cascade, browser event cancellation, browser storage, or
+  browser URL/navigation model.
+- Styles are a validated GPUI/Taffy-oriented subset with 38 positional slots,
+  not CSS. Read [protocol.md](protocol.md) for the exact slot contract and the
+  package README for the consumer-facing names.
+- Text, images, lists, focus, and commands are native host concepts. A
+  `VirtualList` uses a bounded, fixed-estimate native list; it is not a DOM
+  virtualization layer.
+- `Runtime Adapter` is the transport seam. `ProcessAdapter` is the normal
+  process host; `EmbeddedBunAdapter` is an optional in-process runtime.
+
+## Capability quick reference
+
+### Components and common props
+
+| Host kind        | Common props                                                                                                                                               | Notes                                                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `View`           | `style`, `children`, `focusable`, `onKeyDown`, `onPointerDown`, `onPointerUp`, `onHoverChange`, `onScroll`, `onLayout`, accessibility props                | Generic layout/container Host Node. `focusable` participates in the native Tab-stop Graph when a key listener is present.           |
+| `Text`           | `children`, `style`, `onLayout`, accessibility props                                                                                                       | Text styling applies to its text content; raw strings must be direct children.                                                      |
+| `Pressable`      | `children`, `style`, `onPress`, `focusable`, `onKeyDown`, `disabled`, pointer/hover/layout handlers, accessibility props                                   | Pointer and native keyboard activation share the press path. Disabled removes interaction and reports disabled accessibility state. |
+| `TextInput`      | `value`/`defaultValue`, `placeholder`, `onChangeText`, `onSubmitEditing`, selection/focus/blur/key handlers, `multiline`, `disabled`, `maxLength`, `style` | `onSubmitEditing(value)` receives the authoritative native text. `maxLength` uses UTF-16 code units.                                |
+| `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`                              | Only the committed visible range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node.             |
+| `Image`          | `source`, `objectFit`, `style`, `onLayout`, accessibility props                                                                                            | `source` is a host-resolved path; missing images are silent blank output.                                                           |
+
+`Image` cannot have children. Text input, list, and image host properties are
+validated tagged tuples. See [protocol.md](protocol.md) for the node tuple,
+accessibility tuple, host-property tags, and every wire constraint.
+
+### Styles by class
+
+The public `Style` names map to a fixed 38-slot tuple. Do not hand-author the
+wire tuple; use the object fields and `StyleSheet.create`:
+
+- **Layout:** `width`, `height`, `flexDirection`, `flexGrow`, `flexShrink`,
+  `justifyContent`, `alignItems`, `alignSelf`, `overflow`, `lineClamp`,
+  `textOverflow`.
+- **Spacing:** `padding`, `gap`, `marginTop`, `marginRight`, `marginBottom`,
+  `marginLeft`.
+- **Typography:** `fontSize`, `fontWeight`, `fontStyle`, `textDecoration`,
+  `lineHeight`, `color`.
+- **Visual:** `backgroundColor`, `borderColor`, `borderWidth`, `borderRadius`,
+  `opacity`.
+- **Positioning:** `position`, `left`, `top`, `right`, `bottom`.
+- **Animation:** `transition` for `opacity`, `backgroundColor`, `width`, and
+  `height`.
+
+Colors are `#RRGGBB` or `#RRGGBBAA`; numeric fields are validated before a
+Commit Batch is emitted. The complete positional table and enum codes live in
+[protocol.md](protocol.md#style-tuple-all-38-slots).
+
+### Root commands
+
+| Domain         | Root methods                                                                 |
+| -------------- | ---------------------------------------------------------------------------- |
+| Window         | `setTitle`, `resize`, `getWindowSize`, `zoom`, `toggleFullscreen`, `openUrl` |
+| Surfaces       | `createSurfaceHost`, `root.openSurface`, `host.createRoot`, `root.onClose`   |
+| Focus          | `focusNext`, `focusPrev`                                                     |
+| Clipboard      | `setClipboardText`, `getClipboardText`                                       |
+| Files          | `pickFiles`, `pickSavePath`                                                  |
+| User-facing OS | `showNotification`, `setMenus`                                               |
+
+Node refs expose narrower commands: TextInput focus/blur/selection, View or
+Pressable focus/blur where supported, and VirtualList `scrollToIndex`/
+`scrollToEnd`. Commands return Promises and rejected validation/native results
+must be handled by the application. See [protocol.md](protocol.md#4-command-directory)
+for root-only versus Host Node ownership and CommandResult value tags.
+
+### Native Events
+
+- **Interaction:** `Press`, TextInput `Change`/`Selection`/`Focus`/`Blur`,
+  `Submit`, `Key`, `Pointer`, and `Hover`.
+- **Scrolling and lists:** `Scroll`, `VisibleRange`, and `Layout`.
+- **Window/surface lifecycle:** `WindowResize`, `WindowActivation`,
+  `WindowAppearance`, `SurfaceClosed`, and `Action`.
+- **Command acknowledgement:** `CommandResult`, including optional typed
+  number, pair, boolean, string, and newer surface values.
+
+Callbacks are semantic notifications, not cancellable browser events. Event
+18 appearance values are `"light"` and `"dark"`; palette selection is owned by
+the application. See [protocol.md](protocol.md#3-event-directory) for payload
+validation and root/node ownership.
+
+## Common tasks
+
+### Form submission
+
+`TextInput` is controlled, and `onSubmitEditing` receives the native text:
+
+```tsx
+function AddForm({ add }: { add: (value: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <TextInput
+      value={value}
+      onChangeText={setValue}
+      onSubmitEditing={(submitted) => {
+        add(submitted);
+        setValue("");
+      }}
+      placeholder="New item"
+    />
+  );
+}
+```
+
+### List with empty state
+
+An empty `VirtualList` renders ordinary React nodes instead of a native list:
+
+```tsx
+<VirtualList
+  data={items}
+  itemKey={(item) => item.id}
+  renderItem={(item) => <Text>{item.title}</Text>}
+  estimatedItemSize={28}
+  emptyState={<Text>No items yet.</Text>}
+  style={{ height: 400 }}
+/>
+```
+
+### Responsive layout
+
+Bridge the root callback to an explicit store; do not make a module-global
+window-size singleton:
+
+```tsx
+const sizes = createWindowSizeStore();
+const root = createRoot(new StdioTransport(), {
+  onWindowResize: (width, height) => sizes.set(width, height),
+});
+function Screen() {
+  const { width } = useWindowSize(sizes);
+  return <View style={{ flexDirection: width < 720 ? "column" : "row" }} />;
+}
+root.render(<Screen />);
+```
+
+### System appearance
+
+The renderer reports a two-value semantic appearance; it does not choose your
+palette:
+
+```tsx
+const appearance = createAppearanceStore();
+const root = createRoot(new StdioTransport(), {
+  onAppearance: (value) => appearance.set(value),
+});
+function Screen() {
+  const mode = useAppearance(appearance);
+  return <View style={{ backgroundColor: mode === "dark" ? "#111827" : "#ffffff" }} />;
+}
+root.render(<Screen />);
+```
+
+### Keyboard navigation
+
+Focusable `View` and `Pressable` nodes use the native Tab-stop Graph. Let
+native Enter/Space activation produce the existing `onPress` notification:
+
+```tsx
+const root = createRoot(new StdioTransport());
+root.render(
+  <Pressable
+    focusable
+    onPress={() => console.log("activated")}
+    onKeyDown={({ key, action }) => console.log(key, action)}
+  >
+    <Text>Keyboard action</Text>
+  </Pressable>,
+);
+```
+
+For an application-level Tab shortcut, call `root.focusNext()` from a
+focusable key listener. `disabled` removes a Pressable from interaction.
+
+### Open another Surface
+
+Several native windows share one transport through `createSurfaceHost`:
+
+```tsx
+const host = createSurfaceHost(new StdioTransport());
+const main = host.createRoot({ surfaceId: 1 });
+main.render(<Main />);
+const id = await main.openSurface({ title: "Inspector", width: 640, height: 480 });
+const inspector = host.createRoot({ surfaceId: id, onClose: () => console.log("closed") });
+inspector.render(<Inspector />);
+```
+
+### File selection
+
+File dialogs are asynchronous root commands. Cancellation resolves to `null`:
+
+```tsx
+const paths = await root.pickFiles({ title: "Choose files", multiple: true });
+const savePath = await root.pickSavePath({ defaultName: "report.json" });
+if (paths !== null) console.log(paths);
+if (savePath !== null) console.log(savePath);
+```
+
+### Notification and menus
+
+Notifications are one-way; menus are static definitions:
+
+```tsx
+await root.showNotification({ title: "Build finished", body: "Artifacts ready." });
+await root.setMenus([{ title: "File", items: [{ type: "action", name: "open" }] }]);
+```
+
+### Transport termination and crash diagnostics
+
+Keep the process termination handler in a standalone entry:
+
+```tsx
+const root = createRoot(new StdioTransport(), {
+  onTransportTermination: createProcessTerminationHandler(),
+});
+root.render(<App />);
+```
+
+For host crash artifacts, set `REACT_GPUI_CRASH_DIR` (the host also accepts
+`REACT_GPUI_LOG=off|error|info|debug`). See the [README debugging
+section](../README.md#troubleshooting) for crash files, `REACT_GPUI_TAP`, and
+the metadata-only tap report.
+
+## Testing without a display
+
+Install the dev testing package for component-level tests:
+
+```sh
+bun add -d @react-gpui/dev
+```
+
+Its `render` helper uses a real core `MemoryTransport`, exposes submitted
+frames/decoded commits, and injects Press/Key/TextInput/Submit/VisibleRange
+events. It does not open a window. See
+`packages/react-gpui-dev/README.md#headless-component-tests`.
+
+## Known boundaries
+
+These are current constraints, not a roadmap:
+
+- There is no DOM, CSS cascade, browser event cancellation, `boxShadow`,
+  `letterSpacing`, `fontFamily`, or `zIndex` style field.
+- Generic transforms (`transform.scale`, `transform.translateX`,
+  `transform.translateY`) are unsupported. Positioning is the explicit
+  `relative`/`absolute` plus inset fields.
+- `Image.source` is a host-local path. There is no `Image` `onError` callback,
+  remote URL fetch, or inline image-byte transport; missing images are silent
+  blank output.
+- `TextInput.secureTextEntry` and `keyboardType` are unsupported on the
+  desktop GPUI surface.
+- `VirtualList` assumes a bounded viewport and fixed estimated row size; there
+  is no dynamic row measurement callback. Use `emptyState` for an empty list.
+- File dialogs require a display-backed native host for actual interaction;
+  headless tests cover command/value routing, not OS picker UI.
+- Notifications are best-effort platform submissions; delivery and OS
+  authorization are not guaranteed.
+- Window centering, `revealPath`, and `openWithSystem` are unsupported.
+- A process entry still needs a host Runtime Adapter. A Bun script alone does
+  not create a native Surface.
+
+For protocol field-level constraints, invalid values, event payloads, command
+ownership, style slot numbers, and evolution rules, use
+[docs/protocol.md](protocol.md). For contribution and native-reference work,
+use the repository's contributor documentation instead.
