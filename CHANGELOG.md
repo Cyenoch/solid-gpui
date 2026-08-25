@@ -286,8 +286,19 @@ from this work tree.
   40 style slots, and 13/8 TextInput host/event slots; finds zero project TODO
   markers; classifies all 19 production `expect` calls within ADR-0008 domains;
   corrects test-count/API-snapshot drift; and verifies every new
-  `ALLOWED_PROPS` capability. Seventy-six historical `wire.rs` citations after
-  the family split are recorded as P2 documentation debt.
+  `ALLOWED_PROPS` capability. It identified 76 historical `wire.rs` citations
+  as P2 documentation debt, cleared by the follow-up citation sweep below.
+- TextInput mouse interaction now supports single-line click-to-caret and drag
+  selection with anchor/head/reversed orientation and selection highlighting.
+  Shift+arrow, Home/End, and Up/Down navigation respect UTF-16 boundaries
+  without splitting surrogate pairs; platform `Arrow*` and `Home`/`End` names
+  are accepted. The wire contract is unchanged. The caret remains always
+  visible for accessibility; double/triple-click and word-boundary semantics
+  remain explicit backlog items.
+- Protocol citation debt is cleared: 75 historical `wire.rs` references now map
+  to the five split wire modules with zero bare `wire.rs` paths. The six-example
+  index is aligned, and examples cover `onLayout`, drag handlers, `reversed`,
+  `setSelection`, and `scrollToIndex`/`scrollToEnd`.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
