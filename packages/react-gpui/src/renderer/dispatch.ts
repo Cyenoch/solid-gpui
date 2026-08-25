@@ -19,6 +19,7 @@ import {
   EVENT_VISIBLE_RANGE,
   EVENT_WINDOW_ACTIVATION,
   EVENT_WINDOW_RESIZE,
+  EVENT_WINDOW_APPEARANCE,
   POINTER_BUTTON_BACK,
   POINTER_BUTTON_FORWARD,
   POINTER_BUTTON_LEFT,
@@ -33,6 +34,7 @@ import {
   type TextInputEventPayload,
 } from "../protocol";
 import { truncateUtf16 } from "./props";
+import type { Appearance } from "../hooks";
 import type { HostNodeInternal, TextInputCallbacks, TextInputEvent } from "./types";
 
 const POINTER_BUTTON_NAMES: Record<number, "left" | "right" | "middle" | "back" | "forward"> = {
@@ -53,6 +55,7 @@ export interface DispatchContext {
   onSurfaceClosed?: () => void;
   onWindowResize?: (width: number, height: number) => void;
   onWindowActivation?: (active: boolean) => void;
+  onAppearance?: (appearance: Appearance) => void;
 }
 
 export function dispatchEvent(context: DispatchContext, event: PressEventFrame | null): void {
@@ -91,6 +94,11 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   if (event[8] === EVENT_WINDOW_ACTIVATION) {
     if (typeof payload !== "boolean") return;
     context.onWindowActivation?.(payload);
+    return;
+  }
+  if (event[8] === EVENT_WINDOW_APPEARANCE) {
+    if (payload !== "light" && payload !== "dark") return;
+    context.onAppearance?.(payload);
     return;
   }
   if (event[8] === EVENT_PRESS) {

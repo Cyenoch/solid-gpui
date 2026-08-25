@@ -6,13 +6,13 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use gpui::{
     Context, Element, FocusHandle, IntoElement, Render, Styled, Subscription,
-    UniformListScrollHandle, Window, div,
+    UniformListScrollHandle, Window, WindowAppearance as GpuiWindowAppearance, div,
 };
 use thiserror::Error;
 
 use crate::protocol::{
     Command, CommandResult, CommandValue, Event, HostProperties, Patch, PatchOperation,
-    ProtocolError, Snapshot, Style,
+    ProtocolError, Snapshot, Style, WindowAppearance,
 };
 use crate::transport::{RuntimeAdapter, send_event_or_exit};
 use crate::tree::{KIND_VIRTUAL_LIST, NodeStore, TreeError};
@@ -48,6 +48,12 @@ fn committed_child_index(absolute_index: u32, range_start: u32, range_end: u32) 
         None
     }
 }
+fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppearance {
+    match appearance {
+        GpuiWindowAppearance::Light | GpuiWindowAppearance::VibrantLight => WindowAppearance::Light,
+        GpuiWindowAppearance::Dark | GpuiWindowAppearance::VibrantDark => WindowAppearance::Dark,
+    }
+}
 
 /// The sole persistent GPUI entity for a React surface. The tree itself is
 /// retained in `NodeStore`; GPUI element values are rebuilt ephemerally in
@@ -68,10 +74,11 @@ pub struct ReactRoot {
     animation_styles: HashMap<u32, Option<Style>>,
     frame_styles: HashMap<u32, Style>,
     animation_frame_requested: bool,
-    window_observers: Option<(Subscription, Subscription)>,
+    window_observers: Option<(Subscription, Subscription, Subscription)>,
     window_observation_scheduled: bool,
     last_window_size: Option<(f32, f32)>,
     last_window_active: Option<bool>,
+    last_window_appearance: Option<WindowAppearance>,
 }
 
 impl ReactRoot {
@@ -96,6 +103,7 @@ impl ReactRoot {
             window_observation_scheduled: false,
             last_window_size: None,
             last_window_active: None,
+            last_window_appearance: None,
         }
     }
     pub fn store(&self) -> &NodeStore {
@@ -304,7 +312,10 @@ impl ReactRoot {
         let activation = cx.observe_window_activation(window, |root, window, cx| {
             root.schedule_window_observation(window, cx);
         });
-        self.window_observers = Some((resize, activation));
+        let appearance = cx.observe_window_appearance(window, |root, window, cx| {
+            root.schedule_window_observation(window, cx);
+        });
+        self.window_observers = Some((resize, activation, appearance));
         self.schedule_window_observation(window, cx);
     }
 
@@ -319,13 +330,20 @@ impl ReactRoot {
             let width = f32::from(size.width);
             let height = f32::from(size.height);
             let active = window.is_window_active();
+            let appearance = protocol_window_appearance(window.appearance());
             entity.update(app, |root, _| {
-                root.emit_window_observation(width, height, active);
+                root.emit_window_observation(width, height, active, appearance);
             });
         });
     }
 
-    fn emit_window_observation(&mut self, width: f32, height: f32, active: bool) {
+    fn emit_window_observation(
+        &mut self,
+        width: f32,
+        height: f32,
+        active: bool,
+        appearance: WindowAppearance,
+    ) {
         self.window_observation_scheduled = false;
         if self.last_window_size != Some((width, height)) {
             self.last_window_size = Some((width, height));
@@ -353,6 +371,17 @@ impl ReactRoot {
                 active,
             );
             send_event_or_exit(self.runtime.as_ref(), "window activation event", &event);
+        }
+        if self.last_window_appearance != Some(appearance) {
+            self.last_window_appearance = Some(appearance);
+            let event = Event::window_appearance(
+                self.store.surface_id(),
+                self.store.epoch(),
+                self.store.revision(),
+                self.next_sequence.fetch_add(1, Ordering::Relaxed),
+                appearance,
+            );
+            send_event_or_exit(self.runtime.as_ref(), "window appearance event", &event);
         }
     }
 }
@@ -798,8 +827,8 @@ mod input_tests {
     fn window_observations_emit_initial_values_and_dedupe_changes() {
         let runtime = InMemoryAdapter::new();
         let mut root = ReactRoot::new(runtime.clone());
-        root.emit_window_observation(800.0, 600.0, true);
-        root.emit_window_observation(800.0, 600.0, true);
+        root.emit_window_observation(800.0, 600.0, true, WindowAppearance::Light);
+        root.emit_window_observation(800.0, 600.0, true, WindowAppearance::Light);
         let resize = runtime
             .take_event()
             .expect("initial resize result")
@@ -819,8 +848,18 @@ mod input_tests {
             activation.payload,
             Some(EventPayload::WindowActivation { active: true })
         );
+        let appearance = runtime
+            .take_event()
+            .expect("initial appearance result")
+            .expect("initial appearance event");
+        assert_eq!(
+            appearance.payload,
+            Some(EventPayload::WindowAppearance {
+                appearance: WindowAppearance::Light
+            })
+        );
         assert!(runtime.take_event().expect("dedupe result").is_none());
-        root.emit_window_observation(801.0, 600.0, true);
+        root.emit_window_observation(801.0, 600.0, true, WindowAppearance::Light);
         assert!(matches!(
             runtime
                 .take_event()
@@ -832,7 +871,7 @@ mod input_tests {
                 height: 600.0
             })
         ));
-        root.emit_window_observation(801.0, 600.0, false);
+        root.emit_window_observation(801.0, 600.0, false, WindowAppearance::Light);
         assert!(matches!(
             runtime
                 .take_event()
@@ -840,6 +879,17 @@ mod input_tests {
                 .expect("activation change event")
                 .payload,
             Some(EventPayload::WindowActivation { active: false })
+        ));
+        root.emit_window_observation(801.0, 600.0, false, WindowAppearance::Dark);
+        assert!(matches!(
+            runtime
+                .take_event()
+                .expect("appearance change result")
+                .expect("appearance change event")
+                .payload,
+            Some(EventPayload::WindowAppearance {
+                appearance: WindowAppearance::Dark
+            })
         ));
     }
 

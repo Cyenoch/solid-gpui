@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, KeyAction};
+use crate::protocol::{EVENT_KEY, EVENT_KEY_DOWN, HostProperties, KeyAction};
 
 fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {
     Snapshot::new(7, 3, revision.saturating_sub(1), revision, nodes)
@@ -1313,6 +1313,7 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
         Event::animation_complete(7, 3, 1, 3, 3, 12, 9),
         Event::window_resize(7, 3, 1, 5, 1, 0, 640.0, 480.0),
         Event::window_activation(7, 3, 1, 6, 1, 0, true),
+        Event::window_appearance(7, 3, 1, 7, WindowAppearance::Dark),
         Event::submit(7, 3, 1, 7, 5, 12),
         Event::submit_with_text(7, 3, 1, 8, 5, 12, "submitted text".into()),
         Event::command_result(
@@ -1375,6 +1376,65 @@ fn window_activation_wire_rejects_non_boolean_payloads() {
     assert!(matches!(
         Event::decode(&payload),
         Err(ProtocolError::Decode(_))
+    ));
+}
+
+#[test]
+fn window_appearance_wire_accepts_light_dark_and_rejects_other_values() {
+    for appearance in ["light", "dark"] {
+        let payload = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            1u32,
+            1u32,
+            0u32,
+            EVENT_WINDOW_APPEARANCE,
+            appearance,
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&payload).unwrap().payload,
+            Some(EventPayload::WindowAppearance { .. })
+        ));
+    }
+    for appearance in [true, false] {
+        let payload = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            1u32,
+            1u32,
+            0u32,
+            EVENT_WINDOW_APPEARANCE,
+            appearance,
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&payload),
+            Err(ProtocolError::Decode(_))
+        ));
+    }
+    let payload = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        1u32,
+        1u32,
+        0u32,
+        EVENT_WINDOW_APPEARANCE,
+        "system",
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&payload),
+        Err(ProtocolError::InvalidEventPayload)
     ));
 }
 

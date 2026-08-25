@@ -16,7 +16,7 @@ use react_gpui::{
     SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
     TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition,
     UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
-    VirtualListProperties,
+    VirtualListProperties, WindowAppearance,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -418,6 +418,14 @@ fn main() {
         "rust-event-window-activation",
         "event",
         Event::window_activation(7, 3, 42, 12, 1, 0, true)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-window-appearance",
+        "event",
+        Event::window_appearance(7, 3, 42, 16, WindowAppearance::Dark)
             .encode()
             .unwrap(),
     );

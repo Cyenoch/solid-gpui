@@ -41,6 +41,7 @@ import {
 } from "../protocol";
 import { TransportTerminatedError, type Transport, type TransportTerminationListener } from "../transport";
 import { accessibilityWire, assertU32Option, hostPropertiesWire, KIND_CODES, nextU32 } from "./props";
+import type { Appearance } from "../hooks";
 import { encodeStyle } from "../style";
 import { dispatchEvent, type DispatchContext } from "./dispatch";
 import { NodeGraph } from "./nodes";
@@ -85,6 +86,7 @@ export class RootContainer implements DispatchContext {
   private readonly onTransportTermination: TransportTerminationListener | undefined;
   readonly onWindowResize: WindowResizeHandler | undefined;
   readonly onWindowActivation: WindowActivationHandler | undefined;
+  readonly onAppearance: ((appearance: Appearance) => void) | undefined;
   private readonly surfaceClosedHandler: (() => void) | undefined;
   readonly onAction: ((action: string) => void) | undefined;
   private readonly scheduleDispatch: (dispatch: () => void) => void;
@@ -102,6 +104,7 @@ export class RootContainer implements DispatchContext {
     onWindowActivation?: WindowActivationHandler,
     onSurfaceClosed?: () => void,
     onAction?: (action: string) => void,
+    onAppearance?: (appearance: Appearance) => void,
   ) {
     this.surfaceId = assertU32Option("surfaceId", surfaceId);
     this.epoch = assertU32Option("epoch", epoch);
@@ -121,6 +124,7 @@ export class RootContainer implements DispatchContext {
     this.onWindowActivation = onWindowActivation;
     this.surfaceClosedHandler = onSurfaceClosed;
     this.onAction = onAction;
+    this.onAppearance = onAppearance;
     this.decoder = new FrameDecoder(maxFrameSize);
     this.unsubscribe = transport.onData((chunk) => this.receive(chunk));
     this.unsubscribeTermination = transport.onTermination((error) => this.handleTransportTermination(error));

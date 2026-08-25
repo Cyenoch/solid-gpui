@@ -36,6 +36,11 @@ const fullStyle = [
   40.5,
   0.75,
   6,
+  1,
+  -8,
+  4,
+  12,
+  6,
 ];
 const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8];
@@ -139,6 +144,7 @@ const rows = [
   row("ts-event-command-result", "event", [3, 2, 7, 3, 42, 8, 1, 0, 6, [2, 109, 10, 1, false, "rejected", null]]),
   row("ts-event-window-resize", "event", [3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5]]),
   row("ts-event-window-activation", "event", [3, 2, 7, 3, 42, 12, 1, 0, 15, true]),
+  row("ts-event-window-appearance", "event", [3, 2, 7, 3, 42, 16, 1, 0, 18, "dark"]),
   row("ts-event-command-result-size", "event", [
     3,
     2,
@@ -207,6 +213,8 @@ const invalid = [
   )}\terror\tevent-null`,
   `ts-invalid-event-type\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 99, null]))}\terror\tevent-null`,
   `ts-invalid-surface-close-node\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 16, null]))}\terror\tevent-null`,
+  `ts-invalid-appearance-bool\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 18, true]))}\terror\tevent-null`,
+  `ts-invalid-appearance-value\tevent\t${hex(encode([3, 2, 7, 3, 42, 2, 1, 0, 18, "system"]))}\terror\tevent-null`,
   `ts-invalid-event-payload-tag\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 12, [99]]))}\terror\tevent-null`,
   `ts-invalid-host-kind\tsnapshot\t${hex(encode([3, 1, 7, 3, 0, 1, [[2, 1, 0, 99, null, null, 0, null, null, false]]]))}\tok\traw`,
   "ts-invalid-messagepack\tevent\tc1\terror\tdecode-null",

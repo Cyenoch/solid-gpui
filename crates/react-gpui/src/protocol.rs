@@ -27,6 +27,7 @@ pub const EVENT_WINDOW_RESIZE: u32 = 14;
 pub const EVENT_WINDOW_ACTIVATION: u32 = 15;
 pub const EVENT_SURFACE_CLOSED: u32 = 16;
 pub const EVENT_ACTION: u32 = 17;
+pub const EVENT_WINDOW_APPEARANCE: u32 = 18;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -435,6 +436,21 @@ pub struct ScrollEvent {
     pub modifiers: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowAppearance {
+    Light,
+    Dark,
+}
+
+impl WindowAppearance {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum EventPayload {
     TextInput(TextInputEvent),
@@ -448,6 +464,7 @@ pub enum EventPayload {
     WindowResize { width: f32, height: f32 },
     WindowActivation { active: bool },
     EventAction { action: String },
+    WindowAppearance { appearance: WindowAppearance },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -718,6 +735,26 @@ impl Event {
             listener_id,
             event_type: EVENT_WINDOW_ACTIVATION,
             payload: Some(EventPayload::WindowActivation { active }),
+        }
+    }
+    pub fn window_appearance(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        appearance: WindowAppearance,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id: 1,
+            listener_id: 0,
+            event_type: EVENT_WINDOW_APPEARANCE,
+            payload: Some(EventPayload::WindowAppearance { appearance }),
         }
     }
 

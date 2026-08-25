@@ -93,7 +93,16 @@ export {
   type TransitionEasing,
   type TransitionProperty,
 } from "./style";
-export { createWindowSizeStore, useWindowSize, type WindowSize, type WindowSizeStore } from "./hooks";
+export {
+  createAppearanceStore,
+  createWindowSizeStore,
+  useAppearance,
+  useWindowSize,
+  type Appearance,
+  type AppearanceStore,
+  type WindowSize,
+  type WindowSizeStore,
+} from "./hooks";
 export const View = forwardRef<ViewHandle, ViewProps>((props, ref) => createElement("View", { ...props, ref }));
 export const Image = forwardRef<HostNode, ImageProps>((props, ref) => createElement("Image", { ...props, ref }));
 export const TextInput = forwardRef<TextInputHandle, TextInputProps>((props, ref) =>

@@ -33,3 +33,34 @@ export function createWindowSizeStore(initial: WindowSize = { width: 1024, heigh
 export function useWindowSize(store: WindowSizeStore): WindowSize {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
+
+export type Appearance = "light" | "dark";
+
+export interface AppearanceStore {
+  getSnapshot(): Appearance;
+  subscribe(listener: () => void): () => void;
+  set(appearance: Appearance): void;
+}
+
+/** Create the explicit store wired to a root's `onAppearance` callback. */
+export function createAppearanceStore(initial: Appearance = "light"): AppearanceStore {
+  let snapshot = initial;
+  const listeners = new Set<() => void>();
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    set(appearance) {
+      if (snapshot === appearance) return;
+      snapshot = appearance;
+      for (const listener of listeners) listener();
+    },
+  };
+}
+
+/** Subscribe to an explicit appearance store without an implicit global root. */
+export function useAppearance(store: AppearanceStore): Appearance {
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}

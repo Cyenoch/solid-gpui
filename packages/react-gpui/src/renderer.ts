@@ -37,6 +37,7 @@ import type {
   MenuDefinition,
 } from "./renderer/types";
 import type { Transport, TransportTerminationListener } from "./transport";
+import type { Appearance } from "./hooks";
 export type {
   AccessibilityProps,
   AnimationCompleteEvent,
@@ -82,6 +83,7 @@ export interface RootOptions {
   readonly onWindowResize?: WindowResizeHandler;
   readonly onWindowActivation?: WindowActivationHandler;
   readonly onAction?: (action: string) => void;
+  readonly onAppearance?: (appearance: Appearance) => void;
 }
 export interface SurfaceOpenOptions {
   readonly title?: string;
@@ -151,6 +153,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
       options.onClose?.();
     },
     options.onAction,
+    options.onAppearance,
   );
   const reconcilerRoot = renderer.createContainer(
     container,

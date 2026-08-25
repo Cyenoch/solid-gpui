@@ -343,6 +343,27 @@ root.render(<App />);
 starts from a caller-provided estimate (`{ width: 1024, height: 720 }` by
 default) and updates when the native callback fires.
 
+`createRoot` also accepts `onAppearance(appearance)`, where the current
+values are `"light"` and `"dark"`. It emits an initial value on the first
+window observation frame and coalesces later changes with resize/activation.
+Bridge it explicitly with `createAppearanceStore` and `useAppearance`; the
+store is per root and the library does not impose a color palette:
+
+```tsx
+const appearanceStore = createAppearanceStore();
+const root = createRoot(transport, {
+  onAppearance: (appearance) => appearanceStore.set(appearance),
+});
+
+function ThemeAwareLabel() {
+  const appearance = useAppearance(appearanceStore);
+  return <Text style={{ color: appearance === "dark" ? "#ffffff" : "#111827" }}>System-aware</Text>;
+}
+```
+
+`"light"` includes GPUI light/vibrant-light appearances and `"dark"` includes
+dark/vibrant-dark appearances. Palette selection remains application-owned.
+
 ## Scroll
 
 `View` accepts `onScroll` for native wheel notifications. The callback receives

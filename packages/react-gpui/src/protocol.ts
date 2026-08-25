@@ -33,6 +33,7 @@ export const EVENT_WINDOW_RESIZE = 14 as const;
 export const EVENT_WINDOW_ACTIVATION = 15 as const;
 export const EVENT_SURFACE_CLOSED = 16 as const;
 export const EVENT_ACTION = 17 as const;
+export const EVENT_WINDOW_APPEARANCE = 18 as const;
 export const EVENT_POINTER_DOWN = 1 as const;
 export const EVENT_POINTER_UP = 2 as const;
 export const POINTER_BUTTON_LEFT = 1 as const;
@@ -226,6 +227,7 @@ export type SubmitEventPayload = string;
 export type WindowResizeEventPayload = readonly [number, number];
 export type WindowActivationEventPayload = boolean;
 export type ActionEventPayload = string;
+export type WindowAppearanceEventPayload = "light" | "dark";
 export type EventPayload =
   | TextInputEventPayload
   | CommandResultPayload
@@ -237,7 +239,8 @@ export type EventPayload =
   | SubmitEventPayload
   | WindowResizeEventPayload
   | WindowActivationEventPayload
-  | ActionEventPayload;
+  | ActionEventPayload
+  | WindowAppearanceEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -265,6 +268,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_WINDOW_ACTIVATION
     | typeof EVENT_SURFACE_CLOSED
     | typeof EVENT_ACTION
+    | typeof EVENT_WINDOW_APPEARANCE
   ),
   EventPayload | null,
 ];
@@ -468,6 +472,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   if (eventType === EVENT_SUBMIT) return payload === null || typeof payload === "string";
   if (eventType === EVENT_ACTION)
     return typeof payload === "string" && payload.length > 0 && [...payload].length <= 256;
+  if (eventType === EVENT_WINDOW_APPEARANCE) return payload === "light" || payload === "dark";
   if (eventType === EVENT_WINDOW_ACTIVATION) return typeof payload === "boolean";
   if (eventType === EVENT_WINDOW_RESIZE) {
     return (
@@ -631,9 +636,15 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
       return null;
     }
   }
-  if (typeof value[8] !== "number" || !Number.isInteger(value[8]) || value[8] < EVENT_PRESS || value[8] > EVENT_ACTION)
+  if (
+    typeof value[8] !== "number" ||
+    !Number.isInteger(value[8]) ||
+    value[8] < EVENT_PRESS ||
+    value[8] > EVENT_WINDOW_APPEARANCE
+  )
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;
   if (value[8] === EVENT_ACTION && (value[6] !== 1 || value[7] !== 0)) return null;
+  if (value[8] === EVENT_WINDOW_APPEARANCE && (value[6] !== 1 || value[7] !== 0)) return null;
   return validateEventPayload(value[8], value[9]) ? (value as unknown as PressEventFrame) : null;
 }

@@ -3,6 +3,8 @@
 ts-invalid-file-dialog-empty-paths	event	9a030207032a150100069702781201c3c0920590	error	event-null
 ts-invalid-event-type	event	9a030207032a01010063c0	error	event-null
 ts-invalid-surface-close-node	event	9a030207032a01010010c0	error	event-null
+ts-invalid-appearance-bool	event	9a030207032a01010012c3	error	event-null
+ts-invalid-appearance-value	event	9a030207032a02010012a673797374656d	error	event-null
 ts-invalid-event-payload-tag	event	9a030207032a0101000c9163	error	event-null
 ts-invalid-host-kind	snapshot	97030107030001919a02010063c0c000c0c0c2	ok	raw
 ts-invalid-messagepack	event	c1	error	decode-null

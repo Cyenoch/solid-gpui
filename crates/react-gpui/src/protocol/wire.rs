@@ -363,6 +363,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_WINDOW_ACTIVATION
             | EVENT_SURFACE_CLOSED
             | EVENT_ACTION
+            | EVENT_WINDOW_APPEARANCE
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -445,6 +446,16 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 && action.chars().count() <= 256 =>
         {
             Some(EventPayload::EventAction { action })
+        }
+        (EVENT_WINDOW_APPEARANCE, Some(EventPayloadWire::WindowAppearance(appearance)))
+            if wire.6 == 1 && wire.7 == 0 && matches!(appearance.as_str(), "light" | "dark") =>
+        {
+            let appearance = if appearance == "dark" {
+                WindowAppearance::Dark
+            } else {
+                WindowAppearance::Light
+            };
+            Some(EventPayload::WindowAppearance { appearance })
         }
         (EVENT_SUBMIT, Some(EventPayloadWire::Submit(text))) => Some(EventPayload::Submit { text }),
         (EVENT_SURFACE_CLOSED, None) if wire.6 == 0 && wire.7 == 0 => None,
@@ -785,6 +796,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<String>>()?
                 .flatten()
                 .map(EventPayloadWire::Action),
+            EVENT_WINDOW_APPEARANCE => sequence
+                .next_element::<Option<String>>()?
+                .flatten()
+                .map(EventPayloadWire::WindowAppearance),
             EVENT_PRESS | EVENT_HOVER => {
                 let payload: Option<Option<de::IgnoredAny>> = sequence.next_element()?;
                 if payload.flatten().is_some() {
@@ -834,6 +849,7 @@ enum EventPayloadWire {
     Submit(String),
     WindowActivation(bool),
     Action(String),
+    WindowAppearance(String),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -1101,7 +1117,6 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
         }
     }
 }
-
 fn validate_host_kind(
     kind: u32,
     host_properties: Option<&HostProperties>,
@@ -1551,6 +1566,9 @@ impl From<&EventPayload> for EventPayloadWire {
             }
             EventPayload::WindowActivation { active } => Self::WindowActivation(*active),
             EventPayload::EventAction { action } => Self::Action(action.clone()),
+            EventPayload::WindowAppearance { appearance } => {
+                Self::WindowAppearance(appearance.as_str().to_owned())
+            }
         }
     }
 }
