@@ -215,6 +215,16 @@ from this work tree.
 - `docs/getting-started.md` adds a 365-line consumer guide covering setup, the
   architecture model, quick references, nine cookbooks, debugging pointers,
   and current boundaries; all snippets were typechecked.
+- Accessibility applications now connect `Image`, `VirtualList`, and `RawText`
+  to AX; explicit roles map to platform semantics, while generic and unknown
+  elements accurately remain without node semantics. `checked` maps to
+  `toggled`, and patch role/checked validation is complete. No upstream public
+  builder exposes `disabled`, so it remains explicitly unsupported; AX-tree
+  verification remains display-backed.
+- Public API snapshots now lock core's 94 and dev's 18 exports by name and kind.
+  The generator is excluded from CI artifact-locking mode, advanced
+  customization-surface exports are documented, and pack-smoke coverage is
+  extended.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
