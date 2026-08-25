@@ -5,22 +5,27 @@ use gpui::{
     WindowHandle, WindowId, WindowOptions, px, size,
 };
 use react_gpui::{
-    COMMAND_OPEN_SURFACE, Command, CommandValue, Patch, ProcessAdapter, ProtocolError, ReactRoot,
-    RuntimeAdapter, RuntimeStatus, Snapshot, fatal_runtime_failure,
+    COMMAND_OPEN_SURFACE, Command, CommandValue, MenuAction, Patch, ProcessAdapter, ProtocolError,
+    ReactRoot, RuntimeAdapter, RuntimeStatus, Snapshot, fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
 use react_gpui::{Event, send_event_or_exit};
 #[cfg(feature = "embedded-bun")]
 use react_gpui_bun::EmbeddedBunAdapter;
+use std::backtrace::Backtrace;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
 use std::fmt::Display;
-#[cfg(feature = "embedded-bun")]
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::panic;
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
 use std::sync::Arc;
 use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
+const CRASH_DIR_ENV: &str = "REACT_GPUI_CRASH_DIR";
 const COMMAND_ENV: &str = "REACT_GPUI_RENDERER_COMMAND";
 const ARGS_ENV: &str = "REACT_GPUI_RENDERER_ARGS";
 const LOG_ENV: &str = "REACT_GPUI_LOG";
@@ -68,6 +73,71 @@ fn host_log(level: LogLevel, message_level: LogLevel, message: impl Display) {
     if level >= message_level {
         eprintln!("react-gpui-host: {message}");
     }
+}
+
+fn install_panic_hook() {
+    let crash_dir = env::var_os(CRASH_DIR_ENV)
+        .map(PathBuf::from)
+        .unwrap_or_else(env::temp_dir);
+    install_panic_hook_in(crash_dir);
+}
+
+fn install_panic_hook_in(crash_dir: PathBuf) {
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        default_hook(info);
+        if let Err(error) = write_crash_report(&crash_dir, info) {
+            eprintln!("react-gpui-host: unable to write crash report: {error}");
+        }
+    }));
+}
+
+fn write_crash_report(
+    crash_dir: &std::path::Path,
+    info: &panic::PanicHookInfo<'_>,
+) -> std::io::Result<()> {
+    fs::create_dir_all(crash_dir)?;
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    let path = crash_dir.join(format!(
+        "react-gpui-host-{}-{timestamp}.log",
+        std::process::id()
+    ));
+    let mut report = OpenOptions::new().create_new(true).write(true).open(path)?;
+    let message = info
+        .payload()
+        .downcast_ref::<&str>()
+        .map(|value| (*value).to_owned())
+        .or_else(|| info.payload().downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "non-string panic payload".to_owned());
+    let location = info
+        .location()
+        .map(|location| {
+            format!(
+                "{}:{}:{}",
+                location.file(),
+                location.line(),
+                location.column()
+            )
+        })
+        .unwrap_or_else(|| "unknown".to_owned());
+    let backtrace = Backtrace::capture();
+    writeln!(report, "react-gpui-host crash report")?;
+    writeln!(report, "version: {}", env!("CARGO_PKG_VERSION"))?;
+    writeln!(
+        report,
+        "platform: {}-{}",
+        env::consts::OS,
+        env::consts::ARCH
+    )?;
+    writeln!(report, "pid: {}", std::process::id())?;
+    writeln!(report, "timestamp_ms: {timestamp}")?;
+    writeln!(report, "panic: {message}")?;
+    writeln!(report, "location: {location}")?;
+    writeln!(report, "backtrace:\\n{backtrace}")?;
+    report.flush()
 }
 
 enum ReaderMessage {
@@ -244,6 +314,20 @@ impl SurfaceRegistry {
         });
     }
 
+    fn emit_action(&mut self, action: String, cx: &mut Context<Self>) {
+        let Some(window) = cx.active_window() else {
+            return;
+        };
+        let Some(surface_id) = self.windows.get(&window.window_id()).copied() else {
+            return;
+        };
+        let Some(surface) = self.surfaces.get(&surface_id) else {
+            return;
+        };
+        let root = surface.root.clone();
+        root.update(cx, |root, _| root.emit_action(action));
+    }
+
     fn window_closed(&mut self, window_id: WindowId, cx: &mut Context<Self>) -> bool {
         let Some(surface_id) = self.windows.get(&window_id).copied() else {
             return false;
@@ -352,6 +436,7 @@ fn start_commit_reader(
 }
 
 fn main() {
+    install_panic_hook();
     let log_level = resolve_log_level(env::var(LOG_ENV).ok().as_deref(), |reason| {
         eprintln!("react-gpui-host: invalid {LOG_ENV}: {reason}; defaulting to error");
     });
@@ -677,6 +762,30 @@ mod tests {
         let level = resolve_log_level(Some("verbose"), |_| warnings += 1);
         assert_eq!(level, LogLevel::Error);
         assert_eq!(warnings, 1);
+    }
+
+    #[test]
+    fn panic_hook_writes_crash_report_with_location() {
+        let directory =
+            env::temp_dir().join(format!("react-gpui-host-panic-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&directory);
+        install_panic_hook_in(directory.clone());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            panic!("panic hook test");
+        }));
+        assert!(result.is_err());
+        let report = fs::read_dir(&directory)
+            .expect("crash report directory")
+            .find_map(|entry| {
+                let path = entry.ok()?.path();
+                path.extension().filter(|ext| *ext == "log")?;
+                Some(fs::read_to_string(path).expect("crash report contents"))
+            })
+            .expect("panic crash report");
+        assert!(report.contains("panic: panic hook test"));
+        assert!(report.contains("location:"));
+        assert!(report.contains("backtrace:"));
+        let _ = fs::remove_dir_all(directory);
     }
 
     #[test]

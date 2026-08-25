@@ -262,4 +262,38 @@ zero-dependency report script merges multiple files by time and reports frame
 rate, kind/byte statistics, event subtype counts, correlated command success,
 and frame interval p50/p95. `MemoryTransport` remains untapped.
 
+## Troubleshooting
+
+The host installs a standard-library panic hook before CLI/runtime startup.
+Crash reports are written to
+`${REACT_GPUI_CRASH_DIR:-the system temporary directory}` as
+`react-gpui-host-<pid>-<timestamp>.log`; the original panic remains on stderr.
+The report includes the host version/platform, panic location, and a
+`Backtrace::capture()` result. Reproduce with:
+
+```sh
+RUST_BACKTRACE=full REACT_GPUI_CRASH_DIR=/tmp/react-gpui-crashes \
+  cargo run -p react-gpui-host -- --runtime process bun run path/to/entry.tsx
+```
+
+For an optional APM integration, initialize the provider before the host's
+standard hook and preserve the existing hook when adding the provider. This
+illustrative snippet uses the optional Sentry Rust SDK but adds no dependency
+to this repository:
+
+```rust
+let _sentry = sentry::init(("https://example.invalid/project", sentry::ClientOptions::default()));
+let previous = std::panic::take_hook();
+std::panic::set_hook(Box::new(move |info| {
+    sentry::capture_message(&info.to_string(), sentry::Level::Error);
+    previous(info);
+}));
+```
+
+Use a distinct `REACT_GPUI_TAP` path for each process and run
+`scripts/protocol-tap-report.py` beside the crash report. The tap records frame
+metadata only, while the crash file records panic context; their timestamps,
+direction, and message/subtype sequence provide the non-payload correlation
+needed to localize a failure without persisting payload contents.
+
 V3 supports the documented native host kinds, protocol-v3 press/TextInput/VirtualList/keyboard/pointer/hover/scroll/animation notifications, transitions, and accessibility fields. It does not provide synchronous native cancellation, arbitrary native widgets, or a browser/DOM compatibility layer. `ProcessAdapter` remains the default for fast iteration; `EmbeddedBunAdapter` is available with `--features embedded-bun` and is built from the pinned Bun source graph. Fast Refresh failures keep the last-good native tree visible and print an actionable stderr diagnostic.

@@ -224,6 +224,23 @@ describe("StdioTransport backpressure", () => {
     expect(output.listenerCount()).toBe(0);
   });
 
+  it("preserves host exit code and only the last 50 stderr lines", () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([]);
+    const transport = new StdioTransport(output, input);
+    let termination: string | undefined;
+    transport.onTermination((error) => {
+      termination = error.message;
+    });
+    const stderrTail = Array.from({ length: 60 }, (_, index) => `line-${index}`).join("\n");
+    input.emitError(Object.assign(new Error("host exited"), { exitCode: 23, stderrTail }));
+
+    expect(termination).toContain("host exit code: 23");
+    expect(termination).toContain("line-59");
+    expect(termination).toContain("line-10");
+    expect(termination).not.toContain("line-9");
+  });
+
   it("delivers transport termination through createRoot without a global exit", () => {
     const input = new FakeInput();
     const output = new FakeOutput([]);

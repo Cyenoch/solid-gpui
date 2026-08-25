@@ -6,14 +6,22 @@ export type TransportListener = (chunk: Uint8Array) => void;
 
 export class TransportTerminatedError extends Error {
   readonly cause?: unknown;
+  readonly exitCode?: number;
+  readonly stderrTail?: string;
 
-  constructor(message: string, cause?: unknown) {
+  constructor(message: string, cause?: unknown, details: TransportTerminationDetails = {}) {
     super(message);
     this.name = "TransportTerminatedError";
     this.cause = cause;
+    this.exitCode = details.exitCode;
+    this.stderrTail = details.stderrTail;
   }
 }
 
+export interface TransportTerminationDetails {
+  readonly exitCode?: number;
+  readonly stderrTail?: string;
+}
 export type TransportTerminationListener = (error: TransportTerminatedError) => void;
 
 export interface Transport {
@@ -57,9 +65,31 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function detailsFromCause(cause: unknown): TransportTerminationDetails {
+  if (cause === null || typeof cause !== "object") return {};
+  const value = cause as { exitCode?: unknown; stderrTail?: unknown };
+  return {
+    exitCode: typeof value.exitCode === "number" && Number.isInteger(value.exitCode) ? value.exitCode : undefined,
+    stderrTail:
+      typeof value.stderrTail === "string"
+        ? value.stderrTail.split(/\r?\n/).slice(-50).join("\n")
+        : undefined,
+  };
+}
+
 function terminatedError(context: string, cause?: unknown): TransportTerminatedError {
   if (cause instanceof TransportTerminatedError) return cause;
-  return new TransportTerminatedError(cause === undefined ? context : `${context}: ${describeError(cause)}`, cause);
+  const details = detailsFromCause(cause);
+  const message = cause === undefined ? context : `${context}: ${describeError(cause)}`;
+  const diagnostics = [
+    details.exitCode === undefined ? undefined : `host exit code: ${details.exitCode}`,
+    details.stderrTail === undefined ? undefined : `host stderr tail:\n${details.stderrTail}`,
+  ].filter((value): value is string => value !== undefined);
+  return new TransportTerminatedError(
+    diagnostics.length === 0 ? message : `${message}\n${diagnostics.join("\n")}`,
+    cause,
+    details,
+  );
 }
 
 export type ExitFunction = (code: number) => void;
