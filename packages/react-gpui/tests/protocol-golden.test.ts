@@ -68,6 +68,12 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   if (vector.id.endsWith("event-command-result-open-surface")) {
     expect((decoded as readonly unknown[])[9]).toEqual([2, 117, 17, 1, true, null, [1, 41]]);
   }
+  if (vector.id.endsWith("event-command-result-file-open")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([2, 118, 18, 1, true, null, [5, ["/tmp/a.txt", "/tmp/b.txt"]]]);
+  }
+  if (vector.id.endsWith("event-command-result-file-save")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([2, 119, 19, 1, true, null, [4, "/tmp/report.json"]]);
+  }
 }
 
 describe("protocol golden vectors", () => {

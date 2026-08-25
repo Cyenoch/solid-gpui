@@ -5,16 +5,17 @@ use std::path::PathBuf;
 use react_gpui::protocol::{KeyAction, UPDATE_FOCUSABLE};
 use react_gpui::{
     AccessibilityProperties, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE,
-    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
-    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties,
-    KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, Node,
-    PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style,
-    TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
-    TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER,
-    UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
+    COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT,
+    COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE,
+    COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
+    Command, CommandResult, CommandValue, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing,
+    Event, HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT,
+    KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, Node, PROTOCOL_VERSION, Patch, PatchOperation,
+    SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
+    TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition,
+    UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
+    VirtualListProperties,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -473,6 +474,51 @@ fn main() {
     );
     emit(
         &mut rows,
+        "rust-event-command-result-file-open",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            19,
+            CommandResult {
+                request_id: 118,
+                command: COMMAND_FILE_DIALOG_OPEN,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Paths(vec![
+                    "/tmp/a.txt".into(),
+                    "/tmp/b.txt".into(),
+                ])),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-file-save",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            20,
+            CommandResult {
+                request_id: 119,
+                command: COMMAND_FILE_DIALOG_SAVE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Text("/tmp/report.json".into())),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
         "rust-command-focus",
         "command",
         command(COMMAND_FOCUS, 4, None, None).encode().unwrap(),
@@ -576,6 +622,22 @@ fn main() {
         "rust-command-open-surface",
         "command",
         surface_command("Child", 640, 480).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-file-dialog-open",
+        "command",
+        command(COMMAND_FILE_DIALOG_OPEN, 1, Some((1, 1)), Some("Choose"))
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-file-dialog-save",
+        "command",
+        command(COMMAND_FILE_DIALOG_SAVE, 1, None, Some("report.json"))
+            .encode()
+            .unwrap(),
     );
     emit(
         &mut rows,

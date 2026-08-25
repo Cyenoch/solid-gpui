@@ -1,5 +1,6 @@
 # protocol-golden-v1
 # id	message	payload_hex	rust_expected	ts_expected
+ts-invalid-file-dialog-empty-paths	event	9a030207032a150100069702781201c3c0920590	error	event-null
 ts-invalid-event-type	event	9a030207032a01010063c0	error	event-null
 ts-invalid-surface-close-node	event	9a030207032a01010010c0	error	event-null
 ts-invalid-event-payload-tag	event	9a030207032a0101000c9163	error	event-null

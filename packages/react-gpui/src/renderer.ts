@@ -85,6 +85,15 @@ export interface SurfaceOpenOptions {
   readonly width?: number;
   readonly height?: number;
 }
+export interface PickFilesOptions {
+  readonly title?: string;
+  readonly directories?: boolean;
+  readonly multiple?: boolean;
+}
+
+export interface PickSavePathOptions {
+  readonly defaultName?: string;
+}
 
 export interface Root {
   render(element: ReactNode): void;
@@ -96,6 +105,8 @@ export interface Root {
   zoom(): Promise<void>;
   toggleFullscreen(): Promise<void>;
   openSurface(options?: SurfaceOpenOptions): Promise<number>;
+  pickFiles(options?: PickFilesOptions): Promise<string[] | null>;
+  pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
   openUrl(url: string): Promise<void>;
   focusNext(): Promise<void>;
   focusPrev(): Promise<void>;
@@ -184,6 +195,14 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     openSurface(options: SurfaceOpenOptions = {}): Promise<number> {
       if (closed) return Promise.reject(new Error("Cannot open a surface from an unmounted root"));
       return container.openSurface(options);
+    },
+    pickFiles(options: PickFilesOptions = {}): Promise<string[] | null> {
+      if (closed) return Promise.reject(new Error("Cannot pick files from an unmounted root"));
+      return container.pickFiles(options);
+    },
+    pickSavePath(options: PickSavePathOptions = {}): Promise<string | null> {
+      if (closed) return Promise.reject(new Error("Cannot pick a save path from an unmounted root"));
+      return container.pickSavePath(options);
     },
     toggleFullscreen(): Promise<void> {
       if (closed) return Promise.reject(new Error("Cannot toggle fullscreen on an unmounted root"));

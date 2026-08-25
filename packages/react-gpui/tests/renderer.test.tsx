@@ -19,6 +19,8 @@ import {
   COMMAND_BLUR,
   COMMAND_CLIPBOARD_READ,
   COMMAND_CLIPBOARD_WRITE,
+  COMMAND_FILE_DIALOG_OPEN,
+  COMMAND_FILE_DIALOG_SAVE,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
   COMMAND_FOCUS_PREV,
@@ -166,6 +168,47 @@ describe("protocol framing", () => {
     expect(decodeEvent(sizeResult.slice(4))).not.toBeNull();
     expect(decodeEvent(focusResult.slice(4))).not.toBeNull();
     expect(decodeEvent(malformed.slice(4))).toBeNull();
+  });
+  it("validates file dialog command results and rejects empty path arrays", () => {
+    const valid = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      7,
+      1,
+      0,
+      6,
+      [2, 4, COMMAND_FILE_DIALOG_OPEN, 1, true, null, [5, ["/tmp/file.txt"]]],
+    ]);
+    const empty = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      8,
+      1,
+      0,
+      6,
+      [2, 5, COMMAND_FILE_DIALOG_OPEN, 1, true, null, [5, []]],
+    ] as never);
+    const save = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      9,
+      1,
+      0,
+      6,
+      [2, 6, COMMAND_FILE_DIALOG_SAVE, 1, true, null, [4, "/tmp/file.txt"]],
+    ]);
+    expect(decodeEvent(valid.slice(4))).not.toBeNull();
+    expect(decodeEvent(save.slice(4))).not.toBeNull();
+    expect(decodeEvent(empty.slice(4))).toBeNull();
   });
 });
 describe("window observation and value commands", () => {
@@ -1286,6 +1329,45 @@ describe("renderer commits", () => {
 
     await expect(root.resize(0, 600)).rejects.toThrow();
     await expect(root.openUrl("file:///tmp/example")).rejects.toThrow();
+    root.unmount();
+  });
+  it("frames file dialog commands and maps async results and cancellation", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 79, epoch: 80 });
+    root.render(<View />);
+    const complete = (
+      sequence: number,
+      requestId: number,
+      command: number,
+      value: readonly unknown[] | undefined = undefined,
+    ) =>
+      encodeFrame([
+        3,
+        2,
+        79,
+        80,
+        1,
+        sequence,
+        1,
+        0,
+        6,
+        value === undefined ? [2, requestId, command, 1, true, null] : [2, requestId, command, 1, true, null, value],
+      ] as never);
+
+    const files = root.pickFiles({ title: "Open files", multiple: true });
+    expect(message(transport, 1)).toEqual([3, 4, 79, 80, 1, 1, 1, COMMAND_FILE_DIALOG_OPEN, ["Open files", [0, 1]]]);
+    transport.push(complete(1, 1, COMMAND_FILE_DIALOG_OPEN, [5, ["/tmp/a.txt", "/tmp/b.txt"]]));
+    await expect(files).resolves.toEqual(["/tmp/a.txt", "/tmp/b.txt"]);
+
+    const canceled = root.pickFiles({ directories: true });
+    expect(message(transport, 2)).toEqual([3, 4, 79, 80, 1, 2, 1, COMMAND_FILE_DIALOG_OPEN, ["", [1, 0]]]);
+    transport.push(complete(2, 2, COMMAND_FILE_DIALOG_OPEN));
+    await expect(canceled).resolves.toBeNull();
+
+    const save = root.pickSavePath({ defaultName: "report.json" });
+    expect(message(transport, 3)).toEqual([3, 4, 79, 80, 1, 3, 1, COMMAND_FILE_DIALOG_SAVE, "report.json"]);
+    transport.push(complete(3, 3, COMMAND_FILE_DIALOG_SAVE, [4, "/tmp/report.json"]));
+    await expect(save).resolves.toBe("/tmp/report.json");
     root.unmount();
   });
   it("frames root focus traversal commands", async () => {

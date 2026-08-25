@@ -49,6 +49,25 @@ down the runtime and process. Real Quartz multi-window display behavior is
 validated separately on a macOS display-backed host; headless tests cover the
 shared-reader/demultiplexing contract.
 
+File dialogs are root-scoped asynchronous commands:
+
+```tsx
+const paths = await root.pickFiles({ title: "Choose files", multiple: true });
+const savePath = await root.pickSavePath({ defaultName: "report.json" });
+```
+
+`pickFiles` chooses files or directories exclusively (`directories` selects
+directories; `multiple` controls multiplicity) and resolves to a non-empty
+path list or `null` on cancellation. `pickSavePath` returns a selected path or
+`null`; an empty default name leaves the native suggestion unset. Save dialog
+titles are not exposed because GPUI's raw save picker has no title/prompt
+parameter. Picker failures reject the JavaScript promise. The file dialog
+commands remain asynchronous so the GPUI event loop and other root commands
+continue while the native modal is open.
+Headless tests cover command validation, asynchronous completion, cancellation,
+and value routing. Actual NSOpenPanel/NSSavePanel interaction requires a
+display-backed macOS Quartz host run and is not exercised in headless CI.
+
 A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
 
 ## Quick start

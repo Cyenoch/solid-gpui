@@ -88,20 +88,25 @@ pub(super) fn decode_patch(payload: &[u8]) -> Result<Patch, ProtocolError> {
 }
 
 pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError> {
-    let payload = if command.kind == COMMAND_OPEN_SURFACE {
-        match (&command.payload, &command.title) {
-            (Some(payload), Some(title)) => {
-                Some(CommandPayloadWire::Surface((title.clone(), *payload)))
-            }
+    let payload = match command.kind {
+        COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => match (&command.payload, &command.title)
+        {
+            (Some(payload), Some(title)) => Some(CommandPayloadWire::StringWithPair((
+                title.clone(),
+                *payload,
+            ))),
             _ => return Err(ProtocolError::InvalidCommandPayload),
-        }
-    } else {
-        match (&command.payload, &command.title) {
+        },
+        COMMAND_FILE_DIALOG_SAVE => match (&command.payload, &command.title) {
+            (None, Some(default_name)) => Some(CommandPayloadWire::Title(default_name.clone())),
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        },
+        _ => match (&command.payload, &command.title) {
             (Some(payload), None) => Some(CommandPayloadWire::Pair(*payload)),
             (None, Some(title)) => Some(CommandPayloadWire::Title(title.clone())),
             (None, None) => None,
             (Some(_), Some(_)) => return Err(ProtocolError::InvalidCommandPayload),
-        }
+        },
     };
     rmp_serde::to_vec(&CommandWire(
         command.protocol,
@@ -158,76 +163,97 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_CLIPBOARD_WRITE
             | COMMAND_CLIPBOARD_READ
             | COMMAND_OPEN_SURFACE
+            | COMMAND_FILE_DIALOG_OPEN
+            | COMMAND_FILE_DIALOG_SAVE
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
-    let (payload, title) = match (wire.7, wire.8) {
-        (COMMAND_SET_TITLE, Some(CommandPayloadWire::Title(title)))
-            if wire.6 == 1 && !title.is_empty() && title.chars().count() <= 256 =>
-        {
-            (None, Some(title))
-        }
-        (COMMAND_SET_TITLE, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_OPEN_SURFACE, Some(CommandPayloadWire::Surface((title, size))))
-            if wire.6 == 1
-                && title.chars().count() <= 256
-                && ((size.0 == 0 && size.1 == 0)
-                    || (size.0 > 0
-                        && size.0 <= MAX_WINDOW_DIMENSION
-                        && size.1 > 0
-                        && size.1 <= MAX_WINDOW_DIMENSION)) =>
-        {
-            (Some(size), Some(title))
-        }
-        (COMMAND_OPEN_SURFACE, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_OPEN_URL, Some(CommandPayloadWire::Title(url)))
-            if wire.6 == 1 && valid_http_url(&url) =>
-        {
-            (None, Some(url))
-        }
-        (COMMAND_OPEN_URL, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_CLIPBOARD_WRITE, Some(CommandPayloadWire::Title(text)))
-            if wire.6 == 1 && text.len() <= MAX_CLIPBOARD_TEXT_BYTES =>
-        {
-            (None, Some(text))
-        }
-        (COMMAND_CLIPBOARD_WRITE, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_CLIPBOARD_READ, None) if wire.6 == 1 => (None, None),
-        (COMMAND_CLIPBOARD_READ, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_RESIZE_WINDOW, Some(CommandPayloadWire::Pair(payload)))
-            if wire.6 == 1
-                && payload.0 > 0
-                && payload.0 <= MAX_WINDOW_DIMENSION
-                && payload.1 > 0
-                && payload.1 <= MAX_WINDOW_DIMENSION =>
-        {
-            (Some(payload), None)
-        }
-        (COMMAND_RESIZE_WINDOW, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_ZOOM_WINDOW | COMMAND_TOGGLE_FULLSCREEN, None) if wire.6 == 1 => (None, None),
-        (COMMAND_ZOOM_WINDOW | COMMAND_TOGGLE_FULLSCREEN, _) => {
-            return Err(ProtocolError::InvalidCommandPayload);
-        }
-        (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, None) if wire.6 == 1 => (None, None),
-        (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, _) => {
-            return Err(ProtocolError::InvalidCommandPayload);
-        }
-        (COMMAND_GET_WINDOW_SIZE, None) if wire.6 == 1 => (None, None),
-        (COMMAND_GET_WINDOW_SIZE, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_GET_FOCUS, None) => (None, None),
-        (COMMAND_GET_FOCUS, _) => return Err(ProtocolError::InvalidCommandPayload),
-        (COMMAND_FOCUS | COMMAND_BLUR | COMMAND_SCROLL_TO_END, None) => (None, None),
-        (
-            COMMAND_SET_SELECTION | COMMAND_SCROLL_TO_INDEX,
-            Some(CommandPayloadWire::Pair(payload)),
-        ) => {
-            if wire.7 == COMMAND_SET_SELECTION && payload.0 > payload.1 {
+    // The untagged wire enum only describes shapes. The command kind selects
+    // the meaning, so the same [string,[u32,u32]] shape is validated
+    // independently for OpenSurface versus FileDialogOpen.
+    let (payload, title, _): (Option<(u32, u32)>, Option<String>, Option<String>) =
+        match (wire.7, wire.8) {
+            (COMMAND_SET_TITLE, Some(CommandPayloadWire::Title(title)))
+                if wire.6 == 1 && !title.is_empty() && title.chars().count() <= 256 =>
+            {
+                (None, Some(title), None)
+            }
+            (COMMAND_SET_TITLE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_OPEN_SURFACE, Some(CommandPayloadWire::StringWithPair((title, size))))
+                if wire.6 == 1
+                    && title.chars().count() <= 256
+                    && ((size.0 == 0 && size.1 == 0)
+                        || (size.0 > 0
+                            && size.0 <= MAX_WINDOW_DIMENSION
+                            && size.1 > 0
+                            && size.1 <= MAX_WINDOW_DIMENSION)) =>
+            {
+                (Some(size), Some(title), None)
+            }
+            (COMMAND_OPEN_SURFACE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (
+                COMMAND_FILE_DIALOG_OPEN,
+                Some(CommandPayloadWire::StringWithPair((title, flags))),
+            ) if wire.6 == 1 && title.chars().count() <= 256 && flags.0 <= 1 && flags.1 <= 1 => {
+                (Some(flags), Some(title), None)
+            }
+            (COMMAND_FILE_DIALOG_OPEN, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_FILE_DIALOG_SAVE, Some(CommandPayloadWire::Title(default_name)))
+                if wire.6 == 1 && default_name.chars().count() <= 256 =>
+            {
+                (None, Some(default_name), None)
+            }
+            (COMMAND_FILE_DIALOG_SAVE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_OPEN_URL, Some(CommandPayloadWire::Title(url)))
+                if wire.6 == 1 && valid_http_url(&url) =>
+            {
+                (None, Some(url), None)
+            }
+            (COMMAND_OPEN_URL, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_CLIPBOARD_WRITE, Some(CommandPayloadWire::Title(text)))
+                if wire.6 == 1 && text.len() <= MAX_CLIPBOARD_TEXT_BYTES =>
+            {
+                (None, Some(text), None)
+            }
+            (COMMAND_CLIPBOARD_WRITE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_CLIPBOARD_READ, None) if wire.6 == 1 => (None, None, None),
+            (COMMAND_CLIPBOARD_READ, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_RESIZE_WINDOW, Some(CommandPayloadWire::Pair(payload)))
+                if wire.6 == 1
+                    && payload.0 > 0
+                    && payload.0 <= MAX_WINDOW_DIMENSION
+                    && payload.1 > 0
+                    && payload.1 <= MAX_WINDOW_DIMENSION =>
+            {
+                (Some(payload), None, None)
+            }
+            (COMMAND_RESIZE_WINDOW, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_ZOOM_WINDOW | COMMAND_TOGGLE_FULLSCREEN, None) if wire.6 == 1 => {
+                (None, None, None)
+            }
+            (COMMAND_ZOOM_WINDOW | COMMAND_TOGGLE_FULLSCREEN, _) => {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
-            (Some(payload), None)
-        }
-        _ => return Err(ProtocolError::InvalidCommandPayload),
-    };
+            (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, None) if wire.6 == 1 => (None, None, None),
+            (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, _) => {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            (COMMAND_GET_WINDOW_SIZE, None) if wire.6 == 1 => (None, None, None),
+            (COMMAND_GET_WINDOW_SIZE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_GET_FOCUS, None) => (None, None, None),
+            (COMMAND_GET_FOCUS, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_FOCUS | COMMAND_BLUR | COMMAND_SCROLL_TO_END, None) => (None, None, None),
+            (
+                COMMAND_SET_SELECTION | COMMAND_SCROLL_TO_INDEX,
+                Some(CommandPayloadWire::Pair(payload)),
+            ) => {
+                if wire.7 == COMMAND_SET_SELECTION && payload.0 > payload.1 {
+                    return Err(ProtocolError::InvalidCommandPayload);
+                }
+                (Some(payload), None, None)
+            }
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        };
     Ok(Command {
         protocol: wire.0,
         message: wire.1,
@@ -298,9 +324,10 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_FOCUS_PREV
                         | COMMAND_GET_WINDOW_SIZE
                         | COMMAND_GET_FOCUS
-                        | COMMAND_CLIPBOARD_WRITE
                         | COMMAND_CLIPBOARD_READ
                         | COMMAND_OPEN_SURFACE
+                        | COMMAND_FILE_DIALOG_OPEN
+                        | COMMAND_FILE_DIALOG_SAVE
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);
@@ -371,7 +398,7 @@ struct PatchWire(u32, u32, u32, u32, u32, u32, Vec<OperationWire>);
 enum CommandPayloadWire {
     Pair((u32, u32)),
     Title(String),
-    Surface((String, (u32, u32))),
+    StringWithPair((String, (u32, u32))),
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct CommandWire(
@@ -704,6 +731,7 @@ enum CommandValueWire {
     Pair((u32, (f32, f32))),
     Bool((u32, bool)),
     Text((u32, String)),
+    Paths((u32, Vec<String>)),
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct VisibleRangeWire(u32, u32, u32);
@@ -1285,6 +1313,7 @@ impl From<&CommandValue> for CommandValueWire {
             CommandValue::Pair((width, height)) => Self::Pair((2, (*width, *height))),
             CommandValue::Bool(active) => Self::Bool((3, *active)),
             CommandValue::Text(text) => Self::Text((4, text.clone())),
+            CommandValue::Paths(paths) => Self::Paths((5, paths.clone())),
         }
     }
 }
@@ -1303,6 +1332,11 @@ impl TryFrom<CommandValueWire> for CommandValue {
             CommandValueWire::Bool((3, active)) => Ok(Self::Bool(active)),
             CommandValueWire::Text((4, text)) if text.len() <= MAX_CLIPBOARD_TEXT_BYTES => {
                 Ok(Self::Text(text))
+            }
+            CommandValueWire::Paths((5, paths))
+                if !paths.is_empty() && paths.iter().all(|path| !path.is_empty()) =>
+            {
+                Ok(Self::Paths(paths))
             }
             _ => Err(ProtocolError::InvalidEventPayload),
         }
@@ -1529,7 +1563,7 @@ mod tests {
             command.request_id,
             command.node_id,
             command.kind,
-            Some(CommandPayloadWire::Surface((
+            Some(CommandPayloadWire::StringWithPair((
                 command.title.clone().expect("title"),
                 command.payload.expect("size"),
             ))),
@@ -1551,13 +1585,60 @@ mod tests {
             command.request_id,
             command.node_id,
             command.kind,
-            Some(CommandPayloadWire::Surface((
+            Some(CommandPayloadWire::StringWithPair((
                 command.title.clone().expect("title"),
                 command.payload.expect("size"),
             ))),
         ))
         .expect("encode invalid size command");
         assert!(Command::decode(&encoded).is_err());
+    }
+
+    #[test]
+    fn file_dialog_commands_use_kind_specific_payloads() {
+        let open = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 5,
+            node_id: 1,
+            kind: COMMAND_FILE_DIALOG_OPEN,
+            payload: Some((1, 1)),
+            title: Some("Choose".to_owned()),
+        };
+        assert_eq!(
+            Command::decode(&open.encode().expect("encode open dialog"))
+                .expect("decode open dialog"),
+            open
+        );
+
+        let save = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 6,
+            node_id: 1,
+            kind: COMMAND_FILE_DIALOG_SAVE,
+            payload: None,
+            title: Some("report.txt".to_owned()),
+        };
+        assert_eq!(
+            Command::decode(&save.encode().expect("encode save dialog"))
+                .expect("decode save dialog"),
+            save
+        );
+
+        let invalid_open = Command {
+            payload: Some((2, 0)),
+            ..open
+        };
+        assert!(
+            Command::decode(&invalid_open.encode().expect("encode invalid open dialog")).is_err()
+        );
     }
 
     #[test]

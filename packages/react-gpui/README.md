@@ -142,6 +142,31 @@ terminates the host runtime/process. Headless tests cover demultiplexing and
 close routing; actual Quartz multi-window display behavior requires a
 macOS display-backed host run.
 
+## Native file dialogs
+
+File dialogs are asynchronous root commands backed by the host operating
+system; JavaScript does not recreate a system picker:
+
+```tsx
+const selected = await root.pickFiles({
+  title: "Choose files",
+  directories: false,
+  multiple: true,
+});
+const savePath = await root.pickSavePath({ defaultName: "report.json" });
+```
+
+`pickFiles` maps `directories` to an exclusive file/directory choice
+(`files = !directories`) and `multiple` to multi-selection. It resolves to a
+non-empty `string[]`, or `null` when the user cancels. `pickSavePath` resolves
+to a selected path or `null` on cancellation; an empty `defaultName` leaves
+the native suggestion unset. Save dialog titles are intentionally not exposed:
+GPUI's raw save-picker interface accepts only an initial directory and
+suggested filename. Platform picker failures reject the promise.
+Headless tests cover command validation, asynchronous completion, cancellation,
+and value routing. Actual NSOpenPanel/NSSavePanel interaction requires a
+display-backed macOS Quartz host run and is not exercised in headless CI.
+
 ## Debugging
 
 Set `REACT_GPUI_TAP` to a JSONL path before constructing a `StdioTransport` or

@@ -61,7 +61,8 @@ export const COMMAND_GET_FOCUS = 14 as const;
 export const COMMAND_CLIPBOARD_WRITE = 15 as const;
 export const COMMAND_CLIPBOARD_READ = 16 as const;
 export const COMMAND_OPEN_SURFACE = 17 as const;
-
+export const COMMAND_FILE_DIALOG_OPEN = 18 as const;
+export const COMMAND_FILE_DIALOG_SAVE = 19 as const;
 export const KIND_IMAGE = 7 as const;
 export const IMAGE_OBJECT_FIT_FILL = 1 as const;
 export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
@@ -185,6 +186,8 @@ export type Command = readonly [
     | typeof COMMAND_CLIPBOARD_WRITE
     | typeof COMMAND_CLIPBOARD_READ
     | typeof COMMAND_OPEN_SURFACE
+    | typeof COMMAND_FILE_DIALOG_OPEN
+    | typeof COMMAND_FILE_DIALOG_SAVE
   ),
   readonly [number, number] | readonly [string, readonly [number, number]] | string | null,
 ];
@@ -192,7 +195,8 @@ export type CommandValuePayload =
   | readonly [1, number]
   | readonly [2, readonly [number, number]]
   | readonly [3, boolean]
-  | readonly [4, string];
+  | readonly [4, string]
+  | readonly [5, readonly string[]];
 export type CommandResultPayload =
   | readonly [2, number, number, number, boolean, string | null]
   | readonly [2, number, number, number, boolean, string | null, CommandValuePayload | null];
@@ -270,6 +274,14 @@ function validateCommandValue(value: unknown): value is CommandValuePayload {
     );
   }
   if (value[0] === 3) return value.length === 2 && typeof value[1] === "boolean";
+  if (value[0] === 5) {
+    return (
+      value.length === 2 &&
+      Array.isArray(value[1]) &&
+      value[1].length > 0 &&
+      value[1].every((path) => typeof path === "string" && path.length > 0)
+    );
+  }
   return (
     value[0] === 4 &&
     value.length === 2 &&
@@ -529,6 +541,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
           COMMAND_CLIPBOARD_WRITE,
           COMMAND_CLIPBOARD_READ,
           COMMAND_OPEN_SURFACE,
+          COMMAND_FILE_DIALOG_OPEN,
+          COMMAND_FILE_DIALOG_SAVE,
         ] as readonly number[]
       ).includes(payload[2] as number)
     )

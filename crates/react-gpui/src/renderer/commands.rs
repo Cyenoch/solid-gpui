@@ -1,22 +1,125 @@
+use std::path::Path;
 use std::sync::atomic::Ordering;
 
-use gpui::{App, ClipboardEntry, ClipboardItem, ScrollStrategy, Window, px, size};
+use gpui::{
+    ClipboardEntry, ClipboardItem, Context, PathPromptOptions, ScrollStrategy, Window, px, size,
+};
 
+use super::ReactRoot;
 use crate::protocol::{
-    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FOCUS,
-    COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
-    COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
-    CommandResult, CommandValue, EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_TEXT_BYTES,
-    MAX_WINDOW_DIMENSION,
+    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
+    COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
+    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
+    COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
+    EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_TEXT_BYTES, MAX_WINDOW_DIMENSION,
 };
 use crate::transport::send_event_or_exit;
 use crate::tree::{KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
 
-use super::ReactRoot;
-
 impl ReactRoot {
-    pub(super) fn process_commands(&mut self, window: &mut Window, cx: &mut App) {
+    fn spawn_open_file_dialog(&self, command: Command, cx: &mut Context<Self>) {
+        let Some((directories, multiple)) = command.payload else {
+            return;
+        };
+        let title = command.title.clone().unwrap_or_default();
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: directories == 0,
+            directories: directories == 1,
+            multiple: multiple == 1,
+            prompt: Some(title.into()),
+        });
+        let entity = cx.weak_entity();
+        cx.spawn(async move |_, cx| {
+            let (success, error, value) = match receiver.await {
+                Ok(Ok(None)) => (true, None, None),
+                Ok(Ok(Some(paths))) if !paths.is_empty() => {
+                    let mut values = Vec::with_capacity(paths.len());
+                    let mut conversion_error = None;
+                    for path in paths {
+                        match path.into_os_string().into_string() {
+                            Ok(path) if !path.is_empty() => values.push(path),
+                            Ok(_) => {
+                                conversion_error = Some("selected path is empty".to_owned());
+                                break;
+                            }
+                            Err(_) => {
+                                conversion_error =
+                                    Some("selected path is not valid UTF-8".to_owned());
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(error) = conversion_error {
+                        (false, Some(error), None)
+                    } else {
+                        (true, None, Some(CommandValue::Paths(values)))
+                    }
+                }
+                Ok(Ok(Some(_))) => (
+                    false,
+                    Some("file dialog returned no paths".to_owned()),
+                    None,
+                ),
+                Ok(Err(error)) => (false, Some(format!("file dialog failed: {error}")), None),
+                Err(_) => (
+                    false,
+                    Some("file dialog response channel closed".to_owned()),
+                    None,
+                ),
+            };
+            let _ = entity.update(cx, |root, _| {
+                root.emit_command_ack(
+                    command.request_id,
+                    command.kind,
+                    command.node_id,
+                    success,
+                    error,
+                    value,
+                );
+            });
+        })
+        .detach();
+    }
+
+    fn spawn_save_file_dialog(&self, command: Command, cx: &mut Context<Self>) {
+        let suggested_name = command.title.clone().filter(|name| !name.is_empty());
+        let receiver = cx.prompt_for_new_path(Path::new(""), suggested_name.as_deref());
+        let entity = cx.weak_entity();
+        cx.spawn(async move |_, cx| {
+            let (success, error, value) = match receiver.await {
+                Ok(Ok(None)) => (true, None, None),
+                Ok(Ok(Some(path))) => match path.into_os_string().into_string() {
+                    Ok(path) if !path.is_empty() => (true, None, Some(CommandValue::Text(path))),
+                    Ok(_) => (false, Some("selected path is empty".to_owned()), None),
+                    Err(_) => (
+                        false,
+                        Some("selected path is not valid UTF-8".to_owned()),
+                        None,
+                    ),
+                },
+                Ok(Err(error)) => (false, Some(format!("file dialog failed: {error}")), None),
+                Err(_) => (
+                    false,
+                    Some("file dialog response channel closed".to_owned()),
+                    None,
+                ),
+            };
+            let _ = entity.update(cx, |root, _| {
+                root.emit_command_ack(
+                    command.request_id,
+                    command.kind,
+                    command.node_id,
+                    success,
+                    error,
+                    value,
+                );
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn process_commands(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let mut refresh = false;
         for command in std::mem::take(&mut self.commands) {
             let mut success = true;
@@ -29,6 +132,31 @@ impl ReactRoot {
             } else if command.after_revision != self.store.revision() {
                 success = false;
                 error = Some("command revision is stale".to_string());
+            } else if matches!(
+                command.kind,
+                COMMAND_FILE_DIALOG_OPEN | COMMAND_FILE_DIALOG_SAVE
+            ) {
+                if command.node_id != 1 {
+                    success = false;
+                    error = Some("file dialog command requires the root container".to_owned());
+                } else if command.kind == COMMAND_FILE_DIALOG_OPEN {
+                    if command.title.is_some()
+                        && command.payload.is_some_and(|(directories, multiple)| {
+                            directories <= 1 && multiple <= 1
+                        })
+                    {
+                        self.spawn_open_file_dialog(command, cx);
+                        continue;
+                    }
+                    success = false;
+                    error = Some("file dialog open payload is invalid".to_owned());
+                } else if command.title.is_some() && command.payload.is_none() {
+                    self.spawn_save_file_dialog(command, cx);
+                    continue;
+                } else {
+                    success = false;
+                    error = Some("file dialog save payload is invalid".to_owned());
+                }
             } else if command.kind == COMMAND_SET_TITLE {
                 if command.node_id != 1 {
                     success = false;

@@ -7,6 +7,8 @@ import {
   COMMAND_GET_WINDOW_SIZE,
   COMMAND_CLIPBOARD_READ,
   COMMAND_CLIPBOARD_WRITE,
+  COMMAND_FILE_DIALOG_OPEN,
+  COMMAND_FILE_DIALOG_SAVE,
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
@@ -290,7 +292,9 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_GET_WINDOW_SIZE
       | typeof COMMAND_CLIPBOARD_WRITE
       | typeof COMMAND_CLIPBOARD_READ
-      | typeof COMMAND_OPEN_SURFACE,
+      | typeof COMMAND_OPEN_SURFACE
+      | typeof COMMAND_FILE_DIALOG_OPEN
+      | typeof COMMAND_FILE_DIALOG_SAVE,
     payload: readonly [number, number] | readonly [string, readonly [number, number]] | string | null,
   ): Promise<unknown> {
     if (this.transportTerminated) {
@@ -395,6 +399,50 @@ export class RootContainer implements DispatchContext {
       return value[1];
     });
   }
+  pickFiles(
+    options: { readonly title?: string; readonly directories?: boolean; readonly multiple?: boolean } = {},
+  ): Promise<string[] | null> {
+    const title = options.title ?? "";
+    const directories = options.directories ?? false;
+    const multiple = options.multiple ?? false;
+    if (typeof title !== "string" || [...title].length > 256)
+      return Promise.reject(new TypeError("file dialog title must be at most 256 characters"));
+    if (typeof directories !== "boolean" || typeof multiple !== "boolean")
+      return Promise.reject(new TypeError("file dialog options must be boolean"));
+    const payload: readonly [string, readonly [number, number]] = [title, [directories ? 1 : 0, multiple ? 1 : 0]];
+    return this.submitSurfaceCommandValue(COMMAND_FILE_DIALOG_OPEN, payload).then((value) => {
+      if (value === undefined) return null;
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 5 ||
+        !Array.isArray(value[1]) ||
+        value[1].length === 0 ||
+        !value[1].every((path): path is string => typeof path === "string" && path.length > 0)
+      )
+        throw new Error("native pickFiles returned an invalid value");
+      return [...value[1]];
+    });
+  }
+
+  pickSavePath(options: { readonly defaultName?: string } = {}): Promise<string | null> {
+    const defaultName = options.defaultName ?? "";
+    if (typeof defaultName !== "string" || [...defaultName].length > 256)
+      return Promise.reject(new TypeError("save dialog defaultName must be at most 256 characters"));
+    return this.submitSurfaceCommandValue(COMMAND_FILE_DIALOG_SAVE, defaultName).then((value) => {
+      if (value === undefined) return null;
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 4 ||
+        typeof value[1] !== "string" ||
+        value[1].length === 0
+      )
+        throw new Error("native pickSavePath returned an invalid value");
+      return value[1];
+    });
+  }
+
   focusNext(): Promise<void> {
     return this.submitSurfaceCommand(COMMAND_FOCUS_NEXT, null);
   }

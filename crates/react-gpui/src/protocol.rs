@@ -56,6 +56,8 @@ pub const COMMAND_GET_FOCUS: u32 = 14;
 pub const COMMAND_CLIPBOARD_WRITE: u32 = 15;
 pub const COMMAND_CLIPBOARD_READ: u32 = 16;
 pub const COMMAND_OPEN_SURFACE: u32 = 17;
+pub const COMMAND_FILE_DIALOG_OPEN: u32 = 18;
+pub const COMMAND_FILE_DIALOG_SAVE: u32 = 19;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 
@@ -192,13 +194,15 @@ pub struct Command {
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire
-/// contract: `1=number`, `2=window-size pair`, `3=boolean`, and `4=text`.
+/// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=text`, and
+/// `5=selected paths`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
     Pair((f32, f32)),
     Bool(bool),
     Text(String),
+    Paths(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

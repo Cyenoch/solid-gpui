@@ -1348,6 +1348,9 @@ fn command_result_accepts_surface_command_kinds() {
         COMMAND_ZOOM_WINDOW,
         COMMAND_TOGGLE_FULLSCREEN,
         COMMAND_OPEN_URL,
+        COMMAND_OPEN_SURFACE,
+        COMMAND_FILE_DIALOG_OPEN,
+        COMMAND_FILE_DIALOG_SAVE,
         COMMAND_FOCUS_NEXT,
         COMMAND_FOCUS_PREV,
         COMMAND_GET_WINDOW_SIZE,
@@ -1376,6 +1379,10 @@ fn command_result_accepts_surface_command_kinds() {
             COMMAND_CLIPBOARD_READ,
             CommandValue::Text("clipboard text".to_owned()),
         ),
+        (
+            COMMAND_FILE_DIALOG_OPEN,
+            CommandValue::Paths(vec!["/tmp/a.txt".to_owned(), "/tmp/b.txt".to_owned()]),
+        ),
     ] {
         let event = Event::command_result(
             7,
@@ -1393,6 +1400,31 @@ fn command_result_accepts_surface_command_kinds() {
         );
         assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
     }
+    let empty_paths = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        8u32,
+        1u32,
+        0u32,
+        6u32,
+        Some((
+            2u32,
+            8u32,
+            COMMAND_FILE_DIALOG_OPEN,
+            1u32,
+            true,
+            Option::<String>::None,
+            Some((5u32, Vec::<String>::new())),
+        )),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&empty_paths),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
     let old_wire = rmp_serde::to_vec(&(
         3u32,
         2u32,
