@@ -506,10 +506,10 @@ pub(super) fn move_selection(
     key: &str,
     extend: bool,
 ) -> Option<(Range<usize>, bool)> {
-    let is_left = key == "left";
-    let is_right = key == "right";
-    let is_home = key == "home" || key == "up";
-    let is_end = key == "end" || key == "down";
+    let is_left = key == "left" || key == "ArrowLeft";
+    let is_right = key == "right" || key == "ArrowRight";
+    let is_home = key == "home" || key == "Home" || key == "up" || key == "ArrowUp";
+    let is_end = key == "end" || key == "End" || key == "down" || key == "ArrowDown";
     if !is_left && !is_right && !is_home && !is_end {
         return None;
     }
@@ -781,6 +781,34 @@ mod tests {
         assert_eq!(
             move_selection(text, &(1..1), false, "down", false),
             Some((4..4, false))
+        );
+    }
+
+    #[test]
+    fn navigation_accepts_platform_arrow_key_names() {
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "ArrowLeft", false),
+            Some((0..0, false))
+        );
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "ArrowRight", false),
+            Some((2..2, false))
+        );
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "ArrowUp", false),
+            Some((0..0, false))
+        );
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "ArrowDown", false),
+            Some((2..2, false))
+        );
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "Home", false),
+            Some((0..0, false))
+        );
+        assert_eq!(
+            move_selection("ab", &(1..1), false, "End", false),
+            Some((2..2, false))
         );
     }
 }
