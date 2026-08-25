@@ -276,6 +276,18 @@ from this work tree.
   71 Unreleased entries (64/3/4), verifies archive naming follows the Cargo
   version, and records a local ignored `.scratch` checklist with five human
   decisions and a seven-step mechanical sequence.
+- Single-line TextInput geometry now uses a custom `TextInputElement` that
+  retains its `ShapedLine`, maps UTF-16 offsets through UTF-8 positions to x
+  coordinates, caches layout per node, and invalidates the cache on edits and
+  resets. Placeholder and multiline paths honestly fall back to element bounds;
+  single-line IME candidate-window positioning is now precise, while multiline
+  and display-backed verification remain documented boundaries.
+- The pre-release consistency sweep mechanically aligns 20 events, 21 commands,
+  40 style slots, and 13/8 TextInput host/event slots; finds zero project TODO
+  markers; classifies all 19 production `expect` calls within ADR-0008 domains;
+  corrects test-count/API-snapshot drift; and verifies every new
+  `ALLOWED_PROPS` capability. Seventy-six historical `wire.rs` citations after
+  the family split are recorded as P2 documentation debt.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
