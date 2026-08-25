@@ -295,7 +295,14 @@ write process-local protocol metadata as JSONL:
 ```sh
 REACT_GPUI_TAP="${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl" bun run packages/react-gpui/examples/counter.tsx
 python3 scripts/protocol-tap-report.py "${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl"
+
 ```
+
+For a manual 60-second process-layer leak smoke, run `make soak-smoke`. It
+builds the release host, runs `packages/react-gpui/examples/stress.tsx`, samples
+host RSS every five seconds, and compares renderer/host tap frame counts. This
+is a bounded leak smoke, not multi-hour soak proof; the command is intentionally
+not part of CI.
 
 Each process truncates its own path; use distinct paths rather than sharing a
 file between processes. Records contain monotonic time, direction, peer,

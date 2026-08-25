@@ -560,6 +560,7 @@ The source tree includes focused entries for the main host surfaces:
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus and native key notifications.
 - [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, selection, multiline limits, and focus handles.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
+- [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
 
 ## Local commands
 
