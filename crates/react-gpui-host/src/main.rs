@@ -529,6 +529,471 @@ fn main() {
     });
 }
 
+#[cfg(test)]
+pub mod test_support {
+    use super::*;
+    use gpui::TestAppContext;
+    use react_gpui::{
+        COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FOCUS,
+        COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
+        COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
+        COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
+        COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties,
+        InMemoryAdapter, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition,
+        MenuItemDefinition, Node, PROTOCOL_VERSION, TextInputProperties, VirtualListProperties,
+    };
+
+    fn command(
+        request_id: u32,
+        kind: u32,
+        node_id: u32,
+        payload: Option<(u32, u32)>,
+        title: Option<&str>,
+        body: Option<&str>,
+        menus: Option<Vec<MenuDefinition>>,
+    ) -> Command {
+        Command {
+            protocol: PROTOCOL_VERSION,
+            message: react_gpui::COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 1,
+            after_revision: 1,
+            request_id,
+            node_id,
+            kind,
+            payload,
+            title: title.map(str::to_owned),
+            body: body.map(str::to_owned),
+            menus,
+        }
+    }
+
+    fn snapshot() -> Snapshot {
+        snapshot_for(1)
+    }
+
+    fn snapshot_for(surface_id: u32) -> Snapshot {
+        let mut view = Node::new(2, 1, 0, KIND_VIEW);
+        view.listener_id = 10;
+        view.focusable = true;
+
+        let mut input = Node::new(3, 1, 1, KIND_TEXT_INPUT);
+        input.listener_id = 11;
+        input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+            value: "hello".to_owned(),
+            placeholder: None,
+            multiline: false,
+            disabled: false,
+            controlled: false,
+            ack_edit_seq: 0,
+            selection_start: 0,
+            selection_end: 0,
+            marked_start: None,
+            marked_end: None,
+            max_length: None,
+            selection_reversed: false,
+        }));
+
+        let mut list = Node::new(4, 1, 2, KIND_VIRTUAL_LIST);
+        list.listener_id = 12;
+        list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+            item_count: 100,
+            range_start: 0,
+            range_end: 10,
+            estimated_item_size: 24.0,
+            overscan: 2,
+        }));
+
+        Snapshot::new(
+            surface_id,
+            1,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), view, input, list],
+        )
+    }
+
+    fn window_for(
+        registry: &Entity<SurfaceRegistry>,
+        cx: &mut TestAppContext,
+        surface_id: u32,
+    ) -> WindowHandle<ReactRoot> {
+        registry.read_with(cx, |registry, _| {
+            registry
+                .surfaces
+                .get(&surface_id)
+                .expect("test surface")
+                .window
+        })
+    }
+
+    fn draw_surface(
+        registry: &Entity<SurfaceRegistry>,
+        cx: &mut TestAppContext,
+        surface_id: u32,
+    ) -> WindowHandle<ReactRoot> {
+        let window = window_for(registry, cx, surface_id);
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw test surface");
+        cx.run_until_parked();
+        window
+    }
+    fn advance_frame(window: WindowHandle<ReactRoot>, cx: &mut TestAppContext) {
+        cx.update_window(window.into(), |_, window, cx| {
+            window.simulate_next_frame(cx);
+        })
+        .expect("advance test frame");
+        cx.run_until_parked();
+    }
+
+    fn route_command(
+        registry: &Entity<SurfaceRegistry>,
+        cx: &mut TestAppContext,
+        command: Command,
+    ) {
+        let payload = command.encode().expect("encode test command");
+        registry
+            .update(cx, |registry, cx| registry.route_payload(&payload, cx))
+            .expect("route test command");
+        draw_surface(registry, cx, command.surface_id);
+    }
+
+    fn take_events(runtime: &InMemoryAdapter) -> Vec<react_gpui::Event> {
+        let mut events = Vec::new();
+        while let Some(event) = runtime.take_event().expect("read test event") {
+            events.push(event);
+        }
+        events
+    }
+
+    fn command_result(events: &[react_gpui::Event], request_id: u32) -> react_gpui::CommandResult {
+        events
+            .iter()
+            .find_map(|event| match &event.payload {
+                Some(EventPayload::CommandResult(result)) if result.request_id == request_id => {
+                    Some(result.clone())
+                }
+                _ => None,
+            })
+            .expect("command result event")
+    }
+
+    pub fn command_roundtrip(cx: &mut TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+        registry
+            .update(cx, |registry, cx| registry.open_initial(cx))
+            .expect("open initial test surface");
+        let window = draw_surface(&registry, cx, 1);
+
+        let action_registry = registry.downgrade();
+        cx.update(|cx| {
+            cx.on_action(move |action: &MenuAction, cx| {
+                if let Some(registry) = action_registry.upgrade() {
+                    registry.update(cx, |registry, cx| {
+                        registry.emit_action(action.name.clone(), cx)
+                    });
+                }
+            });
+        });
+
+        let snapshot_payload = snapshot().encode().expect("encode test snapshot");
+        registry
+            .update(cx, |registry, cx| {
+                registry.route_payload(&snapshot_payload, cx)
+            })
+            .expect("route test snapshot");
+        draw_surface(&registry, cx, 1);
+        advance_frame(window, cx);
+        assert!(registry.read_with(cx, |registry, _| {
+            registry.surfaces.get(&1).is_some_and(|surface| {
+                surface
+                    .root
+                    .read_with(cx, |root, _| root.store().get(4).is_some())
+            })
+        }));
+
+        route_command(
+            &registry,
+            cx,
+            command(1, COMMAND_FOCUS, 2, None, None, None, None),
+        );
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 1).success);
+        for event_type in [
+            react_gpui::EVENT_WINDOW_RESIZE,
+            react_gpui::EVENT_WINDOW_ACTIVATION,
+            react_gpui::EVENT_WINDOW_APPEARANCE,
+            react_gpui::protocol::EVENT_LAYOUT,
+        ] {
+            assert!(
+                events.iter().any(|event| event.event_type == event_type),
+                "initial observer event {event_type}"
+            );
+        }
+
+        route_command(
+            &registry,
+            cx,
+            command(2, COMMAND_GET_FOCUS, 2, None, None, None, None),
+        );
+        let events = take_events(&runtime);
+        assert_eq!(
+            command_result(&events, 2).value,
+            Some(react_gpui::CommandValue::Bool(true))
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(3, COMMAND_FOCUS, 3, None, None, None, None),
+        );
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 3).success);
+        assert!(
+            events
+                .iter()
+                .any(|event| { event.event_type == react_gpui::EVENT_FOCUS })
+        );
+        route_command(
+            &registry,
+            cx,
+            command(4, COMMAND_SET_SELECTION, 3, Some((1, 4)), None, None, None),
+        );
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 4).success);
+        assert!(events.iter().any(|event| {
+            event.event_type == react_gpui::EVENT_SELECTION
+                && matches!(
+                    &event.payload,
+                    Some(EventPayload::TextInput(input))
+                        if input.selection_start == 1 && input.selection_end == 4
+                )
+        }));
+
+        route_command(
+            &registry,
+            cx,
+            command(20, COMMAND_BLUR, 3, None, None, None, None),
+        );
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 20).success);
+        assert!(
+            events
+                .iter()
+                .any(|event| { event.event_type == react_gpui::EVENT_BLUR })
+        );
+        route_command(
+            &registry,
+            cx,
+            command(21, COMMAND_GET_FOCUS, 3, None, None, None, None),
+        );
+        assert_eq!(
+            command_result(&take_events(&runtime), 21).value,
+            Some(react_gpui::CommandValue::Bool(false))
+        );
+        route_command(
+            &registry,
+            cx,
+            command(
+                5,
+                COMMAND_CLIPBOARD_WRITE,
+                1,
+                None,
+                Some("copied"),
+                None,
+                None,
+            ),
+        );
+        assert!(command_result(&take_events(&runtime), 5).success);
+        route_command(
+            &registry,
+            cx,
+            command(6, COMMAND_CLIPBOARD_READ, 1, None, None, None, None),
+        );
+        assert_eq!(
+            command_result(&take_events(&runtime), 6).value,
+            Some(react_gpui::CommandValue::Text("copied".to_owned()))
+        );
+        assert_eq!(
+            cx.read_from_clipboard()
+                .and_then(|item| item.text())
+                .as_deref(),
+            Some("copied")
+        );
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                7,
+                COMMAND_SCROLL_TO_INDEX,
+                4,
+                Some((42, 0)),
+                None,
+                None,
+                None,
+            ),
+        );
+        advance_frame(window, cx);
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 7).success);
+        assert!(
+            events
+                .iter()
+                .any(|event| event.event_type == react_gpui::EVENT_VISIBLE_RANGE)
+        );
+        route_command(
+            &registry,
+            cx,
+            command(8, COMMAND_SCROLL_TO_END, 4, None, None, None, None),
+        );
+        assert!(command_result(&take_events(&runtime), 8).success);
+
+        route_command(
+            &registry,
+            cx,
+            command(9, COMMAND_SET_TITLE, 1, None, Some("Headless"), None, None),
+        );
+        assert!(command_result(&take_events(&runtime), 9).success);
+        route_command(
+            &registry,
+            cx,
+            command(10, COMMAND_GET_WINDOW_SIZE, 1, None, None, None, None),
+        );
+        assert!(matches!(
+            command_result(&take_events(&runtime), 10).value,
+            Some(react_gpui::CommandValue::Pair((width, height)))
+                if width > 0.0 && height > 0.0
+        ));
+
+        for (request_id, kind, payload) in [
+            (11, COMMAND_RESIZE_WINDOW, Some((640, 480))),
+            (13, COMMAND_TOGGLE_FULLSCREEN, None),
+        ] {
+            route_command(
+                &registry,
+                cx,
+                command(request_id, kind, 1, payload, None, None, None),
+            );
+            assert!(command_result(&take_events(&runtime), request_id).success);
+        }
+        route_command(
+            &registry,
+            cx,
+            command(
+                14,
+                COMMAND_OPEN_URL,
+                1,
+                None,
+                Some("https://example.test"),
+                None,
+                None,
+            ),
+        );
+        assert!(command_result(&take_events(&runtime), 14).success);
+        assert_eq!(cx.opened_url().as_deref(), Some("https://example.test"));
+
+        for (request_id, kind) in [(15, COMMAND_FOCUS_NEXT), (16, COMMAND_FOCUS_PREV)] {
+            route_command(
+                &registry,
+                cx,
+                command(request_id, kind, 1, None, None, None, None),
+            );
+            assert!(command_result(&take_events(&runtime), request_id).success);
+        }
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                17,
+                COMMAND_SET_MENUS,
+                1,
+                None,
+                None,
+                None,
+                Some(vec![MenuDefinition {
+                    title: "Test".to_owned(),
+                    items: vec![MenuItemDefinition::Action("test-action".to_owned())],
+                }]),
+            ),
+        );
+        assert!(command_result(&take_events(&runtime), 17).success);
+        cx.update_window(window.into(), |_, window, _| window.activate_window())
+            .expect("activate menu test window");
+        cx.dispatch_action(
+            window.into(),
+            MenuAction {
+                name: "test-action".to_owned(),
+            },
+        );
+        cx.run_until_parked();
+        assert!(take_events(&runtime).iter().any(|event| {
+            event.event_type == react_gpui::EVENT_ACTION
+                && matches!(
+                    &event.payload,
+                    Some(EventPayload::EventAction { action }) if action == "test-action"
+                )
+        }));
+
+        cx.update(|cx| {
+            cx.set_app_identity("com.example.react-gpui", "React GPUI");
+        });
+        route_command(
+            &registry,
+            cx,
+            command(
+                18,
+                COMMAND_SHOW_NOTIFICATION,
+                1,
+                None,
+                Some("Title"),
+                Some("Body"),
+                None,
+            ),
+        );
+        assert!(command_result(&take_events(&runtime), 18).success);
+        assert_eq!(cx.shown_system_notifications().len(), 1);
+
+        route_command(
+            &registry,
+            cx,
+            command(
+                19,
+                COMMAND_OPEN_SURFACE,
+                1,
+                Some((320, 240)),
+                Some("Aux"),
+                None,
+                None,
+            ),
+        );
+        let events = take_events(&runtime);
+        assert!(command_result(&events, 19).success);
+        assert_eq!(
+            registry.read_with(cx, |registry, _| registry.surfaces.len()),
+            2
+        );
+        let auxiliary_snapshot = snapshot_for(2).encode().expect("encode auxiliary snapshot");
+        registry
+            .update(cx, |registry, cx| {
+                registry.route_payload(&auxiliary_snapshot, cx)
+            })
+            .expect("route auxiliary snapshot");
+        let auxiliary_window = draw_surface(&registry, cx, 2);
+        let closed_window_id = auxiliary_window.window_id();
+        registry.update(cx, |registry, cx| {
+            assert!(!registry.window_closed(closed_window_id, cx));
+        });
+        assert!(take_events(&runtime).iter().any(|event| {
+            event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 2
+        }));
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 enum CliAction {
     Help,

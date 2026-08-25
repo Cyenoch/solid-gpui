@@ -15,3 +15,7 @@ gpui.workspace = true
 gpui-platform = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui_platform" }
 react-gpui-bun = { path = "../react-gpui-bun", optional = true }
 react-gpui = { path = "../react-gpui" }
+
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

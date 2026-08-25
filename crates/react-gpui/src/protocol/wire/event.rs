@@ -66,6 +66,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_FOCUS_PREV
                         | COMMAND_GET_WINDOW_SIZE
                         | COMMAND_GET_FOCUS
+                        | COMMAND_CLIPBOARD_WRITE
                         | COMMAND_CLIPBOARD_READ
                         | COMMAND_OPEN_SURFACE
                         | COMMAND_FILE_DIALOG_OPEN

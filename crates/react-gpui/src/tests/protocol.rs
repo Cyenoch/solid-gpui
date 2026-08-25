@@ -429,6 +429,8 @@ fn command_result_accepts_surface_command_kinds() {
         COMMAND_FOCUS_PREV,
         COMMAND_GET_WINDOW_SIZE,
         COMMAND_GET_FOCUS,
+        COMMAND_CLIPBOARD_WRITE,
+        COMMAND_CLIPBOARD_READ,
     ] {
         let event = Event::command_result(
             7,
