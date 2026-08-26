@@ -106,20 +106,17 @@ cannot activate or inspect an AccessKit tree; verify the final tree on a real
 desktop adapter (for example with `Window::debug_a11y_tree_json` and a screen
 reader).
 
-
-
 ## Styles
 
 `StyleSheet.create` is a validated, frozen style-recipe helper; styles are not CSS. V3 fields are:
 
 - `width`, `height`, `flexGrow`, `padding`, `gap`, `borderRadius`, and `borderWidth` — finite, non-negative numbers.
 - `fontSize` — a finite, positive number in pixels; it applies to `Text` and `RawText`.
-- `flexDirection` — `"row"`, `"column"`, `"row-reverse"`, or `"column-reverse"`; reverse values mirror the physical flex axis and are not an RTL base direction.
+- `flexDirection` — `"row"`, `"column"`, `"row-reverse"`, or `"column-reverse"`; setting it activates GPUI flex layout for the container. Container properties such as `gap`, `justifyContent`, and `alignItems` also activate flex; reverse values mirror the physical flex axis and are not an RTL base direction.
 - `justifyContent` — `"flex-start"`, `"center"`, `"flex-end"`, `"space-between"`, `"space-around"`, or `"space-evenly"`.
-- `alignItems` — `"flex-start"`, `"center"`, `"flex-end"`, `"stretch"`, or `"baseline"`.
 - `borderColor`, `backgroundColor`, and `color` — `#RRGGBB` or `#RRGGBBAA`, packed as RGBA `u32` values on the wire.
 - `fontWeight` — `"normal"` (400), `"medium"` (500), `"semibold"` (600), `"bold"` (700), or `"heavy"` (900); it applies to `Text` and `RawText`.
-- `overflow` — `"visible"`, `"hidden"`, or `"scroll"`; only `"scroll"` makes a `View` a scrollable container.
+- `overflow` — `"visible"`, `"hidden"`, or `"scroll"`; only `"scroll"` makes a `View` a scrollable container and routes native wheel scrolling to it.
 - `lineClamp` — a positive integer from `1` through `100`; setting it implies `overflow: "hidden"` when `overflow` is omitted, while an explicit `overflow` value takes precedence.
 - `textOverflow` — `"clip"` clears text truncation or `"ellipsis"` maps to GPUI's ellipsis behavior.
 - `marginTop`, `marginRight`, `marginBottom`, and `marginLeft` — finite, non-negative pixel values.

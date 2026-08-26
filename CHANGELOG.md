@@ -435,11 +435,24 @@ from this work tree.
 - `EventWire` CommandResult validation now accepts `COMMAND_CLIPBOARD_WRITE`;
   clipboard command acknowledgements were previously dropped at the protocol
   layer. This extends the earlier kind `6`-`12` CommandResult validation fix.
+- Native macOS glyph rendering now enables `gpui-platform`'s `font-kit` feature.
+  A real native raster probe requires nonzero bounds and covered bitmap pixels,
+  catching the `NoopTextSystem` false-green path.
+- Nested non-root `flexDirection` and `gap` styles now activate GPUI flex
+  layout. The compact gallery page reaches lower content through native wheel
+  scrolling without horizontal overflow at 800×600 and 916×588.
+- Pointer dispatch preserves the outer `EVENT_POINTER` kind while encoding
+  down/up actions; `TextInput.onBlur` is exposed, and overlay dropdown
+  placement uses the corrected anchored path.
 
 ### Changed
 
 - TypeScript encoders now force float32 values; image source/URL resource caps
   count UTF-8 bytes consistently, while `maxLength` remains UTF-16 based.
+- The gallery is responsive below 1100px (single column) and at wider widths
+  (two columns), with 20/12/8 spacing, a 64px header, full-width bounded
+  panels, `VirtualList`, refined cards/inputs/buttons/dropdown, isolated
+  hover/pressed state, and accessibility labels.
 - README DX guidance now states Pressable/TextInput focus boundaries,
   `onWindowResize` React bridging, an `import.meta.url` Image example for
   packaged builds, the `(value: string) => void` `onSubmitEditing` signature,
