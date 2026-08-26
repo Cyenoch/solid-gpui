@@ -175,6 +175,60 @@ fn opaque_quad(quad: &host::test_support::PaintedQuad) -> bool {
     quad.background.contains("a: 1.")
 }
 
+fn white_quad(quad: &host::test_support::PaintedQuad) -> bool {
+    opaque_quad(quad) && quad.background.contains("s: 0.0") && quad.background.contains("l: 1.0")
+}
+
+fn panel_surface_bounds(
+    quads: &[host::test_support::PaintedQuad],
+    viewport_width: f32,
+    scale: f32,
+) -> Vec<(f32, f32, f32, f32)> {
+    let min_width = (viewport_width - 40.0) * scale - 1.0;
+    quads
+        .iter()
+        .filter(|quad| {
+            white_quad(quad) && quad.bounds.2 >= min_width && quad.bounds.3 >= 300.0 * scale
+        })
+        .map(|quad| quad.bounds)
+        .collect()
+}
+
+fn activity_row_bounds(
+    quads: &[host::test_support::PaintedQuad],
+    viewport_width: f32,
+    scale: f32,
+) -> Vec<(f32, f32, f32, f32)> {
+    let min_width = (viewport_width - 70.0) * scale;
+    quads
+        .iter()
+        .filter(|quad| {
+            opaque_quad(quad)
+                && quad.bounds.2 >= min_width
+                && (70.0..=100.0).contains(&quad.bounds.3)
+        })
+        .map(|quad| quad.bounds)
+        .collect()
+}
+
+fn record_button_bounds(
+    quads: &[host::test_support::PaintedQuad],
+    viewport_height: f32,
+    scale: f32,
+) -> Option<(f32, f32, f32, f32)> {
+    quads
+        .iter()
+        .filter(|quad| {
+            white_quad(quad)
+                && (180.0..=240.0).contains(&quad.bounds.2)
+                && (50.0..=80.0).contains(&quad.bounds.3)
+                && quad.bounds.1 >= 0.0
+                && quad.bounds.1 + quad.bounds.3 <= viewport_height * scale
+        })
+        .map(|quad| quad.bounds)
+        .max_by_key(|bounds| (bounds.1 * 100.0) as i32)
+}
+
 fn text_signal(snapshot: &Snapshot, quads: &[host::test_support::PaintedQuad]) -> TextSignal {
     let mut text_nodes = 0;
     let mut opaque_backgrounds = 0;
@@ -540,7 +594,7 @@ fn assert_gallery_layout(
                 })
         })
         .expect("gallery body");
-    let panels = snapshot
+    let panel_count = snapshot
         .nodes
         .iter()
         .filter(|node| {
@@ -550,26 +604,11 @@ fn assert_gallery_layout(
                     .as_ref()
                     .is_some_and(|style| style.border_radius == Some(12.0))
         })
-        .map(|node| node.id)
-        .collect::<Vec<_>>();
-    let target_nodes = vec![root.id, body.id, panels[0]];
-    let layouts = collect_gallery_layout_events(surface, cx, &target_nodes);
-    assert_eq!(
-        panels.len(),
-        2,
-        "gallery first-level panel count changed: body={body:?} direct={:?}",
-        snapshot
-            .nodes
-            .iter()
-            .filter(|node| node.parent_id == body.id)
-            .collect::<Vec<_>>()
-    );
-    let frame = |node_id: u32| {
-        layouts.get(&node_id).copied().unwrap_or_else(|| {
-            panic!("gallery node {node_id} emitted no layout event; events={layouts:?}")
-        })
-    };
-    let root_frame = frame(root.id);
+        .count();
+    assert_eq!(panel_count, 2, "gallery first-level panel count changed");
+
+    let layouts = collect_gallery_layout_events(surface, cx, &[root.id]);
+    let root_frame = layouts[&root.id];
     assert!(
         root_frame.0 >= -0.1
             && root_frame.1 >= -0.1
@@ -577,55 +616,32 @@ fn assert_gallery_layout(
             && root_frame.3 >= height - 0.1,
         "{width}x{height} root frame escaped viewport bounds: {root_frame:?}"
     );
-    let body_frame = frame(body.id);
-    assert!(
-        (body_frame.0 - 20.0).abs() < 0.1
-            && (body_frame.1 - 96.0).abs() < 0.1
-            && (body_frame.2 - (width - 40.0)).abs() < 0.1,
-        "{width}x{height} body frame escaped inset: {body_frame:?}"
+
+    let scale = surface.scale_factor(cx);
+    let mut panel_bounds = panel_surface_bounds(&surface.painted_quads(cx), width, scale);
+    panel_bounds.sort_by(|left, right| left.1.total_cmp(&right.1).then(left.0.total_cmp(&right.0)));
+    assert_eq!(
+        panel_bounds.len(),
+        2,
+        "{width}x{height} expected two un-clipped panel surfaces: {panel_bounds:?}"
     );
-    let first_panel_frame = frame(panels[0]);
-    let second_panel_frame = if width < 1100.0 {
-        (
-            first_panel_frame.0,
-            first_panel_frame.1 + first_panel_frame.3 + 12.0,
-            first_panel_frame.2,
-            body_frame.1 + body_frame.3 - (first_panel_frame.1 + first_panel_frame.3 + 12.0),
-        )
-    } else {
-        (
-            first_panel_frame.0 + first_panel_frame.2 + 12.0,
-            body_frame.1,
-            body_frame.0 + body_frame.2 - (first_panel_frame.0 + first_panel_frame.2 + 12.0),
-            body_frame.3,
-        )
-    };
-    let panel_frames = vec![first_panel_frame, second_panel_frame];
-    for panel in &panel_frames {
+    let viewport_left = 20.0 * scale;
+    let viewport_right = (width - 20.0) * scale;
+    for bounds in &panel_bounds {
         assert!(
-            panel.0 >= 20.0 - 0.1 && panel.0 + panel.2 <= width - 20.0 + 0.1,
-            "{width}x{height} panel escaped horizontal viewport: {panel:?}"
+            bounds.0 >= viewport_left - 0.1 && bounds.0 + bounds.2 <= viewport_right + 0.1,
+            "{width}x{height} panel surface escaped horizontal viewport before clipping: {bounds:?}"
+        );
+        assert!(
+            (bounds.0 - viewport_left).abs() < 0.1
+                && (bounds.2 - (width - 40.0) * scale).abs() < 0.1,
+            "{width}x{height} compact panel surface is not full-width: {panel_bounds:?}"
         );
     }
-    if width < 1100.0 {
-        assert!(
-            panel_frames.iter().all(|panel| {
-                (panel.0 - 20.0).abs() < 0.1 && (panel.2 - (width - 40.0)).abs() < 0.1
-            }),
-            "{width}x{height} compact panels are not full-width: {panel_frames:?}"
-        );
-        assert!(
-            panel_frames[1].1 >= panel_frames[0].1 + panel_frames[0].3 + 12.0 - 0.1,
-            "{width}x{height} compact panels overlap vertically: {panel_frames:?}"
-        );
-    } else {
-        assert!(
-            (panel_frames[0].1 - body_frame.1).abs() < 0.1
-                && (panel_frames[1].1 - body_frame.1).abs() < 0.1
-                && panel_frames[1].0 >= panel_frames[0].0 + panel_frames[0].2 + 12.0 - 0.1,
-            "{width}x{height} wide panels lost their horizontal gap: {panel_frames:?}"
-        );
-    }
+    assert!(
+        panel_bounds[1].1 >= panel_bounds[0].1 + panel_bounds[0].3 + 12.0 * scale - 0.1,
+        "{width}x{height} compact panel surfaces overlap: {panel_bounds:?}"
+    );
 }
 
 #[test]
@@ -772,7 +788,7 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
         .filter(|node| node.parent_id == body.id)
         .collect::<Vec<_>>();
     panels.sort_by_key(|node| node.index);
-    let compose_panel = panels.first().expect("compose panel");
+    assert_eq!(panels.len(), 2, "gallery activity panel is absent");
     let panel_children = snapshot
         .nodes
         .iter()
@@ -781,99 +797,129 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
     panel_children
         .iter()
         .find(|node| node.index == 0)
-        .expect("activity heading");
+        .expect("activity heading container");
     panel_children
         .iter()
         .find(|node| node.index == 1 && node.kind == react_gpui::KIND_VIRTUAL_LIST)
         .expect("activity virtual list");
-    panel_children
+    let record_button = snapshot
+        .nodes
         .iter()
-        .find(|node| node.index == 2)
-        .expect("activity footer");
-    let targets = [body.id, compose_panel.id];
+        .find(|node| {
+            node.kind == KIND_PRESSABLE
+                && node.listener_id != 0
+                && node
+                    .accessibility
+                    .as_ref()
+                    .and_then(|accessibility| accessibility.label.as_deref())
+                    == Some("Record press")
+        })
+        .expect("record button");
+
     let mut cx = TestAppContext::single();
     let surface = host::test_support::HeadlessSurface::new(&mut cx);
     surface.resize(&mut cx, 800.0, 600.0);
     surface.apply(&mut cx, &first_payload);
     surface.draw(&mut cx);
-    surface.advance_frame(&mut cx);
-    let initial = collect_gallery_layout_events(&surface, &mut cx, &targets);
+    let scale = surface.scale_factor(&mut cx);
+    let initial_quads = surface.painted_quads(&mut cx);
+    let initial_panels = panel_surface_bounds(&initial_quads, 800.0, scale);
+
     surface.scroll(&mut cx, 400.0, 590.0, 0.0, -500.0);
     surface.draw(&mut cx);
     surface.advance_frame(&mut cx);
-    let page = collect_gallery_layout_events(&surface, &mut cx, &targets);
-    let initial_body = initial[&body.id];
-    let page_body = page[&body.id];
-    let page_compose = page[&compose_panel.id];
-    let activity_y = page_compose.1 + page_compose.3 + 12.0;
-    let page_header = (
-        page_compose.0 + 13.0,
-        activity_y + 13.0,
-        page_compose.2 - 26.0,
-        20.0,
-    );
-    let page_list = (
-        page_compose.0 + 13.0,
-        activity_y + 41.0,
-        page_compose.2 - 26.0,
-        320.0,
-    );
-    let page_footer = (
-        page_compose.0 + 13.0,
-        page_list.1 + page_list.3 + 8.0,
-        page_compose.2 - 26.0,
-        32.0,
-    );
-    assert!(
-        page_body.1 < initial_body.1 - 1.0,
-        "page wheel did not move the gallery body: initial={initial_body:?} page={page_body:?}"
-    );
-    assert!(
-        page_header.1 >= 0.0 && page_header.1 + page_header.3 <= 600.0 + 0.1,
-        "page wheel did not reveal the Activity heading: heading={page_header:?}"
-    );
-    assert!(
-        page_list.1 >= 0.0 && page_list.1 + page_list.3 <= 600.0 + 0.1,
-        "page wheel did not reveal the activity list: list={page_list:?}"
-    );
-    assert!(
-        page_footer.1 >= 0.0 && page_footer.1 + page_footer.3 <= 600.0 + 0.1,
-        "page wheel did not reveal the activity footer: footer={page_footer:?}"
-    );
     let page_quads = surface.painted_quads(&mut cx);
-    let scale = surface.scale_factor(&mut cx);
-    let row_quads = |quads: &[host::test_support::PaintedQuad]| {
-        quads
+    let mut page_panels = panel_surface_bounds(&page_quads, 800.0, scale);
+    page_panels.sort_by(|left, right| left.1.total_cmp(&right.1));
+    assert_eq!(
+        page_panels.len(),
+        2,
+        "page scroll lost a panel surface: {page_panels:?}"
+    );
+    assert!(
+        initial_panels != page_panels,
+        "page wheel did not move the actual panel surfaces: initial={initial_panels:?} page={page_panels:?}"
+    );
+    assert!(
+        page_panels
             .iter()
-            .filter(|quad| {
-                quad.bounds.0 >= page_list.0 * scale - 1.0
-                    && quad.bounds.0 <= page_list.0 * scale + 2.0
-                    && quad.bounds.2 >= page_list.2 * scale - 2.0
-                    && quad.bounds.2 <= page_list.2 * scale + 2.0
-                    && quad.bounds.3 >= 70.0
-                    && quad.bounds.3 <= 100.0
-                    && quad.bounds.1 >= page_list.1 * scale - 1.0
-                    && quad.bounds.1 <= (page_list.1 + page_list.3) * scale
-            })
-            .map(|quad| quad.bounds)
-            .collect::<Vec<_>>()
+            .any(|bounds| { bounds.1 < 600.0 * scale && bounds.1 + bounds.3 > 0.0 }),
+        "page wheel did not reveal an actual activity panel surface: {page_panels:?}"
+    );
+
+    let page_rows = activity_row_bounds(&page_quads, 800.0, scale);
+    assert!(
+        !page_rows.is_empty(),
+        "page wheel did not reveal painted activity rows: {page_quads:?}"
+    );
+    let record_quad = record_button_bounds(&page_quads, 600.0, scale)
+        .expect("page wheel did not reveal the painted Record press hitbox");
+    surface.click(
+        &mut cx,
+        (record_quad.0 + record_quad.2 / 2.0) / scale,
+        (record_quad.1 + record_quad.3 / 2.0) / scale,
+    );
+    let click_events = surface.events();
+    let pointer_event = |action| {
+        click_events.iter().any(|event| {
+            event.node_id == record_button.id
+                && event.event_type == EVENT_POINTER
+                && matches!(
+                    &event.payload,
+                    Some(EventPayload::Pointer(pointer)) if pointer.action == action
+                )
+        })
     };
-    let page_rows = row_quads(&page_quads);
-    surface.scroll(&mut cx, 400.0, page_list.1 + 80.0, 0.0, -220.0);
+    assert!(
+        pointer_event(EVENT_POINTER_DOWN) && pointer_event(EVENT_POINTER_UP),
+        "painted Record press hitbox did not target its actual node: quad={record_quad:?} events={click_events:?}"
+    );
+
+    process.send_event(&Event::press(
+        snapshot.surface_id,
+        snapshot.epoch,
+        snapshot.revision,
+        1,
+        record_button.id,
+        record_button.listener_id,
+    ));
+    let press_patch_payload = process.read_frame_with_timeout();
+    let press_patch = Patch::decode(&press_patch_payload).expect("decode record press patch");
+    assert!(
+        press_patch.operations.iter().any(|operation| {
+            matches!(
+                operation,
+                PatchOperation::Update {
+                    text: Some(text),
+                    ..
+                } if text == "1"
+            )
+        }),
+        "Record press did not produce the presses state patch: {press_patch:?}"
+    );
+
+    let row_probe = page_rows[0];
+    surface.scroll(
+        &mut cx,
+        (row_probe.0 + row_probe.2 / 2.0) / scale,
+        (row_probe.1 + row_probe.3 / 2.0) / scale,
+        0.0,
+        -220.0,
+    );
     surface.draw(&mut cx);
     surface.advance_frame(&mut cx);
     let nested_quads = surface.painted_quads(&mut cx);
-    let nested_rows = row_quads(&nested_quads);
+    let nested_rows = activity_row_bounds(&nested_quads, 800.0, scale);
     assert!(
-        !page_rows.is_empty() && !nested_rows.is_empty() && page_rows != nested_rows,
-        "nested wheel did not change visible VirtualList rows: page_list={page_list:?} page_rows={page_rows:?} nested_rows={nested_rows:?} quads={page_quads:?}"
+        !nested_rows.is_empty() && page_rows != nested_rows,
+        "nested wheel did not change painted VirtualList rows: page_rows={page_rows:?} nested_rows={nested_rows:?}"
     );
+    let nested_panels = panel_surface_bounds(&nested_quads, 800.0, scale);
     assert!(
-        page_quads
+        page_panels
             .iter()
-            .filter(|quad| quad.bounds.2 > 1000.0 && quad.bounds.3 > 500.0)
-            .any(|quad| nested_quads.contains(quad)),
-        "nested VirtualList wheel moved the page: page_quads={page_quads:?} nested_quads={nested_quads:?}"
+            .any(|bounds| nested_panels.contains(bounds)),
+        "nested VirtualList wheel moved the page surface: page={page_panels:?} nested={nested_panels:?}"
     );
 }
 

@@ -368,7 +368,7 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
       accessibilityLabel="React GPUI capability gallery"
       onLayout={(frame) => setLayout(`${Math.round(frame.width)}×${Math.round(frame.height)}`)}
     >
-      <View style={styles.header} onLayout={() => undefined}>
+      <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>React GPUI Gallery</Text>
           <Text style={styles.subtitle}>Native controls, scroll, overlays, drag reorder, and text rendering.</Text>
@@ -381,10 +381,9 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
       </View>
       <View
         style={bodyStyle}
-        onLayout={() => undefined}
         onExternalFileDrop={(paths) => setExternalDrop(`${paths.length} file${paths.length === 1 ? "" : "s"}`)}
       >
-        <View style={panelStyle} onLayout={() => undefined}>
+        <View style={panelStyle}>
           <View style={styles.panelHeader}>
             <Text style={styles.panelTitle}>Compose</Text>
             <Text style={styles.panelKicker}>Inputs & surfaces</Text>
