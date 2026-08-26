@@ -491,6 +491,7 @@ impl NodeStore {
                     | UPDATE_TEXT
                     | UPDATE_LISTENER
                     | UPDATE_PROPERTIES
+                    | UPDATE_ACCESSIBILITY
                     | UPDATE_FOCUSABLE
                     | UPDATE_SELECTABLE)
                 != 0

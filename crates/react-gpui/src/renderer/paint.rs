@@ -1164,6 +1164,13 @@ fn apply_accessibility<E: StatefulInteractiveElement>(mut element: E, node: &Sto
 
 fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
     let Some(style) = style else { return element };
+    if style.flex_direction.is_some()
+        || style.gap.is_some()
+        || style.justify_content.is_some()
+        || style.align_items.is_some()
+    {
+        element = element.flex();
+    }
     if let Some(width) = style.width {
         element = element.w(px(width));
     }

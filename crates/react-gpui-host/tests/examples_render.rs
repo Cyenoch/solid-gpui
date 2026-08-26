@@ -7,8 +7,9 @@ mod host;
 use gpui::TestAppContext;
 use react_gpui::{
     EVENT_POINTER, EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, EventPayload, KIND_PRESSABLE,
-    KIND_TEXT, Patch, PatchOperation, Snapshot, read_frame, write_frame,
+    KIND_TEXT, KIND_VIEW, Node, Patch, PatchOperation, Snapshot, Style, read_frame, write_frame,
 };
+use std::collections::HashMap;
 use std::io::{BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -219,12 +220,9 @@ fn menu_node(patch: &Patch) -> Option<u32> {
             PatchOperation::Create(node)
                 if node.kind == react_gpui::KIND_VIEW
                     && node.style.as_ref().is_some_and(|style| {
-                        style.position == Some(2)
-                            && style.width == Some(180.0)
-                            && style.top == Some(42.0)
+                        style.width == Some(200.0)
                             && style.background_rgba == Some(0xffff_ffff)
-                    }) =>
-            {
+                    }) => {
                 Some(node.id)
             }
             _ => None,
@@ -237,6 +235,98 @@ fn rect_overlap(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> f32 {
     let right = (a.0 + a.2).min(b.0 + b.2);
     let bottom = (a.1 + a.3).min(b.1 + b.3);
     (right - left).max(0.0) * (bottom - top).max(0.0)
+}
+
+fn gap_probe_snapshot(nested_direction: Option<u32>) -> Snapshot {
+    let mut root = Node::new(1, 0, 0, KIND_VIEW);
+    let parent_id = nested_direction.map(|_| 2).unwrap_or(1);
+    let mut nodes = vec![root.clone()];
+    if let Some(flex_direction) = nested_direction {
+        let height = if flex_direction == 2 { 120.0 } else { 80.0 };
+        let mut container = Node::new(2, 1, 0, KIND_VIEW);
+        container.style = Some(Style {
+            width: Some(240.0),
+            height: Some(height),
+            flex_direction: Some(flex_direction),
+            gap: Some(16.0),
+            ..Style::default()
+        });
+        nodes.push(container);
+    } else {
+        root.style = Some(Style {
+            width: Some(240.0),
+            height: Some(80.0),
+            flex_direction: Some(1),
+            gap: Some(16.0),
+            ..Style::default()
+        });
+        nodes[0] = root;
+    }
+    let mut first = Node::new(3, parent_id, 0, KIND_VIEW);
+    first.style = Some(Style {
+        width: Some(80.0),
+        height: Some(40.0),
+        background_rgba: Some(0xff0000ff),
+        ..Style::default()
+    });
+    let mut second = Node::new(4, parent_id, 1, KIND_VIEW);
+    second.style = Some(Style {
+        width: Some(80.0),
+        height: Some(40.0),
+        background_rgba: Some(0x0000ffff),
+        ..Style::default()
+    });
+    nodes.extend([first, second]);
+    Snapshot::new(1, 1, 0, 1, nodes)
+}
+
+fn assert_gap(snapshot: Snapshot, axis: usize, label: &str) {
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 320.0, 120.0);
+    surface.apply(&mut cx, &snapshot.encode().unwrap());
+    surface.draw(&mut cx);
+    let all_quads = surface.painted_quads(&mut cx);
+    let scale = surface.scale_factor(&mut cx);
+    let mut quads = all_quads
+        .iter()
+        .cloned()
+        .filter(|quad| {
+            (quad.bounds.2 - 80.0 * scale).abs() < 0.01
+                && (quad.bounds.3 - 40.0 * scale).abs() < 0.01
+        })
+        .collect::<Vec<_>>();
+    let coordinate = |bounds: (f32, f32, f32, f32)| {
+        if axis == 0 {
+            (bounds.0, bounds.2)
+        } else {
+            (bounds.1, bounds.3)
+        }
+    };
+    quads.sort_by(|left, right| coordinate(left.bounds).0.total_cmp(&coordinate(right.bounds).0));
+    assert_eq!(quads.len(), 2, "{label} gap probe rendered unexpected quads: {quads:?}");
+    let (first_start, first_extent) = coordinate(quads[0].bounds);
+    let second_start = coordinate(quads[1].bounds).0;
+    let actual_gap = (second_start - (first_start + first_extent)) / scale;
+    assert!(
+        (actual_gap - 16.0).abs() < 0.01,
+        "{label} fixed sibling gap changed: expected 16px, got {actual_gap:.2}; quads={quads:?}"
+    );
+}
+
+#[test]
+fn renderer_applies_gap_between_fixed_siblings_in_nested_row() {
+    assert_gap(gap_probe_snapshot(Some(1)), 0, "nested row");
+}
+
+#[test]
+fn renderer_applies_gap_between_fixed_siblings_in_nested_column() {
+    assert_gap(gap_probe_snapshot(Some(2)), 1, "nested column");
+}
+
+#[test]
+fn renderer_applies_gap_between_fixed_siblings_on_root() {
+    assert_gap(gap_probe_snapshot(None), 0, "root row");
 }
 fn read_snapshot(process: &mut RendererProcess) -> Result<Option<(Vec<u8>, Snapshot)>, String> {
     for _ in 0..8 {
@@ -273,15 +363,15 @@ fn gallery_dropdown_signal(
     let patch = Patch::decode(&patch_payload).map_err(|error| error.to_string())?;
     let menu_id =
         menu_node(&patch).ok_or_else(|| "gallery expanded menu node is absent".to_owned())?;
-    surface.resize(cx, 800.0, 800.0);
+    surface.resize(cx, 800.0, 600.0);
     surface.apply(cx, &patch_payload);
     surface.draw(cx);
 
     let quads = surface.painted_quads(cx);
     let Some(menu_quad) = quads
         .iter()
-        .filter(|quad| quad.bounds.2 >= 340.0 && quad.bounds.2 <= 380.0)
-        .filter(|quad| quad.bounds.3 >= 120.0 && quad.bounds.3 <= 220.0)
+        .filter(|quad| quad.bounds.2 >= 300.0 && quad.bounds.2 <= 500.0)
+        .filter(|quad| quad.bounds.3 >= 40.0)
         .filter(|quad| opaque_quad(quad))
         .max_by_key(|quad| quad.order)
     else {
@@ -352,6 +442,200 @@ fn gallery_dropdown_signal(
         Ok(signal)
     }
 }
+#[test]
+fn gallery_root_scroll_reaches_content() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, _) = read_snapshot(&mut process)
+        .expect("read gallery scroll probe snapshot")
+        .expect("gallery scroll probe emitted no snapshot");
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    let before = surface.painted_quads(&mut cx);
+    surface.scroll(&mut cx, 400.0, 50.0, 0.0, -500.0);
+    surface.draw(&mut cx);
+    let after = surface.painted_quads(&mut cx);
+    let moved = before.iter().any(|quad| !after.contains(quad));
+    assert!(
+        moved,
+        "gallery viewport did not move after a real wheel event: before={before:?} after={after:?}"
+    );
+}
+fn gallery_layout_events(surface: &host::test_support::HeadlessSurface) -> HashMap<u32, (f32, f32, f32, f32)> {
+    surface
+        .events()
+        .into_iter()
+        .filter(|event| event.event_type == react_gpui::protocol::EVENT_LAYOUT)
+        .filter_map(|event| match event.payload {
+            Some(EventPayload::Layout {
+                x,
+                y,
+                width,
+                height,
+            }) => Some((event.node_id, (x, y, width, height))),
+            _ => None,
+        })
+        .collect()
+}
+
+fn collect_gallery_layout_events(
+    surface: &host::test_support::HeadlessSurface,
+    cx: &mut TestAppContext,
+    target_nodes: &[u32],
+) -> HashMap<u32, (f32, f32, f32, f32)> {
+    let mut layouts = HashMap::new();
+    for _ in 0..8 {
+        layouts.extend(gallery_layout_events(surface));
+        if target_nodes.iter().all(|node_id| layouts.contains_key(node_id)) {
+            return layouts;
+        }
+        surface.advance_frame(cx);
+    }
+    panic!("gallery layout events did not arrive for {target_nodes:?}: {layouts:?}");
+}
+
+fn assert_gallery_layout(
+    snapshot: &Snapshot,
+    surface: &host::test_support::HeadlessSurface,
+    cx: &mut TestAppContext,
+    width: f32,
+    height: f32,
+) {
+    let root = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.style.as_ref().is_some_and(|style| {
+                style.width == Some(800.0) && style.height == Some(600.0) && style.overflow == Some(3)
+            })
+        })
+        .expect("gallery root");
+    let body = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.parent_id == root.id
+                && node.style.as_ref().is_some_and(|style| {
+                    style.flex_direction.is_some() && style.gap == Some(12.0) && style.padding.is_none()
+                })
+        })
+        .expect("gallery body");
+    let panels = snapshot
+        .nodes
+        .iter()
+        .filter(|node| {
+            node.parent_id == body.id
+                && node
+                    .style
+                    .as_ref()
+                    .is_some_and(|style| style.border_radius == Some(12.0))
+        })
+        .map(|node| node.id)
+        .collect::<Vec<_>>();
+    let mut target_nodes = vec![root.id, body.id];
+    target_nodes.extend(panels.iter().copied());
+    let layouts = collect_gallery_layout_events(surface, cx, &target_nodes);
+    assert_eq!(
+        panels.len(),
+        2,
+        "gallery first-level panel count changed: body={body:?} direct={:?}",
+        snapshot.nodes.iter().filter(|node| node.parent_id == body.id).collect::<Vec<_>>()
+    );
+    let frame = |node_id: u32| layouts.get(&node_id).copied().unwrap_or_else(|| {
+        panic!("gallery node {node_id} emitted no layout event; events={layouts:?}")
+    });
+    let root_frame = frame(root.id);
+    assert!(
+        root_frame.0 >= -0.1
+            && root_frame.1 >= -0.1
+            && root_frame.2 <= width + 0.1
+            && root_frame.3 >= height - 0.1,
+        "{width}x{height} root frame escaped viewport bounds: {root_frame:?}"
+    );
+    let body_frame = frame(body.id);
+    assert!(
+        (body_frame.0 - 20.0).abs() < 0.1
+            && (body_frame.1 - 96.0).abs() < 0.1
+            && (body_frame.2 - (width - 40.0)).abs() < 0.1,
+        "{width}x{height} body frame escaped inset: {body_frame:?}"
+    );
+    let mut panel_frames = panels.iter().map(|id| frame(*id)).collect::<Vec<_>>();
+    panel_frames.sort_by(|left, right| left.1.total_cmp(&right.1).then(left.0.total_cmp(&right.0)));
+    for panel in &panel_frames {
+        assert!(
+            panel.0 >= 20.0 - 0.1 && panel.0 + panel.2 <= width - 20.0 + 0.1,
+            "{width}x{height} panel escaped horizontal viewport: {panel:?}"
+        );
+    }
+    if width < 1100.0 {
+        assert!(
+            panel_frames.iter().all(|panel| {
+                (panel.0 - 20.0).abs() < 0.1 && (panel.2 - (width - 40.0)).abs() < 0.1
+            }),
+            "{width}x{height} compact panels are not full-width: {panel_frames:?}"
+        );
+        assert!(
+            panel_frames[1].1 >= panel_frames[0].1 + panel_frames[0].3 + 12.0 - 0.1,
+            "{width}x{height} compact panels overlap vertically: {panel_frames:?}"
+        );
+    } else {
+        assert!(
+            (panel_frames[0].1 - body_frame.1).abs() < 0.1
+                && (panel_frames[1].1 - body_frame.1).abs() < 0.1
+                && panel_frames[1].0 >= panel_frames[0].0 + panel_frames[0].2 + 12.0 - 0.1,
+            "{width}x{height} wide panels lost their horizontal gap: {panel_frames:?}"
+        );
+    }
+}
+
+#[test]
+fn gallery_layout_uses_vertical_scroll_without_horizontal_overflow_at_compact_widths() {
+    let root = repo_root();
+    for (width, height) in [(800.0, 600.0), (916.0, 588.0)] {
+        let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+        let (first_payload, snapshot) = read_snapshot(&mut process)
+            .expect("read gallery responsive snapshot")
+            .expect("gallery responsive probe emitted no snapshot");
+        let mut cx = TestAppContext::single();
+        let surface = host::test_support::HeadlessSurface::new(&mut cx);
+        surface.resize(&mut cx, width, height);
+        surface.apply(&mut cx, &first_payload);
+        surface.draw(&mut cx);
+        if width != 800.0 {
+            process.send_event(&Event::window_resize(
+                snapshot.surface_id,
+                snapshot.epoch,
+                snapshot.revision,
+                1,
+                1,
+                0,
+                width,
+                height,
+            ));
+            let patch_payload = process.read_frame_with_timeout();
+            Patch::decode(&patch_payload).expect("decode gallery responsive resize patch");
+            surface.apply(&mut cx, &patch_payload);
+            surface.draw(&mut cx);
+            surface.advance_frame(&mut cx);
+        }
+        assert_gallery_layout(&snapshot, &surface, &mut cx, width, height);
+        let scale = surface.scale_factor(&mut cx);
+        let max_right = surface
+            .painted_quads(&mut cx)
+            .into_iter()
+            .map(|quad| quad.bounds.0 + quad.bounds.2)
+            .fold(0.0_f32, f32::max);
+        assert!(
+            max_right <= width * scale + 0.1,
+            "{width}x{height} painted content overflowed horizontally: max_right={max_right:.2}, viewport={:.2}",
+            width * scale
+        );
+    }
+}
+
 #[test]
 fn all_examples_render_readable_text_and_gallery_dropdown_above_siblings() {
     let root = repo_root();

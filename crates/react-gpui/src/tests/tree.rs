@@ -115,6 +115,44 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
 }
 
 #[test]
+fn accessibility_patch_updates_a_valid_label() {
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(synthetic_root(1))
+        .expect("initial root");
+    let patch = Patch::new(
+        7,
+        3,
+        1,
+        2,
+        vec![PatchOperation::Update {
+            id: 1,
+            mask: UPDATE_ACCESSIBILITY,
+            style: None,
+            text: None,
+            listener_id: 0,
+            host_properties: None,
+            accessibility: Some(AccessibilityProperties {
+                role: 1,
+                label: Some("Updated label".into()),
+                description: None,
+                disabled: false,
+                checked: None,
+                selected: None,
+                value: None,
+            }),
+            focusable: false,
+            selectable: false,
+        }],
+    );
+    store.apply_patch(patch).expect("valid accessibility label update");
+    assert_eq!(
+        store.get(1).unwrap().accessibility.as_ref().unwrap().label.as_deref(),
+        Some("Updated label")
+    );
+}
+
+#[test]
 fn invalid_revision_is_rejected_and_last_good_tree_is_retained() {
     let mut store = NodeStore::default();
     store.apply_snapshot(synthetic_root(1)).unwrap();

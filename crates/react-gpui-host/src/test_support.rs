@@ -197,6 +197,9 @@ impl HeadlessSurface {
         .expect("draw headless test surface");
         cx.run_until_parked();
     }
+    pub fn advance_frame(&self, cx: &mut TestAppContext) {
+        advance_frame(self.window, cx);
+    }
     pub fn resize(&self, cx: &mut TestAppContext, width: f32, height: f32) {
         cx.update_window(self.window.into(), |_, window, _| {
             window.resize(size(px(width), px(height)));
@@ -209,6 +212,15 @@ impl HeadlessSurface {
         let point = gpui::point(px(x), px(y));
         visual.simulate_mouse_down(point, gpui::MouseButton::Left, gpui::Modifiers::none());
         visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+    }
+    pub fn scroll(&self, cx: &mut TestAppContext, x: f32, y: f32, dx: f32, dy: f32) {
+        let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
+        visual.simulate_event(gpui::ScrollWheelEvent {
+            position: gpui::point(gpui::px(x), gpui::px(y)),
+            delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(dx), gpui::px(dy))),
+            modifiers: gpui::Modifiers::none(),
+            touch_phase: gpui::TouchPhase::Moved,
+        });
     }
     pub fn scale_factor(&self, cx: &mut TestAppContext) -> f32 {
         cx.update_window(self.window.into(), |_, window, _| window.scale_factor())
