@@ -126,6 +126,8 @@ fn snapshot() -> Snapshot {
     drag.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
         export_files: Some(vec!["assets/logo.png".into()]),
+        accepts_drag_over: true,
+        accepts_drop: true,
     }));
     let mut input = Node::new(5, 1, 2, KIND_TEXT_INPUT);
     input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
@@ -171,6 +173,8 @@ fn patch() -> Patch {
     created.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
         export_files: Some(vec!["assets/logo.png".into()]),
+        accepts_drag_over: true,
+        accepts_drop: true,
     }));
     Patch::new(
         7,

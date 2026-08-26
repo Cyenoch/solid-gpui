@@ -57,12 +57,14 @@ are not available for `TextInput`, `VirtualList`, or virtualized rows.
 `draggable.type` and optional `draggable.exportFiles` are sent over the native
 protocol; `data` stays
 in JavaScript for application-side association. GPUI starts an internal drag
-after its native pointer threshold and renders a fixed 24×24 translucent
-preview; custom drag previews are not exposed. `onDragOver` is a notification
+after its native pointer threshold and renders a compact neutral 96×32
+`Moving item` preview centered under the pointer; custom drag previews are not
+exposed. `onDragOver` is a notification
 only and its return value is not a native `can_drop` decision. `onDrop`
 receives the drag type, while `onExternalFileDrop` receives ordered local
-filesystem paths from the desktop drop. Browser runtimes do not promise
-filesystem path drops.
+filesystem paths from the desktop drop. `onDragOver` and `onDrop` are
+independent capabilities and may be used on a drop target without `draggable`.
+Browser runtimes do not promise filesystem path drops.
 Enter/leave/move lifecycle events are intentionally not exposed in this
 minimal surface; `onDragOver` is the target notification.
 

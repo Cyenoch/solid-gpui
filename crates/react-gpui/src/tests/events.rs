@@ -156,6 +156,8 @@ fn drag_events_round_trip_all_payload_kinds_and_reject_invalid_paths() {
     node.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
         export_files: Some(vec!["/tmp/a.txt".into(), "/tmp/b".into()]),
+        accepts_drag_over: true,
+        accepts_drop: true,
     }));
     let snapshot = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), node]);
     assert_eq!(
@@ -171,6 +173,8 @@ fn drag_events_round_trip_all_payload_kinds_and_reject_invalid_paths() {
         invalid.host_properties = Some(HostProperties::Drag(DragProperties {
             drag_type: Some("card".into()),
             export_files,
+            accepts_drag_over: true,
+            accepts_drop: true,
         }));
         let invalid_snapshot = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), invalid]);
         assert!(matches!(
@@ -178,6 +182,68 @@ fn drag_events_round_trip_all_payload_kinds_and_reject_invalid_paths() {
             Err(ProtocolError::InvalidHostProperties)
         ));
     }
+}
+
+#[test]
+fn snapshot_decode_accepts_legacy_drag_host_properties() {
+    let legacy = rmp_serde::to_vec(&(
+        3u32,
+        1u32,
+        7u32,
+        3u32,
+        0u32,
+        1u32,
+        vec![(
+            2u32,
+            1u32,
+            0u32,
+            KIND_VIEW,
+            None::<()>,
+            None::<String>,
+            11u32,
+            Some((4u32, Some("card".to_owned()), None::<Vec<String>>)),
+            None::<()>,
+            false,
+        )],
+    ))
+    .unwrap();
+    let snapshot = Snapshot::decode(&legacy).unwrap();
+    let HostProperties::Drag(drag) = snapshot.nodes[0].host_properties.as_ref().unwrap() else {
+        panic!("legacy drag host properties decoded as another variant");
+    };
+    assert_eq!(drag.drag_type.as_deref(), Some("card"));
+    assert_eq!(drag.export_files, None);
+    assert!(drag.accepts_drag_over);
+    assert!(drag.accepts_drop);
+    let minimal = rmp_serde::to_vec(&(
+        3u32,
+        1u32,
+        7u32,
+        3u32,
+        0u32,
+        2u32,
+        vec![(
+            2u32,
+            1u32,
+            0u32,
+            KIND_VIEW,
+            None::<()>,
+            None::<String>,
+            12u32,
+            Some((4u32, Some("minimal".to_owned()))),
+            None::<()>,
+            false,
+        )],
+    ))
+    .unwrap();
+    let snapshot = Snapshot::decode(&minimal).unwrap();
+    let HostProperties::Drag(drag) = snapshot.nodes[0].host_properties.as_ref().unwrap() else {
+        panic!("minimal legacy drag host properties decoded as another variant");
+    };
+    assert_eq!(drag.drag_type.as_deref(), Some("minimal"));
+    assert_eq!(drag.export_files, None);
+    assert!(drag.accepts_drag_over);
+    assert!(drag.accepts_drop);
 }
 
 #[test]

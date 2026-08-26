@@ -22,6 +22,8 @@ pub(super) enum HostPropertiesWire {
     VirtualList(VirtualListWire),
     Image(ImageWire),
     Drag(DragWire),
+    DragLegacy(DragWireLegacy),
+    DragMinimal(DragWireMinimal),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,7 +64,11 @@ pub(super) struct VirtualListWire(u32, u32, u32, u32, f32, u32);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct ImageWire(u32, String, u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct DragWire(u32, Option<String>, Option<Vec<String>>);
+pub(super) struct DragWire(u32, Option<String>, Option<Vec<String>>, bool, bool);
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct DragWireLegacy(u32, Option<String>, Option<Vec<String>>);
+#[derive(Debug, Serialize, Deserialize)]
+pub(super) struct DragWireMinimal(u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct AccessibilityWire(
     u32,
@@ -374,6 +380,8 @@ impl From<&HostProperties> for HostPropertiesWire {
                 4,
                 value.drag_type.clone(),
                 value.export_files.clone(),
+                value.accepts_drag_over,
+                value.accepts_drop,
             )),
         }
     }
@@ -446,6 +454,30 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
                 Ok(Self::Drag(DragProperties {
                     drag_type: value.1,
                     export_files: value.2,
+                    accepts_drag_over: value.3,
+                    accepts_drop: value.4,
+                }))
+            }
+            HostPropertiesWire::DragLegacy(value)
+                if value.0 == 4
+                    && valid_drag_type(value.1.as_deref())
+                    && valid_export_files(value.2.as_deref()) =>
+            {
+                Ok(Self::Drag(DragProperties {
+                    drag_type: value.1,
+                    export_files: value.2,
+                    accepts_drag_over: true,
+                    accepts_drop: true,
+                }))
+            }
+            HostPropertiesWire::DragMinimal(value)
+                if value.0 == 4 && valid_drag_type(value.1.as_deref()) =>
+            {
+                Ok(Self::Drag(DragProperties {
+                    drag_type: value.1,
+                    export_files: None,
+                    accepts_drag_over: true,
+                    accepts_drop: true,
                 }))
             }
             _ => Err(ProtocolError::InvalidHostProperties),

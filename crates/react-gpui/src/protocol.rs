@@ -357,6 +357,8 @@ pub struct ImageProperties {
 pub struct DragProperties {
     pub drag_type: Option<String>,
     pub export_files: Option<Vec<String>>,
+    pub accepts_drag_over: bool,
+    pub accepts_drop: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -279,6 +279,8 @@ export interface VirtualListWire {
 export interface DragWire {
   readonly dragType: string | null;
   readonly exportFiles: readonly string[] | null;
+  readonly acceptsDragOver: boolean;
+  readonly acceptsDrop: boolean;
 }
 export interface AccessibilityWire {
   readonly role: number;

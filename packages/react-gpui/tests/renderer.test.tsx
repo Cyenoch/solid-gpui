@@ -1577,7 +1577,7 @@ describe("renderer commits", () => {
     const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
     const nodeId = node[0] as number;
     const listener = node[6] as number;
-    expect(node[7]).toEqual([4, "card", ["/tmp/a.txt", "/tmp/b"]]);
+    expect(node[7]).toEqual([4, "card", ["/tmp/a.txt", "/tmp/b"], true, true]);
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 1, nodeId, listener, EVENT_DRAG, [1, "card"]]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 2, nodeId, listener, EVENT_DRAG, [2, "card"]]));
     transport.push(
@@ -1595,6 +1595,29 @@ describe("renderer commits", () => {
         />,
       ),
     ).toThrow("1..8");
+  });
+  it("preserves independent internal drag target capabilities", () => {
+    const transport = new MemoryTransport();
+    const over: string[] = [];
+    const dropped: string[] = [];
+    const root = createRoot(transport, { surfaceId: 77, epoch: 78 });
+    root.render(<View onDragOver={(type) => over.push(type)} onDrop={(type) => dropped.push(type)} />);
+    const target = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const targetId = target[0] as number;
+    const targetListener = target[6] as number;
+    expect(target[7]).toEqual([4, null, null, true, true]);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 77, 78, 1, 1, targetId, targetListener, EVENT_DRAG, [1, "card"]]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 77, 78, 1, 2, targetId, targetListener, EVENT_DRAG, [2, "card"]]));
+    expect(over).toEqual(["card"]);
+    expect(dropped).toEqual(["card"]);
+    root.unmount();
+
+    const externalTransport = new MemoryTransport();
+    const externalRoot = createRoot(externalTransport, { surfaceId: 79, epoch: 80 });
+    externalRoot.render(<View onExternalFileDrop={() => undefined} />);
+    const external = snapshots(externalTransport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    expect(external[7]).toEqual([4, null, null, false, false]);
+    externalRoot.unmount();
   });
 
   it("round-trips focus, blur, and setTitle command receipts", async () => {

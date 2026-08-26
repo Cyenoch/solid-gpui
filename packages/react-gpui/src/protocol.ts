@@ -113,7 +113,10 @@ export type VirtualListPropertiesWire = readonly [2, number, number, number, num
 export type ImagePropertiesWire =
   | readonly [3, string, 1 | 2 | 3 | 4 | 5]
   | readonly [3, string, 1 | 2 | 3 | 4 | 5, string | null];
-export type DragPropertiesWire = readonly [4, string | null] | readonly [4, string | null, readonly string[] | null];
+export type DragPropertiesWire =
+  | readonly [4, string | null]
+  | readonly [4, string | null, readonly string[] | null]
+  | readonly [4, string | null, readonly string[] | null, boolean, boolean];
 export type HostPropertiesWire =
   | TextInputPropertiesWire
   | VirtualListPropertiesWire
@@ -518,7 +521,7 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
   if (value[0] === 4) {
     const exportFilesValid =
       value.length === 2 ||
-      (value.length === 3 &&
+      ((value.length === 3 || value.length === 5) &&
         (value[2] === null ||
           (Array.isArray(value[2]) &&
             value[2].length > 0 &&
@@ -529,7 +532,8 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
                 path.length > 0 &&
                 utf8ByteLength(path) <= 1024 &&
                 !/[\u0000-\u001f\u007f]/.test(path),
-            ))));
+            ))) &&
+        (value.length !== 5 || (typeof value[3] === "boolean" && typeof value[4] === "boolean")));
     return (
       exportFilesValid &&
       (value[1] === null ||

@@ -1027,11 +1027,13 @@ impl ReactRoot {
         if let Some(HostProperties::Drag(drag)) = node.host_properties.as_ref() {
             if let Some(drag_type) = drag.drag_type.clone() {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
-                element =
-                    element.on_drag(ReactDragPayload { drag_type }, move |value, position, _, cx| {
+                element = element.on_drag(
+                    ReactDragPayload { drag_type },
+                    move |value, position, _, cx| {
                         *active_drag_type.borrow_mut() = Some(value.drag_type.clone());
                         cx.new(move |_| DragPreview { position })
-                    });
+                    },
+                );
             }
             if let Some(export_files) = drag.export_files.clone() {
                 element =
@@ -1039,7 +1041,10 @@ impl ReactRoot {
                         Some(external_file_drag_payload(&export_files))
                     });
             }
-            if node.listener_id != 0 {
+            // Drag host properties also cover external-file-only targets.
+            // Capability bits keep internal notifications on the callbacks
+            // that requested them.
+            if node.listener_id != 0 && drag.accepts_drag_over {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
@@ -1067,6 +1072,8 @@ impl ReactRoot {
                         &drag_type,
                     );
                 });
+            }
+            if node.listener_id != 0 && drag.accepts_drop {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
@@ -1088,6 +1095,8 @@ impl ReactRoot {
                         &drag.drag_type,
                     );
                 });
+            }
+            if node.listener_id != 0 {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);

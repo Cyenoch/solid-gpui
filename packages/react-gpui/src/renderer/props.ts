@@ -268,6 +268,8 @@ export function dragFor(node: HostNodeInternal, props: HostProps): DragWire | nu
   return {
     dragType: props.draggable?.type ?? null,
     exportFiles: exportFilesFor(props.draggable?.exportFiles),
+    acceptsDragOver: props.onDragOver !== undefined,
+    acceptsDrop: props.onDrop !== undefined,
   };
 }
 
@@ -292,7 +294,7 @@ export function hostPropertiesWire(
       value.selectionReversed,
     ];
   if ("source" in value) return [3, value.source, value.objectFit, value.fallbackSource];
-  if ("dragType" in value) return [4, value.dragType, value.exportFiles];
+  if ("dragType" in value) return [4, value.dragType, value.exportFiles, value.acceptsDragOver, value.acceptsDrop];
   return [2, value.itemCount, value.rangeStart, value.rangeEnd, value.estimatedItemSize, value.overscan];
 }
 export function accessibilityWire(value: AccessibilityWire | null): readonly unknown[] | null {
