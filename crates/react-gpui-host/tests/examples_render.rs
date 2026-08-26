@@ -344,11 +344,11 @@ fn assert_gap(snapshot: Snapshot, axis: usize, label: &str) {
     let scale = surface.scale_factor(&mut cx);
     let mut quads = all_quads
         .iter()
-        .cloned()
         .filter(|quad| {
             (quad.bounds.2 - 80.0 * scale).abs() < 0.01
                 && (quad.bounds.3 - 40.0 * scale).abs() < 0.01
         })
+        .cloned()
         .collect::<Vec<_>>();
     let coordinate = |bounds: (f32, f32, f32, f32)| {
         if axis == 0 {
