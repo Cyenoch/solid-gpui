@@ -222,6 +222,42 @@ impl HeadlessSurface {
             touch_phase: gpui::TouchPhase::Moved,
         });
     }
+    pub fn begin_drag(
+        &self,
+        cx: &mut TestAppContext,
+        from: (f32, f32),
+        to: (f32, f32),
+    ) {
+        let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
+        visual.simulate_mouse_down(
+            gpui::point(gpui::px(from.0), gpui::px(from.1)),
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_mouse_move(
+            gpui::point(gpui::px(to.0), gpui::px(to.1)),
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+    }
+
+    pub fn move_drag(&self, cx: &mut TestAppContext, to: (f32, f32)) {
+        let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
+        visual.simulate_mouse_move(
+            gpui::point(gpui::px(to.0), gpui::px(to.1)),
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+    }
+
+    pub fn end_drag(&self, cx: &mut TestAppContext, at: (f32, f32)) {
+        let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
+        visual.simulate_mouse_up(
+            gpui::point(gpui::px(at.0), gpui::px(at.1)),
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+    }
     pub fn scale_factor(&self, cx: &mut TestAppContext) -> f32 {
         cx.update_window(self.window.into(), |_, window, _| window.scale_factor())
             .expect("read headless test scale factor")

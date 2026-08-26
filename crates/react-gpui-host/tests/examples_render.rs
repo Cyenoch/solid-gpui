@@ -205,10 +205,36 @@ fn activity_row_bounds(
         .filter(|quad| {
             opaque_quad(quad)
                 && quad.bounds.2 >= min_width
-                && (70.0..=100.0).contains(&quad.bounds.3)
+                && (40.0 * scale..=80.0 * scale).contains(&quad.bounds.3)
         })
         .map(|quad| quad.bounds)
         .collect()
+}
+
+fn gap_only_nested_container_snapshot() -> Snapshot {
+    let root = Node::new(1, 0, 0, KIND_VIEW);
+    let mut container = Node::new(2, 1, 0, KIND_VIEW);
+    container.style = Some(Style {
+        width: Some(240.0),
+        height: Some(120.0),
+        gap: Some(16.0),
+        ..Style::default()
+    });
+    let mut first = Node::new(3, 2, 0, KIND_VIEW);
+    first.style = Some(Style {
+        width: Some(80.0),
+        height: Some(40.0),
+        background_rgba: Some(0xff0000ff),
+        ..Style::default()
+    });
+    let mut second = Node::new(4, 2, 1, KIND_VIEW);
+    second.style = Some(Style {
+        width: Some(80.0),
+        height: Some(40.0),
+        background_rgba: Some(0x0000ffff),
+        ..Style::default()
+    });
+    Snapshot::new(1, 1, 0, 1, vec![root, container, first, second])
 }
 
 fn record_button_bounds(
@@ -387,6 +413,15 @@ fn renderer_applies_gap_between_fixed_siblings_in_nested_column() {
 }
 
 #[test]
+fn renderer_defaults_gap_only_nested_containers_to_column() {
+    assert_gap(
+        gap_only_nested_container_snapshot(),
+        1,
+        "gap-only nested container",
+    );
+}
+
+#[test]
 fn renderer_applies_gap_between_fixed_siblings_on_root() {
     assert_gap(gap_probe_snapshot(None), 0, "root row");
 }
@@ -543,6 +578,34 @@ fn gallery_layout_events(
             _ => None,
         })
         .collect()
+}
+
+fn send_renderer_drag_events(
+    process: &mut RendererProcess,
+    surface: &host::test_support::HeadlessSurface,
+    cx: &mut TestAppContext,
+) -> Vec<Patch> {
+    let mut patches = Vec::new();
+    let events = surface.events();
+    eprintln!("[DEBUG-gallery-drag] helper events={}", events.len());
+    for (drag_index, event) in events.into_iter().enumerate() {
+        if !matches!(
+            &event.payload,
+            Some(EventPayload::DragOver { .. } | EventPayload::DragDrop { .. })
+        ) {
+            continue;
+        }
+        if event.node_id == 91 {
+            continue;
+        }
+        process.send_event(&event);
+        let patch_payload = process.read_frame_with_timeout();
+        let patch = Patch::decode(&patch_payload).expect("decode Gallery drag patch");
+        surface.apply(cx, &patch_payload);
+        surface.draw(cx);
+        patches.push(patch);
+    }
+    patches
 }
 
 fn collect_gallery_layout_events(
@@ -847,11 +910,19 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
         "page wheel did not reveal an actual activity panel surface: {page_panels:?}"
     );
 
-    let page_rows = activity_row_bounds(&page_quads, 800.0, scale);
+    let mut page_rows = activity_row_bounds(&page_quads, 800.0, scale);
+    page_rows.sort_by(|left, right| left.1.total_cmp(&right.1));
     assert!(
-        !page_rows.is_empty(),
-        "page wheel did not reveal painted activity rows: {page_quads:?}"
+        page_rows.len() >= 2,
+        "page wheel did not reveal enough painted activity rows for gap probe: {page_quads:?}"
     );
+    for pair in page_rows.windows(2) {
+        let gap = (pair[1].1 - (pair[0].1 + pair[0].3)) / scale;
+        assert!(
+            (pair[0].3 / scale - 44.0).abs() < 0.1 && gap >= 8.0 - 0.1,
+            "activity cards must be 44px tall with an 8px visible gap: rows={page_rows:?}"
+        );
+    }
     let record_quad = record_button_bounds(&page_quads, 600.0, scale)
         .expect("page wheel did not reveal the painted Record press hitbox");
     surface.click(
@@ -909,19 +980,174 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
     surface.draw(&mut cx);
     surface.advance_frame(&mut cx);
     let nested_quads = surface.painted_quads(&mut cx);
-    let nested_rows = activity_row_bounds(&nested_quads, 800.0, scale);
+    let mut nested_rows = activity_row_bounds(&nested_quads, 800.0, scale);
+    nested_rows.sort_by(|left, right| left.1.total_cmp(&right.1));
     assert!(
         !nested_rows.is_empty() && page_rows != nested_rows,
         "nested wheel did not change painted VirtualList rows: page_rows={page_rows:?} nested_rows={nested_rows:?}"
     );
-    let nested_panels = panel_surface_bounds(&nested_quads, 800.0, scale);
-    assert!(
-        page_panels
-            .iter()
-            .any(|bounds| nested_panels.contains(bounds)),
-        "nested VirtualList wheel moved the page surface: page={page_panels:?} nested={nested_panels:?}"
+    let mut nested_panels = panel_surface_bounds(&nested_quads, 800.0, scale);
+    nested_panels.sort_by(|left, right| left.1.total_cmp(&right.1));
+    assert_eq!(
+        page_panels, nested_panels,
+        "nested VirtualList wheel changed outer page/panel scene bounds: page={page_panels:?} nested={nested_panels:?}"
     );
 }
+#[test]
+fn gallery_drag_preview_is_neutral_and_compact() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, _) = read_snapshot(&mut process)
+        .expect("read gallery drag preview snapshot")
+        .expect("gallery drag preview probe emitted no snapshot");
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    let scale = surface.scale_factor(&mut cx);
+    surface.scroll(&mut cx, 400.0, 590.0, 0.0, -500.0);
+    surface.draw(&mut cx);
+    surface.advance_frame(&mut cx);
+    let before_drag = surface.painted_quads(&mut cx);
+    let rows = activity_row_bounds(&before_drag, 800.0, scale);
+    assert!(!rows.is_empty(), "gallery drag preview needs a visible activity row");
+    let row = rows[0];
+    let from = (
+        (row.0 + row.2 / 2.0) / scale,
+        (row.1 + row.3 / 2.0) / scale,
+    );
+    let to = (from.0 + 20.0, from.1);
+    surface.begin_drag(&mut cx, from, to);
+    surface.draw(&mut cx);
+    let after_drag = surface.painted_quads(&mut cx);
+    let added = after_drag
+        .iter()
+        .filter(|quad| !before_drag.contains(quad))
+        .collect::<Vec<_>>();
+    assert!(
+        !added.iter().any(|quad| {
+            (quad.bounds.2 - 24.0 * scale).abs() < 0.1
+                && (quad.bounds.3 - 24.0 * scale).abs() < 0.1
+        }),
+        "drag preview must not be the legacy 24px square: added={added:?}"
+    );
+    let preview = added
+        .iter()
+        .find(|quad| {
+            opaque_quad(quad)
+                && quad.bounds.2 > quad.bounds.3
+                && quad.bounds.2 < 240.0 * scale
+                && quad.bounds.3 < 80.0 * scale
+        })
+        .expect("drag preview should add a compact neutral labeled surface");
+    assert!(
+        !preview.background.contains("s: 1.0"),
+        "drag preview surface should use a neutral fill: {preview:?}"
+    );
+    assert!(
+        (preview.bounds.2 / scale - 96.0).abs() < 0.1
+            && (preview.bounds.3 / scale - 32.0).abs() < 0.1,
+        "drag preview geometry changed: {preview:?}"
+    );
+    let pointer = (to.0 * scale, to.1 * scale);
+    assert!(
+        ((preview.bounds.0 + preview.bounds.2 / 2.0) - pointer.0).abs() < 0.1
+            && ((preview.bounds.1 + preview.bounds.3 / 2.0) - pointer.1).abs() < 0.1,
+        "drag preview should stay centered under the pointer: preview={preview:?} pointer={pointer:?}"
+    );
+    surface.end_drag(&mut cx, from);
+}
+
+#[test]
+fn gallery_drag_drop_reorders_rows_and_preserves_drag_over_feedback() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, snapshot) = read_snapshot(&mut process)
+        .expect("read gallery drag-drop snapshot")
+        .expect("gallery drag-drop probe emitted no snapshot");
+    let debug_nodes: Vec<_> = snapshot
+        .nodes
+        .iter()
+        .filter(|node| [81, 91, 142, 143].contains(&node.id))
+        .collect();
+    panic!("drag nodes={debug_nodes:?}");
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    let scale = surface.scale_factor(&mut cx);
+    surface.scroll(&mut cx, 400.0, 590.0, 0.0, -500.0);
+    surface.draw(&mut cx);
+    surface.advance_frame(&mut cx);
+    let page_quads = surface.painted_quads(&mut cx);
+    let mut rows = activity_row_bounds(&page_quads, 800.0, scale);
+    rows.sort_by(|left, right| left.1.total_cmp(&right.1));
+    assert!(
+        rows.len() >= 2,
+        "gallery drag-drop needs two visible rows: {page_quads:?}"
+    );
+    let source = rows[0];
+    let target = rows[1];
+    let source_center = (
+        (source.0 + source.2 / 2.0) / scale,
+        (source.1 + source.3 / 2.0) / scale,
+    );
+    let target_center = (
+        (target.0 + target.2 / 2.0) / scale,
+        (target.1 + target.3 / 2.0) / scale,
+    );
+
+    surface.begin_drag(
+        &mut cx,
+        source_center,
+        (source_center.0 + 20.0, source_center.1),
+    );
+    surface.move_drag(&mut cx, target_center);
+    eprintln!("[DEBUG-gallery-drag] before helper");
+    let over_patches = send_renderer_drag_events(&mut process, &surface, &mut cx);
+    assert!(
+        over_patches.iter().any(|patch| {
+            patch.operations.iter().any(|operation| {
+                matches!(
+                    operation,
+                    PatchOperation::Update {
+                        style: Some(style),
+                        ..
+                    } if style.background_rgba == Some(0xeaf1ffff)
+                )
+            })
+        }),
+        "dragging over a row must apply its target feedback style: {over_patches:?}"
+    );
+    let after_over_quads = surface.painted_quads(&mut cx);
+    let before_target = page_quads
+        .iter()
+        .find(|quad| quad.bounds == target && opaque_quad(quad))
+        .expect("target row surface before drag-over");
+    let after_target = after_over_quads
+        .iter()
+        .find(|quad| quad.bounds == target && opaque_quad(quad))
+        .expect("target row surface after drag-over");
+    assert_ne!(
+        before_target.background, after_target.background,
+        "drag-over should visibly style the target row"
+    );
+
+    surface.end_drag(&mut cx, target_center);
+    let drop_patches = send_renderer_drag_events(&mut process, &surface, &mut cx);
+    assert!(
+        drop_patches.iter().any(|patch| {
+            patch
+                .operations
+                .iter()
+                .any(|operation| matches!(operation, PatchOperation::Move { .. }))
+        }),
+        "dropping on a different row must reorder keyed Gallery children: {drop_patches:?}"
+    );
+}
+
 
 #[test]
 fn all_examples_render_readable_text_and_gallery_dropdown_above_siblings() {

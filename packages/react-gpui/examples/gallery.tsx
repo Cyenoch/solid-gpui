@@ -266,11 +266,16 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   list: { height: 320, minWidth: 0, flexShrink: 0 },
+  activityRowSlot: {
+    height: 52,
+    minWidth: 0,
+    flexShrink: 0,
+    flexDirection: "column",
+  },
   row: {
     minWidth: 0,
     height: 44,
-    flexGrow: 1,
-    flexShrink: 0,
+    flexGrow: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -505,24 +510,26 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
             itemKey={(row) => row.id}
             emptyState={<Text style={styles.emptyState}>No activities match this filter.</Text>}
             renderItem={(row) => (
-              <View
-                style={{ ...styles.row, ...(dragOverId === row.id ? styles.rowDragOver : {}) }}
-                draggable={{ type: `activity:${row.id}`, data: row }}
-                onDragOver={(type) => {
-                  if (type.startsWith("activity:")) setDragOverId(row.id);
-                }}
-                onDrop={(type) => moveActivity(row.id, type)}
-              >
-                <View style={styles.rowCopy}>
-                  <Text style={styles.rowTitle}>{row.title}</Text>
-                  <Text style={styles.rowDetail}>{row.detail}</Text>
+              <View style={styles.activityRowSlot}>
+                <View
+                  style={{ ...styles.row, ...(dragOverId === row.id ? styles.rowDragOver : {}) }}
+                  draggable={{ type: `activity:${row.id}`, data: row }}
+                  onDragOver={(type) => {
+                    if (type.startsWith("activity:")) setDragOverId(row.id);
+                  }}
+                  onDrop={(type) => moveActivity(row.id, type)}
+                >
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowTitle}>{row.title}</Text>
+                    <Text style={styles.rowDetail}>{row.detail}</Text>
+                  </View>
+                  <Text style={{ ...styles.rowStatus, ...(row.id % 2 === 0 ? {} : styles.rowStatusWaiting) }}>
+                    {row.id % 2 === 0 ? "Ready" : "Waiting"}
+                  </Text>
                 </View>
-                <Text style={{ ...styles.rowStatus, ...(row.id % 2 === 0 ? {} : styles.rowStatusWaiting) }}>
-                  {row.id % 2 === 0 ? "Ready" : "Waiting"}
-                </Text>
               </View>
             )}
-            estimatedItemSize={48}
+            estimatedItemSize={52}
             overscan={2}
             initialNumToRender={6}
           />

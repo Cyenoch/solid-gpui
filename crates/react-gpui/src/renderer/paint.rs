@@ -33,15 +33,31 @@ struct ReactDragPayload {
     drag_type: String,
 }
 
-struct DragPreview;
+struct DragPreview {
+    position: gpui::Point<Pixels>,
+}
 
 impl Render for DragPreview {
     fn render(&mut self, _window: &mut Window, _cx: &mut gpui::Context<Self>) -> impl IntoElement {
         div()
-            .w(px(24.0))
-            .h(px(24.0))
-            .bg(rgba(0x4c8dffff))
-            .opacity(0.45)
+            .pl(self.position.x - px(48.0))
+            .pt(self.position.y - px(16.0))
+            .child(
+                div()
+                    .w(px(96.0))
+                    .h(px(32.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(6.0))
+                    .border(px(1.0))
+                    .border_color(rgba(0x64748bff))
+                    .bg(rgba(0x334155ff))
+                    .text_color(rgba(0xf8fafcff))
+                    .text_size(px(11.0))
+                    .line_height(px(16.0))
+                    .child(SharedString::new_static("Moving item")),
+            )
     }
 }
 struct TextInputElement {
@@ -747,15 +763,19 @@ impl ReactRoot {
                 })
             });
             list_element = apply_style(list_element, style);
-            if node.accessibility.is_none() {
-                return measure_node(node, list_element.into_any(), entity);
-            }
-            let list_element = div()
+            // List registers its bubble listener while painting, after this boundary has
+            // registered its listener. Bubble dispatch therefore lets ListState consume the
+            // wheel first and then stops it from reaching an outer scroll container.
+            let list_boundary = div()
                 .id(ElementId::Integer(((node.id as u64) << 32) | u64::MAX))
+                .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
                 .child(list_element);
+            if node.accessibility.is_none() {
+                return measure_node(node, list_boundary.into_any(), entity);
+            }
             return measure_node(
                 node,
-                apply_accessibility(list_element, node).into_any(),
+                apply_accessibility(list_boundary, node).into_any(),
                 entity,
             );
         }
@@ -1008,9 +1028,9 @@ impl ReactRoot {
             if let Some(drag_type) = drag.drag_type.clone() {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
                 element =
-                    element.on_drag(ReactDragPayload { drag_type }, move |value, _, _, cx| {
+                    element.on_drag(ReactDragPayload { drag_type }, move |value, position, _, cx| {
                         *active_drag_type.borrow_mut() = Some(value.drag_type.clone());
-                        cx.new(|_| DragPreview)
+                        cx.new(move |_| DragPreview { position })
                     });
             }
             if let Some(export_files) = drag.export_files.clone() {
@@ -1170,6 +1190,9 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
         || style.align_items.is_some()
     {
         element = element.flex();
+        if style.flex_direction.is_none() {
+            element = element.flex_col();
+        }
     }
     if let Some(width) = style.width {
         element = element.w(px(width));
