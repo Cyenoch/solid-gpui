@@ -586,16 +586,11 @@ fn send_renderer_drag_events(
     cx: &mut TestAppContext,
 ) -> Vec<Patch> {
     let mut patches = Vec::new();
-    let events = surface.events();
-    eprintln!("[DEBUG-gallery-drag] helper events={}", events.len());
-    for (drag_index, event) in events.into_iter().enumerate() {
+    for event in surface.events() {
         if !matches!(
             &event.payload,
             Some(EventPayload::DragOver { .. } | EventPayload::DragDrop { .. })
         ) {
-            continue;
-        }
-        if event.node_id == 91 {
             continue;
         }
         process.send_event(&event);
@@ -1011,12 +1006,12 @@ fn gallery_drag_preview_is_neutral_and_compact() {
     surface.advance_frame(&mut cx);
     let before_drag = surface.painted_quads(&mut cx);
     let rows = activity_row_bounds(&before_drag, 800.0, scale);
-    assert!(!rows.is_empty(), "gallery drag preview needs a visible activity row");
-    let row = rows[0];
-    let from = (
-        (row.0 + row.2 / 2.0) / scale,
-        (row.1 + row.3 / 2.0) / scale,
+    assert!(
+        !rows.is_empty(),
+        "gallery drag preview needs a visible activity row"
     );
+    let row = rows[0];
+    let from = ((row.0 + row.2 / 2.0) / scale, (row.1 + row.3 / 2.0) / scale);
     let to = (from.0 + 20.0, from.1);
     surface.begin_drag(&mut cx, from, to);
     surface.draw(&mut cx);
@@ -1027,8 +1022,7 @@ fn gallery_drag_preview_is_neutral_and_compact() {
         .collect::<Vec<_>>();
     assert!(
         !added.iter().any(|quad| {
-            (quad.bounds.2 - 24.0 * scale).abs() < 0.1
-                && (quad.bounds.3 - 24.0 * scale).abs() < 0.1
+            (quad.bounds.2 - 24.0 * scale).abs() < 0.1 && (quad.bounds.3 - 24.0 * scale).abs() < 0.1
         }),
         "drag preview must not be the legacy 24px square: added={added:?}"
     );
@@ -1058,20 +1052,13 @@ fn gallery_drag_preview_is_neutral_and_compact() {
     );
     surface.end_drag(&mut cx, from);
 }
-
 #[test]
 fn gallery_drag_drop_reorders_rows_and_preserves_drag_over_feedback() {
     let root = repo_root();
     let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
-    let (first_payload, snapshot) = read_snapshot(&mut process)
+    let (first_payload, _snapshot) = read_snapshot(&mut process)
         .expect("read gallery drag-drop snapshot")
         .expect("gallery drag-drop probe emitted no snapshot");
-    let debug_nodes: Vec<_> = snapshot
-        .nodes
-        .iter()
-        .filter(|node| [81, 91, 142, 143].contains(&node.id))
-        .collect();
-    panic!("drag nodes={debug_nodes:?}");
     let mut cx = TestAppContext::single();
     let surface = host::test_support::HeadlessSurface::new(&mut cx);
     surface.resize(&mut cx, 800.0, 600.0);
@@ -1105,7 +1092,6 @@ fn gallery_drag_drop_reorders_rows_and_preserves_drag_over_feedback() {
         (source_center.0 + 20.0, source_center.1),
     );
     surface.move_drag(&mut cx, target_center);
-    eprintln!("[DEBUG-gallery-drag] before helper");
     let over_patches = send_renderer_drag_events(&mut process, &surface, &mut cx);
     assert!(
         over_patches.iter().any(|patch| {
@@ -1147,7 +1133,6 @@ fn gallery_drag_drop_reorders_rows_and_preserves_drag_over_feedback() {
         "dropping on a different row must reorder keyed Gallery children: {drop_patches:?}"
     );
 }
-
 
 #[test]
 fn all_examples_render_readable_text_and_gallery_dropdown_above_siblings() {
