@@ -12,7 +12,7 @@ embedded-bun = ["dep:react-gpui-bun", "react-gpui-bun/embedded-bun"]
 [dependencies]
 futures.workspace = true
 gpui.workspace = true
-gpui-platform = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui_platform" }
+gpui-platform = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui_platform", features = ["font-kit"] }
 react-gpui-bun = { path = "../react-gpui-bun", optional = true }
 react-gpui = { path = "../react-gpui" }
 
