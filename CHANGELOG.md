@@ -393,6 +393,12 @@ from this work tree.
   perform the gesture while X11 and Windows decline it, and the pinned
   TestWindow capture limitation remains a documented display/upstream seam
   boundary.
+- Selectable Text feasibility re-review is archived with TextRun background
+  support, public TextLayout geometry, and the Zed Markdown `RenderedText`
+  precedent; it is reclassified from a hard upstream gap to a
+  feasible-bounded host-owned design with anchor/head state, per-row selection
+  quads, and host clipboard copy tracked for a future pass, and this round does
+  not implement it.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
