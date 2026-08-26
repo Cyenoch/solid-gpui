@@ -16,8 +16,8 @@ use react_gpui::{
     MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION,
     Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
-    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
-    UPDATE_TEXT, VirtualListProperties, WindowAppearance,
+    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
+    VirtualListProperties, WindowAppearance, WindowOpenOptions,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -225,6 +225,7 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         actions: None,
         menus: None,
         keybindings: None,
+        window_options: None,
     }
 }
 fn surface_command(title: &str, width: u32, height: u32) -> Command {
@@ -243,7 +244,18 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         actions: None,
         menus: None,
         keybindings: None,
+        window_options: None,
     }
+}
+fn surface_options_command() -> Command {
+    let mut command = surface_command("Inspector", 640, 480);
+    command.request_id = 123;
+    command.window_options = Some(WindowOpenOptions {
+        kind: Some(1),
+        resizable: Some(false),
+        min_size: Some((320, 240)),
+    });
+    command
 }
 fn notification_command(title: &str, body: &str) -> Command {
     Command {
@@ -264,6 +276,7 @@ fn notification_command(title: &str, body: &str) -> Command {
         }]),
         menus: None,
         keybindings: None,
+        window_options: None,
     }
 }
 
@@ -301,6 +314,7 @@ fn menus_command() -> Command {
             ],
         }]),
         keybindings: None,
+        window_options: None,
     }
 }
 fn keybindings_command() -> Command {
@@ -328,6 +342,7 @@ fn keybindings_command() -> Command {
                 action_name: "menu.other".into(),
             },
         ]),
+        window_options: None,
     }
 }
 
@@ -885,6 +900,12 @@ fn main() {
         "rust-command-open-surface",
         "command",
         surface_command("Child", 640, 480).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-open-surface-options",
+        "command",
+        surface_options_command().encode().unwrap(),
     );
     emit(
         &mut rows,

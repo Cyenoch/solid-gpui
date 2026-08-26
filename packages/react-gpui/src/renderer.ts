@@ -100,7 +100,13 @@ export interface RootOptions {
   readonly onAction?: (action: string) => void;
   readonly onAppearance?: (appearance: Appearance) => void;
 }
-export interface SurfaceOpenOptions {
+export type SurfaceKind = "normal" | "floating" | "dialog";
+export interface SurfaceOptions {
+  readonly kind?: SurfaceKind;
+  readonly resizable?: boolean;
+  readonly minSize?: readonly [number, number];
+}
+export interface SurfaceOpenOptions extends SurfaceOptions {
   readonly title?: string;
   readonly width?: number;
   readonly height?: number;

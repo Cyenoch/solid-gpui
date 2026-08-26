@@ -13,6 +13,7 @@ rust-command-get-focus	command	99030407032a72040ec0
 rust-command-get-window-size	command	99030407032a71010dc0
 rust-command-notification	command	99030407032a78011493a4446f6e65a846696e69736865649192a46f70656ea44f70656e
 rust-command-open-surface	command	99030407032a75011192a54368696c6492cd0280cd01e0
+rust-command-open-surface-options	command	99030407032a7b011193a9496e73706563746f7292cd0280cd01e09401c2cd0140ccf0
 rust-command-resize	command	99030407032a6b010792cd0320cd0258
 rust-command-scroll-end	command	99030407032a690605c0
 rust-command-scroll-index	command	99030407032a680604920900

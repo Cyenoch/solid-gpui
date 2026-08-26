@@ -188,6 +188,12 @@ export type MenuItemPayload =
   | readonly [2, readonly [string, readonly MenuItemPayload[]]];
 export type MenuPayload = readonly (readonly [string, readonly MenuItemPayload[]])[];
 export type KeybindingsPayload = readonly (readonly [string, string])[];
+export type WindowOpenOptionsPayload = readonly [
+  0 | 1 | 2 | null,
+  boolean | null,
+  number | null,
+  number | null,
+];
 
 export type Command = readonly [
   typeof PROTOCOL_VERSION,
@@ -224,6 +230,7 @@ export type Command = readonly [
   (
     | readonly [number, number]
     | readonly [string, readonly [number, number]]
+    | readonly [string, readonly [number, number], WindowOpenOptionsPayload]
     | readonly [string, string]
     | readonly [string, string, readonly (readonly [string, string])[]]
     | KeybindingsPayload

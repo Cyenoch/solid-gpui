@@ -82,6 +82,32 @@ describe("SurfaceHost", () => {
     source.unmount();
     host.dispose();
   });
+  it("encodes creation options as an appended compatible payload", async () => {
+    const transport = new MemoryTransport();
+    const host = createSurfaceHost(transport);
+    const source = host.createRoot({ surfaceId: 2 });
+    source.render(null);
+
+    const opened = source.openSurface({
+      title: "Inspector",
+      width: 640,
+      height: 480,
+      kind: "floating",
+      resizable: false,
+      minSize: [320, 240],
+    });
+    expect(message(transport, 1)[8]).toEqual(["Inspector", [640, 480], [1, false, 320, 240]]);
+    transport.push(commandResult(2, 1, 1, 1, COMMAND_OPEN_SURFACE, [1, 9]));
+    await expect(opened).resolves.toBe(9);
+
+    const before = transport.submitted.length;
+    await expect(source.openSurface({ minSize: [0, 240] })).rejects.toThrow("surface minSize");
+    await expect(source.openSurface({ kind: "popup" as never })).rejects.toThrow("surface kind");
+    expect(transport.submitted).toHaveLength(before);
+    source.unmount();
+    host.dispose();
+  });
+
   it("uses empty title and zero size defaults for root surface creation", async () => {
     const transport = new MemoryTransport();
     const host = createSurfaceHost(transport);

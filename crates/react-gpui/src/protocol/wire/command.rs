@@ -7,9 +7,35 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
     if command.kind != COMMAND_SET_KEYBINDINGS && command.keybindings.is_some() {
         return Err(ProtocolError::InvalidCommandPayload);
     }
+    if command.kind != COMMAND_OPEN_SURFACE && command.window_options.is_some() {
+        return Err(ProtocolError::InvalidCommandPayload);
+    }
     let payload = match command.kind {
-        COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => {
+        COMMAND_OPEN_SURFACE => {
             if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.payload, &command.title, &command.window_options) {
+                (Some(payload), Some(title), None) => Some(CommandPayloadWire::StringWithPair((
+                    title.clone(),
+                    *payload,
+                ))),
+                (Some(payload), Some(title), Some(options)) if valid_window_options(options) => {
+                    Some(CommandPayloadWire::StringWithPairAndOptions((
+                        title.clone(),
+                        *payload,
+                        WindowOpenOptionsWire::from(options),
+                    )))
+                }
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
+        COMMAND_FILE_DIALOG_OPEN => {
+            if command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.window_options.is_some()
+            {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
             match (&command.payload, &command.title) {
@@ -126,6 +152,25 @@ fn valid_keybinding(binding: &KeybindingDefinition) -> bool {
         && !binding.action_name.chars().any(char::is_control)
 }
 
+fn valid_window_options(options: &WindowOpenOptions) -> bool {
+    options.kind.is_none_or(|kind| kind <= 2)
+        && options
+            .min_size
+            .is_none_or(|(width, height)| {
+                width > 0
+                    && width <= MAX_WINDOW_DIMENSION
+                    && height > 0
+                    && height <= MAX_WINDOW_DIMENSION
+            })
+}
+
+fn valid_surface_size((width, height): (u32, u32)) -> bool {
+    (width == 0 && height == 0)
+        || (width > 0
+            && width <= MAX_WINDOW_DIMENSION
+            && height > 0
+            && height <= MAX_WINDOW_DIMENSION)
+}
 pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     let mut deserializer = rmp_serde::Deserializer::new(Cursor::new(payload));
     let wire = CommandWire::deserialize(&mut deserializer).map_err(ProtocolError::Decode)?;
@@ -170,6 +215,14 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     // the meaning, so the same [string,[u32,u32]] shape is validated
     // independently for OpenSurface versus FileDialogOpen.
     let command_payload = wire.8.clone();
+    let window_options = match command_payload.clone() {
+        Some(CommandPayloadWire::StringWithPairAndOptions((_, _, options)))
+            if wire.7 == COMMAND_OPEN_SURFACE =>
+        {
+            Some(WindowOpenOptions::try_from(options)?)
+        }
+        _ => None,
+    };
     let (payload, title, body): (Option<(u32, u32)>, Option<String>, Option<String>) =
         match (wire.7, wire.8) {
             (COMMAND_SET_TITLE, Some(CommandPayloadWire::Title(title)))
@@ -178,14 +231,20 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (None, Some(title), None)
             }
             (COMMAND_SET_TITLE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (
+                COMMAND_OPEN_SURFACE,
+                Some(CommandPayloadWire::StringWithPairAndOptions((title, size, options))),
+            ) if wire.6 == 1
+                && title.chars().count() <= 256
+                && valid_surface_size(size)
+                && WindowOpenOptions::try_from(options.clone()).is_ok() =>
+            {
+                (Some(size), Some(title), None)
+            }
             (COMMAND_OPEN_SURFACE, Some(CommandPayloadWire::StringWithPair((title, size))))
                 if wire.6 == 1
                     && title.chars().count() <= 256
-                    && ((size.0 == 0 && size.1 == 0)
-                        || (size.0 > 0
-                            && size.0 <= MAX_WINDOW_DIMENSION
-                            && size.1 > 0
-                            && size.1 <= MAX_WINDOW_DIMENSION)) =>
+                    && valid_surface_size(size) =>
             {
                 (Some(size), Some(title), None)
             }
@@ -342,6 +401,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         title,
         body,
         menus,
+        window_options,
     })
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,8 +412,47 @@ enum CommandPayloadWire {
     StringPair((String, String)),
     StringPairWithActions((String, String, Vec<NotificationActionWire>)),
     StringWithPair((String, (u32, u32))),
+    StringWithPairAndOptions((String, (u32, u32), WindowOpenOptionsWire)),
     Keybindings(Vec<(String, String)>),
     Menus(Vec<MenuWire>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WindowOpenOptionsWire(Option<u32>, Option<bool>, Option<u32>, Option<u32>);
+
+impl From<&WindowOpenOptions> for WindowOpenOptionsWire {
+    fn from(options: &WindowOpenOptions) -> Self {
+        let (min_width, min_height) = options
+            .min_size
+            .map_or((None, None), |(width, height)| (Some(width), Some(height)));
+        Self(options.kind, options.resizable, min_width, min_height)
+    }
+}
+
+impl TryFrom<WindowOpenOptionsWire> for WindowOpenOptions {
+    type Error = ProtocolError;
+
+    fn try_from(options: WindowOpenOptionsWire) -> Result<Self, Self::Error> {
+        if options.0.is_some_and(|kind| kind > 2)
+            || options.2.is_some() != options.3.is_some()
+            || options
+                .2
+                .zip(options.3)
+                .is_some_and(|(width, height)| {
+                    width == 0
+                        || width > MAX_WINDOW_DIMENSION
+                        || height == 0
+                        || height > MAX_WINDOW_DIMENSION
+                })
+        {
+            return Err(ProtocolError::InvalidCommandPayload);
+        }
+        Ok(Self {
+            kind: options.0,
+            resizable: options.1,
+            min_size: options.2.zip(options.3),
+        })
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct NotificationActionWire(String, String);
@@ -503,10 +602,50 @@ mod tests {
             actions: None,
             menus: None,
             keybindings: None,
+            window_options: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
             .expect("decode open surface");
         assert_eq!(decoded, command);
+    }
+
+    #[test]
+    fn open_surface_options_round_trip_and_validate() {
+        let command = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 5,
+            node_id: 1,
+            kind: COMMAND_OPEN_SURFACE,
+            payload: Some((640, 480)),
+            title: Some("floating".to_owned()),
+            body: None,
+            actions: None,
+            menus: None,
+            keybindings: None,
+            window_options: Some(WindowOpenOptions {
+                kind: Some(1),
+                resizable: Some(false),
+                min_size: Some((320, 240)),
+            }),
+        };
+        let bytes = command.encode().expect("encode open surface options");
+        assert_eq!(
+            Command::decode(&bytes).expect("decode open surface options"),
+            command
+        );
+        let invalid = Command {
+            window_options: Some(WindowOpenOptions {
+                kind: Some(3),
+                resizable: None,
+                min_size: Some((0, 240)),
+            }),
+            ..command
+        };
+        assert!(invalid.encode().is_err());
     }
 
     #[test]
@@ -526,6 +665,7 @@ mod tests {
             actions: None,
             menus: None,
             keybindings: None,
+            window_options: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
             command.protocol,
@@ -584,6 +724,7 @@ mod tests {
             actions: None,
             menus: None,
             keybindings: None,
+            window_options: None,
         };
         assert_eq!(
             Command::decode(&open.encode().expect("encode open dialog"))
@@ -606,6 +747,7 @@ mod tests {
             actions: None,
             menus: None,
             keybindings: None,
+            window_options: None,
         };
         assert_eq!(
             Command::decode(&save.encode().expect("encode save dialog"))
@@ -648,6 +790,7 @@ mod tests {
             ]),
             menus: None,
             keybindings: None,
+            window_options: None,
         };
         assert_eq!(
             Command::decode(&notification.encode().expect("encode notification"))
@@ -695,6 +838,7 @@ mod tests {
                 ],
             }]),
             keybindings: None,
+            window_options: None,
         };
         assert_eq!(
             Command::decode(&menus.encode().expect("encode menus")).expect("decode menus"),
@@ -724,6 +868,7 @@ mod tests {
                     action_name: "menu.other".to_owned(),
                 },
             ]),
+            window_options: None,
         };
         assert_eq!(
             Command::decode(&keybindings.encode().expect("encode keybindings"))

@@ -40,6 +40,7 @@ import {
   type PatchOperation,
   type PressEventFrame,
   type SnapshotNode,
+  type WindowOpenOptionsPayload,
   utf8ByteLength,
 } from "../protocol";
 import { TransportTerminatedError, type Transport, type TransportTerminationListener } from "../transport";
@@ -60,6 +61,7 @@ import type {
   WindowActivationHandler,
   WindowResizeHandler,
 } from "./types";
+import type { SurfaceOpenOptions } from "../renderer";
 
 export class RootContainer implements DispatchContext {
   readonly nodes: NodeGraph;
@@ -322,6 +324,7 @@ export class RootContainer implements DispatchContext {
     payload:
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
+      | readonly [string, readonly [number, number], WindowOpenOptionsPayload]
       | readonly [string, string]
       | readonly [string, string, readonly (readonly [string, string])[]]
       | KeybindingsPayload
@@ -398,9 +401,7 @@ export class RootContainer implements DispatchContext {
       return Promise.reject(new TypeError("url must be a non-empty http or https URL of at most 2048 UTF-8 bytes"));
     return this.submitSurfaceCommand(COMMAND_OPEN_URL, url);
   }
-  openSurface(
-    options: { readonly title?: string; readonly width?: number; readonly height?: number } = {},
-  ): Promise<number> {
+  openSurface(options: SurfaceOpenOptions = {}): Promise<number> {
     const title = options.title ?? "";
     const width = options.width ?? 0;
     const height = options.height ?? 0;
@@ -416,7 +417,35 @@ export class RootContainer implements DispatchContext {
       (width === 0) !== (height === 0)
     )
       return Promise.reject(new RangeError("surface size must be 0x0 or integer pixels in the range 1..16384"));
-    const payload: readonly [string, readonly [number, number]] = [title, [width, height]];
+    if (options.kind !== undefined && !["normal", "floating", "dialog"].includes(options.kind))
+      return Promise.reject(new TypeError("surface kind must be normal, floating, or dialog"));
+    if (options.resizable !== undefined && typeof options.resizable !== "boolean")
+      return Promise.reject(new TypeError("surface resizable must be a boolean"));
+    let minWidth: number | null = null;
+    let minHeight: number | null = null;
+    if (options.minSize !== undefined) {
+      if (
+        !Array.isArray(options.minSize) ||
+        options.minSize.length !== 2 ||
+        !Number.isInteger(options.minSize[0]) ||
+        !Number.isInteger(options.minSize[1]) ||
+        options.minSize[0] <= 0 ||
+        options.minSize[1] <= 0 ||
+        options.minSize[0] > 16_384 ||
+        options.minSize[1] > 16_384
+      )
+        return Promise.reject(new RangeError("surface minSize must be positive integer pixels in the range 1..16384"));
+      [minWidth, minHeight] = options.minSize;
+    }
+    const hasOptions =
+      options.kind !== undefined || options.resizable !== undefined || options.minSize !== undefined;
+    const kind = options.kind === undefined ? null : ({ normal: 0, floating: 1, dialog: 2 } as const)[options.kind];
+    const windowOptions: WindowOpenOptionsPayload | undefined = hasOptions
+      ? [kind, options.resizable ?? null, minWidth, minHeight]
+      : undefined;
+    const payload = windowOptions
+      ? ([title, [width, height], windowOptions] as const)
+      : ([title, [width, height]] as const);
     return this.submitSurfaceCommandValue(COMMAND_OPEN_SURFACE, payload).then((value) => {
       if (
         !Array.isArray(value) ||

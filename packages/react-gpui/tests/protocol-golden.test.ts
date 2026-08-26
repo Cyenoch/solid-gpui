@@ -56,6 +56,9 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
     const patch = decoded as readonly unknown[];
     expect((patch[6] as readonly (readonly unknown[])[]).map((operation) => operation[0])).toEqual([1, 2, 3, 4]);
   }
+  if (vector.id.endsWith("command-open-surface-options")) {
+    expect((decoded as readonly unknown[])[8]).toEqual(["Inspector", [640, 480], [1, false, 320, 240]]);
+  }
   if (vector.id.endsWith("command-set-keybindings")) {
     const command = decoded as readonly unknown[];
     expect(command[7]).toBe(22);

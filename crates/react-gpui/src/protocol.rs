@@ -222,6 +222,13 @@ pub struct KeybindingDefinition {
     pub action_name: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WindowOpenOptions {
+    pub kind: Option<u32>,
+    pub resizable: Option<bool>,
+    pub min_size: Option<(u32, u32)>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Command {
     pub protocol: u32,
@@ -238,6 +245,7 @@ pub struct Command {
     pub actions: Option<Vec<NotificationActionDefinition>>,
     pub menus: Option<Vec<MenuDefinition>>,
     pub keybindings: Option<Vec<KeybindingDefinition>>,
+    pub window_options: Option<WindowOpenOptions>,
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire

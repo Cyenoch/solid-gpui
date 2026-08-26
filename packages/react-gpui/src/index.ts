@@ -63,7 +63,9 @@ export type {
   NotificationOptions,
   PickFilesOptions,
   PickSavePathOptions,
+  SurfaceKind,
   SurfaceOpenOptions,
+  SurfaceOptions,
 } from "./renderer";
 export { createSurfaceHost, type SurfaceHost, type SurfaceHostOptions } from "./surface-host";
 export {
