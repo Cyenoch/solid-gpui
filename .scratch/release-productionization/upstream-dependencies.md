@@ -9,13 +9,28 @@ an upstream commitment.
 These items require an upstream GPUI API/semantic change rather than another
 wire slot in this repository:
 
-- **RTL base direction and bidi caret/IME semantics.** The pinned GPUI surface
-  has physical flex direction and physical text alignment, but no generic
-  container/text base-direction contract. Unicode bidi shaping and caret/IME
-  behavior therefore cannot be made coherent by a renderer-local mirror.
-  Evidence: `references/zed/crates/gpui/src/styled.rs` (physical flex and text
-  alignment methods), `references/zed/crates/gpui/src/style.rs` (style fields),
-  and the current boundary statement in `docs/protocol.md`.
+- **RTL explicit base-direction API.** The pinned GPUI `TextStyle`, `TextRun`,
+  and `shape_line`/`shape_text` surfaces carry no paragraph/base-direction
+  field or parameter. `unicode-bidi` is invoked with `None`, so P2
+  auto-detects the first strong L/R/AL character instead of accepting a
+  caller-selected base direction.
+  Evidence: `references/zed/crates/gpui/src/style.rs:435-483`,
+  `references/zed/crates/gpui/src/text_system.rs:985-1000`,
+  `references/zed/crates/gpui/src/text_system.rs:391-403`,
+  `references/zed/crates/gpui/src/text_system.rs:506-516`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/shape.rs:1348-1359`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/unicode-bidi-0.3.18/src/lib.rs:377-399`.
+- **Bidi-aware hit/caret geometry.** GPUI's `LineLayout` carries no `rtl`,
+  bidi `level`, glyph width, or caret affinity; `index_for_x` and
+  `x_for_index` scan raw positions and indices, and `WrappedLineLayout`
+  delegates position mapping to those scans. cosmic-text itself supplies
+  RTL edge-aware cursor geometry and mixed-BiDi handling, but the GPUI
+  backend conversion keeps only glyph ID, position, and start index.
+  Evidence: `references/zed/crates/gpui/src/text_system/line_layout.rs:14-54`,
+  `references/zed/crates/gpui/src/text_system/line_layout.rs:56-114`,
+  `references/zed/crates/gpui/src/text_system/line_layout.rs:342-447`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/buffer.rs:115-197`,
+  `references/zed/crates/gpui_wgpu/src/cosmic_text_system.rs:658-711`.
 - **`letterSpacing`.** The pinned GPUI text style and shaping seam do not expose
   a letter-spacing field or shaping adjustment that the renderer can safely
   apply to every text run. Adding a tuple value without a GPUI shaping API
@@ -28,6 +43,21 @@ wire slot in this repository:
 The generic `Text` selection model is not supplied by GPUI, so it is not a
 ready-made upstream feature; however, unlike the remaining hard gaps, the
 renderer can build a bounded host-owned model from public primitives.
+
+## Re-reviewed upstream capabilities
+
+- **RTL rendering — not an upstream gap.** The pinned WGPU text backend uses
+  `cosmic-text` 0.19.0; its `ShapeLine` invokes `unicode_bidi::BidiInfo`,
+  builds bidi-level spans, applies visual reordering, and shapes each span
+  with HarfRust RTL/LTR directions. It emits positioned glyphs for painting,
+  so RTL rendering is supplied by the shaping backend rather than missing
+  from GPUI.
+  Evidence: `references/zed/crates/gpui_wgpu/Cargo.toml:18-34`,
+  `references/zed/crates/gpui_wgpu/src/cosmic_text_system.rs:627-645`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/shape.rs:135-201`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/shape.rs:1303-1404`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/shape.rs:1460-1568`,
+  `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cosmic-text-0.19.0/src/shape.rs:2763-3013`.
 
 ## Project limits that can be re-reviewed
 
@@ -121,4 +151,6 @@ its display-backed interaction is covered, while platform-specific native
 cursor/clipboard behavior remains a desktop-adapter concern. Image `onError`,
 the true upstream gaps, and the remaining pointer-events policy stay
 explicitly listed so future work does not silently turn a policy choice into a
-claimed GPUI limitation.
+claimed GPUI limitation. RTL rendering is not an upstream gap after the bidi
+re-review; explicit base-direction control and bidi-aware hit/caret geometry
+remain separate true gaps, with geometry the deeper interaction boundary.
