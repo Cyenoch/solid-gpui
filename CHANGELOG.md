@@ -368,6 +368,18 @@ from this work tree.
   Conventional Commit subjects, four documentation drifts were fixed, and
   `.scratch/release-productionization/final-pre-cut-audit.md` records 191 lines
   of evidence.
+- Multiline TextInput geometry now uses dual single-line `ShapedLine` and
+  multiline `shape_text`/`WrappedLine` layout caches; cross-line selections
+  compute union bounds, UTF-16 offsets map to line/local positions, and
+  explicit line-height growth follows wrapped line count. IME candidate
+  placement remains display-backed. Keybinding registration is tracked as a
+  feasible-bounded follow-up in
+  `.scratch/release-productionization/upstream-dependencies.md`.
+- The consumer troubleshooting guide adds a 459-line symptom directory with
+  8 entries and symptom → diagnosis → repair sections covering Snapshot/
+  transport, validation, events, command lifecycle, IME, tap performance,
+  crash reports, and compatibility; README Debugging points to it while
+  retaining the environment quick reference.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,

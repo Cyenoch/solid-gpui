@@ -261,9 +261,8 @@ The renderer deliberately has a mixed-precision text contract:
   or Unicode scalar counts. `maxLength` uses the same UTF-16 unit contract.
 - `onSelectionChange` carries `start`, `end`, and `reversed`; old seven-slot
   TextInput event payloads decode with `reversed=false`.
-- GPUI gives TextInput/IME handling precedence before keymap bindings, and both
-  single-line and multiline/newline-containing text now use cached GPUI shaped
-  layouts for point-to-character lookup and UTF-16 position mapping.
+- TextInput/IME takes precedence before keymaps; cached GPUI shaped layouts
+  cover single-line and multiline/newline UTF-16 positions and point lookup.
 - IME candidate placement remains approximate and display-backed. Placeholder
   geometry still falls back to element bounds.
 - There is no browser composition event or synchronous event cancellation
@@ -292,10 +291,9 @@ ranges are preserved until native composition changes them.
 Do not convert selection offsets using UTF-8 byte positions. Preserve the
 `reversed` bit when displaying a selection direction, and use the native text
 value delivered by `onChangeText`/submit rather than a stale closure. Multiline
-caret and point-to-character mapping now use cached wrapped GPUI geometry,
-including empty and trailing-newline lines. IME candidate placement remains a
-known display-backed approximation, not a missing retry; verify it on a real
-desktop adapter.
+caret and point-to-character mapping use cached wrapped GPUI geometry, including
+empty/trailing-newline lines. IME candidate placement remains a known
+display-backed approximation; verify it on a real desktop adapter.
 
 ## Low frame rate or stutter
 
