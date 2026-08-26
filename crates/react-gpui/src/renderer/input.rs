@@ -560,6 +560,12 @@ impl ReactRoot {
         let id = self.active_input?;
         self.input_states.get_mut(&id)
     }
+    fn emit_input_change_and_selection(&self) {
+        if let Some(id) = self.active_input {
+            self.emit_input_event(id, EVENT_CHANGE);
+            self.emit_input_event(id, EVENT_SELECTION);
+        }
+    }
 }
 
 impl EntityInputHandler for ReactRoot {
@@ -606,10 +612,7 @@ impl EntityInputHandler for ReactRoot {
         {
             cx.notify();
         }
-        if let Some(id) = self.active_input {
-            self.emit_input_event(id, EVENT_CHANGE);
-            self.emit_input_event(id, EVENT_SELECTION);
-        }
+        self.emit_input_change_and_selection();
     }
 
     fn replace_text_in_range(
@@ -626,10 +629,7 @@ impl EntityInputHandler for ReactRoot {
             state.replace(range, text);
             cx.notify();
         }
-        if let Some(id) = self.active_input {
-            self.emit_input_event(id, EVENT_CHANGE);
-            self.emit_input_event(id, EVENT_SELECTION);
-        }
+        self.emit_input_change_and_selection();
     }
 
     fn replace_and_mark_text_in_range(
@@ -647,10 +647,7 @@ impl EntityInputHandler for ReactRoot {
             state.replace_marked(range, new_text, new_selected_range);
             cx.notify();
         }
-        if let Some(id) = self.active_input {
-            self.emit_input_event(id, EVENT_CHANGE);
-            self.emit_input_event(id, EVENT_SELECTION);
-        }
+        self.emit_input_change_and_selection();
     }
 
     fn bounds_for_range(

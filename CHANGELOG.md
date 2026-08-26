@@ -377,3 +377,7 @@ from this work tree.
 - The host candidate workflow runs the full ordinary `make ci` gate before
   building and uploading its unsigned, short-retention artifact.
 
+- Internal implementation seams now isolate host command-roundtrip fixtures and
+  retained-tree validation without changing wire or public behavior; repeated
+  TextInput change/selection event emission is centralized behind a private
+  helper.

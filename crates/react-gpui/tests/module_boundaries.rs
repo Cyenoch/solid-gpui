@@ -1,9 +1,9 @@
-//! Architectural locks for the private renderer/protocol module seams.
+//! Architectural locks for the private renderer/protocol/tree module seams.
 //!
 //! This is deliberately a small text-level guard, not a Rust parser. When adding a
-//! renderer or protocol child module, add its filename to the module lists below,
-//! then add only the intentional `super::` edge or crate-level import prefix to the
-//! corresponding allowlist. Keep implementation exports `pub(super)`/`pub(crate)`;
+//! renderer, protocol, or tree child module, add its filename to the module lists
+//! below, then add only the intentional `super::` edge or crate-level import prefix
+//! to the corresponding allowlist. Keep implementation exports `pub(super)`/`pub(crate)`;
 //! the one public `start_commit_reader` method is an explicit preserved API exception.
 
 use std::fs;
@@ -24,6 +24,7 @@ const PROTOCOL_CHILD_MODULES: &[&str] = &[
     "wire/command.rs",
     "wire/event.rs",
 ];
+const TREE_CHILD_MODULES: &[&str] = &["validation.rs"];
 
 // These are the current intentional parent/sibling edges. A new edge must be
 // reviewed and added here explicitly rather than becoming an accidental cycle.
@@ -78,6 +79,12 @@ fn protocol_sources() -> Vec<Source> {
         .map(|name| source(&format!("protocol/{name}")))
         .collect()
 }
+fn tree_sources() -> Vec<Source> {
+    TREE_CHILD_MODULES
+        .iter()
+        .map(|name| source(&format!("tree/{name}")))
+        .collect()
+}
 
 fn fail(source: &Source, line_number: usize, reason: &str, line: &str) -> ! {
     panic!(
@@ -105,7 +112,7 @@ fn assert_contains_line(source: &Source, needle: &str, reason: &str) {
 }
 
 #[test]
-fn renderer_parent_keeps_children_private() {
+fn renderer_and_tree_parents_keep_children_private() {
     let renderer = source("renderer.rs");
     for child in RENDERER_CHILD_MODULES {
         let module = child
@@ -120,6 +127,22 @@ fn renderer_parent_keeps_children_private() {
             &renderer,
             &format!("pub mod {module}"),
             "renderer child modules must remain private to renderer",
+        );
+    }
+    let tree = source("tree.rs");
+    for child in TREE_CHILD_MODULES {
+        let module = child
+            .strip_suffix(".rs")
+            .expect("tree child list entries must be Rust files");
+        assert_contains_line(
+            &tree,
+            &format!("mod {module}"),
+            "tree child module declaration is missing",
+        );
+        assert_no_line_containing(
+            &tree,
+            &format!("pub mod {module}"),
+            "tree child modules must remain private to tree",
         );
     }
 }
@@ -148,7 +171,7 @@ fn is_allowlisted_public_item(source: &Source, line: &str) -> bool {
 }
 
 #[test]
-fn renderer_child_exports_are_internal() {
+fn renderer_and_tree_child_exports_are_internal() {
     for child in renderer_sources() {
         for (index, line) in child.text.lines().enumerate() {
             let trimmed = line.trim_start();
@@ -165,6 +188,23 @@ fn renderer_child_exports_are_internal() {
                 &child,
                 index + 1,
                 "renderer child implementation items must use pub(super) or pub(crate)",
+                line,
+            );
+        }
+    }
+    for child in tree_sources() {
+        for (index, line) in child.text.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if !is_public_item(trimmed)
+                || trimmed.starts_with("pub(super) ")
+                || trimmed.starts_with("pub(crate) ")
+            {
+                continue;
+            }
+            fail(
+                &child,
+                index + 1,
+                "tree child implementation items must use pub(super) or pub(crate)",
                 line,
             );
         }
