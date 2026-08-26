@@ -346,6 +346,15 @@ from this work tree.
   Shared Makefile install/build outputs make parallelization riskier than its
   small warm-CI benefit, so no build-time optimization was made.
 - VirtualList now renders through GPUI's native variable-height list: per-node ListState with real measured committed rows and estimated placeholders outside the committed range, ListState-based scroll commands, and a zero-change wire; estimatedItemSize becomes an initial hint, the JS-side measurement path was surveyed and rejected as structurally infeasible, and placeholder flicker remains display-backed.
+- BoxShadow and fontFamily complete the 42-slot Style wire: `boxShadow`
+  supports tagged single (`tag=1`) and double (`tag=2`) shadow forms with
+  finite offsets, non-negative blur/spread, RGBA colors, and inset flags;
+  `fontFamily` occupies one slot and GPUI's `resolve_font` safely falls back
+  through the configured stack when the requested family is unavailable. README
+  stale unsupported-style wording is corrected, and
+  `.scratch/release-productionization/upstream-dependencies.md` records the
+  three categories of true upstream gaps, project re-review limits, and
+  test-platform limits.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
@@ -378,6 +387,8 @@ from this work tree.
   building and uploading its unsigned, short-retention artifact.
 
 - Internal implementation seams now isolate host command-roundtrip fixtures and
-  retained-tree validation without changing wire or public behavior; repeated
-  TextInput change/selection event emission is centralized behind a private
-  helper.
+  retained-tree validation: host `test_support` moves the host main module from
+  1,722 to 848 lines, tree validation splits 1,380 into 870+519 with
+  synchronized module-boundary guardrails, TextInput change/selection events
+  delegate to a private helper, and test coverage remains equivalent at 89→89;
+  wire and public behavior are unchanged.

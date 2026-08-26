@@ -664,7 +664,17 @@ it("encodes absolute positioning and negative inset offsets", () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 87, epoch: 88 });
   root.render(<View style={{ position: "absolute", left: -8, top: 4, right: 12, bottom: 6 }} />);
-  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([1, -8, 4, 12, 6, null, 0]);
+  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([
+    1,
+    -8,
+    4,
+    12,
+    6,
+    null,
+    0,
+    null,
+    null,
+  ]);
 });
 it("encodes Image host properties and rejects Image children", () => {
   const transport = new MemoryTransport();

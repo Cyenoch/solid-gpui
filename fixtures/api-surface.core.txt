@@ -6,6 +6,8 @@ AlignSelf	type
 AnimationCompleteEvent	type
 Appearance	type
 AppearanceStore	type
+BoxShadow	type
+BoxShadowInput	type
 ByteInput	type
 ByteInputEventListener	type
 ByteInputListener	type
