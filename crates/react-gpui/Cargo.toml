@@ -14,3 +14,5 @@ thiserror.workspace = true
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
+
+gpui = { workspace = true, features = ["test-support"] }

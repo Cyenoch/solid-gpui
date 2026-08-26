@@ -104,8 +104,9 @@ Important differences from web React:
   not CSS. Read [protocol.md](protocol.md) for the exact slot contract and the
   package README for the consumer-facing names.
 - Text, images, lists, focus, and commands are native host concepts. A
-  `VirtualList` uses a bounded, fixed-estimate native list; it is not a DOM
-  virtualization layer.
+  `VirtualList` uses a bounded native list with per-row layout measurement; its
+  `estimatedItemSize` is an initial hint for unmeasured/placeholder rows, not a
+  fixed height.
 - `Runtime Adapter` is the transport seam. `ProcessAdapter` is the normal
   process host; `EmbeddedBunAdapter` is an optional in-process runtime.
 
@@ -118,8 +119,7 @@ Important differences from web React:
 | `View`           | `style`, `children`, `focusable`, `onKeyDown`, `onPointerDown`, `onPointerUp`, `onHoverChange`, `onScroll`, `onLayout`, accessibility props                | Generic layout/container Host Node. `focusable` participates in the native Tab-stop Graph when a key listener is present.           |
 | `Text`           | `children`, `style`, `onLayout`, accessibility props                                                                                                       | Text styling applies to its text content; raw strings must be direct children.                                                      |
 | `Pressable`      | `children`, `style`, `onPress`, `focusable`, `onKeyDown`, `disabled`, pointer/hover/layout handlers, accessibility props                                   | Pointer and native keyboard activation share the press path. Disabled removes interaction and reports disabled accessibility state. |
-| `TextInput`      | `value`/`defaultValue`, `placeholder`, `onChangeText`, `onSubmitEditing`, selection/focus/blur/key handlers, `multiline`, `disabled`, `maxLength`, `style` | `onSubmitEditing(value)` receives the authoritative native text. `maxLength` uses UTF-16 code units.                                |
-| `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`                              | Only the committed visible range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node.             |
+| `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`                              | Native GPUI measures visible/overdraw rows at natural heights; `estimatedItemSize` is the initial hint for unmeasured rows. Only the committed range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node.             |
 | `Image`          | `source`, `objectFit`, `style`, `onLayout`, accessibility props                                                                                            | `source` is a host-resolved path; missing images are silent blank output.                                                           |
 
 `Image` cannot have children. Text input, list, and image host properties are
@@ -382,8 +382,10 @@ These are current constraints, not a roadmap:
   blank output.
 - `TextInput.secureTextEntry` and `keyboardType` are unsupported on the
   desktop GPUI surface.
-- `VirtualList` assumes a bounded viewport and fixed estimated row size; there
-  is no dynamic row measurement callback. Use `emptyState` for an empty list.
+- `VirtualList` assumes a bounded viewport. Native GPUI measures visible and
+  overdraw rows at their natural heights; `estimatedItemSize` supplies the
+  initial height hint for unmeasured or not-yet-committed rows. Use `emptyState`
+  for an empty list.
 - File dialogs require a display-backed native host for actual interaction;
   headless tests cover command/value routing, not OS picker UI.
 - Notifications are best-effort platform submissions; delivery and OS

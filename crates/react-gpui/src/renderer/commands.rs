@@ -2,9 +2,8 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    ClipboardEntry, ClipboardItem, Context, Menu as GpuiMenu, MenuItem as GpuiMenuItem,
-    PathPromptOptions, ScrollStrategy, SystemNotification, SystemNotificationAction, Window, px,
-    size,
+    ClipboardEntry, ClipboardItem, Context, ListOffset, Menu as GpuiMenu, MenuItem as GpuiMenuItem,
+    PathPromptOptions, SystemNotification, SystemNotificationAction, Window, px, size,
 };
 
 use super::ReactRoot;
@@ -486,9 +485,9 @@ impl ReactRoot {
                                     HostProperties::VirtualList(list) => Some(list),
                                     _ => None,
                                 });
-                        let handle = self.virtual_handles.get(&command.node_id);
+                        let handle = self.virtual_lists.get(&command.node_id);
                         match (list, handle) {
-                            (Some(list), Some(handle)) => match command.kind {
+                            (Some(list), Some(state)) => match command.kind {
                                 COMMAND_SCROLL_TO_INDEX => {
                                     if let Some((index, _)) = command.payload {
                                         if index >= list.item_count {
@@ -497,10 +496,10 @@ impl ReactRoot {
                                                 "VirtualList index is out of range".to_string(),
                                             );
                                         } else {
-                                            handle.scroll_to_item_strict(
-                                                index as usize,
-                                                ScrollStrategy::Top,
-                                            );
+                                            state.scroll_to(ListOffset {
+                                                item_ix: index as usize,
+                                                offset_in_item: px(0.0),
+                                            });
                                             refresh = true;
                                         }
                                     } else {
@@ -510,7 +509,7 @@ impl ReactRoot {
                                     }
                                 }
                                 COMMAND_SCROLL_TO_END => {
-                                    handle.scroll_to_bottom();
+                                    state.scroll_to_end();
                                     refresh = true;
                                 }
                                 _ => {

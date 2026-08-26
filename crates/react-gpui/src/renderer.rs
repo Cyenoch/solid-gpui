@@ -4,9 +4,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+#[cfg(test)]
+use gpui::ListOffset;
 use gpui::{
-    Bounds, Context, Element, FocusHandle, IntoElement, Pixels, Render, ShapedLine, Styled,
-    Subscription, UniformListScrollHandle, Window, WindowAppearance as GpuiWindowAppearance, div,
+    Bounds, Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Pixels, Render,
+    ShapedLine, Styled, Subscription, Window, WindowAppearance as GpuiWindowAppearance, div, px,
 };
 use thiserror::Error;
 
@@ -72,7 +74,8 @@ pub struct ReactRoot {
     active_input: Option<u32>,
     text_input_drag_anchor: Option<(u32, usize)>,
     commands: Vec<Command>,
-    virtual_handles: HashMap<u32, UniformListScrollHandle>,
+    virtual_lists: HashMap<u32, ListState>,
+    virtual_ranges: HashMap<u32, (u32, u32)>,
     virtual_item_sizes: HashMap<u32, f32>,
     pending_visible_ranges: Rc<RefCell<HashMap<u32, (u32, u32)>>>,
     reported_visible_ranges: HashMap<u32, (u32, u32)>,
@@ -101,7 +104,8 @@ impl ReactRoot {
             active_input: None,
             text_input_drag_anchor: None,
             commands: Vec::new(),
-            virtual_handles: HashMap::new(),
+            virtual_lists: HashMap::new(),
+            virtual_ranges: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
             pending_visible_ranges: Rc::new(RefCell::new(HashMap::new())),
             reported_visible_ranges: HashMap::new(),
@@ -240,7 +244,8 @@ impl ReactRoot {
         self.active_input = None;
         self.text_input_drag_anchor = None;
         self.active_drag_type.borrow_mut().take();
-        self.virtual_handles.clear();
+        self.virtual_lists.clear();
+        self.virtual_ranges.clear();
         self.virtual_item_sizes.clear();
         self.reported_visible_ranges.clear();
         self.reported_layout_bounds.clear();
@@ -258,7 +263,12 @@ impl ReactRoot {
     }
 
     fn reconcile_virtual_lists_for(&mut self, affected: Option<&HashSet<u32>>) {
-        self.virtual_handles.retain(|id, _| {
+        self.virtual_lists.retain(|id, _| {
+            self.store
+                .get(*id)
+                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+        });
+        self.virtual_ranges.retain(|id, _| {
             self.store
                 .get(*id)
                 .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
@@ -294,14 +304,27 @@ impl ReactRoot {
             let Some(HostProperties::VirtualList(list)) = node.host_properties.as_ref() else {
                 continue;
             };
-            self.virtual_handles.entry(id).or_default();
-            if self
-                .virtual_item_sizes
-                .insert(id, list.estimated_item_size)
-                .is_some_and(|previous| previous != list.estimated_item_size)
-                && let Some(handle) = self.virtual_handles.get(&id)
+            let item_count = list.item_count as usize;
+            let estimated = px(list.estimated_item_size);
+            let previous_estimate = self.virtual_item_sizes.insert(id, list.estimated_item_size);
+            let state = self.virtual_lists.entry(id).or_insert_with(|| {
+                ListState::new(item_count, ListAlignment::Top, px(2048.0))
+                    .with_uniform_item_height(estimated)
+            });
+            if state.item_count() != item_count {
+                state.reset_with_uniform_height(item_count, estimated);
+            } else if previous_estimate.is_some_and(|previous| previous != list.estimated_item_size)
             {
-                handle.0.borrow_mut().last_item_size = None;
+                let scroll_top = state.logical_scroll_top();
+                state.reset_with_uniform_height(item_count, estimated);
+                state.scroll_to(scroll_top);
+            }
+            let next_range = (list.range_start, list.range_end);
+            let previous_range = self.virtual_ranges.insert(id, next_range);
+            if previous_range.is_some_and(|previous| previous != next_range)
+                && next_range.0 < next_range.1
+            {
+                state.remeasure_items(next_range.0 as usize..next_range.1 as usize);
             }
         }
     }
@@ -469,6 +492,7 @@ mod input_tests {
     };
     use crate::transport::InMemoryAdapter;
     use crate::tree::KIND_VIEW;
+    use gpui::AppContext as _;
 
     fn controlled(value: &str, ack_edit_seq: u32) -> TextInputProperties {
         TextInputProperties {
@@ -793,14 +817,19 @@ mod input_tests {
         assert!(!root.animation_states.contains_key(&99));
     }
     #[test]
-    fn virtual_list_handle_persists_invalidates_measurements_and_cleans_up() {
+    fn virtual_list_state_persists_remeasures_and_cleans_up() {
         let runtime = InMemoryAdapter::new();
         let mut root = ReactRoot::new(runtime);
         root.store
             .apply_snapshot(virtual_list_snapshot(20.0))
             .expect("VirtualList snapshot");
         root.reconcile_virtual_lists();
-        let identity = Rc::as_ptr(&root.virtual_handles.get(&2).expect("initial handle").0);
+        let state = root.virtual_lists.get(&2).expect("initial list state");
+        assert_eq!(state.item_count(), 100);
+        state.scroll_to(ListOffset {
+            item_ix: 20,
+            offset_in_item: px(4.0),
+        });
 
         root.store
             .apply_patch(Patch::new(
@@ -829,20 +858,10 @@ mod input_tests {
             ))
             .expect("unrelated parent move");
         root.reconcile_virtual_lists();
-        assert_eq!(
-            Rc::as_ptr(&root.virtual_handles.get(&2).expect("persistent handle").0),
-            identity
-        );
+        let state = root.virtual_lists.get(&2).expect("persistent list state");
+        assert_eq!(state.item_count(), 100);
+        assert_eq!(state.logical_scroll_top().item_ix, 20);
 
-        root.virtual_handles
-            .get(&2)
-            .expect("measured handle")
-            .0
-            .borrow_mut()
-            .last_item_size = Some(gpui::ItemSize {
-            item: gpui::size(gpui::px(10.0), gpui::px(20.0)),
-            contents: gpui::size(gpui::px(10.0), gpui::px(20.0)),
-        });
         root.store
             .apply_patch(Patch::new(
                 7,
@@ -868,14 +887,14 @@ mod input_tests {
             ))
             .expect("estimated size patch");
         root.reconcile_virtual_lists();
-        assert!(
-            root.virtual_handles
+        assert_eq!(root.virtual_item_sizes.get(&2), Some(&32.0));
+        assert_eq!(
+            root.virtual_lists
                 .get(&2)
-                .expect("resized handle")
-                .0
-                .borrow()
-                .last_item_size
-                .is_none()
+                .expect("resized list state")
+                .logical_scroll_top()
+                .item_ix,
+            20
         );
 
         root.reported_visible_ranges.insert(2, (0, 4));
@@ -890,10 +909,71 @@ mod input_tests {
             ))
             .expect("VirtualList delete");
         root.reconcile_virtual_lists();
-        assert!(!root.virtual_handles.contains_key(&2));
+        assert!(!root.virtual_lists.contains_key(&2));
         assert!(!root.virtual_item_sizes.contains_key(&2));
+        assert!(!root.virtual_ranges.contains_key(&2));
         assert!(!root.reported_visible_ranges.contains_key(&2));
         assert!(!root.pending_visible_ranges.borrow().contains_key(&2));
+    }
+
+    #[gpui::test]
+    fn variable_height_list_replaces_estimates_with_measured_rows(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(120.0), px(100.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut first = Node::new(3, 2, 0, KIND_VIEW);
+        first.style = Some(Style {
+            height: Some(20.0),
+            ..Style::default()
+        });
+        let mut second = Node::new(4, 2, 1, KIND_VIEW);
+        second.style = Some(Style {
+            height: Some(120.0),
+            ..Style::default()
+        });
+        let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+        list.style = Some(Style {
+            height: Some(100.0),
+            ..Style::default()
+        });
+        list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+            item_count: 2,
+            range_start: 0,
+            range_end: 2,
+            estimated_item_size: 50.0,
+            overscan: 1,
+        }));
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), list, first, second],
+        );
+        let payload = snapshot.encode().expect("encode variable-height snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply variable-height snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw variable-height list");
+        cx.run_until_parked();
+
+        let list_state = root.read_with(cx, |root, _| {
+            root.virtual_lists.get(&2).cloned().expect("list state")
+        });
+        assert_eq!(list_state.item_count(), 2);
+        assert_eq!(list_state.is_scrolled_to_end(), Some(false));
+        list_state.scroll_to_end();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw list at end");
+        cx.run_until_parked();
+        assert_eq!(list_state.is_scrolled_to_end(), Some(true));
     }
 
     #[test]

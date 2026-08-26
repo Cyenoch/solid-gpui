@@ -467,9 +467,9 @@ accept `onScroll`.
 
 `overflow: "scroll"` makes a `View` a scrollable container; `overflow: "visible"`
 and `"hidden"` do not. The same View may use `onScroll` to observe its native
-wheel notifications. `VirtualList` is unaffected and its `uniform_list` owns
-scrolling. Scrollbar appearance and width remain GPUI platform defaults and
-are not controlled by this protocol.
+wheel notifications. `VirtualList` uses GPUI's variable-height `list` state
+and reports its visible range; scrollbar appearance and width remain GPUI
+platform defaults and are not controlled by this protocol.
 
 `TextInput` is controlled with `value`/`onChangeText` or initialized once with
 `defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`,
@@ -515,13 +515,10 @@ semantic.
 />
 ```
 
-Only the committed visible range is reconciled into host rows, so a 100,000-item array does not produce 100,000 host nodes. A `VirtualListHandle` ref exposes Promise-returning `scrollToIndex(index)` and `scrollToEnd()` methods. Native GPUI uses one persistent fixed-height `uniform_list` scroll handle per node and reports the actual next-frame range with overscan.
-The list must have a finite viewport height (for example `style={{ height: 400 }}`) or be inside a parent that supplies a bounded height; `uniform_list` uses that bound to render only visible rows.
+Only the committed visible range is reconciled into host rows, so a 100,000-item array does not produce 100,000 host nodes. A `VirtualListHandle` ref exposes Promise-returning `scrollToIndex(index)` and `scrollToEnd()` methods. Native GPUI uses one persistent variable-height `list` state per node: visible/overdraw rows are measured at their natural heights, while uncommitted rows use `estimatedItemSize` as a size hint. The next-frame visible range is reported with the existing protocol event.
+The list must have a finite viewport height (for example `style={{ height: 400 }}`) or be inside a parent that supplies a bounded height; the native list uses that bound to render only visible rows.
 
-Rows are expected to remain within the supplied `estimatedItemSize`; dynamic
-editing, wrapping, or multiline content does not provide a measurement
-callback. There is no `emptyState`/`emptyRenderer` prop, so render an empty
-message outside the list when `data.length === 0`.
+Rows with long text, images, or cards may therefore have different native heights. A newly committed row replaces its estimate when measured; an uncommitted row can remain an estimate until JavaScript supplies its host subtree. There is no `emptyState`/`emptyRenderer` prop, so render an empty message outside the list when `data.length === 0`.
 
 ## Native animation
 

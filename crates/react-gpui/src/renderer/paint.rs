@@ -8,7 +8,7 @@ use gpui::{
     ExternalPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
     IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render,
     ShapedLine, SharedString, StatefulInteractiveElement, Styled, StyledImage, TextAlign, TextRun,
-    Window, div, fill, hsla, img, point, px, relative, rgba, size, uniform_list,
+    Window, div, fill, hsla, img, list, point, px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -518,33 +518,44 @@ impl ReactRoot {
             );
         }
         if node.kind == KIND_VIRTUAL_LIST {
-            let Some(HostProperties::VirtualList(list)) = node.host_properties.as_ref() else {
+            let Some(HostProperties::VirtualList(list_properties)) = node.host_properties.as_ref()
+            else {
                 return div().id(ElementId::Integer(node.id as u64)).into_any();
             };
-            let handle = self
-                .virtual_handles
+            let state = self
+                .virtual_lists
                 .get(&node.id)
                 .cloned()
-                .expect("VirtualList scroll handle is reconciled before render");
+                .expect("VirtualList state is reconciled before render");
             let list_id = node.id;
-            let item_count = list.item_count as usize;
-            let committed_start = list.range_start;
-            let committed_end = list.range_end;
-            let estimated = list.estimated_item_size;
-            let overscan = list.overscan;
+            let item_count = list_properties.item_count;
+            let committed_start = list_properties.range_start;
+            let committed_end = list_properties.range_end;
+            let estimated = px(list_properties.estimated_item_size);
+            let overscan = list_properties.overscan;
             let pending = Rc::clone(&self.pending_visible_ranges);
             let list_entity = entity.clone();
-            let mut list_element = uniform_list(
-                ElementId::Integer(list_id as u64),
-                item_count,
-                move |range, window, app| {
-                    let start = range.start as u32;
-                    let end = range.end as u32;
-                    let report_start = start.saturating_sub(overscan);
-                    let report_end = end.saturating_add(overscan).min(item_count as u32);
-                    pending
-                        .borrow_mut()
-                        .insert(list_id, (report_start, report_end));
+            let scroll_entity = entity.downgrade();
+            state.set_scroll_handler(move |event, _, app| {
+                let start = (event.visible_range.start as u32).saturating_sub(overscan);
+                let end = (event.visible_range.end as u32)
+                    .saturating_add(overscan)
+                    .min(item_count);
+                if let Some(entity) = scroll_entity.upgrade() {
+                    entity.update(app, |root, _| root.emit_visible_range(list_id, start, end));
+                }
+            });
+            let mut list_element = list(state, move |absolute_index, window, app| {
+                let should_schedule = {
+                    let mut pending = pending.borrow_mut();
+                    let should_schedule = !pending.contains_key(&list_id);
+                    let index = absolute_index as u32;
+                    let range = pending.entry(list_id).or_insert((index, index + 1));
+                    range.0 = range.0.min(index);
+                    range.1 = range.1.max(index + 1);
+                    should_schedule
+                };
+                if should_schedule {
                     let pending_for_frame = Rc::clone(&pending);
                     let entity_for_frame = list_entity.clone();
                     window.on_next_frame(move |_, app| {
@@ -555,28 +566,29 @@ impl ReactRoot {
                             });
                         }
                     });
-                    list_entity.update(app, |root, _cx| {
-                        range
-                            .map(|absolute_index| {
-                                let child = committed_child_index(
-                                    absolute_index as u32,
-                                    committed_start,
-                                    committed_end,
-                                )
-                                .and_then(|offset| root.store.get_child_at(list_id, offset))
-                                .cloned();
-                                let row_id = ((list_id as u64) << 32) | absolute_index as u64;
-                                let mut row = div().id(ElementId::Integer(row_id)).h(px(estimated));
-                                if let Some(child) = child {
-                                    row = row.child(root.render_node(&child, &list_entity));
-                                }
-                                row.into_any()
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                },
-            )
-            .track_scroll(&handle);
+                }
+
+                let row_id = ((list_id as u64) << 32) | absolute_index as u64;
+                let child = list_entity.update(app, |root, _| {
+                    committed_child_index(absolute_index as u32, committed_start, committed_end)
+                        .and_then(|offset| root.store.get_child_at(list_id, offset))
+                        .cloned()
+                        .map(|child| {
+                            div()
+                                .id(ElementId::Integer(row_id))
+                                .w_full()
+                                .child(root.render_node(&child, &list_entity))
+                                .into_any()
+                        })
+                });
+                child.unwrap_or_else(|| {
+                    div()
+                        .id(ElementId::Integer(row_id))
+                        .w_full()
+                        .h(estimated)
+                        .into_any()
+                })
+            });
             list_element = apply_style(list_element, style);
             if node.accessibility.is_none() {
                 return measure_node(node, list_element.into_any(), entity);
