@@ -136,7 +136,7 @@ retained tree's current revision (`tree.rs:862-934`).
 |        5 | u32                    | Native event sequence. The receiver rejects a sequence not greater than the last accepted sequence.                                                   | `protocol.ts:222`; `root-container.ts:528-538`            |
 |        6 | u32                    | Target Host Node ID; root-level window events use synthetic root node `1`.                                                                            | `protocol.ts:223`; `protocol.rs:424`; `dispatch.ts:67-80` |
 |        7 | u32                    | Listener ID; `CommandResult` uses listener `0`, while target events use the mounted listener.                                                         | `protocol.ts:224`; `protocol.rs:425,701-703`              |
-|        8 | u32                    | Event type `1..20`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:687-693`; `wire/event.rs:20-169`                  |
+|        8 | u32                    | Event type `1..21`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:687-693`; `wire/event.rs:20-169`                  |
 |        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:488-558`; `wire/event.rs:45-169`                  |
 
 ### Node tuple
@@ -285,7 +285,7 @@ a positive scale factor (`wire/event.rs`; `protocol.ts`).
 |    3 | Selection         | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
 |    4 | Focus             | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
 |    5 | Blur              | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
-|    6 | CommandResult     | `[2,requestId,command,nodeId,success,error]` or with optional tagged value at slot 6 | Tag `2`; command must be `1..21`; success bool; error string/null; value tags below. Six-field old results decode with value `None`.                             | `protocol.ts:209-217,529-566`; `wire/event.rs:318-335,370-393,617-705`          |
+|    6 | CommandResult     | `[2,requestId,command,nodeId,success,error]` or with optional tagged value at slot 6 | Tag `2`; command must be `1..22`; success bool; error string/null; value tags below. Six-field old results decode with value `None`.                             | `protocol.ts:209-217,529-566`; `wire/event.rs:318-335,370-393,617-705`          |
 |    7 | VisibleRange      | `[3,start,end]`                                                                      | Tag `3`; u32 range with `start <= end`.                                                                                                                          | `protocol.ts:533-541`; `wire/event.rs:81-89,244-250,395-395`                                    |
 |    8 | AnimationComplete | `[4,generation]`                                                                     | Tag `4`; generation u32.                                                                                                                                         | `protocol.ts:543-550`; `wire/event.rs:90-97,250-252,399-399`                                    |
 |    9 | Key               | `[5,key,modifiers,action]`                                                           | Tag `5`; non-empty key; unique modifiers from `cmd`, `ctrl`, `alt`, `shift`, `function`; action `1=down`, `2=repeat`, `3=up`.                                    | `protocol.ts:487-496`; `wire/event.rs:98-100,253-254,397,492-529`                  |
@@ -305,9 +305,10 @@ a positive scale factor (`wire/event.rs`; `protocol.ts`).
 Single-line TextInput geometry is backed by its shaped native text layout:
 `bounds_for_range` maps UTF-16 selection offsets through the shaped line and
 `character_index_for_point` localizes the point before mapping its x coordinate
-back to UTF-16. Placeholder text and stale/missing layouts fall back to the
-element bounds/current selection; multiline (and newline-containing) input
-continues to use the approximate path.
+back to UTF-16. Multiline input uses `shape_text` and cached `WrappedLine` rows;
+line positions map through UTF-16 line starts, cross-line ranges union their
+first/last visual-row bounds, and explicit empty/trailing-newline lines are kept.
+IME candidate placement remains display-backed and requires desktop verification.
 
 ### CommandResult value tags
 
