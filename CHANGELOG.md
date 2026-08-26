@@ -399,6 +399,14 @@ from this work tree.
   feasible-bounded host-owned design with anchor/head state, per-row selection
   quads, and host clipboard copy tracked for a future pass, and this round does
   not implement it.
+- Read-only Text selection ships through `TextProps.selectable` with a
+  per-node tail wire flag (Text-only validated, `UPDATE_SELECTABLE=64`
+  mask): a host-owned `SelectableTextElement` composes GPUI shaping with
+  per-visual-row selection quads, an IBeam cursor, focus tracking, drag
+  anchor/head ranges clamped on text change, unmount cleanup, and
+  host-side Cmd/Ctrl-C clipboard writes; selection is visual-only with
+  zero new events or JS state, verified by display-backed
+  drag/highlight/copy tests plus headless clamp/geometry coverage.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
