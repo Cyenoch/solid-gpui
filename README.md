@@ -294,34 +294,25 @@ artifact; it does not publish a GitHub Release or package.
 
 ## Debugging
 
-Set `REACT_GPUI_TAP` before constructing a transport or runtime adapter to
-write process-local protocol metadata as JSONL:
+For symptom → diagnosis → repair workflows, start with the
+[Troubleshooting guide](docs/troubleshooting.md). This section keeps the
+environment-variable quick reference:
 
-```sh
-REACT_GPUI_TAP="${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl" bun run packages/react-gpui/examples/counter.tsx
-python3 scripts/protocol-tap-report.py "${TMPDIR:-/tmp}/react-gpui-tap-$$.jsonl"
+- `REACT_GPUI_LOG=off|error|info|debug` controls host diagnostics (`error` is
+  the default; invalid values fall back to `error` with one warning).
+- `REACT_GPUI_TAP=/path/to/file.jsonl` enables process-local protocol metadata;
+  use a distinct path for each process and summarize it with
+  `python3 scripts/protocol-tap-report.py`.
+- `REACT_GPUI_CRASH_DIR=/path/to/directory` chooses where the host panic hook
+  writes `react-gpui-host-<pid>-<timestamp>.log`; it defaults to the system
+  temporary directory.
 
-```
+The tap records frame metadata rather than payload contents and is not a
+GPU/layout profiler. The guide explains the separate host/renderer tap setup,
+the `make soak-smoke` bounded leak smoke, crash/stderr correlation, and the
+known platform boundaries.
 
-For a manual 60-second process-layer leak smoke, run `make soak-smoke`. It
-builds the release host, runs `packages/react-gpui/examples/stress.tsx`, samples
-host RSS every five seconds, and compares renderer/host tap frame counts. This
-is a bounded leak smoke, not multi-hour soak proof; the command is intentionally
-not part of CI.
-
-Each process truncates its own path; use distinct paths rather than sharing a
-file between processes. Records contain monotonic time, direction, peer,
-message kind, complete framed byte count including the four-byte header, and
-strictly increasing sequence. Optional event/command subtype numbers,
-request IDs, and command-result success values are included. Payload contents
-are never recorded. The tap stops at 64 MiB with a final
-`tap_stopped`/`reason="capacity"` record. An unopenable path prints one stderr
-warning and disables the tap without affecting transport operation. The
-zero-dependency report script merges multiple files by time and reports frame
-rate, kind/byte statistics, event subtype counts, correlated command success,
-and frame interval p50/p95. `MemoryTransport` remains untapped.
-
-## Troubleshooting
+## Crash diagnostics reference
 
 The host installs a standard-library panic hook before CLI/runtime startup.
 Crash reports are written to
