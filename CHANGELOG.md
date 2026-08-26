@@ -386,6 +386,13 @@ from this work tree.
   per-surface retained sets rebuilt into a deterministic process-global union,
   action hits reusing the `EVENT_ACTION` active-window route, and
   context-conditional bindings documented as unsupported.
+- Outbound file drag exposes `Draggable.exportFiles` (1..8 validated paths)
+  through the third Drag wire slot with legacy two-slot decoding; the native
+  GPUI Files resolver lazily probes directory metadata, text payloads and
+  delivery-completion callbacks are intentionally absent, macOS and Wayland
+  perform the gesture while X11 and Windows decline it, and the pinned
+  TestWindow capture limitation remains a documented display/upstream seam
+  boundary.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
