@@ -131,19 +131,26 @@ exposed; overlay layering follows subtree paint/hit-test order.
 
 ## Image
 
-`Image` uses a host-side file path and an `objectFit` value (`"fill"`,
-`"contain"`, `"cover"`, `"scaleDown"`, or `"none"`):
+`Image` uses a host-side file path, an optional `fallbackSource`, and an
+`objectFit` value (`"fill"`, `"contain"`, `"cover"`, `"scaleDown"`, or `"none"`):
 
 ```tsx
-<Image source="assets/logo.png" objectFit="contain" style={{ width: 120, height: 48 }} />
+<Image
+  source="assets/avatar.png"
+  fallbackSource="assets/avatar-fallback.svg"
+  objectFit="contain"
+  style={{ width: 40, height: 40 }}
+/>
 ```
 
 Paths are resolved by the host process: relative paths use the host process
 working directory, while absolute paths are recommended for production
-packaging. Image nodes do not accept children and reuse generic style fields
-such as width, height, and border radius. Loading is asynchronous through
-GPUI's image cache; a missing or undecodable file renders as silent blank
-space with no JavaScript failure callback in this protocol version.
+packaging. `source` and `fallbackSource` must each be non-empty host paths of
+at most 1024 UTF-8 bytes with no control characters. Image nodes do not accept
+children and reuse generic style fields such as width, height, and border
+radius. Loading is asynchronous through GPUI's image cache; when a fallback is
+provided, GPUI displays it while the primary image is loading and if it fails.
+There is still no JavaScript `onError` callback in this protocol version.
 
 For a sidecar asset shipped next to an ESM/Bun example, derive an absolute
 host-visible path and ship the file alongside the example:
@@ -392,12 +399,13 @@ reject locally, while an oversized host clipboard rejects with
 rejects with `clipboard has no text content`; an empty string stored as text is
 still a successful read.
 
-`createRoot` accepts `onWindowResize(width, height)` and
-`onWindowActivation(active)` options. Resize values are logical pixels and
-the resize callback receives the latest size once per frame after coalescing;
-it also receives one initial size after the first native frame. Activation
-delivers its initial value on observer registration and then only changes.
-Scale-factor-only changes have no independent callback.
+`createRoot` accepts `onWindowResize(width, height, scaleFactor?)` and
+`onWindowActivation(active)` options. Resize values are logical pixels and the
+resize callback receives the latest size once per frame after coalescing; it
+also receives one initial size after the first native frame. Current native
+events include a positive display `scaleFactor`; legacy two-number resize
+events are accepted and delivered with `scaleFactor=1`. A scale-factor-only
+change is still a resize observation and invokes the callback.
 
 The resize callback is root-level, so React applications need a small explicit
 state bridge. The package exports `createWindowSizeStore` and `useWindowSize`;
@@ -408,14 +416,14 @@ import { createRoot, createWindowSizeStore, Text, useWindowSize } from "@react-g
 
 const windowSizeStore = createWindowSizeStore();
 const root = createRoot(transport, {
-  onWindowResize: (width, height) => windowSizeStore.set(width, height),
+  onWindowResize: (width, height, scaleFactor) => windowSizeStore.set(width, height, scaleFactor),
 });
 
 function App() {
-  const { width, height } = useWindowSize(windowSizeStore);
+  const { width, height, scaleFactor } = useWindowSize(windowSizeStore);
   return (
     <Text>
-      {width < 720 ? "Compact" : "Wide"} ({height}px high)
+      {width < 720 ? "Compact" : "Wide"} ({height}px high @ {scaleFactor}x)
     </Text>
   );
 }
@@ -424,8 +432,8 @@ root.render(<App />);
 ```
 
 `examples/todo.tsx` uses the same exported store/hook pattern. The store
-starts from a caller-provided estimate (`{ width: 1024, height: 720 }` by
-default) and updates when the native callback fires.
+starts from a caller-provided estimate (`{ width: 1024, height: 720, scaleFactor: 1 }`
+by default) and updates when the native callback fires.
 
 `createRoot` also accepts `onAppearance(appearance)`, where the current
 values are `"light"` and `"dark"`. It emits an initial value on the first

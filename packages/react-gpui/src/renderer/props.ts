@@ -109,7 +109,15 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     __onAnimationComplete: true,
     ...ACCESSIBILITY_PROPS,
   },
-  Image: { style: true, source: true, objectFit: true, onLayout: true, ref: true, ...ACCESSIBILITY_PROPS },
+  Image: {
+    style: true,
+    source: true,
+    fallbackSource: true,
+    objectFit: true,
+    onLayout: true,
+    ref: true,
+    ...ACCESSIBILITY_PROPS,
+  },
   RawText: { children: true, ref: true },
 };
 const ROLE_CODES: Record<NonNullable<AccessibilityProps["accessibilityRole"]>, number> = {
@@ -164,16 +172,23 @@ export function inputFor(node: HostNodeInternal, props: HostProps): TextInputWir
     maxLength,
   };
 }
+function assertImageSource(name: string, value: unknown): asserts value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    utf8ByteLength(value) > 1024 ||
+    /[\u0000-\u001f\u007f]/.test(value)
+  ) {
+    throw new TypeError(`Image ${name} must be a non-empty path of at most 1024 UTF-8 bytes`);
+  }
+}
+
 export function imageFor(node: HostNodeInternal, props: HostProps): ImageWire | null {
   if (node.kind !== "Image") return null;
   const source = props.source;
-  if (
-    typeof source !== "string" ||
-    source.length === 0 ||
-    utf8ByteLength(source) > 1024 ||
-    /[\u0000-\u001f\u007f]/.test(source)
-  )
-    throw new TypeError("Image source must be a non-empty path of at most 1024 UTF-8 bytes");
+  assertImageSource("source", source);
+  const fallbackSource = props.fallbackSource;
+  if (fallbackSource !== undefined) assertImageSource("fallbackSource", fallbackSource);
   const objectFit = props.objectFit ?? "contain";
   if (!["fill", "contain", "cover", "scaleDown", "none"].includes(objectFit))
     throw new TypeError("Image objectFit is invalid");
@@ -187,7 +202,7 @@ export function imageFor(node: HostNodeInternal, props: HostProps): ImageWire | 
           : objectFit === "scaleDown"
             ? 4
             : 5;
-  return { source, objectFit: objectFitCode };
+  return { source, objectFit: objectFitCode, fallbackSource: fallbackSource ?? null };
 }
 export function virtualListFor(node: HostNodeInternal, props: HostProps): VirtualListWire | null {
   if (node.kind !== "VirtualList") return null;
@@ -254,7 +269,7 @@ export function hostPropertiesWire(
       value.maxLength,
       value.selectionReversed,
     ];
-  if ("source" in value) return [3, value.source, value.objectFit];
+  if ("source" in value) return [3, value.source, value.objectFit, value.fallbackSource];
   if ("dragType" in value) return [4, value.dragType];
   return [2, value.itemCount, value.rangeStart, value.rangeEnd, value.estimatedItemSize, value.overscan];
 }

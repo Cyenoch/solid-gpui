@@ -59,7 +59,7 @@ pub(super) struct TextInputWireOld(
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct VirtualListWire(u32, u32, u32, u32, f32, u32);
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct ImageWire(u32, String, u32);
+pub(super) struct ImageWire(u32, String, u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct DragWire(u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
@@ -410,11 +410,15 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
                 Ok(Self::VirtualList(VirtualListProperties::from(value)))
             }
             HostPropertiesWire::Image(value)
-                if value.0 == 3 && valid_image_source(&value.1) && (1..=5).contains(&value.2) =>
+                if value.0 == 3
+                    && valid_image_source(&value.1)
+                    && value.3.as_deref().is_none_or(valid_image_source)
+                    && (1..=5).contains(&value.2) =>
             {
                 Ok(Self::Image(ImageProperties {
                     source: value.1,
                     object_fit: value.2,
+                    fallback_source: value.3,
                 }))
             }
             HostPropertiesWire::Drag(value)
@@ -555,7 +559,12 @@ impl From<&TextInputProperties> for TextInputWireNew {
 }
 impl From<&ImageProperties> for ImageWire {
     fn from(value: &ImageProperties) -> Self {
-        Self(3, value.source.clone(), value.object_fit)
+        Self(
+            3,
+            value.source.clone(),
+            value.object_fit,
+            value.fallback_source.clone(),
+        )
     }
 }
 

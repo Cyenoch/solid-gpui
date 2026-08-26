@@ -171,7 +171,7 @@ shape to match the node kind.
 | --: | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 |   1 | TextInput   | `[1,value,placeholder,multiline,disabled,controlled,ackEditSeq,selectionStart,selectionEnd,markedStart,markedEnd,maxLength,selectionReversed]` (legacy 12-slot form defaults `false`) | Strings may be null only where shown; sequence/selection/maxLength are u32; marked positions are both null or both numbers and ranges are ordered; `selectionReversed` preserves the UTF-16 head orientation. | `protocol.ts:94-108,426-466`; `wire/node.rs:27-61,292-326,423-508`; `tree.rs:1039-1041` |
 |   2 | VirtualList | `[2,itemCount,rangeStart,rangeEnd,estimatedItemSize,overscan]`; counts/ranges/overscan are u32, `rangeStart <= rangeEnd <= itemCount`, and estimated size is finite and positive. `estimatedItemSize` is the initial size hint for unmeasured or not-yet-committed rows; measured rows use their natural GPUI `list` height. | `protocol.ts:97,396-412`; `wire/node.rs:59-60,331-348,506-529`; `renderer/paint.rs`; `renderer.rs` |
-|   3 | Image       | `[3,source,objectFit]`; source is non-empty, at most 1024 UTF-8 bytes, and has no control character; object fit is `1..5`.                                                                                                                                                        | `protocol.ts:414-425`; `wire/node.rs:61-63,308-310,349-355,462-465`; `tree.rs:1032-1043`       |
+|   3 | Image       | `[3,source,objectFit,fallbackSource|null]` (legacy 3-slot form accepted) | Source and optional fallback are non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters; object fit is `1..5`. GPUI renders the fallback for loading and load-error states when present. | `protocol.ts:111-117,485-500`; `wire/node.rs:61-63,308-310,412-425,556-569`; `renderer/paint.rs:510-537` |
 |   4 | View/Pressable | `[4,dragType|null]`; dragType is optional for drop-only nodes and otherwise a non-empty safe string up to 128 Unicode scalars. | `protocol.ts:107-115,485-495`; `wire/node.rs:63-64,312-316,357-361`; `wire/event.rs:147-164`; `tree.rs:1005-1018` |
 
 TextInput `maxLength` is a u32 protocol value; its text-unit meaning is
@@ -272,10 +272,11 @@ Every event has the ten fields in the Event table above. `EVENT_PRESS`,
 `EVENT_HOVER`, and `EVENT_SURFACE_CLOSED` require a null payload; SurfaceClosed
 also requires `nodeId=0` and `listenerId=0`. `EVENT_SUBMIT` accepts either
 legacy null or a string; the Rust constructor has both `submit` and
-`submit_with_text` forms (`protocol.rs:594-636`). Window resize is an untagged
-two-number array; Rust accepts integer/float32 combinations through
-`WindowResizeWire`, while TypeScript accepts finite non-negative numbers
-(`wire/event.rs:318-360`; `protocol.ts:430-445`).
+`submit_with_text` forms (`protocol.rs:594-636`). Window resize accepts a legacy
+two-number payload and the current three-number payload
+`[width,height,scaleFactor]`; Rust accepts integer/float32 combinations through
+`WindowResizeWire`, while TypeScript accepts finite non-negative dimensions and
+a positive scale factor (`wire/event.rs`; `protocol.ts`).
 
 | Code | Name              | Payload shape                                                                        | Validation and semantics                                                                                                                                         | Source                                                                      |
 | ---: | ----------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -292,7 +293,7 @@ two-number array; Rust accepts integer/float32 combinations through
 |   11 | Hover             | `null`                                                                               | Semantic hover change; payload must be null.                                                                                                                     | `protocol.ts:430-432`; `wire/event.rs:20-45,283-289`                            |
 |   12 | Scroll            | `[7,deltaKind,dx,dy,x,y,modifiers]`                                                  | Tag `7`; delta kind `1=pixels`/`2=lines`; four finite numeric coordinates/deltas; unique known modifiers.                                                        | `protocol.ts:471-485`; `wire/event.rs:104-106,255-256,403,575-614`                      |
 |   13 | Submit            | `null` or string                                                                     | Null is the legacy Enter notification; string carries submitted text. It is emitted for a focused single-line TextInput; multiline Enter remains text insertion. | `protocol.ts:202,430-433`; `protocol.rs:594-636`; `wire/event.rs:165-168,271-274` |
-|   14 | WindowResize      | `[width,height]`                                                                     | Untagged two-number payload; both finite and non-negative. Root observer uses node `1`/listener `0`.                                                             | `protocol.ts:203,434-445`; `protocol.rs:639-661`; `wire/event.rs:107-113,256-258,318-360`         |
+|   14 | WindowResize      | `[width,height,scaleFactor]` (legacy `[width,height]` defaults `scaleFactor=1`) | Width/height are finite non-negative logical pixels; `scaleFactor` is finite and positive. Root observer uses node `1`/listener `0`; scale-factor-only changes are reported as resize observations. | `protocol.ts:243,562-574`; `protocol.rs:506-509,765-817`; `wire/event.rs:109-125,372-404`; `renderer.rs:408-471`         |
 |   15 | WindowActivation  | `boolean`                                                                            | Untagged boolean; root observer uses node `1`/listener `0`.                                                                                                      | `protocol.ts:204,433`; `protocol.rs:663-685`; `wire/event.rs:114-116,259-262`             |
 
 | 16 | SurfaceClosed | `null` | Emitted before native teardown; `nodeId=0`, `listenerId=0`, and `surfaceId` identifies the closed surface. The matching root invokes `onClose`. | `protocol.ts:34,244,604`; `protocol.rs:22,693-710`; `wire/event.rs:166-168,283-289` |
@@ -495,19 +496,19 @@ Fixture `ts-command-title` (`ts_to_rust.hex:16`):
 Fixture `ts-event-window-resize` (`ts_to_rust.hex:34`):
 
 ```text
-9a030207032a0b01000e92ca44482000ca44162000
+9a030207032a0b01000e93ca44482000ca4416200002
 ```
 
 The decoded array is:
 
 ```text
-[3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5]]
+[3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5, 2]]
 ```
 
-- It is Event version 3 on surface 7/epoch 3 at revision 42 and sequence 11.
-- Node `1` and listener `0` identify the root window observer.
-- Event type `14` is WindowResize; `0x92` is the untagged two-element payload,
-  and each `0xca` is a float32. The semantic dimensions are `800.5 × 600.5`.
+- Event type `14` is WindowResize; node `1` and listener `0` identify the root observer.
+- `0x93` is the current untagged three-element payload. The semantic dimensions
+  are `800.5 × 600.5` logical pixels and the display scale factor is `2`.
+- Legacy two-element payloads remain accepted and default the scale factor to `1`.
 
 ### Event: submit with text
 

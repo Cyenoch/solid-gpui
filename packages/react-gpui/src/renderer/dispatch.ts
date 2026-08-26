@@ -60,7 +60,7 @@ export interface DispatchContext {
   onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void;
   onAction?: (action: string) => void;
   onSurfaceClosed?: () => void;
-  onWindowResize?: (width: number, height: number) => void;
+  onWindowResize?: (width: number, height: number, scaleFactor?: number) => void;
   onWindowActivation?: (active: boolean) => void;
   onAppearance?: (appearance: Appearance) => void;
 }
@@ -101,12 +101,13 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   if (event[8] === EVENT_WINDOW_RESIZE) {
     if (
       !Array.isArray(payload) ||
-      payload.length !== 2 ||
+      (payload.length !== 2 && payload.length !== 3) ||
       typeof payload[0] !== "number" ||
-      typeof payload[1] !== "number"
+      typeof payload[1] !== "number" ||
+      (payload.length === 3 && typeof payload[2] !== "number")
     )
       return;
-    context.onWindowResize?.(payload[0], payload[1]);
+    context.onWindowResize?.(payload[0], payload[1], payload.length === 3 ? payload[2] : 1);
     return;
   }
   if (event[8] === EVENT_WINDOW_ACTIVATION) {

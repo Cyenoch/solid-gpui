@@ -49,17 +49,20 @@ so each can be revisited with a bounded implementation and bilateral tests:
   previous statement that fallback was not guaranteed was too conservative for
   this pinned GPUI contract; the renderer relies on GPUI's documented fallback
   behavior.
-- **`scaleFactor`.** This remains a project policy question: GPUI already
-  reports window/display scale through its window and pixels abstractions, but
-  this protocol intentionally expresses style dimensions in logical pixel
-  values and has no public scale-factor prop. Reopening it would require
-  deciding whether the value is an observation, a style transform, or a host
-  policy—not merely adding a scalar field.
-- **Image fallback/error reporting.** GPUI's image cache and `img` element can
-  render host-local paths, but this protocol has no image error event or
-  transferable image-byte/URL contract. A fallback component is possible as a
-  renderer feature, but it would require a new observable callback/payload;
-  missing images currently remain silent blank output by design.
+- **`scaleFactor` — implemented in this review as an observation.** GPUI
+  exposes `Window::scale_factor()` and the platform resize callback carries
+  the scale. The renderer now batches that value with size/activation/
+  appearance observation, emits a three-number resize payload, reports
+  scale-only changes, and keeps legacy two-number payloads at `1`. The
+  TypeScript callback and `WindowSize` store expose the optional/normalized
+  value without changing logical-pixel dimensions.
+- **Image fallback — implemented in this review; `onError` remains upstream.**
+  GPUI's `StyledImage::with_loading` and `with_fallback` APIs accept native
+  fallback elements for both loading and error states. The renderer now adds a
+  validated optional `fallbackSource` to the Image host tuple and wires both
+  states to that path. There is still no loader notification hook, so
+  JavaScript `onError` remains a true upstream gap; this visual fallback covers
+  the user-visible degradation path without inventing an event.
 - **`pointerEvents`.** This is a hit-testing policy, not a CSS string that can
   be forwarded blindly. GPUI's interactive elements decide hit testing from
   their event handlers and element state; the current renderer only installs
@@ -78,8 +81,8 @@ so each can be revisited with a bounded implementation and bilateral tests:
 
 ## Current review outcome
 
-`boxShadow` and `fontFamily` are removed from the unsupported-style boundary in
-`packages/react-gpui/README.md`, `docs/getting-started.md`, and
-`docs/protocol.md`. The remaining true upstream gaps and the two categories of
-re-reviewable/test-platform limits stay explicitly listed here so future work
-does not silently turn a policy choice into a claimed GPUI limitation.
+`boxShadow`, `fontFamily`, image `fallbackSource`, and the scale-factor
+observation are now implemented and documented. Image `onError`, the true
+upstream gaps, and the remaining pointer-events policy stay explicitly listed
+so future work does not silently turn a policy choice into a claimed GPUI
+limitation.

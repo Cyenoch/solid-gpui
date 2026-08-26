@@ -145,7 +145,7 @@ export interface ScrollEvent {
   readonly y: number;
   readonly modifiers: string[];
 }
-export type WindowResizeHandler = (width: number, height: number) => void;
+export type WindowResizeHandler = (width: number, height: number, scaleFactor?: number) => void;
 export type WindowActivationHandler = (active: boolean) => void;
 export interface NotificationResponse {
   readonly tag: string;
@@ -186,6 +186,7 @@ export interface ViewProps extends AccessibilityProps {
 }
 export interface ImageProps extends AccessibilityProps {
   readonly source: string;
+  readonly fallbackSource?: string;
   readonly objectFit?: ImageObjectFit;
   readonly style?: StyleProp;
   readonly onLayout?: LayoutHandler;
@@ -229,6 +230,7 @@ export interface HostProps extends AccessibilityProps {
   readonly onDrop?: DragDropHandler;
   readonly onExternalFileDrop?: ExternalFileDropHandler;
   readonly source?: string;
+  readonly fallbackSource?: string;
   readonly objectFit?: ImageObjectFit;
   readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
@@ -258,6 +260,7 @@ export interface TextInputWire {
 export interface ImageWire {
   readonly source: string;
   readonly objectFit: 1 | 2 | 3 | 4 | 5;
+  readonly fallbackSource: string | null;
 }
 export interface VirtualListWire {
   readonly itemCount: number;

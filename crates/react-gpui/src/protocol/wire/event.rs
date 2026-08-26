@@ -107,11 +107,21 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             Some(EventPayload::Scroll(ScrollEvent::try_from(value)?))
         }
         (EVENT_WINDOW_RESIZE, Some(EventPayloadWire::WindowResize(value))) => {
-            let (width, height) = value.dimensions();
-            if !width.is_finite() || width < 0.0 || !height.is_finite() || height < 0.0 {
+            let (width, height, scale_factor) = value.dimensions();
+            if !width.is_finite()
+                || width < 0.0
+                || !height.is_finite()
+                || height < 0.0
+                || !scale_factor.is_finite()
+                || scale_factor <= 0.0
+            {
                 return Err(ProtocolError::InvalidEventPayload);
             }
-            Some(EventPayload::WindowResize { width, height })
+            Some(EventPayload::WindowResize {
+                width,
+                height,
+                scale_factor,
+            })
         }
         (EVENT_WINDOW_ACTIVATION, Some(EventPayloadWire::WindowActivation(active))) => {
             Some(EventPayload::WindowActivation { active })
@@ -366,15 +376,29 @@ enum WindowResizeWire {
     IntInt((u32, u32)),
     FloatInt((f32, u32)),
     IntFloat((u32, f32)),
+    FloatFloatFloat((f32, f32, f32)),
+    IntIntFloat((u32, u32, f32)),
+    FloatIntFloat((f32, u32, f32)),
+    IntFloatFloat((u32, f32, f32)),
 }
 
 impl WindowResizeWire {
-    fn dimensions(self) -> (f32, f32) {
+    fn dimensions(self) -> (f32, f32, f32) {
         match self {
-            Self::FloatFloat((width, height)) => (width, height),
-            Self::IntInt((width, height)) => (width as f32, height as f32),
-            Self::FloatInt((width, height)) => (width, height as f32),
-            Self::IntFloat((width, height)) => (width as f32, height),
+            Self::FloatFloat((width, height)) => (width, height, 1.0),
+            Self::IntInt((width, height)) => (width as f32, height as f32, 1.0),
+            Self::FloatInt((width, height)) => (width, height as f32, 1.0),
+            Self::IntFloat((width, height)) => (width as f32, height, 1.0),
+            Self::FloatFloatFloat((width, height, scale_factor)) => (width, height, scale_factor),
+            Self::IntIntFloat((width, height, scale_factor)) => {
+                (width as f32, height as f32, scale_factor)
+            }
+            Self::FloatIntFloat((width, height, scale_factor)) => {
+                (width, height as f32, scale_factor)
+            }
+            Self::IntFloatFloat((width, height, scale_factor)) => {
+                (width as f32, height, scale_factor)
+            }
         }
     }
 }
@@ -739,9 +763,15 @@ impl From<&EventPayload> for EventPayloadWire {
             EventPayload::Pointer(event) => Self::Pointer(PointerEventWire::from(event)),
             EventPayload::Scroll(event) => Self::Scroll(ScrollEventWire::from(event)),
             EventPayload::Submit { text } => Self::Submit(text.clone()),
-            EventPayload::WindowResize { width, height } => {
-                Self::WindowResize(WindowResizeWire::FloatFloat((*width, *height)))
-            }
+            EventPayload::WindowResize {
+                width,
+                height,
+                scale_factor,
+            } => Self::WindowResize(WindowResizeWire::FloatFloatFloat((
+                *width,
+                *height,
+                *scale_factor,
+            ))),
             EventPayload::WindowActivation { active } => Self::WindowActivation(*active),
             EventPayload::EventAction { action } => Self::Action(action.clone()),
             EventPayload::NotificationResponse(response) => {

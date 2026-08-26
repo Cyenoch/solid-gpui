@@ -120,7 +120,7 @@ Important differences from web React:
 | `Text`           | `children`, `style`, `onLayout`, accessibility props                                                                                                       | Text styling applies to its text content; raw strings must be direct children.                                                      |
 | `Pressable`      | `children`, `style`, `onPress`, `focusable`, `onKeyDown`, `disabled`, pointer/hover/layout handlers, accessibility props                                   | Pointer and native keyboard activation share the press path. Disabled removes interaction and reports disabled accessibility state. |
 | `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`                              | Native GPUI measures visible/overdraw rows at natural heights; `estimatedItemSize` is the initial hint for unmeasured rows. Only the committed range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node.             |
-| `Image`          | `source`, `objectFit`, `style`, `onLayout`, accessibility props                                                                                            | `source` is a host-resolved path; missing images are silent blank output.                                                           |
+| `Image`          | `source`, `fallbackSource`, `objectFit`, `style`, `onLayout`, accessibility props                                                    | `source` and optional `fallbackSource` are host-resolved paths; GPUI shows the fallback while loading or when the primary image fails. |
 
 `Image` cannot have children. Text input, list, and image host properties are
 validated tagged tuples. Empty native TextInput value renders `placeholder` as
@@ -231,11 +231,11 @@ window-size singleton:
 ```tsx
 const sizes = createWindowSizeStore();
 const root = createRoot(new StdioTransport(), {
-  onWindowResize: (width, height) => sizes.set(width, height),
+  onWindowResize: (width, height, scaleFactor) => sizes.set(width, height, scaleFactor),
 });
 function Screen() {
-  const { width } = useWindowSize(sizes);
-  return <View style={{ flexDirection: width < 720 ? "column" : "row" }} />;
+  const { width, scaleFactor } = useWindowSize(sizes);
+  return <View style={{ flexDirection: width < 720 ? "column" : "row", opacity: scaleFactor < 1 ? 0.9 : 1 }} />;
 }
 root.render(<Screen />);
 ```
@@ -348,7 +348,7 @@ consumer code; the other rows are host/runtime contracts:
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted.                                           | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one.           |
 | Bad Snapshot/Patch frame or tree invariant   | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry.                     | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
-| Image resource failure                       | The Image node remains in the tree and GPUI renders blank output; no `Image` error callback exists in this protocol.     | Ship/validate the asset or render a separate fallback; other nodes continue.                                          |
+| Image resource failure                     | The Image node remains in the tree; GPUI renders `fallbackSource` for loading/error states when supplied, otherwise blank output; no `Image` error callback exists in this protocol. | Ship/validate the primary and fallback assets or handle the visual fallback in the tree. |
 | GPUI paint panic/internal invariant          | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path. | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame.           |
 
 The strict protocol choice is intentional: v3 revisions and Surface/epoch
@@ -378,9 +378,10 @@ events. It does not open a window. See
   `relative`/`absolute` plus inset fields.
 - `flexDirection: row-reverse/column-reverse` is a physical layout mirror only; explicit container/text base direction (RTL) and bidi caret/IME semantics are unsupported pending upstream GPUI APIs.
 - On Windows, some cursor variants (`alias`, `copy`, and similar) fall back to the default arrow; cursor changes are a no-op in headless environments.
-- `Image.source` is a host-local path. There is no `Image` `onError` callback,
-  remote URL fetch, or inline image-byte transport; missing images are silent
-  blank output.
+- `Image.source` and optional `Image.fallbackSource` are host-local paths.
+  GPUI renders the fallback while loading and after a primary load failure when
+  supplied; there is no `Image` `onError` callback, remote URL fetch, or inline
+  image-byte transport.
 - `TextInput.secureTextEntry` and `keyboardType` are unsupported on the
   desktop GPUI surface.
 - `VirtualList` assumes a bounded viewport. Native GPUI measures visible and

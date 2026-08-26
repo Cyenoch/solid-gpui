@@ -330,6 +330,17 @@ pub(super) fn input_display_text(actual: String, placeholder: Option<&str>) -> (
     (actual, false)
 }
 
+fn object_fit_from_code(code: u32) -> ObjectFit {
+    match code {
+        1 => ObjectFit::Fill,
+        2 => ObjectFit::Contain,
+        3 => ObjectFit::Cover,
+        4 => ObjectFit::ScaleDown,
+        5 => ObjectFit::None,
+        _ => unreachable!("validated image objectFit"),
+    }
+}
+
 impl ReactRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
         let style = self.style_for_node(node);
@@ -500,16 +511,23 @@ impl ReactRoot {
             let Some(HostProperties::Image(image)) = node.host_properties.as_ref() else {
                 return div().id(ElementId::Integer(node.id as u64)).into_any();
             };
-            let object_fit = match image.object_fit {
-                1 => ObjectFit::Fill,
-                2 => ObjectFit::Contain,
-                3 => ObjectFit::Cover,
-                4 => ObjectFit::ScaleDown,
-                5 => ObjectFit::None,
-                _ => unreachable!(),
-            };
-            let image_element =
-                img(ImageSource::from(PathBuf::from(&image.source))).object_fit(object_fit);
+            let object_fit_code = image.object_fit;
+            let mut image_element = img(ImageSource::from(PathBuf::from(&image.source)))
+                .object_fit(object_fit_from_code(object_fit_code));
+            if let Some(fallback_source) = image.fallback_source.as_ref() {
+                let fallback_path = PathBuf::from(fallback_source);
+                let loading_path = fallback_path.clone();
+                image_element = image_element.with_loading(move || {
+                    img(ImageSource::from(loading_path.clone()))
+                        .object_fit(object_fit_from_code(object_fit_code))
+                        .into_any()
+                });
+                image_element = image_element.with_fallback(move || {
+                    img(ImageSource::from(fallback_path.clone()))
+                        .object_fit(object_fit_from_code(object_fit_code))
+                        .into_any()
+                });
+            }
             let image_element = apply_style(image_element, style);
             return measure_node(
                 node,

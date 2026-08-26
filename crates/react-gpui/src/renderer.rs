@@ -88,6 +88,7 @@ pub struct ReactRoot {
     window_observers: Option<(Subscription, Subscription, Subscription)>,
     window_observation_scheduled: bool,
     last_window_size: Option<(f32, f32)>,
+    last_window_scale_factor: Option<f32>,
     last_window_active: Option<bool>,
     last_window_appearance: Option<WindowAppearance>,
 }
@@ -118,6 +119,7 @@ impl ReactRoot {
             window_observers: None,
             window_observation_scheduled: false,
             last_window_size: None,
+            last_window_scale_factor: None,
             last_window_active: None,
             last_window_appearance: None,
         }
@@ -254,6 +256,7 @@ impl ReactRoot {
         self.animation_styles.clear();
         self.window_observation_scheduled = false;
         self.last_window_size = None;
+        self.last_window_scale_factor = None;
         self.last_window_active = None;
     }
 
@@ -412,10 +415,11 @@ impl ReactRoot {
             let size = window.viewport_size();
             let width = f32::from(size.width);
             let height = f32::from(size.height);
+            let scale_factor = window.scale_factor();
             let active = window.is_window_active();
             let appearance = protocol_window_appearance(window.appearance());
             entity.update(app, |root, _| {
-                root.emit_window_observation(width, height, active, appearance);
+                root.emit_window_observation(width, height, scale_factor, active, appearance);
             });
         });
     }
@@ -424,13 +428,17 @@ impl ReactRoot {
         &mut self,
         width: f32,
         height: f32,
+        scale_factor: f32,
         active: bool,
         appearance: WindowAppearance,
     ) {
         self.window_observation_scheduled = false;
-        if self.last_window_size != Some((width, height)) {
+        if self.last_window_size != Some((width, height))
+            || self.last_window_scale_factor != Some(scale_factor)
+        {
             self.last_window_size = Some((width, height));
-            let event = Event::window_resize(
+            self.last_window_scale_factor = Some(scale_factor);
+            let event = Event::window_resize_with_scale(
                 self.store.surface_id(),
                 self.store.epoch(),
                 self.store.revision(),
@@ -439,6 +447,7 @@ impl ReactRoot {
                 0,
                 width,
                 height,
+                scale_factor,
             );
             send_event_or_exit(self.runtime.as_ref(), "window resize event", &event);
         }
@@ -1054,8 +1063,8 @@ mod input_tests {
     fn window_observations_emit_initial_values_and_dedupe_changes() {
         let runtime = InMemoryAdapter::new();
         let mut root = ReactRoot::new(runtime.clone());
-        root.emit_window_observation(800.0, 600.0, true, WindowAppearance::Light);
-        root.emit_window_observation(800.0, 600.0, true, WindowAppearance::Light);
+        root.emit_window_observation(800.0, 600.0, 1.0, true, WindowAppearance::Light);
+        root.emit_window_observation(800.0, 600.0, 1.0, true, WindowAppearance::Light);
         let resize = runtime
             .take_event()
             .expect("initial resize result")
@@ -1064,7 +1073,8 @@ mod input_tests {
             resize.payload,
             Some(EventPayload::WindowResize {
                 width: 800.0,
-                height: 600.0
+                height: 600.0,
+                scale_factor: 1.0,
             })
         );
         let activation = runtime
@@ -1086,7 +1096,7 @@ mod input_tests {
             })
         );
         assert!(runtime.take_event().expect("dedupe result").is_none());
-        root.emit_window_observation(801.0, 600.0, true, WindowAppearance::Light);
+        root.emit_window_observation(801.0, 600.0, 1.0, true, WindowAppearance::Light);
         assert!(matches!(
             runtime
                 .take_event()
@@ -1095,10 +1105,24 @@ mod input_tests {
                 .payload,
             Some(EventPayload::WindowResize {
                 width: 801.0,
-                height: 600.0
+                height: 600.0,
+                scale_factor: 1.0,
             })
         ));
-        root.emit_window_observation(801.0, 600.0, false, WindowAppearance::Light);
+        root.emit_window_observation(801.0, 600.0, 2.0, true, WindowAppearance::Light);
+        assert!(matches!(
+            runtime
+                .take_event()
+                .expect("scale-factor change result")
+                .expect("scale-factor change event")
+                .payload,
+            Some(EventPayload::WindowResize {
+                width: 801.0,
+                height: 600.0,
+                scale_factor: 2.0,
+            })
+        ));
+        root.emit_window_observation(801.0, 600.0, 2.0, false, WindowAppearance::Light);
         assert!(matches!(
             runtime
                 .take_event()
@@ -1107,7 +1131,7 @@ mod input_tests {
                 .payload,
             Some(EventPayload::WindowActivation { active: false })
         ));
-        root.emit_window_observation(801.0, 600.0, false, WindowAppearance::Dark);
+        root.emit_window_observation(801.0, 600.0, 2.0, false, WindowAppearance::Dark);
         assert!(matches!(
             runtime
                 .take_event()

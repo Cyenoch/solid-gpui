@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Image,
   Pressable,
   StdioTransport,
   StyleSheet,
@@ -19,6 +20,8 @@ const rows: Row[] = Array.from({ length: 32 }, (_, id) => ({
   title: `Activity ${id + 1}`,
   detail: id % 2 === 0 ? "Synchronized" : "Waiting for input",
 }));
+const FALLBACK_AVATAR_SOURCE = new URL("./todo-avatar.svg", import.meta.url).pathname;
+const MISSING_AVATAR_SOURCE = new URL("./missing-avatar.svg", import.meta.url).pathname;
 
 const styles = StyleSheet.create({
   screen: {
@@ -205,6 +208,13 @@ function Gallery() {
           <View style={styles.shadowCard}>
             <Text style={styles.panelTitle}>Native card shadow</Text>
             <Text style={styles.subtitle}>One card can carry two GPUI box-shadow layers.</Text>
+            <Image
+              source={MISSING_AVATAR_SOURCE}
+              fallbackSource={FALLBACK_AVATAR_SOURCE}
+              objectFit="contain"
+              style={{ width: 40, height: 40 }}
+              accessibilityLabel="Fallback avatar"
+            />
           </View>
           <View
             style={{ height: 72, flexShrink: 0, overflow: "scroll", borderWidth: 1, padding: 8 }}

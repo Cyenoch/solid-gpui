@@ -213,15 +213,15 @@ describe("todo example", () => {
     const root = createRoot(transport, {
       surfaceId: 303,
       epoch: 304,
-      onWindowResize: (width, height) => store.set(width, height),
+      onWindowResize: (width, height, scaleFactor) => store.set(width, height, scaleFactor),
     });
     root.render(<TodoApp windowSizeStore={store} />);
     expect(JSON.stringify(messages(transport))).not.toContain("Compact layout for a narrow window");
 
     transport.push(
-      eventFrame(303, 304, 1, [1, 0, 0, 1, null, null, 0, null, null, false], EVENT_WINDOW_RESIZE, [600, 500]),
+      eventFrame(303, 304, 1, [1, 0, 0, 1, null, null, 0, null, null, false], EVENT_WINDOW_RESIZE, [600, 500, 1.5]),
     );
-    expect(store.getSnapshot()).toEqual({ width: 600, height: 500 });
+    expect(store.getSnapshot()).toEqual({ width: 600, height: 500, scaleFactor: 1.5 });
     expect(JSON.stringify(latestPatch(transport))).toContain("Compact layout for a narrow window");
     root.unmount();
   });

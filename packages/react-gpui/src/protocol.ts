@@ -108,7 +108,9 @@ export type TextInputPropertiesWire = readonly [
   boolean,
 ];
 export type VirtualListPropertiesWire = readonly [2, number, number, number, number, number];
-export type ImagePropertiesWire = readonly [3, string, 1 | 2 | 3 | 4 | 5];
+export type ImagePropertiesWire =
+  | readonly [3, string, 1 | 2 | 3 | 4 | 5]
+  | readonly [3, string, 1 | 2 | 3 | 4 | 5, string | null];
 export type DragPropertiesWire = readonly [4, string | null];
 export type HostPropertiesWire =
   | TextInputPropertiesWire
@@ -238,7 +240,7 @@ export type KeyEventPayload = readonly [5, string, readonly string[], 1 | 2 | 3]
 export type PointerEventPayload = readonly [6, 1 | 2 | 3 | 4 | 5, readonly string[], 1 | 2, number];
 export type ScrollEventPayload = readonly [7, 1 | 2, number, number, number, number, readonly string[]];
 export type SubmitEventPayload = string;
-export type WindowResizeEventPayload = readonly [number, number];
+export type WindowResizeEventPayload = readonly [number, number] | readonly [number, number, number];
 export type WindowActivationEventPayload = boolean;
 export type ActionEventPayload = string;
 export type WindowAppearanceEventPayload = "light" | "dark";
@@ -481,12 +483,22 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
     );
   }
   if (value[0] === 3) {
-    return (
-      value.length === 3 &&
+    const sourceValid =
       typeof value[1] === "string" &&
       value[1].length > 0 &&
-      value[1].length <= 1024 &&
-      !/[\u0000-\u001f\u007f]/.test(value[1]) &&
+      utf8ByteLength(value[1]) <= 1024 &&
+      !/[\u0000-\u001f\u007f]/.test(value[1]);
+    const fallbackValid =
+      value.length === 3 ||
+      (value.length === 4 &&
+        (value[3] === null ||
+          (typeof value[3] === "string" &&
+            value[3].length > 0 &&
+            utf8ByteLength(value[3]) <= 1024 &&
+            !/[\u0000-\u001f\u007f]/.test(value[3]))));
+    return (
+      sourceValid &&
+      fallbackValid &&
       typeof value[2] === "number" &&
       Number.isInteger(value[2]) &&
       value[2] >= 1 &&
@@ -557,13 +569,14 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   if (eventType === EVENT_WINDOW_RESIZE) {
     return (
       Array.isArray(payload) &&
-      payload.length === 2 &&
+      (payload.length === 2 || payload.length === 3) &&
       typeof payload[0] === "number" &&
       Number.isFinite(payload[0]) &&
       payload[0] >= 0 &&
       typeof payload[1] === "number" &&
       Number.isFinite(payload[1]) &&
-      payload[1] >= 0
+      payload[1] >= 0 &&
+      (payload.length === 2 || (typeof payload[2] === "number" && Number.isFinite(payload[2]) && payload[2] > 0))
     );
   }
   if (!Array.isArray(payload)) return false;

@@ -331,6 +331,7 @@ pub struct TextInputProperties {
 pub struct ImageProperties {
     pub source: String,
     pub object_fit: u32,
+    pub fallback_source: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct DragProperties {
@@ -505,6 +506,7 @@ pub enum EventPayload {
     WindowResize {
         width: f32,
         height: f32,
+        scale_factor: f32,
     },
     WindowActivation {
         active: bool,
@@ -771,6 +773,31 @@ impl Event {
         width: f32,
         height: f32,
     ) -> Self {
+        Self::window_resize_with_scale(
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            width,
+            height,
+            1.0,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn window_resize_with_scale(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        width: f32,
+        height: f32,
+        scale_factor: f32,
+    ) -> Self {
         Self {
             protocol: PROTOCOL_VERSION,
             message: EVENT_MESSAGE,
@@ -781,7 +808,11 @@ impl Event {
             node_id,
             listener_id,
             event_type: EVENT_WINDOW_RESIZE,
-            payload: Some(EventPayload::WindowResize { width, height }),
+            payload: Some(EventPayload::WindowResize {
+                width,
+                height,
+                scale_factor,
+            }),
         }
     }
 

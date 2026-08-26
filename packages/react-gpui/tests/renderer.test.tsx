@@ -142,7 +142,8 @@ describe("protocol framing", () => {
     expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
   it("decodes window observation events and optional command values", () => {
-    const resize = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [800, 600]]);
+    const resize = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [800, 600, 2]]);
+    const legacyResize = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 7, 1, 0, EVENT_WINDOW_RESIZE, [640, 480]]);
     const activation = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 1, 0, EVENT_WINDOW_ACTIVATION, true]);
     const oldResult = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 1, 0, 6, [2, 1, COMMAND_FOCUS, 2, true, null]]);
     const sizeResult = encodeFrame([
@@ -170,12 +171,26 @@ describe("protocol framing", () => {
       [2, 3, COMMAND_GET_FOCUS, 2, true, null, [3, true]],
     ]);
     const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 6, 1, 0, EVENT_WINDOW_RESIZE, [800, -1]] as never);
+    const invalidScale = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      8,
+      1,
+      0,
+      EVENT_WINDOW_RESIZE,
+      [800, 600, 0],
+    ] as never);
     expect(decodeEvent(resize.slice(4))).not.toBeNull();
+    expect(decodeEvent(legacyResize.slice(4))).not.toBeNull();
     expect(decodeEvent(activation.slice(4))).not.toBeNull();
     expect(decodeEvent(oldResult.slice(4))).not.toBeNull();
     expect(decodeEvent(sizeResult.slice(4))).not.toBeNull();
     expect(decodeEvent(focusResult.slice(4))).not.toBeNull();
     expect(decodeEvent(malformed.slice(4))).toBeNull();
+    expect(decodeEvent(invalidScale.slice(4))).toBeNull();
   });
   it("validates file dialog command results and rejects empty path arrays", () => {
     const valid = encodeFrame([
@@ -266,18 +281,22 @@ describe("protocol framing", () => {
 describe("window observation and value commands", () => {
   it("dispatches resize and activation events to root callbacks", () => {
     const transport = new MemoryTransport();
-    const resized: Array<[number, number]> = [];
+    const resized: Array<[number, number, number]> = [];
     const active: boolean[] = [];
     const root = createRoot(transport, {
       surfaceId: 91,
       epoch: 92,
-      onWindowResize: (width, height) => resized.push([width, height]),
+      onWindowResize: (width, height, scaleFactor) => resized.push([width, height, scaleFactor ?? 1]),
       onWindowActivation: (value) => active.push(value),
     });
     root.render(<View />);
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [640, 480]]));
-    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 2, 1, 0, EVENT_WINDOW_ACTIVATION, false]));
-    expect(resized).toEqual([[640, 480]]);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 2, 1, 0, EVENT_WINDOW_RESIZE, [800, 600, 1.5]]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 3, 1, 0, EVENT_WINDOW_ACTIVATION, false]));
+    expect(resized).toEqual([
+      [640, 480, 1],
+      [800, 600, 1.5],
+    ]);
     expect(active).toEqual([false]);
     root.unmount();
   });
@@ -679,10 +698,17 @@ it("encodes absolute positioning and negative inset offsets", () => {
 it("encodes Image host properties and rejects Image children", () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 79, epoch: 80 });
-  root.render(<Image source="assets/logo.png" objectFit="cover" style={{ width: 120, height: 48 }} />);
+  root.render(
+    <Image
+      source="assets/logo.png"
+      fallbackSource="assets/fallback.png"
+      objectFit="cover"
+      style={{ width: 120, height: 48 }}
+    />,
+  );
   const image = snapshots(transport)[0][6].find((node) => node[3] === 7) as readonly unknown[];
   expect(image[3]).toBe(7);
-  expect(image[7]).toEqual([3, "assets/logo.png", 3]);
+  expect(image[7]).toEqual([3, "assets/logo.png", 3, "assets/fallback.png"]);
   root.unmount();
   const unicodeTransport = new MemoryTransport();
   const unicodeRoot = createRoot(unicodeTransport, { surfaceId: 83, epoch: 84 });
@@ -693,6 +719,10 @@ it("encodes Image host properties and rejects Image children", () => {
 
   const oversizedRoot = createRoot(new MemoryTransport(), { surfaceId: 85, epoch: 86 });
   expect(() => oversizedRoot.render(<Image source={"é".repeat(513)} />)).toThrow("UTF-8 bytes");
+  const invalidFallbackRoot = createRoot(new MemoryTransport(), { surfaceId: 86, epoch: 87 });
+  expect(() => invalidFallbackRoot.render(<Image source="assets/logo.png" fallbackSource={"é".repeat(513)} />)).toThrow(
+    "UTF-8 bytes",
+  );
 
   const invalidTransport = new MemoryTransport();
   const invalidRoot = createRoot(invalidTransport, { surfaceId: 81, epoch: 82 });

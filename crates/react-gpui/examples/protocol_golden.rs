@@ -152,6 +152,7 @@ fn snapshot() -> Snapshot {
     image.host_properties = Some(HostProperties::Image(ImageProperties {
         source: "assets/😀.png".into(),
         object_fit: 3,
+        fallback_source: Some("assets/avatar-fallback.png".into()),
     }));
     Snapshot::new(
         7,
@@ -189,6 +190,7 @@ fn patch() -> Patch {
                 host_properties: Some(HostProperties::Image(ImageProperties {
                     source: "assets/logo.png".into(),
                     object_fit: 2,
+                    fallback_source: None,
                 })),
                 accessibility: Some(accessibility()),
                 focusable: true,
@@ -478,7 +480,7 @@ fn main() {
         &mut rows,
         "rust-event-window-resize",
         "event",
-        Event::window_resize(7, 3, 42, 11, 1, 0, 800.5, 600.5)
+        Event::window_resize_with_scale(7, 3, 42, 11, 1, 0, 800.5, 600.5, 2.0)
             .encode()
             .unwrap(),
     );

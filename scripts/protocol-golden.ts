@@ -60,7 +60,7 @@ const doubleStyle = fullStyle.map((value, index) =>
 const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8, false];
 const virtualList = [2, 20, 2, 9, 24.5, 3];
-const image = [3, "assets/😀.png", 3];
+const image = [3, "assets/😀.png", 3, "assets/avatar-fallback.png"];
 const drag = [4, "card"];
 
 function hex(bytes: Uint8Array): string {
@@ -92,7 +92,7 @@ const patch = [
   43,
   [
     [1, 8, 1, 5, 3, null, null, 11, drag, null, false],
-    [2, 4, 63, fullStyle, "updated", 12, [3, "assets/logo.png", 2], accessibility, true],
+    [2, 4, 63, fullStyle, "updated", 12, [3, "assets/logo.png", 2, null], accessibility, true],
     [3, 4, 1, 0],
     [4, 6],
   ],
@@ -165,7 +165,7 @@ const rows = [
   row("ts-event-visible", "event", [3, 2, 7, 3, 42, 6, 6, 13, 7, [3, 2, 9]]),
   row("ts-event-animation", "event", [3, 2, 7, 3, 42, 7, 1, 0, 8, [4, 4]]),
   row("ts-event-command-result", "event", [3, 2, 7, 3, 42, 8, 1, 0, 6, [2, 109, 10, 1, false, "rejected", null]]),
-  row("ts-event-window-resize", "event", [3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5]]),
+  row("ts-event-window-resize", "event", [3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5, 2]]),
   row("ts-event-window-activation", "event", [3, 2, 7, 3, 42, 12, 1, 0, 15, true]),
   row("ts-event-window-appearance", "event", [3, 2, 7, 3, 42, 16, 1, 0, 18, "dark"]),
   row("ts-event-layout", "event", [3, 2, 7, 3, 42, 17, 4, 7, 19, [12.5, -3.25, 100, 48.75]]),

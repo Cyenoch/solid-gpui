@@ -769,6 +769,7 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
     image.host_properties = Some(HostProperties::Image(ImageProperties {
         source: "assets/icon.png".into(),
         object_fit: 2,
+        fallback_source: Some("assets/fallback.png".into()),
     }));
     let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), image]);
     assert_eq!(
@@ -781,14 +782,22 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
         ImageProperties {
             source: String::new(),
             object_fit: 2,
+            fallback_source: None,
         },
         ImageProperties {
             source: "bad\npath".into(),
             object_fit: 2,
+            fallback_source: None,
         },
         ImageProperties {
             source: "assets/icon.png".into(),
             object_fit: 6,
+            fallback_source: None,
+        },
+        ImageProperties {
+            source: "assets/icon.png".into(),
+            object_fit: 2,
+            fallback_source: Some("bad\npath".into()),
         },
     ] {
         let mut invalid = Node::new(2, 1, 0, KIND_IMAGE);
@@ -809,6 +818,7 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
     image.host_properties = Some(HostProperties::Image(ImageProperties {
         source: "assets/icon.png".into(),
         object_fit: 2,
+        fallback_source: None,
     }));
     assert!(matches!(
         NodeStore::default().apply_snapshot(Snapshot::new(

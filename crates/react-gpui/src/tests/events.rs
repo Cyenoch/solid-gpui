@@ -182,10 +182,56 @@ fn window_resize_wire_accepts_integer_dimensions() {
         Some(EventPayload::WindowResize {
             width: 800.0,
             height: 600.0,
+            scale_factor: 1.0,
+        })
+    );
+}
+#[test]
+fn window_resize_wire_accepts_scale_factor() {
+    let payload = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        1u32,
+        1u32,
+        0u32,
+        EVENT_WINDOW_RESIZE,
+        Some((800u32, 600u32, 1.5f32)),
+    ))
+    .unwrap();
+    let event = Event::decode(&payload).unwrap();
+    assert_eq!(
+        event.payload,
+        Some(EventPayload::WindowResize {
+            width: 800.0,
+            height: 600.0,
+            scale_factor: 1.5,
         })
     );
 }
 
+#[test]
+fn window_resize_wire_rejects_non_positive_scale_factor() {
+    let payload = rmp_serde::to_vec(&(
+        3u32,
+        2u32,
+        7u32,
+        3u32,
+        1u32,
+        1u32,
+        1u32,
+        0u32,
+        EVENT_WINDOW_RESIZE,
+        Some((800u32, 600u32, 0.0f32)),
+    ))
+    .unwrap();
+    assert!(matches!(
+        Event::decode(&payload),
+        Err(ProtocolError::InvalidEventPayload)
+    ));
+}
 #[test]
 fn window_activation_wire_rejects_non_boolean_payloads() {
     let payload = rmp_serde::to_vec(&(

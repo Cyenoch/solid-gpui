@@ -36,6 +36,7 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
     expect(nodes.slice(4).map((node) => (node[7] as readonly unknown[] | null)?.[0])).toEqual([1, 2, 3, 4]);
     expect((nodes[0][4] as readonly unknown[]).length).toBe(42);
     expect((nodes[0][4] as readonly unknown[])[40]).toEqual([1, [-2, 3, 4, 1, 0x01020380, 1]]);
+    expect(nodes[6][7]).toEqual([3, "assets/😀.png", 3, "assets/avatar-fallback.png"]);
   }
   if (vector.id.endsWith("snapshot-box-shadow-double")) {
     const snapshot = decoded as readonly unknown[];
@@ -54,7 +55,7 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   }
   if (vector.id.endsWith("event-window-resize")) {
     const event = decoded as readonly unknown[];
-    expect(event[9]).toEqual([800.5, 600.5]);
+    expect(event[9]).toEqual([800.5, 600.5, 2]);
   }
   if (vector.id.endsWith("event-window-activation")) {
     expect((decoded as readonly unknown[])[9]).toBe(true);
