@@ -5,10 +5,11 @@ use std::sync::atomic::Ordering;
 
 use gpui::{
     AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, Element, ElementId,
-    ElementInputHandler, Entity, ExternalPaths, GlobalElementId, ImageSource, InspectorElementId,
-    InteractiveElement, IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement,
-    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, StyledImage, TextRun, Window,
-    div, fill, hsla, img, list, point, px, relative, rgba, size,
+    ElementInputHandler, Entity, ExternalDragPayload, ExternalPaths, FileDragPaths,
+    GlobalElementId, ImageSource, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
+    MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render, SharedString,
+    StatefulInteractiveElement, Styled, StyledImage, TextRun, Window, div, fill, hsla, img, list,
+    point, px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -367,6 +368,16 @@ fn object_fit_from_code(code: u32) -> ObjectFit {
         5 => ObjectFit::None,
         _ => unreachable!("validated image objectFit"),
     }
+}
+fn external_file_drag_payload(paths: &[String]) -> ExternalDragPayload {
+    let entries = paths.iter().map(|path| {
+        let path = PathBuf::from(path);
+        let is_directory = std::fs::metadata(&path)
+            .map(|metadata| metadata.is_dir())
+            .unwrap_or(false);
+        (path, is_directory)
+    });
+    ExternalDragPayload::Files(FileDragPaths::new(entries))
 }
 
 impl ReactRoot {
@@ -804,6 +815,12 @@ impl ReactRoot {
                         cx.new(|_| DragPreview)
                     });
             }
+            if let Some(export_files) = drag.export_files.clone() {
+                element =
+                    element.external_drag_payload(move |_payload: &ReactDragPayload, _, _| {
+                        Some(external_file_drag_payload(&export_files))
+                    });
+            }
             if node.listener_id != 0 {
                 let active_drag_type = Rc::clone(&self.active_drag_type);
                 let runtime = Arc::clone(&self.runtime);
@@ -1179,4 +1196,22 @@ fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
         });
     }
     element
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outbound_file_drag_payload_preserves_paths_and_directory_metadata() {
+        let missing = "/definitely/not/a/react-gpui-file";
+        let payload = external_file_drag_payload(&["/tmp".to_owned(), missing.to_owned()]);
+        let ExternalDragPayload::Files(paths) = payload;
+        assert_eq!(
+            paths.entries(),
+            &[
+                (std::path::PathBuf::from("/tmp"), true),
+                (std::path::PathBuf::from(missing), false),
+            ]
+        );
+    }
 }

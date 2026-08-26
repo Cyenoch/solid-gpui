@@ -1502,7 +1502,7 @@ describe("renderer commits", () => {
     const root = createRoot(transport, { surfaceId: 73, epoch: 74 });
     root.render(
       <View
-        draggable={{ type: "card", data: { id: 1 } }}
+        draggable={{ type: "card", data: { id: 1 }, exportFiles: ["/tmp/a.txt", "/tmp/b"] }}
         onDragOver={(type) => over.push(type)}
         onDrop={(type) => dropped.push(type)}
         onExternalFileDrop={(paths) => files.push(paths)}
@@ -1511,7 +1511,7 @@ describe("renderer commits", () => {
     const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
     const nodeId = node[0] as number;
     const listener = node[6] as number;
-    expect(node[7]).toEqual([4, "card"]);
+    expect(node[7]).toEqual([4, "card", ["/tmp/a.txt", "/tmp/b"]]);
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 1, nodeId, listener, EVENT_DRAG, [1, "card"]]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 73, 74, 1, 2, nodeId, listener, EVENT_DRAG, [2, "card"]]));
     transport.push(
@@ -1521,6 +1521,14 @@ describe("renderer commits", () => {
     expect(dropped).toEqual(["card"]);
     expect(files).toEqual([["/tmp/a.txt", "/tmp/b"]]);
     root.unmount();
+    const invalidRoot = createRoot(new MemoryTransport(), { surfaceId: 75, epoch: 76 });
+    expect(() =>
+      invalidRoot.render(
+        <View
+          draggable={{ type: "card", exportFiles: Array.from({ length: 9 }, (_, index) => `/tmp/${index}`) as never }}
+        />,
+      ),
+    ).toThrow("1..8");
   });
 
   it("round-trips focus, blur, and setTitle command receipts", async () => {

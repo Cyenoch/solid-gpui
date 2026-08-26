@@ -63,6 +63,13 @@ so each can be revisited with a bounded implementation and bilateral tests:
   states to that path. There is still no loader notification hook, so
   JavaScript `onError` remains a true upstream gap; this visual fallback covers
   the user-visible degradation path without inventing an event.
+- **Outbound file drag — implemented as a constrained project feature.** The
+  pinned GPUI `ExternalDragPayload` has only the `Files(FileDragPaths)`
+  variant; text/string dragging is therefore not claimed. The renderer accepts
+  up to eight validated host-local paths, probes directory metadata lazily when
+  the drag leaves the viewport, and offers the native payload. Platform start
+  success has no JavaScript completion/error event: macOS and Wayland Linux
+  implement native starts, while X11 and Windows retain the default decline.
 - **Keybinding registration — feasible-bounded, tracked for a dedicated
   round.** The pinned GPUI `App::bind_keys`, `clear_key_bindings`, and
   `KeyBinding`/`KeyContext` APIs make host-held registration possible, and the

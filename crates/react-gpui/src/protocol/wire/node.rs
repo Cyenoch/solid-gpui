@@ -61,7 +61,7 @@ pub(super) struct VirtualListWire(u32, u32, u32, u32, f32, u32);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct ImageWire(u32, String, u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct DragWire(u32, Option<String>);
+pub(super) struct DragWire(u32, Option<String>, Option<Vec<String>>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct AccessibilityWire(
     u32,
@@ -363,7 +363,11 @@ impl From<&HostProperties> for HostPropertiesWire {
             )),
             HostProperties::VirtualList(value) => Self::VirtualList(VirtualListWire::from(value)),
             HostProperties::Image(value) => Self::Image(ImageWire::from(value)),
-            HostProperties::Drag(value) => Self::Drag(DragWire(4, value.drag_type.clone())),
+            HostProperties::Drag(value) => Self::Drag(DragWire(
+                4,
+                value.drag_type.clone(),
+                value.export_files.clone(),
+            )),
         }
     }
 }
@@ -375,6 +379,12 @@ fn valid_image_source(source: &str) -> bool {
 pub(super) fn valid_drag_type(drag_type: Option<&str>) -> bool {
     drag_type.is_none_or(|value| {
         !value.is_empty() && value.chars().count() <= 128 && !value.chars().any(char::is_control)
+    })
+}
+
+fn valid_export_files(files: Option<&[String]>) -> bool {
+    files.is_none_or(|files| {
+        !files.is_empty() && files.len() <= 8 && files.iter().all(|path| valid_image_source(path))
     })
 }
 
@@ -422,9 +432,14 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
                 }))
             }
             HostPropertiesWire::Drag(value)
-                if value.0 == 4 && valid_drag_type(value.1.as_deref()) =>
+                if value.0 == 4
+                    && valid_drag_type(value.1.as_deref())
+                    && valid_export_files(value.2.as_deref()) =>
             {
-                Ok(Self::Drag(DragProperties { drag_type: value.1 }))
+                Ok(Self::Drag(DragProperties {
+                    drag_type: value.1,
+                    export_files: value.2,
+                }))
             }
             _ => Err(ProtocolError::InvalidHostProperties),
         }

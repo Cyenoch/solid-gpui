@@ -127,6 +127,7 @@ export type HoverHandler = (hovered: boolean) => void;
 export interface Draggable {
   readonly type: string;
   readonly data?: unknown;
+  readonly exportFiles?: readonly string[];
 }
 export type DragOverHandler = (dragType: string) => void;
 export type DragDropHandler = (dragType: string) => void;
@@ -275,6 +276,7 @@ export interface VirtualListWire {
 }
 export interface DragWire {
   readonly dragType: string | null;
+  readonly exportFiles: readonly string[] | null;
 }
 export interface AccessibilityWire {
   readonly role: number;

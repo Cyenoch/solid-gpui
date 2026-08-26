@@ -124,6 +124,7 @@ fn snapshot() -> Snapshot {
     drag.listener_id = 11;
     drag.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
+        export_files: Some(vec!["assets/logo.png".into()]),
     }));
     let mut input = Node::new(5, 1, 2, KIND_TEXT_INPUT);
     input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
@@ -168,6 +169,7 @@ fn patch() -> Patch {
     created.listener_id = 11;
     created.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
+        export_files: Some(vec!["assets/logo.png".into()]),
     }));
     Patch::new(
         7,

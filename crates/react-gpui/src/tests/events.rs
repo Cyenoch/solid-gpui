@@ -153,12 +153,29 @@ fn drag_events_round_trip_all_payload_kinds_and_reject_invalid_paths() {
     let mut node = Node::new(2, 1, 0, KIND_VIEW);
     node.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".into()),
+        export_files: Some(vec!["/tmp/a.txt".into(), "/tmp/b".into()]),
     }));
     let snapshot = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), node]);
     assert_eq!(
         Snapshot::decode(&snapshot.encode().unwrap()).unwrap(),
         snapshot
     );
+    for export_files in [
+        Some(Vec::new()),
+        Some(vec!["bad\npath".to_owned()]),
+        Some((0..9).map(|index| format!("/tmp/{index}")).collect()),
+    ] {
+        let mut invalid = Node::new(2, 1, 0, KIND_VIEW);
+        invalid.host_properties = Some(HostProperties::Drag(DragProperties {
+            drag_type: Some("card".into()),
+            export_files,
+        }));
+        let invalid_snapshot = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), invalid]);
+        assert!(matches!(
+            Snapshot::decode(&invalid_snapshot.encode().unwrap()),
+            Err(ProtocolError::InvalidHostProperties)
+        ));
+    }
 }
 
 #[test]

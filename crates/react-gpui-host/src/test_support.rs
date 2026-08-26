@@ -693,6 +693,7 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
         "empty replacement should clear the surface binding"
     );
 }
+
 pub fn dialog_command_roundtrip(cx: &mut TestAppContext) {
     use std::path::PathBuf;
 

@@ -237,6 +237,24 @@ export function virtualListFor(node: HostNodeInternal, props: HostProps): Virtua
   assertU32Option("VirtualList overscan", overscan);
   return { itemCount, rangeStart, rangeEnd, estimatedItemSize, overscan };
 }
+function exportFilesFor(value: unknown): readonly string[] | null {
+  if (value === undefined) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 8) {
+    throw new RangeError("draggable.exportFiles must contain 1..8 paths");
+  }
+  for (const [index, path] of value.entries()) {
+    if (
+      typeof path !== "string" ||
+      path.length === 0 ||
+      utf8ByteLength(path) > 1024 ||
+      /[\u0000-\u001f\u007f]/.test(path)
+    ) {
+      throw new TypeError(`draggable.exportFiles[${index}] must be a non-empty path of at most 1024 UTF-8 bytes`);
+    }
+  }
+  return value;
+}
+
 export function dragFor(node: HostNodeInternal, props: HostProps): DragWire | null {
   if (node.kind === "Pressable" && props.disabled === true) return null;
   if (
@@ -246,7 +264,10 @@ export function dragFor(node: HostNodeInternal, props: HostProps): DragWire | nu
     props.onExternalFileDrop === undefined
   )
     return null;
-  return { dragType: props.draggable?.type ?? null };
+  return {
+    dragType: props.draggable?.type ?? null,
+    exportFiles: exportFilesFor(props.draggable?.exportFiles),
+  };
 }
 
 export function hostPropertiesWire(
@@ -270,7 +291,7 @@ export function hostPropertiesWire(
       value.selectionReversed,
     ];
   if ("source" in value) return [3, value.source, value.objectFit, value.fallbackSource];
-  if ("dragType" in value) return [4, value.dragType];
+  if ("dragType" in value) return [4, value.dragType, value.exportFiles];
   return [2, value.itemCount, value.rangeStart, value.rangeEnd, value.estimatedItemSize, value.overscan];
 }
 export function accessibilityWire(value: AccessibilityWire | null): readonly unknown[] | null {

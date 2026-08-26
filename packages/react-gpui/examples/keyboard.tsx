@@ -23,6 +23,8 @@ function KeyboardCounter() {
 const root = createRoot(new StdioTransport(), {
   surfaceId: 1,
   epoch: 1,
+  onAction: (action) => console.log(`Action: ${action}`),
   onTransportTermination: createProcessTerminationHandler(),
 });
+void root.setKeybindings([{ keystrokes: "cmd-shift-p", actionName: "palette.open" }]);
 root.render(<KeyboardCounter />);

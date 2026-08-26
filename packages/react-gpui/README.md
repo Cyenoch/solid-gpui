@@ -54,7 +54,8 @@ are not available for `TextInput`, `VirtualList`, or virtualized rows.
 />
 ```
 
-`draggable.type` is the only value sent over the native protocol; `data` stays
+`draggable.type` and optional `draggable.exportFiles` are sent over the native
+protocol; `data` stays
 in JavaScript for application-side association. GPUI starts an internal drag
 after its native pointer threshold and renders a fixed 24×24 translucent
 preview; custom drag previews are not exposed. `onDragOver` is a notification
@@ -64,6 +65,25 @@ filesystem paths from the desktop drop. Browser runtimes do not promise
 filesystem path drops.
 Enter/leave/move lifecycle events are intentionally not exposed in this
 minimal surface; `onDragOver` is the target notification.
+
+Set `draggable.exportFiles` to offer host-local files when the internal drag
+leaves the viewport:
+
+```tsx
+<View draggable={{ type: "artifact", exportFiles: [artifactPath] }}>
+  <Text>Drag artifact to Finder</Text>
+</View>
+```
+
+`exportFiles` accepts 1..8 non-empty paths using the same 1024-byte UTF-8
+validation as `Image.source`. The host checks directory metadata when the
+gesture is promoted and offers GPUI's native `Files` payload. There is no
+JavaScript completion/error callback for the platform drag: a failed start
+remains a platform concern and GPUI may retry while the gesture continues.
+macOS and Wayland Linux provide native file dragging; X11 and Windows use the
+pinned platform default that cannot start an outbound drag. Text/string
+payloads are not exposed because the pinned GPUI `ExternalDragPayload` only
+supports `Files`.
 ## Accessibility
 
 Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
