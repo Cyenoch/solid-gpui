@@ -407,6 +407,20 @@ from this work tree.
   host-side Cmd/Ctrl-C clipboard writes; selection is visual-only with
   zero new events or JS state, verified by display-backed
   drag/highlight/copy tests plus headless clamp/geometry coverage.
+- Surface creation options extend `COMMAND_OPEN_SURFACE=17` with an optional
+  third tuple `[kind, resizable, minWidth, minHeight]` while legacy
+  `[title, [width, height]]` frames stay byte-identical: kind maps
+  normal|floating|dialog through host WindowOptions (macOS Floating level and
+  Dialog sheet, Windows dialog modal with Floating not topmost, X11/Wayland
+  transient/modal), resizable and window minimum sizes are creation-time only,
+  and maxSize, a generic window level, runtime setters, and centering remain
+  unexposed because the pinned GPUI surface carries no such fields; A-level
+  command roundtrips assert the real mapping.
+- The upstream dependency review now classifies RTL text as two separate gaps
+  — an explicit base-direction API and bidi-aware hit/caret geometry — after
+  pinned-source evidence showed cosmic-text already performs UAX #9 reordering
+  and HarfRust directional shaping for rendering, so pure RTL rendering is no
+  longer listed as an upstream gap.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
