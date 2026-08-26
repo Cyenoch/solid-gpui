@@ -8,8 +8,8 @@
 An Image host node crosses from JavaScript into a GPUI process and must remain
 bounded, inspectable, and independent from the renderer's runtime memory. The
 host already owns image loading and GPUI's image cache. The protocol currently
-needs only a source path and object-fit policy, while package examples and
-release bundles must decide how to ship the referenced asset.
+needs only source/fallback paths and an object-fit policy, while package examples
+and release bundles must decide how to ship the referenced assets.
 
 ## Decision
 
@@ -17,9 +17,10 @@ Image uses a validated string path on the wire. The host converts it to a
 `PathBuf` and lets GPUI load the resource; relative paths resolve from the host
 process working directory, while production examples should derive an
 absolute path and ship the asset explicitly. Image nodes do not carry child
-content or inline image bytes. A missing or undecodable image renders as
-silent blank space in this protocol version and does not send a payload or
-JavaScript error event.
+content or inline image bytes. A missing or undecodable primary image renders
+the optional `fallbackSource` during loading and on failure, or silent blank
+space when no fallback is supplied; this protocol still sends no JavaScript
+error event.
 
 ## Alternatives rejected
 
@@ -34,7 +35,8 @@ JavaScript error event.
   a safe default for a native host resource.
 - **Fail the whole surface on image load failure:** rejected because a missing
   decorative asset should not discard an otherwise valid retained tree; the
-  current contract intentionally contains the failure as blank output.
+  current contract contains the failure in fallback output when supplied and
+  blank output otherwise.
 
 ## Consequences
 
@@ -42,7 +44,7 @@ JavaScript error event.
   host working directory; ESM/Bun examples can use `new URL(..., import.meta.url)`
   to derive an absolute path.
 - Image failures are not observable through JavaScript today, so applications
-  that need fallback UI must validate assets before rendering or provide a
-  non-image fallback alongside the node.
+  that need fallback UI should provide `fallbackSource` or a non-image fallback
+  alongside the node.
 - The wire stays compact and deterministic, and GPUI remains the single image
   loading/cache owner.

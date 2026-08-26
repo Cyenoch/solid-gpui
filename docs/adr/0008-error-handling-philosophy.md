@@ -28,10 +28,11 @@ each seam:
   `crates/react-gpui/src/renderer/commit_reader.rs:70-95`,
   `crates/react-gpui/src/tree.rs:310-326`,
   `crates/react-gpui/src/transport.rs:66-77`).
-- Image resources are loaded through GPUI's image path/cache path and a missing
-  or undecodable resource produces blank output rather than a JavaScript
-  failure (`crates/react-gpui/src/renderer/paint.rs:233-252`,
-  `packages/react-gpui/README.md:130-135`).
+- Image resources are loaded through GPUI's image path/cache path; a missing or
+  undecodable primary resource renders `fallbackSource` while loading/after
+  failure when supplied, and otherwise produces blank output without a
+  JavaScript failure (`crates/react-gpui/src/renderer/paint.rs:510-537`,
+  `packages/react-gpui/README.md:134-153`).
 - GPUI's `Window::draw` runs the element layout/prepaint/paint lifecycle without
   a node-level unwind boundary; the host panic hook records a crash report but
   does not resume a damaged draw (`references/zed/crates/gpui/src/window.rs:2851-2991`,
@@ -50,7 +51,7 @@ Use the narrowest safe behavior at each seam:
 | --- | --- |
 | React render error | A consumer Error Boundary owns recovery UI. Without a boundary, `root.render()` throws synchronously and no invalid Commit Batch is submitted. |
 | Snapshot/Patch decode or tree validation error | Fail fast. Reject before mutation, preserve the last-good tree only as an implementation detail of validation/rollback, shut down the Runtime Adapter, and terminate the host. Do not retry, silently drop, or invent resync. |
-| Image resource load error | Degrade locally to blank image output. The retained tree and other nodes continue; this protocol version does not send an `Image` error Native Event. |
+| Image resource load error | Degrade locally to `fallbackSource` when supplied, otherwise blank image output. The retained tree and other nodes continue; this protocol version does not send an `Image` error Native Event. |
 | GPUI paint panic/internal invariant | Treat as host-fatal. Do not catch and continue through a partially executed GPUI draw; the panic hook records diagnostics, then process/window termination is the safe outcome. |
 | Temporary transport backpressure | Treat `write=false`/EAGAIN-style backpressure as normal: queue in order, retry from `drain`, and enforce the pending-byte cap. Queue overflow is an immediate caller-visible `RangeError`; EPIPE/close/error is transport termination. |
 
@@ -83,7 +84,8 @@ shared stream.
   loop would complicate queue bounds, shutdown, and duplicate-write reasoning.
 - **Promote Image load failure to a surface-fatal error:** rejected because an
   external decorative resource must not discard an otherwise valid retained
-  tree; blank output is the intentionally contained failure mode.
+  tree; `fallbackSource` contains the failure when supplied and blank output is
+  the intentionally contained default otherwise.
 
 ## Consequences
 
@@ -91,7 +93,7 @@ shared stream.
   deliberately forgiving external-resource boundary; these must not be
   conflated in user-facing diagnostics.
 - Error Boundaries, crash reports, transport termination callbacks, and Image
-  blank output are separate mechanisms with separate owners.
+  fallback/blank output are separate mechanisms with separate owners.
 - Adding a future recovery or resync protocol requires a new ADR and wire
   contract. It must not be introduced as an exception path inside the current
   fail-fast reader.

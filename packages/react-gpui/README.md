@@ -116,6 +116,8 @@ reader).
 - `fontFamily` — a non-empty font-family string up to 64 Unicode characters.
   GPUI resolves the requested family through its configured fallback stack when
   the primary family is unavailable.
+The exported `BoxShadow` type describes one layer, while `BoxShadowInput`
+accepts that type or a two-element tuple of layers.
 
 The transport uses one fixed positional 42-slot style tuple: slots `0..39`
 retain the existing fields, `40=boxShadow`, and `41=fontFamily`; omitted fields
