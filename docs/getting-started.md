@@ -146,7 +146,7 @@ wire tuple; use the object fields and `StyleSheet.create`:
   `textDecoration`, `lineHeight`, `color`.
 - **Visual:** `backgroundColor`, `borderColor`, `borderWidth`, `borderRadius`,
   `boxShadow`, `opacity`.
-- **Positioning:** `position`, `left`, `top`, `right`, `bottom`.
+- **Positioning:** `relative` is the default post-layout correction; `absolute` anchors to the closest positioned ancestor/origin and leaves no layout space; `overlay` uses a local `left`/`top` anchor, deferred priority, and viewport fit for dropdowns/popovers. Overlay is not a general portal or z-index; its `right`/`bottom` fields are rejected, while `left`/`top` remain finite pixel offsets (including negatives).
 - **Animation:** `transition` for `opacity`, `backgroundColor`, `width`, and
   `height`.
 
@@ -416,7 +416,8 @@ events. It does not open a window. See
 
 - Generic transforms (`transform.scale`, `transform.translateX`,
   `transform.translateY`) are unsupported. Positioning is the explicit
-  `relative`/`absolute` plus inset fields.
+  `relative`/`absolute`/`overlay` subset; use `overlay` for anchored
+  dropdowns/popovers rather than treating it as a general portal.
 - `flexDirection: row-reverse/column-reverse` is a physical layout mirror only; explicit container/text base direction (RTL) and bidi caret/IME semantics are unsupported pending upstream GPUI APIs.
 - On Windows, some cursor variants (`alias`, `copy`, and similar) fall back to the default arrow; cursor changes are a no-op in headless environments.
 - `Image.source` and optional `Image.fallbackSource` are host-local paths.

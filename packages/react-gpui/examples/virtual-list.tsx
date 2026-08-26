@@ -30,7 +30,7 @@ function App() {
     [visible],
   );
   return (
-    <View style={{ flexDirection: "column", gap: 8 }}>
+    <View style={{ flexDirection: "column", gap: 8, backgroundColor: "#ffffff", color: "#111827" }}>
       <Text style={style}>{visible ? "Visible" : "Dimmed"}</Text>
       <VirtualList<Row>
         ref={listRef}

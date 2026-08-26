@@ -7,7 +7,14 @@ function KeyboardCounter() {
   return (
     <View
       focusable
-      style={{ flexDirection: "column", flexGrow: 1, gap: 8, padding: 16 }}
+      style={{
+        flexDirection: "column",
+        flexGrow: 1,
+        gap: 8,
+        padding: 16,
+        backgroundColor: "#ffffff",
+        color: "#111827",
+      }}
       onKeyDown={({ key, modifiers, action }) => {
         setCount((current) => current + 1);
         setLastKey(`${action}: ${[...modifiers, key].join("+")}`);

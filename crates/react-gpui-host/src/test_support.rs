@@ -155,6 +155,96 @@ fn advance_frame(window: WindowHandle<ReactRoot>, cx: &mut TestAppContext) {
     .expect("advance test frame");
     cx.run_until_parked();
 }
+pub struct HeadlessSurface {
+    registry: Entity<SurfaceRegistry>,
+    window: WindowHandle<ReactRoot>,
+    runtime: Arc<InMemoryAdapter>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PaintedQuad {
+    pub order: u32,
+    pub bounds: (f32, f32, f32, f32),
+    pub content_mask: (f32, f32, f32, f32),
+    pub background: String,
+}
+
+impl HeadlessSurface {
+    pub fn new(cx: &mut TestAppContext) -> Self {
+        let runtime = InMemoryAdapter::new();
+        let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+        registry
+            .update(cx, |registry, cx| registry.open_initial(cx))
+            .expect("open headless test surface");
+        let window = window_for(&registry, cx, 1);
+        Self {
+            registry,
+            window,
+            runtime,
+        }
+    }
+
+    pub fn apply(&self, cx: &mut TestAppContext, payload: &[u8]) {
+        self.registry
+            .update(cx, |registry, cx| registry.route_payload(payload, cx))
+            .expect("apply headless test payload");
+    }
+
+    pub fn draw(&self, cx: &mut TestAppContext) {
+        cx.update_window(self.window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw headless test surface");
+        cx.run_until_parked();
+    }
+    pub fn resize(&self, cx: &mut TestAppContext, width: f32, height: f32) {
+        cx.update_window(self.window.into(), |_, window, _| {
+            window.resize(size(px(width), px(height)));
+        })
+        .expect("resize headless test surface");
+        cx.run_until_parked();
+    }
+    pub fn click(&self, cx: &mut TestAppContext, x: f32, y: f32) {
+        let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
+        let point = gpui::point(px(x), px(y));
+        visual.simulate_mouse_down(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+    }
+    pub fn scale_factor(&self, cx: &mut TestAppContext) -> f32 {
+        cx.update_window(self.window.into(), |_, window, _| window.scale_factor())
+            .expect("read headless test scale factor")
+    }
+
+    pub fn painted_quads(&self, cx: &mut TestAppContext) -> Vec<PaintedQuad> {
+        cx.update_window(self.window.into(), |_, window, _| {
+            window
+                .painted_quads()
+                .into_iter()
+                .map(|quad| PaintedQuad {
+                    order: quad.order,
+                    bounds: (
+                        quad.bounds.origin.x.as_f32(),
+                        quad.bounds.origin.y.as_f32(),
+                        quad.bounds.size.width.as_f32(),
+                        quad.bounds.size.height.as_f32(),
+                    ),
+                    content_mask: (
+                        quad.content_mask.bounds.origin.x.as_f32(),
+                        quad.content_mask.bounds.origin.y.as_f32(),
+                        quad.content_mask.bounds.size.width.as_f32(),
+                        quad.content_mask.bounds.size.height.as_f32(),
+                    ),
+                    background: format!("{:?}", quad.background),
+                })
+                .collect()
+        })
+        .expect("read painted headless quads")
+    }
+
+    pub fn events(&self) -> Vec<react_gpui::Event> {
+        take_events(&self.runtime)
+    }
+}
 
 fn route_command(registry: &Entity<SurfaceRegistry>, cx: &mut TestAppContext, command: Command) {
     let payload = command.encode().expect("encode test command");

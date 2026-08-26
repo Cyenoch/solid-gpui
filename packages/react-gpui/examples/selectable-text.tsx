@@ -2,7 +2,16 @@ import { StdioTransport, Text, View, createProcessTerminationHandler, createRoot
 
 function SelectableTextDemo() {
   return (
-    <View style={{ flexDirection: "column", flexGrow: 1, gap: 12, padding: 20 }}>
+    <View
+      style={{
+        flexDirection: "column",
+        flexGrow: 1,
+        gap: 12,
+        padding: 20,
+        backgroundColor: "#ffffff",
+        color: "#111827",
+      }}
+    >
       <Text style={{ fontSize: 18, fontWeight: "bold" }}>Selectable Text</Text>
       <Text selectable style={{ maxWidth: 520 }}>
         Drag across this paragraph to select text, then press Cmd-C on macOS or Ctrl-C on other platforms to copy it.

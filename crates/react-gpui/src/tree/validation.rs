@@ -351,10 +351,16 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
             reason: "flexDirection must be 0 (unset), 1 row, 2 column, 3 row-reverse, or 4 column-reverse",
         });
     }
-    if style.position.is_some_and(|position| position > 1) {
+    if style.position.is_some_and(|position| position > 2) {
         return Err(TreeError::InvalidStyle {
             node_id,
-            reason: "position must be 0 (relative) or 1 (absolute)",
+            reason: "position must be 0 (relative), 1 (absolute), or 2 (overlay)",
+        });
+    }
+    if style.position == Some(2) && (style.right.is_some() || style.bottom.is_some()) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "overlay position supports left and top offsets only",
         });
     }
     if style.cursor.is_some_and(|cursor| cursor > 18) {

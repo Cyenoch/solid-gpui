@@ -435,6 +435,18 @@ fn style_values_must_be_finite_and_non_negative() {
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
         .unwrap();
+    let mut overlay = Node::new(1, 0, 0, KIND_VIEW);
+    overlay.style = Some(Style {
+        position: Some(2),
+        left: Some(4.0),
+        top: Some(8.0),
+        width: Some(40.0),
+        height: Some(20.0),
+        ..Style::default()
+    });
+    NodeStore::default()
+        .apply_snapshot(root_snapshot(1, vec![overlay]))
+        .unwrap();
 }
 
 #[test]
@@ -550,6 +562,11 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         },
         Style {
             font_family: Some(String::new()),
+            ..Style::default()
+        },
+        Style {
+            position: Some(2),
+            right: Some(12.0),
             ..Style::default()
         },
     ] {

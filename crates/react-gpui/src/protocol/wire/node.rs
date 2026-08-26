@@ -492,7 +492,8 @@ fn valid_box_shadow(value: &BoxShadowWire) -> bool {
 
 pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError> {
     if style.2.is_some_and(|direction| direction > 4)
-        || style.33.is_some_and(|position| position > 1)
+        || style.33.is_some_and(|position| position > 2)
+        || (style.33 == Some(2) && (style.36.is_some() || style.37.is_some()))
         || style.38.is_some_and(|cursor| cursor > 18)
         || style.39.is_some_and(|align| align > 3)
         || [style.34, style.35, style.36, style.37]

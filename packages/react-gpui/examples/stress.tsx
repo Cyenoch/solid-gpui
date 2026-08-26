@@ -20,7 +20,7 @@ function StressSurface() {
     void root.getWindowSize().catch(() => undefined);
   }, [tick]);
   return (
-    <View style={{ flexDirection: "column", gap: 4, padding: 8 }}>
+    <View style={{ flexDirection: "column", gap: 4, padding: 8, backgroundColor: "#ffffff", color: "#111827" }}>
       <Text>Process soak tick {tick}</Text>
       <Pressable onPress={() => setTick((current) => current + 1)}>
         <Text>Advance</Text>

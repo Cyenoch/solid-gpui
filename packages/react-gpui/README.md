@@ -126,7 +126,7 @@ reader).
 - `fontStyle` — `"normal"` or `"italic"`; `textDecoration` — `"none"`, `"underline"`, or `"lineThrough"`.
 - `lineHeight`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, and `flexShrink` — finite, non-negative pixel/flex values.
 - `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
-- `position` — `"relative"` (default post-layout correction) or `"absolute"` (anchored to the closest positioned ancestor/origin); `left`, `top`, `right`, and `bottom` — finite pixel offsets, including negative values.
+- `position` — `"relative"` (default post-layout correction), `"absolute"` (anchored to the closest positioned ancestor/origin), or `"overlay"` (a deferred, anchored layer painted above normal siblings and fit within the viewport); `left` and `top` are finite pixel offsets, including negative values, for all positions. `right` and `bottom` are also supported for `"absolute"` but are rejected for `"overlay"`.
 - `cursor` — `"default"`, `"text"`, `"pointer"`, `"grab"`, `"grabbing"`, `"not-allowed"`, `"context-menu"`, `"crosshair"`, `"vertical-text"`, `"alias"`, `"copy"`, `"no-drop"`, `"move"`, `"ew-resize"`, `"ns-resize"`, `"nesw-resize"`, `"nwse-resize"`, `"col-resize"`, or `"row-resize"`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors.
 - `textAlign` — `"left"`, `"center"`, or `"right"` for physical text alignment on `Text` and `RawText`; logical RTL start/end alignment is unsupported.
 - `boxShadow` — one shadow object or a two-element tuple of shadow objects. Each
@@ -144,8 +144,7 @@ retain the existing fields, `40=boxShadow`, and `41=fontFamily`; omitted fields
 are encoded as `null` except position and text alignment, whose default codes
 are `0` (relative and unset respectively), and cursor, whose default code `0`
 means Arrow.
-Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
-exposed; overlay layering follows subtree paint/hit-test order.
+Negative inset offsets are passed through to GPUI/Taffy for relative and absolute positioning. Overlay offsets are supplied to GPUI's local anchored placement so its fit logic can flip a dropdown back into the viewport. No `zIndex` field is exposed; normal layering follows subtree paint order, while explicit overlays are deferred above normal siblings.
 - `pointerEvents` is intentionally not exposed. GPUI's default normal
   hitboxes do not occlude underlying hitboxes, so an overlay with no listener
   already permits basic pass-through; a declaration that suppresses only this

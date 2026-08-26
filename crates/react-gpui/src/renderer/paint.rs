@@ -4,12 +4,13 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, ClipboardItem, CursorStyle,
-    Element, ElementId, ElementInputHandler, Entity, ExternalDragPayload, ExternalPaths,
-    FileDragPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
-    IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render,
-    SharedString, StatefulInteractiveElement, Styled, StyledImage, TextRun, Window, div, fill,
-    hsla, img, list, point, px, relative, rgba, size,
+    AnchoredPositionMode, AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow,
+    ClipboardItem, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
+    ExternalDragPayload, ExternalPaths, FileDragPaths, GlobalElementId, ImageSource,
+    InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, ObjectFit,
+    PaintQuad, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
+    StyledImage, TextRun, Window, anchored, deferred, div, fill, hsla, img, list, point, px,
+    relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -1094,7 +1095,22 @@ impl ReactRoot {
                 });
             }
         }
-        measure_node(node, element.into_any(), entity)
+        let element = if let Some(style) = style.filter(|style| style.position == Some(2)) {
+            deferred(
+                anchored()
+                    .position_mode(AnchoredPositionMode::Local)
+                    .offset(point(
+                        px(style.left.unwrap_or(0.0)),
+                        px(style.top.unwrap_or(0.0)),
+                    ))
+                    .child(element),
+            )
+            .with_priority(1)
+            .into_any()
+        } else {
+            element.into_any()
+        };
+        measure_node(node, element, entity)
     }
 }
 
@@ -1161,17 +1177,19 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
             element.relative()
         };
     }
-    if let Some(left) = style.left {
-        element = element.left(px(left));
-    }
-    if let Some(top) = style.top {
-        element = element.top(px(top));
-    }
-    if let Some(right) = style.right {
-        element = element.right(px(right));
-    }
-    if let Some(bottom) = style.bottom {
-        element = element.bottom(px(bottom));
+    if style.position != Some(2) {
+        if let Some(left) = style.left {
+            element = element.left(px(left));
+        }
+        if let Some(top) = style.top {
+            element = element.top(px(top));
+        }
+        if let Some(right) = style.right {
+            element = element.right(px(right));
+        }
+        if let Some(bottom) = style.bottom {
+            element = element.bottom(px(bottom));
+        }
     }
     if let Some(direction) = style.flex_direction {
         element = match direction {

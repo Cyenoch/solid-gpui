@@ -112,8 +112,9 @@ const styles = StyleSheet.create({
   },
   menuAnchor: { position: "relative", alignSelf: "flex-start" },
   menu: {
-    position: "absolute",
+    position: "overlay",
     top: 42,
+    left: 0,
     width: 180,
     padding: 8,
     borderWidth: 1,
@@ -243,8 +244,8 @@ function Gallery() {
               <Text style={styles.buttonLabel}>{menuOpen ? "Hide menu" : "Show menu"}</Text>
             </Pressable>
             {menuOpen ? (
-              <View style={styles.menu}>
-                <Text style={styles.rowTitle}>Absolute menu</Text>
+              <View style={styles.menu} onPointerDown={() => setPointer("menu-down")}>
+                <Text style={styles.rowTitle}>Overlay menu</Text>
                 <Text style={styles.rowDetail}>Anchored with top/left offsets.</Text>
               </View>
             ) : null}

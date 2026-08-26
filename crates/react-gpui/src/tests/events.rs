@@ -2,20 +2,22 @@ use super::support::*;
 
 #[test]
 fn pointer_and_hover_events_round_trip_and_reject_invalid_buttons() {
-    let pointer = Event::pointer(
-        EVENT_POINTER,
-        7,
-        3,
-        1,
-        2,
-        9,
-        11,
-        POINTER_BUTTON_BACK,
-        vec!["cmd".to_owned(), "shift".to_owned()],
-        EVENT_POINTER_UP,
-        2,
-    );
-    assert_eq!(Event::decode(&pointer.encode().unwrap()).unwrap(), pointer);
+    for action in [EVENT_POINTER_DOWN, EVENT_POINTER_UP] {
+        let pointer = Event::pointer(
+            EVENT_POINTER,
+            7,
+            3,
+            1,
+            2,
+            9,
+            11,
+            POINTER_BUTTON_BACK,
+            vec!["cmd".to_owned(), "shift".to_owned()],
+            action,
+            2,
+        );
+        assert_eq!(Event::decode(&pointer.encode().unwrap()).unwrap(), pointer);
+    }
 
     let hover = Event::hover(7, 3, 1, 3, 9, 11);
     assert_eq!(Event::decode(&hover.encode().unwrap()).unwrap(), hover);

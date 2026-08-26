@@ -42,8 +42,9 @@ import {
   EVENT_POINTER,
   EVENT_POINTER_DOWN,
   EVENT_POINTER_UP,
-  EVENT_SCROLL,
+  EVENT_BLUR,
   EVENT_SUBMIT,
+  EVENT_SCROLL,
   EVENT_WINDOW_ACTIVATION,
   EVENT_WINDOW_RESIZE,
   EVENT_LAYOUT,
@@ -94,11 +95,13 @@ describe("protocol framing", () => {
     const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, 6, [2, 1, 99, 2, true, null]] as never);
     expect(decodeEvent(malformed.slice(4))).toBeNull();
   });
-  it("decodes pointer and hover payloads and rejects invalid pointer buttons", () => {
-    const pointer = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, EVENT_POINTER, [6, 4, ["cmd"], 1, 2]]);
-    const hover = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 2, 7, EVENT_HOVER, null]);
-    const invalid = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 2, 7, EVENT_POINTER, [6, 9, [], 1, 1]] as never);
-    expect(decodeEvent(pointer.slice(4))).not.toBeNull();
+  it("decodes pointer down and up payloads and rejects invalid pointer buttons", () => {
+    const pointerDown = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, EVENT_POINTER, [6, 4, ["cmd"], 1, 2]]);
+    const pointerUp = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 2, 7, EVENT_POINTER, [6, 4, ["cmd"], 2, 2]]);
+    const hover = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 2, 7, EVENT_HOVER, null]);
+    const invalid = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 4, 2, 7, EVENT_POINTER, [6, 9, [], 1, 1]] as never);
+    expect(decodeEvent(pointerDown.slice(4))).not.toBeNull();
+    expect(decodeEvent(pointerUp.slice(4))).not.toBeNull();
     expect(decodeEvent(hover.slice(4))).not.toBeNull();
     expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
@@ -653,6 +656,16 @@ describe("styles", () => {
         positioned: { position: "absolute", left: -8, top: 4, right: 12, bottom: 6 },
       }),
     ).not.toThrow();
+    expect(() =>
+      StyleSheet.create({
+        positioned: { position: "overlay", left: 0, top: 4 },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      StyleSheet.create({
+        positioned: { position: "overlay", right: 12 },
+      }),
+    ).toThrow();
   });
   it("encodes two box shadows and rejects malformed shadow/font values", () => {
     const double = StyleSheet.create({
@@ -714,6 +727,23 @@ it("encodes absolute positioning and negative inset offsets", () => {
     null,
     null,
   ]);
+});
+it("encodes overlay positioning with local top-left offsets", () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport, { surfaceId: 86, epoch: 87 });
+  root.render(<View style={{ position: "overlay", left: 0, top: 4 }} />);
+  expect((snapshots(transport)[0][6][1][4] as readonly unknown[]).slice(33)).toEqual([
+    2,
+    0,
+    4,
+    null,
+    null,
+    null,
+    0,
+    null,
+    null,
+  ]);
+  root.unmount();
 });
 it("encodes Image host properties and rejects Image children", () => {
   const transport = new MemoryTransport();
@@ -983,16 +1013,18 @@ describe("renderer commits", () => {
     expect(operations[0][4]).toBe("changed-777");
   });
 
-  it("routes text input change and selection events by stable listener token", () => {
+  it("routes text input change, selection, and blur events by stable listener token", () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 25, epoch: 26 });
     const changes: string[] = [];
     const selections: Array<{ start: number; reversed: boolean }> = [];
+    const blurs: string[] = [];
     root.render(
       <View>
         <TextInput
           onChangeText={(value) => changes.push(value)}
           onSelectionChange={(selection) => selections.push({ start: selection.start, reversed: selection.reversed })}
+          onBlur={() => blurs.push("blur")}
         />
         <TextInput onChangeText={(value) => changes.push(`second:${value}`)} />
       </View>,
@@ -1043,6 +1075,21 @@ describe("renderer commits", () => {
         [1, "first", 2, 2, null, null, 2, true],
       ]),
     );
+    transport.push(
+      encodeFrame([
+        PROTOCOL_VERSION,
+        2,
+        25,
+        26,
+        1,
+        5,
+        first[0] as number,
+        first[6] as number,
+        EVENT_BLUR,
+        [1, "first", 2, 2, null, null, 3, false],
+      ]),
+    );
+    expect(blurs).toEqual(["blur"]);
     expect(changes).toEqual(["second:second", "first"]);
     expect(selections).toEqual([
       { start: 2, reversed: false },

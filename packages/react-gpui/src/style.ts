@@ -1,4 +1,4 @@
-export type Position = "relative" | "absolute";
+export type Position = "relative" | "absolute" | "overlay";
 export type FlexDirection = "row" | "column" | "row-reverse" | "column-reverse";
 export type CursorStyle =
   | "default"
@@ -266,8 +266,16 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
   const style = value as Style;
   if (style.width !== undefined) assertNumber("width", style.width, true);
   if (style.height !== undefined) assertNumber("height", style.height, true);
-  if (style.position !== undefined && style.position !== "relative" && style.position !== "absolute")
-    throw new TypeError("position must be relative or absolute");
+  if (
+    style.position !== undefined &&
+    style.position !== "relative" &&
+    style.position !== "absolute" &&
+    style.position !== "overlay"
+  )
+    throw new TypeError("position must be relative, absolute, or overlay");
+  if (style.position === "overlay" && (style.right !== undefined || style.bottom !== undefined)) {
+    throw new TypeError("overlay position supports left and top offsets only");
+  }
   for (const [name, offset] of [
     ["left", style.left],
     ["top", style.top],
@@ -622,7 +630,7 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
     style.maxHeight ?? null,
     style.flexShrink ?? null,
     alignSelf,
-    style.position === undefined ? 0 : style.position === "relative" ? 0 : 1,
+    style.position === undefined ? 0 : style.position === "relative" ? 0 : style.position === "absolute" ? 1 : 2,
     style.left ?? null,
     style.top ?? null,
     style.right ?? null,

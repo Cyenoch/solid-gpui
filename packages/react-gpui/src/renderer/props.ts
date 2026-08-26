@@ -89,6 +89,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     onChangeText: true,
     onSelectionChange: true,
     onFocus: true,
+    onBlur: true,
     onSubmitEditing: true,
     onKeyDown: true,
     multiline: true,

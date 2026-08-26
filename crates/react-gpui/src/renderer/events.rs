@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use gpui::{MouseButton, NavigationDirection, ScrollDelta, ScrollWheelEvent};
 
 use crate::protocol::{
-    EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction, POINTER_BUTTON_BACK,
+    EVENT_POINTER, EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction, POINTER_BUTTON_BACK,
     POINTER_BUTTON_FORWARD, POINTER_BUTTON_LEFT, POINTER_BUTTON_MIDDLE, POINTER_BUTTON_RIGHT,
     SCROLL_DELTA_LINES, SCROLL_DELTA_PIXELS,
 };
@@ -89,7 +89,7 @@ pub(super) fn emit_pointer_event(
         EVENT_POINTER_UP
     };
     let event = Event::pointer(
-        event_type,
+        EVENT_POINTER,
         surface_id,
         epoch,
         revision,
