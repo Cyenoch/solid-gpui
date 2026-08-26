@@ -363,6 +363,11 @@ from this work tree.
   legacy two-number payloads normalize to `1`; resize callbacks accept a third
   argument, `WindowSize` stores expose it, and the observer reports scale-only
   changes.
+- The final pre-cut audit passes all seven dimensions: 20 sampled documentation
+  claims reverse-verified with zero missing implementations, all 75 commits use
+  Conventional Commit subjects, four documentation drifts were fixed, and
+  `.scratch/release-productionization/final-pre-cut-audit.md` records 191 lines
+  of evidence.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
