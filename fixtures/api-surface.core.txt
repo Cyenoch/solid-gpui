@@ -74,7 +74,9 @@ StyleProp	type
 StyleSheet	value
 SurfaceHost	type
 SurfaceHostOptions	type
+SurfaceKind	type
 SurfaceOpenOptions	type
+SurfaceOptions	type
 Text	value
 TextAlign	type
 TextDecoration	type

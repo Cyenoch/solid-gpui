@@ -237,12 +237,18 @@ const root = host.createRoot({ surfaceId: 1 });
 root.render(<Main />);
 
 // The request belongs to `root`; omitted values become "" and [0, 0].
-const surfaceId = await root.openSurface({ title: "Inspector", width: 640, height: 480 });
+const surfaceId = await root.openSurface({
+  title: "Inspector",
+  width: 640,
+  height: 480,
+  kind: "floating",
+  resizable: false,
+  minSize: [320, 240],
+});
 const inspector = host.createRoot({
   surfaceId,
   onClose: () => console.log("Inspector closed"),
 });
-inspector.render(<Inspector />);
 ```
 
 The `openSurface` promise resolves with the new positive native `surfaceId`
@@ -254,6 +260,22 @@ routes only to its root, and invokes `onClose`. Closing the final native window
 terminates the host runtime/process. Headless tests cover demultiplexing and
 close routing; actual Quartz multi-window display behavior requires a
 macOS display-backed host run.
+
+Creation options are host-owned and apply only while the new window is being
+created. `kind` accepts `"normal"`, `"floating"`, or `"dialog"`; floating means
+above the owning app window where the platform supplies that relationship, not
+global always-on-top. `resizable` and `minSize: [width, height]` map to GPUI's
+creation-time fields. `maxSize`, a generic window-level/always-on-top switch,
+runtime setters, and a centered toggle are intentionally unsupported. The
+initial host window remains a centered `800×600` window configured outside the
+React protocol before JavaScript starts.
+
+| Creation option | macOS | Windows | X11 | Wayland | Web/test |
+| --- | --- | --- | --- | --- | --- |
+| `floating` | floating level | not topmost | transient parent | parent-linked | rejected/adapter-defined |
+| `dialog` | sheet/modal | modal parent | dialog/transient | optional modal extension | rejected/adapter-defined |
+| `resizable` | native style | native style | ignored by pinned adapter | no portable toggle | adapter-defined |
+| `minSize` | native content minimum | `WM_GETMINMAXINFO` | WM minimum hint | `xdg_toplevel` minimum | adapter-defined |
 
 ## Native file dialogs
 

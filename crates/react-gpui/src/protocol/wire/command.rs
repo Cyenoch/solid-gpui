@@ -154,14 +154,12 @@ fn valid_keybinding(binding: &KeybindingDefinition) -> bool {
 
 fn valid_window_options(options: &WindowOpenOptions) -> bool {
     options.kind.is_none_or(|kind| kind <= 2)
-        && options
-            .min_size
-            .is_none_or(|(width, height)| {
-                width > 0
-                    && width <= MAX_WINDOW_DIMENSION
-                    && height > 0
-                    && height <= MAX_WINDOW_DIMENSION
-            })
+        && options.min_size.is_none_or(|(width, height)| {
+            width > 0
+                && width <= MAX_WINDOW_DIMENSION
+                && height > 0
+                && height <= MAX_WINDOW_DIMENSION
+        })
 }
 
 fn valid_surface_size((width, height): (u32, u32)) -> bool {
@@ -242,9 +240,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (Some(size), Some(title), None)
             }
             (COMMAND_OPEN_SURFACE, Some(CommandPayloadWire::StringWithPair((title, size))))
-                if wire.6 == 1
-                    && title.chars().count() <= 256
-                    && valid_surface_size(size) =>
+                if wire.6 == 1 && title.chars().count() <= 256 && valid_surface_size(size) =>
             {
                 (Some(size), Some(title), None)
             }
@@ -435,15 +431,12 @@ impl TryFrom<WindowOpenOptionsWire> for WindowOpenOptions {
     fn try_from(options: WindowOpenOptionsWire) -> Result<Self, Self::Error> {
         if options.0.is_some_and(|kind| kind > 2)
             || options.2.is_some() != options.3.is_some()
-            || options
-                .2
-                .zip(options.3)
-                .is_some_and(|(width, height)| {
-                    width == 0
-                        || width > MAX_WINDOW_DIMENSION
-                        || height == 0
-                        || height > MAX_WINDOW_DIMENSION
-                })
+            || options.2.zip(options.3).is_some_and(|(width, height)| {
+                width == 0
+                    || width > MAX_WINDOW_DIMENSION
+                    || height == 0
+                    || height > MAX_WINDOW_DIMENSION
+            })
         {
             return Err(ProtocolError::InvalidCommandPayload);
         }

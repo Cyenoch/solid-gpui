@@ -2,13 +2,13 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use gpui::{
     App, AppContext, Bounds, Context, Entity, KeyBinding, Keystroke, Subscription,
-    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowHandle, WindowId,
+    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowHandle, WindowId, WindowKind,
     WindowOptions, px, size,
 };
 use react_gpui::{
     COMMAND_OPEN_SURFACE, COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition,
     MenuAction, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter, RuntimeStatus,
-    Snapshot, fatal_runtime_failure,
+    Snapshot, WindowOpenOptions, fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
 use react_gpui::{Event, send_event_or_exit};
@@ -189,11 +189,34 @@ impl SurfaceRegistry {
         Ok(id)
     }
 
+    fn apply_window_open_options(
+        options: &mut WindowOptions,
+        window_options: Option<&WindowOpenOptions>,
+    ) -> Result<(), String> {
+        let Some(window_options) = window_options else {
+            return Ok(());
+        };
+        options.kind = match window_options.kind.unwrap_or(0) {
+            0 => WindowKind::Normal,
+            1 => WindowKind::Floating,
+            2 => WindowKind::Dialog,
+            _ => return Err("open-surface kind is invalid".to_owned()),
+        };
+        if let Some(resizable) = window_options.resizable {
+            options.is_resizable = resizable;
+        }
+        if let Some((width, height)) = window_options.min_size {
+            options.window_min_size = Some(size(px(width as f32), px(height as f32)));
+        }
+        Ok(())
+    }
+
     fn open_window(
         &self,
         title: Option<&str>,
         width: u32,
         height: u32,
+        window_options: Option<&WindowOpenOptions>,
         cx: &mut Context<Self>,
     ) -> Result<Surface, String> {
         let bounds = Bounds::centered(None, size(px(width as f32), px(height as f32)), cx);
@@ -201,6 +224,7 @@ impl SurfaceRegistry {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             ..Default::default()
         };
+        Self::apply_window_open_options(&mut options, window_options)?;
         if let Some(title) = title {
             options.titlebar = Some(TitlebarOptions {
                 title: Some(title.to_owned().into()),
@@ -219,11 +243,10 @@ impl SurfaceRegistry {
         let root = root.ok_or_else(|| "GPUI did not return a root entity".to_owned())?;
         Ok(Surface { window, root })
     }
-
     fn open_initial(&mut self, cx: &mut Context<Self>) -> Result<(), String> {
         let surface_id = self.allocate_surface_id()?;
         debug_assert_eq!(surface_id, 1);
-        let surface = self.open_window(None, 800, 600, cx)?;
+        let surface = self.open_window(None, 800, 600, None, cx)?;
         self.insert_surface(surface_id, surface);
         Ok(())
     }
@@ -374,7 +397,13 @@ impl SurfaceRegistry {
             (width, height)
         };
         let surface_id = self.allocate_surface_id()?;
-        let opened = self.open_window(Some(title), width, height, cx);
+        let opened = self.open_window(
+            Some(title),
+            width,
+            height,
+            command.window_options.as_ref(),
+            cx,
+        );
         match opened {
             Ok(surface) => {
                 self.insert_surface(surface_id, surface);

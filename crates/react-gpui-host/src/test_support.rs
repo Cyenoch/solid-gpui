@@ -9,7 +9,7 @@ use react_gpui::{
     COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT,
     KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition,
     MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties,
-    VirtualListProperties,
+    VirtualListProperties, WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -35,6 +35,7 @@ fn command(
         actions: None,
         menus,
         keybindings: None,
+        window_options: None,
     }
 }
 fn keybinding_command(
@@ -197,6 +198,19 @@ fn command_result(events: &[react_gpui::Event], request_id: u32) -> react_gpui::
 
 pub fn command_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
+    let mut mapped = WindowOptions::default();
+    SurfaceRegistry::apply_window_open_options(
+        &mut mapped,
+        Some(&WindowOpenOptions {
+            kind: Some(1),
+            resizable: Some(false),
+            min_size: Some((320, 240)),
+        }),
+    )
+    .expect("map OpenSurface options");
+    assert!(matches!(mapped.kind, WindowKind::Floating));
+    assert!(!mapped.is_resizable);
+    assert_eq!(mapped.window_min_size, Some(size(px(320.0), px(240.0))));
     let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
     registry
         .update(cx, |registry, cx| registry.open_initial(cx))
@@ -478,19 +492,21 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
     assert!(command_result(&take_events(&runtime), 18).success);
     assert_eq!(cx.shown_system_notifications().len(), 1);
 
-    route_command(
-        &registry,
-        cx,
-        command(
-            19,
-            COMMAND_OPEN_SURFACE,
-            1,
-            Some((320, 240)),
-            Some("Aux"),
-            None,
-            None,
-        ),
+    let mut open_surface = command(
+        19,
+        COMMAND_OPEN_SURFACE,
+        1,
+        Some((320, 240)),
+        Some("Aux"),
+        None,
+        None,
     );
+    open_surface.window_options = Some(WindowOpenOptions {
+        kind: Some(1),
+        resizable: Some(false),
+        min_size: Some((160, 120)),
+    });
+    route_command(&registry, cx, open_surface);
     let events = take_events(&runtime);
     assert!(command_result(&events, 19).success);
     assert_eq!(

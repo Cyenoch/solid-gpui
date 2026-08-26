@@ -289,10 +289,22 @@ Several native windows share one transport through `createSurfaceHost`:
 const host = createSurfaceHost(new StdioTransport());
 const main = host.createRoot({ surfaceId: 1 });
 main.render(<Main />);
-const id = await main.openSurface({ title: "Inspector", width: 640, height: 480 });
+const id = await main.openSurface({
+  title: "Inspector",
+  width: 640,
+  height: 480,
+  kind: "floating",
+  resizable: false,
+  minSize: [320, 240],
+});
 const inspector = host.createRoot({ surfaceId: id, onClose: () => console.log("closed") });
-inspector.render(<Inspector />);
 ```
+`kind`, `resizable`, and `minSize` are creation-time options. `"floating"`
+means above-parent where the platform supports it; it is not a portable global
+always-on-top guarantee. `maxSize` and runtime window-option setters are not
+exposed because pinned GPUI has no corresponding portable API. The first host
+window stays a host-owned centered `800×600` window and is created before
+JavaScript starts.
 
 ### File selection
 

@@ -16,8 +16,8 @@ use react_gpui::{
     MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION,
     Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
-    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
-    VirtualListProperties, WindowAppearance, WindowOpenOptions,
+    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
+    UPDATE_TEXT, VirtualListProperties, WindowAppearance, WindowOpenOptions,
 };
 
 fn hex(bytes: &[u8]) -> String {

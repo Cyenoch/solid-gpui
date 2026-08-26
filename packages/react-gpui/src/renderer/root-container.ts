@@ -437,8 +437,7 @@ export class RootContainer implements DispatchContext {
         return Promise.reject(new RangeError("surface minSize must be positive integer pixels in the range 1..16384"));
       [minWidth, minHeight] = options.minSize;
     }
-    const hasOptions =
-      options.kind !== undefined || options.resizable !== undefined || options.minSize !== undefined;
+    const hasOptions = options.kind !== undefined || options.resizable !== undefined || options.minSize !== undefined;
     const kind = options.kind === undefined ? null : ({ normal: 0, floating: 1, dialog: 2 } as const)[options.kind];
     const windowOptions: WindowOpenOptionsPayload | undefined = hasOptions
       ? [kind, options.resizable ?? null, minWidth, minHeight]

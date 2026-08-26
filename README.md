@@ -42,18 +42,31 @@ Surface registry + one commit reader
 
 A host starts with surface `1`. For multiple native windows, construct a
 shared `createSurfaceHost(transport)`, render from one registered root, then
-call that root's `openSurface({ title?, width?, height? })`. Await the returned
-surface ID, register it with `host.createRoot({ surfaceId, onClose })`, and
-render the new tree:
+call that root's `openSurface({ title?, width?, height?, kind?, resizable?, minSize? })`.
+Await the returned surface ID, register it with `host.createRoot({ surfaceId, onClose })`,
+and render the new tree:
 
 ```tsx
 const host = createSurfaceHost(transport);
 const root = host.createRoot({ surfaceId: 1 });
 root.render(<Main />);
-const surfaceId = await root.openSurface({ title: "Inspector", width: 640, height: 480 });
+const surfaceId = await root.openSurface({
+  title: "Inspector",
+  width: 640,
+  height: 480,
+  kind: "floating",
+  resizable: false,
+  minSize: [320, 240],
+});
 const inspector = host.createRoot({ surfaceId, onClose: () => console.log("closed") });
 inspector.render(<Inspector />);
 ```
+
+Creation options map to GPUI's `WindowKind`, creation-time resizable flag, and
+minimum size. `"floating"` is above-parent where supported, not a portable
+global always-on-top guarantee; popup, max-size, runtime option setters, and a
+center toggle remain unsupported. The host's initial window is a centered
+`800×600` surface created before JavaScript starts.
 
 `OpenSurface` is always a command from its requesting, already registered root
 (`nodeId=1`); the host rejects unknown surface IDs and never implicitly opens a

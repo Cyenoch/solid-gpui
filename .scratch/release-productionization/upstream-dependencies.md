@@ -83,6 +83,18 @@ so each can be revisited with a bounded implementation and bilateral tests:
   handles. The display-backed behavior is covered by the GPUI test adapter;
   platform-specific native cursor/clipboard verification remains a desktop
   concern.
+- **Window creation options — implemented as a bounded surface feature.**
+  GPUI's creation-only `WindowOptions`/`WindowParams` expose `kind`,
+  `is_resizable`, and `window_min_size`; `WindowBounds::centered` is already
+  used by this host. The renderer preserves the old
+  `[title,[width,height]]` OpenSurface payload and appends
+  `[kind,resizable,minWidth,minHeight]` only when options are requested.
+  `normal`, `floating`, and `dialog` map to GPUI `WindowKind`; `floating` is
+  above-parent where supported, not a portable global always-on-top level.
+  `resizable` and `minSize` are creation-time only. GPUI has no portable
+  `maxSize`, generic window-level, or runtime setter, so those remain
+  intentionally unsupported. The first host window stays host-owned centered
+  `800×600` and has no JavaScript startup negotiation.
 - **`fontFamily` — implemented in this review.** GPUI's `Styled::font_family`
   accepts `SharedString`; `TextSystem::resolve_font` first attempts the
   requested family and then walks the configured fallback stack. The renderer

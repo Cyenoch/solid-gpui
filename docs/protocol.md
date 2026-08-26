@@ -74,14 +74,32 @@ roots share the one transport. The compatibility `createRoot(transport)` API
 still creates one root with the same command/event behavior.
 
 To open a native surface, call the requesting root's
-`root.openSurface({ title?, width?, height? })`. The command is sent from that
-root (`surfaceId` is the requesting root and `nodeId=1`), with omitted values
-normalized to an empty title and `[0,0]` host-default dimensions. When the
-CommandResult resolves with value tag `1`, its number is the new native
-surface ID. The application then registers that ID and starts rendering:
+`root.openSurface({ title?, width?, height?, kind?, resizable?, minSize? })`.
+The command is sent from that root (`surfaceId` is the requesting root and
+`nodeId=1`). Omitted dimensions normalize to `[0,0]` host-default dimensions,
+and omitted creation options preserve the GPUI defaults. For an option-bearing
+request, the payload appends a fourth-slot options tuple:
+`[title,[width,height],[kind,resizable,minWidth,minHeight]]`. `kind` is
+`0=normal`, `1=floating` (above the owning app window where the platform
+supports that relationship), or `2=dialog` (modal where supported);
+`resizable` is a creation-time boolean; and `minWidth`/`minHeight` are positive
+integer pixels. The old two-item payload remains byte-compatible. `maxSize`,
+runtime window-level changes, and a centered toggle are intentionally absent:
+GPUI has no corresponding portable API, and this host already centers its
+initial and OpenSurface windows.
+
+When the CommandResult resolves with value tag `1`, its number is the new
+native surface ID. The application then registers that ID and starts rendering:
 
 ```ts
-const surfaceId = await root.openSurface({ title: "Inspector", width: 640, height: 480 });
+const surfaceId = await root.openSurface({
+  title: "Inspector",
+  width: 640,
+  height: 480,
+  kind: "floating",
+  resizable: false,
+  minSize: [320, 240],
+});
 const inspector = host.createRoot({ surfaceId, onClose: () => console.log("closed") });
 inspector.render(<Inspector />);
 ```
@@ -356,12 +374,33 @@ checks in `commands.rs:186-331`.
 |   14 | GetFocus         | Node-level focus handle                                              | `null`                                                                                                                                  | Returns value tag `3` with the native focus boolean; missing/non-focusable handle fails.                                                                                                                                                              | `nodes.ts:130-137`; `commands.rs:186-195`                                     |
 |   15 | ClipboardWrite   | Root-only (`nodeId=1`)                                               | string                                                                                                                                  | UTF-8 payload capped at 1 MiB; writes a string clipboard entry.                                                                                                                                                                                       | `root-container.ts:386-390`; `commands.rs:59-80`                              |
 |   16 | ClipboardRead    | Root-only (`nodeId=1`)                                               | `null`                                                                                                                                  | Returns value tag `4`; fails when the host has no text or text exceeds 1 MiB.                                                                                                                                                                         | `root-container.ts:393-405`; `commands.rs:81-109`                             |
-|   17 | OpenSurface      | Root-only (`nodeId=1`) on the requesting, already registered surface | `[title,[width,height]]` where title is at most 256 Unicode scalar values (empty allowed) and dimensions are `[0,0]` or each `1..16384` | Opens a native window and returns CommandResult value tag `1` (`[1,surfaceId]`); the host allocates the new positive u32 surface ID.                                                                                                                  | `root-container.ts:365-394`; `wire/command.rs:138-149,325-336`; `main.rs:193-227`      |
+|   17 | OpenSurface      | Root-only (`nodeId=1`) on the requesting, already registered surface | `[title,[width,height]]` or `[title,[width,height],[kind,resizable,minWidth,minHeight]]`; title at most 256 Unicode scalar values (empty allowed), dimensions `[0,0]` or each `1..16384`, options slots are `kind=0|1|2|null`, `resizable=boolean|null`, and paired positive `minWidth`/`minHeight` through `16384` | Opens a native window and returns CommandResult value tag `1` (`[1,surfaceId]`). The optional tail maps only creation-time GPUI fields: `Normal`, `Floating`, or `Dialog`, resizability, and minimum size. Popup, max size, runtime level/resizable changes, and a center switch are not exposed; old two-item payloads remain compatible. | `root-container.ts:403-461`; `wire/command.rs:6-59,216-239,397-449`; `main.rs:192-258`      |
 |   18 | FileDialogOpen   | Root-only (`nodeId=1`)                                               | `[title,[directories,multiple]]`, with both flags encoded as `0`/`1`                                                                    | Asynchronously opens the native picker with `files = !directories`, `directories`, and `multiple`. A selection completes with value tag `5`; cancellation is `success=true` with its optional value absent/null; platform failure is `success=false`. | `root-container.ts:402-425`; `wire/command.rs:150-156,325-336`; `commands.rs:21-88`           |
 |   19 | FileDialogSave   | Root-only (`nodeId=1`)                                               | `defaultName` string (empty means no suggestion)                                                                                        | Asynchronously opens the native save picker. A selected path completes with value tag `4`; cancellation is `success=true` with its optional value absent/null; platform failure is `success=false`. GPUI's raw save API has no title/prompt option.   | `root-container.ts:428-444`; `wire/command.rs:157-162,325-336`; `commands.rs:89-132`          |
 |   20 | ShowNotification | Root-only (`nodeId=1`)                                               | `[title,body]` or `[title,body,[[actionId,label],...]]`; title UTF-8 ≤256 bytes, body UTF-8 ≤1024 bytes, at most 3 actions with IDs ≤64 and labels ≤256 UTF-8 bytes | Submits a tagged native notification. Action/body responses emit Event 21 with the host-generated tag; action ID is null for body activation. Delivery is platform best effort. | `root-container.ts:467-501`; `wire/command.rs:29-48,172-188,282-304`; `commands.rs:173-209` |
 |   21 | SetMenus         | Root-only (`nodeId=1`)                                               | `[[menuTitle,[item...]], ...]`; item `[0]` separator, `[1,actionName]` or `[1,actionName,[disabled,checked]]` (boolean flags), or `[2,[submenuTitle,[item...]]]` | Replaces the application menu tree. Omitted action flags default to `false`; state changes re-send the complete definition. Native action selection emits Event 17; disabled actions are unavailable to native activation and checked actions use GPUI's toggled indicator. | `root-container.ts:476-514`; `wire/command.rs:169-172,223-235,293-344`; `commands.rs:23-44` |
 |   22 | SetKeybindings   | Root-only (`nodeId=1`)                                               | `[[keystrokes,actionName], ...]`, at most 64 bindings; each keystrokes string is at most 64 UTF-8 bytes and each action name is 1..64 Unicode characters | Full-replaces this surface's binding set. The host validates every chord with GPUI `Keystroke::parse`, then clears and rebuilds the process-global union of all live surface sets atomically; an invalid chord returns `success=false` naming the entry and leaves the previous sets installed. A matched action uses Event 17 and routes to the active window's surface. | `root-container.ts:548-579`; `wire/command.rs:6-129,207-211,291-318`; `host/main.rs:237-335` |
+
+### Surface creation option platform matrix
+
+The options are creation-time only; no command changes an existing native
+window's level, resizability, or size constraints. The host maps `kind` to the
+corresponding GPUI `WindowKind` and does not expose `WindowKind::PopUp`.
+
+| Option/kind | macOS | Windows | X11 | Wayland | Web/test |
+| --- | --- | --- | --- | --- | --- |
+| `normal` | Normal level | Normal window | Normal window | Normal toplevel | Normal/default behavior |
+| `floating` | `NSFloatingWindowLevel` | Floating is not topmost; parent/transient semantics are platform-owned | Transient to the owning window | Parent-linked toplevel | Popup/floating/dialog creation is rejected by the web adapter; test adapters may ignore native level |
+| `dialog` | Sheet/modal dialog when an owner exists | Modal dialog disables the active parent | Dialog/transient and modal hints | Parent-linked; modal extension is optional | Popup/floating/dialog creation is rejected by the web adapter |
+| `resizable` | Native resizable style mask | Native resize styles | Adapter does not consume this flag in the pinned revision | Adapter does not expose a portable resizable toggle | Adapter-defined/no native effect |
+| `minSize: [w,h]` | Content minimum | `WM_GETMINMAXINFO` minimum | WM size hint minimum | `xdg_toplevel.set_min_size` | Adapter-defined/no native effect |
+
+`maxSize`, a generic always-on-top/window-level value, and runtime setters are
+not represented because the pinned GPUI `WindowOptions`/`PlatformWindow`
+contracts provide no portable fields or mutators. `WindowKind::floating` is
+therefore intentionally documented as above-parent, not global always-on-top.
+The first host window remains a host-owned centered `800×600` window; it is
+created before JavaScript starts and has no `Root.openSurface` negotiation.
 
 FileDialogOpen and FileDialogSave are the asynchronous exceptions to the
 otherwise immediate command path. The host starts the GPUI foreground picker,
