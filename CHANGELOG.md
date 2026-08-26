@@ -355,6 +355,14 @@ from this work tree.
   `.scratch/release-productionization/upstream-dependencies.md` records the
   three categories of true upstream gaps, project re-review limits, and
   test-platform limits.
+- Image fallback adds optional `fallbackSource` to the tag-3 four-slot host
+  tuple with legacy decoding; GPUI `with_loading` and `with_fallback` cover
+  both loading and failure states, while `onError` remains tracked as a true
+  upstream gap.
+- `scaleFactor` extends window resize events to a three-number payload while
+  legacy two-number payloads normalize to `1`; resize callbacks accept a third
+  argument, `WindowSize` stores expose it, and the observer reports scale-only
+  changes.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
