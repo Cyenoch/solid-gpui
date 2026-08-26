@@ -15,7 +15,9 @@ Single-line TextInput supports click-to-place, drag selection, UTF-16-safe
 Shift+arrow/Home/End extension, and a visible selection highlight. The caret
 remains always visible rather than blinking so keyboard focus and the insertion
 point stay available to users who benefit from reduced visual timing demands.
-Multiline input, Ctrl/Cmd word-boundary movement, and double-/triple-click
+Multiline TextInput now uses GPUI wrapped-line shaping for painting,
+point-to-character mapping, and IME candidate bounds, including empty and
+trailing-newline lines. Ctrl/Cmd word-boundary movement and double-/triple-click
 selection remain outside this renderer's minimal interaction contract.
 
 ## Architecture

@@ -63,6 +63,15 @@ so each can be revisited with a bounded implementation and bilateral tests:
   states to that path. There is still no loader notification hook, so
   JavaScript `onError` remains a true upstream gap; this visual fallback covers
   the user-visible degradation path without inventing an event.
+- **Keybinding registration — feasible-bounded, tracked for a dedicated
+  round.** The pinned GPUI `App::bind_keys`, `clear_key_bindings`, and
+  `KeyBinding`/`KeyContext` APIs make host-held registration possible, and the
+  existing `EVENT_ACTION` channel can carry a matched action name. The open
+  design is semantic rather than an upstream absence: root bindings versus
+  menu shortcuts, action registration/building, context predicates, conflict
+  precedence, and per-surface cleanup must be specified before exposing
+  `Root.bindKey`. It is therefore a bounded candidate, not a promise to
+  forward global keymap mutation directly.
 - **`pointerEvents` — disposition: do not add a declarative prop.** GPUI's
   `Interactivity::should_insert_hitbox` only creates a hitbox when there is
   interactivity (`references/zed/crates/gpui/src/elements/div.rs:2292-2316`);

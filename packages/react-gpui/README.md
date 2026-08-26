@@ -508,9 +508,9 @@ Empty native text renders `placeholder` as muted guidance text without changing
 the value, selection, UTF-16 length, or IME ranges. `onSelectionChange`
 includes a `reversed` head-orientation bit; `setSelection(start, end)` remains
 an ordered-range command and does not set orientation. IME candidate positioning
-is currently an element-level bounds approximation and point-to-character
-lookup returns the current selection end; precise text-layout integration is
-deferred.
+and point-to-character lookup use the cached GPUI shaped layout for single-line
+and multiline content, including explicit empty and trailing-newline lines.
+Multiline IME candidate placement still needs display-backed verification.
 
 `onSubmitEditing` has the breaking type `(value: string) => void`; the value is
 the authoritative native text at Enter time, including a valid empty string.

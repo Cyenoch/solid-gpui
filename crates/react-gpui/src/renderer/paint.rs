@@ -7,8 +7,8 @@ use gpui::{
     AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, Element, ElementId,
     ElementInputHandler, Entity, ExternalPaths, GlobalElementId, ImageSource, InspectorElementId,
     InteractiveElement, IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement,
-    Pixels, Render, ShapedLine, SharedString, StatefulInteractiveElement, Styled, StyledImage,
-    TextAlign, TextRun, Window, div, fill, hsla, img, list, point, px, relative, rgba, size,
+    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, StyledImage, TextRun, Window,
+    div, fill, hsla, img, list, point, px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -48,10 +48,11 @@ struct TextInputElement {
     focus: gpui::FocusHandle,
     fallback_text: String,
     placeholder: String,
+    multiline: bool,
 }
 
 struct TextInputPrepaint {
-    line: ShapedLine,
+    text: super::input::TextInputTextLayout,
     cursor: Option<PaintQuad>,
     selection: Option<PaintQuad>,
     content: String,
@@ -77,7 +78,6 @@ impl Element for TextInputElement {
     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
         None
     }
-
     fn request_layout(
         &mut self,
         _id: Option<&GlobalElementId>,
@@ -87,7 +87,19 @@ impl Element for TextInputElement {
     ) -> (LayoutId, Self::RequestLayoutState) {
         let mut style = gpui::Style::default();
         style.size.width = relative(1.).into();
-        style.size.height = window.line_height().into();
+        let line_height = window.line_height();
+        let line_count = if self.multiline {
+            let root = self.entity.read(cx);
+            let content = root
+                .input_states
+                .get(&self.node_id)
+                .map(|state| state.text.as_str())
+                .unwrap_or(self.fallback_text.as_str());
+            content.split('\n').count().max(1)
+        } else {
+            1
+        };
+        style.size.height = (line_height * line_count as f32).into();
         (window.request_layout(style, [], cx), ())
     }
 
@@ -122,25 +134,51 @@ impl Element for TextInputElement {
             underline: None,
             strikethrough: None,
         };
+        let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
-        let line = window.text_system().shape_line(
-            SharedString::from(display_text),
-            font_size,
-            &[run],
-            None,
-        );
+        let text_layout = if self.multiline {
+            let line_starts = super::input::line_starts(&display_text);
+            let lines = window
+                .text_system()
+                .shape_text(
+                    SharedString::from(display_text),
+                    font_size,
+                    &[run],
+                    Some(bounds.size.width),
+                    None,
+                )
+                .unwrap_or_default()
+                .into_iter()
+                .collect();
+            super::input::TextInputTextLayout::Multiline {
+                lines,
+                line_starts,
+                line_height,
+            }
+        } else {
+            let line = window.text_system().shape_line(
+                SharedString::from(display_text),
+                font_size,
+                &[run],
+                None,
+            );
+            super::input::TextInputTextLayout::Single {
+                line: Box::new(line),
+                line_height,
+            }
+        };
         let (cursor, selection_quad) = if is_placeholder || selection.start == selection.end {
             let byte_offset = if is_placeholder {
                 0
             } else {
                 super::input::utf16_byte_index(&content, selection.start)
             };
-            let x = line.x_for_index(byte_offset);
+            let position = text_layout.position_for_utf8(byte_offset);
             (
                 Some(fill(
                     Bounds::new(
-                        bounds.origin + point(x, px(0.0)),
-                        size(px(2.0), bounds.size.height),
+                        bounds.origin + position.point,
+                        size(px(2.0), position.line_height),
                     ),
                     rgba(0x2d6cdfff),
                 )),
@@ -152,16 +190,13 @@ impl Element for TextInputElement {
             (
                 None,
                 Some(fill(
-                    Bounds::from_corners(
-                        bounds.origin + point(line.x_for_index(start), px(0.0)),
-                        bounds.origin + point(line.x_for_index(end), bounds.size.height),
-                    ),
+                    text_layout.bounds_for_range(start..end, bounds),
                     rgba(0x2d6cdf66),
                 )),
             )
         };
         TextInputPrepaint {
-            line,
+            text: text_layout,
             cursor,
             selection: selection_quad,
             content,
@@ -191,20 +226,13 @@ impl Element for TextInputElement {
         if let Some(selection) = prepaint.selection.take() {
             window.paint_quad(selection);
         }
-        let _ = prepaint.line.paint(
-            bounds.origin,
-            window.line_height(),
-            TextAlign::Left,
-            Some(bounds.size.width),
-            window,
-            cx,
-        );
+        prepaint.text.paint(bounds.origin, bounds, window, cx);
         if self.focus.is_focused(window)
             && let Some(cursor) = prepaint.cursor.take()
         {
             window.paint_quad(cursor);
         }
-        let line = prepaint.line.clone();
+        let text = std::mem::take(&mut prepaint.text);
         let content = prepaint.content.clone();
         let placeholder = prepaint.placeholder;
         let node_id = self.node_id;
@@ -214,8 +242,8 @@ impl Element for TextInputElement {
             } else {
                 root.text_input_layouts.insert(
                     node_id,
-                    super::TextInputLayout {
-                        line,
+                    super::input::TextInputLayout {
+                        text,
                         bounds,
                         content,
                         placeholder,
@@ -353,8 +381,6 @@ impl ReactRoot {
                 .get(&node.id)
                 .cloned()
                 .expect("TextInput focus handle is reconciled before render");
-            let input_entity = entity.clone();
-            let input_focus = focus.clone();
             let input_id = node.id;
             let mut input_element = apply_style(div(), style);
             let actual_text = self
@@ -362,21 +388,6 @@ impl ReactRoot {
                 .get(&node.id)
                 .map(|state| state.text.clone())
                 .unwrap_or_else(|| input.value.clone());
-            let use_custom_text_element = !input.multiline && !actual_text.contains('\n');
-            if !use_custom_text_element {
-                input_element = input_element.on_children_prepainted(move |bounds, window, app| {
-                    if input_focus.is_focused(window) {
-                        input_entity.update(app, |root, _| root.set_input_focus(input_id, true));
-                        if let Some(bounds) = bounds.into_iter().next() {
-                            window.handle_input(
-                                &input_focus,
-                                ElementInputHandler::new(bounds, input_entity.clone()),
-                                app,
-                            );
-                        }
-                    }
-                });
-            }
             let submit_entity = entity.clone();
             let submit_focus = focus.clone();
             let input_multiline = input.multiline;
@@ -389,22 +400,20 @@ impl ReactRoot {
                     submit_entity.update(app, |root, _| root.emit_submit_event(input_id));
                 }
             });
-            if use_custom_text_element {
-                let navigation_entity = entity.clone();
-                input_element = input_element.on_key_down(move |event, _, app| {
-                    let modifiers = event.keystroke.modifiers;
-                    if !modifiers.control && !modifiers.alt && !modifiers.platform {
-                        navigation_entity.update(app, |root, cx| {
-                            root.handle_text_input_navigation(
-                                input_id,
-                                &event.keystroke.key,
-                                modifiers.shift,
-                                cx,
-                            );
-                        });
-                    }
-                });
-            }
+            let navigation_entity = entity.clone();
+            input_element = input_element.on_key_down(move |event, _, app| {
+                let modifiers = event.keystroke.modifiers;
+                if !modifiers.control && !modifiers.alt && !modifiers.platform {
+                    navigation_entity.update(app, |root, cx| {
+                        root.handle_text_input_navigation(
+                            input_id,
+                            &event.keystroke.key,
+                            modifiers.shift,
+                            cx,
+                        );
+                    });
+                }
+            });
             if node.listener_id != 0 {
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
@@ -447,61 +456,46 @@ impl ReactRoot {
                     );
                 });
             }
-            if use_custom_text_element {
-                let mouse_entity = entity.clone();
-                let mouse_focus = focus.clone();
-                input_element =
-                    input_element.on_mouse_down(MouseButton::Left, move |event, window, app| {
-                        window.focus(&mouse_focus, app);
-                        mouse_entity.update(app, |root, cx| {
-                            root.begin_text_input_selection(
-                                input_id,
-                                event.position,
-                                event.modifiers.shift,
-                                window,
-                                cx,
-                            );
-                        });
+            let mouse_entity = entity.clone();
+            let mouse_focus = focus.clone();
+            input_element =
+                input_element.on_mouse_down(MouseButton::Left, move |event, window, app| {
+                    window.focus(&mouse_focus, app);
+                    mouse_entity.update(app, |root, cx| {
+                        root.begin_text_input_selection(
+                            input_id,
+                            event.position,
+                            event.modifiers.shift,
+                            window,
+                            cx,
+                        );
                     });
-                let mouse_entity = entity.clone();
-                input_element = input_element.on_mouse_move(move |event, window, app| {
-                    if event.dragging() {
-                        mouse_entity.update(app, |root, cx| {
-                            root.update_text_input_selection(input_id, event.position, window, cx);
-                        });
-                    }
                 });
-                let mouse_entity = entity.clone();
-                input_element = input_element.on_mouse_up(MouseButton::Left, move |_, _, app| {
-                    mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
-                });
-                let mouse_entity = entity.clone();
-                input_element =
-                    input_element.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
-                        mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
+            let mouse_entity = entity.clone();
+            input_element = input_element.on_mouse_move(move |event, window, app| {
+                if event.dragging() {
+                    mouse_entity.update(app, |root, cx| {
+                        root.update_text_input_selection(input_id, event.position, window, cx);
                     });
-            }
-            let (display_text, showing_placeholder) =
-                input_display_text(actual_text, input.placeholder.as_deref());
-            if use_custom_text_element {
-                let input_element = input_element
-                    .child(TextInputElement {
-                        entity: entity.clone(),
-                        node_id: input_id,
-                        focus: focus.clone(),
-                        fallback_text: input.value.clone(),
-                        placeholder: input.placeholder.clone().unwrap_or_default(),
-                    })
-                    .id(ElementId::Integer(node.id as u64))
-                    .focusable()
-                    .track_focus(&focus);
-                return apply_accessibility(input_element, node).into_any();
-            }
-            if showing_placeholder {
-                input_element = input_element.text_color(rgba(0x00000033));
-            }
+                }
+            });
+            let mouse_entity = entity.clone();
+            input_element = input_element.on_mouse_up(MouseButton::Left, move |_, _, app| {
+                mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
+            });
+            let mouse_entity = entity.clone();
+            input_element = input_element.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
+                mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
+            });
             let input_element = input_element
-                .child(SharedString::from(display_text))
+                .child(TextInputElement {
+                    entity: entity.clone(),
+                    node_id: input_id,
+                    focus: focus.clone(),
+                    fallback_text: input.value.clone(),
+                    placeholder: input.placeholder.clone().unwrap_or_default(),
+                    multiline: input.multiline || actual_text.contains('\n'),
+                })
                 .id(ElementId::Integer(node.id as u64))
                 .focusable()
                 .track_focus(&focus);

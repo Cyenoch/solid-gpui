@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::atomic::Ordering;
 
-use gpui::{Bounds, Context, EntityInputHandler, Point, UTF16Selection, Window};
+use gpui::{
+    App, Bounds, Context, EntityInputHandler, Pixels, Point, ShapedLine, TextAlign, UTF16Selection,
+    Window, WrappedLine, point, px, size,
+};
 
 use crate::protocol::{
     EVENT_BLUR, EVENT_CHANGE, EVENT_FOCUS, EVENT_SELECTION, Event, HostProperties, TextInputEvent,
@@ -23,6 +26,211 @@ pub(super) struct NativeInputState {
     pub(super) edit_seq: u32,
     pub(super) focused: bool,
     pub(super) max_length: Option<usize>,
+}
+
+pub(super) enum TextInputTextLayout {
+    Single {
+        line: Box<ShapedLine>,
+        line_height: Pixels,
+    },
+    Multiline {
+        lines: Vec<WrappedLine>,
+        line_starts: Vec<usize>,
+        line_height: Pixels,
+    },
+}
+
+impl Default for TextInputTextLayout {
+    fn default() -> Self {
+        Self::Single {
+            line: Box::new(ShapedLine::default()),
+            line_height: px(0.0),
+        }
+    }
+}
+
+pub(super) struct TextInputLayout {
+    pub(super) text: TextInputTextLayout,
+    pub(super) bounds: Bounds<Pixels>,
+    pub(super) content: String,
+    pub(super) placeholder: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct TextInputPosition {
+    pub(super) point: Point<Pixels>,
+    pub(super) line_index: usize,
+    pub(super) line_width: Pixels,
+    pub(super) line_height: Pixels,
+}
+
+impl TextInputTextLayout {
+    pub(super) fn position_for_utf8(&self, index: usize) -> TextInputPosition {
+        match self {
+            Self::Single { line, line_height } => {
+                let index = index.min(line.len());
+                TextInputPosition {
+                    point: point(line.x_for_index(index), px(0.0)),
+                    line_index: 0,
+                    line_width: line.width(),
+                    line_height: *line_height,
+                }
+            }
+            Self::Multiline {
+                lines,
+                line_starts,
+                line_height,
+            } => {
+                let mut physical_line = 0;
+                for (paragraph, line) in lines.iter().enumerate() {
+                    let start = line_starts.get(paragraph).copied().unwrap_or_default();
+                    let end = start + line.len();
+                    if index <= end || paragraph + 1 == lines.len() {
+                        let local = index.saturating_sub(start).min(line.len());
+                        let point = line
+                            .position_for_index(local, *line_height)
+                            .unwrap_or_else(|| point(px(0.0), px(0.0)));
+                        let wrapped_line = if f32::from(*line_height) > 0.0 {
+                            (f32::from(point.y) / f32::from(*line_height)).max(0.0) as usize
+                        } else {
+                            0
+                        };
+                        return TextInputPosition {
+                            point,
+                            line_index: physical_line + wrapped_line,
+                            line_width: line.width(),
+                            line_height: *line_height,
+                        };
+                    }
+                    physical_line += line.wrap_boundaries().len() + 1;
+                }
+                TextInputPosition {
+                    point: point(px(0.0), px(0.0)),
+                    line_index: physical_line,
+                    line_width: px(0.0),
+                    line_height: *line_height,
+                }
+            }
+        }
+    }
+
+    fn closest_index_for_point(&self, at: Point<Pixels>) -> usize {
+        match self {
+            Self::Single { line, .. } => line.closest_index_for_x(at.x),
+            Self::Multiline {
+                lines,
+                line_starts,
+                line_height,
+            } => {
+                let mut y = 0.0;
+                let point_y = f32::from(at.y);
+                for (paragraph, line) in lines.iter().enumerate() {
+                    let line_height_px = f32::from(line.size(*line_height).height);
+                    if point_y < y + line_height_px || paragraph + 1 == lines.len() {
+                        let local_point = point(at.x, px((f32::from(at.y) - y).max(0.0)));
+                        let local = line
+                            .closest_index_for_position(local_point, *line_height)
+                            .unwrap_or_else(|index| index)
+                            .min(line.len());
+                        return line_starts.get(paragraph).copied().unwrap_or_default() + local;
+                    }
+                    y += line_height_px;
+                }
+                line_starts.last().copied().unwrap_or_default()
+                    + lines.last().map(WrappedLine::len).unwrap_or_default()
+            }
+        }
+    }
+
+    pub(super) fn paint(
+        &self,
+        origin: Point<Pixels>,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        match self {
+            Self::Single { line, line_height } => {
+                let _ = line.paint(
+                    origin,
+                    *line_height,
+                    TextAlign::Left,
+                    Some(bounds.size.width),
+                    window,
+                    cx,
+                );
+            }
+            Self::Multiline {
+                lines, line_height, ..
+            } => {
+                let mut y = px(0.0);
+                for line in lines {
+                    let _ = line.paint(
+                        origin + point(px(0.0), y),
+                        *line_height,
+                        TextAlign::Left,
+                        Some(bounds),
+                        window,
+                        cx,
+                    );
+                    y += line.size(*line_height).height;
+                }
+            }
+        }
+    }
+
+    pub(super) fn bounds_for_range(
+        &self,
+        range: Range<usize>,
+        bounds: Bounds<Pixels>,
+    ) -> Bounds<Pixels> {
+        let start = self.position_for_utf8(range.start);
+        let end = self.position_for_utf8(range.end);
+        let origin = bounds.origin;
+        if range.start == range.end {
+            return Bounds::new(origin + start.point, size(px(2.0), start.line_height));
+        }
+        if start.line_index == end.line_index {
+            let start_x = f32::from(start.point.x);
+            let end_x = f32::from(end.point.x);
+            return Bounds::from_corners(
+                origin + point(px(start_x.min(end_x)), start.point.y),
+                origin + point(px(start_x.max(end_x)), start.point.y + start.line_height),
+            );
+        }
+        let first = Bounds::from_corners(
+            origin + start.point,
+            origin + point(start.line_width, start.point.y + start.line_height),
+        );
+        let last = Bounds::from_corners(
+            origin + point(px(0.0), end.point.y),
+            origin + point(end.point.x, end.point.y + end.line_height),
+        );
+        first.union(&last)
+    }
+}
+pub(super) fn line_starts(text: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    for (index, character) in text.char_indices() {
+        if character == '\n' {
+            starts.push(index + character.len_utf8());
+        }
+    }
+    starts
+}
+
+#[cfg(test)]
+pub(super) fn multiline_utf16_position(text: &str, offset: usize) -> (usize, usize) {
+    let byte = utf16_byte_index(text, offset);
+    let starts = line_starts(text);
+    let mut line = 0;
+    for (index, start) in starts.iter().enumerate() {
+        if *start > byte {
+            break;
+        }
+        line = index;
+    }
+    (line, byte - starts[line])
 }
 
 fn truncate_utf16(value: &str, max_length: usize) -> Cow<'_, str> {
@@ -672,16 +880,7 @@ impl EntityInputHandler for ReactRoot {
         }
         let start = utf16_byte_index(&state.text, range_utf16.start);
         let end = utf16_byte_index(&state.text, range_utf16.end);
-        Some(Bounds::from_corners(
-            gpui::point(
-                layout.bounds.origin.x + layout.line.x_for_index(start),
-                layout.bounds.origin.y,
-            ),
-            gpui::point(
-                layout.bounds.origin.x + layout.line.x_for_index(end),
-                layout.bounds.origin.y + layout.bounds.size.height,
-            ),
-        ))
+        Some(layout.text.bounds_for_range(start..end, layout.bounds))
     }
 
     fn character_index_for_point(
@@ -700,7 +899,7 @@ impl EntityInputHandler for ReactRoot {
             return Some(state.selection.end);
         }
         let local = layout.bounds.localize(&point)?;
-        let utf8_offset = layout.line.closest_index_for_x(local.x);
+        let utf8_offset = layout.text.closest_index_for_point(local);
         Some(utf8_byte_to_utf16(&layout.content, utf8_offset))
     }
 }
@@ -807,5 +1006,17 @@ mod tests {
             move_selection("ab", &(1..1), false, "End", false),
             Some((2..2, false))
         );
+    }
+    #[test]
+    fn multiline_utf16_positions_cover_emoji_empty_lines_and_trailing_newline() {
+        let text = "a😀\n中\n\n";
+        assert_eq!(line_starts(text), vec![0, 6, 10, 11]);
+        assert_eq!(multiline_utf16_position(text, 0), (0, 0));
+        assert_eq!(multiline_utf16_position(text, 1), (0, 1));
+        assert_eq!(multiline_utf16_position(text, 3), (0, 5));
+        assert_eq!(multiline_utf16_position(text, 4), (1, 0));
+        assert_eq!(multiline_utf16_position(text, 5), (1, 3));
+        assert_eq!(multiline_utf16_position(text, 6), (2, 0));
+        assert_eq!(multiline_utf16_position(text, 7), (3, 0));
     }
 }

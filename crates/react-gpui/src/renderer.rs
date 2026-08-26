@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 #[cfg(test)]
 use gpui::ListOffset;
 use gpui::{
-    Bounds, Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Pixels, Render,
-    ShapedLine, Styled, Subscription, Window, WindowAppearance as GpuiWindowAppearance, div, px,
+    Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Render, Styled,
+    Subscription, Window, WindowAppearance as GpuiWindowAppearance, div, px,
 };
 use thiserror::Error;
 
@@ -31,7 +31,7 @@ use crate::protocol::{Easing, TextInputProperties};
 use animation::AnimationState;
 #[cfg(test)]
 use animation::animation_target_changed;
-use input::NativeInputState;
+use input::{NativeInputState, TextInputLayout};
 #[cfg(test)]
 use std::time::{Duration, Instant};
 
@@ -55,12 +55,6 @@ fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppeara
         GpuiWindowAppearance::Light | GpuiWindowAppearance::VibrantLight => WindowAppearance::Light,
         GpuiWindowAppearance::Dark | GpuiWindowAppearance::VibrantDark => WindowAppearance::Dark,
     }
-}
-pub(super) struct TextInputLayout {
-    pub(super) line: ShapedLine,
-    pub(super) bounds: Bounds<Pixels>,
-    pub(super) content: String,
-    pub(super) placeholder: bool,
 }
 
 /// `render` and never become application state.
@@ -983,6 +977,58 @@ mod input_tests {
         .expect("draw list at end");
         cx.run_until_parked();
         assert_eq!(list_state.is_scrolled_to_end(), Some(true));
+    }
+
+    #[gpui::test]
+    fn multiline_text_input_uses_wrapped_layout_and_preserves_empty_lines(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(160.0), px(180.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut input = Node::new(2, 1, 0, crate::tree::KIND_TEXT_INPUT);
+        input.listener_id = 1;
+        input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+            value: "a😀\n\n中\n".into(),
+            placeholder: None,
+            multiline: true,
+            disabled: false,
+            controlled: true,
+            ack_edit_seq: 0,
+            selection_start: 0,
+            selection_end: 0,
+            marked_start: None,
+            marked_end: None,
+            max_length: None,
+            selection_reversed: false,
+        }));
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), input]);
+        let payload = snapshot.encode().expect("encode multiline snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply multiline snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw multiline text input");
+        cx.run_until_parked();
+
+        let (line_count, line_starts, content) = root.read_with(cx, |root, _| {
+            let layout = root.text_input_layouts.get(&2).expect("multiline layout");
+            match &layout.text {
+                super::input::TextInputTextLayout::Multiline {
+                    lines, line_starts, ..
+                } => (lines.len(), line_starts.clone(), layout.content.clone()),
+                super::input::TextInputTextLayout::Single { .. } => {
+                    panic!("expected wrapped layout")
+                }
+            }
+        });
+        assert_eq!(line_count, 4);
+        assert_eq!(line_starts, vec![0, 6, 7, 11]);
+        assert_eq!(content, "a😀\n\n中\n");
     }
 
     #[test]

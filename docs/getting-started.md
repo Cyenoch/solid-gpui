@@ -388,6 +388,10 @@ events. It does not open a window. See
   image-byte transport.
 - `TextInput.secureTextEntry` and `keyboardType` are unsupported on the
   desktop GPUI surface.
+- Multiline `TextInput` uses native wrapped-line geometry for painting,
+  point-to-character mapping, and IME bounds; display-backed testing is still
+  required for candidate-window placement. Word-boundary and double-/triple-
+  click selection remain outside the minimal contract.
 - `VirtualList` assumes a bounded viewport. Native GPUI measures visible and
   overdraw rows at their natural heights; `estimatedItemSize` supplies the
   initial height hint for unmeasured or not-yet-committed rows. Use `emptyState`
