@@ -345,6 +345,7 @@ from this work tree.
   Bun/GPUI graph; this is inherent cold-build cost, not an optimization target.
   Shared Makefile install/build outputs make parallelization riskier than its
   small warm-CI benefit, so no build-time optimization was made.
+- VirtualList now renders through GPUI's native variable-height list: per-node ListState with real measured committed rows and estimated placeholders outside the committed range, ListState-based scroll commands, and a zero-change wire; estimatedItemSize becomes an initial hint, the JS-side measurement path was surveyed and rejected as structurally infeasible, and placeholder flicker remains display-backed.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
