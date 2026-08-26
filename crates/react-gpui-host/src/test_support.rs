@@ -4,11 +4,12 @@ use react_gpui::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
     COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION,
-    TextInputProperties, VirtualListProperties,
+    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS,
+    COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
+    COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT,
+    KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition,
+    MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties,
+    VirtualListProperties,
 };
 fn command(
     request_id: u32,
@@ -33,8 +34,28 @@ fn command(
         body: body.map(str::to_owned),
         actions: None,
         menus,
+        keybindings: None,
     }
 }
+fn keybinding_command(
+    surface_id: u32,
+    request_id: u32,
+    bindings: Vec<KeybindingDefinition>,
+) -> Command {
+    let mut command = command(
+        request_id,
+        COMMAND_SET_KEYBINDINGS,
+        1,
+        None,
+        None,
+        None,
+        None,
+    );
+    command.surface_id = surface_id;
+    command.keybindings = Some(bindings);
+    command
+}
+
 fn notification_command(
     request_id: u32,
     title: &str,
@@ -490,6 +511,187 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
     assert!(take_events(&runtime).iter().any(|event| {
         event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 2
     }));
+}
+pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open initial keybinding test surface");
+    let window = draw_surface(&registry, cx, 1);
+    let action_registry = registry.downgrade();
+    cx.update(|cx| {
+        cx.on_action(move |action: &MenuAction, cx| {
+            if let Some(registry) = action_registry.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.emit_action(action.name.clone(), cx)
+                });
+            }
+        });
+    });
+
+    let snapshot = Snapshot::new(1, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot.encode().expect("encode keybinding snapshot"), cx)
+        })
+        .expect("route keybinding snapshot");
+    draw_surface(&registry, cx, 1);
+
+    route_command(
+        &registry,
+        cx,
+        keybinding_command(
+            1,
+            1,
+            vec![
+                KeybindingDefinition {
+                    keystrokes: "cmd-shift-p".to_owned(),
+                    action_name: "palette.open".to_owned(),
+                },
+                KeybindingDefinition {
+                    keystrokes: "ctrl-k ctrl-1".to_owned(),
+                    action_name: "menu.other".to_owned(),
+                },
+            ],
+        ),
+    );
+    assert!(command_result(&take_events(&runtime), 1).success);
+    route_command(
+        &registry,
+        cx,
+        keybinding_command(
+            1,
+            5,
+            vec![KeybindingDefinition {
+                keystrokes: "cmd-shift-p".to_owned(),
+                action_name: "palette.open".to_owned(),
+            }],
+        ),
+    );
+    assert!(command_result(&take_events(&runtime), 5).success);
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("activate replacement keybinding surface");
+    cx.simulate_keystrokes(window.into(), "ctrl-k ctrl-1");
+    assert!(
+        !take_events(&runtime).iter().any(|event| {
+            event.event_type == react_gpui::EVENT_ACTION
+                && matches!(
+                    &event.payload,
+                    Some(EventPayload::EventAction { action }) if action == "menu.other"
+                )
+        }),
+        "replaced keybinding should be removed"
+    );
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("activate keybinding test surface");
+    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    let events = take_events(&runtime);
+    assert!(events.iter().any(|event| {
+        event.event_type == react_gpui::EVENT_ACTION
+            && matches!(
+                &event.payload,
+                Some(EventPayload::EventAction { action }) if action == "palette.open"
+            )
+    }));
+    assert!(
+        !events
+            .iter()
+            .any(|event| event.event_type == react_gpui::EVENT_KEY),
+        "consumed keybinding should not emit a raw key event"
+    );
+
+    route_command(
+        &registry,
+        cx,
+        command(
+            2,
+            COMMAND_OPEN_SURFACE,
+            1,
+            Some((320, 240)),
+            Some("Aux"),
+            None,
+            None,
+        ),
+    );
+    assert!(command_result(&take_events(&runtime), 2).success);
+    let auxiliary_window = window_for(&registry, cx, 2);
+    let auxiliary_snapshot = Snapshot::new(2, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(
+                &auxiliary_snapshot
+                    .encode()
+                    .expect("encode auxiliary keybinding snapshot"),
+                cx,
+            )
+        })
+        .expect("route auxiliary keybinding snapshot");
+    draw_surface(&registry, cx, 2);
+    route_command(
+        &registry,
+        cx,
+        keybinding_command(
+            2,
+            3,
+            vec![KeybindingDefinition {
+                keystrokes: "ctrl-alt-p".to_owned(),
+                action_name: "auxiliary.open".to_owned(),
+            }],
+        ),
+    );
+    assert!(command_result(&take_events(&runtime), 3).success);
+    cx.update_window(auxiliary_window.into(), |_, window, _| {
+        window.activate_window()
+    })
+    .expect("activate auxiliary keybinding surface");
+    cx.simulate_keystrokes(auxiliary_window.into(), "ctrl-alt-p");
+    let events = take_events(&runtime);
+    assert!(events.iter().any(|event| {
+        event.event_type == react_gpui::EVENT_ACTION
+            && matches!(
+                &event.payload,
+                Some(EventPayload::EventAction { action }) if action == "auxiliary.open"
+            )
+    }));
+
+    let invalid = keybinding_command(
+        1,
+        4,
+        vec![KeybindingDefinition {
+            keystrokes: "not-a-valid-keystroke".to_owned(),
+            action_name: "invalid".to_owned(),
+        }],
+    );
+    route_command(&registry, cx, invalid);
+    let events = take_events(&runtime);
+    let result = command_result(&events, 4);
+    assert!(!result.success);
+    assert!(
+        result
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("invalid keystroke"))
+    );
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("reactivate original keybinding surface");
+    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    assert!(take_events(&runtime).iter().any(|event| {
+        event.event_type == react_gpui::EVENT_ACTION
+            && matches!(
+                &event.payload,
+                Some(EventPayload::EventAction { action }) if action == "palette.open"
+            )
+    }));
+    route_command(&registry, cx, keybinding_command(1, 6, Vec::new()));
+    assert!(command_result(&take_events(&runtime), 6).success);
+    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    assert!(
+        !take_events(&runtime)
+            .iter()
+            .any(|event| event.event_type == react_gpui::EVENT_ACTION),
+        "empty replacement should clear the surface binding"
+    );
 }
 pub fn dialog_command_roundtrip(cx: &mut TestAppContext) {
     use std::path::PathBuf;

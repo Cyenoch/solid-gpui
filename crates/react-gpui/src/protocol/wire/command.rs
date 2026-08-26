@@ -4,6 +4,9 @@ use super::*;
 use serde::{Deserialize, Serialize};
 
 pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError> {
+    if command.kind != COMMAND_SET_KEYBINDINGS && command.keybindings.is_some() {
+        return Err(ProtocolError::InvalidCommandPayload);
+    }
     let payload = match command.kind {
         COMMAND_OPEN_SURFACE | COMMAND_FILE_DIALOG_OPEN => {
             if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
@@ -26,6 +29,26 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
                 _ => return Err(ProtocolError::InvalidCommandPayload),
             }
         }
+        COMMAND_SET_KEYBINDINGS => match (
+            &command.payload,
+            &command.title,
+            &command.body,
+            &command.actions,
+            &command.menus,
+            &command.keybindings,
+        ) {
+            (None, None, None, None, None, Some(bindings))
+                if bindings.len() <= 64 && bindings.iter().all(valid_keybinding) =>
+            {
+                Some(CommandPayloadWire::Keybindings(
+                    bindings
+                        .iter()
+                        .map(|binding| (binding.keystrokes.clone(), binding.action_name.clone()))
+                        .collect(),
+                ))
+            }
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        },
         COMMAND_SHOW_NOTIFICATION => match (
             &command.payload,
             &command.title,
@@ -94,6 +117,14 @@ fn valid_http_url(url: &str) -> bool {
         .or_else(|| url.strip_prefix("https://"))
         .is_some_and(|host| !host.is_empty())
 }
+fn valid_keybinding(binding: &KeybindingDefinition) -> bool {
+    !binding.keystrokes.is_empty()
+        && binding.keystrokes.len() <= 64
+        && !binding.keystrokes.chars().any(char::is_control)
+        && !binding.action_name.is_empty()
+        && binding.action_name.chars().count() <= 64
+        && !binding.action_name.chars().any(char::is_control)
+}
 
 pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     let mut deserializer = rmp_serde::Deserializer::new(Cursor::new(payload));
@@ -131,6 +162,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_FILE_DIALOG_SAVE
             | COMMAND_SHOW_NOTIFICATION
             | COMMAND_SET_MENUS
+            | COMMAND_SET_KEYBINDINGS
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -170,7 +202,10 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             {
                 (None, Some(default_name), None)
             }
-            (COMMAND_FILE_DIALOG_SAVE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_SET_KEYBINDINGS, Some(CommandPayloadWire::Keybindings(_))) if wire.6 == 1 => {
+                (None, None, None)
+            }
+            (COMMAND_SET_KEYBINDINGS, _) => return Err(ProtocolError::InvalidCommandPayload),
             (
                 COMMAND_SHOW_NOTIFICATION,
                 Some(CommandPayloadWire::StringPairWithActions((title, body, actions))),
@@ -250,6 +285,34 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     } else {
         None
     };
+    let keybindings = if wire.7 == COMMAND_SET_KEYBINDINGS {
+        match command_payload.clone() {
+            Some(CommandPayloadWire::Keybindings(bindings))
+                if bindings.len() <= 64
+                    && bindings.iter().all(|(keystrokes, action_name)| {
+                        !keystrokes.is_empty()
+                            && keystrokes.len() <= 64
+                            && !keystrokes.chars().any(char::is_control)
+                            && !action_name.is_empty()
+                            && action_name.chars().count() <= 64
+                            && !action_name.chars().any(char::is_control)
+                    }) =>
+            {
+                Some(
+                    bindings
+                        .into_iter()
+                        .map(|(keystrokes, action_name)| KeybindingDefinition {
+                            keystrokes,
+                            action_name,
+                        })
+                        .collect(),
+                )
+            }
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        }
+    } else {
+        None
+    };
     let actions = if wire.7 == COMMAND_SHOW_NOTIFICATION {
         match command_payload {
             Some(CommandPayloadWire::StringPairWithActions((_, _, actions))) => Some(
@@ -274,6 +337,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         node_id: wire.6,
         kind: wire.7,
         actions,
+        keybindings,
         payload,
         title,
         body,
@@ -288,6 +352,7 @@ enum CommandPayloadWire {
     StringPair((String, String)),
     StringPairWithActions((String, String, Vec<NotificationActionWire>)),
     StringWithPair((String, (u32, u32))),
+    Keybindings(Vec<(String, String)>),
     Menus(Vec<MenuWire>),
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -437,6 +502,7 @@ mod tests {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
             .expect("decode open surface");
@@ -459,6 +525,7 @@ mod tests {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
             command.protocol,
@@ -516,6 +583,7 @@ mod tests {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         };
         assert_eq!(
             Command::decode(&open.encode().expect("encode open dialog"))
@@ -537,6 +605,7 @@ mod tests {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         };
         assert_eq!(
             Command::decode(&save.encode().expect("encode save dialog"))
@@ -578,6 +647,7 @@ mod tests {
                 },
             ]),
             menus: None,
+            keybindings: None,
         };
         assert_eq!(
             Command::decode(&notification.encode().expect("encode notification"))
@@ -624,11 +694,54 @@ mod tests {
                     }),
                 ],
             }]),
+            keybindings: None,
         };
         assert_eq!(
             Command::decode(&menus.encode().expect("encode menus")).expect("decode menus"),
             menus
         );
+        let keybindings = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 9,
+            node_id: 1,
+            kind: COMMAND_SET_KEYBINDINGS,
+            payload: None,
+            title: None,
+            body: None,
+            actions: None,
+            menus: None,
+            keybindings: Some(vec![
+                KeybindingDefinition {
+                    keystrokes: "cmd-shift-p".to_owned(),
+                    action_name: "palette.open".to_owned(),
+                },
+                KeybindingDefinition {
+                    keystrokes: "ctrl-k ctrl-1".to_owned(),
+                    action_name: "menu.other".to_owned(),
+                },
+            ]),
+        };
+        assert_eq!(
+            Command::decode(&keybindings.encode().expect("encode keybindings"))
+                .expect("decode keybindings"),
+            keybindings
+        );
+        let too_many = Command {
+            keybindings: Some(
+                (0..65)
+                    .map(|index| KeybindingDefinition {
+                        keystrokes: format!("ctrl-{index}"),
+                        action_name: "action".to_owned(),
+                    })
+                    .collect(),
+            ),
+            ..keybindings.clone()
+        };
+        assert!(too_many.encode().is_err());
 
         let action = Event::action(1, 2, 3, 4, "open".to_owned());
         assert_eq!(

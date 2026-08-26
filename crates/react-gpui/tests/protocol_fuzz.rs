@@ -72,6 +72,7 @@ fn valid_command() -> Command {
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
     }
 }
 

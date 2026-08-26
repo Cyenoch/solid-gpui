@@ -163,7 +163,7 @@ fallback stack. The complete positional table and enum codes live in
 | Focus          | `focusNext`, `focusPrev`                                                     |
 | Clipboard      | `setClipboardText`, `getClipboardText`                                       |
 | Files          | `pickFiles`, `pickSavePath`                                                  |
-| User-facing OS | `showNotification`, `setMenus`                                               |
+| User-facing OS | `showNotification`, `setMenus`, `setKeybindings`                    |
 
 Node refs expose narrower commands: TextInput focus/blur/selection, View or
 Pressable focus/blur where supported, and VirtualList `scrollToIndex`/
@@ -322,6 +322,28 @@ native activation and checked actions use the native toggled indicator.
 Register `onNotificationResponse` in `createRoot` options for
 `{ tag, actionId }` responses; body activation uses `actionId: null`, and a
 closed surface drops late responses.
+
+### Keyboard bindings
+
+`root.setKeybindings` is a full replacement for this surface's bindings;
+passing `[]` clears that surface's set. Each entry uses a whitespace-separated
+GPUI keystroke sequence and an action name:
+
+```tsx
+await root.setKeybindings([
+  { keystrokes: "cmd-shift-p", actionName: "palette.open" },
+  { keystrokes: "ctrl-k ctrl-1", actionName: "menu.other" },
+]);
+```
+
+Chords use `-` between modifiers and key (`ctrl`, `alt`, `shift`, `fn`,
+`secondary`, `cmd`/`super`/`win`); multiple chords use ASCII whitespace.
+Bindings are held per surface but installed into one process-global GPUI
+keymap, so they are active in the focused window and conflicting entries use
+deterministic replacement order. `onAction` receives the same action strings as
+menu activation. Context predicates and menu shortcut fields are not part of
+this API. Invalid GPUI keystrokes are rejected by the host without changing the
+previous binding set.
 
 ### Transport termination and crash diagnostics
 

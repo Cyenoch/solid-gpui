@@ -168,6 +168,10 @@ export interface MenuDefinition {
   readonly title: string;
   readonly items: readonly MenuItem[];
 }
+export interface Keybinding {
+  readonly keystrokes: string;
+  readonly actionName: string;
+}
 
 export interface ViewProps extends AccessibilityProps {
   readonly style?: StyleProp;

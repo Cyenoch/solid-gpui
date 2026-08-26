@@ -37,6 +37,7 @@ import type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  Keybinding,
   NotificationResponseHandler,
   MenuDefinition,
 } from "./renderer/types";
@@ -78,6 +79,7 @@ export type {
   VirtualListProps,
   WindowActivationHandler,
   WindowResizeHandler,
+  Keybinding,
   NotificationResponse,
   NotificationResponseHandler,
   MenuDefinition,
@@ -135,6 +137,7 @@ export interface Root {
   pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
   showNotification(options: NotificationOptions): Promise<void>;
   setMenus(menus: readonly MenuDefinition[]): Promise<void>;
+  setKeybindings(bindings: readonly Keybinding[]): Promise<void>;
   openUrl(url: string): Promise<void>;
   focusNext(): Promise<void>;
   focusPrev(): Promise<void>;
@@ -242,6 +245,10 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     setMenus(menus: readonly MenuDefinition[]): Promise<void> {
       if (closed) return Promise.reject(new Error("Cannot set menus on an unmounted root"));
       return container.setMenus(menus);
+    },
+    setKeybindings(bindings: readonly Keybinding[]): Promise<void> {
+      if (closed) return Promise.reject(new Error("Cannot set keybindings on an unmounted root"));
+      return container.setKeybindings(bindings);
     },
     toggleFullscreen(): Promise<void> {
       if (closed) return Promise.reject(new Error("Cannot toggle fullscreen on an unmounted root"));

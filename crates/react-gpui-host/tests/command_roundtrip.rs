@@ -18,3 +18,8 @@ fn notification_action_and_body_responses_round_trip_to_the_origin_surface() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::notification_response_roundtrip(&mut cx);
 }
+#[test]
+fn keybinding_commands_register_replace_and_route_actions_headlessly() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::keybinding_roundtrip(&mut cx);
+}

@@ -73,6 +73,7 @@ export const COMMAND_FILE_DIALOG_OPEN = 18 as const;
 export const COMMAND_FILE_DIALOG_SAVE = 19 as const;
 export const COMMAND_SHOW_NOTIFICATION = 20 as const;
 export const COMMAND_SET_MENUS = 21 as const;
+export const COMMAND_SET_KEYBINDINGS = 22 as const;
 export const IMAGE_OBJECT_FIT_FILL = 1 as const;
 export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
 export const IMAGE_OBJECT_FIT_COVER = 3 as const;
@@ -182,6 +183,7 @@ export type MenuItemPayload =
   | readonly [1, string, readonly [boolean, boolean]]
   | readonly [2, readonly [string, readonly MenuItemPayload[]]];
 export type MenuPayload = readonly (readonly [string, readonly MenuItemPayload[]])[];
+export type KeybindingsPayload = readonly (readonly [string, string])[];
 
 export type Command = readonly [
   typeof PROTOCOL_VERSION,
@@ -213,12 +215,14 @@ export type Command = readonly [
     | typeof COMMAND_FILE_DIALOG_SAVE
     | typeof COMMAND_SHOW_NOTIFICATION
     | typeof COMMAND_SET_MENUS
+    | typeof COMMAND_SET_KEYBINDINGS
   ),
   (
     | readonly [number, number]
     | readonly [string, readonly [number, number]]
     | readonly [string, string]
     | readonly [string, string, readonly (readonly [string, string])[]]
+    | KeybindingsPayload
     | string
     | MenuPayload
     | null
@@ -664,6 +668,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
           COMMAND_FILE_DIALOG_SAVE,
           COMMAND_SHOW_NOTIFICATION,
           COMMAND_SET_MENUS,
+          COMMAND_SET_KEYBINDINGS,
         ] as readonly number[]
       ).includes(payload[2] as number)
     )

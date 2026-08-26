@@ -22,8 +22,8 @@ import {
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
   COMMAND_SCROLL_TO_END,
+  COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
-  COMMAND_SHOW_NOTIFICATION,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
   COMMAND_FOCUS_PREV,
@@ -33,6 +33,7 @@ import {
   COMMAND_RESIZE_WINDOW,
   COMMAND_TOGGLE_FULLSCREEN,
   COMMAND_ZOOM_WINDOW,
+  COMMAND_SHOW_NOTIFICATION,
   EVENT_ACTION,
   EVENT_NOTIFICATION_RESPONSE,
   EVENT_SURFACE_CLOSED,
@@ -1724,6 +1725,41 @@ describe("renderer commits", () => {
     expect(actions).toEqual(["open"]);
     root.unmount();
   });
+  it("frames full-replacement keybindings and validates limits", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 87, epoch: 88 });
+    root.render(<View />);
+    const pending = root.setKeybindings([
+      { keystrokes: "cmd-shift-p", actionName: "palette.open" },
+      { keystrokes: "ctrl-k ctrl-1", actionName: "menu.other" },
+    ]);
+    expect(message(transport, 1)).toEqual([
+      3,
+      4,
+      87,
+      88,
+      1,
+      1,
+      1,
+      COMMAND_SET_KEYBINDINGS,
+      [
+        ["cmd-shift-p", "palette.open"],
+        ["ctrl-k ctrl-1", "menu.other"],
+      ],
+    ]);
+    transport.push(encodeFrame([3, 2, 87, 88, 1, 1, 1, 0, 6, [2, 1, COMMAND_SET_KEYBINDINGS, 1, true, null]]));
+    await pending;
+    await expect(
+      root.setKeybindings(Array.from({ length: 65 }, () => ({ keystrokes: "ctrl-a", actionName: "too-many" }))),
+    ).rejects.toThrow("at most 64");
+    await expect(root.setKeybindings([{ keystrokes: "x".repeat(65), actionName: "too-long" }])).rejects.toThrow(
+      "64 UTF-8 bytes",
+    );
+    await expect(root.setKeybindings([{ keystrokes: "ctrl-a", actionName: "a".repeat(65) }])).rejects.toThrow(
+      "1..64 Unicode",
+    );
+    root.unmount();
+  });
   it("rejects pending commands when a root unmounts", async () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 83, epoch: 84 });
@@ -1756,6 +1792,7 @@ describe("renderer commits", () => {
       root.pickSavePath(),
       root.showNotification({ title: "closed", body: "closed" }),
       root.setMenus([]),
+      root.setKeybindings([]),
       root.openUrl("https://example.com"),
       root.focusNext(),
       root.focusPrev(),

@@ -37,6 +37,7 @@ ImageObjectFit	type
 ImageProps	type
 JustifyContent	type
 KeyAction	type
+Keybinding	type
 KeyEvent	type
 KeyHandler	type
 LayoutFrame	type

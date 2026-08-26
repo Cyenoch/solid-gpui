@@ -8,16 +8,16 @@ use react_gpui::{
     COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS,
     COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
     COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW, Command,
-    CommandResult, CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP,
-    Easing, Event, HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT,
-    KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, MenuDefinition, MenuItemDefinition, Node,
-    NotificationActionDefinition, PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS,
-    Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
-    TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY,
-    UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
-    WindowAppearance,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
+    Command, CommandResult, CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER,
+    EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties, KIND_PRESSABLE,
+    KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
+    MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION,
+    Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
+    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
+    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
+    UPDATE_TEXT, VirtualListProperties, WindowAppearance,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -220,6 +220,7 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
     }
 }
 fn surface_command(title: &str, width: u32, height: u32) -> Command {
@@ -237,6 +238,7 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
     }
 }
 fn notification_command(title: &str, body: &str) -> Command {
@@ -257,6 +259,7 @@ fn notification_command(title: &str, body: &str) -> Command {
             label: "Open".into(),
         }]),
         menus: None,
+        keybindings: None,
     }
 }
 
@@ -293,6 +296,34 @@ fn menus_command() -> Command {
                 }),
             ],
         }]),
+        keybindings: None,
+    }
+}
+fn keybindings_command() -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id: 122,
+        node_id: 1,
+        kind: COMMAND_SET_KEYBINDINGS,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: Some(vec![
+            KeybindingDefinition {
+                keystrokes: "cmd-shift-p".into(),
+                action_name: "palette.open".into(),
+            },
+            KeybindingDefinition {
+                keystrokes: "ctrl-k ctrl-1".into(),
+                action_name: "menu.other".into(),
+            },
+        ]),
     }
 }
 
@@ -878,6 +909,12 @@ fn main() {
         "rust-command-set-menus",
         "command",
         menus_command().encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-set-keybindings",
+        "command",
+        keybindings_command().encode().unwrap(),
     );
     emit(
         &mut rows,

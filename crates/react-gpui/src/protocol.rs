@@ -65,6 +65,7 @@ pub const COMMAND_FILE_DIALOG_OPEN: u32 = 18;
 pub const COMMAND_FILE_DIALOG_SAVE: u32 = 19;
 pub const COMMAND_SHOW_NOTIFICATION: u32 = 20;
 pub const COMMAND_SET_MENUS: u32 = 21;
+pub const COMMAND_SET_KEYBINDINGS: u32 = 22;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 
@@ -213,6 +214,12 @@ pub struct MenuAction {
     pub name: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeybindingDefinition {
+    pub keystrokes: String,
+    pub action_name: String,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Command {
     pub protocol: u32,
@@ -228,6 +235,7 @@ pub struct Command {
     pub body: Option<String>,
     pub actions: Option<Vec<NotificationActionDefinition>>,
     pub menus: Option<Vec<MenuDefinition>>,
+    pub keybindings: Option<Vec<KeybindingDefinition>>,
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire

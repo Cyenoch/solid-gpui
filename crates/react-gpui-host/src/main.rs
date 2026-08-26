@@ -1,12 +1,14 @@
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use gpui::{
-    App, AppContext, Bounds, Context, Entity, Subscription, SystemNotificationResponse,
-    TitlebarOptions, WindowBounds, WindowHandle, WindowId, WindowOptions, px, size,
+    App, AppContext, Bounds, Context, Entity, KeyBinding, Keystroke, Subscription,
+    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowHandle, WindowId,
+    WindowOptions, px, size,
 };
 use react_gpui::{
-    COMMAND_OPEN_SURFACE, Command, CommandValue, MenuAction, Patch, ProcessAdapter, ProtocolError,
-    ReactRoot, RuntimeAdapter, RuntimeStatus, Snapshot, fatal_runtime_failure,
+    COMMAND_OPEN_SURFACE, COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition,
+    MenuAction, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter, RuntimeStatus,
+    Snapshot, fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
 use react_gpui::{Event, send_event_or_exit};
@@ -157,6 +159,7 @@ struct SurfaceRegistry {
     runtime: Arc<dyn RuntimeAdapter>,
     surfaces: HashMap<u32, Surface>,
     windows: HashMap<WindowId, u32>,
+    keybindings: HashMap<u32, Vec<KeybindingDefinition>>,
     next_surface_id: u32,
     transport_terminated: bool,
     close_subscription: Option<Subscription>,
@@ -168,6 +171,7 @@ impl SurfaceRegistry {
             runtime,
             surfaces: HashMap::new(),
             windows: HashMap::new(),
+            keybindings: HashMap::new(),
             next_surface_id: 1,
             transport_terminated: false,
             close_subscription: None,
@@ -242,7 +246,10 @@ impl SurfaceRegistry {
         if !self.surfaces.contains_key(&command.surface_id) {
             return Err(format!("unknown surface {}", command.surface_id));
         }
-        if command.kind == COMMAND_OPEN_SURFACE {
+        if command.kind == COMMAND_SET_KEYBINDINGS {
+            self.set_keybindings(command, cx);
+            Ok(())
+        } else if command.kind == COMMAND_OPEN_SURFACE {
             self.open_surface(command, cx)
         } else {
             self.apply_to_surface(command.surface_id, payload, cx)
@@ -261,6 +268,96 @@ impl SurfaceRegistry {
         let root = surface.root.clone();
         root.update(cx, |root, cx| root.apply_payload(payload, cx))
             .map_err(|error| format!("surface {surface_id} rejected commit: {error}"))
+    }
+    fn compile_keybindings(
+        keybindings: &HashMap<u32, Vec<KeybindingDefinition>>,
+    ) -> Result<Vec<KeyBinding>, String> {
+        let mut surface_ids = keybindings.keys().copied().collect::<Vec<_>>();
+        surface_ids.sort_unstable();
+        let mut compiled = Vec::new();
+        for surface_id in surface_ids {
+            for (index, binding) in keybindings[&surface_id].iter().enumerate() {
+                if binding.keystrokes.split_whitespace().next().is_none() {
+                    return Err(format!("keybinding {surface_id}[{index}] has no keystroke"));
+                }
+                for stroke in binding.keystrokes.split_whitespace() {
+                    Keystroke::parse(stroke).map_err(|error| {
+                        format!(
+                            "keybinding {surface_id}[{index}] invalid keystroke `{stroke}`: {error}"
+                        )
+                    })?;
+                }
+                compiled.push(KeyBinding::new(
+                    &binding.keystrokes,
+                    MenuAction {
+                        name: binding.action_name.clone(),
+                    },
+                    None,
+                ));
+            }
+        }
+        Ok(compiled)
+    }
+
+    fn set_keybindings(&mut self, command: Command, cx: &mut Context<Self>) {
+        let Some((surface_id, epoch, revision)) =
+            self.surfaces.get(&command.surface_id).map(|surface| {
+                surface.root.read_with(cx, |root, _| {
+                    (
+                        root.store().surface_id(),
+                        root.store().epoch(),
+                        root.store().revision(),
+                    )
+                })
+            })
+        else {
+            return;
+        };
+        if command.surface_id != surface_id
+            || command.epoch != epoch
+            || command.after_revision != revision
+        {
+            let error = if command.epoch != epoch || command.surface_id != surface_id {
+                "surface or epoch mismatch"
+            } else {
+                "command revision is stale"
+            };
+            self.send_command_result(&command, false, Some(error.to_owned()), None, cx);
+            return;
+        }
+        if command.node_id != 1 {
+            self.send_command_result(
+                &command,
+                false,
+                Some("setKeybindings requires the root container".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        }
+        let Some(bindings) = command.keybindings.clone() else {
+            self.send_command_result(
+                &command,
+                false,
+                Some("setKeybindings payload is required".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        };
+        let mut next = self.keybindings.clone();
+        next.insert(command.surface_id, bindings);
+        match Self::compile_keybindings(&next) {
+            Ok(compiled) => {
+                self.keybindings = next;
+                cx.clear_key_bindings();
+                cx.bind_keys(compiled);
+                self.send_command_result(&command, true, None, None, cx);
+            }
+            Err(error) => {
+                self.send_command_result(&command, false, Some(error), None, cx);
+            }
+        }
     }
 
     fn open_surface(&mut self, command: Command, cx: &mut Context<Self>) -> Result<(), String> {
@@ -367,6 +464,11 @@ impl SurfaceRegistry {
         }
         self.windows.remove(&window_id);
         self.surfaces.remove(&surface_id);
+        self.keybindings.remove(&surface_id);
+        if let Ok(compiled) = Self::compile_keybindings(&self.keybindings) {
+            cx.clear_key_bindings();
+            cx.bind_keys(compiled);
+        }
         self.surfaces.is_empty()
     }
     fn close_all(&mut self, cx: &mut Context<Self>) {
@@ -378,6 +480,8 @@ impl SurfaceRegistry {
             .collect::<Vec<_>>();
         self.windows.clear();
         self.surfaces.clear();
+        self.keybindings.clear();
+        cx.clear_key_bindings();
         for window in windows {
             let _ = window.update(cx, |_, window, _| window.remove_window());
         }

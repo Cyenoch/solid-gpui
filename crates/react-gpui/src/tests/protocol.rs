@@ -76,6 +76,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
     };
     assert_eq!(
         Command::decode(&command.encode().unwrap()).unwrap(),
@@ -89,6 +90,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
         ..command.clone()
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
@@ -143,6 +145,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -158,6 +161,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -173,6 +177,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -188,6 +193,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -203,6 +209,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -218,6 +225,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
     ];
     for command in commands {
@@ -242,6 +250,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         };
         assert_eq!(
             Command::decode(&command.encode().unwrap()).unwrap(),
@@ -263,6 +272,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -278,6 +288,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -293,6 +304,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -308,6 +320,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             body: None,
             actions: None,
             menus: None,
+            keybindings: None,
         },
     ] {
         assert!(matches!(
@@ -329,6 +342,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
         body: None,
         actions: None,
         menus: None,
+        keybindings: None,
     };
     assert!(matches!(
         Command::decode(&unknown.encode().unwrap()),

@@ -74,6 +74,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_FILE_DIALOG_SAVE
                         | COMMAND_SHOW_NOTIFICATION
                         | COMMAND_SET_MENUS
+                        | COMMAND_SET_KEYBINDINGS
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);

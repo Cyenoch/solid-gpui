@@ -301,6 +301,26 @@ menu-state command. Disabled actions are unavailable to native activation, and
 checked actions use GPUI's toggled indicator. Web and test platforms may not
 install native menus; headless tests exercise wire and dispatch behavior.
 
+`root.setKeybindings` replaces this surface's complete binding set; pass `[]`
+to clear it. Entries use GPUI's whitespace-separated keystroke syntax:
+
+```tsx
+await root.setKeybindings([
+  { keystrokes: "cmd-shift-p", actionName: "palette.open" },
+  { keystrokes: "ctrl-k ctrl-1", actionName: "menu.other" },
+]);
+```
+
+Each command accepts at most 64 entries, with each sequence capped at 64 UTF-8
+bytes and each action name at 64 Unicode characters. Modifiers are joined to
+their key with `-`; multiple chords are separated by ASCII whitespace.
+Bindings are retained per root but installed as the union in GPUI's
+process-global keymap. A matched action routes through the same `onAction`
+callback as a menu action and is delivered to the active surface. Context
+predicates and menu shortcut fields are intentionally not exposed. The host
+pre-validates every chord with GPUI before replacing bindings, so an invalid
+keystroke returns a rejected command without disturbing the previous set.
+
 ## Debugging
 
 Set `REACT_GPUI_TAP` to a JSONL path before constructing a `StdioTransport` or

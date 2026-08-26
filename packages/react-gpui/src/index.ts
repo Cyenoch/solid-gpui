@@ -52,6 +52,7 @@ export {
   type VirtualListProps,
   type WindowActivationHandler,
   type WindowResizeHandler,
+  type Keybinding,
   type NotificationResponse,
   type NotificationResponseHandler,
   type NotificationAction,

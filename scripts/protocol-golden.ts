@@ -226,6 +226,20 @@ const rows = [
     21,
     [["File", [[1, "open", [true, true]], [0], [2, ["More", [[1, "other"]]]]]]],
   ]),
+  row("ts-command-set-keybindings", "command", [
+    3,
+    4,
+    7,
+    3,
+    42,
+    122,
+    1,
+    22,
+    [
+      ["cmd-shift-p", "palette.open"],
+      ["ctrl-k ctrl-1", "menu.other"],
+    ],
+  ]),
   row("ts-command-get-focus", "command", [3, 4, 7, 3, 42, 114, 4, 14, null]),
   row("ts-command-blur", "command", [3, 4, 7, 3, 42, 102, 4, 2, null]),
 ].sort();
@@ -238,7 +252,19 @@ const invalid = [
   `ts-invalid-file-dialog-empty-paths\tevent\t${hex(
     encode([3, 2, 7, 3, 42, 21, 1, 0, 6, [2, 120, 18, 1, true, null, [5, []]]]),
   )}\terror\tevent-null`,
-  `ts-invalid-style-box-shadow-negative-blur\tsnapshot\t${hex(encode(invalidShadowSnapshot))}\terror\traw`,
+  `ts-invalid-keybinding-count\tcommand\t${hex(
+    encode([
+      3,
+      4,
+      7,
+      3,
+      42,
+      123,
+      1,
+      22,
+      Array.from({ length: 65 }, () => ["ctrl-a", "action"]),
+    ]),
+  )}\terror\traw`,
   `ts-invalid-event-type\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 99, null]))}\terror\tevent-null`,
   `ts-invalid-surface-close-node\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 16, null]))}\terror\tevent-null`,
   `ts-invalid-appearance-bool\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 18, true]))}\terror\tevent-null`,

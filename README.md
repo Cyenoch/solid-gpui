@@ -107,6 +107,13 @@ Pass `onAction: (action) => ...` in `createRoot` options to receive the
 selected string action. Menu state is static and state-driven: changing
 `disabled` or `checked` re-sends the complete `setMenus` definition; omitted
 flags default to `false`, and there is no incremental menu-state command.
+`root.setKeybindings` uses full-replacement bindings such as
+`{ keystrokes: "cmd-shift-p", actionName: "palette.open" }`; multiple chords
+are separated by ASCII whitespace (for example, `"ctrl-k ctrl-1"`). The host
+retains each surface's set, installs their union in the process-global GPUI
+keymap, and routes a match to the active surface through the same `onAction`
+callback. Context predicates and menu shortcut fields are not part of this
+first API; invalid chords reject without replacing the previous set.
 Disabled actions are unavailable to native activation, while checked actions
 use GPUI's toggled indicator. Notifications are fire-and-forget platform
 submissions: delivery and authorization are not guaranteed, Web/test menu

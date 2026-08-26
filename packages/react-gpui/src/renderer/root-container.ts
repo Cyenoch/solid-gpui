@@ -12,6 +12,7 @@ import {
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
+  COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
   COMMAND_SHOW_NOTIFICATION,
   COMMAND_RESIZE_WINDOW,
@@ -31,6 +32,7 @@ import {
   decodeEvent,
   encodeFrame,
   type Command,
+  type KeybindingsPayload,
   type MenuItemPayload,
   type MenuPayload,
   type Patch,
@@ -49,6 +51,7 @@ import type {
   HostKind,
   HostNodeInternal,
   HostProps,
+  Keybinding,
   MenuDefinition,
   MenuItem,
   PendingCommand,
@@ -313,12 +316,14 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_FILE_DIALOG_OPEN
       | typeof COMMAND_FILE_DIALOG_SAVE
       | typeof COMMAND_SHOW_NOTIFICATION
-      | typeof COMMAND_SET_MENUS,
+      | typeof COMMAND_SET_MENUS
+      | typeof COMMAND_SET_KEYBINDINGS,
     payload:
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
       | readonly [string, string]
       | readonly [string, string, readonly (readonly [string, string])[]]
+      | KeybindingsPayload
       | string
       | MenuPayload
       | null,
@@ -342,7 +347,7 @@ export class RootContainer implements DispatchContext {
       this.revision,
       requestId,
       1,
-      kind,
+      kind as Command[7],
       payload,
     ];
     return this.submitCommandFrame(command);
@@ -536,6 +541,37 @@ export class RootContainer implements DispatchContext {
         return [menu.title, menu.items.map(encodeItem)];
       });
       return this.submitSurfaceCommandValue(COMMAND_SET_MENUS, payload).then(() => undefined);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+  setKeybindings(bindings: readonly Keybinding[]): Promise<void> {
+    try {
+      if (!Array.isArray(bindings) || bindings.length > 64) {
+        throw new RangeError("setKeybindings accepts at most 64 bindings");
+      }
+      const payload: KeybindingsPayload = bindings.map((binding, index) => {
+        if (
+          binding === null ||
+          typeof binding !== "object" ||
+          typeof binding.keystrokes !== "string" ||
+          binding.keystrokes.trim().length === 0 ||
+          utf8ByteLength(binding.keystrokes) > 64 ||
+          /[\u0000-\u001f\u007f]/.test(binding.keystrokes)
+        ) {
+          throw new TypeError(`keybinding[${index}].keystrokes must be a non-empty string of at most 64 UTF-8 bytes`);
+        }
+        if (
+          typeof binding.actionName !== "string" ||
+          binding.actionName.length === 0 ||
+          [...binding.actionName].length > 64 ||
+          /[\u0000-\u001f\u007f]/.test(binding.actionName)
+        ) {
+          throw new TypeError(`keybinding[${index}].actionName must be 1..64 Unicode characters`);
+        }
+        return [binding.keystrokes, binding.actionName];
+      });
+      return this.submitSurfaceCommandValue(COMMAND_SET_KEYBINDINGS, payload).then(() => undefined);
     } catch (error) {
       return Promise.reject(error);
     }

@@ -355,6 +355,7 @@ checks in `commands.rs:186-331`.
 |   19 | FileDialogSave   | Root-only (`nodeId=1`)                                               | `defaultName` string (empty means no suggestion)                                                                                        | Asynchronously opens the native save picker. A selected path completes with value tag `4`; cancellation is `success=true` with its optional value absent/null; platform failure is `success=false`. GPUI's raw save API has no title/prompt option.   | `root-container.ts:428-444`; `wire/command.rs:157-162,325-336`; `commands.rs:89-132`          |
 |   20 | ShowNotification | Root-only (`nodeId=1`)                                               | `[title,body]` or `[title,body,[[actionId,label],...]]`; title UTF-8 ≤256 bytes, body UTF-8 ≤1024 bytes, at most 3 actions with IDs ≤64 and labels ≤256 UTF-8 bytes | Submits a tagged native notification. Action/body responses emit Event 21 with the host-generated tag; action ID is null for body activation. Delivery is platform best effort. | `root-container.ts:467-501`; `wire/command.rs:29-48,172-188,282-304`; `commands.rs:173-209` |
 |   21 | SetMenus         | Root-only (`nodeId=1`)                                               | `[[menuTitle,[item...]], ...]`; item `[0]` separator, `[1,actionName]` or `[1,actionName,[disabled,checked]]` (boolean flags), or `[2,[submenuTitle,[item...]]]` | Replaces the application menu tree. Omitted action flags default to `false`; state changes re-send the complete definition. Native action selection emits Event 17; disabled actions are unavailable to native activation and checked actions use GPUI's toggled indicator. | `root-container.ts:476-514`; `wire/command.rs:169-172,223-235,293-344`; `commands.rs:23-44` |
+|   22 | SetKeybindings   | Root-only (`nodeId=1`)                                               | `[[keystrokes,actionName], ...]`, at most 64 bindings; each keystrokes string is at most 64 UTF-8 bytes and each action name is 1..64 Unicode characters | Full-replaces this surface's binding set. The host validates every chord with GPUI `Keystroke::parse`, then clears and rebuilds the process-global union of all live surface sets atomically; an invalid chord returns `success=false` naming the entry and leaves the previous sets installed. A matched action uses Event 17 and routes to the active window's surface. | `root-container.ts:548-579`; `wire/command.rs:6-129,207-211,291-318`; `host/main.rs:237-335` |
 
 FileDialogOpen and FileDialogSave are the asynchronous exceptions to the
 otherwise immediate command path. The host starts the GPUI foreground picker,
@@ -382,6 +383,17 @@ replace the current tree and JavaScript state changes must re-send the complete
 definition. Platform implementations differ: macOS installs an NSMenu, while
 Linux/Windows retain owned menu data for their UI integrations and Web/test
 platforms are no-ops.
+
+SetKeybindings is intentionally separate from menu definitions. Its
+`keystrokes` string is one or more GPUI keystrokes separated by ASCII
+whitespace; each chord has optional modifiers followed by a key, with
+components joined by `-`. Examples are `cmd-shift-p` and
+`ctrl-k ctrl-1`. GPUI accepts the modifier names `ctrl`, `alt`, `shift`, `fn`,
+`secondary`, `cmd`/`super`/`win`; an optional `->key_char` suffix is reserved
+for GPUI test-event syntax. Context predicates are not included in v1, so
+bindings are global to the host keymap and only the active window's surface
+receives the resulting Event 17. Rebuild order is ascending surface ID followed
+by declaration order, matching GPUI's later-binding precedence for conflicts.
 
 Every processed command produces a CommandResult event with the original
 request ID, command, node ID, success flag, nullable error, and optional value
