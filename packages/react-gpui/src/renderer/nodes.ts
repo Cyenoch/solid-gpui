@@ -7,6 +7,7 @@ import {
   COMMAND_SET_SELECTION,
   UPDATE_ACCESSIBILITY,
   UPDATE_FOCUSABLE,
+  UPDATE_SELECTABLE,
   UPDATE_LISTENER,
   UPDATE_STYLE,
   UPDATE_PROPERTIES,
@@ -71,10 +72,11 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      listener: undefined,
       dragCallbacks: {},
       layoutCallback: undefined,
-      listener: undefined,
       focusable: false,
+      selectable: false,
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
@@ -105,10 +107,11 @@ export class NodeGraph {
       style: null,
       text: null,
       listenerId: 0,
+      listener: undefined,
       dragCallbacks: {},
       layoutCallback: undefined,
-      listener: undefined,
       focusable: false,
+      selectable: false,
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
@@ -175,9 +178,9 @@ export class NodeGraph {
               ? dragFor(node, props)
               : null;
     node.accessibility = accessibilityFor(node.kind, props);
-    node.disabled = (node.kind === "Pressable" || node.kind === "TextInput") && props.disabled === true;
     node.focusable =
       (node.kind === "View" || node.kind === "Pressable") && !node.disabled ? (props.focusable ?? false) : false;
+    node.selectable = node.kind === "Text" && props.selectable === true;
     node.keyListener =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable" || node.kind === "TextInput")
         ? props.onKeyDown
@@ -244,6 +247,7 @@ export class NodeGraph {
     const previousStyle = node.style;
     const previousListenerId = node.listenerId;
     const previousFocusable = node.focusable;
+    const previousSelectable = node.selectable;
     const previousProperties = node.hostProperties;
     const previousAccessibility = node.accessibility;
     this.setNodeProps(node, props);
@@ -251,6 +255,7 @@ export class NodeGraph {
     if (previousStyle !== node.style) mask |= UPDATE_STYLE;
     if (previousListenerId !== node.listenerId) mask |= UPDATE_LISTENER;
     if (previousFocusable !== node.focusable) mask |= UPDATE_FOCUSABLE;
+    if (previousSelectable !== node.selectable) mask |= UPDATE_SELECTABLE;
     if (JSON.stringify(previousProperties) !== JSON.stringify(node.hostProperties)) mask |= UPDATE_PROPERTIES;
     if (JSON.stringify(previousAccessibility) !== JSON.stringify(node.accessibility)) mask |= UPDATE_ACCESSIBILITY;
     return mask;
@@ -307,7 +312,7 @@ export class NodeGraph {
   snapshotNodes(): SnapshotNode[] {
     const nodes: SnapshotNode[] = [];
     const visit = (node: HostNodeInternal, parentId: number, index: number): void => {
-      nodes.push([
+      const base = [
         node.id,
         parentId,
         index,
@@ -318,7 +323,8 @@ export class NodeGraph {
         hostPropertiesWire(node.hostProperties),
         accessibilityWire(node.accessibility),
         node.focusable,
-      ]);
+      ] as const;
+      nodes.push(node.selectable ? [...base, true] : base);
       node.children.forEach((child, childIndex) => visit(child, node.id, childIndex));
     };
     visit(this.syntheticRoot, 0, 0);

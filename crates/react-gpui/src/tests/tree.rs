@@ -104,6 +104,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
             host_properties: None,
             accessibility: Some(invalid),
             focusable: false,
+            selectable: false,
         }],
     );
     assert!(matches!(
@@ -593,6 +594,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 host_properties: None,
                 accessibility: None,
                 focusable: false,
+                selectable: false,
             }],
         ))
         .unwrap();
@@ -624,6 +626,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 host_properties: None,
                 accessibility: None,
                 focusable: false,
+                selectable: false,
             }],
         ))
         .unwrap();
@@ -690,6 +693,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 host_properties: None,
                 accessibility: None,
                 focusable: false,
+                selectable: false,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -754,6 +758,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 host_properties: None,
                 accessibility: None,
                 focusable: false,
+                selectable: false,
             }],
         ))
         .unwrap();
@@ -872,6 +877,7 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
             })),
             accessibility: None,
             focusable: false,
+            selectable: false,
         }],
     );
     assert!(matches!(

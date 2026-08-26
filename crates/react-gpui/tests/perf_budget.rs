@@ -122,6 +122,7 @@ fn build_patch() -> Patch {
             host_properties: None,
             accessibility: None,
             focusable: false,
+            selectable: false,
         });
     }
     for offset in 0..300u32 {

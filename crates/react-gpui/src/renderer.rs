@@ -850,6 +850,7 @@ mod input_tests {
                         host_properties: None,
                         accessibility: None,
                         focusable: false,
+                        selectable: false,
                     },
                     PatchOperation::Create(Node::new(3, 1, 1, KIND_VIEW)),
                     PatchOperation::Move {
@@ -886,6 +887,7 @@ mod input_tests {
                     })),
                     accessibility: None,
                     focusable: false,
+                    selectable: false,
                 }],
             ))
             .expect("estimated size patch");

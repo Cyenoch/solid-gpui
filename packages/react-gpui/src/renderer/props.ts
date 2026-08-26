@@ -60,7 +60,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     ref: true,
     ...ACCESSIBILITY_PROPS,
   },
-  Text: { style: true, onLayout: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
+  Text: { style: true, selectable: true, onLayout: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
   Pressable: {
     style: true,
     onLayout: true,
@@ -333,6 +333,9 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   )
     throw new TypeError(`${kind} onLayout must be a function`);
   if (kind !== "RawText") validateStyle(props.style);
+  if (kind === "Text" && props.selectable !== undefined && typeof props.selectable !== "boolean") {
+    throw new TypeError("Text selectable must be a boolean");
+  }
   if (kind === "Pressable" && props.onPress !== undefined && typeof props.onPress !== "function") {
     throw new TypeError("Pressable onPress must be a function");
   }

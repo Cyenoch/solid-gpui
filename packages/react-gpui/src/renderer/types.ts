@@ -199,6 +199,7 @@ export interface ImageProps extends AccessibilityProps {
 }
 export interface TextProps extends AccessibilityProps {
   readonly style?: StyleProp;
+  readonly selectable?: boolean;
   readonly onLayout?: LayoutHandler;
   readonly children?: ReactNode;
 }
@@ -222,6 +223,7 @@ export interface HostProps extends AccessibilityProps {
   readonly style?: StyleProp;
   readonly onPress?: PressHandler;
   readonly focusable?: boolean;
+  readonly selectable?: boolean;
   readonly onKeyDown?: KeyHandler;
   readonly disabled?: boolean;
   readonly onPointerDown?: PointerHandler;
@@ -323,6 +325,7 @@ export interface HostNodeInternal extends HostNode {
   scrollCallback: ScrollHandler | undefined;
   listener: PressHandler | undefined;
   focusable: boolean;
+  selectable: boolean;
   disabled: boolean;
   focus?: () => Promise<void>;
   dragCallbacks: DragCallbacks;

@@ -112,6 +112,7 @@ struct CreateWire(
     Option<HostPropertiesWire>,
     Option<AccessibilityWire>,
     bool,
+    Option<bool>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,6 +126,7 @@ struct UpdateWire(
     Option<HostPropertiesWire>,
     Option<AccessibilityWire>,
     bool,
+    Option<bool>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -148,6 +150,7 @@ impl From<&PatchOperation> for OperationWire {
                 node.host_properties.as_ref().map(HostPropertiesWire::from),
                 node.accessibility.as_ref().map(AccessibilityWire::from),
                 node.focusable,
+                node.selectable.then_some(true),
             )),
             PatchOperation::Update {
                 id,
@@ -158,6 +161,7 @@ impl From<&PatchOperation> for OperationWire {
                 host_properties,
                 accessibility,
                 focusable,
+                selectable,
             } => Self::Update(UpdateWire(
                 2,
                 *id,
@@ -168,6 +172,7 @@ impl From<&PatchOperation> for OperationWire {
                 host_properties.as_ref().map(HostPropertiesWire::from),
                 accessibility.as_ref().map(AccessibilityWire::from),
                 *focusable,
+                (*selectable).then_some(true),
             )),
             PatchOperation::Move {
                 id,
@@ -191,6 +196,10 @@ impl TryFrom<OperationWire> for PatchOperation {
                 if let Some(style) = wire.5.as_ref() {
                     validate_style_wire(style)?;
                 }
+                let selectable = wire.11.unwrap_or(false);
+                if selectable && wire.4 != crate::tree::KIND_TEXT {
+                    return Err(ProtocolError::InvalidHostProperties);
+                }
                 let host_properties = wire.8.map(HostProperties::try_from).transpose()?;
                 Ok(Self::Create(Node {
                     id: wire.1,
@@ -203,6 +212,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     host_properties,
                     accessibility: wire.9.map(AccessibilityProperties::from),
                     focusable: wire.10,
+                    selectable,
                 }))
             }
             OperationWire::Update(wire) => {
@@ -212,6 +222,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                 if let Some(style) = wire.3.as_ref() {
                     validate_style_wire(style)?;
                 }
+                let selectable = wire.9.unwrap_or(false);
                 let host_properties = wire.6.map(HostProperties::try_from).transpose()?;
                 Ok(Self::Update {
                     id: wire.1,
@@ -222,6 +233,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     host_properties,
                     accessibility: wire.7.map(AccessibilityProperties::from),
                     focusable: wire.8,
+                    selectable,
                 })
             }
             OperationWire::Move(wire) => {

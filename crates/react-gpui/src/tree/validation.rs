@@ -108,6 +108,12 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             reason: "only View and Pressable nodes may be focusable",
         });
     }
+    if node.selectable && node.kind != KIND_TEXT {
+        return Err(TreeError::InvalidProperties {
+            node_id: node.id,
+            reason: "only Text nodes may be selectable",
+        });
+    }
     if node.listener_id != 0
         && node.kind != KIND_PRESSABLE
         && node.kind != KIND_TEXT_INPUT

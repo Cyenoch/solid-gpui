@@ -38,6 +38,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
             host_properties: None,
             accessibility: None,
             focusable: false,
+            selectable: false,
         }],
     );
     let text_event = Event::text_input(

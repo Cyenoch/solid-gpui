@@ -7,7 +7,8 @@ use crate::protocol::{
     AccessibilityProperties, HostProperties, Node, PATCH_MESSAGE, PROTOCOL_VERSION, Patch,
     PatchOperation, SNAPSHOT_MESSAGE, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, UPDATE_ACCESSIBILITY,
-    UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
+    UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE,
+    UPDATE_TEXT,
 };
 mod validation;
 use validation::*;
@@ -120,6 +121,7 @@ pub struct StoredNode {
     pub host_properties: Option<HostProperties>,
     pub accessibility: Option<AccessibilityProperties>,
     pub focusable: bool,
+    pub selectable: bool,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -277,6 +279,7 @@ impl NodeStore {
                     host_properties: node.host_properties.clone(),
                     accessibility: node.accessibility.clone(),
                     focusable: node.focusable,
+                    selectable: node.selectable,
                     accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -347,6 +350,7 @@ impl NodeStore {
                     host_properties,
                     accessibility,
                     focusable,
+                    selectable,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -357,6 +361,7 @@ impl NodeStore {
                     host_properties.clone(),
                     accessibility.clone(),
                     *focusable,
+                    *selectable,
                     undo,
                     stats,
                     &mut affected_parents,
@@ -444,6 +449,7 @@ impl NodeStore {
             host_properties: node.host_properties.clone(),
             accessibility: node.accessibility.clone(),
             focusable: node.focusable,
+            selectable: node.selectable,
             accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -474,6 +480,7 @@ impl NodeStore {
         host_properties: Option<HostProperties>,
         accessibility: Option<AccessibilityProperties>,
         focusable: bool,
+        selectable: bool,
         undo: &mut Vec<Undo>,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
@@ -484,8 +491,8 @@ impl NodeStore {
                     | UPDATE_TEXT
                     | UPDATE_LISTENER
                     | UPDATE_PROPERTIES
-                    | UPDATE_ACCESSIBILITY
-                    | UPDATE_FOCUSABLE)
+                    | UPDATE_FOCUSABLE
+                    | UPDATE_SELECTABLE)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -511,6 +518,12 @@ impl NodeStore {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
                 reason: "focusable updates require View",
+            });
+        }
+        if mask & UPDATE_SELECTABLE != 0 && node.kind != KIND_TEXT {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "selectable updates require Text",
             });
         }
         let resulting_listener = if mask & UPDATE_LISTENER != 0 {
@@ -575,6 +588,9 @@ impl NodeStore {
         }
         if mask & UPDATE_FOCUSABLE != 0 {
             target.focusable = focusable;
+        }
+        if mask & UPDATE_SELECTABLE != 0 {
+            target.selectable = selectable;
         }
         if mask & UPDATE_LISTENER != 0 {
             target.listener_id = listener_id;

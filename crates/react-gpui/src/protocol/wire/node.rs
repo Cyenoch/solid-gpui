@@ -12,6 +12,7 @@ pub(super) struct NodeWire(
     Option<HostPropertiesWire>,
     Option<AccessibilityWire>,
     bool,
+    Option<bool>,
 );
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -143,6 +144,7 @@ impl From<&Node> for NodeWire {
             node.host_properties.as_ref().map(HostPropertiesWire::from),
             node.accessibility.as_ref().map(AccessibilityWire::from),
             node.focusable,
+            node.selectable.then_some(true),
         )
     }
 }
@@ -153,6 +155,10 @@ impl TryFrom<NodeWire> for Node {
     fn try_from(node: NodeWire) -> Result<Self, Self::Error> {
         if let Some(style) = node.4.as_ref() {
             validate_style_wire(style)?;
+        }
+        let selectable = node.10.unwrap_or(false);
+        if selectable && node.3 != crate::tree::KIND_TEXT {
+            return Err(ProtocolError::InvalidHostProperties);
         }
         let host_properties = node.7.map(HostProperties::try_from).transpose()?;
         validate_host_kind(node.3, host_properties.as_ref())?;
@@ -167,6 +173,7 @@ impl TryFrom<NodeWire> for Node {
             host_properties,
             accessibility: node.8.map(AccessibilityProperties::from),
             focusable: node.9,
+            selectable,
         })
     }
 }

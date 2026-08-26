@@ -56,6 +56,7 @@ import {
   FrameDecoder,
   PROTOCOL_VERSION,
   MAX_CLIPBOARD_TEXT_BYTES,
+  UPDATE_SELECTABLE,
 } from "../src/protocol";
 
 type Snapshot = readonly [number, number, number, number, number, number, readonly unknown[][]];
@@ -508,6 +509,24 @@ describe("keyboard reachability", () => {
       ]),
     );
     expect(keys).toEqual(["Escape:down"]);
+    root.unmount();
+  });
+});
+
+describe("selectable Text protocol", () => {
+  it("appends selectable only when enabled and emits the update mask when cleared", () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 201, epoch: 202 });
+    root.render(<Text selectable>Copy me</Text>);
+    const first = snapshots(transport)[0][6].find((node) => node[3] === 2) as readonly unknown[];
+    expect(first[9]).toBe(false);
+    expect(first[10]).toBe(true);
+
+    root.render(<Text>Copy me</Text>);
+    const patch = message(transport, 1);
+    const update = (patch[6] as readonly (readonly unknown[])[]).find((operation) => operation[0] === 2);
+    expect(update?.[2]).toBe(UPDATE_SELECTABLE);
+    expect(update?.[9]).toBeUndefined();
     root.unmount();
   });
 });

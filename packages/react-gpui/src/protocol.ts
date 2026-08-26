@@ -85,6 +85,7 @@ export const UPDATE_LISTENER = 4 as const;
 export const UPDATE_PROPERTIES = 8 as const;
 export const UPDATE_ACCESSIBILITY = 16 as const;
 export const UPDATE_FOCUSABLE = 32 as const;
+export const UPDATE_SELECTABLE = 64 as const;
 const KEY_MODIFIER_NAMES: Record<string, true> = {
   cmd: true,
   ctrl: true,
@@ -130,6 +131,7 @@ export type SnapshotNode = readonly [
   HostPropertiesWire | null,
   readonly unknown[] | null,
   boolean,
+  boolean?,
 ];
 export type Snapshot = readonly [
   typeof PROTOCOL_VERSION,
@@ -153,6 +155,7 @@ export type PatchCreate = readonly [
   HostPropertiesWire | null,
   readonly unknown[] | null,
   boolean,
+  boolean?,
 ];
 export type PatchUpdate = readonly [
   2,
@@ -164,6 +167,7 @@ export type PatchUpdate = readonly [
   HostPropertiesWire | null,
   readonly unknown[] | null,
   boolean,
+  boolean?,
 ];
 export type PatchMove = readonly [3, number, number, number];
 export type PatchDelete = readonly [4, number];

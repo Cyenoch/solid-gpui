@@ -75,6 +75,7 @@ pub const UPDATE_LISTENER: u32 = 4;
 pub const UPDATE_PROPERTIES: u32 = 8;
 pub const UPDATE_ACCESSIBILITY: u32 = 16;
 pub const UPDATE_FOCUSABLE: u32 = 32;
+pub const UPDATE_SELECTABLE: u32 = 64;
 pub const MAX_FRAME_LENGTH: usize = 16 * 1024 * 1024;
 
 pub const TRANSITION_OPACITY: u32 = 1;
@@ -148,6 +149,7 @@ pub enum PatchOperation {
         host_properties: Option<HostProperties>,
         accessibility: Option<AccessibilityProperties>,
         focusable: bool,
+        selectable: bool,
     },
     Move {
         id: u32,
@@ -283,6 +285,7 @@ pub struct Node {
     pub host_properties: Option<HostProperties>,
     pub accessibility: Option<AccessibilityProperties>,
     pub focusable: bool,
+    pub selectable: bool,
 }
 
 impl Node {
@@ -298,6 +301,7 @@ impl Node {
             host_properties: None,
             accessibility: None,
             focusable: false,
+            selectable: false,
         }
     }
 }

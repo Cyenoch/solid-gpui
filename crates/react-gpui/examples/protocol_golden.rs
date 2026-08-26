@@ -196,6 +196,7 @@ fn patch() -> Patch {
                 })),
                 accessibility: Some(accessibility()),
                 focusable: true,
+                selectable: false,
             },
             PatchOperation::Move {
                 id: 4,

@@ -27,6 +27,7 @@ import {
   UPDATE_ACCESSIBILITY,
   UPDATE_LISTENER,
   UPDATE_PROPERTIES,
+  UPDATE_SELECTABLE,
   UPDATE_STYLE,
   UPDATE_TEXT,
   decodeEvent,
@@ -683,7 +684,7 @@ export class RootContainer implements DispatchContext {
         .filter((node): node is HostNodeInternal => node !== undefined)
         .sort((a, b) => this.nodeDepth(a) - this.nodeDepth(b) || a.id - b.id);
       for (const node of created) {
-        operations.push([
+        const base = [
           1,
           node.id,
           this.nativeParentId(node),
@@ -695,7 +696,8 @@ export class RootContainer implements DispatchContext {
           hostPropertiesWire(node.hostProperties),
           accessibilityWire(node.accessibility),
           node.focusable,
-        ]);
+        ] as const;
+        operations.push(node.selectable ? [...base, true] : base);
       }
       const moved = [...this.movedIds]
         .map((id) => this.nodesById.get(id))
@@ -707,7 +709,7 @@ export class RootContainer implements DispatchContext {
       for (const [id, mask] of [...this.updatedMasks.entries()].sort(([a], [b]) => a - b)) {
         const node = this.nodesById.get(id);
         if (node === undefined || this.createdIds.has(id)) continue;
-        operations.push([
+        const base = [
           2,
           id,
           mask,
@@ -717,7 +719,8 @@ export class RootContainer implements DispatchContext {
           mask & UPDATE_PROPERTIES ? hostPropertiesWire(node.hostProperties) : null,
           mask & UPDATE_ACCESSIBILITY ? accessibilityWire(node.accessibility) : null,
           node.focusable,
-        ]);
+        ] as const;
+        operations.push(node.selectable ? [...base, true] : base);
       }
       for (const id of [...this.deletedRoots].sort((a, b) => a - b)) {
         if (!this.createdIds.has(id) && !this.nodesById.has(id)) operations.push([4, id]);

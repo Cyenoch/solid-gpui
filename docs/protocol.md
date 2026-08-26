@@ -117,10 +117,10 @@ retained tree's current revision (`tree.rs:862-934`).
 
 | Array/index              | Type                                                                                      | Constraint and semantics                                                                                                   | Source                                                              |
 | ------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Snapshot `[6]`           | array of Node tuples                                                                      | Complete node set. Each node shape and parent/child relationship is validated by the retained tree.                        | `protocol.rs:81`; `tree.rs:937-1100`                                |
+| Snapshot `[6]`           | array of Node tuples                                                                      | Complete node set. Each node has ten required fields and may carry an optional `selectable=true` tail; shape and parent/child relationship are validated by the retained tree. | `protocol.rs:81`; `tree.rs:937-1100`                                |
 | Patch `[6]`              | array of operation tuples                                                                 | Operations are applied atomically in order; a failed patch rolls back.                                                     | `protocol.rs:122,309-326`; `wire/snapshot_patch.rs:63-89,182-245`; `tree.rs:310-326`     |
-| Create operation `[0]=1` | `[1,id,parentId,index,kind,style,text,listenerId,hostProperties,accessibility,focusable]` | Same node fields as Snapshot, with operation tag `1`.                                                                      | `protocol.ts:123-135`; `wire/snapshot_patch.rs:90-115,136-151,182-207`                            |
-| Update operation `[0]=2` | `[2,id,mask,style,text,listenerId,hostProperties,accessibility,focusable]`                | `mask` selects changed fields: style `1`, text `2`, listener `4`, host properties `8`, accessibility `16`, focusable `32`. | `protocol.ts:69-74,136-145`; `protocol.rs:60-65`; `wire/snapshot_patch.rs:90-128,152-171,208-225` |
+| Create operation `[0]=1` | `[1,id,parentId,index,kind,style,text,listenerId,hostProperties,accessibility,focusable,selectable?]` | Same node fields as Snapshot, with operation tag `1`; the optional tail is emitted only when `selectable=true`. | `protocol.ts:123-136`; `wire/snapshot_patch.rs:90-116,136-153,182-216`                            |
+| Update operation `[0]=2` | `[2,id,mask,style,text,listenerId,hostProperties,accessibility,focusable,selectable?]`                | `mask` selects changed fields: style `1`, text `2`, listener `4`, host properties `8`, accessibility `16`, focusable `32`, selectable `64`; absent optional tail means false. | `protocol.ts:69-74,137-147`; `protocol.rs:60-65`; `wire/snapshot_patch.rs:90-130,155-176,218-239` |
 | Move operation `[0]=3`   | `[3,id,parentId,index]`                                                                   | Reparents/reorders an existing node. Child indexes must remain contiguous.                                                 | `protocol.ts:147`; `wire/snapshot_patch.rs:96-100,130-131,172-179,227-236`; `tree.rs:1102-1121`           |
 | Delete operation `[0]=4` | `[4,id]`                                                                                  | Deletes the node/subtree identified by `id`.                                                                               | `protocol.ts:148`; `wire/snapshot_patch.rs:96-100,133-134,237-243`                                |
 
@@ -141,9 +141,12 @@ retained tree's current revision (`tree.rs:862-934`).
 
 ### Node tuple
 
-A Snapshot Node and a Patch Create operation use the following ten fields. The
-host validates the kind, text placement, focusability, listener eligibility,
-host properties, accessibility, and parent-child shape (`tree.rs:937-1100`).
+A Snapshot Node and a Patch Create operation use the ten required fields below,
+followed by an optional `selectable` tail. The host validates the kind, text
+placement, focusability, listener eligibility, host properties, accessibility,
+and parent-child shape (`tree.rs:937-1100`). The selectable tail is currently
+decoded and retained only for Text nodes; rendering/selection consumption is
+deferred to the next implementation milestone.
 
 | Position | Field            | Type                  | Constraint and semantics                                                                   | Source                                      |
 | -------: | ---------------- | --------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |
@@ -157,6 +160,7 @@ host properties, accessibility, and parent-child shape (`tree.rs:937-1100`).
 |        7 | `hostProperties` | tagged array or null  | Required for TextInput, VirtualList, and Image; optional on View/Pressable when drag metadata is present; forbidden for other kinds. | `wire/node.rs:8-74,27-74,254-380`; `tree.rs:1000-1068` |
 |        8 | `accessibility`  | 7-slot array or null  | Accessibility metadata; checked requires checkbox role.                                    | `wire/node.rs:8-74,254-380`; `tree.rs:983-997`        |
 |        9 | `focusable`      | boolean               | Current retained-tree validation permits focusability only on View and Pressable.          | `tree.rs:961-965`                           |
+|       10 | `selectable`    | optional boolean       | Omitted/false for legacy and non-selectable nodes; only Text nodes may set it true. | `protocol.ts:123-147`; `wire/node.rs:3-16,153-178`; `tree/validation.rs` |
 
 Images and RawText cannot contain children; RawText must be directly under
 Text, and Text may contain only RawText (`tree.rs:1071-1099`).
