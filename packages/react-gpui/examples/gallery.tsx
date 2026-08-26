@@ -204,6 +204,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     cursor: "pointer",
   },
+  buttonSecondaryHover: { borderColor: "#2d6cdf", backgroundColor: "#f4f7fb" },
+  buttonSecondaryActive: { borderColor: "#2458b8", backgroundColor: "#eaf1ff" },
   buttonDisabled: { opacity: 0.45, backgroundColor: "#e7ebf0", cursor: "not-allowed" },
   buttonLabel: { fontSize: 12, lineHeight: 16, fontWeight: "semibold", color: "#ffffff" },
   buttonSecondaryLabel: { fontSize: 12, lineHeight: 16, fontWeight: "semibold", color: "#2458b8" },
@@ -303,7 +305,9 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
   const [layout, setLayout] = useState("800×600");
   const [externalDrop, setExternalDrop] = useState("none");
   const [pointer, setPointer] = useState("none");
-  const [hovered, setHovered] = useState(false);
+  const [menuHovered, setMenuHovered] = useState(false);
+  const [activateHovered, setActivateHovered] = useState(false);
+  const [recordHovered, setRecordHovered] = useState(false);
   const [scrollDelta, setScrollDelta] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuHover, setMenuHover] = useState(false);
@@ -340,10 +344,20 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
     query.trim() === ""
       ? activityRows
       : activityRows.filter((row) => row.title.toLowerCase().includes(query.toLowerCase()));
-  const buttonStyle = {
+  const menuButtonStyle = {
     ...styles.button,
-    ...(hovered ? styles.buttonHover : {}),
-    ...(pointer === "down" ? styles.buttonActive : {}),
+    ...(menuHovered ? styles.buttonHover : {}),
+    ...(pointer === "menu-down" ? styles.buttonActive : {}),
+  };
+  const activateButtonStyle = {
+    ...styles.button,
+    ...(activateHovered ? styles.buttonHover : {}),
+    ...(pointer === "activate-down" ? styles.buttonActive : {}),
+  };
+  const recordButtonStyle = {
+    ...styles.buttonSecondary,
+    ...(recordHovered ? styles.buttonSecondaryHover : {}),
+    ...(pointer === "record-down" ? styles.buttonSecondaryActive : {}),
   };
   const menuItemStyle = { ...styles.menuItem, ...(menuHover ? styles.menuItemHover : {}) };
 
@@ -362,7 +376,7 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
         <View style={styles.headerMeta}>
           <Text style={styles.chip}>Presses {presses}</Text>
           <Text style={styles.chipMuted}>{layout}</Text>
-          <Text style={styles.chipMuted}>{hovered ? "Hover" : pointer}</Text>
+          <Text style={styles.chipMuted}>{pointer === "none" ? "Idle" : pointer}</Text>
         </View>
       </View>
       <View
@@ -414,14 +428,14 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
           <View style={styles.actionRow}>
             <View style={styles.menuAnchor}>
               <Pressable
-                style={buttonStyle}
+                style={menuButtonStyle}
                 focusable
                 accessibilityRole="button"
                 accessibilityLabel={menuOpen ? "Hide activity menu" : "Show activity menu"}
                 onPress={() => setMenuOpen((value) => !value)}
-                onPointerDown={() => setPointer("down")}
-                onPointerUp={() => setPointer("up")}
-                onHoverChange={setHovered}
+                onPointerDown={() => setPointer("menu-down")}
+                onPointerUp={() => setPointer("menu-up")}
+                onHoverChange={setMenuHovered}
                 onKeyDown={({ key, action }) => {
                   if (key === "escape" && action === "down") setMenuOpen(false);
                 }}
@@ -458,12 +472,14 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
               ) : null}
             </View>
             <Pressable
-              style={buttonStyle}
+              style={activateButtonStyle}
               focusable
               accessibilityRole="button"
               accessibilityLabel={active ? "Deactivate live panel" : "Activate live panel"}
               onPress={() => setActive((value) => !value)}
-              onHoverChange={setHovered}
+              onHoverChange={setActivateHovered}
+              onPointerDown={() => setPointer("activate-down")}
+              onPointerUp={() => setPointer("activate-up")}
             >
               <Text style={styles.buttonLabel}>{active ? "Deactivate" : "Activate"}</Text>
             </Pressable>
@@ -477,7 +493,7 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
           </View>
           <Text style={styles.metadata}>Drop: {externalDrop}</Text>
         </View>
-        <View style={panelStyle} onLayout={() => undefined}>
+        <View style={panelStyle}>
           <View style={styles.panelHeader}>
             <Text style={styles.panelTitle}>Activity</Text>
             <Text style={styles.panelKicker}>
@@ -513,10 +529,13 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
           />
           <View style={styles.listActions}>
             <Pressable
-              style={styles.buttonSecondary}
+              style={recordButtonStyle}
               focusable
               accessibilityRole="button"
               accessibilityLabel="Record press"
+              onHoverChange={setRecordHovered}
+              onPointerDown={() => setPointer("record-down")}
+              onPointerUp={() => setPointer("record-up")}
               onPress={() => setPresses((value) => value + 1)}
             >
               <Text style={styles.buttonSecondaryLabel}>Record press</Text>

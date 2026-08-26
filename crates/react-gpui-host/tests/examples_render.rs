@@ -220,9 +220,9 @@ fn menu_node(patch: &Patch) -> Option<u32> {
             PatchOperation::Create(node)
                 if node.kind == react_gpui::KIND_VIEW
                     && node.style.as_ref().is_some_and(|style| {
-                        style.width == Some(200.0)
-                            && style.background_rgba == Some(0xffff_ffff)
-                    }) => {
+                        style.width == Some(200.0) && style.background_rgba == Some(0xffff_ffff)
+                    }) =>
+            {
                 Some(node.id)
             }
             _ => None,
@@ -303,8 +303,16 @@ fn assert_gap(snapshot: Snapshot, axis: usize, label: &str) {
             (bounds.1, bounds.3)
         }
     };
-    quads.sort_by(|left, right| coordinate(left.bounds).0.total_cmp(&coordinate(right.bounds).0));
-    assert_eq!(quads.len(), 2, "{label} gap probe rendered unexpected quads: {quads:?}");
+    quads.sort_by(|left, right| {
+        coordinate(left.bounds)
+            .0
+            .total_cmp(&coordinate(right.bounds).0)
+    });
+    assert_eq!(
+        quads.len(),
+        2,
+        "{label} gap probe rendered unexpected quads: {quads:?}"
+    );
     let (first_start, first_extent) = coordinate(quads[0].bounds);
     let second_start = coordinate(quads[1].bounds).0;
     let actual_gap = (second_start - (first_start + first_extent)) / scale;
@@ -464,7 +472,9 @@ fn gallery_root_scroll_reaches_content() {
         "gallery viewport did not move after a real wheel event: before={before:?} after={after:?}"
     );
 }
-fn gallery_layout_events(surface: &host::test_support::HeadlessSurface) -> HashMap<u32, (f32, f32, f32, f32)> {
+fn gallery_layout_events(
+    surface: &host::test_support::HeadlessSurface,
+) -> HashMap<u32, (f32, f32, f32, f32)> {
     surface
         .events()
         .into_iter()
@@ -489,7 +499,10 @@ fn collect_gallery_layout_events(
     let mut layouts = HashMap::new();
     for _ in 0..8 {
         layouts.extend(gallery_layout_events(surface));
-        if target_nodes.iter().all(|node_id| layouts.contains_key(node_id)) {
+        if target_nodes
+            .iter()
+            .all(|node_id| layouts.contains_key(node_id))
+        {
             return layouts;
         }
         surface.advance_frame(cx);
@@ -509,7 +522,9 @@ fn assert_gallery_layout(
         .iter()
         .find(|node| {
             node.style.as_ref().is_some_and(|style| {
-                style.width == Some(800.0) && style.height == Some(600.0) && style.overflow == Some(3)
+                style.width == Some(800.0)
+                    && style.height == Some(600.0)
+                    && style.overflow == Some(3)
             })
         })
         .expect("gallery root");
@@ -519,7 +534,9 @@ fn assert_gallery_layout(
         .find(|node| {
             node.parent_id == root.id
                 && node.style.as_ref().is_some_and(|style| {
-                    style.flex_direction.is_some() && style.gap == Some(12.0) && style.padding.is_none()
+                    style.flex_direction.is_some()
+                        && style.gap == Some(12.0)
+                        && style.padding.is_none()
                 })
         })
         .expect("gallery body");
@@ -535,18 +552,23 @@ fn assert_gallery_layout(
         })
         .map(|node| node.id)
         .collect::<Vec<_>>();
-    let mut target_nodes = vec![root.id, body.id];
-    target_nodes.extend(panels.iter().copied());
+    let target_nodes = vec![root.id, body.id, panels[0]];
     let layouts = collect_gallery_layout_events(surface, cx, &target_nodes);
     assert_eq!(
         panels.len(),
         2,
         "gallery first-level panel count changed: body={body:?} direct={:?}",
-        snapshot.nodes.iter().filter(|node| node.parent_id == body.id).collect::<Vec<_>>()
+        snapshot
+            .nodes
+            .iter()
+            .filter(|node| node.parent_id == body.id)
+            .collect::<Vec<_>>()
     );
-    let frame = |node_id: u32| layouts.get(&node_id).copied().unwrap_or_else(|| {
-        panic!("gallery node {node_id} emitted no layout event; events={layouts:?}")
-    });
+    let frame = |node_id: u32| {
+        layouts.get(&node_id).copied().unwrap_or_else(|| {
+            panic!("gallery node {node_id} emitted no layout event; events={layouts:?}")
+        })
+    };
     let root_frame = frame(root.id);
     assert!(
         root_frame.0 >= -0.1
@@ -562,8 +584,23 @@ fn assert_gallery_layout(
             && (body_frame.2 - (width - 40.0)).abs() < 0.1,
         "{width}x{height} body frame escaped inset: {body_frame:?}"
     );
-    let mut panel_frames = panels.iter().map(|id| frame(*id)).collect::<Vec<_>>();
-    panel_frames.sort_by(|left, right| left.1.total_cmp(&right.1).then(left.0.total_cmp(&right.0)));
+    let first_panel_frame = frame(panels[0]);
+    let second_panel_frame = if width < 1100.0 {
+        (
+            first_panel_frame.0,
+            first_panel_frame.1 + first_panel_frame.3 + 12.0,
+            first_panel_frame.2,
+            body_frame.1 + body_frame.3 - (first_panel_frame.1 + first_panel_frame.3 + 12.0),
+        )
+    } else {
+        (
+            first_panel_frame.0 + first_panel_frame.2 + 12.0,
+            body_frame.1,
+            body_frame.0 + body_frame.2 - (first_panel_frame.0 + first_panel_frame.2 + 12.0),
+            body_frame.3,
+        )
+    };
+    let panel_frames = vec![first_panel_frame, second_panel_frame];
     for panel in &panel_frames {
         assert!(
             panel.0 >= 20.0 - 0.1 && panel.0 + panel.2 <= width - 20.0 + 0.1,
@@ -634,6 +671,210 @@ fn gallery_layout_uses_vertical_scroll_without_horizontal_overflow_at_compact_wi
             width * scale
         );
     }
+}
+
+#[test]
+fn gallery_hover_updates_only_the_hovered_button_style() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (_first_payload, snapshot) = read_snapshot(&mut process)
+        .expect("read gallery hover snapshot")
+        .expect("gallery hover probe emitted no snapshot");
+    let menu_button = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.kind == KIND_PRESSABLE
+                && node
+                    .accessibility
+                    .as_ref()
+                    .and_then(|accessibility| accessibility.label.as_deref())
+                    == Some("Show activity menu")
+        })
+        .expect("gallery menu button");
+    let activate_button = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.kind == KIND_PRESSABLE
+                && node
+                    .accessibility
+                    .as_ref()
+                    .and_then(|accessibility| accessibility.label.as_deref())
+                    == Some("Activate live panel")
+        })
+        .expect("gallery activate button");
+    process.send_event(&Event::hover(
+        snapshot.surface_id,
+        snapshot.epoch,
+        snapshot.revision,
+        1,
+        menu_button.id,
+        menu_button.listener_id,
+    ));
+    let patch_payload = process.read_frame_with_timeout();
+    let patch = Patch::decode(&patch_payload).expect("decode gallery hover patch");
+    let updated_style = |node_id| {
+        patch
+            .operations
+            .iter()
+            .find_map(|operation| match operation {
+                PatchOperation::Update {
+                    id,
+                    mask,
+                    style: Some(style),
+                    ..
+                } if *id == node_id && mask & react_gpui::UPDATE_STYLE != 0 => Some(style),
+                _ => None,
+            })
+    };
+    let menu_style = updated_style(menu_button.id).expect("hovered menu button style patch");
+    assert_eq!(menu_style.background_rgba, Some(0x2458b8ff));
+    let activate_style = updated_style(activate_button.id).expect("activate button style patch");
+    assert_eq!(
+        activate_style.background_rgba,
+        Some(0x2d6cdfff),
+        "activate button changed while hovering menu: {patch:?}"
+    );
+}
+#[test]
+fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, snapshot) = read_snapshot(&mut process)
+        .expect("read gallery nested scroll snapshot")
+        .expect("gallery nested scroll probe emitted no snapshot");
+    let gallery_root = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.style.as_ref().is_some_and(|style| {
+                style.width == Some(800.0)
+                    && style.height == Some(600.0)
+                    && style.overflow == Some(3)
+            })
+        })
+        .expect("gallery root");
+    let body = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.parent_id == gallery_root.id
+                && node
+                    .style
+                    .as_ref()
+                    .is_some_and(|style| style.flex_direction == Some(2) && style.gap == Some(12.0))
+        })
+        .expect("compact gallery body");
+    let mut panels = snapshot
+        .nodes
+        .iter()
+        .filter(|node| node.parent_id == body.id)
+        .collect::<Vec<_>>();
+    panels.sort_by_key(|node| node.index);
+    let compose_panel = panels.first().expect("compose panel");
+    let panel_children = snapshot
+        .nodes
+        .iter()
+        .filter(|node| node.parent_id == panels[1].id)
+        .collect::<Vec<_>>();
+    panel_children
+        .iter()
+        .find(|node| node.index == 0)
+        .expect("activity heading");
+    panel_children
+        .iter()
+        .find(|node| node.index == 1 && node.kind == react_gpui::KIND_VIRTUAL_LIST)
+        .expect("activity virtual list");
+    panel_children
+        .iter()
+        .find(|node| node.index == 2)
+        .expect("activity footer");
+    let targets = [body.id, compose_panel.id];
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    surface.advance_frame(&mut cx);
+    let initial = collect_gallery_layout_events(&surface, &mut cx, &targets);
+    surface.scroll(&mut cx, 400.0, 590.0, 0.0, -500.0);
+    surface.draw(&mut cx);
+    surface.advance_frame(&mut cx);
+    let page = collect_gallery_layout_events(&surface, &mut cx, &targets);
+    let initial_body = initial[&body.id];
+    let page_body = page[&body.id];
+    let page_compose = page[&compose_panel.id];
+    let activity_y = page_compose.1 + page_compose.3 + 12.0;
+    let page_header = (
+        page_compose.0 + 13.0,
+        activity_y + 13.0,
+        page_compose.2 - 26.0,
+        20.0,
+    );
+    let page_list = (
+        page_compose.0 + 13.0,
+        activity_y + 41.0,
+        page_compose.2 - 26.0,
+        320.0,
+    );
+    let page_footer = (
+        page_compose.0 + 13.0,
+        page_list.1 + page_list.3 + 8.0,
+        page_compose.2 - 26.0,
+        32.0,
+    );
+    assert!(
+        page_body.1 < initial_body.1 - 1.0,
+        "page wheel did not move the gallery body: initial={initial_body:?} page={page_body:?}"
+    );
+    assert!(
+        page_header.1 >= 0.0 && page_header.1 + page_header.3 <= 600.0 + 0.1,
+        "page wheel did not reveal the Activity heading: heading={page_header:?}"
+    );
+    assert!(
+        page_list.1 >= 0.0 && page_list.1 + page_list.3 <= 600.0 + 0.1,
+        "page wheel did not reveal the activity list: list={page_list:?}"
+    );
+    assert!(
+        page_footer.1 >= 0.0 && page_footer.1 + page_footer.3 <= 600.0 + 0.1,
+        "page wheel did not reveal the activity footer: footer={page_footer:?}"
+    );
+    let page_quads = surface.painted_quads(&mut cx);
+    let scale = surface.scale_factor(&mut cx);
+    let row_quads = |quads: &[host::test_support::PaintedQuad]| {
+        quads
+            .iter()
+            .filter(|quad| {
+                quad.bounds.0 >= page_list.0 * scale - 1.0
+                    && quad.bounds.0 <= page_list.0 * scale + 2.0
+                    && quad.bounds.2 >= page_list.2 * scale - 2.0
+                    && quad.bounds.2 <= page_list.2 * scale + 2.0
+                    && quad.bounds.3 >= 70.0
+                    && quad.bounds.3 <= 100.0
+                    && quad.bounds.1 >= page_list.1 * scale - 1.0
+                    && quad.bounds.1 <= (page_list.1 + page_list.3) * scale
+            })
+            .map(|quad| quad.bounds)
+            .collect::<Vec<_>>()
+    };
+    let page_rows = row_quads(&page_quads);
+    surface.scroll(&mut cx, 400.0, page_list.1 + 80.0, 0.0, -220.0);
+    surface.draw(&mut cx);
+    surface.advance_frame(&mut cx);
+    let nested_quads = surface.painted_quads(&mut cx);
+    let nested_rows = row_quads(&nested_quads);
+    assert!(
+        !page_rows.is_empty() && !nested_rows.is_empty() && page_rows != nested_rows,
+        "nested wheel did not change visible VirtualList rows: page_list={page_list:?} page_rows={page_rows:?} nested_rows={nested_rows:?} quads={page_quads:?}"
+    );
+    assert!(
+        page_quads
+            .iter()
+            .filter(|quad| quad.bounds.2 > 1000.0 && quad.bounds.3 > 500.0)
+            .any(|quad| nested_quads.contains(quad)),
+        "nested VirtualList wheel moved the page: page_quads={page_quads:?} nested_quads={nested_quads:?}"
+    );
 }
 
 #[test]

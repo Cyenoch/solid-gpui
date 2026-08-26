@@ -145,9 +145,18 @@ fn accessibility_patch_updates_a_valid_label() {
             selectable: false,
         }],
     );
-    store.apply_patch(patch).expect("valid accessibility label update");
+    store
+        .apply_patch(patch)
+        .expect("valid accessibility label update");
     assert_eq!(
-        store.get(1).unwrap().accessibility.as_ref().unwrap().label.as_deref(),
+        store
+            .get(1)
+            .unwrap()
+            .accessibility
+            .as_ref()
+            .unwrap()
+            .label
+            .as_deref(),
         Some("Updated label")
     );
 }
