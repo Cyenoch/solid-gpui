@@ -63,21 +63,26 @@ so each can be revisited with a bounded implementation and bilateral tests:
   states to that path. There is still no loader notification hook, so
   JavaScript `onError` remains a true upstream gap; this visual fallback covers
   the user-visible degradation path without inventing an event.
-- **`pointerEvents`.** This is a hit-testing policy, not a CSS string that can
-  be forwarded blindly. GPUI's interactive elements decide hit testing from
-  their event handlers and element state; the current renderer only installs
-  handlers for declared callbacks and preserves subtree ordering. A future
-  policy can define `auto`/`none` (and ancestor/descendant precedence), but it
-  must specify whether layout, hover, drag, and accessibility participation
-  change together. No upstream API gap is implied.
+- **`pointerEvents` — disposition: do not add a declarative prop.** GPUI's
+  `Interactivity::should_insert_hitbox` only creates a hitbox when there is
+  interactivity (`references/zed/crates/gpui/src/elements/div.rs:2292-2316`);
+  with no listener, an overlay has no hitbox and basic pass-through is already
+  native behavior. The default `HitboxBehavior::Normal` also does not occlude
+  underlying hitboxes. A proposed `none` would only suppress this node's
+  callbacks; the single wire `listenerId` means unrelated callbacks such as
+  `onLayout` can still leave native pointer registration ambiguous. It cannot
+  express “listener present but pass through” or partial overlay occlusion, so
+  presenting it as CSS-like coverage would be a semantic false positive.
+  Keep the boundary explicit and leave the richer policy tracked.
 
 ## Test-platform limitations
 
-- **`zoom`.** GPUI exposes the command/window path, but stock headless and
-  `TestAppContext` runs do not provide a desktop compositor or reliable visual
-  scale verification. Zoom command round-trips and host handling are covered;
-  final visual scale remains an adapter/desktop verification concern rather
-  than evidence of a renderer or upstream gap.
+- **`zoom` — disposition: keep D-level test-platform coverage.** The pinned
+  GPUI `TestWindow::zoom` is unimplemented, while the production command path
+  and protocol handling are already covered at B level. A host trait/call-count
+  seam would prove only that `zoom_window()` was invoked, not display-backed
+  native zoom behavior. Keep the honest limitation: verify the toggle on a
+  real desktop adapter rather than adding a low-value seam.
 
 ## Current review outcome
 

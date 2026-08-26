@@ -100,7 +100,7 @@ Important differences from web React:
 
 - There is no DOM, CSS cascade, browser event cancellation, browser storage, or
   browser URL/navigation model.
-- Styles are a validated GPUI/Taffy-oriented subset with 40 positional slots,
+- Styles are a validated GPUI/Taffy-oriented subset with 42 positional slots,
   not CSS. Read [protocol.md](protocol.md) for the exact slot contract and the
   package README for the consumer-facing names.
 - Text, images, lists, focus, and commands are native host concepts. A
@@ -372,6 +372,10 @@ events. It does not open a window. See
 ## Known boundaries
 - There is no DOM, CSS cascade, or browser event cancellation. `letterSpacing`
   and `zIndex` remain unsupported style fields.
+- `pointerEvents` is intentionally not exposed: an overlay with no native
+  listener already leaves underlying GPUI hitboxes available, while a
+  declaration that suppresses only this node's callbacks cannot express
+  listener-present pass-through or partial occlusion.
 
 - Generic transforms (`transform.scale`, `transform.translateX`,
   `transform.translateY`) are unsupported. Positioning is the explicit
@@ -393,6 +397,9 @@ events. It does not open a window. See
 - Notifications are best-effort platform submissions; delivery and OS
   authorization are not guaranteed.
 - Window centering, `revealPath`, and `openWithSystem` are unsupported.
+- `Root.zoom()` command routing is covered in headless tests, but its visual
+  display-backed toggle effect requires a real desktop adapter; no test-only
+  call-count seam is provided.
 - A process entry still needs a host Runtime Adapter. A Bun script alone does
   not create a native Surface.
 

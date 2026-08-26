@@ -124,6 +124,11 @@ are `0` (relative and unset respectively), and cursor, whose default code `0`
 means Arrow.
 Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
 exposed; overlay layering follows subtree paint/hit-test order.
+- `pointerEvents` is intentionally not exposed. GPUI's default normal
+  hitboxes do not occlude underlying hitboxes, so an overlay with no listener
+  already permits basic pass-through; a declaration that suppresses only this
+  node's callbacks would not express listener-present pass-through or partial
+  occlusion.
 
 - Unknown fields, invalid colors, non-finite values, negative numeric fields other than positioning insets, zero `fontSize`, invalid alignment/weight/overflow/font-style/
   decoration values, invalid easing values, duplicate transition properties,
@@ -189,8 +194,9 @@ conversion, termination diagnostics, and injected process exits.
 
 Error handling is deliberately split by seam: unhandled React render errors
 are synchronously thrown to the consumer, bad Commit Batches are fatal to the
-shared Runtime Adapter, expected Image load failures render blank, and GPUI
-paint panics are host-fatal rather than caught per node. See
+shared Runtime Adapter, expected Image load failures render `fallbackSource`
+when supplied and otherwise remain blank, and GPUI paint panics are host-fatal
+rather than caught per node. See
 [ADR-0008](../../docs/adr/0008-error-handling-philosophy.md) for the recovery
 contract and rejected alternatives.
 
@@ -387,6 +393,9 @@ from `1` through `16384`. `Root.getWindowSize()` returns a
 `Promise<[number, number]>` of logical client-area pixels via
 `COMMAND_GET_WINDOW_SIZE=13`. `Root.zoom()` and `Root.toggleFullscreen()`
 expose GPUI's platform toggle semantics (they are not absolute state setters).
+The command path is covered in headless tests; the visual zoom effect requires
+a display-backed desktop adapter because the pinned TestWindow does not
+implement native zoom.
 `Root.openUrl(url)` accepts only non-empty `http://` or `https://` URLs up to
 2048 characters; `file:` and other schemes are rejected. Centering,
 `revealPath`, and `openWithSystem` are intentionally unsupported because GPUI
