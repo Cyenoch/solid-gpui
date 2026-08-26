@@ -178,6 +178,7 @@ export class NodeGraph {
               ? dragFor(node, props)
               : null;
     node.accessibility = accessibilityFor(node.kind, props);
+    node.disabled = (node.kind === "Pressable" || node.kind === "TextInput") && props.disabled === true;
     node.focusable =
       (node.kind === "View" || node.kind === "Pressable") && !node.disabled ? (props.focusable ?? false) : false;
     node.selectable = node.kind === "Text" && props.selectable === true;

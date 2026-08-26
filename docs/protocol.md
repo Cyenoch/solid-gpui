@@ -144,9 +144,10 @@ retained tree's current revision (`tree.rs:862-934`).
 A Snapshot Node and a Patch Create operation use the ten required fields below,
 followed by an optional `selectable` tail. The host validates the kind, text
 placement, focusability, listener eligibility, host properties, accessibility,
-and parent-child shape (`tree.rs:937-1100`). The selectable tail is currently
-decoded and retained only for Text nodes; rendering/selection consumption is
-deferred to the next implementation milestone.
+and parent-child shape (`tree.rs:937-1100`). For a Text node with
+`selectable=true`, the renderer consumes the flag with host-owned drag
+selection, per-visual-row highlights, and direct clipboard copy; no selection
+event is sent over this protocol.
 
 | Position | Field            | Type                  | Constraint and semantics                                                                   | Source                                      |
 | -------: | ---------------- | --------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |

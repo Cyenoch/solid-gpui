@@ -38,6 +38,8 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
     expect((nodes[0][4] as readonly unknown[])[40]).toEqual([1, [-2, 3, 4, 1, 0x01020380, 1]]);
     expect(nodes[6][7]).toEqual([3, "assets/😀.png", 3, "assets/avatar-fallback.png"]);
     expect(nodes[7][7]).toEqual([4, "card", ["assets/logo.png"]]);
+    expect(nodes[0][10]).toBeUndefined();
+    expect(nodes[1][10]).toBe(true);
   }
   if (vector.id.endsWith("snapshot-box-shadow-double")) {
     const snapshot = decoded as readonly unknown[];

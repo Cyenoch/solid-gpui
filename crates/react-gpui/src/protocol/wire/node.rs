@@ -12,7 +12,7 @@ pub(super) struct NodeWire(
     Option<HostPropertiesWire>,
     Option<AccessibilityWire>,
     bool,
-    Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
 );
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]

@@ -41,18 +41,18 @@ so each can be revisited with a bounded implementation and bilateral tests:
   tagged tail slot (`tag=1` for one shadow, `tag=2` for two), validates finite
   offsets/non-negative blur and spread, maps RGBA/inset, and exercises single,
   double, and invalid vectors.
-- **Selectable `Text` — feasible-bounded with design, not implemented this
-  round.** The pinned GPUI `TextRun` has `background_color`, `TextLayout`
-  exposes `index_for_position`, `position_for_index`, and bounds/line-layout
-  accessors, and Zed Markdown owns a `RenderedText` selection/copy model.
-  A future renderer element can therefore shape `Text` with
-  `shape_text`/`WrappedLine`, keep anchor/head ranges in Rust, paint
-  per-visual-row selection quads, and copy directly through the host clipboard.
-  The existing `EntityInputHandler` remains an IME seam rather than a generic
-  selection model; no new JS event or selection wire is required for the
-  proposed visual-only contract. The design still needs its own display-backed
-  drag/copy verification and is deliberately deferred rather than relabeled
-  as an upstream hard gap.
+- **Selectable `Text` — implemented as a bounded project feature.** The pinned
+  GPUI `TextRun` has `background_color`, `TextLayout` exposes
+  `index_for_position`, `position_for_index`, and bounds/line-layout accessors,
+  and Zed Markdown owns a `RenderedText` selection/copy model. The renderer now
+  shapes selectable Text with `shape_text`/`WrappedLine`, keeps UTF-8 anchor/head
+  ranges in Rust, paints per-visual-row selection quads, uses the I-beam cursor,
+  and copies directly through the host clipboard. Selection is visual-only:
+  there are no new JS events or selection wire messages. Text changes clamp
+  ranges to UTF-8 boundaries and unmounts discard layouts, ranges, and focus
+  handles. The display-backed behavior is covered by the GPUI test adapter;
+  platform-specific native cursor/clipboard verification remains a desktop
+  concern.
 - **`fontFamily` — implemented in this review.** GPUI's `Styled::font_family`
   accepts `SharedString`; `TextSystem::resolve_font` first attempts the
   requested family and then walks the configured fallback stack. The renderer
@@ -114,11 +114,11 @@ so each can be revisited with a bounded implementation and bilateral tests:
 
 ## Current review outcome
 
-`boxShadow`, `fontFamily`, image `fallbackSource`, and the scale-factor
-observation are implemented and documented. Selectable `Text` is a
-feasible-bounded design backed by public GPUI shaping/geometry and a Zed
-Markdown precedent, but this round deliberately leaves its wire/state changes
-rolled back for a dedicated implementation pass. Image `onError`, the true
-upstream gaps, and the remaining pointer-events policy stay explicitly listed
-so future work does not silently turn a policy choice into a claimed GPUI
-limitation.
+`boxShadow`, `fontFamily`, image `fallbackSource`, scale-factor observation,
+and selectable `Text` are implemented and documented. Selectable `Text` uses
+the bounded host-owned design rather than requiring an upstream selection API;
+its display-backed interaction is covered, while platform-specific native
+cursor/clipboard behavior remains a desktop-adapter concern. Image `onError`,
+the true upstream gaps, and the remaining pointer-events policy stay
+explicitly listed so future work does not silently turn a policy choice into a
+claimed GPUI limitation.

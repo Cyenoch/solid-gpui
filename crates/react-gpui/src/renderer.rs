@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -64,9 +65,12 @@ pub struct ReactRoot {
     next_sequence: Arc<AtomicU32>,
     input_states: HashMap<u32, NativeInputState>,
     text_input_layouts: HashMap<u32, TextInputLayout>,
+    selectable_text_layouts: HashMap<u32, TextInputLayout>,
+    selectable_text_selections: HashMap<u32, Range<usize>>,
     focus_handles: HashMap<u32, FocusHandle>,
     active_input: Option<u32>,
     text_input_drag_anchor: Option<(u32, usize)>,
+    selectable_text_drag_anchor: Option<(u32, usize)>,
     commands: Vec<Command>,
     virtual_lists: HashMap<u32, ListState>,
     virtual_ranges: HashMap<u32, (u32, u32)>,
@@ -92,13 +96,15 @@ impl ReactRoot {
         Self {
             store: NodeStore::empty(),
             runtime,
-            next_sequence: Arc::new(AtomicU32::new(1)),
             input_states: HashMap::new(),
             text_input_layouts: HashMap::new(),
+            selectable_text_layouts: HashMap::new(),
+            selectable_text_selections: HashMap::new(),
             focus_handles: HashMap::new(),
             active_input: None,
             text_input_drag_anchor: None,
-            commands: Vec::new(),
+            selectable_text_drag_anchor: None,
+            next_sequence: Arc::new(AtomicU32::new(1)),
             virtual_lists: HashMap::new(),
             virtual_ranges: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
@@ -107,6 +113,7 @@ impl ReactRoot {
             active_drag_type: Rc::new(RefCell::new(None)),
             reported_layout_bounds: HashMap::new(),
             animation_states: HashMap::new(),
+            commands: Vec::new(),
             animation_styles: HashMap::new(),
             frame_styles: HashMap::new(),
             animation_frame_requested: false,
@@ -208,6 +215,7 @@ impl ReactRoot {
                 self.reset_native_state();
             }
             self.reconcile_input_states(cx, None);
+            self.reconcile_selectable_text_states(cx, None);
             self.reconcile_virtual_lists_for(None);
             self.reconcile_animation_states(cx, None);
         } else if let Ok(patch) = Patch::decode(payload) {
@@ -225,6 +233,7 @@ impl ReactRoot {
             self.reported_layout_bounds
                 .retain(|id, _| !affected.contains(id));
             self.reconcile_input_states(cx, Some(&affected));
+            self.reconcile_selectable_text_states(cx, Some(&affected));
             self.reconcile_virtual_lists_for(Some(&affected));
             self.reconcile_animation_states(cx, Some(&affected));
         } else {
@@ -236,6 +245,9 @@ impl ReactRoot {
     fn reset_native_state(&mut self) {
         self.input_states.clear();
         self.text_input_layouts.clear();
+        self.selectable_text_layouts.clear();
+        self.selectable_text_selections.clear();
+        self.selectable_text_drag_anchor = None;
         self.focus_handles.clear();
         self.active_input = None;
         self.text_input_drag_anchor = None;
@@ -491,10 +503,10 @@ mod input_tests {
     use crate::protocol::{
         EventPayload, Node, Patch, PatchOperation, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
         TRANSITION_OPACITY, TRANSITION_WIDTH, Transition, UPDATE_LISTENER, UPDATE_PROPERTIES,
-        VirtualListProperties,
+        UPDATE_TEXT, VirtualListProperties,
     };
     use crate::transport::InMemoryAdapter;
-    use crate::tree::KIND_VIEW;
+    use crate::tree::{KIND_RAW_TEXT, KIND_TEXT, KIND_VIEW};
     use gpui::AppContext as _;
 
     fn controlled(value: &str, ack_edit_seq: u32) -> TextInputProperties {
@@ -1031,6 +1043,101 @@ mod input_tests {
         assert_eq!(line_count, 4);
         assert_eq!(line_starts, vec![0, 6, 7, 11]);
         assert_eq!(content, "a😀\n\n中\n");
+    }
+
+    #[gpui::test]
+    fn selectable_text_shapes_and_retains_host_selection_geometry(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(160.0), px(120.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut text = Node::new(2, 1, 0, KIND_TEXT);
+        text.selectable = true;
+        let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
+        raw.text = Some("selectable text".into());
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), text, raw]);
+        let payload = snapshot.encode().expect("encode selectable snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply selectable snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw selectable text");
+        cx.run_until_parked();
+
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_mouse_down(
+            gpui::point(px(1.0), px(8.0)),
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_mouse_move(
+            gpui::point(px(110.0), px(8.0)),
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_mouse_up(
+            gpui::point(px(110.0), px(8.0)),
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_keystrokes("cmd-c");
+
+        let (content, selection_rows) = root.read_with(cx, |root, _| {
+            let layout = root
+                .selectable_text_layouts
+                .get(&2)
+                .expect("selectable layout");
+            (
+                layout.content.clone(),
+                layout
+                    .text
+                    .selection_bounds_per_line(0..10, layout.bounds)
+                    .len(),
+            )
+        });
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("selectable ".to_string()),
+        );
+        let text_patch = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 3,
+                mask: UPDATE_TEXT,
+                style: None,
+                text: Some("x".into()),
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+            }],
+        );
+        let text_payload = text_patch.encode().expect("encode text update");
+        root.update(cx, |root, cx| root.apply_payload(&text_payload, cx))
+            .expect("apply text update");
+        let clamped = root.read_with(cx, |root, _| {
+            root.selectable_text_selections.get(&2).cloned()
+        });
+        assert_eq!(clamped, Some(0..1));
+
+        let delete_patch = Patch::new(7, 3, 2, 3, vec![PatchOperation::Delete { id: 2 }]);
+        let delete_payload = delete_patch.encode().expect("encode selectable delete");
+        root.update(cx, |root, cx| root.apply_payload(&delete_payload, cx))
+            .expect("apply selectable delete");
+        root.read_with(cx, |root, _| {
+            assert!(!root.selectable_text_selections.contains_key(&2));
+            assert!(!root.selectable_text_layouts.contains_key(&2));
+            assert!(!root.focus_handles.contains_key(&2));
+        });
+        assert_eq!(content, "selectable text");
+        assert!(selection_rows > 0);
     }
 
     #[test]

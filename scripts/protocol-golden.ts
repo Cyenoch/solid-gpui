@@ -75,7 +75,7 @@ const doubleRoot = [1, 0, 0, 1, doubleStyle, null, 0, null, null, false];
 const doubleSnapshot = [3, 1, 7, 3, 0, 44, [doubleRoot]];
 const invalidShadowStyle = fullStyle.map((value, index) => (index === 40 ? [1, [0, 0, -1, 0, 0, 0]] : value));
 const invalidShadowSnapshot = [3, 1, 7, 3, 0, 45, [[1, 0, 0, 1, invalidShadowStyle, null, 0, null, null, false]]];
-const text = [2, 1, 0, 2, null, "hello", 0, null, null, false];
+const text = [2, 1, 0, 2, null, "hello", 0, null, null, false, true];
 const input = [5, 1, 2, 5, null, null, 0, textInput, null, false];
 const rawText = [3, 2, 0, 4, null, "raw 😀", 0, null, null, false];
 const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false];

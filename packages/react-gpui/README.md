@@ -533,6 +533,18 @@ wheel notifications. `VirtualList` uses GPUI's variable-height `list` state
 and reports its visible range; scrollbar appearance and width remain GPUI
 platform defaults and are not controlled by this protocol.
 
+`Text` accepts `selectable`. When true, the host owns the selection anchor and
+head: dragging with the primary mouse button paints native-shaped,
+per-visual-row highlights, and `Cmd-C` on macOS (`Ctrl-C` on other platforms)
+writes the selected UTF-8 text directly to the host clipboard. Selection is
+deliberately visual-only: there is no JavaScript selection event, callback, or
+mirrored React state, and the optional wire tail is omitted when false for
+legacy compatibility. The flag is valid only on `Text`; it is unrelated to the
+editable `TextInput` selection API. The GPUI test adapter exercises geometry,
+dragging, text-change clamping, unmount cleanup, and simulated clipboard copy;
+the final native cursor/clipboard behavior should also be checked on a
+display-backed desktop host.
+
 `TextInput` is controlled with `value`/`onChangeText` or initialized once with
 `defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`,
 `onBlur`, `onSubmitEditing`, `onKeyDown`, `multiline`, `disabled`, `maxLength`,
@@ -623,6 +635,7 @@ The source tree includes focused entries for the main host surfaces:
 - [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, accessibility, and virtual-list integration.
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus and native key notifications.
 - [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, selection, multiline limits, and focus handles.
+- [`selectable-text.tsx`](examples/selectable-text.tsx) — host-owned text dragging, per-row highlighting, and Cmd/Ctrl-C clipboard copy.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 - [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
 

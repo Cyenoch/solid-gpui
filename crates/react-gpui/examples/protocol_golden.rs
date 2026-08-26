@@ -115,6 +115,7 @@ fn snapshot() -> Snapshot {
     root.accessibility = Some(accessibility());
     let mut text = Node::new(2, 1, 0, KIND_TEXT);
     text.text = Some("hello".into());
+    text.selectable = true;
     let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
     raw.text = Some("raw 😀".into());
     let mut pressable = Node::new(4, 1, 1, KIND_PRESSABLE);

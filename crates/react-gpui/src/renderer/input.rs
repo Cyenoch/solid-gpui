@@ -13,7 +13,7 @@ use crate::protocol::{
     TextInputProperties,
 };
 use crate::transport::send_event_or_exit;
-use crate::tree::{KIND_PRESSABLE, KIND_VIEW};
+use crate::tree::{KIND_PRESSABLE, KIND_TEXT, KIND_VIEW};
 
 use super::ReactRoot;
 
@@ -114,7 +114,7 @@ impl TextInputTextLayout {
         }
     }
 
-    fn closest_index_for_point(&self, at: Point<Pixels>) -> usize {
+    pub(super) fn closest_index_for_point(&self, at: Point<Pixels>) -> usize {
         match self {
             Self::Single { line, .. } => line.closest_index_for_x(at.x),
             Self::Multiline {
@@ -207,6 +207,82 @@ impl TextInputTextLayout {
             origin + point(end.point.x, end.point.y + end.line_height),
         );
         first.union(&last)
+    }
+
+    pub(super) fn selection_bounds_per_line(
+        &self,
+        range: Range<usize>,
+        bounds: Bounds<Pixels>,
+    ) -> Vec<Bounds<Pixels>> {
+        if range.start >= range.end {
+            return Vec::new();
+        }
+        match self {
+            Self::Single { line, line_height } => (line.x_for_index(range.end.min(line.len()))
+                > line.x_for_index(range.start.min(line.len())))
+            .then(|| {
+                let start = line.x_for_index(range.start.min(line.len()));
+                let end = line.x_for_index(range.end.min(line.len()));
+                Bounds::new(
+                    bounds.origin + point(start, px(0.0)),
+                    size(end - start, *line_height),
+                )
+            })
+            .into_iter()
+            .collect(),
+            Self::Multiline {
+                lines,
+                line_starts,
+                line_height,
+            } => {
+                let mut result = Vec::new();
+                let mut visual_line = 0usize;
+                for (paragraph, line) in lines.iter().enumerate() {
+                    let paragraph_start = line_starts.get(paragraph).copied().unwrap_or_default();
+                    let mut row_start = 0usize;
+                    let mut row_ends: Vec<usize> = line
+                        .wrap_boundaries()
+                        .iter()
+                        .map(|boundary| {
+                            line.runs()[boundary.run_ix].glyphs[boundary.glyph_ix].index
+                        })
+                        .collect();
+                    row_ends.push(line.len());
+                    for row_end in row_ends {
+                        let global_start = paragraph_start + row_start;
+                        let global_end = paragraph_start + row_end;
+                        let start = range.start.max(global_start);
+                        let end = range.end.min(global_end);
+                        if start < end {
+                            let local_start = start - paragraph_start;
+                            let local_end = end - paragraph_start;
+                            let start_x = if local_start <= row_start {
+                                px(0.0)
+                            } else {
+                                line.position_for_index(local_start, *line_height)
+                                    .map(|position| position.x)
+                                    .unwrap_or(px(0.0))
+                            };
+                            let end_x = line
+                                .position_for_index(local_end.min(row_end), *line_height)
+                                .map(|position| position.x)
+                                .unwrap_or(line.width());
+                            if end_x > start_x {
+                                result.push(Bounds::new(
+                                    bounds.origin
+                                        + point(px(0.0), *line_height * visual_line as f32)
+                                        + point(start_x, px(0.0)),
+                                    size(end_x - start_x, *line_height),
+                                ));
+                            }
+                        }
+                        row_start = row_end;
+                        visual_line += 1;
+                    }
+                }
+                result
+            }
+        }
     }
 }
 pub(super) fn line_starts(text: &str) -> Vec<usize> {
@@ -361,9 +437,10 @@ impl ReactRoot {
         self.focus_handles.retain(|id, _| {
             self.input_states.contains_key(id)
                 || self.store.get(*id).is_some_and(|node| {
-                    (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+                    ((node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
                         && node.focusable
-                        && node.listener_id != 0
+                        && node.listener_id != 0)
+                        || (node.kind == KIND_TEXT && node.selectable)
                 })
         });
         if self
@@ -420,6 +497,58 @@ impl ReactRoot {
                     .entry(id)
                     .or_insert_with(|| cx.focus_handle());
             }
+        }
+    }
+
+    pub(super) fn reconcile_selectable_text_states(
+        &mut self,
+        cx: &mut Context<Self>,
+        _affected: Option<&HashSet<u32>>,
+    ) {
+        self.selectable_text_selections.retain(|id, selection| {
+            let Some(node) = self.store.get(*id) else {
+                return false;
+            };
+            if node.kind != KIND_TEXT || !node.selectable {
+                return false;
+            }
+            let len = node.text_content.as_ref().map_or(0, |text| text.len());
+            Self::clamp_utf8_range(
+                selection,
+                node.text_content.as_deref().unwrap_or_default(),
+                len,
+            );
+            true
+        });
+        self.selectable_text_layouts.retain(|id, _| {
+            self.store
+                .get(*id)
+                .is_some_and(|node| node.kind == KIND_TEXT && node.selectable)
+        });
+        if self
+            .selectable_text_drag_anchor
+            .is_some_and(|(id, _)| !self.selectable_text_selections.contains_key(&id))
+        {
+            self.selectable_text_drag_anchor = None;
+        }
+        for node in self
+            .store
+            .iter()
+            .filter(|node| node.kind == KIND_TEXT && node.selectable)
+        {
+            let len = node.text_content.as_ref().map_or(0, |text| text.len());
+            let selection = self
+                .selectable_text_selections
+                .entry(node.id)
+                .or_insert_with(|| 0..0);
+            Self::clamp_utf8_range(
+                selection,
+                node.text_content.as_deref().unwrap_or_default(),
+                len,
+            );
+            self.focus_handles
+                .entry(node.id)
+                .or_insert_with(|| cx.focus_handle());
         }
     }
 
@@ -617,6 +746,77 @@ impl ReactRoot {
         }
     }
 
+    fn selectable_text_index_for_point(&self, node_id: u32, point: Point<Pixels>) -> Option<usize> {
+        let layout = self.selectable_text_layouts.get(&node_id)?;
+        let local = point.relative_to(&layout.bounds.origin);
+        Some(
+            layout
+                .text
+                .closest_index_for_point(local)
+                .min(layout.content.len()),
+        )
+    }
+
+    pub(super) fn begin_selectable_text_selection(
+        &mut self,
+        node_id: u32,
+        point: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let index = self
+            .selectable_text_index_for_point(node_id, point)
+            .unwrap_or_default();
+        self.selectable_text_drag_anchor = Some((node_id, index));
+        self.selectable_text_selections
+            .insert(node_id, index..index);
+        cx.notify();
+    }
+
+    pub(super) fn update_selectable_text_selection(
+        &mut self,
+        node_id: u32,
+        point: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((anchor_node, anchor)) = self.selectable_text_drag_anchor else {
+            return;
+        };
+        if anchor_node != node_id {
+            return;
+        }
+        let head = self
+            .selectable_text_index_for_point(node_id, point)
+            .unwrap_or(anchor);
+        let (selection, _) = selection_from_anchor(anchor, head);
+        if self.selectable_text_selections.get(&node_id) == Some(&selection) {
+            return;
+        }
+        self.selectable_text_selections.insert(node_id, selection);
+        cx.notify();
+    }
+
+    pub(super) fn end_selectable_text_selection(&mut self, node_id: u32) {
+        if self
+            .selectable_text_drag_anchor
+            .is_some_and(|(anchor_node, _)| anchor_node == node_id)
+        {
+            self.selectable_text_drag_anchor = None;
+        }
+    }
+
+    pub(super) fn selected_selectable_text(&self, node_id: u32) -> Option<String> {
+        let node = self.store.get(node_id)?;
+        let text = node.text_content.as_deref()?;
+        let range = self.selectable_text_selections.get(&node_id)?;
+        if range.start >= range.end
+            || range.end > text.len()
+            || !text.is_char_boundary(range.start)
+            || !text.is_char_boundary(range.end)
+        {
+            return None;
+        }
+        Some(text[range.clone()].to_owned())
+    }
     pub(super) fn handle_text_input_navigation(
         &mut self,
         node_id: u32,
@@ -647,6 +847,19 @@ impl ReactRoot {
         self.active_input = Some(node_id);
         self.emit_input_event(node_id, EVENT_SELECTION);
         cx.notify();
+    }
+    fn clamp_utf8_range(range: &mut Range<usize>, text: &str, len: usize) {
+        range.start = range.start.min(len);
+        range.end = range.end.min(len);
+        while range.start > 0 && !text.is_char_boundary(range.start) {
+            range.start -= 1;
+        }
+        while range.end > 0 && !text.is_char_boundary(range.end) {
+            range.end -= 1;
+        }
+        if range.start > range.end {
+            std::mem::swap(&mut range.start, &mut range.end);
+        }
     }
 }
 
@@ -953,6 +1166,16 @@ mod tests {
         assert_eq!(selection_from_anchor(5, 2), (2..5, true));
         assert_eq!(selection_from_anchor(2, 5), (2..5, false));
         assert_eq!(selection_from_anchor(3, 3), (3..3, false));
+    }
+
+    #[test]
+    fn selectable_selection_clamps_changed_text_to_utf8_boundaries() {
+        let mut range = 1..8;
+        ReactRoot::clamp_utf8_range(&mut range, "a😀", "a😀".len());
+        assert_eq!(range, 1..5);
+        let mut reversed = Range { start: 8, end: 1 };
+        ReactRoot::clamp_utf8_range(&mut reversed, "a😀", "a😀".len());
+        assert_eq!(reversed, 1..5);
     }
 
     #[test]

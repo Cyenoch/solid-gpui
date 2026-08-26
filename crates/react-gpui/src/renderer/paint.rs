@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, Element, ElementId,
-    ElementInputHandler, Entity, ExternalDragPayload, ExternalPaths, FileDragPaths,
-    GlobalElementId, ImageSource, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
-    MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render, SharedString,
-    StatefulInteractiveElement, Styled, StyledImage, TextRun, Window, div, fill, hsla, img, list,
-    point, px, relative, rgba, size,
+    AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, ClipboardItem, CursorStyle,
+    Element, ElementId, ElementInputHandler, Entity, ExternalDragPayload, ExternalPaths,
+    FileDragPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
+    IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render,
+    SharedString, StatefulInteractiveElement, Styled, StyledImage, TextRun, Window, div, fill,
+    hsla, img, list, point, px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -50,6 +50,12 @@ struct TextInputElement {
     fallback_text: String,
     placeholder: String,
     multiline: bool,
+}
+
+struct SelectableTextPrepaint {
+    text: super::input::TextInputTextLayout,
+    selection: Vec<PaintQuad>,
+    content: String,
 }
 
 struct TextInputPrepaint {
@@ -251,6 +257,133 @@ impl Element for TextInputElement {
                     },
                 );
             }
+        });
+    }
+}
+struct SelectableTextElement {
+    entity: Entity<ReactRoot>,
+    node_id: u32,
+    text: String,
+}
+
+impl IntoElement for SelectableTextElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for SelectableTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = SelectableTextPrepaint;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = gpui::Style::default();
+        style.size.width = relative(1.).into();
+        let line_count = self.text.split('\n').count().max(1);
+        style.size.height = (window.line_height() * line_count as f32).into();
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let root = self.entity.read(cx);
+        let mut selection = root
+            .selectable_text_selections
+            .get(&self.node_id)
+            .cloned()
+            .unwrap_or_default();
+        selection.start = selection.start.min(self.text.len());
+        selection.end = selection.end.min(self.text.len());
+        let text_style = window.text_style();
+        let run = TextRun {
+            len: self.text.len(),
+            font: text_style.font(),
+            color: text_style.color,
+            background_color: None,
+            underline: None,
+            strikethrough: None,
+        };
+        let line_height = window.line_height();
+        let font_size = text_style.font_size.to_pixels(window.rem_size());
+        let lines = window
+            .text_system()
+            .shape_text(
+                SharedString::from(self.text.clone()),
+                font_size,
+                &[run],
+                Some(bounds.size.width),
+                None,
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let text_layout = super::input::TextInputTextLayout::Multiline {
+            lines,
+            line_starts: super::input::line_starts(&self.text),
+            line_height,
+        };
+        let selection = text_layout
+            .selection_bounds_per_line(selection, bounds)
+            .into_iter()
+            .map(|bounds| fill(bounds, rgba(0x2d6cdf66)))
+            .collect();
+        SelectableTextPrepaint {
+            text: text_layout,
+            selection,
+            content: self.text.clone(),
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        for selection in prepaint.selection.drain(..) {
+            window.paint_quad(selection);
+        }
+        prepaint.text.paint(bounds.origin, bounds, window, cx);
+        let text = std::mem::take(&mut prepaint.text);
+        let content = prepaint.content.clone();
+        let node_id = self.node_id;
+        self.entity.update(cx, |root, _| {
+            root.selectable_text_layouts.insert(
+                node_id,
+                super::input::TextInputLayout {
+                    text,
+                    bounds,
+                    content,
+                    placeholder: false,
+                },
+            );
         });
     }
 }
@@ -632,6 +765,70 @@ impl ReactRoot {
         element = apply_style(element, style);
         if node.kind == KIND_RAW_TEXT || node.kind == KIND_TEXT {
             element = apply_text_style(element, style);
+        }
+        if node.kind == KIND_TEXT && node.selectable {
+            let node_id = node.id;
+            let text = node
+                .text_content
+                .as_ref()
+                .map(|text| text.to_string())
+                .unwrap_or_default();
+            let focus = self
+                .focus_handles
+                .get(&node_id)
+                .cloned()
+                .expect("selectable Text focus handle is reconciled before render");
+            let mut selectable = element
+                .focusable()
+                .track_focus(&focus)
+                .cursor(CursorStyle::IBeam)
+                .child(SelectableTextElement {
+                    entity: entity.clone(),
+                    node_id,
+                    text,
+                });
+            let mouse_entity = entity.clone();
+            let mouse_focus = focus.clone();
+            selectable = selectable.on_mouse_down(MouseButton::Left, move |event, window, app| {
+                window.focus(&mouse_focus, app);
+                mouse_entity.update(app, |root, cx| {
+                    root.begin_selectable_text_selection(node_id, event.position, cx);
+                });
+            });
+            let mouse_entity = entity.clone();
+            selectable = selectable.on_mouse_move(move |event, _, app| {
+                if event.dragging() {
+                    mouse_entity.update(app, |root, cx| {
+                        root.update_selectable_text_selection(node_id, event.position, cx);
+                    });
+                }
+            });
+            let mouse_entity = entity.clone();
+            selectable = selectable.on_mouse_up(MouseButton::Left, move |_, _, app| {
+                mouse_entity.update(app, |root, _| root.end_selectable_text_selection(node_id));
+            });
+            let mouse_entity = entity.clone();
+            selectable = selectable.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
+                mouse_entity.update(app, |root, _| root.end_selectable_text_selection(node_id));
+            });
+            let key_entity = entity.clone();
+            selectable = selectable.on_key_down(move |event, _, app| {
+                let modifiers = event.keystroke.modifiers;
+                if !event.is_held
+                    && !modifiers.shift
+                    && (modifiers.platform || modifiers.control)
+                    && event.keystroke.key.eq_ignore_ascii_case("c")
+                    && let Some(text) = key_entity.read(app).selected_selectable_text(node_id)
+                {
+                    app.write_to_clipboard(ClipboardItem::new_string(text));
+                    app.stop_propagation();
+                }
+            });
+            return measure_node(
+                node,
+                apply_accessibility(selectable, node).into_any(),
+                entity,
+            );
         }
         if node.kind == KIND_RAW_TEXT {
             let element = element.child(
