@@ -20,14 +20,14 @@ wire slot in this repository:
   a letter-spacing field or shaping adjustment that the renderer can safely
   apply to every text run. Adding a tuple value without a GPUI shaping API
   would be a visual approximation, not the requested semantic.
-- **Selectable `Text`.** GPUI's text element can shape and paint text, but the
-  pinned public element/input contracts do not provide a selection model and
-  selection event stream for a generic `Text` node. The renderer's selection
-  command is intentionally scoped to native `TextInput` state.
 - **Secure-input semantics.** The desktop GPUI input surface has no password
   obscuring/secure-entry primitive or keyboard-layout semantic. A renderer
   flag would not provide a secure editing contract, so `secureTextEntry` and
   `keyboardType` remain unsupported.
+
+The generic `Text` selection model is not supplied by GPUI, so it is not a
+ready-made upstream feature; however, unlike the remaining hard gaps, the
+renderer can build a bounded host-owned model from public primitives.
 
 ## Project limits that can be re-reviewed
 
@@ -41,6 +41,18 @@ so each can be revisited with a bounded implementation and bilateral tests:
   tagged tail slot (`tag=1` for one shadow, `tag=2` for two), validates finite
   offsets/non-negative blur and spread, maps RGBA/inset, and exercises single,
   double, and invalid vectors.
+- **Selectable `Text` — feasible-bounded with design, not implemented this
+  round.** The pinned GPUI `TextRun` has `background_color`, `TextLayout`
+  exposes `index_for_position`, `position_for_index`, and bounds/line-layout
+  accessors, and Zed Markdown owns a `RenderedText` selection/copy model.
+  A future renderer element can therefore shape `Text` with
+  `shape_text`/`WrappedLine`, keep anchor/head ranges in Rust, paint
+  per-visual-row selection quads, and copy directly through the host clipboard.
+  The existing `EntityInputHandler` remains an IME seam rather than a generic
+  selection model; no new JS event or selection wire is required for the
+  proposed visual-only contract. The design still needs its own display-backed
+  drag/copy verification and is deliberately deferred rather than relabeled
+  as an upstream hard gap.
 - **`fontFamily` — implemented in this review.** GPUI's `Styled::font_family`
   accepts `SharedString`; `TextSystem::resolve_font` first attempts the
   requested family and then walks the configured fallback stack. The renderer
@@ -103,7 +115,10 @@ so each can be revisited with a bounded implementation and bilateral tests:
 ## Current review outcome
 
 `boxShadow`, `fontFamily`, image `fallbackSource`, and the scale-factor
-observation are now implemented and documented. Image `onError`, the true
+observation are implemented and documented. Selectable `Text` is a
+feasible-bounded design backed by public GPUI shaping/geometry and a Zed
+Markdown precedent, but this round deliberately leaves its wire/state changes
+rolled back for a dedicated implementation pass. Image `onError`, the true
 upstream gaps, and the remaining pointer-events policy stay explicitly listed
 so future work does not silently turn a policy choice into a claimed GPUI
 limitation.
