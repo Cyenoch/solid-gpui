@@ -131,7 +131,7 @@ host-property tags, and every wire constraint.
 
 ### Styles by class
 
-The public `Style` names map to a fixed 40-slot tuple. Do not hand-author the
+The public `Style` names map to a fixed 42-slot tuple. Do not hand-author the
 wire tuple; use the object fields and `StyleSheet.create`:
 
 - **Layout:** `width`, `height`, `flexDirection`, `flexGrow`, `flexShrink`,
@@ -139,17 +139,20 @@ wire tuple; use the object fields and `StyleSheet.create`:
   `textOverflow`.
 - **Spacing:** `padding`, `gap`, `marginTop`, `marginRight`, `marginBottom`,
   `marginLeft`.
-- **Typography:** `fontSize`, `fontWeight`, `fontStyle`, `textDecoration`,
-  `lineHeight`, `color`.
+- **Typography:** `fontSize`, `fontWeight`, `fontStyle`, `fontFamily`,
+  `textDecoration`, `lineHeight`, `color`.
 - **Visual:** `backgroundColor`, `borderColor`, `borderWidth`, `borderRadius`,
-  `opacity`.
+  `boxShadow`, `opacity`.
 - **Positioning:** `position`, `left`, `top`, `right`, `bottom`.
 - **Animation:** `transition` for `opacity`, `backgroundColor`, `width`, and
   `height`.
 
 Colors are `#RRGGBB` or `#RRGGBBAA`; numeric fields are validated before a
-Commit Batch is emitted. The complete positional table and enum codes live in
-[protocol.md](protocol.md#style-tuple-all-40-slots).
+Commit Batch is emitted. `boxShadow` accepts one or two shadow objects and
+renders through GPUI's native shadow primitive; `fontFamily` accepts a
+non-empty family name up to 64 Unicode characters and uses GPUI's configured
+fallback stack. The complete positional table and enum codes live in
+[protocol.md](protocol.md#style-tuple-all-42-slots).
 
 ### Root commands
 
@@ -367,11 +370,9 @@ events. It does not open a window. See
 `packages/react-gpui-dev/README.md#headless-component-tests`.
 
 ## Known boundaries
+- There is no DOM, CSS cascade, or browser event cancellation. `letterSpacing`
+  and `zIndex` remain unsupported style fields.
 
-These are current constraints, not a roadmap:
-
-- There is no DOM, CSS cascade, browser event cancellation, `boxShadow`,
-  `letterSpacing`, `fontFamily`, or `zIndex` style field.
 - Generic transforms (`transform.scale`, `transform.translateX`,
   `transform.translateY`) are unsupported. Positioning is the explicit
   `relative`/`absolute` plus inset fields.

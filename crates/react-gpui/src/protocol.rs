@@ -362,6 +362,16 @@ pub struct Transition {
     pub properties: u32,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoxShadow {
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub blur_radius: f32,
+    pub spread_radius: f32,
+    pub color_rgba: u32,
+    pub inset: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Style {
     pub width: Option<f32>,
@@ -404,6 +414,8 @@ pub struct Style {
     pub bottom: Option<f32>,
     pub cursor: Option<u32>,
     pub text_align: Option<u32>,
+    pub box_shadows: Option<Vec<BoxShadow>>,
+    pub font_family: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

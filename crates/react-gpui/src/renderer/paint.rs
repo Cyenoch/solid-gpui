@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, App, AppContext, Bounds, Element, ElementId, ElementInputHandler, Entity,
-    ExternalPaths, GlobalElementId, ImageSource, InspectorElementId, InteractiveElement,
-    IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement, Pixels, Render,
-    ShapedLine, SharedString, StatefulInteractiveElement, Styled, StyledImage, TextAlign, TextRun,
-    Window, div, fill, hsla, img, list, point, px, relative, rgba, size,
+    AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow, Element, ElementId,
+    ElementInputHandler, Entity, ExternalPaths, GlobalElementId, ImageSource, InspectorElementId,
+    InteractiveElement, IntoElement, LayoutId, MouseButton, ObjectFit, PaintQuad, ParentElement,
+    Pixels, Render, ShapedLine, SharedString, StatefulInteractiveElement, Styled, StyledImage,
+    TextAlign, TextRun, Window, div, fill, hsla, img, list, point, px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -1057,6 +1057,20 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
     if let Some(background) = style.background_rgba {
         element = element.bg(rgba(background));
     }
+    if let Some(shadows) = style.box_shadows.as_ref() {
+        element = element.shadow(
+            shadows
+                .iter()
+                .map(|shadow| GpuiBoxShadow {
+                    color: rgba(shadow.color_rgba).into(),
+                    offset: point(px(shadow.offset_x), px(shadow.offset_y)),
+                    blur_radius: px(shadow.blur_radius),
+                    spread_radius: px(shadow.spread_radius),
+                    inset: shadow.inset,
+                })
+                .collect(),
+        );
+    }
     if let Some(color) = style.color_rgba {
         element = element.text_color(rgba(color));
     }
@@ -1090,6 +1104,9 @@ fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
 
 fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
     let Some(style) = style else { return element };
+    if let Some(font_family) = style.font_family.as_ref() {
+        element = element.font_family(SharedString::from(font_family.clone()));
+    }
     if let Some(font_style) = style.font_style {
         element = match font_style {
             0 => element.not_italic(),

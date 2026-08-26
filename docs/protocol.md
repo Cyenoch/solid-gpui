@@ -151,7 +151,7 @@ host properties, accessibility, and parent-child shape (`tree.rs:937-1100`).
 |        1 | `parentId`       | u32                   | Parent node identity; root node uses parent `0`.                                           | Same sources; `tree.rs:1061-1099`           |
 |        2 | `index`          | u32                   | Sibling index; stored siblings must be contiguous from zero.                               | `tree.rs:1102-1121`                         |
 |        3 | `kind`           | u32                   | `1=View`, `2=Text`, `3=Pressable`, `4=RawText`, `5=TextInput`, `6=VirtualList`, `7=Image`. | `tree.rs:937-951`; `protocol.ts:101-112`    |
-|        4 | `style`          | 40-slot array or null | Encoded Style; see the complete slot table below.                                          | `style.ts:86-126,395-518`; `wire/node.rs:76-235` |
+|        4 | `style`          | 42-slot array or null | Encoded Style; see the complete slot table below.                                         | `style.ts:88-148,485-632`; `wire/node.rs:86-128,221-317` |
 |        5 | `text`           | string or null        | Must be non-null only for RawText; all other kinds use null.                               | `tree.rs:953-959`                           |
 |        6 | `listenerId`     | u32                   | Identifies a JavaScript listener table entry; zero means no listener.                      | `protocol.rs:229`; `tree.rs:967-981`        |
 |        7 | `hostProperties` | tagged array or null  | Required for TextInput, VirtualList, and Image; optional on View/Pressable when drag metadata is present; forbidden for other kinds. | `wire/node.rs:8-74,27-74,254-380`; `tree.rs:1000-1068` |
@@ -196,14 +196,16 @@ Image, VirtualList, and RawText branches use the same accessibility helper.
 The stock headless TestPlatform has no active AccessKit adapter; display-backed
 desktop verification is required for a real tree inspection.
 
-### Style tuple: all 40 slots
+### Style tuple: all 42 slots
 
-`style` is positional and always has 40 slots when present. `null` means the
+`style` is positional and always has 42 slots when present. `null` means the
 field is unset. Color values are encoded RGBA u32 values from TypeScript
 `#RRGGBB`/`#RRGGBBAA` strings. Numeric length/size fields are finite,
 non-negative numbers except `fontSize`, which must be positive, `opacity`,
 which must be in `0..1`, and positioning insets, which may be negative finite
-pixel offsets (`style.ts:105-340`; `wire/node.rs:76-235`).
+pixel offsets (`style.ts:175-430`; `wire/node.rs:468-528`).
+The Rust decoder accepts legacy 40-slot style arrays; current producers emit
+the two appended slots.
 
 | Slot | Field           | Wire value                                         | Values/constraint                                                                                                                                                                                                                                                                                                                                      | Source                                                                      |
 | ---: | --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
@@ -247,6 +249,8 @@ pixel offsets (`style.ts:105-340`; `wire/node.rs:76-235`).
 |   37 | bottom          | f32 or null                                        | Finite pixel offset; negative values are allowed.                                                                                                                                                                                                                                                                                                      | Same sources.                                                               |
 |   38 | cursor          | u32 or null                                        | Cursor code: `0=default`, `1=text`, `2=pointer`, `3=grab`, `4=grabbing`, `5=not-allowed`, `6=context-menu`, `7=crosshair`, `8=vertical-text`, `9=alias`, `10=copy`, `11=no-drop`, `12=move`, `13=ew-resize`, `14=ns-resize`, `15=nesw-resize`, `16=nwse-resize`, `17=col-resize`, `18=row-resize`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors. | `style.ts:1-21,127-165,342-384,515-516`; `protocol.rs:353-394`; `wire/node.rs:75-117,162-206,381-440`; `renderer/paint.rs:783-806` |
 |   39 | textAlign       | u32                                                | `0=unset`, `1=left`, `2=center`, `3=right`; physical alignment only, not logical RTL start/end.                                                                                                                                                                                                                                                        | `style.ts:2,56-57,306-308,528`; `protocol.rs:394`; `wire/node.rs:59-99,144-233,340-399`; `renderer/paint.rs:836-843` |
+|   40 | boxShadow       | `[tag,payload]` or null                       | `tag=1` payload `[offsetX,offsetY,blurRadius,spreadRadius,rgba,inset01]`; `tag=2` payload is a two-element array of those payloads. Offsets are finite f32 values; blur/spread are finite non-negative f32 values; at most two shadows. | `style.ts:29-38,200-256,483-496`; `wire/node.rs:76-128,174-219,445-466,468-528`; `renderer/paint.rs:1060-1073` |
+|   41 | fontFamily      | string or null                                  | Non-empty, at most 64 Unicode characters, no control characters. GPUI resolves unavailable primary families through its configured fallback stack. | `style.ts:247-255,428-430`; `wire/node.rs:445-448,512-513`; `renderer/paint.rs:1105-1110` |
 `row-reverse` and `column-reverse` are physical flex-axis mirrors only. This
 protocol does not expose a container direction or text base-direction field;
 Unicode bidi shaping remains platform behavior and explicit RTL layout/caret

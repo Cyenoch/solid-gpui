@@ -43,7 +43,20 @@ const fullStyle = [
   6,
   2,
   3,
+  [1, [-2, 3, 4, 1, 0x01020380, 1]],
+  "Avenir Next",
 ];
+const doubleStyle = fullStyle.map((value, index) =>
+  index === 40
+    ? [
+        2,
+        [
+          [-2, 3, 4, 0, 0x11223344, 0],
+          [0, -1, 8, 2, 0xaabbccdd, 1],
+        ],
+      ]
+    : value,
+);
 const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8, false];
 const virtualList = [2, 20, 2, 9, 24.5, 3];
@@ -58,6 +71,10 @@ function row(id: string, kind: string, value: unknown): string {
 }
 
 const root = [1, 0, 0, 1, fullStyle, null, 0, null, accessibility, false];
+const doubleRoot = [1, 0, 0, 1, doubleStyle, null, 0, null, null, false];
+const doubleSnapshot = [3, 1, 7, 3, 0, 44, [doubleRoot]];
+const invalidShadowStyle = fullStyle.map((value, index) => (index === 40 ? [1, [0, 0, -1, 0, 0, 0]] : value));
+const invalidShadowSnapshot = [3, 1, 7, 3, 0, 45, [[1, 0, 0, 1, invalidShadowStyle, null, 0, null, null, false]]];
 const text = [2, 1, 0, 2, null, "hello", 0, null, null, false];
 const input = [5, 1, 2, 5, null, null, 0, textInput, null, false];
 const rawText = [3, 2, 0, 4, null, "raw 😀", 0, null, null, false];
@@ -82,6 +99,7 @@ const patch = [
 ];
 
 const rows = [
+  row("ts-snapshot-box-shadow-double", "snapshot", doubleSnapshot),
   row("ts-snapshot-all-kinds", "snapshot", snapshot),
   row("ts-patch-all-operations", "patch", patch),
   row("ts-event-press", "event", [3, 2, 7, 3, 42, 1, 4, 7, 1, null]),
@@ -220,6 +238,7 @@ const invalid = [
   `ts-invalid-file-dialog-empty-paths\tevent\t${hex(
     encode([3, 2, 7, 3, 42, 21, 1, 0, 6, [2, 120, 18, 1, true, null, [5, []]]]),
   )}\terror\tevent-null`,
+  `ts-invalid-style-box-shadow-negative-blur\tsnapshot\t${hex(encode(invalidShadowSnapshot))}\terror\traw`,
   `ts-invalid-event-type\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 99, null]))}\terror\tevent-null`,
   `ts-invalid-surface-close-node\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 16, null]))}\terror\tevent-null`,
   `ts-invalid-appearance-bool\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 18, true]))}\terror\tevent-null`,

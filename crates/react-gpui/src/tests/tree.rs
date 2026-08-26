@@ -344,6 +344,39 @@ fn style_values_must_be_finite_and_non_negative() {
             align_self: Some(8),
             ..Style::default()
         },
+        Style {
+            box_shadows: Some(vec![
+                crate::BoxShadow {
+                    offset_x: 0.0,
+                    offset_y: 0.0,
+                    blur_radius: 1.0,
+                    spread_radius: 0.0,
+                    color_rgba: 0,
+                    inset: false,
+                },
+                crate::BoxShadow {
+                    offset_x: 1.0,
+                    offset_y: 1.0,
+                    blur_radius: 1.0,
+                    spread_radius: 0.0,
+                    color_rgba: 0,
+                    inset: false,
+                },
+                crate::BoxShadow {
+                    offset_x: 2.0,
+                    offset_y: 2.0,
+                    blur_radius: 1.0,
+                    spread_radius: 0.0,
+                    color_rgba: 0,
+                    inset: false,
+                },
+            ]),
+            ..Style::default()
+        },
+        Style {
+            font_family: Some("x".repeat(65)),
+            ..Style::default()
+        },
     ] {
         let mut root = Node::new(1, 0, 0, KIND_VIEW);
         root.style = Some(style);
@@ -395,6 +428,8 @@ fn style_values_must_be_finite_and_non_negative() {
         bottom: Some(6.0),
         cursor: None,
         text_align: Some(3),
+        box_shadows: None,
+        font_family: None,
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))
@@ -435,6 +470,15 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         bottom: Some(6.0),
         cursor: Some(18),
         text_align: Some(3),
+        box_shadows: Some(vec![crate::BoxShadow {
+            offset_x: -2.0,
+            offset_y: 3.0,
+            blur_radius: 4.0,
+            spread_radius: 1.0,
+            color_rgba: 0x01020380,
+            inset: true,
+        }]),
+        font_family: Some("Avenir Next".into()),
         transition: Some(Transition {
             duration_ms: 100,
             delay_ms: 0,
@@ -490,6 +534,21 @@ fn style_wire_round_trips_layout_border_and_text_fields() {
         },
         Style {
             cursor: Some(19),
+            ..Style::default()
+        },
+        Style {
+            box_shadows: Some(vec![crate::BoxShadow {
+                offset_x: 0.0,
+                offset_y: 0.0,
+                blur_radius: -1.0,
+                spread_radius: 0.0,
+                color_rgba: 0,
+                inset: false,
+            }]),
+            ..Style::default()
+        },
+        Style {
+            font_family: Some(String::new()),
             ..Style::default()
         },
     ] {

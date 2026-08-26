@@ -85,6 +85,8 @@ export {
   type TransportTerminationListener,
 } from "./transport";
 export {
+  type BoxShadow,
+  type BoxShadowInput,
   createStyleSheet,
   type AlignItems,
   type AlignSelf,

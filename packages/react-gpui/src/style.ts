@@ -26,6 +26,16 @@ export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "bas
 export type FontWeight = "normal" | "medium" | "semibold" | "bold" | "heavy";
 export type Overflow = "visible" | "hidden" | "scroll";
 export type FontStyle = "normal" | "italic";
+export interface BoxShadow {
+  readonly offsetX: number;
+  readonly offsetY: number;
+  readonly blurRadius: number;
+  readonly spreadRadius: number;
+  readonly color: string;
+  readonly inset?: boolean;
+}
+
+export type BoxShadowInput = BoxShadow | readonly [BoxShadow, BoxShadow];
 export type TextDecoration = "none" | "underline" | "lineThrough";
 export type AlignSelf = "start" | "end" | "flex-start" | "flex-end" | "center" | "baseline" | "stretch";
 export type TransitionEasing = "linear" | "easeIn" | "easeOut" | "easeInOut";
@@ -80,11 +90,17 @@ export interface Style {
   readonly color?: string;
   readonly opacity?: number;
   readonly transition?: Transition;
+  readonly boxShadow?: BoxShadowInput;
+  readonly fontFamily?: string;
 }
 
 export type StyleProp = Style | null | undefined;
 
 export type EncodedTransition = readonly [number, number, 0 | 1 | 2 | 3, number];
+export type EncodedBoxShadowValue = readonly [number, number, number, number, number, 0 | 1];
+export type EncodedBoxShadow =
+  | readonly [1, EncodedBoxShadowValue]
+  | readonly [2, readonly [EncodedBoxShadowValue, EncodedBoxShadowValue]];
 export type EncodedStyle = readonly [
   number | null,
   number | null,
@@ -124,8 +140,10 @@ export type EncodedStyle = readonly [
   number | null,
   number | null,
   number | null,
-  number | null,
-  number | null,
+  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18,
+  0 | 1 | 2 | 3,
+  EncodedBoxShadow | null,
+  string | null,
 ];
 
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
@@ -160,6 +178,8 @@ const STYLE_KEYS: Record<string, true> = {
   flexShrink: true,
   alignSelf: true,
   position: true,
+  boxShadow: true,
+  fontFamily: true,
   left: true,
   top: true,
   textAlign: true,
@@ -175,6 +195,63 @@ const STYLE_KEYS: Record<string, true> = {
 function assertNumber(name: string, value: unknown, nonNegative: boolean): asserts value is number {
   if (typeof value !== "number" || !Number.isFinite(value) || (nonNegative && value < 0)) {
     throw new TypeError(`${name} must be a finite${nonNegative ? " non-negative" : ""} number`);
+  }
+}
+const BOX_SHADOW_KEYS: Record<string, true> = {
+  offsetX: true,
+  offsetY: true,
+  blurRadius: true,
+  spreadRadius: true,
+  color: true,
+  inset: true,
+};
+
+function assertF32Number(name: string, value: unknown, nonNegative: boolean): asserts value is number {
+  assertNumber(name, value, nonNegative);
+  if (!Number.isFinite(Math.fround(value))) {
+    throw new TypeError(`${name} must be representable as f32`);
+  }
+}
+
+function validateBoxShadow(value: unknown, index: number): BoxShadow {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`boxShadow[${index}] must be an object`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!BOX_SHADOW_KEYS[key]) throw new TypeError(`Unsupported boxShadow field: ${key}`);
+  }
+  const shadow = value as BoxShadow;
+  assertF32Number(`boxShadow[${index}].offsetX`, shadow.offsetX, false);
+  assertF32Number(`boxShadow[${index}].offsetY`, shadow.offsetY, false);
+  assertF32Number(`boxShadow[${index}].blurRadius`, shadow.blurRadius, true);
+  assertF32Number(`boxShadow[${index}].spreadRadius`, shadow.spreadRadius, true);
+  if (typeof shadow.color !== "string" || !COLOR_PATTERN.test(shadow.color)) {
+    throw new TypeError(`boxShadow[${index}].color must be #RRGGBB or #RRGGBBAA`);
+  }
+  if (shadow.inset !== undefined && typeof shadow.inset !== "boolean") {
+    throw new TypeError(`boxShadow[${index}].inset must be a boolean`);
+  }
+  return shadow;
+}
+
+function validateBoxShadowInput(value: unknown): BoxShadowInput {
+  if (Array.isArray(value)) {
+    if (value.length !== 2) throw new TypeError("boxShadow must contain one or two shadows");
+    validateBoxShadow(value[0], 0);
+    validateBoxShadow(value[1], 1);
+    return value as unknown as readonly [BoxShadow, BoxShadow];
+  }
+  return validateBoxShadow(value, 0);
+}
+
+function validateFontFamily(value: unknown): asserts value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    [...value].length > 64 ||
+    [...value].some((character) => /\p{Cc}/u.test(character))
+  ) {
+    throw new TypeError("fontFamily must be a non-empty string of at most 64 characters");
   }
 }
 
@@ -347,6 +424,8 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
       }
     }
   }
+  if (style.boxShadow !== undefined) validateBoxShadowInput(style.boxShadow);
+  if (style.fontFamily !== undefined) validateFontFamily(style.fontFamily);
   return style;
 }
 
@@ -400,6 +479,22 @@ export function encodeColor(color: string): number {
   const alpha = hex.length === 6 ? "ff" : hex.slice(6);
   return Number.parseInt(`${hex.slice(0, 6)}${alpha}`, 16) >>> 0;
 }
+function encodeBoxShadow(input: BoxShadowInput): EncodedBoxShadow {
+  const encode = (shadow: BoxShadow): EncodedBoxShadowValue => [
+    Math.fround(shadow.offsetX),
+    Math.fround(shadow.offsetY),
+    Math.fround(shadow.blurRadius),
+    Math.fround(shadow.spreadRadius),
+    encodeColor(shadow.color),
+    shadow.inset === true ? 1 : 0,
+  ];
+  if (Array.isArray(input)) {
+    const shadows = input as readonly [BoxShadow, BoxShadow];
+    return [2, [encode(shadows[0]), encode(shadows[1])]];
+  }
+  return [1, encode(input as BoxShadow)];
+}
+
 const ENCODED_STYLE_CACHE = new WeakMap<object, EncodedStyle>();
 
 export function encodeStyle(style: StyleProp): EncodedStyle | null {
@@ -534,6 +629,8 @@ export function encodeStyle(style: StyleProp): EncodedStyle | null {
     style.bottom ?? null,
     encodeCursor(style.cursor),
     style.textAlign === undefined ? 0 : style.textAlign === "left" ? 1 : style.textAlign === "center" ? 2 : 3,
+    style.boxShadow === undefined ? null : encodeBoxShadow(style.boxShadow),
+    style.fontFamily ?? null,
   ]) as EncodedStyle;
   ENCODED_STYLE_CACHE.set(style, encoded);
   return encoded;

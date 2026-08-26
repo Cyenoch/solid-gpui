@@ -526,6 +526,8 @@ describe("styles", () => {
         alignSelf: "center",
         cursor: "pointer",
         textAlign: "center",
+        boxShadow: { offsetX: -1, offsetY: 2, blurRadius: 4, spreadRadius: 1, color: "#01020380", inset: true },
+        fontFamily: "Avenir Next",
       },
     });
     expect(Object.isFrozen(styles)).toBe(true);
@@ -574,6 +576,8 @@ describe("styles", () => {
       null,
       2,
       2,
+      [1, [-1, 2, 4, 1, 0x01020380, 1]],
+      "Avenir Next",
     ]);
     root.render(<View style={{ opacity: 0, transition: { durationMs: 100 } }} />);
     expect(((message(transport, 1)[6] as readonly unknown[][])[0][3] as readonly unknown[])[9]).toEqual([
@@ -610,6 +614,41 @@ describe("styles", () => {
         positioned: { position: "absolute", left: -8, top: 4, right: 12, bottom: 6 },
       }),
     ).not.toThrow();
+  });
+  it("encodes two box shadows and rejects malformed shadow/font values", () => {
+    const double = StyleSheet.create({
+      card: {
+        boxShadow: [
+          { offsetX: -2, offsetY: 3, blurRadius: 4, spreadRadius: 0, color: "#11223344" },
+          { offsetX: 0, offsetY: -1, blurRadius: 8, spreadRadius: 2, color: "#abcdef", inset: true },
+        ],
+      },
+    });
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 91, epoch: 92 });
+    root.render(<View style={double.card} />);
+    const encoded = snapshots(transport)[0][6][1][4] as readonly unknown[];
+    expect(encoded[40]).toEqual([
+      2,
+      [
+        [-2, 3, 4, 0, 0x11223344, 0],
+        [0, -1, 8, 2, 0xabcdefff, 1],
+      ],
+    ]);
+    root.unmount();
+    expect(() => StyleSheet.create({ bad: { boxShadow: [] as never } })).toThrow();
+    expect(() =>
+      StyleSheet.create({
+        bad: { boxShadow: { offsetX: 0, offsetY: 0, blurRadius: -1, spreadRadius: 0, color: "#000000" } },
+      }),
+    ).toThrow();
+    expect(() =>
+      StyleSheet.create({
+        bad: { boxShadow: { offsetX: 0, offsetY: 0, blurRadius: 0, spreadRadius: 0, color: "black" } },
+      }),
+    ).toThrow();
+    expect(() => StyleSheet.create({ bad: { fontFamily: "" } })).toThrow();
+    expect(() => StyleSheet.create({ bad: { fontFamily: "a".repeat(65) } })).toThrow();
   });
 });
 it("encodes reverse flex directions and physical text alignment", () => {

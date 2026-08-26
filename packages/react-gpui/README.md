@@ -109,22 +109,25 @@ reader).
 - `position` — `"relative"` (default post-layout correction) or `"absolute"` (anchored to the closest positioned ancestor/origin); `left`, `top`, `right`, and `bottom` — finite pixel offsets, including negative values.
 - `cursor` — `"default"`, `"text"`, `"pointer"`, `"grab"`, `"grabbing"`, `"not-allowed"`, `"context-menu"`, `"crosshair"`, `"vertical-text"`, `"alias"`, `"copy"`, `"no-drop"`, `"move"`, `"ew-resize"`, `"ns-resize"`, `"nesw-resize"`, `"nwse-resize"`, `"col-resize"`, or `"row-resize"`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors.
 - `textAlign` — `"left"`, `"center"`, or `"right"` for physical text alignment on `Text` and `RawText`; logical RTL start/end alignment is unsupported.
+- `boxShadow` — one shadow object or a two-element tuple of shadow objects. Each
+  shadow accepts finite `offsetX`/`offsetY`, non-negative finite
+  `blurRadius`/`spreadRadius`, an `#RRGGBB` or `#RRGGBBAA` color, and an optional
+  `inset` boolean. At most two shadows are accepted.
+- `fontFamily` — a non-empty font-family string up to 64 Unicode characters.
+  GPUI resolves the requested family through its configured fallback stack when
+  the primary family is unavailable.
 
-The transport uses one fixed positional 40-slot style tuple: slots `0..19`
-remain unchanged, the existing fields occupy `20..32`, and positioning appends
-`33=position`, `34=left`, `35=top`, `36=right`, `37=bottom`, `38=cursor`,
-`39=textAlign`; omitted fields are encoded as `null` except position and text
-alignment, whose default codes are `0` (relative and unset respectively), and
-cursor, whose default code `0` means Arrow.
+The transport uses one fixed positional 42-slot style tuple: slots `0..39`
+retain the existing fields, `40=boxShadow`, and `41=fontFamily`; omitted fields
+are encoded as `null` except position and text alignment, whose default codes
+are `0` (relative and unset respectively), and cursor, whose default code `0`
+means Arrow.
 Negative inset offsets are passed through to GPUI/Taffy. No `zIndex` field is
 exposed; overlay layering follows subtree paint/hit-test order.
 
-`fontFamily` is intentionally not exposed: GPUI accepts `SharedString`, but the
-backend does not guarantee a safe fallback for an arbitrary missing primary
-
 - Unknown fields, invalid colors, non-finite values, negative numeric fields other than positioning insets, zero `fontSize`, invalid alignment/weight/overflow/font-style/
-  decoration values, invalid easing values, and duplicate transition properties
-  are rejected.
+  decoration values, invalid easing values, duplicate transition properties,
+  malformed shadows, and invalid font-family strings are rejected.
 
 ## Image
 

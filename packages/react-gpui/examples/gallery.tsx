@@ -53,6 +53,16 @@ const styles = StyleSheet.create({
   },
   panelTitle: { fontSize: 18, fontWeight: "semibold", color: "#14213d" },
   label: { fontSize: 13, fontWeight: "medium", color: "#52627a" },
+  shadowCard: {
+    gap: 6,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    boxShadow: [
+      { offsetX: 0, offsetY: 2, blurRadius: 6, spreadRadius: 0, color: "#14213d26" },
+      { offsetX: 0, offsetY: 8, blurRadius: 18, spreadRadius: 0, color: "#14213d18" },
+    ],
+  },
   showcase: {
     marginTop: 4,
     marginRight: 8,
@@ -192,6 +202,10 @@ function Gallery() {
         >
           <Text style={styles.panelTitle}>Compose</Text>
           <Text style={styles.showcase}>Margins, bounds, italic, underline, and line height.</Text>
+          <View style={styles.shadowCard}>
+            <Text style={styles.panelTitle}>Native card shadow</Text>
+            <Text style={styles.subtitle}>One card can carry two GPUI box-shadow layers.</Text>
+          </View>
           <View
             style={{ height: 72, flexShrink: 0, overflow: "scroll", borderWidth: 1, padding: 8 }}
             onScroll={(event) => setScrollDelta(Math.round(event.dy))}

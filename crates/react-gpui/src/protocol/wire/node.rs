@@ -73,6 +73,16 @@ pub(super) struct AccessibilityWire(
     Option<String>,
 );
 #[derive(Debug, Serialize, Deserialize)]
+pub(super) struct BoxShadowValueWire(f32, f32, f32, f32, u32, u32);
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(super) enum BoxShadowWire {
+    Single(u32, BoxShadowValueWire),
+    Double(u32, [BoxShadowValueWire; 2]),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(super) struct StyleWire(
     Option<f32>,
     Option<f32>,
@@ -114,6 +124,8 @@ pub(super) struct StyleWire(
     Option<f32>,
     Option<u32>,
     Option<u32>,
+    Option<BoxShadowWire>,
+    Option<String>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -156,6 +168,53 @@ impl TryFrom<NodeWire> for Node {
             accessibility: node.8.map(AccessibilityProperties::from),
             focusable: node.9,
         })
+    }
+}
+
+impl From<&BoxShadow> for BoxShadowValueWire {
+    fn from(value: &BoxShadow) -> Self {
+        Self(
+            value.offset_x,
+            value.offset_y,
+            value.blur_radius,
+            value.spread_radius,
+            value.color_rgba,
+            u32::from(value.inset),
+        )
+    }
+}
+
+fn box_shadow_wire(shadows: Option<&[BoxShadow]>) -> Option<BoxShadowWire> {
+    match shadows {
+        Some([shadow]) => Some(BoxShadowWire::Single(1, BoxShadowValueWire::from(shadow))),
+        Some([first, second]) => Some(BoxShadowWire::Double(
+            2,
+            [
+                BoxShadowValueWire::from(first),
+                BoxShadowValueWire::from(second),
+            ],
+        )),
+        _ => None,
+    }
+}
+
+impl From<BoxShadowWire> for Vec<BoxShadow> {
+    fn from(value: BoxShadowWire) -> Self {
+        let values = match value {
+            BoxShadowWire::Single(_, value) => vec![value],
+            BoxShadowWire::Double(_, values) => values.into_iter().collect(),
+        };
+        values
+            .into_iter()
+            .map(|value| BoxShadow {
+                offset_x: value.0,
+                offset_y: value.1,
+                blur_radius: value.2,
+                spread_radius: value.3,
+                color_rgba: value.4,
+                inset: value.5 != 0,
+            })
+            .collect()
     }
 }
 
@@ -202,6 +261,8 @@ impl From<&Style> for StyleWire {
             style.bottom,
             style.cursor,
             style.text_align,
+            box_shadow_wire(style.box_shadows.as_deref()),
+            style.font_family.clone(),
         )
     }
 }
@@ -249,6 +310,8 @@ impl From<StyleWire> for Style {
             bottom: style.37,
             cursor: style.38,
             text_align: style.39,
+            box_shadows: style.40.map(Vec::<BoxShadow>::from),
+            font_family: style.41,
         }
     }
 }
@@ -378,6 +441,29 @@ fn validate_host_kind(
     }
 }
 
+fn valid_font_family(value: &str) -> bool {
+    !value.is_empty() && value.chars().count() <= 64 && !value.chars().any(char::is_control)
+}
+
+fn valid_box_shadow_value(value: &BoxShadowValueWire) -> bool {
+    value.0.is_finite()
+        && value.1.is_finite()
+        && value.2.is_finite()
+        && value.2 >= 0.0
+        && value.3.is_finite()
+        && value.3 >= 0.0
+        && value.5 <= 1
+}
+
+fn valid_box_shadow(value: &BoxShadowWire) -> bool {
+    match value {
+        BoxShadowWire::Single(tag, value) => *tag == 1 && valid_box_shadow_value(value),
+        BoxShadowWire::Double(tag, values) => {
+            *tag == 2 && values.iter().all(valid_box_shadow_value)
+        }
+    }
+}
+
 pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError> {
     if style.2.is_some_and(|direction| direction > 4)
         || style.33.is_some_and(|position| position > 1)
@@ -422,6 +508,14 @@ pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError
         || style
             .16
             .is_some_and(|weight| !matches!(weight, 400 | 500 | 600 | 700 | 900))
+        || style
+            .40
+            .as_ref()
+            .is_some_and(|shadow| !valid_box_shadow(shadow))
+        || style
+            .41
+            .as_ref()
+            .is_some_and(|family| !valid_font_family(family))
     {
         return Err(ProtocolError::InvalidStyle);
     }

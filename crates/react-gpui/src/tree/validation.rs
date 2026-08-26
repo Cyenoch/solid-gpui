@@ -476,6 +476,31 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
             });
         }
     }
+    if style.box_shadows.as_ref().is_some_and(|shadows| {
+        shadows.is_empty()
+            || shadows.len() > 2
+            || shadows.iter().any(|shadow| {
+                !shadow.offset_x.is_finite()
+                    || !shadow.offset_y.is_finite()
+                    || !shadow.blur_radius.is_finite()
+                    || shadow.blur_radius < 0.0
+                    || !shadow.spread_radius.is_finite()
+                    || shadow.spread_radius < 0.0
+            })
+    }) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "boxShadow must contain one or two shadows with finite offsets and non-negative blur/spread",
+        });
+    }
+    if style.font_family.as_ref().is_some_and(|family| {
+        family.is_empty() || family.chars().count() > 64 || family.chars().any(char::is_control)
+    }) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "fontFamily must be a non-empty string of at most 64 characters",
+        });
+    }
     if style
         .font_size
         .is_some_and(|size| !size.is_finite() || size <= 0.0)
