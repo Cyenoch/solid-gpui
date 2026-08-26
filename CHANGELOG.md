@@ -380,6 +380,12 @@ from this work tree.
   transport, validation, events, command lifecycle, IME, tap performance,
   crash reports, and compatibility; README Debugging points to it while
   retaining the environment quick reference.
+- Keybinding registration exposes root-only `COMMAND_SET_KEYBINDINGS=22` with
+  `Root.setKeybindings` full-replacement semantics, 64-entry/64-byte/64-character
+  limits, `Keystroke::parse` prevalidation with atomic indexed rejection,
+  per-surface retained sets rebuilt into a deterministic process-global union,
+  action hits reusing the `EVENT_ACTION` active-window route, and
+  context-conditional bindings documented as unsupported.
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
