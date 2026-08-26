@@ -1,6 +1,18 @@
 # React GPUI
 
-React GPUI is a first vertical slice that renders React trees into one or more GPUI surfaces. React and Bun own Fiber, hooks, context, fragments, and JavaScript closures; Rust and GPUI own validated native tree state and drawing.
+> [!WARNING]
+> **Early-stage WIP.** React GPUI is under active development. APIs, protocol
+> details, and implementation behavior may change without notice; it is not
+> production-ready.
+
+React GPUI renders React trees into one or more native GPUI surfaces. React and
+Bun own Fiber, hooks, context, fragments, and JavaScript closures; Rust and GPUI
+own validated native tree state and drawing.
+
+![React GPUI Gallery](docs/images/gallery.png)
+
+_The gallery example exercises native controls, scrolling, overlays, drag
+reordering, and text rendering._
 
 ## Status
 
@@ -137,17 +149,36 @@ A commit reader performs blocking process I/O away from the GPUI foreground exec
 
 ## Quick start
 
-From the repository root:
+From the repository root. The gallery is the recommended first run:
+
+### Gallery (embedded Bun/JSC)
 
 ```sh
-cargo run -p react-gpui-host -- --runtime process bun run packages/react-gpui/examples/counter.tsx
-
-# Embedded Bun/JSC (builds the pinned source graph under target/)
-cargo run -p react-gpui-host --features embedded-bun -- --runtime embedded packages/react-gpui/examples/counter.tsx
-
+cargo run -p react-gpui-host --features embedded-bun -- \
+  --runtime embedded \
+  packages/react-gpui/examples/gallery.tsx
 ```
 
-For opt-in Fast Refresh while developing an embedded entry, add `--watch`.
+The first embedded build compiles the pinned Bun/JSC source graph under
+`target/`.
+
+### Counter (process runtime)
+
+```sh
+cargo run -p react-gpui-host -- \
+  --runtime process \
+  bun run packages/react-gpui/examples/counter.tsx
+```
+
+For opt-in Fast Refresh while developing an embedded entry, add `--watch`
+before the entry path:
+
+```sh
+cargo run -p react-gpui-host --features embedded-bun -- \
+  --runtime embedded \
+  --watch \
+  packages/react-gpui/examples/gallery.tsx
+```
 
 ## Workspace map
 
