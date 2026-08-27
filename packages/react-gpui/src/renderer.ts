@@ -3,7 +3,7 @@ import Reconciler from "react-reconciler";
 import { LegacyRoot } from "react-reconciler/constants";
 
 import { hostConfig } from "./renderer/host-config";
-import { RootContainer } from "./renderer/root-container";
+import { SurfaceClosedError, RootContainer } from "./renderer/root-container";
 import type {
   AccessibilityProps,
   AnimationCompleteEvent,
@@ -93,6 +93,7 @@ export type {
   MenuDefinition,
   MenuItem,
 } from "./renderer/types";
+export { SurfaceClosedError } from "./renderer/root-container";
 const renderer = Reconciler(hostConfig);
 let nextSurfaceId = 1;
 
@@ -206,7 +207,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
   );
   return {
     render(element: ReactNode): void {
-      if (closed) throw new Error("Cannot render into an unmounted root");
+      if (closed) throw new SurfaceClosedError(surfaceId);
       container.beginRender();
       const flush = renderer.flushSyncFromReconciler;
       if (typeof flush === "function") {
@@ -217,67 +218,67 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
       container.throwIfUnhandledError();
     },
     setTitle(title: string): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot set title on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.setTitle(title);
     },
     resize(width: number, height: number): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot resize an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.resize(width, height);
     },
     getWindowSize(): Promise<[number, number]> {
-      if (closed) return Promise.reject(new Error("Cannot get window size from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.getWindowSize();
     },
     setClipboardText(text: string): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot set clipboard on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.setClipboardText(text);
     },
     getClipboardText(): Promise<string> {
-      if (closed) return Promise.reject(new Error("Cannot get clipboard from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.getClipboardText();
     },
     zoom(): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot zoom an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.zoom();
     },
     openSurface(options: SurfaceOpenOptions = {}): Promise<number> {
-      if (closed) return Promise.reject(new Error("Cannot open a surface from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.openSurface(options);
     },
     pickFiles(options: PickFilesOptions = {}): Promise<string[] | null> {
-      if (closed) return Promise.reject(new Error("Cannot pick files from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.pickFiles(options);
     },
     pickSavePath(options: PickSavePathOptions = {}): Promise<string | null> {
-      if (closed) return Promise.reject(new Error("Cannot pick a save path from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.pickSavePath(options);
     },
     showNotification(options: NotificationOptions): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot show a notification from an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.showNotification(options);
     },
     setMenus(menus: readonly MenuDefinition[]): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot set menus on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.setMenus(menus);
     },
     setKeybindings(bindings: readonly Keybinding[]): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot set keybindings on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.setKeybindings(bindings);
     },
     toggleFullscreen(): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot toggle fullscreen on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.toggleFullscreen();
     },
     openUrl(url: string): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot open a URL on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.openUrl(url);
     },
     focusNext(): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot focus next on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.focusNext();
     },
     focusPrev(): Promise<void> {
-      if (closed) return Promise.reject(new Error("Cannot focus previous on an unmounted root"));
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.focusPrev();
     },
     unmount(): void {

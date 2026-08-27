@@ -16,6 +16,7 @@ import { createStyleSheet } from "./style";
 
 export {
   createRoot,
+  SurfaceClosedError,
   type AccessibilityProps,
   type AnimationCompleteEvent,
   type HostKind,
@@ -71,7 +72,7 @@ export type {
   SurfaceOpenOptions,
   SurfaceOptions,
 } from "./renderer";
-export { createSurfaceHost, type SurfaceHost, type SurfaceHostOptions } from "./surface-host";
+export { createSurfaceHost, SurfaceIdReusedError, type SurfaceHost, type SurfaceHostOptions } from "./surface-host";
 export {
   DEFAULT_MAX_PENDING_BYTES,
   MemoryTransport,

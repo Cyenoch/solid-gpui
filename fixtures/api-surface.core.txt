@@ -76,8 +76,10 @@ StdioTransportOptions	type
 Style	type
 StyleProp	type
 StyleSheet	value
+SurfaceClosedError	both
 SurfaceHost	type
 SurfaceHostOptions	type
+SurfaceIdReusedError	both
 SurfaceKind	type
 SurfaceOpenOptions	type
 SurfaceOptions	type

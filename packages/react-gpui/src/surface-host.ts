@@ -7,6 +7,16 @@ import {
   type TransportTerminationListener,
 } from "./transport";
 
+export class SurfaceIdReusedError extends Error {
+  readonly surfaceId: number;
+
+  constructor(surfaceId: number) {
+    super(`surface ${surfaceId} was already closed and cannot be reused`);
+    this.name = "SurfaceIdReusedError";
+    this.surfaceId = surfaceId;
+  }
+}
+
 export interface SurfaceHostOptions {
   readonly maxFrameSize?: number;
   readonly onTransportTermination?: TransportTerminationListener;
@@ -83,6 +93,7 @@ class RoutedTransport implements Transport {
 export class SurfaceHostImpl implements SurfaceHost {
   private readonly decoder: FrameDecoder;
   private readonly roots = new Map<number, RoutedTransport>();
+  private readonly retiredSurfaceIds = new Set<number>();
   private readonly unsubscribe: () => void;
   private readonly unsubscribeTermination: () => void;
   private readonly onTransportTermination: TransportTerminationListener | undefined;
@@ -107,22 +118,36 @@ export class SurfaceHostImpl implements SurfaceHost {
     const surfaceId = options.surfaceId ?? this.allocateSurfaceId();
     if (!Number.isInteger(surfaceId) || surfaceId < 1 || surfaceId > 0xffff_ffff)
       throw new RangeError("surfaceId must be a positive u32");
+    if (this.retiredSurfaceIds.has(surfaceId)) throw new SurfaceIdReusedError(surfaceId);
     if (this.roots.has(surfaceId)) throw new Error(`surface ${surfaceId} is already registered`);
 
     const routed = new RoutedTransport(this);
+    let released = false;
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      this.roots.delete(surfaceId);
+      this.retiredSurfaceIds.add(surfaceId);
+      routed.dispose();
+    };
     const root = createRoot(routed, {
       ...options,
       surfaceId,
       onClose: () => {
-        this.roots.delete(surfaceId);
-        routed.dispose();
+        release();
         options.onClose?.();
       },
     });
     this.roots.set(surfaceId, routed);
-    return root;
+    return {
+      ...root,
+      unmount: () => {
+        if (released) return;
+        root.unmount();
+        release();
+      },
+    };
   }
-
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -145,14 +170,12 @@ export class SurfaceHostImpl implements SurfaceHost {
   }
 
   private allocateSurfaceId(): number {
-    while (this.roots.has(this.nextSurfaceId)) {
-      if (this.nextSurfaceId >= 0xffff_ffff) throw new RangeError("surface id exhausted u32 range");
-      this.nextSurfaceId += 1;
+    for (;;) {
+      const surfaceId = this.nextSurfaceId;
+      if (surfaceId < 1 || surfaceId > 0xffff_ffff) throw new RangeError("surface id exhausted u32 range");
+      this.nextSurfaceId = surfaceId + 1;
+      if (!this.roots.has(surfaceId) && !this.retiredSurfaceIds.has(surfaceId)) return surfaceId;
     }
-    const surfaceId = this.nextSurfaceId;
-    if (this.nextSurfaceId >= 0xffff_ffff) this.nextSurfaceId = 1;
-    else this.nextSurfaceId += 1;
-    return surfaceId;
   }
 
   private receive(chunk: Uint8Array | ArrayBuffer): void {

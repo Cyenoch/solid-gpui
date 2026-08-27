@@ -62,6 +62,15 @@ import type {
   WindowResizeHandler,
 } from "./types";
 import type { SurfaceOpenOptions } from "../renderer";
+export class SurfaceClosedError extends Error {
+  readonly surfaceId: number;
+
+  constructor(surfaceId: number) {
+    super(`surface ${surfaceId} is closed`);
+    this.name = "SurfaceClosedError";
+    this.surfaceId = surfaceId;
+  }
+}
 
 export class RootContainer implements DispatchContext {
   readonly nodes: NodeGraph;
@@ -232,7 +241,8 @@ export class RootContainer implements DispatchContext {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
-    if (this.unmounted || !node.attached) return Promise.reject(new Error("host node is unavailable"));
+    if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
+    if (!node.attached) return Promise.reject(new Error("host node is unavailable"));
     const isInput = node.kind === "TextInput";
     const isList = node.kind === "VirtualList";
     const isView = node.kind === "View";
@@ -287,7 +297,7 @@ export class RootContainer implements DispatchContext {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
-    if (this.unmounted) return Promise.reject(new Error("root is unmounted"));
+    if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
     if (typeof title !== "string" || title.length === 0 || [...title].length > 256) {
       return Promise.reject(new TypeError("title must be a non-empty string of at most 256 characters"));
     }
@@ -353,7 +363,7 @@ export class RootContainer implements DispatchContext {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
-    if (this.unmounted) return Promise.reject(new Error("root is unmounted"));
+    if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
     let requestId: number;
     try {
       requestId = this.nextRequestId;
@@ -813,8 +823,19 @@ export class RootContainer implements DispatchContext {
   }
   onSurfaceClosed(): void {
     if (this.unmounted) return;
-    this.dispose();
+    this.dispose(new SurfaceClosedError(this.surfaceId));
     this.surfaceClosedHandler?.();
+  }
+
+  dispose(error: Error = new SurfaceClosedError(this.surfaceId)): void {
+    if (this.unmounted) return;
+    this.unmounted = true;
+    this.detachTransportListeners();
+    for (const pending of this.pendingCommands.values()) pending.reject(error);
+    this.pendingCommands.clear();
+    for (const node of this.children) this.detachSubtree(node);
+    this.children.length = 0;
+    this.listeners.clear();
   }
   acceptEvent(event: PressEventFrame): boolean {
     if (
@@ -845,16 +866,5 @@ export class RootContainer implements DispatchContext {
     this.pendingCommands.delete(requestId);
     if (success) pending.resolve(value);
     else pending.reject(new Error(String(errorPayload ?? "native command failed")));
-  }
-
-  dispose(): void {
-    if (this.unmounted) return;
-    this.unmounted = true;
-    this.detachTransportListeners();
-    for (const pending of this.pendingCommands.values()) pending.reject(new Error("root is unmounted"));
-    this.pendingCommands.clear();
-    for (const node of this.children) this.detachSubtree(node);
-    this.children.length = 0;
-    this.listeners.clear();
   }
 }
