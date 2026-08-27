@@ -450,6 +450,10 @@ from this work tree.
 
 ### Fixed
 
+- Host pointer events normalize platform `click_count=0` mouse-up values to the
+  wire contract's minimum `clickCount=1`, preventing valid native pointer
+  notifications from being rejected by the TypeScript decoder.
+
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
   preserving Rust-layer replies for title and other surface commands.
 - Integer-dimension resize frames were ambiguous with the untagged Animation

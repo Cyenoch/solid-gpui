@@ -202,3 +202,39 @@ pub(super) fn emit_external_file_drop(
     );
     send_event_or_exit(runtime, "external file drop event", &event);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::{EVENT_POINTER_UP, EventPayload};
+    use crate::transport::InMemoryAdapter;
+
+    #[test]
+    fn zero_click_count_mouse_up_is_normalized_before_wire_encoding() {
+        let runtime = InMemoryAdapter::new();
+        let sequence = AtomicU32::new(1);
+        emit_pointer_event(
+            runtime.as_ref(),
+            &sequence,
+            7,
+            3,
+            1,
+            2,
+            9,
+            EVENT_POINTER_UP,
+            MouseButton::Left,
+            &gpui::Modifiers::none(),
+            0,
+        );
+
+        let event = runtime
+            .take_event()
+            .expect("in-memory event should decode")
+            .expect("pointer event should be queued");
+        let Some(EventPayload::Pointer(pointer)) = event.payload else {
+            panic!("expected pointer payload");
+        };
+        assert_eq!(pointer.action, EVENT_POINTER_UP);
+        assert_eq!(pointer.click_count, 1);
+    }
+}

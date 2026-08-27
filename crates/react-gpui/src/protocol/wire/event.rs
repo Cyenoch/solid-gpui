@@ -639,7 +639,7 @@ impl From<&PointerEvent> for PointerEventWire {
             event.button,
             event.modifiers.clone(),
             event.action,
-            event.click_count,
+            event.click_count.max(1),
         )
     }
 }

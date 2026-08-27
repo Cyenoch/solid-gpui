@@ -494,6 +494,26 @@ fn main() {
     );
     emit(
         &mut rows,
+        "rust-event-pointer-up-min-click-count",
+        "event",
+        Event::pointer(
+            EVENT_POINTER,
+            7,
+            3,
+            42,
+            26,
+            4,
+            7,
+            5,
+            vec!["cmd".into()],
+            EVENT_POINTER_UP,
+            0,
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
         "rust-event-scroll",
         "event",
         Event::scroll(

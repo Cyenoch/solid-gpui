@@ -81,6 +81,9 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   if (vector.id.endsWith("event-window-activation")) {
     expect((decoded as readonly unknown[])[9]).toBe(true);
   }
+  if (vector.id.endsWith("event-pointer-up-min-click-count")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([6, 5, ["cmd"], 2, 1]);
+  }
   if (vector.id.endsWith("event-command-result-size")) {
     expect((decoded as readonly unknown[])[9]).toEqual([2, 110, 13, 1, true, null, [2, [800.5, 600.5]]]);
   }
