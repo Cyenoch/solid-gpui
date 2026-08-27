@@ -1,0 +1,103 @@
+# First runner validation pending push; locally cross-checked to the extent possible on macOS (see issue 06 report).
+# The Linux cross-check reached yeslogic-fontconfig-sys after retrying with
+# CC_x86_64_unknown_linux_gnu=clang, then stopped because macOS lacks a Linux
+# pkg-config/sysroot; the Windows probe stopped with missing lib.exe/windows.h
+# because macOS cannot provide the MSVC/Windows SDK. Both remain runner-only.
+name: Cross-platform host
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-platform-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  linux:
+    name: Linux host checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Linux host build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            libfontconfig1-dev \
+            libfreetype6-dev \
+            libxcb1-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            pkg-config
+
+      - name: Confirm pinned Rust toolchain
+        run: rustup show active-toolchain
+
+      - name: Cache Linux Cargo registry and target
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            rust-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
+      - name: Check Linux workspace
+        run: cargo check --workspace --exclude react-gpui-bun --locked
+
+      - name: Run Linux Clippy
+        run: cargo clippy --workspace --exclude react-gpui-bun --all-targets --locked -- -D warnings
+
+      - name: Test platform-neutral protocol library
+        run: cargo test -p react-gpui --lib --locked
+
+      # TODO: Add a bounded Xvfb/Wayland display-backed renderer smoke once the runner
+      # compositor, GPU, portal, and font prerequisites are pinned and proven stable.
+
+  windows:
+    name: Windows host build
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Confirm pinned Rust toolchain
+        run: rustup show active-toolchain
+
+      - name: Cache Windows Cargo registry and target
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            rust-${{ runner.os }}-${{ runner.arch }}-
+
+      # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
+      - name: Check Windows workspace
+        run: cargo check --workspace --exclude react-gpui-bun --locked
+
+      # The hosted Windows image carries the MSVC toolchain and Windows SDK; the release
+      # build also exercises gpui_windows' fxc.exe shader compiler lookup.
+      - name: Build process-mode host
+        run: cargo build -p react-gpui-host --locked
