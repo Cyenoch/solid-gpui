@@ -4275,6 +4275,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "thiserror 2.0.20",
+ "unicode-segmentation",
 ]
 
 [[package]]

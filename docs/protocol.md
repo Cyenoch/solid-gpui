@@ -154,8 +154,8 @@ retained tree's current revision (`tree.rs:862-934`).
 |        5 | u32                    | Native event sequence. The receiver rejects a sequence not greater than the last accepted sequence.                                                   | `protocol.ts:222`; `root-container.ts:528-538`            |
 |        6 | u32                    | Target Host Node ID; root-level window events use synthetic root node `1`.                                                                            | `protocol.ts:223`; `protocol.rs:424`; `dispatch.ts:67-80` |
 |        7 | u32                    | Listener ID; `CommandResult` uses listener `0`, while target events use the mounted listener.                                                         | `protocol.ts:224`; `protocol.rs:425,701-703`              |
-|        8 | u32                    | Event type `1..21`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`. | `protocol.ts:687-693`; `wire/event.rs:20-169`                  |
-|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:488-558`; `wire/event.rs:45-169`                  |
+|        8 | u32                    | Event type `1..22`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`; generic View/Pressable Focus/Blur uses a null payload and positive node/listener IDs. | `protocol.ts:687-693`; `wire/event.rs:20-171`                  |
+|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:488-558`; `wire/event.rs:45-171`                  |
 
 ### Node tuple
 
@@ -299,7 +299,9 @@ legacy null or a string; the Rust constructor has both `submit` and
 two-number payload and the current three-number payload
 `[width,height,scaleFactor]`; Rust accepts integer/float32 combinations through
 `WindowResizeWire`, while TypeScript accepts finite non-negative dimensions and
-a positive scale factor (`wire/event.rs`; `protocol.ts`).
+a positive scale factor (`wire/event.rs`; `protocol.ts`). Focus and Blur retain
+the tag-1 TextInput payload, while View and Pressable focus observers emit the
+same event codes with a null payload.
 
 | Code | Name              | Payload shape                                                                        | Validation and semantics                                                                                                                                         | Source                                                                      |
 | ---: | ----------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
@@ -325,6 +327,7 @@ a positive scale factor (`wire/event.rs`; `protocol.ts`).
 | 19 | Layout | `[x,y,width,height]` | Finite f32 bounds for a mounted View, Pressable, Text, or Image with `onLayout`; target node/listener identify the callback. Native measurement reports after post-layout prepaint, defers the first callback to the next frame, and deduplicates exact frames. | `protocol.ts:37,231,476-483,649-660`; `protocol.rs:31,468,762-791`; `renderer/paint.rs`; `renderer.rs:309-335`; `wire/event.rs:135-146,263-266` |
 | 20 | Drag | `[1,type]`, `[2,type]`, or `[3,[path,...]]` | Node-level drag notifications. Tag `1` is drag-over, tag `2` is internal drop, and tag `3` is external file drop. Types are safe non-empty strings (up to 128 scalars); external paths are ordered strings (up to 256 paths, 4096 bytes each). `onDragOver` is notification-only; native accepts drops without a JS can-drop round trip. | `protocol.ts:38-41,241-244,485-520,687-693`; `protocol.rs:32,497-499,824-910`; `wire/event.rs:147-164,267-270,338-340` |
 | 21 | NotificationResponse | `[tag,actionId|null]` | Root-level (`nodeId=1`, `listenerId=0`) response to a system notification body or action. The host-generated tag is non-empty; action IDs are nullable and bounded. Unknown/closed-surface tags are discarded by the host. | `protocol.ts:38,244-264,506-552,708-735`; `protocol.rs`; `renderer.rs`; `host/main.rs` |
+| 22 | PointerDownOutside | `[8,x,y]` | Capture-phase mouse-down notification for a rendered `position="overlay"` View. `x`/`y` are finite logical window coordinates. It is emitted only when the point is outside the overlay bounds and outside its direct anchor subtree; the listener/node IDs identify the overlay callback. Escape dismissal remains a JS key handler. | `protocol.ts`; `protocol.rs`; `wire/event.rs`; `renderer/paint.rs` |
 Single-line TextInput geometry is backed by its shaped native text layout:
 `bounds_for_range` maps UTF-16 selection offsets through the shaped line and
 `character_index_for_point` localizes the point before mapping its x coordinate

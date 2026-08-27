@@ -40,6 +40,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_LAYOUT
             | EVENT_DRAG
             | EVENT_NOTIFICATION_RESPONSE
+            | EVENT_POINTER_DOWN_OUTSIDE
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -49,6 +50,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             EVENT_CHANGE | EVENT_SELECTION | EVENT_FOCUS | EVENT_BLUR,
             Some(EventPayloadWire::Text(value)),
         ) => Some(EventPayload::TextInput(TextInputEvent::try_from(value)?)),
+        (EVENT_FOCUS | EVENT_BLUR, None) if wire.6 != 0 && wire.7 != 0 => None,
         (EVENT_COMMAND_RESULT, Some(EventPayloadWire::Command(value))) => {
             if value.tag() != 2
                 || !matches!(
@@ -157,6 +159,18 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 WindowAppearance::Light
             };
             Some(EventPayload::WindowAppearance { appearance })
+        }
+        (EVENT_POINTER_DOWN_OUTSIDE, Some(EventPayloadWire::PointerDownOutside(value)))
+            if wire.6 != 0
+                && wire.7 != 0
+                && value.0 == 8
+                && value.1.is_finite()
+                && value.2.is_finite() =>
+        {
+            Some(EventPayload::PointerDownOutside {
+                x: value.1,
+                y: value.2,
+            })
         }
         (EVENT_LAYOUT, Some(EventPayloadWire::Layout((x, y, width, height))))
             if wire.6 != 0
@@ -310,6 +324,9 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 .next_element::<Option<(String, Option<String>)>>()?
                 .flatten()
                 .map(EventPayloadWire::Notification),
+            EVENT_POINTER_DOWN_OUTSIDE => {
+                typed_payload!(PointerDownOutsideWire, EventPayloadWire::PointerDownOutside)
+            }
             EVENT_PRESS | EVENT_HOVER => {
                 let payload: Option<Option<de::IgnoredAny>> = sequence.next_element()?;
                 if payload.flatten().is_some() {
@@ -363,6 +380,7 @@ enum EventPayloadWire {
     Notification((String, Option<String>)),
     Layout((f32, f32, f32, f32)),
     Drag(DragPayloadWire),
+    PointerDownOutside(PointerDownOutsideWire),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -446,6 +464,8 @@ struct AnimationCompleteWire(u32, u32);
 struct PointerEventWire(u32, u32, Vec<String>, u32, u32);
 #[derive(Debug, Serialize, Deserialize)]
 struct ScrollEventWire(u32, u32, f32, f32, f32, f32, Vec<String>);
+#[derive(Debug, Serialize, Deserialize)]
+struct PointerDownOutsideWire(u32, f32, f32);
 
 impl From<&TextInputEvent> for TextInputEventWire {
     fn from(event: &TextInputEvent) -> Self {
@@ -795,6 +815,9 @@ impl From<&EventPayload> for EventPayloadWire {
             }
             EventPayload::ExternalFileDrop { paths } => {
                 Self::Drag(DragPayloadWire::Paths((3, paths.clone())))
+            }
+            EventPayload::PointerDownOutside { x, y } => {
+                Self::PointerDownOutside(PointerDownOutsideWire(8, *x, *y))
             }
         }
     }

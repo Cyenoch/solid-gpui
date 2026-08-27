@@ -99,6 +99,25 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
 }
 #[test]
+fn generic_focus_and_pointer_down_outside_events_round_trip() {
+    let focus = Event::focus(7, 3, 1, 20, 2, 44, true);
+    assert_eq!(Event::decode(&focus.encode().unwrap()).unwrap(), focus);
+    assert!(matches!(focus.payload, None));
+
+    let blur = Event::focus(7, 3, 1, 21, 2, 44, false);
+    assert_eq!(Event::decode(&blur.encode().unwrap()).unwrap(), blur);
+    assert!(matches!(blur.payload, None));
+
+    let outside = Event::pointer_down_outside(7, 3, 1, 22, 2, 44, 12.5, -3.25);
+    assert_eq!(Event::decode(&outside.encode().unwrap()).unwrap(), outside);
+    assert!(matches!(
+        outside.payload,
+        Some(EventPayload::PointerDownOutside { x, y })
+            if x == 12.5 && y == -3.25
+    ));
+}
+
+#[test]
 fn legacy_text_input_event_defaults_reversed_to_false() {
     let legacy = rmp_serde::to_vec(&(
         3u32,

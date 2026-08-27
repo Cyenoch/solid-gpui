@@ -31,6 +31,7 @@ pub const EVENT_WINDOW_APPEARANCE: u32 = 18;
 pub const EVENT_LAYOUT: u32 = 19;
 pub const EVENT_DRAG: u32 = 20;
 pub const EVENT_NOTIFICATION_RESPONSE: u32 = 21;
+pub const EVENT_POINTER_DOWN_OUTSIDE: u32 = 22;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -556,6 +557,10 @@ pub enum EventPayload {
         paths: Vec<String>,
     },
     NotificationResponse(NotificationResponseEvent),
+    PointerDownOutside {
+        x: f32,
+        y: f32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -739,6 +744,53 @@ impl Event {
             listener_id,
             event_type: EVENT_HOVER,
             payload: None,
+        }
+    }
+    pub fn focus(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        focused: bool,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            event_type: if focused { EVENT_FOCUS } else { EVENT_BLUR },
+            payload: None,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn pointer_down_outside(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        x: f32,
+        y: f32,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            event_type: EVENT_POINTER_DOWN_OUTSIDE,
+            payload: Some(EventPayload::PointerDownOutside { x, y }),
         }
     }
     pub fn submit(

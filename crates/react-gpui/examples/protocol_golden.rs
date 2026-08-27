@@ -411,6 +411,26 @@ fn main() {
     );
     emit(
         &mut rows,
+        "rust-event-focus",
+        "event",
+        Event::focus(7, 3, 42, 23, 4, 7, true).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-blur",
+        "event",
+        Event::focus(7, 3, 42, 24, 4, 7, false).encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-pointer-down-outside",
+        "event",
+        Event::pointer_down_outside(7, 3, 42, 25, 4, 7, 12.5, -3.25)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
         "rust-event-text-unicode",
         "event",
         Event::text_input(

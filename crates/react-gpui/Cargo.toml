@@ -12,6 +12,7 @@ rmp-serde.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
+unicode-segmentation.workspace = true
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 

@@ -37,6 +37,7 @@ export const EVENT_WINDOW_APPEARANCE = 18 as const;
 export const EVENT_LAYOUT = 19 as const;
 export const EVENT_DRAG = 20 as const;
 export const EVENT_NOTIFICATION_RESPONSE = 21 as const;
+export const EVENT_POINTER_DOWN_OUTSIDE = 22 as const;
 export const DRAG_OVER = 1 as const;
 export const DRAG_DROP = 2 as const;
 export const DRAG_EXTERNAL_FILE_DROP = 3 as const;
@@ -263,6 +264,7 @@ export type DragEventPayload =
   | readonly [typeof DRAG_DROP, string]
   | readonly [typeof DRAG_EXTERNAL_FILE_DROP, readonly string[]];
 export type NotificationResponseEventPayload = readonly [string, string | null];
+export type PointerDownOutsideEventPayload = readonly [8, number, number];
 export type EventPayload =
   | TextInputEventPayload
   | CommandResultPayload
@@ -278,7 +280,8 @@ export type EventPayload =
   | WindowAppearanceEventPayload
   | LayoutEventPayload
   | DragEventPayload
-  | NotificationResponseEventPayload;
+  | NotificationResponseEventPayload
+  | PointerDownOutsideEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -310,6 +313,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_LAYOUT
     | typeof EVENT_DRAG
     | typeof EVENT_NOTIFICATION_RESPONSE
+    | typeof EVENT_POINTER_DOWN_OUTSIDE
   ),
   EventPayload | null,
 ];
@@ -548,6 +552,7 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
 function validateEventPayload(eventType: number, payload: unknown): payload is EventPayload | null {
   if (eventType === EVENT_PRESS || eventType === EVENT_HOVER || eventType === EVENT_SURFACE_CLOSED)
     return payload === null;
+  if ((eventType === EVENT_FOCUS || eventType === EVENT_BLUR) && payload === null) return true;
   if (eventType === EVENT_SUBMIT) return payload === null || typeof payload === "string";
   if (eventType === EVENT_LAYOUT) {
     return (
@@ -592,6 +597,17 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   }
   if (eventType === EVENT_ACTION)
     return typeof payload === "string" && payload.length > 0 && [...payload].length <= 256;
+  if (eventType === EVENT_POINTER_DOWN_OUTSIDE) {
+    return (
+      Array.isArray(payload) &&
+      payload.length === 3 &&
+      payload[0] === 8 &&
+      typeof payload[1] === "number" &&
+      Number.isFinite(payload[1]) &&
+      typeof payload[2] === "number" &&
+      Number.isFinite(payload[2])
+    );
+  }
   if (eventType === EVENT_WINDOW_APPEARANCE) return payload === "light" || payload === "dark";
   if (eventType === EVENT_WINDOW_ACTIVATION) return typeof payload === "boolean";
   if (eventType === EVENT_WINDOW_RESIZE) {
@@ -764,15 +780,18 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
     typeof value[8] !== "number" ||
     !Number.isInteger(value[8]) ||
     value[8] < EVENT_PRESS ||
-    value[8] > EVENT_NOTIFICATION_RESPONSE
+    value[8] > EVENT_POINTER_DOWN_OUTSIDE
   )
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;
+  if ((value[8] === EVENT_FOCUS || value[8] === EVENT_BLUR) && value[9] === null && (value[6] === 0 || value[7] === 0))
+    return null;
   if (
     (value[8] === EVENT_ACTION || value[8] === EVENT_WINDOW_APPEARANCE || value[8] === EVENT_NOTIFICATION_RESPONSE) &&
     (value[6] !== 1 || value[7] !== 0)
   )
     return null;
-  if (value[8] === EVENT_DRAG && (value[6] === 0 || value[7] === 0)) return null;
+  if ((value[8] === EVENT_DRAG || value[8] === EVENT_POINTER_DOWN_OUTSIDE) && (value[6] === 0 || value[7] === 0))
+    return null;
   return validateEventPayload(value[8], value[9]) ? (value as unknown as PressEventFrame) : null;
 }
