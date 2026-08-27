@@ -1497,6 +1497,56 @@ mod input_tests {
                 .is_some()
         );
     }
+    #[gpui::test]
+    fn layout_next_frame_callbacks_dedupe_repeated_draws(cx: &mut gpui::TestAppContext) {
+        const MEASURED_NODES: u32 = 128;
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(800.0), px(600.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("layout test root");
+        let mut nodes = Vec::with_capacity(MEASURED_NODES as usize + 1);
+        nodes.push(Node::new(1, 0, 0, KIND_VIEW));
+        for id in 2..=MEASURED_NODES + 1 {
+            let mut node = Node::new(id, 1, id - 2, KIND_VIEW);
+            node.listener_id = id;
+            nodes.push(node);
+        }
+        let payload = Snapshot::new(7, 3, 0, 1, nodes)
+            .encode()
+            .expect("encode layout storm snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply layout storm snapshot");
+
+        let started = Instant::now();
+        for _ in 0..2 {
+            cx.update_window(window.into(), |_, window, cx| {
+                window.draw(cx).clear(cx);
+            })
+            .expect("draw layout storm frame");
+        }
+        cx.update_window(window.into(), |_, window, cx| {
+            window.simulate_next_frame(cx);
+        })
+        .expect("deliver layout storm callbacks");
+        cx.run_until_parked();
+
+        let mut layout_events = 0;
+        while let Some(event) = runtime.take_event().expect("read layout storm event") {
+            if event.event_type == crate::protocol::EVENT_LAYOUT {
+                layout_events += 1;
+            }
+        }
+        let elapsed = started.elapsed();
+        eprintln!(
+            "perf_event_storm: layout measured_nodes={MEASURED_NODES} draws=2 callbacks={} emitted_events={} elapsed={:.3}ms",
+            MEASURED_NODES * 2,
+            layout_events,
+            elapsed.as_secs_f64() * 1_000.0,
+        );
+        assert_eq!(layout_events, MEASURED_NODES);
+    }
 
     #[test]
     fn window_observations_emit_initial_values_and_dedupe_changes() {
