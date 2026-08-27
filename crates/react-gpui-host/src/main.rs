@@ -90,8 +90,9 @@ fn install_panic_hook_in(crash_dir: PathBuf) {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         default_hook(info);
-        if let Err(error) = write_crash_report(&crash_dir, info) {
-            eprintln!("react-gpui-host: unable to write crash report: {error}");
+        match write_crash_report(&crash_dir, info) {
+            Ok(path) => eprintln!("react-gpui-host: crash report: {}", path.display()),
+            Err(error) => eprintln!("react-gpui-host: unable to write crash report: {error}"),
         }
     }));
 }
@@ -99,7 +100,7 @@ fn install_panic_hook_in(crash_dir: PathBuf) {
 fn write_crash_report(
     crash_dir: &std::path::Path,
     info: &panic::PanicHookInfo<'_>,
-) -> std::io::Result<()> {
+) -> std::io::Result<PathBuf> {
     fs::create_dir_all(crash_dir)?;
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -109,7 +110,10 @@ fn write_crash_report(
         "react-gpui-host-{}-{timestamp}.log",
         std::process::id()
     ));
-    let mut report = OpenOptions::new().create_new(true).write(true).open(path)?;
+    let mut report = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&path)?;
     let message = info
         .payload()
         .downcast_ref::<&str>()
@@ -141,7 +145,8 @@ fn write_crash_report(
     writeln!(report, "panic: {message}")?;
     writeln!(report, "location: {location}")?;
     writeln!(report, "backtrace:\\n{backtrace}")?;
-    report.flush()
+    report.flush()?;
+    Ok(path)
 }
 
 enum ReaderMessage {

@@ -39,6 +39,10 @@ from this work tree.
   documents reproduction and an optional APM sample.
 - Transport termination now exposes a typed cause union and fails fast on
   malformed host event frames while rejecting all pending commands.
+- Host panic diagnostics now print a stable crash-report path on stderr;
+  TypeScript termination details retain `crashReportPath`, exit code, and the
+  bounded stderr tail, and package Troubleshooting documents fresh-process
+  restart.
 - Pending-command lifecycle regression coverage locks seven paths: surface
   close, transport-termination fan-out, unmount, every command family on a
   closed root, silent event drops, and host disposal; dangling Promises are

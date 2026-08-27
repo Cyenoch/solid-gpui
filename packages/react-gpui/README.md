@@ -669,6 +669,69 @@ GPUI retains one animation state per node, samples easing on frame ticks,
 retargets from the current sample, cancels deleted nodes, and honors reduced
 motion. Completion is emitted once as the tagged AnimationComplete event.
 
+## Troubleshooting
+
+`onTransportTermination` is the process-boundary failure hook. A host panic
+writes a versioned report under `REACT_GPUI_CRASH_DIR` (or the system temporary
+directory) and prints `react-gpui-host: crash report: <path>` on stderr. When
+the process wrapper supplies that stderr tail, the callback error exposes the
+same path as `error.crashReportPath`, alongside `error.exitCode` and
+`error.stderrTail`:
+
+```tsx
+const root = createRoot(transport, {
+  onTransportTermination: (error) => {
+    console.error(error.cause?.kind, error.crashReportPath, error.exitCode, error.stderrTail);
+  },
+});
+```
+
+`error.cause` is a discriminated union. Branch on `error.cause.kind` rather
+than matching `error.message`: `shutdown`, `eof`, `exit` (with `code`),
+`protocol` (with `detail`), or `io` (with `detail`). A malformed or
+oversized host-to-renderer frame is a `protocol` termination; the root or
+shared surface host rejects pending commands and ignores later input. The
+decoder's fuzz-level no-panic containment does not imply that a transport can
+continue after a malformed frame.
+
+The terminated transport and root are not reusable. If the application owns
+the child process, supervise it and create a fresh child, `StdioTransport`, and
+root after the old child closes:
+
+```tsx
+import { spawn } from "node:child_process";
+import { createRoot, StdioTransport, type Root } from "@react-gpui/core";
+
+let activeRoot: Root | undefined;
+
+function mountHost(): Root {
+  const child = spawn("react-gpui-host", ["--runtime", "process", "--", "bun", "run", "app.tsx"], {
+    stdio: ["pipe", "pipe", "inherit"],
+  });
+  const root = createRoot(new StdioTransport(child.stdin, child.stdout), {
+    surfaceId: 1,
+    epoch: 1,
+    onTransportTermination: (error) => {
+      console.error("host terminated", error.cause?.kind, error.crashReportPath);
+      if (activeRoot !== root) return;
+      activeRoot = undefined;
+      child.once("close", () => {
+        activeRoot = mountHost();
+      });
+    },
+  });
+  root.render(<App />);
+  return root;
+}
+
+activeRoot = mountHost();
+```
+
+Do not call `createRoot` again with the terminated transport, and do not treat a
+rejected command as a recoverable native result. A process killed without
+running the panic hook has no crash-report path; retain the exit/signal and
+stderr diagnostics that the process wrapper provides.
+
 ## Examples
 
 The source tree includes focused entries for the main host surfaces:
