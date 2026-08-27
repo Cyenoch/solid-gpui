@@ -421,6 +421,10 @@ from this work tree.
   pinned-source evidence showed cosmic-text already performs UAX #9 reordering
   and HarfRust directional shaping for rendering, so pure RTL rendering is no
   longer listed as an upstream gap.
+- Focusable `View` and `Pressable` nodes now emit native Focus/Blur callbacks,
+  and overlay nodes expose capture-phase `onPointerDownOutside` dismissal with
+  rendered anchor/overlay bounds.
+
 ### Fixed
 
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,

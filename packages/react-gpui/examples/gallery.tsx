@@ -311,6 +311,10 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
   const [externalDrop, setExternalDrop] = useState("none");
   const [pointer, setPointer] = useState("none");
   const [menuHovered, setMenuHovered] = useState(false);
+  const [menuFocused, setMenuFocused] = useState(false);
+  const [activateFocused, setActivateFocused] = useState(false);
+  const [recordFocused, setRecordFocused] = useState(false);
+  const [menuItemFocused, setMenuItemFocused] = useState(false);
   const [activateHovered, setActivateHovered] = useState(false);
   const [recordHovered, setRecordHovered] = useState(false);
   const [scrollDelta, setScrollDelta] = useState(0);
@@ -351,20 +355,23 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
       : activityRows.filter((row) => row.title.toLowerCase().includes(query.toLowerCase()));
   const menuButtonStyle = {
     ...styles.button,
-    ...(menuHovered ? styles.buttonHover : {}),
+    ...(menuHovered || menuFocused ? styles.buttonHover : {}),
     ...(pointer === "menu-down" ? styles.buttonActive : {}),
   };
   const activateButtonStyle = {
     ...styles.button,
-    ...(activateHovered ? styles.buttonHover : {}),
+    ...(activateHovered || activateFocused ? styles.buttonHover : {}),
     ...(pointer === "activate-down" ? styles.buttonActive : {}),
   };
   const recordButtonStyle = {
     ...styles.buttonSecondary,
-    ...(recordHovered ? styles.buttonSecondaryHover : {}),
+    ...(recordHovered || recordFocused ? styles.buttonSecondaryHover : {}),
     ...(pointer === "record-down" ? styles.buttonSecondaryActive : {}),
   };
-  const menuItemStyle = { ...styles.menuItem, ...(menuHover ? styles.menuItemHover : {}) };
+  const menuItemStyle = {
+    ...styles.menuItem,
+    ...(menuHover || menuItemFocused ? styles.menuItemHover : {}),
+  };
 
   return (
     <View
@@ -440,6 +447,8 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
                 onPointerDown={() => setPointer("menu-down")}
                 onPointerUp={() => setPointer("menu-up")}
                 onHoverChange={setMenuHovered}
+                onFocus={() => setMenuFocused(true)}
+                onBlur={() => setMenuFocused(false)}
                 onKeyDown={({ key, action }) => {
                   if (key === "escape" && action === "down") setMenuOpen(false);
                 }}
@@ -447,7 +456,11 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
                 <Text style={styles.buttonLabel}>{menuOpen ? "Hide menu" : "Show menu"}</Text>
               </Pressable>
               {menuOpen ? (
-                <View style={styles.menu} onPointerDown={() => setPointer("menu-down")}>
+                <View
+                  style={styles.menu}
+                  onPointerDownOutside={() => setMenuOpen(false)}
+                  onPointerDown={() => setPointer("menu-down")}
+                >
                   <Text style={styles.menuTitle}>Activity actions</Text>
                   <Pressable
                     style={menuItemStyle}
@@ -459,6 +472,8 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
                       setPointer("refresh");
                     }}
                     onHoverChange={setMenuHover}
+                    onFocus={() => setMenuItemFocused(true)}
+                    onBlur={() => setMenuItemFocused(false)}
                   >
                     <Text style={styles.menuItemLabel}>Refresh activity</Text>
                   </Pressable>
@@ -478,6 +493,8 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
             <Pressable
               style={activateButtonStyle}
               focusable
+              onFocus={() => setActivateFocused(true)}
+              onBlur={() => setActivateFocused(false)}
               accessibilityRole="button"
               accessibilityLabel={active ? "Deactivate live panel" : "Activate live panel"}
               onPress={() => setActive((value) => !value)}
@@ -540,6 +557,8 @@ function Gallery({ windowSizeStore }: { windowSizeStore: WindowSizeStore }) {
               accessibilityRole="button"
               accessibilityLabel="Record press"
               onHoverChange={setRecordHovered}
+              onFocus={() => setRecordFocused(true)}
+              onBlur={() => setRecordFocused(false)}
               onPointerDown={() => setPointer("record-down")}
               onPointerUp={() => setPointer("record-up")}
               onPress={() => setPresses((value) => value + 1)}
