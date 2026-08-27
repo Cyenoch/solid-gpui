@@ -52,6 +52,19 @@ fn committed_child_index(absolute_index: u32, range_start: u32, range_end: u32) 
         None
     }
 }
+
+fn virtual_list_ancestor(store: &NodeStore, mut node_id: u32) -> Option<u32> {
+    loop {
+        let node = store.get(node_id)?;
+        if node.kind == KIND_VIRTUAL_LIST {
+            return Some(node.id);
+        }
+        if node.parent_id == 0 {
+            return None;
+        }
+        node_id = node.parent_id;
+    }
+}
 fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppearance {
     match appearance {
         GpuiWindowAppearance::Light | GpuiWindowAppearance::VibrantLight => WindowAppearance::Light,
@@ -303,6 +316,11 @@ impl ReactRoot {
                 .get(*id)
                 .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
         });
+        let affected_virtual_lists: HashSet<u32> = affected
+            .into_iter()
+            .flat_map(|ids| ids.iter().copied())
+            .filter_map(|id| virtual_list_ancestor(&self.store, id))
+            .collect();
         let ids: Vec<u32> = match affected {
             Some(ids) => ids.iter().copied().collect(),
             None => self
@@ -326,8 +344,16 @@ impl ReactRoot {
                 ListState::new(item_count, ListAlignment::Top, px(2048.0))
                     .with_uniform_item_height(estimated)
             });
-            if state.item_count() != item_count {
+            let previous_count = state.item_count();
+            if previous_count != item_count {
+                let scroll_top = state.logical_scroll_top();
+                let was_at_end = previous_count > 0 && scroll_top.item_ix >= previous_count;
                 state.reset_with_uniform_height(item_count, estimated);
+                if was_at_end && item_count > 0 {
+                    state.scroll_to_end();
+                } else {
+                    state.scroll_to(scroll_top);
+                }
             } else if previous_estimate.is_some_and(|previous| previous != list.estimated_item_size)
             {
                 let scroll_top = state.logical_scroll_top();
@@ -336,7 +362,8 @@ impl ReactRoot {
             }
             let next_range = (list.range_start, list.range_end);
             let previous_range = self.virtual_ranges.insert(id, next_range);
-            if previous_range.is_some_and(|previous| previous != next_range)
+            if (previous_range.is_some_and(|previous| previous != next_range)
+                || affected_virtual_lists.contains(&id))
                 && next_range.0 < next_range.1
             {
                 state.remeasure_items(next_range.0 as usize..next_range.1 as usize);
@@ -586,6 +613,7 @@ impl Render for ReactRoot {
 mod input_tests {
     use super::*;
     use crate::protocol::{
+        COMMAND_MESSAGE, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, EVENT_COMMAND_RESULT,
         EventPayload, Node, Patch, PatchOperation, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
         TRANSITION_OPACITY, TRANSITION_WIDTH, Transition, UPDATE_LISTENER, UPDATE_PROPERTIES,
         UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
@@ -1159,6 +1187,116 @@ mod input_tests {
         assert!(!root.reported_visible_ranges.contains_key(&2));
         assert!(!root.pending_visible_ranges.borrow().contains_key(&2));
     }
+    #[test]
+    fn virtual_list_state_preserves_scroll_across_count_changes() {
+        let runtime = InMemoryAdapter::new();
+        let mut root = ReactRoot::new(runtime);
+        root.store
+            .apply_snapshot(virtual_list_snapshot(20.0))
+            .expect("VirtualList snapshot");
+        root.reconcile_virtual_lists();
+
+        root.virtual_lists
+            .get(&2)
+            .expect("initial list state")
+            .scroll_to(ListOffset {
+                item_ix: 40,
+                offset_in_item: px(4.0),
+            });
+        root.store
+            .apply_patch(Patch::new(
+                7,
+                3,
+                1,
+                2,
+                vec![PatchOperation::Update {
+                    id: 2,
+                    mask: UPDATE_PROPERTIES,
+                    style: None,
+                    text: None,
+                    listener_id: 12,
+                    host_properties: Some(HostProperties::VirtualList(VirtualListProperties {
+                        item_count: 200,
+                        range_start: 0,
+                        range_end: 4,
+                        estimated_item_size: 20.0,
+                        overscan: 2,
+                    })),
+                    accessibility: None,
+                    focusable: false,
+                    selectable: false,
+                }],
+            ))
+            .expect("grow VirtualList");
+        root.reconcile_virtual_lists();
+        let state = root.virtual_lists.get(&2).expect("grown list state");
+        assert_eq!(state.logical_scroll_top().item_ix, 40);
+        assert_eq!(state.logical_scroll_top().offset_in_item, px(4.0));
+
+        state.scroll_to(ListOffset {
+            item_ix: 90,
+            offset_in_item: px(3.0),
+        });
+        root.store
+            .apply_patch(Patch::new(
+                7,
+                3,
+                2,
+                3,
+                vec![PatchOperation::Update {
+                    id: 2,
+                    mask: UPDATE_PROPERTIES,
+                    style: None,
+                    text: None,
+                    listener_id: 12,
+                    host_properties: Some(HostProperties::VirtualList(VirtualListProperties {
+                        item_count: 20,
+                        range_start: 0,
+                        range_end: 4,
+                        estimated_item_size: 20.0,
+                        overscan: 2,
+                    })),
+                    accessibility: None,
+                    focusable: false,
+                    selectable: false,
+                }],
+            ))
+            .expect("shrink VirtualList");
+        root.reconcile_virtual_lists();
+        let state = root.virtual_lists.get(&2).expect("shrunk list state");
+        assert_eq!(state.logical_scroll_top().item_ix, 20);
+        assert_eq!(state.logical_scroll_top().offset_in_item, px(0.0));
+
+        root.store
+            .apply_patch(Patch::new(
+                7,
+                3,
+                3,
+                4,
+                vec![PatchOperation::Update {
+                    id: 2,
+                    mask: UPDATE_PROPERTIES,
+                    style: None,
+                    text: None,
+                    listener_id: 12,
+                    host_properties: Some(HostProperties::VirtualList(VirtualListProperties {
+                        item_count: 100,
+                        range_start: 0,
+                        range_end: 4,
+                        estimated_item_size: 20.0,
+                        overscan: 2,
+                    })),
+                    accessibility: None,
+                    focusable: false,
+                    selectable: false,
+                }],
+            ))
+            .expect("restore VirtualList");
+        root.reconcile_virtual_lists();
+        let state = root.virtual_lists.get(&2).expect("restored list state");
+        assert_eq!(state.logical_scroll_top().item_ix, 100);
+        assert_eq!(state.logical_scroll_top().offset_in_item, px(0.0));
+    }
 
     #[gpui::test]
     fn variable_height_list_replaces_estimates_with_measured_rows(cx: &mut gpui::TestAppContext) {
@@ -1209,6 +1347,18 @@ mod input_tests {
         let list_state = root.read_with(cx, |root, _| {
             root.virtual_lists.get(&2).cloned().expect("list state")
         });
+        assert_eq!(
+            list_state
+                .bounds_for_item(0)
+                .map(|bounds| bounds.size.height),
+            Some(px(20.0))
+        );
+        assert_eq!(
+            list_state
+                .bounds_for_item(1)
+                .map(|bounds| bounds.size.height),
+            Some(px(120.0))
+        );
         assert_eq!(list_state.item_count(), 2);
         assert_eq!(list_state.is_scrolled_to_end(), Some(false));
         list_state.scroll_to_end();
@@ -1220,6 +1370,330 @@ mod input_tests {
         assert_eq!(list_state.is_scrolled_to_end(), Some(true));
     }
 
+    #[gpui::test]
+    fn virtual_list_estimate_is_replaced_when_an_unmeasured_row_is_committed(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(120.0), px(100.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut first = Node::new(3, 2, 0, KIND_VIEW);
+        first.style = Some(Style {
+            height: Some(40.0),
+            ..Style::default()
+        });
+        let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+        list.style = Some(Style {
+            height: Some(100.0),
+            ..Style::default()
+        });
+        list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+            item_count: 3,
+            range_start: 0,
+            range_end: 1,
+            estimated_item_size: 10.0,
+            overscan: 1,
+        }));
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list, first]);
+        let payload = snapshot.encode().expect("encode estimated list snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply estimated list snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw estimated list");
+        cx.run_until_parked();
+
+        let list_state = root.read_with(cx, |root, _| {
+            root.virtual_lists.get(&2).cloned().expect("list state")
+        });
+        assert_eq!(
+            list_state
+                .bounds_for_item(0)
+                .map(|bounds| bounds.size.height),
+            Some(px(40.0))
+        );
+        assert_eq!(
+            list_state
+                .bounds_for_item(1)
+                .map(|bounds| bounds.size.height),
+            Some(px(10.0))
+        );
+
+        let mut committed = Node::new(4, 2, 0, KIND_VIEW);
+        committed.style = Some(Style {
+            height: Some(70.0),
+            ..Style::default()
+        });
+        let patch = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![
+                PatchOperation::Delete { id: 3 },
+                PatchOperation::Create(committed),
+                PatchOperation::Update {
+                    id: 2,
+                    mask: UPDATE_PROPERTIES,
+                    style: None,
+                    text: None,
+                    listener_id: 0,
+                    host_properties: Some(HostProperties::VirtualList(VirtualListProperties {
+                        item_count: 3,
+                        range_start: 1,
+                        range_end: 2,
+                        estimated_item_size: 10.0,
+                        overscan: 1,
+                    })),
+                    accessibility: None,
+                    focusable: false,
+                    selectable: false,
+                },
+            ],
+        );
+        let patch_payload = patch.encode().expect("encode committed row patch");
+        root.update(cx, |root, cx| root.apply_payload(&patch_payload, cx))
+            .expect("apply committed row patch");
+        list_state.scroll_to(ListOffset {
+            item_ix: 1,
+            offset_in_item: px(0.0),
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw committed row");
+        cx.run_until_parked();
+        assert_eq!(
+            list_state
+                .bounds_for_item(1)
+                .map(|bounds| bounds.size.height),
+            Some(px(70.0))
+        );
+    }
+    #[gpui::test]
+    fn virtual_list_boundary_consumes_wheel_before_outer_view(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(120.0), px(100.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut outer = Node::new(1, 0, 0, KIND_VIEW);
+        outer.listener_id = 7;
+        let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+        list.listener_id = 12;
+        list.style = Some(Style {
+            height: Some(100.0),
+            ..Style::default()
+        });
+        list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+            item_count: 100,
+            range_start: 0,
+            range_end: 4,
+            estimated_item_size: 20.0,
+            overscan: 2,
+        }));
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![outer, list]);
+        let payload = snapshot.encode().expect("encode boundary snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply boundary snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw boundary list");
+        cx.run_until_parked();
+        while runtime
+            .take_event()
+            .expect("drain initial boundary events")
+            .is_some()
+        {}
+
+        let list_state = root.read_with(cx, |root, _| {
+            root.virtual_lists.get(&2).cloned().expect("list state")
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_event(gpui::ScrollWheelEvent {
+            position: gpui::point(px(60.0), px(50.0)),
+            delta: gpui::ScrollDelta::Pixels(gpui::point(px(0.0), px(-100.0))),
+            ..Default::default()
+        });
+        let offset = list_state.logical_scroll_top();
+        assert!(offset.item_ix > 0 || offset.offset_in_item > px(0.0));
+
+        let mut saw_visible_range = false;
+        let mut saw_outer_scroll = false;
+        while let Some(event) = runtime.take_event().expect("read boundary event") {
+            saw_visible_range |= event.event_type == crate::protocol::EVENT_VISIBLE_RANGE;
+            saw_outer_scroll |=
+                event.event_type == crate::protocol::EVENT_SCROLL && event.node_id == 1;
+        }
+        assert!(
+            saw_visible_range,
+            "list should emit a range after consuming wheel"
+        );
+        assert!(
+            !saw_outer_scroll,
+            "outer View must not receive the list wheel"
+        );
+    }
+    #[gpui::test]
+    fn virtual_list_commands_scroll_estimated_rows_and_reject_end_index(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(120.0), px(100.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+        list.style = Some(Style {
+            height: Some(100.0),
+            ..Style::default()
+        });
+        list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+            item_count: 100,
+            range_start: 0,
+            range_end: 4,
+            estimated_item_size: 20.0,
+            overscan: 2,
+        }));
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list]);
+        let snapshot_payload = snapshot.encode().expect("encode command snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&snapshot_payload, cx))
+            .expect("apply command snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw command list");
+        cx.run_until_parked();
+        while runtime
+            .take_event()
+            .expect("drain initial list events")
+            .is_some()
+        {}
+
+        let scroll_to_index = Command {
+            protocol: crate::protocol::PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 7,
+            epoch: 3,
+            after_revision: 1,
+            request_id: 1,
+            node_id: 2,
+            kind: COMMAND_SCROLL_TO_INDEX,
+            payload: Some((99, 0)),
+            title: None,
+            body: None,
+            actions: None,
+            menus: None,
+            keybindings: None,
+            window_options: None,
+        };
+        let command_payload = scroll_to_index.encode().expect("encode index command");
+        root.update(cx, |root, cx| root.apply_payload(&command_payload, cx))
+            .expect("queue index command");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw index command");
+        cx.run_until_parked();
+        let index_ack = loop {
+            let event = runtime
+                .take_event()
+                .expect("read index command event")
+                .expect("index command acknowledgement");
+            if event.event_type == EVENT_COMMAND_RESULT {
+                break event;
+            }
+        };
+        match index_ack.payload {
+            Some(EventPayload::CommandResult(result)) => {
+                assert_eq!(result.request_id, 1);
+                assert!(result.success);
+                assert_eq!(result.error, None);
+            }
+            payload => panic!("unexpected index command payload: {payload:?}"),
+        }
+        let list_state = root.read_with(cx, |root, _| {
+            root.virtual_lists.get(&2).cloned().expect("list state")
+        });
+        assert_eq!(list_state.logical_scroll_top().item_ix, 95);
+        assert!(list_state.bounds_for_item(99).is_some());
+
+        let scroll_to_end = Command {
+            request_id: 2,
+            kind: COMMAND_SCROLL_TO_END,
+            payload: None,
+            ..scroll_to_index.clone()
+        };
+        let command_payload = scroll_to_end.encode().expect("encode end command");
+        root.update(cx, |root, cx| root.apply_payload(&command_payload, cx))
+            .expect("queue end command");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw end command");
+        cx.run_until_parked();
+        let end_ack = loop {
+            let event = runtime
+                .take_event()
+                .expect("read end command event")
+                .expect("end command acknowledgement");
+            if event.event_type == EVENT_COMMAND_RESULT {
+                break event;
+            }
+        };
+        match end_ack.payload {
+            Some(EventPayload::CommandResult(result)) => {
+                assert_eq!(result.request_id, 2);
+                assert!(result.success);
+            }
+            payload => panic!("unexpected end command payload: {payload:?}"),
+        }
+        assert_eq!(list_state.logical_scroll_top().item_ix, 95);
+        assert!(list_state.bounds_for_item(99).is_some());
+
+        let invalid_index = Command {
+            request_id: 3,
+            kind: COMMAND_SCROLL_TO_INDEX,
+            payload: Some((100, 0)),
+            ..scroll_to_index
+        };
+        let command_payload = invalid_index.encode().expect("encode invalid command");
+        root.update(cx, |root, cx| root.apply_payload(&command_payload, cx))
+            .expect("queue invalid command");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw invalid command");
+        cx.run_until_parked();
+        let invalid_ack = loop {
+            let event = runtime
+                .take_event()
+                .expect("read invalid command event")
+                .expect("invalid command acknowledgement");
+            if event.event_type == EVENT_COMMAND_RESULT {
+                break event;
+            }
+        };
+        match invalid_ack.payload {
+            Some(EventPayload::CommandResult(result)) => {
+                assert_eq!(result.request_id, 3);
+                assert!(!result.success);
+                assert_eq!(
+                    result.error.as_deref(),
+                    Some("VirtualList index is out of range")
+                );
+            }
+            payload => panic!("unexpected invalid command payload: {payload:?}"),
+        }
+        assert_eq!(list_state.logical_scroll_top().item_ix, 95);
+    }
     #[gpui::test]
     fn multiline_text_input_uses_wrapped_layout_and_preserves_empty_lines(
         cx: &mut gpui::TestAppContext,

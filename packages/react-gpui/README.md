@@ -647,10 +647,50 @@ semantic.
 />
 ```
 
-Only the committed visible range is reconciled into host rows, so a 100,000-item array does not produce 100,000 host nodes. A `VirtualListHandle` ref exposes Promise-returning `scrollToIndex(index)` and `scrollToEnd()` methods. Native GPUI uses one persistent variable-height `list` state per node: visible/overdraw rows are measured at their natural heights, while uncommitted rows use `estimatedItemSize` as a size hint. The next-frame visible range is reported with the existing protocol event.
-The list must have a finite viewport height (for example `style={{ height: 400 }}`) or be inside a parent that supplies a bounded height; the native list uses that bound to render only visible rows.
+Only the committed range is reconciled into host rows, so a 100,000-item array
+does not produce 100,000 host nodes. A `VirtualListHandle` ref exposes
+Promise-returning `scrollToIndex(index)` and `scrollToEnd()` methods. The native
+list keeps one variable-height `ListState` per node: committed/visible rows are
+measured at their natural heights, while uncommitted rows use
+`estimatedItemSize` as a size hint. The next-frame range is reported through
+the existing `VisibleRange` event.
 
-Rows with long text, images, or cards may therefore have different native heights. A newly committed row replaces its estimate when measured; an uncommitted row can remain an estimate until JavaScript supplies its host subtree. There is no `emptyState`/`emptyRenderer` prop, so render an empty message outside the list when `data.length === 0`.
+`onEndReached` is based on that reported committed/required range, not an exact
+viewport-bottom signal. Native scroll ranges include `overscan`, and
+placeholder row requests may extend the required range on the next frame. The
+callback runs when the reported range end reaches `data.length`, including
+initial or near-end layout, at most once until a later range ends before the
+data length; it may run again after that retreat. Identical range reports are
+deduplicated.
+
+The list must have a finite viewport height (for example
+`style={{ height: 400 }}`) or be inside a parent that supplies a bounded
+height; the native list uses that bound to render only visible rows.
+`scrollToIndex` accepts only an existing index (`0 <= index < data.length`);
+`index === data.length` rejects and sends no command. Valid scroll commands
+work while rows are still estimated, and the requested row is made visible
+(it is not required to become the first row); `scrollToEnd` anchors the
+bottom.
+
+The native list state preserves its logical item/offset when data grows or
+shrinks, clamping an anchor past the new count to the new end. An explicit
+old-end anchor stays at the end when data grows. JavaScript retains a prior
+committed range through filter/unfilter unless a newer native range supersedes
+it. Native restoration is index/offset based because `itemKey` is not on the
+wire; changed committed row content is remeasured.
+
+Rows with long text, images, or cards may therefore have different native
+heights. A wrong estimate is only an initial hint: each committed row replaces
+it when measured, while a never-committed row can remain estimated and
+scrollbar/content drift converges as rows are visited. Overlapping keyed rows
+retain their React state, but a row removed from the committed range is
+unmounted and remounts when it returns. Keep state that must survive eviction
+outside the row (for example in the parent or application data).
+
+When `data.length === 0`, `emptyState` is rendered instead of a native
+`VirtualList` node, so no rows are emitted. Empty-to-non-empty restoration and
+placeholder flicker are display-backed behaviors; the native boundary keeps
+list wheel handling inside the list and does not change that limitation.
 
 ## Native animation
 

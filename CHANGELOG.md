@@ -387,6 +387,12 @@ from this work tree.
   Shared Makefile install/build outputs make parallelization riskier than its
   small warm-CI benefit, so no build-time optimization was made.
 - VirtualList now renders through GPUI's native variable-height list: per-node ListState with real measured committed rows and estimated placeholders outside the committed range, ListState-based scroll commands, and a zero-change wire; estimatedItemSize becomes an initial hint, the JS-side measurement path was surveyed and rejected as structurally infeasible, and placeholder flicker remains display-backed.
+- VirtualList completeness now documents and tests its range-based
+  `onEndReached` (overscanned/next-frame ranges, once per reach), index-based
+  scroll restoration with clamping across data changes, command bounds,
+  estimate convergence, and row eviction/remount state semantics. Native
+  wheel-boundary behavior remains covered while empty-state transitions and
+  placeholder flicker stay explicitly display-backed.
 - BoxShadow and fontFamily complete the 42-slot Style wire: `boxShadow`
   supports tagged single (`tag=1`) and double (`tag=2`) shadow forms with
   finite offsets, non-negative blur/spread, RGBA colors, and inset flags;

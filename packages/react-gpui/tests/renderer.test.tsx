@@ -1299,6 +1299,9 @@ describe("renderer commits", () => {
     expect(
       (message(transport, 1)[6] as readonly unknown[][]).filter((operation) => operation[0] === 1).length,
     ).toBeLessThan(40);
+    const framesBeforeInvalid = transport.submitted.length;
+    await expect(ref.current!.scrollToIndex(100_000)).rejects.toThrow("VirtualList index is out of range");
+    expect(transport.submitted).toHaveLength(framesBeforeInvalid);
     const scroll = ref.current?.scrollToIndex(99_999);
     expect(message(transport, 2).slice(0, 9)).toEqual([3, 4, 41, 42, 2, 1, list[0], 4, [99_999, 0]]);
     const resultFrame = encodeFrame([
@@ -1333,16 +1336,17 @@ describe("renderer commits", () => {
     );
     await scrollEnd;
   });
-  it("deduplicates repeated VisibleRange commits and calls onEndReached once", () => {
+  it("fires onEndReached at the reported range end once per reach", () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 53, epoch: 54 });
     let endReached = 0;
     root.render(
       <VirtualList
-        data={[0, 1, 2, 3]}
+        data={Array.from({ length: 10 }, (_, index) => index)}
         itemKey={(item) => item}
         renderItem={(item) => <Text>{item}</Text>}
         estimatedItemSize={20}
+        overscan={2}
         initialNumToRender={2}
         onEndReached={() => {
           endReached += 1;
@@ -1352,14 +1356,19 @@ describe("renderer commits", () => {
     const list = snapshots(transport)[0][6].find((node) => node[3] === 6) as readonly unknown[];
     const rangeEvent = (sequence: number, start: number, end: number) =>
       encodeFrame([PROTOCOL_VERSION, 2, 53, 54, 1, sequence, list[0] as number, list[6] as number, 7, [3, start, end]]);
-    transport.push(rangeEvent(1, 0, 2));
-    expect(transport.submitted).toHaveLength(1);
-    transport.push(rangeEvent(2, 2, 4));
-    expect(transport.submitted).toHaveLength(2);
+
+    transport.push(rangeEvent(1, 0, 9));
+    expect(endReached).toBe(0);
+    transport.push(rangeEvent(2, 0, 10));
     expect(endReached).toBe(1);
-    transport.push(rangeEvent(3, 2, 4));
-    expect(transport.submitted).toHaveLength(2);
+    const commitsAtEnd = transport.submitted.length;
+    transport.push(rangeEvent(3, 0, 10));
+    expect(transport.submitted).toHaveLength(commitsAtEnd);
     expect(endReached).toBe(1);
+
+    transport.push(rangeEvent(4, 0, 8));
+    transport.push(rangeEvent(5, 0, 10));
+    expect(endReached).toBe(2);
   });
   it("shrinks VirtualList ranges safely and rejects duplicate committed keys", () => {
     const transport = new MemoryTransport();
@@ -1398,6 +1407,76 @@ describe("renderer commits", () => {
     } finally {
       console.error = originalError;
     }
+  });
+  it("retains a committed range through filter and unfilter round trips", () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 55, epoch: 56 });
+    const data = Array.from({ length: 100 }, (_, index) => index);
+    const renderList = (items: readonly number[]) => (
+      <VirtualList
+        data={items}
+        itemKey={(item) => item}
+        renderItem={(item) => <Text>{item}</Text>}
+        estimatedItemSize={20}
+        initialNumToRender={4}
+      />
+    );
+
+    root.render(renderList(data));
+    const list = snapshots(transport)[0][6].find((node) => node[3] === 6) as readonly unknown[];
+    const listId = Number(list[0]);
+    const listListener = Number(list[6]);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 55, 56, 1, 1, listId, listListener, 7, [3, 20, 30]]));
+    root.render(renderList(data.slice(0, 8)));
+    const filtered = message(transport, 2)[6] as readonly unknown[][];
+    const filteredProperties = filtered.find((operation) => operation[0] === 2 && (operation[2] as number) & 8);
+    expect(filteredProperties?.[6]).toEqual([2, 8, 8, 8, 20, 2]);
+
+    root.render(renderList(data));
+    const restored = message(transport, 3)[6] as readonly unknown[][];
+    const restoredProperties = restored.find((operation) => operation[0] === 2 && (operation[2] as number) & 8);
+    expect(restoredProperties?.[6]).toEqual([2, 100, 20, 30, 20, 2]);
+  });
+  it("remounts row subtrees after their keys leave the committed range", () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 57, epoch: 58 });
+    function StatefulRow({ item }: { readonly item: number }) {
+      const [count, setCount] = useState(0);
+      return (
+        <Pressable accessibilityLabel={`row-${item}`} onPress={() => setCount((previous) => previous + 1)}>
+          <Text>{`${item}:${count}`}</Text>
+        </Pressable>
+      );
+    }
+    const renderList = () => (
+      <VirtualList
+        data={[0, 1, 2, 3]}
+        itemKey={(item) => item}
+        renderItem={(item) => <StatefulRow item={item} />}
+        estimatedItemSize={20}
+        initialNumToRender={2}
+      />
+    );
+
+    root.render(renderList());
+    const initialNodes = snapshots(transport)[0][6];
+    const list = initialNodes.find((node) => node[3] === 6) as readonly unknown[];
+    const row = initialNodes.find(
+      (node) => node[3] === 3 && (node[8] as readonly unknown[] | null)?.[1] === "row-0",
+    ) as readonly unknown[];
+    const listId = Number(list[0]);
+    const listListener = Number(list[6]);
+    const rowId = Number(row[0]);
+    const rowListener = Number(row[6]);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 57, 58, 1, 1, rowId, rowListener, 1, null]));
+    expect(JSON.stringify(snapshots(transport).at(-1))).toContain("0:1");
+
+    const rangeEvent = (sequence: number, start: number, end: number) =>
+      encodeFrame([PROTOCOL_VERSION, 2, 57, 58, 1, sequence, listId, listListener, 7, [3, start, end]]);
+    transport.push(rangeEvent(2, 2, 4));
+    transport.push(rangeEvent(3, 0, 2));
+    expect(JSON.stringify(snapshots(transport).at(-1))).toContain("0:0");
+    expect(JSON.stringify(snapshots(transport).at(-1))).not.toContain("0:1");
   });
 
   it("emits accessibility-only updates without a style or listener change", () => {
