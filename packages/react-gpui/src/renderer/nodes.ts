@@ -201,8 +201,7 @@ export class NodeGraph {
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onFocus : undefined;
     node.blurCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onBlur : undefined;
-    node.pointerDownOutsideCallback =
-      !node.disabled && node.kind === "View" ? props.onPointerDownOutside : undefined;
+    node.pointerDownOutsideCallback = !node.disabled && node.kind === "View" ? props.onPointerDownOutside : undefined;
     node.hoverCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onHoverChange : undefined;
     node.scrollCallback = node.kind === "View" ? props.onScroll : undefined;
