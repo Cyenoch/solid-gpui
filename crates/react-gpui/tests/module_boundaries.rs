@@ -15,7 +15,15 @@ const RENDERER_CHILD_MODULES: &[&str] = &[
     "commit_reader.rs",
     "events.rs",
     "input.rs",
-    "paint.rs",
+];
+const PAINT_CHILD_MODULES: &[&str] = &[
+    "accessibility.rs",
+    "drag.rs",
+    "image.rs",
+    "overlay.rs",
+    "style.rs",
+    "text_input.rs",
+    "virtual_list.rs",
 ];
 const PROTOCOL_CHILD_MODULES: &[&str] = &[
     "wire/mod.rs",
@@ -24,6 +32,7 @@ const PROTOCOL_CHILD_MODULES: &[&str] = &[
     "wire/command.rs",
     "wire/event.rs",
 ];
+
 const TREE_CHILD_MODULES: &[&str] = &["validation.rs"];
 
 // These are the current intentional parent/sibling edges. A new edge must be
@@ -32,6 +41,12 @@ const ALLOWED_RENDERER_SUPER_IMPORTS: &[&str] = &[
     "use super::ReactRoot",
     "use super::committed_child_index",
     "use super::events::",
+    "use super::RenderedBounds",
+    "use super::super::ReactRoot",
+    "use super::super::committed_child_index",
+    "use super::super::events::",
+    "use super::accessibility::",
+    "use super::style::",
     // The input module's focused unit tests import their parent module.
     "use super::*",
 ];
@@ -70,6 +85,13 @@ fn renderer_sources() -> Vec<Source> {
     RENDERER_CHILD_MODULES
         .iter()
         .map(|name| source(&format!("renderer/{name}")))
+        .collect()
+}
+
+fn paint_sources() -> Vec<Source> {
+    PAINT_CHILD_MODULES
+        .iter()
+        .map(|name| source(&format!("renderer/paint/{name}")))
         .collect()
 }
 
@@ -129,6 +151,34 @@ fn renderer_and_tree_parents_keep_children_private() {
             "renderer child modules must remain private to renderer",
         );
     }
+    assert_contains_line(
+        &renderer,
+        "mod paint",
+        "renderer paint module declaration is missing",
+    );
+    assert_no_line_containing(
+        &renderer,
+        "pub mod paint",
+        "renderer paint module must remain private to renderer",
+    );
+
+    let paint = source("renderer/paint/mod.rs");
+    for child in PAINT_CHILD_MODULES {
+        let module = child
+            .strip_suffix(".rs")
+            .expect("paint child list entries must be Rust files");
+        assert_contains_line(
+            &paint,
+            &format!("mod {module}"),
+            "paint child module declaration is missing",
+        );
+        assert_no_line_containing(
+            &paint,
+            &format!("pub mod {module}"),
+            "paint child modules must remain private to paint",
+        );
+    }
+
     let tree = source("tree.rs");
     for child in TREE_CHILD_MODULES {
         let module = child
@@ -172,7 +222,7 @@ fn is_allowlisted_public_item(source: &Source, line: &str) -> bool {
 
 #[test]
 fn renderer_and_tree_child_exports_are_internal() {
-    for child in renderer_sources() {
+    for child in renderer_sources().into_iter().chain(paint_sources()) {
         for (index, line) in child.text.lines().enumerate() {
             let trimmed = line.trim_start();
             if !is_public_item(trimmed) || is_allowlisted_public_item(&child, trimmed) {
@@ -213,7 +263,7 @@ fn renderer_and_tree_child_exports_are_internal() {
 
 #[test]
 fn renderer_child_edges_are_parent_scoped() {
-    for child in renderer_sources() {
+    for child in renderer_sources().into_iter().chain(paint_sources()) {
         for (index, line) in child.text.lines().enumerate() {
             let trimmed = line.trim_start();
             if trimmed.starts_with("use crate::renderer::") {

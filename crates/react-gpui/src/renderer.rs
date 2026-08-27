@@ -33,6 +33,7 @@ use animation::AnimationState;
 #[cfg(test)]
 use animation::animation_target_changed;
 use input::{NativeInputState, TextInputLayout};
+use paint::RenderedBounds;
 #[cfg(test)]
 use std::time::{Duration, Instant};
 
@@ -43,7 +44,6 @@ pub enum RenderError {
     #[error(transparent)]
     Tree(#[from] TreeError),
 }
-type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
 
 fn committed_child_index(absolute_index: u32, range_start: u32, range_end: u32) -> Option<u32> {
     if absolute_index >= range_start && absolute_index < range_end {

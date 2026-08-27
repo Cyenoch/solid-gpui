@@ -485,3 +485,5 @@ from this work tree.
   synchronized module-boundary guardrails, TextInput change/selection events
   delegate to a private helper, and test coverage remains equivalent at 89→89;
   wire and public behavior are unchanged.
+- The core paint path is decomposed into renderer submodules while preserving
+  the public API; wire and public behavior are unchanged.

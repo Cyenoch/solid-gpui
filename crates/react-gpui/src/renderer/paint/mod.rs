@@ -1,0 +1,343 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+
+use gpui::{
+    AnyElement, App, Bounds, Element, ElementId, Entity, GlobalElementId, InspectorElementId,
+    InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement, Pixels, SharedString,
+    StatefulInteractiveElement, Styled, Window, div,
+};
+
+use crate::protocol::{EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction};
+use crate::transport::send_event_or_exit;
+use crate::tree::{
+    KIND_IMAGE, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, StoredNode,
+};
+
+use super::ReactRoot;
+use super::events::{emit_key_event, emit_pointer_event, emit_scroll_event};
+
+pub(super) type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
+
+mod accessibility;
+mod drag;
+mod image;
+mod overlay;
+mod style;
+mod text_input;
+mod virtual_list;
+
+#[cfg(test)]
+pub(super) fn accessibility_role(role: u32) -> Option<gpui::accesskit::Role> {
+    accessibility::accessibility_role(role)
+}
+
+#[cfg(test)]
+pub(super) fn input_display_text(actual: String, placeholder: Option<&str>) -> (String, bool) {
+    text_input::input_display_text(actual, placeholder)
+}
+
+struct MeasuredElement {
+    element: AnyElement,
+    entity: Entity<ReactRoot>,
+    node_id: u32,
+}
+
+impl IntoElement for MeasuredElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for MeasuredElement {
+    type RequestLayoutState = ();
+    type PrepaintState = Option<gpui::FocusHandle>;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        (self.element.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let frame = (
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
+        if [frame.0, frame.1, frame.2, frame.3]
+            .into_iter()
+            .all(f32::is_finite)
+        {
+            let entity = self.entity.clone();
+            let node_id = self.node_id;
+            window.on_next_frame(move |_, app| {
+                entity.update(app, |root, _| root.emit_layout_bounds(node_id, frame));
+            });
+        }
+        self.element.prepaint(window, cx)
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.element.paint(window, cx);
+    }
+}
+
+fn measure_node(node: &StoredNode, element: AnyElement, entity: &Entity<ReactRoot>) -> AnyElement {
+    if node.listener_id == 0
+        || !matches!(
+            node.kind,
+            KIND_VIEW | KIND_PRESSABLE | KIND_TEXT | KIND_IMAGE
+        )
+    {
+        return element;
+    }
+    MeasuredElement {
+        element,
+        entity: entity.clone(),
+        node_id: node.id,
+    }
+    .into_any()
+}
+
+impl ReactRoot {
+    pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
+        let style = self.style_for_node(node);
+        if node.kind == KIND_TEXT_INPUT {
+            return text_input::render_text_input(self, node, entity, style);
+        }
+        if node.kind == KIND_IMAGE {
+            return image::render(node, entity, style);
+        }
+        if node.kind == KIND_VIRTUAL_LIST {
+            return virtual_list::render(self, node, entity, style);
+        }
+
+        let mut element = div().id(ElementId::Integer(node.id as u64));
+        if node.id == 1 {
+            element = element.size_full().flex().flex_col();
+        }
+        element = style::apply_style(element, style);
+        if node.kind == KIND_RAW_TEXT || node.kind == KIND_TEXT {
+            element = style::apply_text_style(element, style);
+        }
+        if node.kind == KIND_TEXT && node.selectable {
+            return text_input::render_selectable(self, node, entity, style);
+        }
+
+        if node.kind == KIND_RAW_TEXT {
+            let element = element.child(
+                node.text
+                    .as_ref()
+                    .map(|text| SharedString::new(Arc::clone(text)))
+                    .unwrap_or_default(),
+            );
+            return accessibility::apply_accessibility(element, node).into_any();
+        }
+        if node.kind == KIND_TEXT {
+            if let Some(text) = node.text_content.as_ref() {
+                element = element.child(SharedString::new(Arc::clone(text)));
+            }
+        } else {
+            element = element.children(
+                node.children(&self.store)
+                    .map(|child| self.render_node(child, entity)),
+            );
+        }
+        element = accessibility::apply_accessibility(element, node);
+
+        if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+            && node.focusable
+            && node.listener_id != 0
+        {
+            let focus = self
+                .focus_handles
+                .get(&node.id)
+                .cloned()
+                .expect("focusable View or Pressable focus handle is reconciled before render");
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            let surface_id = self.store.surface_id();
+            let epoch = self.store.epoch();
+            let revision = self.store.revision();
+            let node_id = node.id;
+            let listener_id = node.listener_id;
+            element = element
+                .focusable()
+                .track_focus(&focus)
+                .on_key_down(move |event, _, _| {
+                    emit_key_event(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        &event.keystroke.key,
+                        &event.keystroke.modifiers,
+                        if event.is_held {
+                            KeyAction::Repeat
+                        } else {
+                            KeyAction::Down
+                        },
+                    );
+                });
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            element = element.on_key_up(move |event, _, _| {
+                emit_key_event(
+                    runtime.as_ref(),
+                    sequence.as_ref(),
+                    surface_id,
+                    epoch,
+                    revision,
+                    node_id,
+                    listener_id,
+                    &event.keystroke.key,
+                    &event.keystroke.modifiers,
+                    KeyAction::Up,
+                );
+            });
+        }
+        if node.kind == KIND_PRESSABLE && node.listener_id != 0 {
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            let surface_id = self.store.surface_id();
+            let epoch = self.store.epoch();
+            let revision = self.store.revision();
+            let node_id = node.id;
+            let listener_id = node.listener_id;
+            element = element.on_click(move |_, _, _| {
+                let event = Event::press(
+                    surface_id,
+                    epoch,
+                    revision,
+                    sequence.fetch_add(1, Ordering::Relaxed),
+                    node_id,
+                    listener_id,
+                );
+                send_event_or_exit(runtime.as_ref(), "press event", &event);
+            });
+        }
+        if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE) && node.listener_id != 0 {
+            let surface_id = self.store.surface_id();
+            let epoch = self.store.epoch();
+            let revision = self.store.revision();
+            let node_id = node.id;
+            let listener_id = node.listener_id;
+            for button in MouseButton::all() {
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                element = element.on_mouse_down(button, move |event, _, _| {
+                    emit_pointer_event(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        EVENT_POINTER_DOWN,
+                        event.button,
+                        &event.modifiers,
+                        event.click_count,
+                    );
+                });
+            }
+            for button in MouseButton::all() {
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                element = element.on_mouse_up(button, move |event, _, _| {
+                    emit_pointer_event(
+                        runtime.as_ref(),
+                        sequence.as_ref(),
+                        surface_id,
+                        epoch,
+                        revision,
+                        node_id,
+                        listener_id,
+                        EVENT_POINTER_UP,
+                        event.button,
+                        &event.modifiers,
+                        event.click_count,
+                    );
+                });
+            }
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            element = element.on_hover(move |_, _, _| {
+                let event = Event::hover(
+                    surface_id,
+                    epoch,
+                    revision,
+                    sequence.fetch_add(1, Ordering::Relaxed),
+                    node_id,
+                    listener_id,
+                );
+                send_event_or_exit(runtime.as_ref(), "hover event", &event);
+            });
+        }
+        if node.kind == KIND_VIEW && node.listener_id != 0 {
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            let surface_id = self.store.surface_id();
+            let epoch = self.store.epoch();
+            let revision = self.store.revision();
+            let node_id = node.id;
+            let listener_id = node.listener_id;
+            element = element.on_scroll_wheel(move |event, _, _| {
+                emit_scroll_event(
+                    runtime.as_ref(),
+                    sequence.as_ref(),
+                    surface_id,
+                    epoch,
+                    revision,
+                    node_id,
+                    listener_id,
+                    event,
+                );
+            });
+        }
+
+        element = drag::apply(element, self, node);
+        let element = overlay::apply(self, element.into_any(), node, style, entity);
+        measure_node(node, element, entity)
+    }
+}

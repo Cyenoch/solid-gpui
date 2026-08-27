@@ -31,7 +31,7 @@ each seam:
 - Image resources are loaded through GPUI's image path/cache path; a missing or
   undecodable primary resource renders `fallbackSource` while loading/after
   failure when supplied, and otherwise produces blank output without a
-  JavaScript failure (`crates/react-gpui/src/renderer/paint.rs:510-537`,
+  JavaScript failure (`crates/react-gpui/src/renderer/paint/image.rs:31-51`,
   `packages/react-gpui/README.md:134-153`).
 - GPUI's `Window::draw` runs the element layout/prepaint/paint lifecycle without
   a node-level unwind boundary; the host panic hook records a crash report but
