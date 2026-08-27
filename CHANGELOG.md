@@ -464,6 +464,13 @@ from this work tree.
   wire contract's minimum `clickCount=1`, preventing valid native pointer
   notifications from being rejected by the TypeScript decoder.
 
+- Transition retargets now preserve the previous transition metadata when a
+  changed style omits `transition`, so supported opacity/background removals
+  animate back through intermediate values. Retargets still sample the current
+  presentation value, restart the declared delay, and emit one completion per
+  generation; numeric width/height-to-auto and transform/border-radius
+  transitions remain unsupported with the documented GPUI evidence.
+
 - CommandResult acknowledgement validation now accepts command kinds `6`-`12`,
   preserving Rust-layer replies for title and other surface commands.
 - Integer-dimension resize frames were ambiguous with the untagged Animation

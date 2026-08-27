@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use gpui::{Context, Window};
 
-use crate::protocol::{Easing, Event, Style};
+use crate::protocol::{Easing, Event, Style, Transition};
 use crate::transport::send_event_or_exit;
 use crate::tree::StoredNode;
 
@@ -28,10 +28,10 @@ pub(super) struct AnimationState {
     pub(super) delay: Duration,
     pub(super) duration: Duration,
     pub(super) easing: Easing,
+    pub(super) properties: u32,
     pub(super) generation: u32,
     pub(super) completion_sent: bool,
 }
-
 impl AnimationState {
     pub(super) fn at_target(style: &Style) -> Self {
         Self {
@@ -51,15 +51,30 @@ impl AnimationState {
             delay: Duration::ZERO,
             duration: Duration::ZERO,
             easing: Easing::Linear,
+            properties: style
+                .transition
+                .as_ref()
+                .map_or(0, |transition| transition.properties),
             generation: 0,
             completion_sent: true,
         }
     }
+
+    #[cfg(test)]
     pub(super) fn retarget(&mut self, style: &Style, now: Instant) {
         let Some(transition) = style.transition.as_ref() else {
             *self = Self::at_target(style);
             return;
         };
+        self.retarget_with_transition(style, transition, now);
+    }
+
+    pub(super) fn retarget_with_transition(
+        &mut self,
+        style: &Style,
+        transition: &Transition,
+        now: Instant,
+    ) {
         let (sampled_opacity, sampled_background, sampled_width, sampled_height, _) =
             self.values(now, false);
         let next_opacity = style.opacity.unwrap_or(1.0);
@@ -116,6 +131,7 @@ impl AnimationState {
         self.delay = Duration::from_millis(transition.delay_ms as u64);
         self.duration = Duration::from_millis(transition.duration_ms as u64);
         self.easing = transition.easing;
+        self.properties = transition.properties;
         self.generation = self.generation.wrapping_add(1);
         self.completion_sent = false;
     }
@@ -181,18 +197,6 @@ impl AnimationState {
         self.opacity_active || self.background_active || self.width_active || self.height_active
     }
 }
-pub(super) fn animation_target_changed(previous: &Style, current: &Style) -> bool {
-    let properties = current
-        .transition
-        .as_ref()
-        .map_or(0, |transition| transition.properties);
-    (properties & crate::protocol::TRANSITION_OPACITY != 0 && previous.opacity != current.opacity)
-        || (properties & crate::protocol::TRANSITION_BACKGROUND_COLOR != 0
-            && previous.background_rgba != current.background_rgba)
-        || (properties & crate::protocol::TRANSITION_WIDTH != 0 && previous.width != current.width)
-        || (properties & crate::protocol::TRANSITION_HEIGHT != 0
-            && previous.height != current.height)
-}
 fn interpolate_length(
     from: Option<f32>,
     target: Option<f32>,
@@ -232,10 +236,33 @@ fn interpolate_rgba(from: u32, target: u32, progress: f32) -> u32 {
     }
     result
 }
+
 fn transparent_variant(color: u32) -> u32 {
     color & 0xffffff00
 }
 
+#[cfg(test)]
+pub(super) fn animation_target_changed(previous: &Style, current: &Style) -> bool {
+    let properties = current
+        .transition
+        .as_ref()
+        .or(previous.transition.as_ref())
+        .map_or(0, |transition| transition.properties);
+    animation_target_changed_for_properties(previous, current, properties)
+}
+
+fn animation_target_changed_for_properties(
+    previous: &Style,
+    current: &Style,
+    properties: u32,
+) -> bool {
+    (properties & crate::protocol::TRANSITION_OPACITY != 0 && previous.opacity != current.opacity)
+        || (properties & crate::protocol::TRANSITION_BACKGROUND_COLOR != 0
+            && previous.background_rgba != current.background_rgba)
+        || (properties & crate::protocol::TRANSITION_WIDTH != 0 && previous.width != current.width)
+        || (properties & crate::protocol::TRANSITION_HEIGHT != 0
+            && previous.height != current.height)
+}
 impl ReactRoot {
     pub(super) fn prune_animation_states(&mut self) {
         self.animation_states
@@ -264,33 +291,76 @@ impl ReactRoot {
                 self.animation_states.remove(&node_id);
                 continue;
             };
-            if style.transition.is_none() {
-                self.animation_states
-                    .insert(node_id, AnimationState::at_target(style));
-                continue;
-            }
             let Some(previous) = previous else {
                 self.animation_states
                     .insert(node_id, AnimationState::at_target(style));
                 continue;
             };
-            if !animation_target_changed(&previous, style) {
+            let transition = style.transition.as_ref().or(previous.transition.as_ref());
+            let active_properties = self
+                .animation_states
+                .get(&node_id)
+                .filter(|state| state.active())
+                .map(|state| state.properties);
+            let properties = transition
+                .map(|transition| transition.properties)
+                .or(active_properties)
+                .unwrap_or(0);
+            if !animation_target_changed_for_properties(&previous, style, properties) {
+                if transition.is_none() && active_properties.is_none() {
+                    self.animation_states
+                        .insert(node_id, AnimationState::at_target(style));
+                }
                 continue;
             }
-            self.retarget_animation(node_id, style, cx.reduce_motion());
+            if let Some(transition) = transition {
+                self.retarget_animation(node_id, style, transition, cx.reduce_motion());
+            } else {
+                self.retarget_existing_animation(node_id, style, cx.reduce_motion());
+            }
         }
     }
 
-    pub(super) fn retarget_animation(&mut self, node_id: u32, style: &Style, reduce_motion: bool) {
+    pub(super) fn retarget_animation(
+        &mut self,
+        node_id: u32,
+        style: &Style,
+        transition: &Transition,
+        reduce_motion: bool,
+    ) {
         let now = Instant::now();
         let state = self
             .animation_states
             .entry(node_id)
             .or_insert_with(|| AnimationState::at_target(style));
-        state.retarget(style, now);
+        state.retarget_with_transition(style, transition, now);
         if reduce_motion || !state.active() {
             self.finish_animation(node_id);
         }
+    }
+
+    pub(super) fn retarget_existing_animation(
+        &mut self,
+        node_id: u32,
+        style: &Style,
+        reduce_motion: bool,
+    ) {
+        let Some(state) = self
+            .animation_states
+            .get(&node_id)
+            .filter(|state| state.active())
+        else {
+            self.animation_states
+                .insert(node_id, AnimationState::at_target(style));
+            return;
+        };
+        let transition = Transition {
+            duration_ms: state.duration.as_millis() as u32,
+            delay_ms: state.delay.as_millis() as u32,
+            easing: state.easing,
+            properties: state.properties,
+        };
+        self.retarget_animation(node_id, style, &transition, reduce_motion);
     }
 
     pub(super) fn finish_animation(&mut self, node_id: u32) {

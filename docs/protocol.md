@@ -299,6 +299,25 @@ Transition property lists reject duplicates and unsupported properties before
 encoding (`style.ts:251-262`). The Rust side independently validates ranges,
 finite values, weight, and enum codes (`wire/node.rs:381-440`).
 
+### Transition semantics
+
+The transition tuple is applied natively on frame ticks; it does not create
+per-frame JavaScript commits. `easing` defaults to `easeInOut` when omitted,
+and `delayMs` is held before the easing curve begins. A retarget samples the
+current presentation value, starts a new generation, and restarts the declared
+delay from that retarget. Completion is emitted once for that generation.
+
+When a changed style omits `transition`, the previous transition metadata is
+used for a changed supported property so opacity and background-color
+removals animate back instead of snapping. Opacity's unset target is `1.0`;
+an unset background target is the transparent variant of the previous color.
+Width and height animate only between two numeric values: an unset
+(`auto`) endpoint has no numeric protocol target and changes immediately.
+Background colors use straight RGBA/sRGB-channel interpolation. `borderRadius`
+and generic `transform` scale/translate remain unsupported because GPUI has no
+generic transition primitive for them: its public `Transformation` path is
+SVG-only and explicitly does not affect layout or hit testing.
+
 GPUI exposes no `zIndex` style field. Absolute elements participate in the
 normal subtree paint and hit-test order. Explicit `overlay` elements are
 deferred above normal siblings and use GPUI's local anchored placement to fit

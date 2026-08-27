@@ -664,6 +664,36 @@ describe("styles", () => {
       }),
     ).toThrow();
   });
+  it("encodes transition delay, all easing codes, and the complete supported mask", () => {
+    for (const [easing, easingCode] of [
+      ["linear", 0],
+      ["easeIn", 1],
+      ["easeOut", 2],
+      ["easeInOut", 3],
+    ] as const) {
+      const transport = new MemoryTransport();
+      const root = createRoot(transport, { surfaceId: 93, epoch: 94 });
+      root.render(
+        <View
+          style={{
+            width: 10,
+            height: 20,
+            opacity: 0.5,
+            backgroundColor: "#102030",
+            transition: {
+              durationMs: 100,
+              delayMs: 25,
+              easing,
+              properties: ["opacity", "backgroundColor", "width", "height"],
+            },
+          }}
+        />,
+      );
+      const encoded = snapshots(transport)[0][6][1][4] as readonly unknown[];
+      expect(encoded[9]).toEqual([100, 25, easingCode, 15]);
+      root.unmount();
+    }
+  });
   it("encodes two box shadows and rejects malformed shadow/font values", () => {
     const double = StyleSheet.create({
       card: {

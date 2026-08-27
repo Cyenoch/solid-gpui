@@ -588,7 +588,7 @@ mod input_tests {
     use crate::protocol::{
         EventPayload, Node, Patch, PatchOperation, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT,
         TRANSITION_OPACITY, TRANSITION_WIDTH, Transition, UPDATE_LISTENER, UPDATE_PROPERTIES,
-        UPDATE_TEXT, VirtualListProperties,
+        UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
     };
     use crate::transport::InMemoryAdapter;
     use crate::tree::{KIND_RAW_TEXT, KIND_TEXT, KIND_VIEW};
@@ -768,24 +768,72 @@ mod input_tests {
             background_from: Some(0x000000ff),
             background_target: Some(0xffffffff),
             background_active: true,
-            width_from: None,
-            width_target: None,
-            width_active: false,
-            height_from: None,
-            height_target: None,
-            height_active: false,
+            width_from: Some(100.0),
+            width_target: Some(200.0),
+            width_active: true,
+            height_from: Some(40.0),
+            height_target: Some(80.0),
+            height_active: true,
             start: now - Duration::from_millis(50),
             delay: Duration::ZERO,
             duration: Duration::from_millis(100),
             easing: Easing::Linear,
+            properties: TRANSITION_OPACITY
+                | TRANSITION_BACKGROUND_COLOR
+                | TRANSITION_WIDTH
+                | TRANSITION_HEIGHT,
             generation: 1,
             completion_sent: false,
         };
-        let (opacity, color, _, _, done) = state.values(now, false);
+        let (opacity, color, width, height, done) = state.values(now, false);
         assert!((opacity - 0.5).abs() < 0.02);
         assert_eq!(color, Some(0x808080ff));
+        assert!((width.unwrap() - 150.0).abs() < 0.02);
+        assert!((height.unwrap() - 60.0).abs() < 0.02);
         assert!(!done);
     }
+
+    #[test]
+    fn easing_curves_apply_to_every_supported_property() {
+        let now = Instant::now();
+        let properties =
+            TRANSITION_OPACITY | TRANSITION_BACKGROUND_COLOR | TRANSITION_WIDTH | TRANSITION_HEIGHT;
+        for (easing, expected_progress, expected_color, expected_width, expected_height) in [
+            (Easing::Linear, 0.5, 0x808080ff, 150.0, 60.0),
+            (Easing::EaseIn, 0.25, 0x404040ff, 125.0, 50.0),
+            (Easing::EaseOut, 0.75, 0xbfbfbfff, 175.0, 70.0),
+            (Easing::EaseInOut, 0.5, 0x808080ff, 150.0, 60.0),
+        ] {
+            let state = AnimationState {
+                opacity_from: 0.0,
+                opacity_target: 1.0,
+                opacity_active: true,
+                background_from: Some(0x000000ff),
+                background_target: Some(0xffffffff),
+                background_active: true,
+                width_from: Some(100.0),
+                width_target: Some(200.0),
+                width_active: true,
+                height_from: Some(40.0),
+                height_target: Some(80.0),
+                height_active: true,
+                start: now - Duration::from_millis(50),
+                delay: Duration::ZERO,
+                duration: Duration::from_millis(100),
+                easing,
+                properties,
+                generation: 1,
+                completion_sent: false,
+            };
+            let (opacity, color, width, height, done) = state.values(now, false);
+            assert!((opacity - expected_progress).abs() < 0.02);
+            assert_eq!(color, Some(expected_color));
+            assert!((width.unwrap() - expected_width).abs() < 0.02);
+            assert!((height.unwrap() - expected_height).abs() < 0.02);
+            assert!(!done);
+        }
+    }
+
     #[test]
     fn delayed_easing_and_reduced_motion_samples_are_stable() {
         let now = Instant::now();
@@ -806,6 +854,7 @@ mod input_tests {
             delay: Duration::from_millis(100),
             duration: Duration::from_millis(100),
             easing: Easing::EaseIn,
+            properties: TRANSITION_OPACITY | TRANSITION_BACKGROUND_COLOR,
             generation: 4,
             completion_sent: false,
         };
@@ -865,6 +914,66 @@ mod input_tests {
         assert!(!done);
         assert_eq!(state.background_target, None);
         assert_eq!(halfway_remove, Some(0x11223340));
+    }
+
+    #[gpui::test]
+    fn removed_transition_retargets_supported_properties_from_previous_style(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(160.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let previous = animated_style(Some(0.25), Some(0x112233ff));
+        let mut node = Node::new(1, 0, 0, KIND_VIEW);
+        node.listener_id = 7;
+        node.style = Some(previous);
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![node]);
+        let snapshot_payload = snapshot.encode().expect("encode animation snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&snapshot_payload, cx))
+            .expect("apply animation snapshot");
+
+        let current = Style::default();
+        let patch = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 1,
+                mask: UPDATE_STYLE,
+                style: Some(current),
+                text: None,
+                listener_id: 7,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+            }],
+        );
+        let patch_payload = patch.encode().expect("encode animation patch");
+        root.update(cx, |root, cx| root.apply_payload(&patch_payload, cx))
+            .expect("apply animation patch");
+        root.update(cx, |root, _| {
+            root.animation_states
+                .get_mut(&1)
+                .expect("reverse animation state")
+                .start = Instant::now() - Duration::from_millis(50);
+        });
+
+        let (opacity, background, generation, active) = root.read_with(cx, |root, _| {
+            let state = root.animation_states.get(&1).expect("animation state");
+            let (opacity, background, _, _, _) = state.values(Instant::now(), false);
+            (opacity, background, state.generation, state.active())
+        });
+        assert!(active);
+        assert_eq!(generation, 1);
+        assert!((opacity - 0.625).abs() < 0.03);
+        let background = background.expect("background sample");
+        assert_eq!(background & 0xffffff00, 0x11223300);
+        assert!((0x70..=0x90).contains(&(background & 0xff)));
     }
     #[test]
     fn width_and_height_interpolate_and_retarget_from_sampled_values() {
@@ -932,7 +1041,8 @@ mod input_tests {
             1,
             AnimationState::at_target(&animated_style(Some(0.0), None)),
         );
-        root.retarget_animation(1, &target, true);
+        let transition = target.transition.as_ref().expect("target transition");
+        root.retarget_animation(1, &target, transition, true);
         assert!(!root.animation_states.get(&1).expect("state").active());
         assert!(
             runtime

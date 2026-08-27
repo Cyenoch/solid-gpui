@@ -668,8 +668,17 @@ without per-frame JavaScript commits:
 
 Width/height transitions rewrite layout dimensions on every native frame, so
 they trigger layout reflow; static width/height without `transition` remains a
-single immediate layout update. `transform.scale`, `transform.translateX`, and
-`transform.translateY` are intentionally unsupported: GPUI's public
+single immediate layout update. A transition with omitted `easing` uses
+`easeInOut`; `delayMs` is held before the easing curve starts. If a changed
+style omits `transition`, the previous transition metadata is reused for
+supported target changes: removing `opacity` animates back to `1`, and
+removing `backgroundColor` fades through the transparent variant of its last
+color. Width/height transitions require numeric endpoints, so removing one
+(`auto`) changes immediately. Retargets sample the current presentation value,
+start a new generation, and restart the declared delay. Background colors use
+straight RGBA/sRGB-channel interpolation.
+`transform.scale`, `transform.translateX`, and `transform.translateY` are
+intentionally unsupported: GPUI's public
 `Transformation`/`with_transformation` contract is SVG-only, and a generic
 transformed element would require a new hitbox/layout/painting contract.
 `borderRadius` and other low-value scalar transitions are also not exposed.
