@@ -1223,3 +1223,36 @@ pub fn notification_response_roundtrip(cx: &mut TestAppContext) {
             .all(|event| event.event_type != react_gpui::EVENT_NOTIFICATION_RESPONSE)
     );
 }
+
+pub fn renderer_termination_closes_surfaces_without_reentrant_update(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open renderer termination test surface");
+
+    let callback_called = std::rc::Rc::new(std::cell::Cell::new(false));
+    let callback_called_for_close = callback_called.clone();
+    let registry_for_close = registry.downgrade();
+    let close_subscription = cx.update(|cx| {
+        cx.on_window_closed(move |cx, window_id| {
+            callback_called_for_close.set(true);
+            if let Some(registry) = registry_for_close.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.window_closed(window_id, cx);
+                });
+            }
+        })
+    });
+    registry.update(cx, |registry, _| {
+        registry.close_subscription = Some(close_subscription);
+    });
+
+    runtime
+        .close()
+        .expect("mark renderer runtime terminated for close test");
+    registry.update(cx, |registry, cx| registry.close_all(cx));
+
+    assert!(!callback_called.get());
+    assert!(registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+}

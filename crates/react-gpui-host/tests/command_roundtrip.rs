@@ -23,3 +23,9 @@ fn keybinding_commands_register_replace_and_route_actions_headlessly() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::keybinding_roundtrip(&mut cx);
 }
+
+#[test]
+fn renderer_termination_closes_surfaces_without_reentrant_registry_update() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::renderer_termination_closes_surfaces_without_reentrant_update(&mut cx);
+}

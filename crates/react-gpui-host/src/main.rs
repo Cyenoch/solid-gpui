@@ -507,6 +507,9 @@ impl SurfaceRegistry {
     }
     fn close_all(&mut self, cx: &mut Context<Self>) {
         self.transport_terminated = true;
+        // Removing a window invokes `on_window_closed` synchronously. Drop the
+        // registry's callback before that update can re-enter this entity.
+        self.close_subscription.take();
         let windows = self
             .surfaces
             .values()
