@@ -16,6 +16,10 @@ from this work tree.
 - Static menus use nested `SET_MENUS=21` wire payloads and
   `EVENT_ACTION=17` string action events, with `RootOptions.onAction`; dynamic
   enablement and keybinding registration remain intentionally unsupported.
+- TextInput double-click selects the UAX #29 word under the caret and
+  triple-click selects the clicked logical line; multiline selection stays
+  within the clicked line, and word/line selections extend by their
+  granularity while dragging.
 - Crash diagnostics install a host panic hook with
   `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
   carry host exit codes and the last 50 stderr lines. README Troubleshooting

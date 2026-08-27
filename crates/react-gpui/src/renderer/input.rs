@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::atomic::Ordering;
 
+use unicode_segmentation::UnicodeSegmentation;
+
 use gpui::{
     App, Bounds, Context, EntityInputHandler, Pixels, Point, ShapedLine, TextAlign, UTF16Selection,
     Window, WrappedLine, point, px, size,
@@ -17,6 +19,14 @@ use crate::tree::{KIND_PRESSABLE, KIND_TEXT, KIND_VIEW};
 
 use super::ReactRoot;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum TextInputSelectionGranularity {
+    #[default]
+    Character,
+    Word,
+    Line,
+}
+
 #[derive(Debug, Default)]
 pub(super) struct NativeInputState {
     pub(super) text: String,
@@ -26,6 +36,9 @@ pub(super) struct NativeInputState {
     pub(super) edit_seq: u32,
     pub(super) focused: bool,
     pub(super) max_length: Option<usize>,
+    pub(crate) drag_granularity: TextInputSelectionGranularity,
+    pub(crate) drag_origin: usize,
+    pub(crate) drag_selection: Range<usize>,
 }
 
 pub(super) enum TextInputTextLayout {
@@ -483,6 +496,9 @@ impl ReactRoot {
                         edit_seq: 0,
                         focused: false,
                         max_length: input.max_length.map(|value| value as usize),
+                        drag_granularity: TextInputSelectionGranularity::Character,
+                        drag_origin: 0,
+                        drag_selection: 0..0,
                     });
                 self.focus_handles
                     .entry(id)
@@ -658,12 +674,12 @@ impl ReactRoot {
                 .unwrap_or(fallback),
         )
     }
-
     pub(super) fn begin_text_input_selection(
         &mut self,
         node_id: u32,
         point: Point<gpui::Pixels>,
         extend: bool,
+        click_count: usize,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -676,26 +692,57 @@ impl ReactRoot {
         let index = self
             .text_input_index_for_point(node_id, point, window, cx)
             .unwrap_or(fallback);
-        let anchor = self
-            .input_states
-            .get(&node_id)
-            .map(|state| {
-                if extend {
-                    if state.selection_reversed {
-                        state.selection.end
-                    } else {
-                        state.selection.start
-                    }
-                } else {
-                    index
-                }
-            })
-            .unwrap_or(index);
+        let granularity = match click_count {
+            2 => TextInputSelectionGranularity::Word,
+            3 => TextInputSelectionGranularity::Line,
+            _ => TextInputSelectionGranularity::Character,
+        };
+        let (selection, reversed, anchor) = match granularity {
+            TextInputSelectionGranularity::Character => {
+                let anchor = self
+                    .input_states
+                    .get(&node_id)
+                    .map(|state| {
+                        if extend {
+                            if state.selection_reversed {
+                                state.selection.end
+                            } else {
+                                state.selection.start
+                            }
+                        } else {
+                            index
+                        }
+                    })
+                    .unwrap_or(index);
+                let (selection, reversed) = selection_from_anchor(anchor, index);
+                (selection, reversed, anchor)
+            }
+            TextInputSelectionGranularity::Word => {
+                let text = self
+                    .input_states
+                    .get(&node_id)
+                    .map(|state| state.text.as_str())
+                    .unwrap_or_default();
+                let selection = word_selection_range(text, index);
+                (selection, false, index)
+            }
+            TextInputSelectionGranularity::Line => {
+                let text = self
+                    .input_states
+                    .get(&node_id)
+                    .map(|state| state.text.as_str())
+                    .unwrap_or_default();
+                let selection = line_selection_range(text, index);
+                (selection, false, index)
+            }
+        };
         self.text_input_drag_anchor = Some((node_id, anchor));
-        let (selection, reversed) = selection_from_anchor(anchor, index);
         if let Some(state) = self.input_states.get_mut(&node_id) {
-            state.selection = selection;
+            state.selection = selection.clone();
             state.selection_reversed = reversed;
+            state.drag_granularity = granularity;
+            state.drag_origin = index;
+            state.drag_selection = selection;
         }
         self.emit_input_event(node_id, EVENT_SELECTION);
         cx.notify();
@@ -722,7 +769,35 @@ impl ReactRoot {
         let index = self
             .text_input_index_for_point(node_id, point, window, cx)
             .unwrap_or(fallback);
-        let (selection, reversed) = selection_from_anchor(anchor, index);
+        let granularity = self
+            .input_states
+            .get(&node_id)
+            .map(|state| state.drag_granularity)
+            .unwrap_or_default();
+        let (selection, reversed) = match granularity {
+            TextInputSelectionGranularity::Character => selection_from_anchor(anchor, index),
+            TextInputSelectionGranularity::Word | TextInputSelectionGranularity::Line => {
+                let Some(state) = self.input_states.get(&node_id) else {
+                    return;
+                };
+                let text = &state.text;
+                let text_length = text.encode_utf16().count();
+                let origin = state.drag_origin.min(text_length);
+                let initial_start = state.drag_selection.start.min(text_length);
+                let initial_end = state.drag_selection.end.min(text_length);
+                let target = match granularity {
+                    TextInputSelectionGranularity::Word => word_selection_range(text, index),
+                    TextInputSelectionGranularity::Line => line_selection_range(text, index),
+                    TextInputSelectionGranularity::Character => unreachable!(),
+                };
+                let (anchor, head) = if index < origin {
+                    (initial_end, target.start)
+                } else {
+                    (initial_start, target.end)
+                };
+                selection_from_anchor(anchor, head)
+            }
+        };
         let changed = self.input_states.get(&node_id).is_some_and(|state| {
             state.selection != selection || state.selection_reversed != reversed
         });
@@ -895,6 +970,48 @@ pub(super) fn selection_from_anchor(anchor: usize, head: usize) -> (Range<usize>
         (anchor..head, false)
     }
 }
+fn logical_line_byte_range(text: &str, byte_offset: usize) -> Range<usize> {
+    let byte_offset = byte_offset.min(text.len());
+    let start = text[..byte_offset]
+        .rfind('\n')
+        .map_or(0, |index| index + '\n'.len_utf8());
+    let end = text[byte_offset..]
+        .find('\n')
+        .map_or(text.len(), |index| byte_offset + index);
+    start..end
+}
+
+fn word_selection_range(text: &str, offset: usize) -> Range<usize> {
+    let byte_offset = utf16_byte_index(text, offset);
+    let line = logical_line_byte_range(text, byte_offset);
+    let local_offset = byte_offset - line.start;
+    let line_text = &text[line.clone()];
+    let mut previous = None;
+    for (start, word) in line_text.unicode_word_indices() {
+        let end = start + word.len();
+        if start <= local_offset && local_offset < end {
+            return utf8_byte_to_utf16(text, line.start + start)
+                ..utf8_byte_to_utf16(text, line.start + end);
+        }
+        if start > local_offset {
+            return utf8_byte_to_utf16(text, line.start + start)
+                ..utf8_byte_to_utf16(text, line.start + end);
+        }
+        previous = Some(start..end);
+    }
+    previous.map_or_else(
+        || utf8_byte_to_utf16(text, byte_offset)..utf8_byte_to_utf16(text, byte_offset),
+        |range| {
+            utf8_byte_to_utf16(text, line.start + range.start)
+                ..utf8_byte_to_utf16(text, line.start + range.end)
+        },
+    )
+}
+
+fn line_selection_range(text: &str, offset: usize) -> Range<usize> {
+    let line = logical_line_byte_range(text, utf16_byte_index(text, offset));
+    utf8_byte_to_utf16(text, line.start)..utf8_byte_to_utf16(text, line.end)
+}
 
 fn previous_utf16_boundary(text: &str, offset: usize) -> usize {
     let mut current = 0;
@@ -986,6 +1103,15 @@ impl ReactRoot {
             self.emit_input_event(id, EVENT_CHANGE);
             self.emit_input_event(id, EVENT_SELECTION);
         }
+    }
+    pub(super) fn selected_text_for_copy(&self, node_id: u32) -> Option<String> {
+        let state = self.input_states.get(&node_id)?;
+        if state.selection.is_empty() {
+            return None;
+        }
+        let start = utf16_byte_index(&state.text, state.selection.start);
+        let end = utf16_byte_index(&state.text, state.selection.end);
+        (start < end).then(|| state.text[start..end].to_owned())
     }
 }
 
@@ -1241,5 +1367,21 @@ mod tests {
         assert_eq!(multiline_utf16_position(text, 5), (1, 3));
         assert_eq!(multiline_utf16_position(text, 6), (2, 0));
         assert_eq!(multiline_utf16_position(text, 7), (3, 0));
+    }
+    #[test]
+    fn double_click_selects_the_uax_word_and_maps_utf16_offsets() {
+        let text = "one 😀 café";
+        // The caret is inside "café"; the emoji before it exercises UTF-16 mapping.
+        assert_eq!(word_selection_range(text, 8), 7..11);
+        // Whitespace has no unicode_word_indices entry, so use the following word.
+        assert_eq!(word_selection_range("one two", 3), 4..7);
+    }
+
+    #[test]
+    fn triple_click_selects_one_logical_line_without_newline() {
+        let text = "first😀\nsecond\n";
+        assert_eq!(line_selection_range(text, 2), 0..7);
+        assert_eq!(line_selection_range(text, 8), 8..14);
+        assert_eq!(line_selection_range(text, 15), 15..15);
     }
 }

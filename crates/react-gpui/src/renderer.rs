@@ -610,6 +610,38 @@ mod input_tests {
             selection_reversed: false,
         }
     }
+    fn text_input_snapshot(value: &str, multiline: bool) -> Snapshot {
+        let mut input = Node::new(2, 1, 0, crate::tree::KIND_TEXT_INPUT);
+        input.listener_id = 1;
+        input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+            value: value.into(),
+            placeholder: None,
+            multiline,
+            disabled: false,
+            controlled: true,
+            ack_edit_seq: 0,
+            selection_start: 0,
+            selection_end: 0,
+            marked_start: None,
+            marked_end: None,
+            max_length: None,
+            selection_reversed: false,
+        }));
+        Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), input])
+    }
+
+    fn latest_text_selection(runtime: &InMemoryAdapter) -> (u32, u32, bool) {
+        let mut result = None;
+        while let Some(event) = runtime.take_event().expect("read input event") {
+            if event.event_type == crate::protocol::EVENT_SELECTION
+                && let Some(EventPayload::TextInput(input)) = event.payload
+            {
+                result = Some((input.selection_start, input.selection_end, input.reversed));
+            }
+        }
+        result.expect("selection event")
+    }
+
     fn transition(properties: u32) -> Transition {
         Transition {
             duration_ms: 100,
@@ -1128,6 +1160,173 @@ mod input_tests {
         assert_eq!(line_count, 4);
         assert_eq!(line_starts, vec![0, 6, 7, 11]);
         assert_eq!(content, "a😀\n\n中\n");
+    }
+    #[gpui::test]
+    fn text_input_multi_click_dispatch_selects_words_lines_and_copy(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(300.0), px(120.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let snapshot = text_input_snapshot("one 😀 café next\nsecond line\n", true);
+        let payload = snapshot.encode().expect("encode multi-click snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply multi-click snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw multi-click text input");
+        cx.run_until_parked();
+
+        let (word_point, first_word_point, next_word_point, second_line_point) =
+            root.read_with(cx, |root, _| {
+                let layout = root.text_input_layouts.get(&2).expect("text input layout");
+                let point_for = |byte| {
+                    let position = layout.text.position_for_utf8(byte);
+                    layout.bounds.origin
+                        + position.point
+                        + gpui::point(px(2.0), position.line_height * 0.5)
+                };
+                let second_line_point = match &layout.text {
+                    super::input::TextInputTextLayout::Multiline { line_height, .. } => {
+                        layout.bounds.origin + gpui::point(px(2.0), *line_height * 1.5)
+                    }
+                    super::input::TextInputTextLayout::Single { .. } => {
+                        panic!("expected multiline layout")
+                    }
+                };
+                (
+                    point_for(10),
+                    point_for(1),
+                    point_for(16),
+                    second_line_point,
+                )
+            });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: word_point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 2,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (7, 11, false));
+        visual.simulate_mouse_up(word_point, gpui::MouseButton::Left, gpui::Modifiers::none());
+
+        visual.simulate_keystrokes("shift-right");
+        assert_eq!(latest_text_selection(&runtime), (7, 12, false));
+
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: word_point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 2,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (7, 11, false));
+        visual.simulate_mouse_move(
+            next_word_point,
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+        assert_eq!(latest_text_selection(&runtime), (7, 16, false));
+        visual.simulate_mouse_up(
+            next_word_point,
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: word_point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 2,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (7, 11, false));
+        visual.simulate_mouse_move(
+            first_word_point,
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+        assert_eq!(latest_text_selection(&runtime), (0, 11, true));
+        visual.simulate_mouse_up(
+            first_word_point,
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: second_line_point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 3,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (17, 28, false));
+        visual.simulate_mouse_move(
+            first_word_point,
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+        assert_eq!(latest_text_selection(&runtime), (0, 28, true));
+        visual.simulate_mouse_up(
+            first_word_point,
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: second_line_point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 3,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (17, 28, false));
+        visual.simulate_mouse_up(
+            second_line_point,
+            gpui::MouseButton::Left,
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_keystrokes("cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("second line".to_owned())
+        );
+    }
+
+    #[gpui::test]
+    fn text_input_triple_click_dispatch_selects_entire_single_line(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(300.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let snapshot = text_input_snapshot("one two", false);
+        let payload = snapshot.encode().expect("encode single-line snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply single-line snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw single-line text input");
+        cx.run_until_parked();
+
+        let point = root.read_with(cx, |root, _| {
+            let layout = root.text_input_layouts.get(&2).expect("text input layout");
+            let position = layout.text.position_for_utf8(5);
+            layout.bounds.origin + position.point + gpui::point(px(2.0), position.line_height * 0.5)
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 3,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (0, 7, false));
     }
 
     #[gpui::test]
