@@ -95,7 +95,7 @@ describe("protocol framing", () => {
     expect(decoded[0]).toEqual(payload);
   });
   it("rejects malformed tagged event payloads", () => {
-    const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, 6, [2, 1, 99, 2, true, null]] as never);
+    const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, 6, [2, 1, 99, 2, true, null, null]] as never);
     expect(decodeEvent(malformed.slice(4))).toBeNull();
   });
   it("decodes pointer down and up payloads and rejects invalid pointer buttons", () => {
@@ -151,9 +151,7 @@ describe("protocol framing", () => {
   });
   it("decodes window observation events and optional command values", () => {
     const resize = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [800, 600, 2]]);
-    const legacyResize = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 7, 1, 0, EVENT_WINDOW_RESIZE, [640, 480]]);
     const activation = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 1, 0, EVENT_WINDOW_ACTIVATION, true]);
-    const oldResult = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 1, 0, 6, [2, 1, COMMAND_FOCUS, 2, true, null]]);
     const sizeResult = encodeFrame([
       PROTOCOL_VERSION,
       2,
@@ -178,7 +176,7 @@ describe("protocol framing", () => {
       6,
       [2, 3, COMMAND_GET_FOCUS, 2, true, null, [3, true]],
     ]);
-    const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 6, 1, 0, EVENT_WINDOW_RESIZE, [800, -1]] as never);
+    const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 6, 1, 0, EVENT_WINDOW_RESIZE, [800, -1, 1]] as never);
     const invalidScale = encodeFrame([
       PROTOCOL_VERSION,
       2,
@@ -192,9 +190,7 @@ describe("protocol framing", () => {
       [800, 600, 0],
     ] as never);
     expect(decodeEvent(resize.slice(4))).not.toBeNull();
-    expect(decodeEvent(legacyResize.slice(4))).not.toBeNull();
     expect(decodeEvent(activation.slice(4))).not.toBeNull();
-    expect(decodeEvent(oldResult.slice(4))).not.toBeNull();
     expect(decodeEvent(sizeResult.slice(4))).not.toBeNull();
     expect(decodeEvent(focusResult.slice(4))).not.toBeNull();
     expect(decodeEvent(malformed.slice(4))).toBeNull();
@@ -268,9 +264,7 @@ describe("protocol framing", () => {
     expect(decodeEvent(external.slice(4))).not.toBeNull();
     expect(decodeEvent(invalid.slice(4))).toBeNull();
   });
-  it("accepts legacy seven-slot text input events with reversed=false", () => {
-    const legacy = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 5, 2, 7, 2, [1, "legacy", 2, 2, null, null, 3]] as never);
-    expect(decodeEvent(legacy.slice(4))).not.toBeNull();
+  it("rejects malformed text input events", () => {
     const invalid = encodeFrame([
       PROTOCOL_VERSION,
       2,
@@ -298,7 +292,7 @@ describe("window observation and value commands", () => {
       onWindowActivation: (value) => active.push(value),
     });
     root.render(<View />);
-    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [640, 480]]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [640, 480, 1]]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 2, 1, 0, EVENT_WINDOW_RESIZE, [800, 600, 1.5]]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 91, 92, 1, 3, 1, 0, EVENT_WINDOW_ACTIVATION, false]));
     expect(resized).toEqual([
@@ -382,7 +376,7 @@ describe("clipboard commands", () => {
         1,
         0,
         6,
-        [2, writeCommand[5] as number, COMMAND_CLIPBOARD_WRITE, 1, true, null],
+        [2, writeCommand[5] as number, COMMAND_CLIPBOARD_WRITE, 1, true, null, null],
       ]),
     );
     await expect(writePromise).resolves.toBeUndefined();
@@ -420,7 +414,7 @@ describe("clipboard commands", () => {
         1,
         0,
         6,
-        [2, failedCommand[5] as number, COMMAND_CLIPBOARD_READ, 1, false, "clipboard has no text content"],
+        [2, failedCommand[5] as number, COMMAND_CLIPBOARD_READ, 1, false, "clipboard has no text content", null],
       ]),
     );
     await expect(failedRead).rejects.toThrow("clipboard has no text content");
@@ -1161,7 +1155,7 @@ describe("renderer commits", () => {
       ]),
     );
     transport.push(
-      encodeFrame([PROTOCOL_VERSION, 2, 33, 34, 1, 2, input[0] as number, input[6] as number, EVENT_SUBMIT, null]),
+      encodeFrame([PROTOCOL_VERSION, 2, 33, 34, 1, 2, input[0] as number, input[6] as number, EVENT_SUBMIT, ""]),
     );
     transport.push(
       encodeFrame([PROTOCOL_VERSION, 2, 33, 34, 1, 3, input[0] as number, input[6] as number, EVENT_SUBMIT, "1234"]),
@@ -1180,7 +1174,7 @@ describe("renderer commits", () => {
     const command = message(transport, 1);
     const commandNodeId = Number(command[6]);
     expect(command).toEqual([3, 4, 31, 32, 1, 1, commandNodeId, 3, [1, 1]]);
-    transport.push(encodeFrame([3, 2, 31, 32, 1, 1, commandNodeId, 0, 6, [2, 1, 3, commandNodeId, true, null]]));
+    transport.push(encodeFrame([3, 2, 31, 32, 1, 1, commandNodeId, 0, 6, [2, 1, 3, commandNodeId, true, null, null]]));
     await commandPromise;
   });
 
@@ -1287,7 +1281,7 @@ describe("renderer commits", () => {
       list[0] as number,
       0,
       6,
-      [2, 1, 4, list[0] as number, true, null],
+      [2, 1, 4, list[0] as number, true, null, null],
     ]);
     transport.push(resultFrame);
     await scroll;
@@ -1304,7 +1298,7 @@ describe("renderer commits", () => {
         list[0] as number,
         0,
         6,
-        [2, 2, COMMAND_SCROLL_TO_END, list[0] as number, true, null],
+        [2, 2, COMMAND_SCROLL_TO_END, list[0] as number, true, null, null],
       ]),
     );
     await scrollEnd;
@@ -1669,7 +1663,7 @@ describe("renderer commits", () => {
     const root = createRoot(transport, { surfaceId: 67, epoch: 68 });
     root.render(<View ref={ref} focusable />);
     const complete = (sequence: number, requestId: number, command: number, nodeId: number) =>
-      encodeFrame([3, 2, 67, 68, 1, sequence, nodeId, 0, 6, [2, requestId, command, nodeId, true, null]]);
+      encodeFrame([3, 2, 67, 68, 1, sequence, nodeId, 0, 6, [2, requestId, command, nodeId, true, null, null]]);
 
     const focusPromise = ref.current!.focus();
     const focusCommand = message(transport, 1);
@@ -1696,7 +1690,7 @@ describe("renderer commits", () => {
     const root = createRoot(transport, { surfaceId: 75, epoch: 76 });
     root.render(<View />);
     const complete = (sequence: number, requestId: number, command: number) =>
-      encodeFrame([3, 2, 75, 76, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null]]);
+      encodeFrame([3, 2, 75, 76, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null, null]]);
 
     const resize = root.resize(800, 600);
     expect(message(transport, 1)).toEqual([3, 4, 75, 76, 1, 1, 1, COMMAND_RESIZE_WINDOW, [800, 600]]);
@@ -1746,7 +1740,7 @@ describe("renderer commits", () => {
         0,
         6,
         value === undefined
-          ? [2, requestId, command, 1, success, error]
+          ? [2, requestId, command, 1, success, error, null]
           : [2, requestId, command, 1, success, error, value],
       ] as never);
 
@@ -1801,7 +1795,7 @@ describe("renderer commits", () => {
     });
     root.render(<View />);
     const complete = (sequence: number, requestId: number, command: number) =>
-      encodeFrame([3, 2, 81, 82, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null]]);
+      encodeFrame([3, 2, 81, 82, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null, null]]);
     const menus = root.setMenus([
       {
         title: "File",
@@ -1887,7 +1881,7 @@ describe("renderer commits", () => {
         ["ctrl-k ctrl-1", "menu.other"],
       ],
     ]);
-    transport.push(encodeFrame([3, 2, 87, 88, 1, 1, 1, 0, 6, [2, 1, COMMAND_SET_KEYBINDINGS, 1, true, null]]));
+    transport.push(encodeFrame([3, 2, 87, 88, 1, 1, 1, 0, 6, [2, 1, COMMAND_SET_KEYBINDINGS, 1, true, null, null]]));
     await pending;
     await expect(
       root.setKeybindings(Array.from({ length: 65 }, () => ({ keystrokes: "ctrl-a", actionName: "too-many" }))),
@@ -2015,7 +2009,7 @@ describe("renderer commits", () => {
     const root = createRoot(transport, { surfaceId: 77, epoch: 78 });
     root.render(<View />);
     const complete = (sequence: number, requestId: number, command: number) =>
-      encodeFrame([3, 2, 77, 78, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null]]);
+      encodeFrame([3, 2, 77, 78, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null, null]]);
 
     const next = root.focusNext();
     expect((message(transport, 1) as readonly unknown[])[7]).toBe(COMMAND_FOCUS_NEXT);

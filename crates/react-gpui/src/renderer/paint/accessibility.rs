@@ -50,7 +50,7 @@ pub(super) fn apply_accessibility<E: StatefulInteractiveElement>(
     if let Some(value) = &accessibility.value {
         element = element.aria_value(value.clone());
     }
-    // GPUI 0.2.2 exposes no public aria-disabled builder. The wire field is
-    // retained for compatibility, but cannot honestly be advertised in AX.
+    // GPUI 0.2.2 exposes no public aria-disabled builder, so the wire field
+    // cannot yet be advertised in AX.
     element
 }

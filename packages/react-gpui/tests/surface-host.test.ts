@@ -37,7 +37,7 @@ function commandResult(
   value: readonly unknown[] | null = null,
 ): Uint8Array {
   const result: readonly unknown[] =
-    value === null ? [2, requestId, command, 1, true, null] : [2, requestId, command, 1, true, null, value];
+    value === null ? [2, requestId, command, 1, true, null, null] : [2, requestId, command, 1, true, null, value];
   return encodeFrame([PROTOCOL_VERSION, 2, surfaceId, epoch, 1, sequence, 1, 0, EVENT_COMMAND_RESULT, result] as never);
 }
 

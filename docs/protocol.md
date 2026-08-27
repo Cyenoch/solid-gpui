@@ -171,7 +171,7 @@ retained tree's current revision (`tree.rs:862-934`).
 |        6 | u32                    | Target Host Node ID; root-level window events use synthetic root node `1`.                                                                            | `protocol.ts:223`; `protocol.rs:424`; `dispatch.ts:67-80` |
 |        7 | u32                    | Listener ID; `CommandResult` uses listener `0`, while target events use the mounted listener.                                                         | `protocol.ts:224`; `protocol.rs:425,701-703`              |
 |        8 | u32                    | Event type `1..22`; the payload at position 9 is validated according to this value. `EVENT_SURFACE_CLOSED` additionally requires node/listener `0/0`; generic View/Pressable Focus/Blur uses a null payload and positive node/listener IDs. | `protocol.ts:687-693`; `wire/event.rs:20-171`                  |
-|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit accepts legacy null or a string.                          | `protocol.ts:488-558`; `wire/event.rs:45-171`                  |
+|        9 | null/string/array/bool | Event-specific payload from the directory in §3. Press/Hover/SurfaceClosed are null; Submit carries a string.                          | `protocol.ts:488-558`; `wire/event.rs:45-171`                  |
 
 ### Node tuple
 
@@ -195,7 +195,7 @@ event is sent over this protocol.
 |        7 | `hostProperties` | tagged array or null  | Required for TextInput, VirtualList, and Image; optional on View/Pressable when drag metadata is present; forbidden for other kinds. | `wire/node.rs:8-74,27-74,254-380`; `tree.rs:1000-1068` |
 |        8 | `accessibility`  | 7-slot array or null  | Accessibility metadata; checked requires checkbox role.                                    | `wire/node.rs:8-74,254-380`; `tree.rs:983-997`        |
 |        9 | `focusable`      | boolean               | Current retained-tree validation permits focusability only on View and Pressable.          | `tree.rs:961-965`                           |
-|       10 | `selectable`    | optional boolean       | Omitted/false for legacy and non-selectable nodes; only Text nodes may set it true. | `protocol.ts:123-147`; `wire/node.rs:3-16,153-178`; `tree/validation.rs` |
+|       10 | `selectable`    | optional boolean       | Omitted when false; only Text nodes may set it true. | `protocol.ts:123-147`; `wire/node.rs:3-16,153-178`; `tree/validation.rs` |
 
 Images and RawText cannot contain children; RawText must be directly under
 Text, and Text may contain only RawText (`tree.rs:1071-1099`).
@@ -208,10 +208,10 @@ shape to match the node kind.
 
 | Tag | Node kind   | Shape and constraints                                                                                                                                                                                                                                                             | Source                                                                      |
 | --: | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-|   1 | TextInput   | `[1,value,placeholder,multiline,disabled,controlled,ackEditSeq,selectionStart,selectionEnd,markedStart,markedEnd,maxLength,selectionReversed]` (legacy 12-slot form defaults `false`) | Strings may be null only where shown; sequence/selection/maxLength are u32; marked positions are both null or both numbers and ranges are ordered; `selectionReversed` preserves the UTF-16 head orientation. | `protocol.ts:94-108,426-466`; `wire/node.rs:27-61,292-326,423-508`; `tree.rs:1039-1041` |
+|   1 | TextInput   | `[1,value,placeholder,multiline,disabled,controlled,ackEditSeq,selectionStart,selectionEnd,markedStart,markedEnd,maxLength,selectionReversed]` | Strings may be null only where shown; sequence/selection/maxLength are u32; marked positions are both null or both numbers and ranges are ordered; `selectionReversed` preserves the UTF-16 head orientation. | `protocol.ts:94-108,426-466`; `wire/node.rs:27-61,292-326,423-508`; `tree.rs:1039-1041` |
 |   2 | VirtualList | `[2,itemCount,rangeStart,rangeEnd,estimatedItemSize,overscan]`; counts/ranges/overscan are u32, `rangeStart <= rangeEnd <= itemCount`, and estimated size is finite and positive. `estimatedItemSize` is the initial size hint for unmeasured or not-yet-committed rows; measured rows use their natural GPUI `list` height. | `protocol.ts:97,396-412`; `wire/node.rs:59-60,331-348,506-529`; `renderer/paint/virtual_list.rs:16-107`; `renderer.rs` |
-|   3 | Image       | `[3,source,objectFit,fallbackSource|null]` (legacy 3-slot form accepted) | Source and optional fallback are non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters; object fit is `1..5`. GPUI renders the fallback for loading and load-error states when present. | `protocol.ts:111-117,485-500`; `wire/node.rs:61-63,308-310,412-425,556-569`; `renderer/paint/image.rs:26-59` |
-|   4 | View/Pressable | `[4,dragType|null,exportFiles|null,acceptsDragOver,acceptsDrop]` (legacy 2- and 3-slot forms accepted) | `dragType` is optional for drop targets; `acceptsDragOver` and `acceptsDrop` describe the independent JavaScript callbacks and may be true without a draggable source. Optional `exportFiles` contains 1..8 non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters. Internal Event 20 notifications are emitted only for the advertised callbacks; outbound files are offered to the platform when the drag leaves the viewport and have no JavaScript completion event. macOS and Wayland Linux provide native starts; X11 and Windows retain the platform default that declines outbound drags. | `protocol.ts:116-124,521-545`; `wire/node.rs:64-72,372-385,449-483`; `renderer/paint/drag.rs:49-165` |
+|   3 | Image       | `[3,source,objectFit,fallbackSource|null]` | Source and optional fallback are non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters; object fit is `1..5`. GPUI renders the fallback for loading and load-error states when present. | `protocol.ts:111-117,485-500`; `wire/node.rs:61-63,308-310,412-425,556-569`; `renderer/paint/image.rs:26-59` |
+|   4 | View/Pressable | `[4,dragType|null,exportFiles|null,acceptsDragOver,acceptsDrop]` | `dragType` is optional for drop targets; `acceptsDragOver` and `acceptsDrop` describe the independent JavaScript callbacks and may be true without a draggable source. Optional `exportFiles` contains 1..8 non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters. Internal Event 20 notifications are emitted only for the advertised callbacks; outbound files are offered to the platform when the drag leaves the viewport and have no JavaScript completion event. macOS and Wayland Linux provide native starts; X11 and Windows retain the platform default that declines outbound drags. | `protocol.ts:116-124,521-545`; `wire/node.rs:64-72,372-385,449-483`; `renderer/paint/drag.rs:49-165` |
 
 TextInput `maxLength` is a u32 protocol value; its text-unit meaning is
 specified in §5 and [ADR-0004](adr/0004-dual-length-semantics.md).
@@ -243,8 +243,8 @@ field is unset. Color values are encoded RGBA u32 values from TypeScript
 non-negative numbers except `fontSize`, which must be positive, `opacity`,
 which must be in `0..1`, and positioning insets, which may be negative finite
 pixel offsets (`style.ts:175-430`; `wire/node.rs:468-528`).
-The Rust decoder accepts legacy 40-slot style arrays; current producers emit
-the two appended slots.
+All producers and decoders use the complete 42-slot style form; the final two
+slots carry `boxShadow` and `fontFamily`.
 
 | Slot | Field           | Wire value                                         | Values/constraint                                                                                                                                                                                                                                                                                                                                      | Source                                                                      |
 | ---: | --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
@@ -309,10 +309,8 @@ portal or z-index substitute.
 
 Every event has the ten fields in the Event table above. `EVENT_PRESS`,
 `EVENT_HOVER`, and `EVENT_SURFACE_CLOSED` require a null payload; SurfaceClosed
-also requires `nodeId=0` and `listenerId=0`. `EVENT_SUBMIT` accepts either
-legacy null or a string; the Rust constructor has both `submit` and
-`submit_with_text` forms (`protocol.rs:594-636`). Window resize accepts a legacy
-two-number payload and the current three-number payload
+also requires `nodeId=0` and `listenerId=0`. `EVENT_SUBMIT` carries a string.
+Window resize uses the three-number payload
 `[width,height,scaleFactor]`; Rust accepts integer/float32 combinations through
 `WindowResizeWire`, while TypeScript accepts finite non-negative dimensions and
 a positive scale factor (`wire/event.rs`; `protocol.ts`). Focus and Blur retain
@@ -322,19 +320,19 @@ same event codes with a null payload.
 | Code | Name              | Payload shape                                                                        | Validation and semantics                                                                                                                                         | Source                                                                      |
 | ---: | ----------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 |    1 | Press             | `null`                                                                               | Semantic activation notification.                                                                                                                                | `protocol.ts:430-432`; `wire/event.rs:20-45,283-289`                                    |
-|    2 | Change            | `[1,text,start,end,markedStart,markedEnd,editSeq,reversed]` (legacy 7-slot form defaults `false`) | Tag `1`; text string; u32 ordered selection/edit sequence; marked pair both null or ordered; `reversed` is the UTF-16 head orientation. | `protocol.ts:230-240,668-691`; `wire/event.rs:362-483` |
-|    3 | Selection         | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
-|    4 | Focus             | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
-|    5 | Blur              | Same tag-1 TextInput shape | Same validation as Change; legacy payloads default `reversed=false`. | Same sources. |
-|    6 | CommandResult     | `[2,requestId,command,nodeId,success,error]` or with optional tagged value at slot 6 | Tag `2`; command must be `1..22`; success bool; error string/null; value tags below. Six-field old results decode with value `None`.                             | `protocol.ts:209-217,529-566`; `wire/event.rs:318-335,370-393,617-705`          |
+|    2 | Change           | `[1,text,start,end,markedStart,markedEnd,editSeq,reversed]` | Tag `1`; text string; u32 ordered selection/edit sequence; marked pair both null or ordered; `reversed` is the UTF-16 head orientation. | `protocol.ts:230-240,668-691`; `wire/event.rs:362-483` |
+|    3 | Selection         | Same tag-1 TextInput shape | Same validation as Change. | Same sources. |
+|    4 | Focus             | Same tag-1 TextInput shape | Same validation as Change. | Same sources. |
+|    5 | Blur              | Same tag-1 TextInput shape | Same validation as Change. | Same sources. |
+|    6 | CommandResult     | `[2,requestId,command,nodeId,success,error,value|null]` | Tag `2`; command must be `1..22`; success bool; error string/null; value is null when the command has no typed return value, otherwise it uses the tags below. | `protocol.ts:209-217,529-566`; `wire/event.rs:318-335,370-393,617-705`          |
 |    7 | VisibleRange      | `[3,start,end]`                                                                      | Tag `3`; u32 range with `start <= end`.                                                                                                                          | `protocol.ts:533-541`; `wire/event.rs:81-89,244-250,395-395`                                    |
 |    8 | AnimationComplete | `[4,generation]`                                                                     | Tag `4`; generation u32.                                                                                                                                         | `protocol.ts:543-550`; `wire/event.rs:90-97,250-252,399-399`                                    |
 |    9 | Key               | `[5,key,modifiers,action]`                                                           | Tag `5`; non-empty key; unique modifiers from `cmd`, `ctrl`, `alt`, `shift`, `function`; action `1=down`, `2=repeat`, `3=up`.                                    | `protocol.ts:487-496`; `wire/event.rs:98-100,253-254,397,492-529`                  |
 |   10 | Pointer           | `[6,button,modifiers,action,clickCount]`                                             | Tag `6`; button `1=left` through `5=forward`; unique known modifiers; action `1=down`/`2=up`; clickCount > 0 u32.                                                | `protocol.ts:447-470`; `wire/event.rs:101-103,254-255,401,531-574`                      |
 |   11 | Hover             | `null`                                                                               | Semantic hover change; payload must be null.                                                                                                                     | `protocol.ts:430-432`; `wire/event.rs:20-45,283-289`                            |
 |   12 | Scroll            | `[7,deltaKind,dx,dy,x,y,modifiers]`                                                  | Tag `7`; delta kind `1=pixels`/`2=lines`; four finite numeric coordinates/deltas; unique known modifiers.                                                        | `protocol.ts:471-485`; `wire/event.rs:104-106,255-256,403,575-614`                      |
-|   13 | Submit            | `null` or string                                                                     | Null is the legacy Enter notification; string carries submitted text. It is emitted for a focused single-line TextInput; multiline Enter remains text insertion. | `protocol.ts:202,430-433`; `protocol.rs:594-636`; `wire/event.rs:165-168,271-274` |
-|   14 | WindowResize      | `[width,height,scaleFactor]` (legacy `[width,height]` defaults `scaleFactor=1`) | Width/height are finite non-negative logical pixels; `scaleFactor` is finite and positive. Root observer uses node `1`/listener `0`; scale-factor-only changes are reported as resize observations. | `protocol.ts:243,562-574`; `protocol.rs:506-509,765-817`; `wire/event.rs:109-125,372-404`; `renderer.rs:408-471`         |
+|   13 | Submit            | string                                                                     | The submitted text, including the empty string. It is emitted for a focused single-line TextInput; multiline Enter remains text insertion. | `protocol.ts:202,430-433`; `protocol.rs:594-636`; `wire/event.rs:165-168,271-274` |
+|   14 | WindowResize      | `[width,height,scaleFactor]` | Width/height are finite non-negative logical pixels; `scaleFactor` is finite and positive. Root observer uses node `1`/listener `0`; scale-factor-only changes are reported as resize observations. | `protocol.ts:243,562-574`; `protocol.rs:506-509,765-817`; `wire/event.rs:109-125,372-404`; `renderer.rs:408-471`         |
 |   15 | WindowActivation  | `boolean`                                                                            | Untagged boolean; root observer uses node `1`/listener `0`.                                                                                                      | `protocol.ts:204,433`; `protocol.rs:663-685`; `wire/event.rs:114-116,259-262`             |
 
 | 16 | SurfaceClosed | `null` | Emitted before native teardown; `nodeId=0`, `listenerId=0`, and `surfaceId` identifies the closed surface. The matching root invokes `onClose`. | `protocol.ts:34,244,604`; `protocol.rs:22,693-710`; `wire/event.rs:166-168,283-289` |
@@ -584,7 +582,6 @@ The decoded array is:
 - Event type `14` is WindowResize; node `1` and listener `0` identify the root observer.
 - `0x93` is the current untagged three-element payload. The semantic dimensions
   are `800.5 × 600.5` logical pixels and the display scale factor is `2`.
-- Legacy two-element payloads remain accepted and default the scale factor to `1`.
 
 ### Event: submit with text
 
@@ -601,9 +598,8 @@ The decoded array is:
 ```
 
 - Event type `13` is Submit, targeted at TextInput node `5` with listener `9`.
-- The final string is the optional text-bearing form. The legacy row
-  `ts-event-submit` (`ts_to_rust.hex:29`) carries the same event type with a
-  null payload; both forms are intentionally accepted.
+- The final string carries the submitted text; an empty string represents an
+  empty submission.
 
 These rows demonstrate why the fixture test checks both decoded meaning and
 producer bytes: the same positional contract is exercised by TypeScript and

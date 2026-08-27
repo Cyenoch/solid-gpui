@@ -58,7 +58,7 @@ describe("performance budgets", () => {
         return root;
       });
       const frames = roots.map((_, index) =>
-        encodeFrame([PROTOCOL_VERSION, 2, index + 1, 1, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [800, 600]]),
+        encodeFrame([PROTOCOL_VERSION, 2, index + 1, 1, 1, 1, 1, 0, EVENT_WINDOW_RESIZE, [800, 600, 1]]),
       );
       const batch = concat(frames);
       const started = performance.now();

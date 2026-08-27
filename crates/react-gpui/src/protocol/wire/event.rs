@@ -210,7 +210,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
         }
         (EVENT_SUBMIT, Some(EventPayloadWire::Submit(text))) => Some(EventPayload::Submit { text }),
         (EVENT_SURFACE_CLOSED, None) if wire.6 == 0 && wire.7 == 0 => None,
-        (EVENT_HOVER | EVENT_SUBMIT, None) => None,
+        (EVENT_HOVER, None) => None,
         _ => return Err(ProtocolError::InvalidEventPayload),
     };
     Ok(Event {
@@ -397,31 +397,21 @@ enum DragPayloadWire {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum WindowResizeWire {
-    FloatFloat((f32, f32)),
-    IntInt((u32, u32)),
-    FloatInt((f32, u32)),
-    IntFloat((u32, f32)),
-    FloatFloatFloat((f32, f32, f32)),
-    IntIntFloat((u32, u32, f32)),
-    FloatIntFloat((f32, u32, f32)),
-    IntFloatFloat((u32, f32, f32)),
+    AllFloat((f32, f32, f32)),
+    IntegerPair((u32, u32, f32)),
+    WidthFloat((f32, u32, f32)),
+    HeightFloat((u32, f32, f32)),
 }
 
 impl WindowResizeWire {
     fn dimensions(self) -> (f32, f32, f32) {
         match self {
-            Self::FloatFloat((width, height)) => (width, height, 1.0),
-            Self::IntInt((width, height)) => (width as f32, height as f32, 1.0),
-            Self::FloatInt((width, height)) => (width, height as f32, 1.0),
-            Self::IntFloat((width, height)) => (width as f32, height, 1.0),
-            Self::FloatFloatFloat((width, height, scale_factor)) => (width, height, scale_factor),
-            Self::IntIntFloat((width, height, scale_factor)) => {
+            Self::AllFloat((width, height, scale_factor)) => (width, height, scale_factor),
+            Self::IntegerPair((width, height, scale_factor)) => {
                 (width as f32, height as f32, scale_factor)
             }
-            Self::FloatIntFloat((width, height, scale_factor)) => {
-                (width, height as f32, scale_factor)
-            }
-            Self::IntFloatFloat((width, height, scale_factor)) => {
+            Self::WidthFloat((width, height, scale_factor)) => (width, height as f32, scale_factor),
+            Self::HeightFloat((width, height, scale_factor)) => {
                 (width as f32, height, scale_factor)
             }
         }
@@ -429,27 +419,17 @@ impl WindowResizeWire {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum TextInputEventWire {
-    New((u32, String, u32, u32, Option<u32>, Option<u32>, u32, bool)),
-    Old((u32, String, u32, u32, Option<u32>, Option<u32>, u32)),
-}
+struct TextInputEventWire(u32, String, u32, u32, Option<u32>, Option<u32>, u32, bool);
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum CommandResultWire {
-    New(
-        (
-            u32,
-            u32,
-            u32,
-            u32,
-            bool,
-            Option<String>,
-            Option<CommandValueWire>,
-        ),
-    ),
-    Old((u32, u32, u32, u32, bool, Option<String>)),
-}
+struct CommandResultWire(
+    u32,
+    u32,
+    u32,
+    u32,
+    bool,
+    Option<String>,
+    Option<CommandValueWire>,
+);
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -475,7 +455,7 @@ struct PointerDownOutsideWire(u32, f32, f32);
 
 impl From<&TextInputEvent> for TextInputEventWire {
     fn from(event: &TextInputEvent) -> Self {
-        Self::New((
+        Self(
             1,
             event.text.clone(),
             event.selection_start,
@@ -484,7 +464,7 @@ impl From<&TextInputEvent> for TextInputEventWire {
             event.marked_end,
             event.edit_seq,
             event.reversed,
-        ))
+        )
     }
 }
 
@@ -492,71 +472,21 @@ impl TryFrom<TextInputEventWire> for TextInputEvent {
     type Error = ProtocolError;
 
     fn try_from(event: TextInputEventWire) -> Result<Self, Self::Error> {
-        let (
-            tag,
-            text,
-            selection_start,
-            selection_end,
-            marked_start,
-            marked_end,
-            edit_seq,
-            reversed,
-        ) = match event {
-            TextInputEventWire::New((
-                tag,
-                text,
-                selection_start,
-                selection_end,
-                marked_start,
-                marked_end,
-                edit_seq,
-                reversed,
-            )) => (
-                tag,
-                text,
-                selection_start,
-                selection_end,
-                marked_start,
-                marked_end,
-                edit_seq,
-                reversed,
-            ),
-            TextInputEventWire::Old((
-                tag,
-                text,
-                selection_start,
-                selection_end,
-                marked_start,
-                marked_end,
-                edit_seq,
-            )) => (
-                tag,
-                text,
-                selection_start,
-                selection_end,
-                marked_start,
-                marked_end,
-                edit_seq,
-                false,
-            ),
-        };
-        if tag != 1
-            || selection_start > selection_end
-            || (marked_start.is_some() != marked_end.is_some())
-            || marked_start
-                .zip(marked_end)
-                .is_some_and(|(start, end)| start > end)
+        if event.0 != 1
+            || event.2 > event.3
+            || (event.4.is_some() != event.5.is_some())
+            || event.4.zip(event.5).is_some_and(|(start, end)| start > end)
         {
             return Err(ProtocolError::InvalidTextInputEvent);
         }
         Ok(Self {
-            text,
-            selection_start,
-            selection_end,
-            marked_start,
-            marked_end,
-            edit_seq,
-            reversed,
+            text: event.1,
+            selection_start: event.2,
+            selection_end: event.3,
+            marked_start: event.4,
+            marked_end: event.5,
+            edit_seq: event.6,
+            reversed: event.7,
         })
     }
 }
@@ -687,23 +617,17 @@ impl From<&ScrollEvent> for ScrollEventWire {
 
 impl CommandResultWire {
     fn tag(&self) -> u32 {
-        match self {
-            Self::New(value) => value.0,
-            Self::Old(value) => value.0,
-        }
+        self.0
     }
 
     fn command(&self) -> u32 {
-        match self {
-            Self::New(value) => value.2,
-            Self::Old(value) => value.2,
-        }
+        self.2
     }
 }
 
 impl From<&CommandResult> for CommandResultWire {
     fn from(result: &CommandResult) -> Self {
-        Self::New((
+        Self(
             2,
             result.request_id,
             result.command,
@@ -711,7 +635,7 @@ impl From<&CommandResult> for CommandResultWire {
             result.success,
             result.error.clone(),
             result.value.as_ref().map(CommandValueWire::from),
-        ))
+        )
     }
 }
 
@@ -756,21 +680,13 @@ impl TryFrom<CommandResultWire> for CommandResult {
     type Error = ProtocolError;
 
     fn try_from(result: CommandResultWire) -> Result<Self, Self::Error> {
-        let (request_id, command, node_id, success, error, value) = match result {
-            CommandResultWire::New((_, request_id, command, node_id, success, error, value)) => {
-                (request_id, command, node_id, success, error, value)
-            }
-            CommandResultWire::Old((_, request_id, command, node_id, success, error)) => {
-                (request_id, command, node_id, success, error, None)
-            }
-        };
         Ok(Self {
-            request_id,
-            command,
-            node_id,
-            success,
-            error,
-            value: value.map(CommandValue::try_from).transpose()?,
+            request_id: result.1,
+            command: result.2,
+            node_id: result.3,
+            success: result.4,
+            error: result.5,
+            value: result.6.map(CommandValue::try_from).transpose()?,
         })
     }
 }
@@ -794,11 +710,7 @@ impl From<&EventPayload> for EventPayloadWire {
                 width,
                 height,
                 scale_factor,
-            } => Self::WindowResize(WindowResizeWire::FloatFloatFloat((
-                *width,
-                *height,
-                *scale_factor,
-            ))),
+            } => Self::WindowResize(WindowResizeWire::AllFloat((*width, *height, *scale_factor))),
             EventPayload::WindowActivation { active } => Self::WindowActivation(*active),
             EventPayload::EventAction { action } => Self::Action(action.clone()),
             EventPayload::NotificationResponse(response) => {

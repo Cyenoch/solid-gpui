@@ -17,17 +17,14 @@ pub(super) struct NodeWire(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(super) enum HostPropertiesWire {
-    TextInputNew(TextInputWireNew),
-    TextInputOld(TextInputWireOld),
+    TextInput(TextInputWire),
     VirtualList(VirtualListWire),
     Image(ImageWire),
     Drag(DragWire),
-    DragLegacy(DragWireLegacy),
-    DragMinimal(DragWireMinimal),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(super) struct TextInputWireNew(
+pub(super) struct TextInputWire(
     u32,
     String,
     Option<String>,
@@ -41,22 +38,6 @@ pub(super) struct TextInputWireNew(
     Option<u32>,
     Option<u32>,
     bool,
-);
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct TextInputWireOld(
-    u32,
-    String,
-    Option<String>,
-    bool,
-    bool,
-    bool,
-    u32,
-    u32,
-    u32,
-    Option<u32>,
-    Option<u32>,
-    Option<u32>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,10 +46,6 @@ pub(super) struct VirtualListWire(u32, u32, u32, u32, f32, u32);
 pub(super) struct ImageWire(u32, String, u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct DragWire(u32, Option<String>, Option<Vec<String>>, bool, bool);
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct DragWireLegacy(u32, Option<String>, Option<Vec<String>>);
-#[derive(Debug, Serialize, Deserialize)]
-pub(super) struct DragWireMinimal(u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct AccessibilityWire(
     u32,
@@ -359,21 +336,7 @@ impl From<TransitionWire> for Transition {
 impl From<&HostProperties> for HostPropertiesWire {
     fn from(value: &HostProperties) -> Self {
         match value {
-            HostProperties::TextInput(value) => Self::TextInputNew(TextInputWireNew(
-                1,
-                value.value.clone(),
-                value.placeholder.clone(),
-                value.multiline,
-                value.disabled,
-                value.controlled,
-                value.ack_edit_seq,
-                value.selection_start,
-                value.selection_end,
-                value.marked_start,
-                value.marked_end,
-                value.max_length,
-                value.selection_reversed,
-            )),
+            HostProperties::TextInput(value) => Self::TextInput(TextInputWire::from(value)),
             HostProperties::VirtualList(value) => Self::VirtualList(VirtualListWire::from(value)),
             HostProperties::Image(value) => Self::Image(ImageWire::from(value)),
             HostProperties::Drag(value) => Self::Drag(DragWire(
@@ -421,10 +384,7 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
 
     fn try_from(value: HostPropertiesWire) -> Result<Self, Self::Error> {
         match value {
-            HostPropertiesWire::TextInputNew(value) => {
-                validate_text_input(TextInputProperties::from(value))
-            }
-            HostPropertiesWire::TextInputOld(value) => {
+            HostPropertiesWire::TextInput(value) => {
                 validate_text_input(TextInputProperties::from(value))
             }
             HostPropertiesWire::VirtualList(value) if value.0 == 2 => {
@@ -456,28 +416,6 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
                     export_files: value.2,
                     accepts_drag_over: value.3,
                     accepts_drop: value.4,
-                }))
-            }
-            HostPropertiesWire::DragLegacy(value)
-                if value.0 == 4
-                    && valid_drag_type(value.1.as_deref())
-                    && valid_export_files(value.2.as_deref()) =>
-            {
-                Ok(Self::Drag(DragProperties {
-                    drag_type: value.1,
-                    export_files: value.2,
-                    accepts_drag_over: true,
-                    accepts_drop: true,
-                }))
-            }
-            HostPropertiesWire::DragMinimal(value)
-                if value.0 == 4 && valid_drag_type(value.1.as_deref()) =>
-            {
-                Ok(Self::Drag(DragProperties {
-                    drag_type: value.1,
-                    export_files: None,
-                    accepts_drag_over: true,
-                    accepts_drop: true,
                 }))
             }
             _ => Err(ProtocolError::InvalidHostProperties),
@@ -593,7 +531,7 @@ pub(super) fn validate_style_wire(style: &StyleWire) -> Result<(), ProtocolError
     Ok(())
 }
 
-impl From<&TextInputProperties> for TextInputWireNew {
+impl From<&TextInputProperties> for TextInputWire {
     fn from(value: &TextInputProperties) -> Self {
         Self(
             1,
@@ -623,8 +561,8 @@ impl From<&ImageProperties> for ImageWire {
     }
 }
 
-impl From<TextInputWireNew> for TextInputProperties {
-    fn from(value: TextInputWireNew) -> Self {
+impl From<TextInputWire> for TextInputProperties {
+    fn from(value: TextInputWire) -> Self {
         Self {
             value: value.1,
             placeholder: value.2,
@@ -638,25 +576,6 @@ impl From<TextInputWireNew> for TextInputProperties {
             marked_end: value.10,
             max_length: value.11,
             selection_reversed: value.12,
-        }
-    }
-}
-
-impl From<TextInputWireOld> for TextInputProperties {
-    fn from(value: TextInputWireOld) -> Self {
-        Self {
-            value: value.1,
-            placeholder: value.2,
-            multiline: value.3,
-            disabled: value.4,
-            controlled: value.5,
-            ack_edit_seq: value.6,
-            selection_start: value.7,
-            selection_end: value.8,
-            marked_start: value.9,
-            marked_end: value.10,
-            max_length: value.11,
-            selection_reversed: false,
         }
     }
 }

@@ -107,7 +107,6 @@ const rows = [
   row("ts-event-focus", "event", [3, 2, 7, 3, 42, 23, 4, 7, 4, null]),
   row("ts-event-blur", "event", [3, 2, 7, 3, 42, 24, 4, 7, 5, null]),
   row("ts-event-pointer-down-outside", "event", [3, 2, 7, 3, 42, 25, 4, 7, 22, [8, 12.5, -3.25]]),
-  row("ts-event-submit", "event", [3, 2, 7, 3, 42, 9, 5, 9, 13, null]),
   row("ts-event-submit-text", "event", [3, 2, 7, 3, 42, 16, 5, 9, 13, "submitted text"]),
   row("ts-event-surface-closed", "event", [3, 2, 7, 3, 42, 17, 0, 0, 16, null]),
   row("ts-event-action", "event", [3, 2, 7, 3, 42, 21, 1, 0, 17, "open"]),

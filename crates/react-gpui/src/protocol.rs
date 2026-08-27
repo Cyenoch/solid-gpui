@@ -268,7 +268,7 @@ pub struct CommandResult {
     pub node_id: u32,
     pub success: bool,
     pub error: Option<String>,
-    /// `None` is also used by older peers that do not return a value.
+    /// `None` indicates that the command has no typed return value.
     pub value: Option<CommandValue>,
 }
 
@@ -793,29 +793,8 @@ impl Event {
             payload: Some(EventPayload::PointerDownOutside { x, y }),
         }
     }
-    pub fn submit(
-        surface_id: u32,
-        epoch: u32,
-        revision: u32,
-        sequence: u32,
-        node_id: u32,
-        listener_id: u32,
-    ) -> Self {
-        Self {
-            protocol: PROTOCOL_VERSION,
-            message: EVENT_MESSAGE,
-            surface_id,
-            epoch,
-            revision,
-            sequence,
-            node_id,
-            listener_id,
-            event_type: EVENT_SUBMIT,
-            payload: None,
-        }
-    }
     #[allow(clippy::too_many_arguments)]
-    pub fn submit_with_text(
+    pub fn submit(
         surface_id: u32,
         epoch: u32,
         revision: u32,

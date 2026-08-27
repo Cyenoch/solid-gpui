@@ -259,8 +259,8 @@ The renderer deliberately has a mixed-precision text contract:
 
 - TextInput selection and edit positions are UTF-16 code units, not UTF-8 bytes
   or Unicode scalar counts. `maxLength` uses the same UTF-16 unit contract.
-- `onSelectionChange` carries `start`, `end`, and `reversed`; old seven-slot
-  TextInput event payloads decode with `reversed=false`.
+- `onSelectionChange` carries `start`, `end`, and `reversed`; TextInput event
+  payloads always include the `reversed` boolean.
 - TextInput/IME takes precedence before keymaps; cached GPUI shaped layouts
   cover single-line and multiline/newline UTF-16 positions and point lookup.
 - IME candidate placement remains approximate and display-backed. Placeholder
@@ -277,7 +277,6 @@ Run the UTF-16/selection regression group:
 cd packages/react-gpui
 bun test tests/renderer.test.tsx --test-name-pattern "selection"
 cargo test -p react-gpui multiline_utf16_positions_cover_emoji_empty_lines_and_trailing_newline --locked
-cargo test -p react-gpui legacy_text_input_event_defaults_reversed_to_false --locked
 ```
 
 Read the exact current boundaries in
@@ -390,18 +389,18 @@ tail together when filing a report. A GPUI paint panic has no safe node-level
 resume path; a shared Runtime Adapter failure closes every registered surface.
 Display/compositor behavior still requires a real desktop runner.
 
-## Upgrade and compatibility
+## Upgrade and protocol cutover
 
 ### Symptom
 
-After upgrading one side of the renderer/host, old frames are rejected, a
+After upgrading one side of the renderer/host, current frames are rejected, a
 notification action disappears, selection direction changes, or resize callbacks
 receive the wrong arity/value.
 
 ### Verify
 
-Regenerate and run both protocol golden directions before changing a wire
-contract:
+Regenerate and run both protocol golden directions after an intentional wire
+contract change:
 
 ```sh
 make protocol-golden-generate
@@ -410,32 +409,32 @@ cd packages/react-gpui
 bun test tests/protocol-golden.test.ts
 ```
 
-The three common double-length compatibility cases are:
+The current v3 contract uses one shape for each required positional payload:
 
-- **TextInput `reversed`:** current payloads have the extra boolean; legacy
-  seven-slot event payloads decode with `reversed=false`.
-- **Notifications:** the notification command accepts the original
-  `[title, body]` form and the optional action-extended form; action responses
-  are a separate Event 21 path. Missing actions are not a decode failure.
-- **Window resize:** legacy two-number `[width,height]` payloads decode with
-  `scaleFactor=1`; current payloads carry
-  `[width,height,scaleFactor]`, and scale-only changes are reported.
+- **TextInput:** eight slots, with `reversed` in the final slot.
+- **CommandResult:** seven slots, with a nullable typed-value slot.
+- **Submit:** a string payload, including the empty string.
+- **Notifications:** `[title, body]` and action-extended command forms remain
+  valid because optional action data is intentionally emitted by current
+  encoders; action responses are a separate Event 21 path.
+- **Window resize:** three slots `[width,height,scaleFactor]`; scale-only
+  changes are reported.
 
-Run focused compatibility checks when diagnosing one of these cases:
+Run focused protocol checks when diagnosing one of these cases:
 
 ```sh
-cargo test -p react-gpui legacy_text_input_event_defaults_reversed_to_false --locked
+cargo test -p react-gpui protocol_v3_host_properties_and_event_payload_tags_round_trip --locked
 cargo test -p react-gpui notification_and_menu_commands_and_action_events_round_trip --locked
 cargo test -p react-gpui window_resize_wire_accepts_scale_factor --locked
 ```
 
 ### Fix or boundary
 
-Keep the old decoder forms when introducing an appended field; do not reorder
-existing positional slots. Treat golden fixture changes as a reviewed protocol
-change, not as incidental test churn. The authoritative slot, event, command,
-and legacy-decoding rules are in [protocol.md](protocol.md); rerun both golden
-directions and update the fixtures only when the reviewed wire contract changes.
+Upgrade the renderer and host together after a protocol cutover. Do not add
+decoder fallbacks or default-fill removed fields; update both current
+encoders, decoders, tests, and golden fixtures as one reviewed change. The
+authoritative slot, event, and command rules are in
+[protocol.md](protocol.md).
 
 ## Known boundaries worth checking first
 

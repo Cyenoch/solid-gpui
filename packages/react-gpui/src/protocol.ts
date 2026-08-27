@@ -124,13 +124,8 @@ export type TextInputPropertiesWire = readonly [
   boolean,
 ];
 export type VirtualListPropertiesWire = readonly [2, number, number, number, number, number];
-export type ImagePropertiesWire =
-  | readonly [3, string, 1 | 2 | 3 | 4 | 5]
-  | readonly [3, string, 1 | 2 | 3 | 4 | 5, string | null];
-export type DragPropertiesWire =
-  | readonly [4, string | null]
-  | readonly [4, string | null, readonly string[] | null]
-  | readonly [4, string | null, readonly string[] | null, boolean, boolean];
+export type ImagePropertiesWire = readonly [3, string, 1 | 2 | 3 | 4 | 5, string | null];
+export type DragPropertiesWire = readonly [4, string | null, readonly string[] | null, boolean, boolean];
 export type HostPropertiesWire =
   | TextInputPropertiesWire
   | VirtualListPropertiesWire
@@ -257,9 +252,15 @@ export type CommandValuePayload =
   | readonly [3, boolean]
   | readonly [4, string]
   | readonly [5, readonly string[]];
-export type CommandResultPayload =
-  | readonly [2, number, number, number, boolean, string | null]
-  | readonly [2, number, number, number, boolean, string | null, CommandValuePayload | null];
+export type CommandResultPayload = readonly [
+  2,
+  number,
+  number,
+  number,
+  boolean,
+  string | null,
+  CommandValuePayload | null,
+];
 export type TextInputEventPayload = readonly [1, string, number, number, number | null, number | null, number, boolean];
 export type VisibleRangePayload = readonly [3, number, number];
 export type AnimationCompletePayload = readonly [4, number];
@@ -267,7 +268,7 @@ export type KeyEventPayload = readonly [5, string, readonly string[], 1 | 2 | 3]
 export type PointerEventPayload = readonly [6, 1 | 2 | 3 | 4 | 5, readonly string[], 1 | 2, number];
 export type ScrollEventPayload = readonly [7, 1 | 2, number, number, number, number, readonly string[]];
 export type SubmitEventPayload = string;
-export type WindowResizeEventPayload = readonly [number, number] | readonly [number, number, number];
+export type WindowResizeEventPayload = readonly [number, number, number];
 export type WindowActivationEventPayload = boolean;
 export type ActionEventPayload = string;
 export type WindowAppearanceEventPayload = "light" | "dark";
@@ -456,11 +457,15 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
   if (!Array.isArray(value)) return false;
   if (value[0] === 1) {
     if (
-      (value.length !== 12 && value.length !== 13) ||
+      value.length !== 13 ||
       typeof value[1] !== "string" ||
-      (value[2] !== null && typeof value[2] !== "string")
+      (value[2] !== null && typeof value[2] !== "string") ||
+      typeof value[3] !== "boolean" ||
+      typeof value[4] !== "boolean" ||
+      typeof value[5] !== "boolean" ||
+      typeof value[12] !== "boolean"
     )
-      if (typeof value[3] !== "boolean" || typeof value[4] !== "boolean" || typeof value[5] !== "boolean") return false;
+      return false;
     for (const [index, name] of [
       [6, "ackEditSeq"],
       [7, "selectionStart"],
@@ -491,7 +496,6 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
         return false;
       }
     }
-    if (value.length === 13 && typeof value[12] !== "boolean") return false;
     return true;
   }
   if (value[0] === 2) {
@@ -513,46 +517,39 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
     );
   }
   if (value[0] === 3) {
-    const sourceValid =
+    return (
+      value.length === 4 &&
       typeof value[1] === "string" &&
       value[1].length > 0 &&
       utf8ByteLength(value[1]) <= 1024 &&
-      !/[\u0000-\u001f\u007f]/.test(value[1]);
-    const fallbackValid =
-      value.length === 3 ||
-      (value.length === 4 &&
-        (value[3] === null ||
-          (typeof value[3] === "string" &&
-            value[3].length > 0 &&
-            utf8ByteLength(value[3]) <= 1024 &&
-            !/[\u0000-\u001f\u007f]/.test(value[3]))));
-    return (
-      sourceValid &&
-      fallbackValid &&
+      !/[\u0000-\u001f\u007f]/.test(value[1]) &&
       typeof value[2] === "number" &&
       Number.isInteger(value[2]) &&
       value[2] >= 1 &&
-      value[2] <= 5
+      value[2] <= 5 &&
+      (value[3] === null ||
+        (typeof value[3] === "string" &&
+          value[3].length > 0 &&
+          utf8ByteLength(value[3]) <= 1024 &&
+          !/[\u0000-\u001f\u007f]/.test(value[3])))
     );
   }
   if (value[0] === 4) {
-    const exportFilesValid =
-      value.length === 2 ||
-      ((value.length === 3 || value.length === 5) &&
-        (value[2] === null ||
-          (Array.isArray(value[2]) &&
-            value[2].length > 0 &&
-            value[2].length <= 8 &&
-            value[2].every(
-              (path) =>
-                typeof path === "string" &&
-                path.length > 0 &&
-                utf8ByteLength(path) <= 1024 &&
-                !/[\u0000-\u001f\u007f]/.test(path),
-            ))) &&
-        (value.length !== 5 || (typeof value[3] === "boolean" && typeof value[4] === "boolean")));
     return (
-      exportFilesValid &&
+      value.length === 5 &&
+      (value[2] === null ||
+        (Array.isArray(value[2]) &&
+          value[2].length > 0 &&
+          value[2].length <= 8 &&
+          value[2].every(
+            (path) =>
+              typeof path === "string" &&
+              path.length > 0 &&
+              utf8ByteLength(path) <= 1024 &&
+              !/[\u0000-\u001f\u007f]/.test(path),
+          ))) &&
+      typeof value[3] === "boolean" &&
+      typeof value[4] === "boolean" &&
       (value[1] === null ||
         (typeof value[1] === "string" &&
           value[1].length > 0 &&
@@ -566,7 +563,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   if (eventType === EVENT_PRESS || eventType === EVENT_HOVER || eventType === EVENT_SURFACE_CLOSED)
     return payload === null;
   if ((eventType === EVENT_FOCUS || eventType === EVENT_BLUR) && payload === null) return true;
-  if (eventType === EVENT_SUBMIT) return payload === null || typeof payload === "string";
+  if (eventType === EVENT_SUBMIT) return typeof payload === "string";
   if (eventType === EVENT_LAYOUT) {
     return (
       Array.isArray(payload) &&
@@ -575,9 +572,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     );
   }
   if (eventType === EVENT_DRAG) {
-    if (!Array.isArray(payload) || payload.length !== 2) {
-      return false;
-    }
+    if (!Array.isArray(payload) || payload.length !== 2) return false;
     if (payload[0] === DRAG_OVER || payload[0] === DRAG_DROP) {
       return (
         typeof payload[1] === "string" &&
@@ -626,14 +621,16 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   if (eventType === EVENT_WINDOW_RESIZE) {
     return (
       Array.isArray(payload) &&
-      (payload.length === 2 || payload.length === 3) &&
+      payload.length === 3 &&
       typeof payload[0] === "number" &&
       Number.isFinite(payload[0]) &&
       payload[0] >= 0 &&
       typeof payload[1] === "number" &&
       Number.isFinite(payload[1]) &&
       payload[1] >= 0 &&
-      (payload.length === 2 || (typeof payload[2] === "number" && Number.isFinite(payload[2]) && payload[2] > 0))
+      typeof payload[2] === "number" &&
+      Number.isFinite(payload[2]) &&
+      payload[2] > 0
     );
   }
   if (!Array.isArray(payload)) return false;
@@ -689,7 +686,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     return payload[3] === EVENT_KEY_DOWN || payload[3] === EVENT_KEY_REPEAT || payload[3] === EVENT_KEY_UP;
   }
   if (eventType === EVENT_COMMAND_RESULT) {
-    if ((payload.length !== 6 && payload.length !== 7) || payload[0] !== 2) return false;
+    if (payload.length !== 7 || payload[0] !== 2) return false;
     try {
       assertU32("requestId", payload[1]);
       assertU32("command", payload[2]);
@@ -697,37 +694,33 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     } catch {
       return false;
     }
-    if (
-      !(
-        [
-          COMMAND_FOCUS,
-          COMMAND_BLUR,
-          COMMAND_SET_SELECTION,
-          COMMAND_SCROLL_TO_INDEX,
-          COMMAND_SCROLL_TO_END,
-          COMMAND_SET_TITLE,
-          COMMAND_RESIZE_WINDOW,
-          COMMAND_ZOOM_WINDOW,
-          COMMAND_TOGGLE_FULLSCREEN,
-          COMMAND_OPEN_URL,
-          COMMAND_FOCUS_NEXT,
-          COMMAND_FOCUS_PREV,
-          COMMAND_GET_WINDOW_SIZE,
-          COMMAND_GET_FOCUS,
-          COMMAND_CLIPBOARD_WRITE,
-          COMMAND_CLIPBOARD_READ,
-          COMMAND_OPEN_SURFACE,
-          COMMAND_FILE_DIALOG_OPEN,
-          COMMAND_FILE_DIALOG_SAVE,
-          COMMAND_SHOW_NOTIFICATION,
-          COMMAND_SET_MENUS,
-          COMMAND_SET_KEYBINDINGS,
-        ] as readonly number[]
-      ).includes(payload[2] as number)
-    )
-      return false;
+    const validCommands: readonly number[] = [
+      COMMAND_FOCUS,
+      COMMAND_BLUR,
+      COMMAND_SET_SELECTION,
+      COMMAND_SCROLL_TO_INDEX,
+      COMMAND_SCROLL_TO_END,
+      COMMAND_SET_TITLE,
+      COMMAND_RESIZE_WINDOW,
+      COMMAND_ZOOM_WINDOW,
+      COMMAND_TOGGLE_FULLSCREEN,
+      COMMAND_OPEN_URL,
+      COMMAND_FOCUS_NEXT,
+      COMMAND_FOCUS_PREV,
+      COMMAND_GET_WINDOW_SIZE,
+      COMMAND_GET_FOCUS,
+      COMMAND_CLIPBOARD_WRITE,
+      COMMAND_CLIPBOARD_READ,
+      COMMAND_OPEN_SURFACE,
+      COMMAND_FILE_DIALOG_OPEN,
+      COMMAND_FILE_DIALOG_SAVE,
+      COMMAND_SHOW_NOTIFICATION,
+      COMMAND_SET_MENUS,
+      COMMAND_SET_KEYBINDINGS,
+    ];
+    if (!validCommands.includes(payload[2] as number)) return false;
     if (typeof payload[4] !== "boolean" || (payload[5] !== null && typeof payload[5] !== "string")) return false;
-    return payload.length === 6 || payload[6] === null || validateCommandValue(payload[6]);
+    return payload[6] === null || validateCommandValue(payload[6]);
   }
   if (eventType === EVENT_VISIBLE_RANGE) {
     if (payload.length !== 3 || payload[0] !== 3) return false;
@@ -749,8 +742,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     return true;
   }
   if (eventType < EVENT_CHANGE || eventType > EVENT_BLUR) return false;
-  if ((payload.length !== 7 && payload.length !== 8) || payload[0] !== 1 || typeof payload[1] !== "string")
-    return false;
+  if (payload.length !== 8 || payload[0] !== 1 || typeof payload[1] !== "string") return false;
   try {
     assertU32("selectionStart", payload[2]);
     assertU32("selectionEnd", payload[3]);
@@ -758,7 +750,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   } catch {
     return false;
   }
-  if (payload.length === 8 && typeof payload[7] !== "boolean") return false;
+  if (typeof payload[7] !== "boolean") return false;
   if (payload[2] > payload[3] || (payload[4] === null) !== (payload[5] === null)) return false;
   if (
     payload[4] !== null &&

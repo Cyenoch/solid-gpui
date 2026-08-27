@@ -699,15 +699,9 @@ fn main() {
     );
     emit(
         &mut rows,
-        "rust-event-submit",
-        "event",
-        Event::submit(7, 3, 42, 9, 5, 9).encode().unwrap(),
-    );
-    emit(
-        &mut rows,
         "rust-event-submit-text",
         "event",
-        Event::submit_with_text(7, 3, 42, 16, 5, 9, "submitted text".into())
+        Event::submit(7, 3, 42, 16, 5, 9, "submitted text".into())
             .encode()
             .unwrap(),
     );

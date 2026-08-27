@@ -176,39 +176,6 @@ fn generic_focus_and_pointer_down_outside_events_round_trip() {
 }
 
 #[test]
-fn legacy_text_input_event_defaults_reversed_to_false() {
-    let legacy = rmp_serde::to_vec(&(
-        3u32,
-        2u32,
-        7u32,
-        3u32,
-        1u32,
-        21u32,
-        2u32,
-        44u32,
-        EVENT_CHANGE,
-        Some((
-            1u32,
-            "legacy".to_owned(),
-            2u32,
-            2u32,
-            None::<u32>,
-            None::<u32>,
-            3u32,
-        )),
-    ))
-    .unwrap();
-    let decoded = Event::decode(&legacy).unwrap();
-    assert!(matches!(
-        decoded.payload,
-        Some(EventPayload::TextInput(TextInputEvent {
-            reversed: false,
-            ..
-        }))
-    ));
-}
-
-#[test]
 fn surface_commands_round_trip_and_reject_invalid_arguments() {
     let commands = [
         Command {
@@ -511,8 +478,8 @@ fn protocol_v3_host_properties_and_event_payload_tags_round_trip() {
         Event::window_resize(7, 3, 1, 5, 1, 0, 640.0, 480.0),
         Event::window_activation(7, 3, 1, 6, 1, 0, true),
         Event::window_appearance(7, 3, 1, 7, WindowAppearance::Dark),
-        Event::submit(7, 3, 1, 7, 5, 12),
-        Event::submit_with_text(7, 3, 1, 8, 5, 12, "submitted text".into()),
+        Event::submit(7, 3, 1, 7, 5, 12, String::new()),
+        Event::submit(7, 3, 1, 8, 5, 12, "submitted text".into()),
         Event::command_result(
             7,
             3,
@@ -621,31 +588,6 @@ fn command_result_accepts_surface_command_kinds() {
         Event::decode(&empty_paths),
         Err(ProtocolError::InvalidEventPayload)
     ));
-    let old_wire = rmp_serde::to_vec(&(
-        3u32,
-        2u32,
-        7u32,
-        3u32,
-        1u32,
-        7u32,
-        1u32,
-        0u32,
-        6u32,
-        Some((
-            2u32,
-            77u32,
-            COMMAND_FOCUS,
-            1u32,
-            true,
-            Option::<String>::None,
-        )),
-    ))
-    .unwrap();
-    let decoded = Event::decode(&old_wire).unwrap();
-    match decoded.payload {
-        Some(EventPayload::CommandResult(result)) => assert_eq!(result.value, None),
-        _ => panic!("old CommandResult wire did not decode"),
-    }
 }
 
 #[test]

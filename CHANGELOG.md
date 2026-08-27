@@ -17,6 +17,10 @@ from this work tree.
 - Added focused `focus-flow.tsx`, `dropdown.tsx`, `drag-reorder.tsx`, and
   `multi-surface.tsx` examples, a progressive getting-started walkthrough,
   core composition recipes, and a consumer headless-testing guide.
+- `@react-gpui/dev` now includes a `renderTestApp` facade with
+  accessibility-label/text locators and behavior-level interactions over the
+  real headless dispatch path; host-owned geometry, painted output, and native
+  wheel behavior remain display-backed test concerns.
 
 - System notifications use `SHOW_NOTIFICATION=20` with `[title, body]` and a
   constrained fire-and-forget API; delivery varies by platform, host identity
@@ -489,10 +493,11 @@ from this work tree.
   packaged builds, the `(value: string) => void` `onSubmitEditing` signature,
   and the fixed-row-height VirtualList constraint.
 
-- `TextInput.onSubmitEditing` is now a breaking `(value: string) => void`
-  callback: `EVENT_SUBMIT` carries native text as a string, with an empty
-  string for the null-frame compatibility fallback; the host remains
-  authoritative and golden vectors lock both forms.
+- Protocol v3 now enforces the current tuple arities for TextInput, Image,
+  Drag, WindowResize, and CommandResult; historical forms are rejected instead
+  of defaulting fields. `EVENT_SUBMIT` is string-only, including empty-string
+  submissions.
+
 - The host candidate workflow runs the full ordinary `make ci` gate before
   building and uploading its unsigned, short-retention artifact.
 

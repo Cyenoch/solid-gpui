@@ -313,8 +313,8 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     return;
   }
   if (event[8] === EVENT_SUBMIT) {
-    if (node.kind !== "TextInput" || (payload !== null && typeof payload !== "string")) return;
-    context.findInputCallbacks(event[7])?.submit?.(payload === null ? "" : payload);
+    if (node.kind !== "TextInput" || typeof payload !== "string") return;
+    context.findInputCallbacks(event[7])?.submit?.(payload);
     return;
   }
   if (node.kind !== "TextInput" || !Array.isArray(payload) || payload[0] !== 1) return;

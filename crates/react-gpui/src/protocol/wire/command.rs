@@ -793,13 +793,6 @@ mod tests {
                 .expect("decode notification"),
             notification
         );
-        let mut legacy = notification.clone();
-        legacy.actions = None;
-        assert_eq!(
-            Command::decode(&legacy.encode().expect("encode legacy notification"))
-                .expect("decode legacy notification"),
-            legacy
-        );
 
         let menus = Command {
             protocol: PROTOCOL_VERSION,

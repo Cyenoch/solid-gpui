@@ -459,7 +459,7 @@ is demonstrated in `examples/todo.tsx`.
 
 `Root.focusNext()` and `Root.focusPrev()` delegate traversal to the native
 tab-stop graph and return Promise acknowledgements. A `CommandResult` may omit
-its optional value for backward compatibility; value tags are
+its value when the command has no typed return value; value tags are
 `[1,number]`, `[2,[width,height]]`, `[3,bool]`, and `[4,string]`.
 `Root.setTitle(title)` sends root command `COMMAND_SET_TITLE=6`; title must be
 non-empty and at most 256 Unicode code points. The command returns a Promise
@@ -487,9 +487,8 @@ still a successful read.
 `createRoot` accepts `onWindowResize(width, height, scaleFactor?)` and
 `onWindowActivation(active)` options. Resize values are logical pixels and the
 resize callback receives the latest size once per frame after coalescing; it
-also receives one initial size after the first native frame. Current native
-events include a positive display `scaleFactor`; legacy two-number resize
-events are accepted and delivered with `scaleFactor=1`. A scale-factor-only
+also receives one initial size after the first native frame. Native resize
+events always include a positive display `scaleFactor`. A scale-factor-only
 change is still a resize observation and invokes the callback.
 
 The resize callback is root-level, so React applications need a small explicit
@@ -572,10 +571,10 @@ head: dragging with the primary mouse button paints native-shaped,
 per-visual-row highlights, and `Cmd-C` on macOS (`Ctrl-C` on other platforms)
 writes the selected UTF-8 text directly to the host clipboard. Selection is
 deliberately visual-only: there is no JavaScript selection event, callback, or
-mirrored React state, and the optional wire tail is omitted when false for
-legacy compatibility. The flag is valid only on `Text`; it is unrelated to the
-editable `TextInput` selection API. The GPUI test adapter exercises geometry,
-dragging, text-change clamping, unmount cleanup, and simulated clipboard copy;
+mirrored React state, and the optional wire tail is omitted when false. The
+flag is valid only on `Text`; it is unrelated to the `editable` `TextInput` selection
+API. The GPUI test adapter exercises geometry, dragging, text-change clamping,
+unmount cleanup, and simulated clipboard copy;
 the final native cursor/clipboard behavior should also be checked on a
 display-backed desktop host.
 
@@ -609,9 +608,8 @@ Multiline IME candidate placement still needs display-backed verification.
 
 `onSubmitEditing` has the breaking type `(value: string) => void`; the value is
 the authoritative native text at Enter time, including a valid empty string.
-Old null-payload submit frames remain decoder-compatible and dispatch as `""`;
-new hosts always send the text payload. `examples/todo.tsx` submits native text
-directly instead of relying on a draft closure.
+Submit events always carry that string payload; `examples/todo.tsx` submits
+native text directly instead of relying on a draft closure.
 `secureTextEntry` and `keyboardType` are intentionally unsupported: the desktop
 GPUI surface has no password-obscuring text primitive or soft-keyboard layout
 semantic.

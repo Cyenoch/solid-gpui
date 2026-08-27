@@ -82,7 +82,7 @@ function commandResult(surfaceId: number, epoch: number, requestId: number, comm
     1,
     0,
     6,
-    [2, requestId, command, 1, true, null],
+    [2, requestId, command, 1, true, null, null],
   ]);
 }
 function rowAncestor(nodes: Map<number, WireNode>, node: WireNode): number {
@@ -179,7 +179,7 @@ describe("todo example", () => {
 
     const nodes = initialNodes(transport);
     const input = textInput(nodes);
-    transport.push(eventFrame(301, 302, 1, input, EVENT_CHANGE, [1, "Schedule demo", 13, 13, null, null, 1]));
+    transport.push(eventFrame(301, 302, 1, input, EVENT_CHANGE, [1, "Schedule demo", 13, 13, null, null, 1, false]));
     transport.push(eventFrame(301, 302, 2, input, EVENT_SUBMIT, "Schedule demo"));
     const firstTitleId = Number(nodes.get(Number(nodeWithText(nodes, "Review the GPUI renderer API")[1]))?.[0]);
 
@@ -195,7 +195,7 @@ describe("todo example", () => {
     transport.push(eventFrame(301, 302, 4, editButton, EVENT_PRESS, null));
     const editInput = latestCreatedNode(transport, 5);
     transport.push(
-      eventFrame(301, 302, 5, editInput, EVENT_CHANGE, [1, "Try the app on a phone", 22, 22, null, null, 2]),
+      eventFrame(301, 302, 5, editInput, EVENT_CHANGE, [1, "Try the app on a phone", 22, 22, null, null, 2, false]),
     );
     transport.push(eventFrame(301, 302, 6, editInput, EVENT_SUBMIT, "Try the app on a phone"));
     expect(JSON.stringify(latestPatch(transport))).toContain("Try the app on a phone");

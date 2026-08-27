@@ -608,7 +608,7 @@ impl ReactRoot {
         if input.multiline || node.listener_id == 0 {
             return;
         }
-        let event = Event::submit_with_text(
+        let event = Event::submit(
             self.store.surface_id(),
             self.store.epoch(),
             self.store.revision(),
