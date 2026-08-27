@@ -29,3 +29,8 @@ fn renderer_termination_closes_surfaces_without_reentrant_registry_update() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::renderer_termination_closes_surfaces_without_reentrant_update(&mut cx);
 }
+#[test]
+fn focus_and_blur_events_remain_routed_to_each_surface() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::cross_surface_focus_blur_roundtrip(&mut cx);
+}

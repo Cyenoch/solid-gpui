@@ -5,6 +5,7 @@ import {
   MemoryTransport,
   Pressable,
   StyleSheet,
+  SurfaceClosedError,
   Text,
   TextInput,
   TextInputHandle,
@@ -862,6 +863,29 @@ describe("validation errors", () => {
     }
     expect(transport.submitted).toHaveLength(0);
     root.unmount();
+  });
+});
+describe("surface isolation", () => {
+  it("keeps a sibling root rendering after another root render error", () => {
+    const transport = new MemoryTransport();
+    const first = createRoot(transport, { surfaceId: 95, epoch: 96 });
+    const second = createRoot(transport, { surfaceId: 97, epoch: 98 });
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      expect(() => first.render(<View style={{ width: -1 }} />)).toThrow();
+    } finally {
+      console.error = originalError;
+    }
+
+    expect(() => second.render(<View />)).not.toThrow();
+    expect(transport.submitted).toHaveLength(1);
+    expect(message(transport, 0)[2]).toBe(97);
+    expect(() => first.render(<Text>first recovers</Text>)).not.toThrow();
+    expect(transport.submitted).toHaveLength(2);
+    expect(message(transport, 1)[2]).toBe(95);
+    first.unmount();
+    second.unmount();
   });
 });
 
@@ -2003,12 +2027,13 @@ describe("renderer commits", () => {
     );
     root.unmount();
   });
-  it("rejects pending commands when a root unmounts", async () => {
+  it("rejects pending commands with a typed close error when a root unmounts", async () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 83, epoch: 84 });
     const pending = root.pickFiles().catch((error: unknown) => error);
     root.unmount();
-    await expect(pending).resolves.toMatchObject({ message: "root is unmounted" });
+    await expect(pending).resolves.toBeInstanceOf(SurfaceClosedError);
+    await expect(pending).resolves.toMatchObject({ message: "surface 83 is closed", surfaceId: 83 });
   });
   it("fails fast on malformed frames and rejects every pending command", async () => {
     const transport = new MemoryTransport();
@@ -2108,7 +2133,7 @@ describe("renderer commits", () => {
       root.focusNext(),
       root.focusPrev(),
     ];
-    for (const command of pending) await expect(command).rejects.toThrow("unmounted root");
+    for (const command of pending) await expect(command).rejects.toBeInstanceOf(SurfaceClosedError);
 
     transport.push(encodeFrame([3, 2, 85, 86, 1, 2, 1, 0, EVENT_ACTION, "ignored"]));
     expect(actions).toEqual([]);

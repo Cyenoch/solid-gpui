@@ -666,6 +666,96 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
         event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 2
     }));
 }
+pub fn cross_surface_focus_blur_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open initial focus test surface");
+    let first_snapshot = snapshot_for(1)
+        .encode()
+        .expect("encode first focus snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&first_snapshot, cx)
+        })
+        .expect("route first focus snapshot");
+    let first_window = draw_surface(&registry, cx, 1);
+
+    let mut open_surface = command(
+        1,
+        COMMAND_OPEN_SURFACE,
+        1,
+        Some((320, 240)),
+        Some("Focus auxiliary"),
+        None,
+        None,
+    );
+    open_surface.window_options = Some(WindowOpenOptions {
+        kind: Some(1),
+        resizable: Some(false),
+        min_size: None,
+    });
+    route_command(&registry, cx, open_surface);
+    assert!(command_result(&take_events(&runtime), 1).success);
+
+    let second_snapshot = snapshot_for(2)
+        .encode()
+        .expect("encode second focus snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&second_snapshot, cx)
+        })
+        .expect("route second focus snapshot");
+    let second_window = draw_surface(&registry, cx, 2);
+    cx.update_window(first_window.into(), |_, window, _| window.activate_window())
+        .expect("activate first focus surface");
+    cx.run_until_parked();
+    route_command(
+        &registry,
+        cx,
+        command(2, COMMAND_FOCUS, 2, None, None, None, None),
+    );
+    let first_focus_events = take_events(&runtime);
+    assert!(
+        first_focus_events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_FOCUS && event.surface_id == 1 })
+    );
+
+    cx.update_window(second_window.into(), |_, window, _| {
+        window.activate_window()
+    })
+    .expect("activate second focus surface");
+    cx.run_until_parked();
+    draw_surface(&registry, cx, 1);
+    let blur_events = take_events(&runtime);
+    assert!(
+        blur_events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_BLUR && event.surface_id == 1 })
+    );
+
+    let mut second_focus = command(3, COMMAND_FOCUS, 2, None, None, None, None);
+    second_focus.surface_id = 2;
+    route_command(&registry, cx, second_focus);
+    let second_focus_events = take_events(&runtime);
+    assert!(
+        second_focus_events
+            .iter()
+            .any(|event| event.event_type == react_gpui::EVENT_FOCUS && event.surface_id == 2),
+        "auxiliary focus events: {second_focus_events:?}"
+    );
+    let first_focus = first_focus_events
+        .iter()
+        .find(|event| event.event_type == react_gpui::EVENT_FOCUS)
+        .expect("first focus event");
+    let second_focus = second_focus_events
+        .iter()
+        .find(|event| event.event_type == react_gpui::EVENT_FOCUS)
+        .expect("second focus event");
+    assert_ne!(first_focus.surface_id, second_focus.surface_id);
+}
 pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
     let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));

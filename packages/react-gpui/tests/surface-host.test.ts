@@ -11,7 +11,7 @@ import {
   framePayload,
 } from "../src/protocol";
 import { MemoryTransport, TransportTerminatedError, type TransportTerminationListener } from "../src/transport";
-import { createSurfaceHost } from "../src/surface-host";
+import { SurfaceClosedError, SurfaceIdReusedError, createSurfaceHost } from "../src/index";
 
 class TerminatingTransport extends MemoryTransport {
   private readonly terminationListeners = new Set<TransportTerminationListener>();
@@ -143,7 +143,6 @@ describe("SurfaceHost", () => {
     second.unmount();
     host.dispose();
   });
-
   it("routes surface closure to only the matching root", () => {
     const transport = new MemoryTransport();
     const host = createSurfaceHost(transport);
@@ -156,9 +155,35 @@ describe("SurfaceHost", () => {
     transport.push(surfaceClosed(21, 1, 1));
 
     expect(closed).toEqual([21]);
-    expect(() => first.render(null)).toThrow("unmounted root");
+    expect(() => first.render(null)).toThrow(SurfaceClosedError);
     expect(() => second.render(null)).not.toThrow();
     second.unmount();
+    host.dispose();
+  });
+  it("rejects explicit registration of a natively closed surface id", () => {
+    const transport = new MemoryTransport();
+    const host = createSurfaceHost(transport);
+    const root = host.createRoot({ surfaceId: 61 });
+    root.render(null);
+
+    transport.push(surfaceClosed(61, 1, 1));
+
+    expect(() => host.createRoot({ surfaceId: 61, epoch: 2 })).toThrow(SurfaceIdReusedError);
+    expect(() => host.createRoot({ surfaceId: 61 })).toThrow("surface 61 was already closed");
+    const replacement = host.createRoot();
+    expect(replacement).toBeDefined();
+    replacement.unmount();
+    host.dispose();
+  });
+
+  it("retires explicitly unmounted surface ids", () => {
+    const transport = new MemoryTransport();
+    const host = createSurfaceHost(transport);
+    const root = host.createRoot({ surfaceId: 62 });
+    root.render(null);
+    root.unmount();
+
+    expect(() => host.createRoot({ surfaceId: 62, epoch: 2 })).toThrow(SurfaceIdReusedError);
     host.dispose();
   });
   it("rejects pending commands when one surface closes", async () => {
@@ -170,7 +195,8 @@ describe("SurfaceHost", () => {
 
     transport.push(surfaceClosed(23, 1, 1));
 
-    await expect(pending).resolves.toMatchObject({ message: "root is unmounted" });
+    await expect(pending).resolves.toBeInstanceOf(SurfaceClosedError);
+    await expect(pending).resolves.toMatchObject({ message: "surface 23 is closed", surfaceId: 23 });
     host.dispose();
   });
 
