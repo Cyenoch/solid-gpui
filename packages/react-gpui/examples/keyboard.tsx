@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { StdioTransport, Text, View, createProcessTerminationHandler, createRoot } from "../src/index";
+import { Pressable, StdioTransport, Text, View, createProcessTerminationHandler, createRoot } from "../src/index";
 
-function KeyboardCounter() {
+interface KeyboardCounterProps {
+  readonly onNotify: () => void;
+}
+
+function KeyboardCounter({ onNotify }: KeyboardCounterProps) {
   const [count, setCount] = useState(0);
   const [lastKey, setLastKey] = useState("none");
   return (
@@ -23,6 +27,9 @@ function KeyboardCounter() {
       <Text>Focus this view and press a key.</Text>
       <Text>Events: {count}</Text>
       <Text>Last key: {lastKey}</Text>
+      <Pressable focusable onPress={onNotify} accessibilityRole="button" accessibilityLabel="Send notification">
+        <Text>Send a notification</Text>
+      </Pressable>
     </View>
   );
 }
@@ -34,4 +41,16 @@ const root = createRoot(new StdioTransport(), {
   onTransportTermination: createProcessTerminationHandler(),
 });
 void root.setKeybindings([{ keystrokes: "cmd-shift-p", actionName: "palette.open" }]);
-root.render(<KeyboardCounter />);
+root.render(
+  <KeyboardCounter
+    onNotify={() => {
+      void root.showNotification({ title: "React GPUI", body: "Keyboard example notification requested." });
+    }}
+  />,
+);
+void root.setMenus([
+  {
+    title: "Actions",
+    items: [{ type: "action", name: "palette.open" }],
+  },
+]);

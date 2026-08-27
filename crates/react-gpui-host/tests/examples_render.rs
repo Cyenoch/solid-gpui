@@ -34,6 +34,16 @@ const EXAMPLES: &[(&str, &str)] = &[
         "selectable-text",
         "packages/react-gpui/examples/selectable-text.tsx",
     ),
+    ("focus-flow", "packages/react-gpui/examples/focus-flow.tsx"),
+    ("dropdown", "packages/react-gpui/examples/dropdown.tsx"),
+    (
+        "drag-reorder",
+        "packages/react-gpui/examples/drag-reorder.tsx",
+    ),
+    (
+        "multi-surface",
+        "packages/react-gpui/examples/multi-surface.tsx",
+    ),
 ];
 
 struct RendererProcess {

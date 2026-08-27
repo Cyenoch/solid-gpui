@@ -44,6 +44,9 @@ function TwoInputs() {
       <Text style={styles.label}>
         First input: {firstStatus}; selection: {selection}
       </Text>
+      <Text style={styles.label}>
+        In the multiline input, double-click a word or triple-click its line; Cmd-C/Ctrl-C copies the native selection.
+      </Text>
       <Pressable onPress={() => void firstRef.current?.setSelection(0, first.length)}>
         <Text>Select first input</Text>
       </Pressable>

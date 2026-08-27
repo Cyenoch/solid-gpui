@@ -14,6 +14,10 @@ from this work tree.
   adds locked Ubuntu and Windows build checks; display-backed runtime validation
   and a non-macOS embedded-Bun port remain separate follow-up work.
 
+- Added focused `focus-flow.tsx`, `dropdown.tsx`, `drag-reorder.tsx`, and
+  `multi-surface.tsx` examples, a progressive getting-started walkthrough,
+  core composition recipes, and a consumer headless-testing guide.
+
 - System notifications use `SHOW_NOTIFICATION=20` with `[title, body]` and a
   constrained fire-and-forget API; delivery varies by platform, host identity
   is a prerequisite, and tags, actions, and response callbacks are not exposed.

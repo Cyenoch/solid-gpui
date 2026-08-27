@@ -30,31 +30,39 @@ import {
 
 `installFastRefreshTransform(sourceRoot)` installs the Bun loader for the selected source tree. `FastRefreshSession` keeps a stable root mounted while compatible modules update; failed transforms leave the last-good tree in place. The package requires React 19 and runs under Bun 1.4 or newer. The headless testing API keeps `@react-gpui/core` external and expects the consumer test project to provide it.
 
-## Headless component tests
+## Testing your app
+
+### Headless component tests
 
 `render` creates a real core `Root` backed by `MemoryTransport`; it does not
 open a native window. The returned `frames` are complete length-prefixed
 submissions, while `commits()` decodes their MessagePack payloads for
-positional assertions:
+positional assertions. Use it from a Bun test and inject native events through
+the returned helpers:
 
 ```tsx
 import React from "react";
+import { expect, test } from "bun:test";
 import { Pressable, Text } from "@react-gpui/core";
 import { render } from "@react-gpui/dev";
 
-function Counter() {
-  return (
-    <Pressable accessibilityLabel="increment" onPress={() => undefined}>
-      <Text>increment</Text>
-    </Pressable>
-  );
-}
+test("a button can be rendered and pressed without a display", () => {
+  let presses = 0;
+  function Counter() {
+    return (
+      <Pressable accessibilityLabel="increment" onPress={() => (presses += 1)}>
+        <Text>increment</Text>
+      </Pressable>
+    );
+  }
 
-const testView = render(<Counter />, { surfaceId: 7, epoch: 1 });
-const button = testView.node("Pressable", (node) => node.accessibility?.[1] === "increment");
-testView.press(button);
-console.log(testView.commits(), testView.frames);
-testView.unmount();
+  const testView = render(<Counter />, { surfaceId: 7, epoch: 1 });
+  const button = testView.node("Pressable", (node) => node.accessibility?.[1] === "increment");
+  testView.press(button);
+  expect(presses).toBe(1);
+  expect(testView.commits()[0]).toEqual(expect.arrayContaining([3, 1, 7, 1]));
+  testView.unmount();
+});
 ```
 
 Use `node(kind, predicate?)` to locate the latest retained Host Node. Event

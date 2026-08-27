@@ -73,6 +73,55 @@ root.render(<Counter />);
 lifecycle generation. Start with one root/surface; use `createSurfaceHost` only
 when the application needs multiple native windows.
 
+## Build a small app
+
+Once the counter is running, grow it in the same order most small desktop
+surfaces need: form state, a bounded list, keyboard focus, and an overlay. The
+examples are complete runnable entries; use them as the source of truth for the
+composition rather than copying a large tutorial listing.
+
+### 1. Start with form state
+
+Use [`todo.tsx`](../packages/react-gpui/examples/todo.tsx) as the starting
+point. Keep the draft in `TextInput` state, update it from `onChangeText`, and
+append the native value received by `onSubmitEditing`. Clear the draft only
+after the item is added. This keeps the form controlled and makes Enter
+submission deterministic.
+
+### 2. Add a bounded list
+
+Render the items with the [`VirtualList` portion of
+`todo.tsx`](../packages/react-gpui/examples/todo.tsx), giving it a finite
+height, a stable `itemKey`, and an `emptyState`. The list owns visible-range
+work on the native side, while `data` and `renderItem` remain ordinary
+JavaScript state and closures. Keep the form and list in one parent so a
+successful submit updates the same `data` array.
+
+### 3. Make the flow keyboard-friendly
+
+Use [`focus-flow.tsx`](../packages/react-gpui/examples/focus-flow.tsx) to add
+focusable `Pressable` controls around the form actions. Give each control
+`onFocus` and `onBlur` handlers that select its focused style, then route Tab
+and Shift-Tab to `root.focusNext()` and `root.focusPrev()`. Focus is native
+state; React only renders the visual state reported by the notifications.
+
+### 4. Add a dropdown without a portal
+
+Copy the composition in
+[`dropdown.tsx`](../packages/react-gpui/examples/dropdown.tsx): keep the
+trigger and overlay under a `position: "relative"` anchor, render the menu
+with `position: "overlay"`, and close it from
+`onPointerDownOutside`. The trigger and enabled menu item also handle Escape
+through `onKeyDown`; mark unavailable actions `disabled`. This gives the form
+a native-dismissable action menu without introducing DOM or browser event
+semantics.
+
+At this point the counter has become a small native app: React owns state and
+composition, while GPUI owns layout, focus traversal, overlay hit testing, and
+list virtualization. The four focused entries in
+[`packages/react-gpui/examples`](../packages/react-gpui/examples/) keep each
+capability easy to inspect when the combined app needs debugging.
+
 ## Core model
 
 React GPUI is a renderer, not a DOM implementation:
@@ -428,8 +477,11 @@ events. It does not open a window. See
   desktop GPUI surface.
 - Multiline `TextInput` uses native wrapped-line geometry for painting,
   point-to-character mapping, and IME bounds; display-backed testing is still
-  required for candidate-window placement. Word-boundary and double-/triple-
-  click selection remain outside the minimal contract.
+  required for candidate-window placement. Double-click selects a UAX #29 word
+  and triple-click selects the clicked logical line; dragging extends the
+  selected range by that granularity. `Cmd-C` on macOS and `Ctrl-C` elsewhere
+  copy the selected UTF-8 text to the native clipboard. These are host-owned
+  interactions with no JavaScript copy callback.
 - `VirtualList` assumes a bounded viewport. Native GPUI measures visible and
   overdraw rows at their natural heights; `estimatedItemSize` supplies the
   initial height hint for unmeasured or not-yet-committed rows. Use `emptyState`

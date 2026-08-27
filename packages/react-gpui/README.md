@@ -586,6 +586,15 @@ and accessibility props; native edits carry UTF-16 selection/marked ranges and
 editSeq acknowledgements. `onKeyDown` uses the bubble phase; GPUI gives
 text-input/IME preference precedence over keymap bindings before dispatching
 the listener.
+
+Double-click a word or triple-click a logical line to select at that
+granularity; dragging extends the selected range by the same granularity.
+`Cmd-C` on macOS and `Ctrl-C` on other platforms copy the selected UTF-8 text
+directly to the native clipboard. These interactions are host-owned; there is no
+separate JavaScript copy callback. The runnable
+[`text-input.tsx`](examples/text-input.tsx) entry includes the interaction
+guidance.
+
 `maxLength` is enforced natively before an edit enters the Rust input state;
 JavaScript also clamps the value delivered to controlled `onChangeText`
 callbacks using UTF-16 units. `onSubmitEditing` is emitted for Enter on a
@@ -667,11 +676,121 @@ The source tree includes focused entries for the main host surfaces:
 - [`counter.tsx`](examples/counter.tsx) — the smallest process-runtime smoke entry.
 - [`gallery.tsx`](examples/gallery.tsx) — composed layout, pointer/scroll/drop, drag, appearance, and animation coverage.
 - [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, accessibility, and virtual-list integration.
-- [`keyboard.tsx`](examples/keyboard.tsx) — focus and native key notifications.
-- [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, selection, multiline limits, and focus handles.
+- [`keyboard.tsx`](examples/keyboard.tsx) — focus/key notifications, keybindings, a native menu, and a fire-and-forget notification request.
+- [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, multi-click word/line selection, native copy, and focus handles.
 - [`selectable-text.tsx`](examples/selectable-text.tsx) — host-owned text dragging, per-row highlighting, and Cmd/Ctrl-C clipboard copy.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 - [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
+- [`focus-flow.tsx`](examples/focus-flow.tsx) — focusable form controls with `onFocus`/`onBlur` styling and Tab/Shift-Tab navigation.
+- [`dropdown.tsx`](examples/dropdown.tsx) — an anchored overlay with pointer-down-outside and Escape dismissal plus a disabled item.
+- [`drag-reorder.tsx`](examples/drag-reorder.tsx) — a standalone draggable list with drag-over feedback, drop reordering, and the neutral native preview.
+- [`multi-surface.tsx`](examples/multi-surface.tsx) — a second native window with per-surface resize and appearance bridges.
+
+## Recipes
+
+These are the four small compositions most applications need first. Each recipe
+is implemented end to end in the linked example; the snippets show the seam
+to preserve when combining them with application state.
+
+### Focusable form flow
+
+Make a control focusable, keep its visual state in React, and route keyboard
+navigation through the root:
+
+```tsx
+<Pressable
+  focusable
+  style={focused === "name" ? styles.fieldFocused : styles.field}
+  onFocus={() => setFocused("name")}
+  onBlur={() => clearFocus("name")}
+  onKeyDown={({ key, action, modifiers }) => {
+    if (action === "down" && key === "tab") {
+      void (modifiers.includes("shift") ? root.focusPrev() : root.focusNext());
+    }
+  }}
+/>
+```
+
+`focusable` and a listener put `View`/`Pressable` nodes in the native
+tab-stop graph. See [`focus-flow.tsx`](examples/focus-flow.tsx).
+
+### Dropdown with outside dismissal
+
+Keep the trigger and menu under a relative anchor. The overlay listener sees
+capture-phase pointer downs outside both the overlay and its direct anchor
+subtree; the trigger and enabled items can close on Escape:
+
+```tsx
+<View style={{ position: "relative" }}>
+  <Pressable focusable onPress={() => setOpen((open) => !open)} onKeyDown={closeOnEscape}>
+    <Text>{open ? "Close actions" : "Open actions"}</Text>
+  </Pressable>
+  {open ? (
+    <View
+      style={{ position: "overlay", left: 0, top: 42 }}
+      onPointerDownOutside={() => setOpen(false)}
+    >
+      <Pressable focusable onKeyDown={closeOnEscape} onPress={() => setOpen(false)}>
+        <Text>Refresh data</Text>
+      </Pressable>
+      <Pressable disabled>
+        <Text>Export data (disabled)</Text>
+      </Pressable>
+    </View>
+  ) : null}
+</View>
+```
+
+See [`dropdown.tsx`](examples/dropdown.tsx) for the complete styled entry.
+
+### Drag-reorder list
+
+Encode the source row in the drag type, highlight valid targets from
+`onDragOver`, and reorder keyed application data on `onDrop`:
+
+```tsx
+<View
+  style={dragOverId === row.id ? styles.rowDragOver : styles.row}
+  draggable={{ type: `activity:${row.id}`, data: row }}
+  onDragOver={(dragType) => {
+    if (dragType.startsWith("activity:")) setDragOverId(row.id);
+  }}
+  onDrop={(dragType) => moveActivity(row.id, dragType)}
+>
+  <Text>{row.title}</Text>
+</View>
+```
+
+The host supplies a compact neutral preview; the callback return value is not
+a native drop decision. See [`drag-reorder.tsx`](examples/drag-reorder.tsx).
+
+### Responsive dark multi-surface layout
+
+Give every root its own explicit size and appearance stores, then derive
+layout and palette from those stores:
+
+```tsx
+const sizeStore = createWindowSizeStore({ width: 800, height: 600 });
+const appearanceStore = createAppearanceStore();
+const root = host.createRoot({
+  onWindowResize: (width, height, scaleFactor) => sizeStore.set(width, height, scaleFactor),
+  onAppearance: (value) => appearanceStore.set(value),
+});
+
+function Panel() {
+  const { width, height } = useWindowSize(sizeStore);
+  const appearance = useAppearance(appearanceStore);
+  return (
+    <View style={{ width, height, backgroundColor: appearance === "dark" ? "#111827" : "#f7f8fa" }}>
+      <Text>{appearance}</Text>
+    </View>
+  );
+}
+```
+
+After `await root.openSurface(...)` resolves, register the returned ID with
+`host.createRoot` and wire a second pair of stores. See
+[`multi-surface.tsx`](examples/multi-surface.tsx).
 
 ## Local commands
 
