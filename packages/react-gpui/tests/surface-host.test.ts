@@ -213,6 +213,32 @@ describe("SurfaceHost", () => {
     await expect(first.setTitle("after")).rejects.toBe(termination);
     host.dispose();
   });
+
+  it("fails the shared host on a version mismatch with actionable diagnostics", async () => {
+    const transport = new MemoryTransport();
+    const terminations: TransportTerminatedError[] = [];
+    const host = createSurfaceHost(transport, {
+      onTransportTermination: (error) => terminations.push(error),
+    });
+    const root = host.createRoot({ surfaceId: 53 });
+    root.render(null);
+    const pending = root.setTitle("pending");
+    const version = PROTOCOL_VERSION + 1;
+    const mismatched = encodeFrame([version, 2, 53, 1, 1, 1, 0, 0, EVENT_PRESS, null] as never);
+    transport.push(mismatched);
+
+    const termination = await pending.catch((error: unknown) => {
+      if (!(error instanceof TransportTerminatedError)) throw error;
+      return error;
+    });
+    if (!(termination instanceof TransportTerminatedError)) throw new Error("expected transport termination");
+    expect(terminations).toEqual([termination]);
+    const detail = termination.cause?.kind === "protocol" ? termination.cause.detail : "";
+    expect(detail).toContain(`protocol v${version}`);
+    expect(detail).toContain(`protocol v${PROTOCOL_VERSION}`);
+    root.unmount();
+    host.dispose();
+  });
   it("rejects every root's pending command on host disposal", async () => {
     const transport = new MemoryTransport();
     const host = createSurfaceHost(transport);

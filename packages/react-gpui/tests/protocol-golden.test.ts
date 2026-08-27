@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { FrameDecoder, MAX_FRAME_SIZE, decodeEvent, decodeWireForGolden, encodePayload } from "../src/protocol";
+import {
+  FrameDecoder,
+  MAX_FRAME_SIZE,
+  PROTOCOL_VERSION,
+  decodeEvent,
+  decodeWireForGolden,
+  encodePayload,
+} from "../src/protocol";
 
 const fixtureDir = `${import.meta.dir}/../../../fixtures/protocol`;
 
@@ -121,6 +128,18 @@ describe("protocol golden vectors", () => {
       count += 1;
     }
     expect(count).toBeGreaterThanOrEqual(20);
+  });
+
+  it("rejects adjacent protocol versions with actionable diagnostics", () => {
+    expect(PROTOCOL_VERSION).toBe(3);
+    const validEvent = [PROTOCOL_VERSION, 2, 7, 3, 1, 1, 0, 0, 1, null] as const;
+    expect((decodeWireForGolden(encodePayload(validEvent)) as readonly unknown[])[0]).toBe(PROTOCOL_VERSION);
+    for (const version of [PROTOCOL_VERSION - 1, PROTOCOL_VERSION + 1]) {
+      const payload = encodePayload([version, 2, 7, 3, 1, 1, 0, 0, 1, null] as never);
+      expect(() => decodeEvent(payload)).toThrow(
+        `host binary speaks protocol v${version}; this renderer package speaks protocol v${PROTOCOL_VERSION}`,
+      );
+    }
   });
 
   it("locks unknown and malformed wire behavior", async () => {

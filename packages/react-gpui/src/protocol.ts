@@ -9,6 +9,19 @@ export function utf8ByteLength(value: string): number {
 }
 
 export const PROTOCOL_VERSION = 3 as const;
+export class ProtocolVersionMismatchError extends Error {
+  readonly receivedVersion: number;
+  readonly expectedVersion = PROTOCOL_VERSION;
+
+  constructor(receivedVersion: number) {
+    super(
+      `protocol version mismatch: host binary speaks protocol v${receivedVersion}; this renderer package speaks protocol v${PROTOCOL_VERSION} — update @react-gpui/core to a v${receivedVersion} release / pin the host binary to a v${PROTOCOL_VERSION} release`,
+    );
+    this.receivedVersion = receivedVersion;
+    this.name = "ProtocolVersionMismatchError";
+  }
+}
+
 export const SNAPSHOT_KIND = 1 as const;
 export const EVENT_KIND = 2 as const;
 export const PATCH_KIND = 3 as const;
@@ -760,8 +773,17 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
 }
 export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
   const value = decodeWire(payload);
-  if (!Array.isArray(value) || value.length !== 10 || value[0] !== PROTOCOL_VERSION || value[1] !== EVENT_KIND)
-    return null;
+  if (!Array.isArray(value)) return null;
+  if (
+    value.length > 0 &&
+    value[0] !== PROTOCOL_VERSION &&
+    typeof value[0] === "number" &&
+    Number.isInteger(value[0]) &&
+    value[0] >= 0 &&
+    value[0] <= 0xffff_ffff
+  )
+    throw new ProtocolVersionMismatchError(value[0]);
+  if (value.length !== 10 || value[0] !== PROTOCOL_VERSION || value[1] !== EVENT_KIND) return null;
   for (const [index, name] of [
     [2, "surfaceId"],
     [3, "epoch"],

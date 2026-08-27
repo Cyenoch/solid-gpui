@@ -1950,6 +1950,32 @@ describe("renderer commits", () => {
     root.unmount();
   });
 
+  it("fails fast on a version mismatch with actionable diagnostics", async () => {
+    const transport = new MemoryTransport();
+    const terminations: TransportTerminatedError[] = [];
+    const version = PROTOCOL_VERSION + 1;
+    const root = createRoot(transport, {
+      surfaceId: 91,
+      epoch: 92,
+      onTransportTermination: (error) => terminations.push(error),
+    });
+    root.render(<View />);
+    const pending = root.setTitle("pending");
+    transport.push(encodeFrame([version, 2, 91, 92, 1, 1, 0, 0, 1, null] as never));
+
+    const termination = await pending.catch((error: unknown) => {
+      if (!(error instanceof TransportTerminatedError)) throw error;
+      return error;
+    });
+    if (!(termination instanceof TransportTerminatedError)) throw new Error("expected transport termination");
+    expect(terminations).toEqual([termination]);
+    const detail = termination.cause?.kind === "protocol" ? termination.cause.detail : "";
+    expect(detail).toContain(`protocol v${version}`);
+    expect(detail).toContain(`protocol v${PROTOCOL_VERSION}`);
+    await expect(root.setTitle("after")).rejects.toBe(termination);
+    root.unmount();
+  });
+
   it("rejects all commands and drops events after surface close", async () => {
     const transport = new MemoryTransport();
     const actions: string[] = [];

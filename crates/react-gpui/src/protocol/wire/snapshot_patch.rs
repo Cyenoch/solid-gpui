@@ -27,7 +27,10 @@ pub(super) fn decode_snapshot(payload: &[u8]) -> Result<Snapshot, ProtocolError>
         return Err(ProtocolError::TrailingBytes(payload.len() - consumed));
     }
     if wire.0 != PROTOCOL_VERSION {
-        return Err(ProtocolError::UnsupportedProtocol(wire.0));
+        return Err(ProtocolError::UnsupportedProtocol {
+            received: wire.0,
+            expected: PROTOCOL_VERSION,
+        });
     }
     if wire.1 != SNAPSHOT_MESSAGE {
         return Err(ProtocolError::WrongMessageType(wire.1));
@@ -68,7 +71,10 @@ pub(super) fn decode_patch(payload: &[u8]) -> Result<Patch, ProtocolError> {
         return Err(ProtocolError::TrailingBytes(payload.len() - consumed));
     }
     if wire.0 != PROTOCOL_VERSION {
-        return Err(ProtocolError::UnsupportedProtocol(wire.0));
+        return Err(ProtocolError::UnsupportedProtocol {
+            received: wire.0,
+            expected: PROTOCOL_VERSION,
+        });
     }
     if wire.1 != PATCH_MESSAGE {
         return Err(ProtocolError::WrongMessageType(wire.1));

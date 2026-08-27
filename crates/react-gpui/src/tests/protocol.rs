@@ -98,6 +98,64 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
 }
+
+#[test]
+fn protocol_v3_rejects_adjacent_versions_with_actionable_diagnostics() {
+    assert_eq!(PROTOCOL_VERSION, 3);
+    let snapshot = Snapshot::new(7, 3, 0, 1, vec![]);
+    let patch = Patch::new(7, 3, 0, 1, vec![]);
+    let command = Command {
+        protocol: PROTOCOL_VERSION,
+        message: COMMAND_MESSAGE,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 1,
+        request_id: 1,
+        node_id: 0,
+        kind: COMMAND_BLUR,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+    };
+    let event = Event::press(7, 3, 1, 1, 0, 0);
+    let assert_mismatch = |result: Result<(), ProtocolError>, received: u32| {
+        let error = result.expect_err("adjacent protocol version must be rejected");
+        assert!(matches!(
+            &error,
+            ProtocolError::UnsupportedProtocol {
+                received: actual,
+                expected,
+            } if *actual == received && *expected == PROTOCOL_VERSION
+        ));
+        let message = error.to_string();
+        assert!(message.contains(&format!("protocol v{received}")));
+        assert!(message.contains(&format!("protocol v{PROTOCOL_VERSION}")));
+        assert!(message.contains("update the host binary"));
+        assert!(message.contains("pin @react-gpui/core to a v3 release"));
+    };
+
+    for version in [PROTOCOL_VERSION - 1, PROTOCOL_VERSION + 1] {
+        let mut snapshot_payload = snapshot.encode().unwrap();
+        snapshot_payload[1] = u8::try_from(version).unwrap();
+        assert_mismatch(Snapshot::decode(&snapshot_payload).map(|_| ()), version);
+
+        let mut patch_payload = patch.encode().unwrap();
+        patch_payload[1] = u8::try_from(version).unwrap();
+        assert_mismatch(Patch::decode(&patch_payload).map(|_| ()), version);
+
+        let mut command_payload = command.encode().unwrap();
+        command_payload[1] = u8::try_from(version).unwrap();
+        assert_mismatch(Command::decode(&command_payload).map(|_| ()), version);
+
+        let mut event_payload = event.encode().unwrap();
+        event_payload[1] = u8::try_from(version).unwrap();
+        assert_mismatch(Event::decode(&event_payload).map(|_| ()), version);
+    }
+}
 #[test]
 fn generic_focus_and_pointer_down_outside_events_round_trip() {
     let focus = Event::focus(7, 3, 1, 20, 2, 44, true);

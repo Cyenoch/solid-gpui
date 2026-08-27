@@ -177,7 +177,10 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         return Err(ProtocolError::TrailingBytes(payload.len() - consumed));
     }
     if wire.0 != PROTOCOL_VERSION {
-        return Err(ProtocolError::UnsupportedProtocol(wire.0));
+        return Err(ProtocolError::UnsupportedProtocol {
+            received: wire.0,
+            expected: PROTOCOL_VERSION,
+        });
     }
     if wire.1 != COMMAND_MESSAGE {
         return Err(ProtocolError::WrongMessageType(wire.1));

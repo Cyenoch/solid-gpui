@@ -1202,8 +1202,10 @@ pub enum ProtocolError {
     Io(#[source] io::Error),
     #[error("MessagePack payload has {0} trailing bytes")]
     TrailingBytes(usize),
-    #[error("unsupported protocol version {0}")]
-    UnsupportedProtocol(u32),
+    #[error(
+        "protocol version mismatch: renderer speaks protocol v{received}; this host binary speaks protocol v{expected} — update the host binary / pin @react-gpui/core to a v{expected} release"
+    )]
+    UnsupportedProtocol { received: u32, expected: u32 },
     #[error("unexpected message type {0}")]
     WrongMessageType(u32),
     #[error("unknown event type {0}")]

@@ -794,7 +794,13 @@ export class RootContainer implements DispatchContext {
     if (payloads.length === 0) return;
     const events: PressEventFrame[] = [];
     for (const payload of payloads) {
-      const event = decodeEvent(payload);
+      let event: PressEventFrame | null;
+      try {
+        event = decodeEvent(payload);
+      } catch (error) {
+        this.failProtocol(error);
+        return;
+      }
       if (event === null) {
         this.failProtocol("received malformed event frame");
         return;

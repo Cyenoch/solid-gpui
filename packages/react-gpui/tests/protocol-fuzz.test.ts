@@ -9,6 +9,7 @@ import {
   FrameDecoder,
   MAX_FRAME_SIZE,
   PROTOCOL_VERSION,
+  ProtocolVersionMismatchError,
   decodeEvent,
   encodePayload,
   encodeFrame,
@@ -99,11 +100,12 @@ function mutate(payload: Bytes, rng: XorShift32): Bytes {
 }
 
 function assertSafeEventDecode(payload: Bytes): void {
-  let result: ReturnType<typeof decodeEvent> = null;
-  expect(() => {
-    result = decodeEvent(payload);
-  }).not.toThrow();
-  expect(result === null || Array.isArray(result)).toBe(true);
+  try {
+    const result = decodeEvent(payload);
+    expect(result === null || Array.isArray(result)).toBe(true);
+  } catch (error) {
+    expect(error).toBeInstanceOf(ProtocolVersionMismatchError);
+  }
 }
 
 function assertSafeFramePush(frame: Bytes): void {

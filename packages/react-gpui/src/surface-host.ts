@@ -1,4 +1,4 @@
-import { FrameDecoder, MAX_FRAME_SIZE, decodeEvent, framePayload } from "./protocol";
+import { FrameDecoder, MAX_FRAME_SIZE, decodeEvent, framePayload, type PressEventFrame } from "./protocol";
 import { createRoot, type Root, type RootOptions } from "./renderer";
 import {
   TransportTerminatedError,
@@ -165,7 +165,13 @@ export class SurfaceHostImpl implements SurfaceHost {
       return;
     }
     for (const payload of payloads) {
-      const event = decodeEvent(payload);
+      let event: PressEventFrame | null;
+      try {
+        event = decodeEvent(payload);
+      } catch (error) {
+        this.failProtocol(error);
+        return;
+      }
       if (event === null) {
         this.failProtocol("received malformed event frame");
         return;

@@ -17,6 +17,12 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
     if consumed != payload.len() {
         return Err(ProtocolError::TrailingBytes(payload.len() - consumed));
     }
+    if wire.0 != PROTOCOL_VERSION {
+        return Err(ProtocolError::UnsupportedProtocol {
+            received: wire.0,
+            expected: PROTOCOL_VERSION,
+        });
+    }
     if !matches!(
         wire.8,
         EVENT_PRESS
