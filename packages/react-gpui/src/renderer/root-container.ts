@@ -90,8 +90,8 @@ export class RootContainer implements DispatchContext {
   private lastEventSequence = 0;
   private hasEventSequence = false;
   private readonly decoder: FrameDecoder;
-  private readonly unsubscribe: () => void;
-  private readonly unsubscribeTermination: () => void;
+  private unsubscribe: (() => void) | undefined;
+  private unsubscribeTermination: (() => void) | undefined;
   private readonly onTransportTermination: TransportTerminationListener | undefined;
   readonly onWindowResize: WindowResizeHandler | undefined;
   readonly onWindowActivation: WindowActivationHandler | undefined;
@@ -144,9 +144,27 @@ export class RootContainer implements DispatchContext {
     this.transportTerminated = true;
     this.terminationError = error;
     this.invalid = true;
+    this.detachTransportListeners();
     for (const pending of this.pendingCommands.values()) pending.reject(error);
     this.pendingCommands.clear();
     this.onTransportTermination?.(error);
+  }
+  private detachTransportListeners(): void {
+    const unsubscribe = this.unsubscribe;
+    this.unsubscribe = undefined;
+    unsubscribe?.();
+    const unsubscribeTermination = this.unsubscribeTermination;
+    this.unsubscribeTermination = undefined;
+    unsubscribeTermination?.();
+  }
+  private failProtocol(detail: unknown): void {
+    const message = detail instanceof Error ? detail.message : String(detail);
+    this.handleTransportTermination(
+      new TransportTerminatedError(`RootContainer protocol failure: ${message}`, {
+        kind: "protocol",
+        detail: message,
+      }),
+    );
   }
 
   private submitFrame(frame: Uint8Array): boolean {
@@ -765,15 +783,26 @@ export class RootContainer implements DispatchContext {
   }
 
   receive(chunk: Uint8Array | ArrayBuffer): void {
+    if (this.transportTerminated || this.unmounted) return;
     let payloads: Uint8Array[];
     try {
       payloads = this.decoder.push(chunk);
-    } catch {
+    } catch (error) {
+      this.failProtocol(error);
       return;
     }
     if (payloads.length === 0) return;
+    const events: PressEventFrame[] = [];
+    for (const payload of payloads) {
+      const event = decodeEvent(payload);
+      if (event === null) {
+        this.failProtocol("received malformed event frame");
+        return;
+      }
+      events.push(event);
+    }
     this.scheduleDispatch(() => {
-      for (const payload of payloads) dispatchEvent(this, decodeEvent(payload));
+      for (const event of events) dispatchEvent(this, event);
     });
   }
   onSurfaceClosed(): void {
@@ -815,8 +844,7 @@ export class RootContainer implements DispatchContext {
   dispose(): void {
     if (this.unmounted) return;
     this.unmounted = true;
-    this.unsubscribe();
-    this.unsubscribeTermination();
+    this.detachTransportListeners();
     for (const pending of this.pendingCommands.values()) pending.reject(new Error("root is unmounted"));
     this.pendingCommands.clear();
     for (const node of this.children) this.detachSubtree(node);

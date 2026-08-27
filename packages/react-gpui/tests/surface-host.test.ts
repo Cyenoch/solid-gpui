@@ -4,9 +4,11 @@ import { describe, expect, it } from "bun:test";
 import {
   COMMAND_OPEN_SURFACE,
   EVENT_COMMAND_RESULT,
+  EVENT_PRESS,
   EVENT_SURFACE_CLOSED,
   PROTOCOL_VERSION,
   encodeFrame,
+  framePayload,
 } from "../src/protocol";
 import { MemoryTransport, TransportTerminatedError, type TransportTerminationListener } from "../src/transport";
 import { createSurfaceHost } from "../src/surface-host";
@@ -18,9 +20,8 @@ class TerminatingTransport extends MemoryTransport {
     this.terminationListeners.add(listener);
     return () => this.terminationListeners.delete(listener);
   }
-
   terminate(): void {
-    const error = new TransportTerminatedError("test transport terminated");
+    const error = new TransportTerminatedError("test transport terminated", { kind: "eof" });
     const listeners = [...this.terminationListeners];
     this.terminationListeners.clear();
     for (const listener of listeners) listener(error);
@@ -187,6 +188,29 @@ describe("SurfaceHost", () => {
 
     await expect(firstPending).resolves.toBeInstanceOf(TransportTerminatedError);
     await expect(secondPending).resolves.toBeInstanceOf(TransportTerminatedError);
+    host.dispose();
+  });
+  it("fails the shared host on a malformed event frame", async () => {
+    const transport = new MemoryTransport();
+    const terminations: TransportTerminatedError[] = [];
+    const host = createSurfaceHost(transport, {
+      onTransportTermination: (error) => terminations.push(error),
+    });
+    const first = host.createRoot({ surfaceId: 51 });
+    const second = host.createRoot({ surfaceId: 52 });
+    first.render(null);
+    second.render(null);
+    const pending = [first.setTitle("first"), second.pickSavePath({ defaultName: "second.txt" })];
+    const valid = encodeFrame([PROTOCOL_VERSION, 2, 51, 1, 1, 1, 0, 0, EVENT_PRESS, null]);
+    const malformed = framePayload(new Uint8Array([0xd9, 1, 0xff]));
+    transport.push(new Uint8Array([...valid, ...malformed, ...valid]));
+
+    const errors = await Promise.all(pending.map((command) => command.catch((error: unknown) => error)));
+    expect(terminations).toHaveLength(1);
+    const termination = terminations[0]!;
+    expect(termination.cause).toEqual({ kind: "protocol", detail: "received malformed event frame" });
+    expect(errors).toEqual([termination, termination]);
+    await expect(first.setTitle("after")).rejects.toBe(termination);
     host.dispose();
   });
   it("rejects every root's pending command on host disposal", async () => {

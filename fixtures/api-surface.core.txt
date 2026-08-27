@@ -95,6 +95,8 @@ Transport	type
 TransportChunk	type
 TransportListener	type
 TransportTerminatedError	both
+TransportTerminationCause	type
+TransportTerminationDetails	type
 TransportTerminationListener	type
 useAppearance	value
 useWindowSize	value

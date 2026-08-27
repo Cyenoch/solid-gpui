@@ -128,7 +128,7 @@ export class SurfaceHostImpl implements SurfaceHost {
     this.disposed = true;
     this.unsubscribe();
     this.unsubscribeTermination();
-    const error = new TransportTerminatedError("SurfaceHost is disposed");
+    const error = new TransportTerminatedError("SurfaceHost is disposed", { kind: "shutdown" });
     this.terminateRoots(error);
     this.roots.clear();
   }
@@ -156,18 +156,32 @@ export class SurfaceHostImpl implements SurfaceHost {
   }
 
   private receive(chunk: Uint8Array | ArrayBuffer): void {
+    if (this.terminated || this.disposed) return;
     let payloads: Uint8Array[];
     try {
       payloads = this.decoder.push(chunk);
-    } catch {
+    } catch (error) {
+      this.failProtocol(error);
       return;
     }
     for (const payload of payloads) {
       const event = decodeEvent(payload);
-      if (event === null) continue;
+      if (event === null) {
+        this.failProtocol("received malformed event frame");
+        return;
+      }
       const routed = this.roots.get(event[2]);
       if (routed !== undefined) routed.deliver(framePayload(payload));
     }
+  }
+  private failProtocol(detail: unknown): void {
+    const message = detail instanceof Error ? detail.message : String(detail);
+    this.handleTermination(
+      new TransportTerminatedError(`SurfaceHost protocol failure: ${message}`, {
+        kind: "protocol",
+        detail: message,
+      }),
+    );
   }
 
   private terminateRoots(error: TransportTerminatedError): void {

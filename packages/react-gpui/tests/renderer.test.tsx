@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TextInputHandle,
+  TransportTerminatedError,
   View,
   ViewHandle,
   VirtualList,
@@ -1905,6 +1906,48 @@ describe("renderer commits", () => {
     const pending = root.pickFiles().catch((error: unknown) => error);
     root.unmount();
     await expect(pending).resolves.toMatchObject({ message: "root is unmounted" });
+  });
+  it("fails fast on malformed frames and rejects every pending command", async () => {
+    const transport = new MemoryTransport();
+    const terminations: TransportTerminatedError[] = [];
+    const root = createRoot(transport, {
+      surfaceId: 89,
+      epoch: 90,
+      onTransportTermination: (error) => terminations.push(error),
+    });
+    root.render(<View />);
+    const pending = [
+      root.setTitle("pending"),
+      root.resize(640, 480),
+      root.getWindowSize(),
+      root.setClipboardText("pending"),
+      root.getClipboardText(),
+      root.zoom(),
+      root.toggleFullscreen(),
+      root.openSurface(),
+      root.pickFiles(),
+      root.pickSavePath(),
+      root.showNotification({ title: "pending", body: "pending" }),
+      root.setMenus([]),
+      root.setKeybindings([]),
+      root.openUrl("https://example.com"),
+      root.focusNext(),
+      root.focusPrev(),
+    ];
+    const valid = encodeFrame([PROTOCOL_VERSION, 2, 89, 90, 1, 1, 0, 0, 1, null]);
+    const malformed = framePayload(new Uint8Array([0xd9, 1, 0xff]));
+    transport.push(new Uint8Array([...valid, ...malformed, ...valid]));
+
+    const errors = await Promise.all(pending.map((command) => command.catch((error: unknown) => error)));
+    expect(errors).toHaveLength(16);
+    expect(terminations).toHaveLength(1);
+    const termination = terminations[0]!;
+    expect(termination.cause).toEqual({ kind: "protocol", detail: "received malformed event frame" });
+    for (const error of errors) expect(error).toBe(termination);
+    await expect(root.setTitle("after")).rejects.toBe(termination);
+    transport.push(valid);
+    expect(terminations).toHaveLength(1);
+    root.unmount();
   });
 
   it("rejects all commands and drops events after surface close", async () => {

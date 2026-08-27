@@ -4,23 +4,50 @@ import { ProtocolTap } from "./protocol-tap";
 export type TransportChunk = Uint8Array | ArrayBuffer;
 export type TransportListener = (chunk: Uint8Array) => void;
 
+export type TransportTerminationCause =
+  | { readonly kind: "shutdown" }
+  | { readonly kind: "eof" }
+  | { readonly kind: "exit"; readonly code: number }
+  | { readonly kind: "protocol"; readonly detail: string }
+  | { readonly kind: "io"; readonly detail: string };
+
+function isTransportTerminationCause(value: unknown): value is TransportTerminationCause {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as { kind?: unknown; code?: unknown; detail?: unknown };
+  if (candidate.kind === "shutdown" || candidate.kind === "eof") return true;
+  if (candidate.kind === "exit") return typeof candidate.code === "number" && Number.isInteger(candidate.code);
+  return (
+    (candidate.kind === "protocol" || candidate.kind === "io") &&
+    typeof candidate.detail === "string" &&
+    candidate.detail.length > 0
+  );
+}
+
 export class TransportTerminatedError extends Error {
-  readonly cause?: unknown;
+  readonly cause?: TransportTerminationCause;
   readonly exitCode?: number;
   readonly stderrTail?: string;
+  readonly crashReportPath?: string;
 
   constructor(message: string, cause?: unknown, details: TransportTerminationDetails = {}) {
     super(message);
     this.name = "TransportTerminatedError";
-    this.cause = cause;
+    this.cause =
+      cause === undefined
+        ? undefined
+        : isTransportTerminationCause(cause)
+          ? cause
+          : { kind: "io", detail: describeError(cause) };
     this.exitCode = details.exitCode;
     this.stderrTail = details.stderrTail;
+    this.crashReportPath = details.crashReportPath;
   }
 }
 
 export interface TransportTerminationDetails {
   readonly exitCode?: number;
   readonly stderrTail?: string;
+  readonly crashReportPath?: string;
 }
 export type TransportTerminationListener = (error: TransportTerminatedError) => void;
 
@@ -65,27 +92,51 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+const CRASH_REPORT_PREFIX = "react-gpui-host: crash report: ";
+
+function crashReportPathFromStderr(stderrTail: string | undefined): string | undefined {
+  if (stderrTail === undefined) return undefined;
+  let path: string | undefined;
+  for (const line of stderrTail.split(/\r?\n/)) {
+    if (line.startsWith(CRASH_REPORT_PREFIX) && line.length > CRASH_REPORT_PREFIX.length)
+      path = line.slice(CRASH_REPORT_PREFIX.length);
+  }
+  return path;
+}
+
 function detailsFromCause(cause: unknown): TransportTerminationDetails {
   if (cause === null || typeof cause !== "object") return {};
   const value = cause as { exitCode?: unknown; stderrTail?: unknown };
+  const stderrTail =
+    typeof value.stderrTail === "string" ? value.stderrTail.split(/\r?\n/).slice(-50).join("\n") : undefined;
   return {
     exitCode: typeof value.exitCode === "number" && Number.isInteger(value.exitCode) ? value.exitCode : undefined,
-    stderrTail:
-      typeof value.stderrTail === "string" ? value.stderrTail.split(/\r?\n/).slice(-50).join("\n") : undefined,
+    stderrTail,
+    crashReportPath: crashReportPathFromStderr(stderrTail),
   };
 }
 
-function terminatedError(context: string, cause?: unknown): TransportTerminatedError {
+function terminatedError(
+  context: string,
+  cause?: unknown,
+  terminationCause?: TransportTerminationCause,
+): TransportTerminatedError {
   if (cause instanceof TransportTerminatedError) return cause;
   const details = detailsFromCause(cause);
   const message = cause === undefined ? context : `${context}: ${describeError(cause)}`;
   const diagnostics = [
     details.exitCode === undefined ? undefined : `host exit code: ${details.exitCode}`,
     details.stderrTail === undefined ? undefined : `host stderr tail:\n${details.stderrTail}`,
+    details.crashReportPath === undefined ? undefined : `host crash report: ${details.crashReportPath}`,
   ].filter((value): value is string => value !== undefined);
+  const typedCause: TransportTerminationCause =
+    terminationCause ??
+    (details.exitCode === undefined
+      ? { kind: "io", detail: describeError(cause ?? context) }
+      : { kind: "exit", code: details.exitCode });
   return new TransportTerminatedError(
     diagnostics.length === 0 ? message : `${message}\n${diagnostics.join("\n")}`,
-    cause,
+    typedCause,
     details,
   );
 }
@@ -145,11 +196,14 @@ export class StdioTransport implements Transport {
       this.tap?.observeInbound(bytes);
       for (const listener of this.listeners) listener(bytes);
     };
-    this.inputEndListener = () => this.terminate(terminatedError("StdioTransport input ended"));
-    this.inputCloseListener = () => this.terminate(terminatedError("StdioTransport input closed"));
+    this.inputEndListener = () =>
+      this.terminate(terminatedError("StdioTransport input ended", undefined, { kind: "eof" }));
+    this.inputCloseListener = () =>
+      this.terminate(terminatedError("StdioTransport input closed", undefined, { kind: "eof" }));
     this.inputErrorListener = (error) => this.terminate(terminatedError("StdioTransport input failed", error));
     this.drainListener = () => this.flushPending();
-    this.outputCloseListener = () => this.terminate(terminatedError("StdioTransport output closed"));
+    this.outputCloseListener = () =>
+      this.terminate(terminatedError("StdioTransport output closed", undefined, { kind: "eof" }));
     this.outputErrorListener = (error) => this.terminate(terminatedError("StdioTransport output failed", error));
     input.on("data", this.inputListener);
     input.on("end", this.inputEndListener);

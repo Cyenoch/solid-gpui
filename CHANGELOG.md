@@ -37,6 +37,8 @@ from this work tree.
   `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
   carry host exit codes and the last 50 stderr lines. README Troubleshooting
   documents reproduction and an optional APM sample.
+- Transport termination now exposes a typed cause union and fails fast on
+  malformed host event frames while rejecting all pending commands.
 - Pending-command lifecycle regression coverage locks seven paths: surface
   close, transport-termination fan-out, unmount, every command family on a
   closed root, silent event drops, and host disposal; dangling Promises are

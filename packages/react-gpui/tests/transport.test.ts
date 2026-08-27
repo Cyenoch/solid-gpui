@@ -3,6 +3,7 @@ import { createRoot } from "../src/renderer";
 import {
   DEFAULT_MAX_PENDING_BYTES,
   StdioTransport,
+  TransportTerminatedError,
   createProcessTerminationHandler,
   type ByteInput,
   type ByteInputEventListener,
@@ -196,8 +197,8 @@ describe("StdioTransport backpressure", () => {
     const output = new FakeOutput([]);
     const transport = new StdioTransport(output, input);
     const exits: number[] = [];
-    const errors: string[] = [];
-    transport.onTermination((error) => errors.push(error.message));
+    const errors: TransportTerminatedError[] = [];
+    transport.onTermination((error) => errors.push(error));
     transport.onTermination(createProcessTerminationHandler((code) => exits.push(code)));
 
     input.emitClose();
@@ -205,6 +206,7 @@ describe("StdioTransport backpressure", () => {
     output.emitClose();
 
     expect(errors).toHaveLength(1);
+    expect(errors[0]?.cause).toEqual({ kind: "eof" });
     expect(exits).toEqual([1]);
     expect(() => transport.submit(frame(1))).toThrow("StdioTransport input closed");
   });
@@ -213,13 +215,13 @@ describe("StdioTransport backpressure", () => {
     const input = new FakeInput();
     const output = new FakeOutput([]);
     const transport = new StdioTransport(output, input);
-    const errors: string[] = [];
-    transport.onTermination((error) => errors.push(error.message));
+    const errors: TransportTerminatedError[] = [];
+    transport.onTermination((error) => errors.push(error));
     output.failWrites(new Error("EPIPE"));
 
     expect(() => transport.submit(frame(1))).toThrow("StdioTransport output write failed: EPIPE");
-    expect(() => transport.submit(frame(2))).toThrow("StdioTransport output write failed: EPIPE");
     expect(errors).toHaveLength(1);
+    expect(errors[0]?.cause).toEqual({ kind: "io", detail: "EPIPE" });
     expect(input.listenerCount()).toBe(0);
     expect(output.listenerCount()).toBe(0);
   });
@@ -228,17 +230,20 @@ describe("StdioTransport backpressure", () => {
     const input = new FakeInput();
     const output = new FakeOutput([]);
     const transport = new StdioTransport(output, input);
-    let termination: string | undefined;
+    let termination: TransportTerminatedError | undefined;
     transport.onTermination((error) => {
-      termination = error.message;
+      termination = error;
     });
-    const stderrTail = Array.from({ length: 60 }, (_, index) => `line-${index}`).join("\n");
+    const stderrTail = `${Array.from({ length: 59 }, (_, index) => `line-${index}`).join("\n")}\nreact-gpui-host: crash report: /tmp/react-gpui-host-23-456.log`;
     input.emitError(Object.assign(new Error("host exited"), { exitCode: 23, stderrTail }));
 
-    expect(termination).toContain("host exit code: 23");
-    expect(termination).toContain("line-59");
-    expect(termination).toContain("line-10");
-    expect(termination).not.toContain("line-9");
+    expect(termination?.message).toContain("host exit code: 23");
+    expect(termination?.message).toContain("line-58");
+    expect(termination?.message).toContain("line-10");
+    expect(termination?.message).not.toContain("line-9");
+    expect(termination?.exitCode).toBe(23);
+    expect(termination?.crashReportPath).toBe("/tmp/react-gpui-host-23-456.log");
+    expect(termination?.cause).toEqual({ kind: "exit", code: 23 });
   });
 
   it("delivers transport termination through createRoot without a global exit", () => {

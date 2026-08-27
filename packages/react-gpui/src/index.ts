@@ -89,6 +89,8 @@ export {
   type Transport,
   type TransportChunk,
   type TransportListener,
+  type TransportTerminationCause,
+  type TransportTerminationDetails,
   type TransportTerminationListener,
 } from "./transport";
 export {
