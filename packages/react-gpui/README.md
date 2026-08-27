@@ -251,13 +251,15 @@ const inspector = host.createRoot({
 
 The `openSurface` promise resolves with the new positive native `surfaceId`
 from CommandResult value tag `1`. Only after that handshake should the caller
-register the new root and render it. The command is sent with the requesting
-root's `surfaceId` and `nodeId=1`; unknown surfaces are rejected rather than
-implicitly opened. A native close emits `EVENT_SURFACE_CLOSED` before teardown,
-routes only to its root, and invokes `onClose`. Closing the final native window
-terminates the host runtime/process. Headless tests cover demultiplexing and
-close routing; actual Quartz multi-window display behavior requires a
-macOS display-backed host run.
+register that id with `host.createRoot`; unknown surfaces are rejected rather
+than implicitly opened. A native close emits `EVENT_SURFACE_CLOSED` before
+teardown, routes only to its root, invokes `onClose`, and rejects that root's
+pending commands with `SurfaceClosedError`. `SurfaceHost` retires the closed
+ID; calling `host.createRoot` with the same ID throws `SurfaceIdReusedError`,
+even with a new epoch. Use a fresh host-allocated ID for a new native surface.
+Closing the final native window terminates the host runtime/process. Headless
+tests cover demultiplexing and close routing; actual Quartz multi-window
+display behavior requires a macOS display-backed host run.
 
 Creation options are host-owned and apply only while the new window is being
 created. `kind` accepts `"normal"`, `"floating"`, or `"dialog"`; floating means

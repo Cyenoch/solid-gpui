@@ -122,11 +122,20 @@ inspector.render(<Inspector />);
 
 `EVENT_SURFACE_CLOSED` is emitted before the host removes a native surface.
 It has `nodeId=0`, `listenerId=0`, a null payload, and the closed
-`surfaceId`; the matching root invokes `onClose` and stops accepting renders
-or commands. Closing one surface does not terminate the shared transport.
-When the last native window is closed, the host tears down the runtime and
-terminates the process. A malformed or unknown-surface frame is rejected
-instead of silently opening a replacement window.
+`surfaceId`; the matching root invokes `onClose`, rejects its pending commands
+with `SurfaceClosedError` (including the closed `surfaceId`), and stops
+accepting renders or commands. Closing one surface does not terminate the
+shared transport. When the last native window is closed, the host tears down
+the runtime and terminates the process. A malformed or unknown-surface frame is
+rejected instead of silently opening a replacement window.
+
+The host allocates surface IDs monotonically and never reuses an ID after a
+native close or an explicit root unmount. `SurfaceHost.createRoot({ surfaceId
+})` therefore rejects a retired ID with `SurfaceIdReusedError`, even when the
+caller supplies a different `epoch`; callers must use a fresh host-allocated
+ID. The `epoch` remains the renderer/native generation carried by every frame
+for that surface and is checked against the root before dispatch. It is not a
+permission to revive a retired ID and does not make same-ID recreation safe.
 
 ### Shared header fields
 

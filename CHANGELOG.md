@@ -8,6 +8,11 @@ from this work tree.
 
 ## [Unreleased]
 
+- Multi-surface lifecycle now retires every closed or explicitly unmounted
+  surface ID. `SurfaceHost.createRoot` rejects same-ID recreation with typed
+  `SurfaceIdReusedError`, while pending commands on a closed root reject with
+  typed `SurfaceClosedError`; epochs remain generation checks, not a reuse
+  escape hatch. Protocol wire frames are unchanged.
 ### Added
 - Shared appearance-aware theme tokens now drive all visual React GPUI
   examples, including dark surfaces and interaction-state colors; README and

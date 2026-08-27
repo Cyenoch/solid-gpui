@@ -362,6 +362,9 @@ const id = await main.openSurface({
   minSize: [320, 240],
 });
 const inspector = host.createRoot({ surfaceId: id, onClose: () => console.log("closed") });
+// A closed or explicitly unmounted id is retired. Reusing it, even with a
+// new epoch, throws SurfaceIdReusedError; pending commands reject with
+// SurfaceClosedError. Use a fresh host-allocated id.
 ```
 `kind`, `resizable`, and `minSize` are creation-time options. `"floating"`
 means above-parent where the platform supports it; it is not a portable global
