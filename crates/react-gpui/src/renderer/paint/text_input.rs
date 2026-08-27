@@ -404,27 +404,49 @@ pub(super) fn render_text_input(
     let navigation_entity = entity.clone();
     input_element = input_element.on_key_down(move |event, _, app| {
         let modifiers = event.keystroke.modifiers;
-        if !modifiers.control && !modifiers.alt && !modifiers.platform {
+        if !modifiers.control && !modifiers.platform {
             navigation_entity.update(app, |root, cx| {
                 root.handle_text_input_navigation(
                     input_id,
                     &event.keystroke.key,
                     modifiers.shift,
+                    modifiers.alt,
                     cx,
                 );
             });
         }
     });
-    let copy_entity = entity.clone();
+    let clipboard_entity = entity.clone();
     input_element = input_element.on_key_down(move |event, _, app| {
         let modifiers = event.keystroke.modifiers;
-        if !event.is_held
-            && !modifiers.shift
-            && (modifiers.platform || modifiers.control)
-            && event.keystroke.key.eq_ignore_ascii_case("c")
-            && let Some(text) = copy_entity.read(app).selected_text_for_copy(input_id)
+        if event.is_held
+            || modifiers.shift
+            || modifiers.alt
+            || (!modifiers.platform && !modifiers.control)
         {
-            app.write_to_clipboard(ClipboardItem::new_string(text));
+            return;
+        }
+        let key = event.keystroke.key.as_str();
+        if key.eq_ignore_ascii_case("c") {
+            if let Some(text) = clipboard_entity.read(app).selected_text_for_copy(input_id) {
+                app.write_to_clipboard(ClipboardItem::new_string(text));
+                app.stop_propagation();
+            }
+        } else if key.eq_ignore_ascii_case("x") {
+            if let Some(text) =
+                clipboard_entity.update(app, |root, cx| root.cut_text_input_selection(input_id, cx))
+            {
+                app.write_to_clipboard(ClipboardItem::new_string(text));
+                app.stop_propagation();
+            }
+        } else if key.eq_ignore_ascii_case("v")
+            && let Some(text) = app.read_from_clipboard().and_then(|item| item.text())
+            && clipboard_entity.update(app, |root, cx| root.replace_text_input(input_id, &text, cx))
+        {
+            app.stop_propagation();
+        } else if key.eq_ignore_ascii_case("a")
+            && clipboard_entity.update(app, |root, cx| root.select_all_text_input(input_id, cx))
+        {
             app.stop_propagation();
         }
     });

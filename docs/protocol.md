@@ -216,6 +216,19 @@ shape to match the node kind.
 TextInput `maxLength` is a u32 protocol value; its text-unit meaning is
 specified in §5 and [ADR-0004](adr/0004-dual-length-semantics.md).
 
+`TextInput` editing commands are host-owned and do not add protocol events:
+Cmd/Ctrl-C copies the ordered UTF-16 selection, Cmd/Ctrl-X copies then removes
+it, Cmd/Ctrl-V inserts text from the native clipboard, and Cmd/Ctrl-A selects
+the full value. Option/Alt-Left/Right moves by the existing Unicode word
+segmentation helper, with Shift extending the selection. Enter submits only a
+focused single-line input; multiline Enter remains text insertion. The pinned
+GPUI custom input-handler surface has no undo/redo history primitive, so
+Cmd/Ctrl-Z and Shift-Cmd/Shift-Ctrl-Z remain an upstream gap. Secure/password
+display is likewise unsupported because neither this host tuple nor pinned
+GPUI exposes a password-obscuring primitive. Implementation evidence:
+`renderer/paint/text_input.rs:394-456` and
+`renderer/input.rs:1087-1249`.
+
 ### Accessibility tuple
 
 | Position | Field       | Type/values     | Constraint and semantics                                                                                                 | Source                                |

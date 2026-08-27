@@ -43,6 +43,11 @@ from this work tree.
   triple-click selects the clicked logical line; multiline selection stays
   within the clicked line, and word/line selections extend by their
   granularity while dragging.
+- `TextInput` now handles host-owned Cmd/Ctrl-C/X/V clipboard editing and
+  Cmd/Ctrl-A selection, with Option/Alt word-wise Left/Right navigation and
+  Shift extension; multiline selections copy across paragraph and wrapped-line
+  boundaries without a wire change. Native undo/redo and secure/password
+  display remain documented pinned-GPUI gaps.
 - Crash diagnostics install a host panic hook with
   `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
   carry host exit codes and the last 50 stderr lines. README Troubleshooting

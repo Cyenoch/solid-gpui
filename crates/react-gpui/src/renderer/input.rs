@@ -897,18 +897,30 @@ impl ReactRoot {
         node_id: u32,
         key: &str,
         extend: bool,
+        wordwise: bool,
         cx: &mut Context<Self>,
     ) {
         let Some(state) = self.input_states.get(&node_id) else {
             return;
         };
-        let Some((selection, reversed)) = move_selection(
-            &state.text,
-            &state.selection,
-            state.selection_reversed,
-            key,
-            extend,
-        ) else {
+        let movement = if wordwise {
+            move_word_selection(
+                &state.text,
+                &state.selection,
+                state.selection_reversed,
+                key,
+                extend,
+            )
+        } else {
+            move_selection(
+                &state.text,
+                &state.selection,
+                state.selection_reversed,
+                key,
+                extend,
+            )
+        };
+        let Some((selection, reversed)) = movement else {
             return;
         };
         let changed = state.selection != selection || state.selection_reversed != reversed;
@@ -1037,12 +1049,69 @@ fn next_utf16_boundary(text: &str, offset: usize) -> usize {
     current
 }
 
+fn previous_word_boundary(text: &str, offset: usize) -> usize {
+    let text_length = text.encode_utf16().count();
+    let mut probe = offset.min(text_length);
+    loop {
+        let range = word_selection_range(text, probe);
+        if range.start < probe {
+            return range.start;
+        }
+        if probe == 0 {
+            return 0;
+        }
+        let previous = previous_utf16_boundary(text, probe);
+        if previous == probe {
+            return 0;
+        }
+        probe = previous;
+    }
+}
+
+fn next_word_boundary(text: &str, offset: usize) -> usize {
+    let text_length = text.encode_utf16().count();
+    let mut probe = offset.min(text_length);
+    while probe < text_length {
+        let range = word_selection_range(text, probe);
+        if range.end > probe {
+            return range.end.min(text_length);
+        }
+        let next = next_utf16_boundary(text, probe);
+        if next <= probe {
+            break;
+        }
+        probe = next;
+    }
+    text_length
+}
+
+pub(super) fn move_word_selection(
+    text: &str,
+    selection: &Range<usize>,
+    reversed: bool,
+    key: &str,
+    extend: bool,
+) -> Option<(Range<usize>, bool)> {
+    move_selection_with_mode(text, selection, reversed, key, extend, true)
+}
+
 pub(super) fn move_selection(
     text: &str,
     selection: &Range<usize>,
     reversed: bool,
     key: &str,
     extend: bool,
+) -> Option<(Range<usize>, bool)> {
+    move_selection_with_mode(text, selection, reversed, key, extend, false)
+}
+
+fn move_selection_with_mode(
+    text: &str,
+    selection: &Range<usize>,
+    reversed: bool,
+    key: &str,
+    extend: bool,
+    wordwise: bool,
 ) -> Option<(Range<usize>, bool)> {
     let is_left = key == "left" || key == "ArrowLeft";
     let is_right = key == "right" || key == "ArrowRight";
@@ -1060,12 +1129,16 @@ pub(super) fn move_selection(
     let next_head = if is_left {
         if !extend && !selection.is_empty() {
             selection.start
+        } else if wordwise {
+            previous_word_boundary(text, head)
         } else {
             previous_utf16_boundary(text, head)
         }
     } else if is_right {
         if !extend && !selection.is_empty() {
             selection.end
+        } else if wordwise {
+            next_word_boundary(text, head)
         } else {
             next_utf16_boundary(text, head)
         }
@@ -1100,10 +1173,15 @@ impl ReactRoot {
     }
     fn emit_input_change_and_selection(&self) {
         if let Some(id) = self.active_input {
-            self.emit_input_event(id, EVENT_CHANGE);
-            self.emit_input_event(id, EVENT_SELECTION);
+            self.emit_input_change_and_selection_for(id);
         }
     }
+
+    fn emit_input_change_and_selection_for(&self, node_id: u32) {
+        self.emit_input_event(node_id, EVENT_CHANGE);
+        self.emit_input_event(node_id, EVENT_SELECTION);
+    }
+
     pub(super) fn selected_text_for_copy(&self, node_id: u32) -> Option<String> {
         let state = self.input_states.get(&node_id)?;
         if state.selection.is_empty() {
@@ -1112,6 +1190,59 @@ impl ReactRoot {
         let start = utf16_byte_index(&state.text, state.selection.start);
         let end = utf16_byte_index(&state.text, state.selection.end);
         (start < end).then(|| state.text[start..end].to_owned())
+    }
+
+    pub(super) fn select_all_text_input(&mut self, node_id: u32, cx: &mut Context<Self>) -> bool {
+        let Some(text_length) = self
+            .input_states
+            .get(&node_id)
+            .map(|state| state.text.encode_utf16().count())
+        else {
+            return false;
+        };
+        let changed = self
+            .input_states
+            .get(&node_id)
+            .is_some_and(|state| state.selection != (0..text_length) || state.selection_reversed);
+        self.active_input = Some(node_id);
+        if changed {
+            if let Some(state) = self.input_states.get_mut(&node_id) {
+                state.selection = 0..text_length;
+                state.selection_reversed = false;
+            }
+            self.emit_input_event(node_id, EVENT_SELECTION);
+            cx.notify();
+        }
+        true
+    }
+
+    pub(super) fn replace_text_input(
+        &mut self,
+        node_id: u32,
+        text: &str,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if !self.input_states.contains_key(&node_id) {
+            return false;
+        }
+        self.active_input = Some(node_id);
+        self.text_input_layouts.remove(&node_id);
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.replace(None, text);
+        }
+        cx.notify();
+        self.emit_input_change_and_selection_for(node_id);
+        true
+    }
+
+    pub(super) fn cut_text_input_selection(
+        &mut self,
+        node_id: u32,
+        cx: &mut Context<Self>,
+    ) -> Option<String> {
+        let text = self.selected_text_for_copy(node_id)?;
+        self.replace_text_input(node_id, "", cx);
+        Some(text)
     }
 }
 
@@ -1256,6 +1387,21 @@ mod tests {
         };
         state.replace(None, "😀x");
         assert_eq!(state.text, "a😀b");
+        assert_eq!(state.selection, 3..3);
+        assert_eq!(state.text.encode_utf16().count(), 4);
+    }
+
+    #[test]
+    fn max_length_limits_marked_utf16_replacements_without_splitting_surrogates() {
+        let mut state = NativeInputState {
+            text: "ab".into(),
+            selection: 1..1,
+            max_length: Some(4),
+            ..Default::default()
+        };
+        state.replace_marked(Some(1..1), "😀x", Some(3..3));
+        assert_eq!(state.text, "a😀b");
+        assert_eq!(state.marked, Some(1..3));
         assert_eq!(state.selection, 3..3);
         assert_eq!(state.text.encode_utf16().count(), 4);
     }

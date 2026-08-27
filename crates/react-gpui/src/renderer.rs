@@ -1385,6 +1385,11 @@ mod input_tests {
             gpui::MouseButton::Left,
             gpui::Modifiers::none(),
         );
+        visual.simulate_keystrokes("cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("one 😀 café next\nsecond line".to_owned())
+        );
         visual.simulate_event(gpui::MouseDownEvent {
             position: second_line_point,
             button: gpui::MouseButton::Left,
@@ -1437,6 +1442,106 @@ mod input_tests {
             first_mouse: false,
         });
         assert_eq!(latest_text_selection(&runtime), (0, 7, false));
+    }
+
+    #[gpui::test]
+    fn text_input_keyboard_editing_dispatches_clipboard_selection_and_word_navigation(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(300.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let snapshot = text_input_snapshot("one 😀 two", false);
+        let payload = snapshot.encode().expect("encode keyboard snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply keyboard snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw keyboard text input");
+        cx.run_until_parked();
+
+        let point = root.read_with(cx, |root, _| {
+            let layout = root.text_input_layouts.get(&2).expect("text input layout");
+            let position = layout.text.position_for_utf8(10);
+            layout.bounds.origin + position.point + gpui::point(px(2.0), position.line_height * 0.5)
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_event(gpui::MouseDownEvent {
+            position: point,
+            button: gpui::MouseButton::Left,
+            modifiers: gpui::Modifiers::none(),
+            click_count: 2,
+            first_mouse: false,
+        });
+        assert_eq!(latest_text_selection(&runtime), (7, 10, false));
+        visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+
+        visual.simulate_keystrokes("cmd-c");
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some("two".to_owned())
+        );
+        visual.simulate_keystrokes("cmd-x");
+        let (text, selection, reversed) = root.read_with(cx, |root, _| {
+            let state = root.input_states.get(&2).expect("text input state");
+            (
+                state.text.clone(),
+                state.selection.clone(),
+                state.selection_reversed,
+            )
+        });
+        assert_eq!(text, "one 😀 ");
+        assert_eq!(selection, 7..7);
+        assert!(!reversed);
+
+        cx.write_to_clipboard(gpui::ClipboardItem::new_string("inserted".into()));
+        visual.simulate_keystrokes("cmd-v");
+        let (text, selection) = root.read_with(cx, |root, _| {
+            let state = root.input_states.get(&2).expect("pasted text input state");
+            (state.text.clone(), state.selection.clone())
+        });
+        assert_eq!(text, "one 😀 inserted");
+        assert_eq!(selection, 15..15);
+
+        visual.simulate_keystrokes("cmd-a");
+        let selection = root.read_with(cx, |root, _| {
+            root.input_states
+                .get(&2)
+                .expect("selected-all text input state")
+                .selection
+                .clone()
+        });
+        assert_eq!(selection, 0..15);
+        visual.simulate_keystrokes("end home");
+        let selection = root.read_with(cx, |root, _| {
+            root.input_states
+                .get(&2)
+                .expect("home/end text input state")
+                .selection
+                .clone()
+        });
+        assert_eq!(selection, 0..0);
+
+        visual.simulate_keystrokes("alt-right");
+        let selection = root.read_with(cx, |root, _| {
+            root.input_states
+                .get(&2)
+                .expect("first word movement state")
+                .selection
+                .clone()
+        });
+        assert_eq!(selection, 3..3);
+        visual.simulate_keystrokes("alt-right alt-left shift-alt-left");
+        let (selection, reversed) = root.read_with(cx, |root, _| {
+            let state = root.input_states.get(&2).expect("word movement state");
+            (state.selection.clone(), state.selection_reversed)
+        });
+        assert_eq!(selection, 0..7);
+        assert!(reversed);
     }
 
     #[gpui::test]

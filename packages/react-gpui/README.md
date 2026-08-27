@@ -598,11 +598,18 @@ the listener.
 
 Double-click a word or triple-click a logical line to select at that
 granularity; dragging extends the selected range by the same granularity.
-`Cmd-C` on macOS and `Ctrl-C` on other platforms copy the selected UTF-8 text
-directly to the native clipboard. These interactions are host-owned; there is no
-separate JavaScript copy callback. The runnable
-[`text-input.tsx`](examples/text-input.tsx) entry includes the interaction
-guidance.
+`Cmd-C`/`Ctrl-C` copy the selected UTF-8 text, `Cmd-X`/`Ctrl-X` cut it, and
+`Cmd-V`/`Ctrl-V` paste native clipboard text at the current selection.
+`Cmd-A`/`Ctrl-A` selects all text; `Option`/`Alt`-Left/Right moves by Unicode
+word boundaries and Shift extends that movement. These interactions are
+host-owned; there is no separate JavaScript copy, cut, paste, or select-all
+callback. The runnable [`text-input.tsx`](examples/text-input.tsx) entry
+includes the interaction guidance.
+
+`Cmd-Z`/`Ctrl-Z` and Shift-`Cmd-Z`/Shift-`Ctrl-Z` do not provide native
+TextInput undo/redo: the pinned GPUI custom input-handler surface has no
+history primitive. Applications should not assume an undo stack for this
+desktop TextInput.
 
 `maxLength` is enforced natively before an edit enters the Rust input state;
 JavaScript also clamps the value delivered to controlled `onChangeText`
