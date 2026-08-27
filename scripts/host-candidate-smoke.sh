@@ -100,7 +100,7 @@ python3 - "$smoke_root/info.stderr" <<'PY'
 import re
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-if re.search(r"react-gpui-host: starting mode=Process entry=sh pid=\d+", text) is None:
+if re.search(r"react-gpui-host: starting mode=Process protocol=v3 entry=sh pid=\d+", text) is None:
     raise SystemExit("missing info startup diagnostic with mode/entry/pid")
 if "react-gpui-host: renderer" in text and "fatal" in text:
     raise SystemExit("fatal renderer diagnostic appeared during startup smoke")
@@ -108,7 +108,7 @@ PY
 
 version_output="$($binary --version)"
 help_output="$($binary --help)"
-[[ "$version_output" == "react-gpui-host $metadata" ]] || { printf 'unexpected candidate version: %s\n' "$version_output" >&2; exit 1; }
+[[ "$version_output" == "react-gpui-host $metadata protocol=v3" ]] || { printf 'unexpected candidate version: %s\n' "$version_output" >&2; exit 1; }
 case "$help_output" in
   *"--version"*"--runtime process"*) ;;
   *) printf 'candidate help output is incomplete\n' >&2; exit 1 ;;

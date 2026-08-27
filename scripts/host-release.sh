@@ -167,7 +167,7 @@ check() {
     *) fail "extracted host help output is incomplete" ;;
   esac
   version_output="$(cd "$extracted" && ./$package_name --version)"
-  [[ "$version_output" == "$package_name $version" ]] ||
+  [[ "$version_output" == "$package_name $version protocol=v3" ]] ||
     fail "unexpected version output: $version_output"
 
   printf 'host release check passed: %s\n' "$archive"

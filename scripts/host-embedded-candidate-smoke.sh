@@ -73,7 +73,7 @@ python3 - "$stderr_file" <<'PY'
 import re
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-if re.search(r"react-gpui-host: starting mode=Embedded entry=.* pid=\d+", text) is None:
+if re.search(r"react-gpui-host: starting mode=Embedded protocol=v3 entry=.* pid=\d+", text) is None:
     print(text, file=sys.stderr)
     raise SystemExit("missing embedded info startup diagnostic with entry/pid")
 match = re.search(r"embedded smoke press sent=true, commits=(\d+), status=", text)
@@ -84,7 +84,7 @@ PY
 
 version_output="$($binary --version)"
 help_output="$($binary --help)"
-[[ "$version_output" == "react-gpui-host $metadata" ]] || { printf 'unexpected embedded candidate version: %s\n' "$version_output" >&2; exit 1; }
+[[ "$version_output" == "react-gpui-host $metadata protocol=v3" ]] || { printf 'unexpected embedded candidate version: %s\n' "$version_output" >&2; exit 1; }
 case "$help_output" in
   *"--runtime embedded"*"--version"*) ;;
   *) printf 'embedded candidate help output is incomplete\n' >&2; exit 1 ;;

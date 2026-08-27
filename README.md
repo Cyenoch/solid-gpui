@@ -343,6 +343,11 @@ the default is `error`, and invalid values fall back to `error` with one
 warning. `info` adds startup and runtime-termination status lines, while
 `debug` preserves those diagnostics alongside existing fatal context.
 
+The `info` startup diagnostic includes `protocol=v3`, and `--version` reports
+the host package version together with the same protocol version. Include that
+line in support reports so host and renderer compatibility can be checked before
+examining a crash.
+
 The archive is written to `dist/` as
 `react-gpui-host-<cargo-version>-<target>.tar.gz` and contains only the
 release host binary, `README.md`, `LICENSE`, and `SHA256SUMS`. The check
@@ -369,15 +374,34 @@ environment-variable quick reference:
   the default; invalid values fall back to `error` with one warning).
 - `REACT_GPUI_TAP=/path/to/file.jsonl` enables process-local protocol metadata;
   use a distinct path for each process and summarize it with
-  `python3 scripts/protocol-tap-report.py`.
+  `python3 scripts/protocol-tap-report.py`. The JSON report includes
+  `frames_by_kind`, overall and patch byte rates, a one-second frame/byte
+  `timeline`, a byte-size histogram, event-type counts, and malformed-frame
+  counters.
 - `REACT_GPUI_CRASH_DIR=/path/to/directory` chooses where the host panic hook
   writes `react-gpui-host-<pid>-<timestamp>.log`; it defaults to the system
   temporary directory.
 
 The tap records frame metadata rather than payload contents and is not a
-GPU/layout profiler. The guide explains the separate host/renderer tap setup,
-the `make soak-smoke` bounded leak smoke, crash/stderr correlation, and the
-known platform boundaries.
+GPU/layout profiler. `malformed_frames` counts records classified as unknown by
+the metadata classifier; `malformed_records` counts invalid JSON/object/timestamp
+lines skipped by the report. The report cannot observe transport queue depth or
+backpressure, and `REACT_GPUI_LOG=debug` does not currently emit per-commit
+timings. Those are future instrumentation seams, not claims made by the tap.
+
+Rates use the elapsed time between the first and last actual frame; the
+synthetic `tap_stopped` capacity marker is excluded from frame rates and
+timeline buckets.
+
+The guide explains the separate host/renderer tap setup, the bounded
+`make soak-smoke` leak smoke, crash/stderr correlation, and known platform
+boundaries.
+
+The tap overhead claim is a one-time 10,000 seven-byte snapshot microbench:
+tap-off 18.03 ms versus tap-on 33.65 ms, or about 1.56 μs of incremental wall
+time per frame. The later event-storm audit measured renderer commit cost with
+the tap disabled; it did not re-measure tap-on overhead, so this figure is
+informational rather than a current performance guarantee.
 
 ## Crash diagnostics reference
 

@@ -55,6 +55,11 @@ The `info` stream should show host startup and later runtime termination. Do not
 use `bun run packages/react-gpui/examples/counter.tsx` by itself to test native
 rendering: the host owns the pipe and Surface lifecycle.
 
+Record the `--version` output with the reproduction. The `info` startup line
+includes `protocol=v3` beside the runtime mode, entry, and process ID; the
+version line includes the host package version and `protocol=v3`. These values
+let support distinguish a version mismatch from a renderer or transport failure.
+
 For a protocol-level check, give the host and its process renderer separate tap
 files. Both processes read `REACT_GPUI_TAP`; the `env` wrapper overrides it only
 for the child renderer, avoiding two processes truncating one JSONL file:
@@ -72,13 +77,17 @@ python3 scripts/protocol-tap-report.py "$host_tap" "$renderer_tap"
 ```
 
 Stop the running example after the reproduction with Ctrl-C, then run the
-report command. The report records frame metadata, not payload contents. Look
-for renderer outbound Snapshot/ Patch frames, host inbound frames, and a
-termination or error record. No renderer Snapshot in the renderer tap points
-to renderer startup or pre-submit failure; a renderer Snapshot with no host
-progress points to process/host transport or host-side rejection. The tap is
-not a paint/GPU profiler and cannot prove that a display compositor painted a
-frame.
+report command. The report records frame metadata, not payload contents. Its
+JSON includes frames by kind, overall and patch byte rates, one-second
+frame/byte timeline buckets, a byte-size histogram, event-type counts, and
+malformed-frame counters. Look for renderer outbound Snapshot/Patch frames,
+host inbound frames, and a termination or error record. No renderer Snapshot in
+the renderer tap points to renderer startup or pre-submit failure; a renderer
+Snapshot with no host progress points to process/host transport or host-side
+rejection. The tap is not a paint/GPU profiler and cannot prove that a display
+compositor painted a frame. It also does not record transport queue depth,
+backpressure, or per-commit timing; `REACT_GPUI_LOG=debug` currently has no
+per-commit timing line.
 
 For the in-process runtime, use the same check without a child override:
 

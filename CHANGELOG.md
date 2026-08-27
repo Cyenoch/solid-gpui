@@ -10,6 +10,12 @@ from this work tree.
 
 ### Added
 
+- Protocol tap reporting now includes frames-by-kind, overall and patch byte
+  rates, one-second frame/byte timeline buckets, byte-size histograms, and
+  malformed-input counters over the existing payload-free JSONL stream.
+  Host startup diagnostics and `--version` now identify `protocol=v3`; queue
+  backpressure and per-commit timing remain explicitly outside the tap.
+
 - Process-mode host coverage now selects GPUI's Linux Wayland/X11 backends and
   adds locked Ubuntu and Windows build checks; display-backed runtime validation
   and a non-macOS embedded-Bun port remain separate follow-up work.

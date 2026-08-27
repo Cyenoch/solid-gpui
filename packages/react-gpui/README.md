@@ -384,14 +384,24 @@ unopenable path prints one warning to stderr and leaves transport operation
 unchanged; tapping is never fatal. `MemoryTransport` does not tap.
 
 The report script accepts multiple JSONL files, merges records by monotonic
-time, and prints duration, frame rate, kind counts, byte min/median/max,
+time, and prints duration, overall frame rate, frames by kind, total and patch
+byte rates, a one-second frame/byte timeline, a byte-size histogram,
 event-subtype counts, request-ID-correlated command success, and p50/p95 frame
-intervals.
+intervals. `malformed_frames` counts metadata records classified as unknown;
+`malformed_records` counts invalid JSON/object/timestamp lines skipped by the
+report. A tap cannot observe transport queue depth/backpressure or renderer
+commit timing, and `REACT_GPUI_LOG=debug` does not currently add such timing
+lines.
 
-The tap-on overhead was measured once with 10,000 seven-byte snapshot frames
-through `StdioTransport` (tap off 18.03 ms, tap on 33.65 ms, about 1.56 μs per
-frame of incremental wall time); this is informational and not a performance
-gate.
+Rates use the elapsed time between the first and last actual frame; the
+synthetic `tap_stopped` capacity marker is excluded from frame rates and
+timeline buckets.
+
+The tap-on overhead claim is informational: one 10,000 seven-byte snapshot
+microbench measured tap off at 18.03 ms and tap on at 33.65 ms (about 1.56 μs
+incremental wall time per frame). The later event-storm audit measured with the
+tap disabled and did not revalidate tap-on overhead, so do not treat that
+figure as a current performance guarantee.
 
 ## Commit and event semantics
 

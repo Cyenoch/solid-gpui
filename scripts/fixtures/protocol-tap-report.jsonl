@@ -1,0 +1,8 @@
+{"t":0,"dir":"out","peer":"host","kind":"snapshot","bytes":100,"seq":1}
+{"t":250,"dir":"in","peer":"host","kind":"event","event_type":12,"bytes":20,"seq":2}
+{"t":750,"dir":"out","peer":"host","kind":"patch","bytes":300,"seq":3}
+{"t":1250,"dir":"out","peer":"host","kind":"command","command_kind":17,"request_id":7,"bytes":40,"seq":4}
+{"t":1500,"dir":"in","peer":"host","kind":"event","event_type":6,"request_id":7,"success":true,"bytes":50,"seq":5}
+{"t":2250,"dir":"in","peer":"host","kind":"unknown","bytes":10,"seq":6}
+{"t":2500,"dir":"in","peer":"host","kind":"tap_stopped","bytes":10,"seq":7,"reason":"capacity"}
+not-json

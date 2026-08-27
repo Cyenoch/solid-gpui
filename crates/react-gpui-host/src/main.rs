@@ -7,8 +7,8 @@ use gpui::{
 };
 use react_gpui::{
     COMMAND_OPEN_SURFACE, COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition,
-    MenuAction, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter, RuntimeStatus,
-    Snapshot, WindowOpenOptions, fatal_runtime_failure,
+    MenuAction, PROTOCOL_VERSION, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter,
+    RuntimeStatus, Snapshot, WindowOpenOptions, fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
 use react_gpui::{Event, send_event_or_exit};
@@ -637,10 +637,10 @@ fn main() {
     host_log(
         log_level,
         LogLevel::Info,
-        format!(
-            "starting mode={mode:?} entry={} pid={}",
+        startup_diagnostic(
+            mode,
             renderer_entry(mode, &renderer_args),
-            std::process::id()
+            std::process::id(),
         ),
     );
 
@@ -857,8 +857,19 @@ fn renderer_command(renderer_args: &[OsString]) -> ProcessCommand {
     }
     command
 }
+fn startup_diagnostic(mode: RuntimeMode, entry: String, pid: u32) -> String {
+    format!("starting mode={mode:?} protocol=v{PROTOCOL_VERSION} entry={entry} pid={pid}")
+}
+
+fn version_line() -> String {
+    format!(
+        "react-gpui-host {} protocol=v{PROTOCOL_VERSION}",
+        env!("CARGO_PKG_VERSION")
+    )
+}
+
 fn print_version() {
-    println!("react-gpui-host {}", env!("CARGO_PKG_VERSION"));
+    println!("{}", version_line());
 }
 
 fn print_help() {
@@ -873,6 +884,22 @@ mod tests {
 
     fn args(values: &[&str]) -> Vec<OsString> {
         values.iter().map(OsString::from).collect()
+    }
+
+    #[test]
+    fn version_and_startup_diagnostics_include_protocol_version() {
+        assert_eq!(
+            version_line(),
+            format!(
+                "react-gpui-host {} protocol=v{}",
+                env!("CARGO_PKG_VERSION"),
+                PROTOCOL_VERSION
+            )
+        );
+        assert_eq!(
+            startup_diagnostic(RuntimeMode::Process, "bun".to_owned(), 42),
+            "starting mode=Process protocol=v3 entry=bun pid=42"
+        );
     }
 
     #[test]
