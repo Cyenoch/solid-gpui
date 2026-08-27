@@ -1,6 +1,6 @@
 # Malformed event frames must terminate the transport
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 
 MessagePack fuzzing currently proves the TypeScript decoder does not throw, but
@@ -29,9 +29,25 @@ integration changes. Do not retry, skip, or resynchronize later frames.
 
 ## Acceptance
 
-- A process-backed/stdio transport input sequence containing a valid frame,
-  malformed framed payload, then another valid frame terminates exactly once.
+- A transport input sequence containing a valid frame, malformed framed
+  payload, then another valid frame terminates exactly once.
 - Pending commands reject with the same protocol termination error, later root
   commands and the root/surface-host submit paths reject, and later bytes are
   ignored.
 - Shared SurfaceHost roots receive the same terminal error.
+
+## Comments
+
+- `RootContainer.receive` now validates every decoded event before dispatch and
+  turns framing/validation failures into a protocol-cause termination; it
+  detaches listeners, rejects pending commands, and ignores subsequent bytes.
+  `SurfaceHostImpl.receive` applies the same fail-fast rule to its shared
+  endpoint and all routed roots.
+- `packages/react-gpui/tests/renderer.test.tsx:1910-1953` drives a coalesced
+  valid/malformed/valid sequence with all 16 root command families pending;
+  every Promise rejects with the same `{ kind: "protocol" }` error and later
+  commands/bytes are rejected or ignored. `surface-host.test.ts:193-218`
+  proves shared-root fan-out.
+- Decoder fuzz/golden suites still pass because direct `FrameDecoder` and
+  `decodeEvent` retain their no-throw/null containment contract; only the
+  transport receive integration is fail-fast.

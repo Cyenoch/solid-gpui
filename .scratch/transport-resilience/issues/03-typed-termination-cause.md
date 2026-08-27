@@ -1,6 +1,6 @@
 # Transport termination causes need programmatic discrimination
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 
 `TransportTerminatedError.cause` is currently `unknown`; the changelog's
@@ -34,3 +34,15 @@ is needed.
 - Focused tests discriminate protocol, EOF, exit, and I/O causes without
   parsing messages, including the crash-report path alongside exit diagnostics.
 - Existing termination callback and message behavior remains compatible.
+
+## Comments
+
+- `TransportTerminationCause` is exported from `packages/react-gpui/src/transport.ts`
+  and the package entry point; `TransportTerminationDetails` now also exposes
+  `crashReportPath`. The regenerated core API fixture records both type exports.
+- `packages/react-gpui/tests/transport.test.ts:195-246` discriminates EOF, I/O,
+  and non-zero exit causes directly; malformed-frame renderer tests discriminate
+  protocol causes. Existing contextual messages, exit codes, and bounded stderr
+  tails remain intact.
+- `make api-surface-generate` reports 110 core exports, and the final `make ci`
+  API-surface test passes.
