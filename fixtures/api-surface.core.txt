@@ -28,6 +28,8 @@ DrainListener	type
 ExitFunction	type
 ExternalFileDropHandler	type
 FlexDirection	type
+FocusEvent	type
+FocusHandler	type
 FontStyle	type
 FontWeight	type
 HostKind	type
@@ -55,6 +57,8 @@ PickFilesOptions	type
 PickSavePathOptions	type
 PointerAction	type
 PointerButton	type
+PointerDownOutsideEvent	type
+PointerDownOutsideHandler	type
 PointerEvent	type
 PointerHandler	type
 Position	type

@@ -121,6 +121,9 @@ export const hostConfig = {
       oldProps.onPointerDown !== newProps.onPointerDown ||
       oldProps.onPointerUp !== newProps.onPointerUp ||
       oldProps.onHoverChange !== newProps.onHoverChange ||
+      oldProps.onFocus !== newProps.onFocus ||
+      oldProps.onBlur !== newProps.onBlur ||
+      oldProps.onPointerDownOutside !== newProps.onPointerDownOutside ||
       oldProps.onScroll !== newProps.onScroll ||
       oldProps.draggable !== newProps.draggable ||
       oldProps.onDragOver !== newProps.onDragOver ||

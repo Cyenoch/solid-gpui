@@ -438,6 +438,20 @@ keydown→keyup pair with stable focus emits the existing `onPress` notification
 so applications do not add a second keyboard activation handler.
 `Pressable.disabled` removes focus, press/key/pointer/hover interaction and
 automatically reports `accessibilityDisabled`; it does not change opacity.
+`View` and `Pressable` also accept `onFocus` and `onBlur` when `focusable` is
+true. The callback receives `{ type, target }` as native focus enters or leaves
+the node; these notifications use the existing Focus/Blur event codes with a
+null payload (TextInput keeps its tag-1 text/selection payload). Native focus
+observers are tied to the mounted node and listener identity, so stale focus
+events are discarded after unmount or replacement.
+
+An overlay is a `View` or `Pressable` with `style={{ position: "overlay", left, top }}`.
+It is placed with GPUI's local anchored/deferred path and may provide
+`onPointerDownOutside={({ x, y }) => ...}`. The callback fires on a
+capture-phase mouse down only when the point is outside both the rendered
+overlay and its direct anchor subtree; `x` and `y` are logical window
+coordinates. Keep Escape handling in `onKeyDown` when an overlay should also
+dismiss from the keyboard.
 `TextInput` remains always focusable and accepts `onKeyDown` through the same
 bubble key listener wire. GPUI checks text-input/IME preference before keymap
 bindings, so this listener does not use capture phase. Escape edit cancellation

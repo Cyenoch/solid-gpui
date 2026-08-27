@@ -43,6 +43,7 @@ pub enum RenderError {
     #[error(transparent)]
     Tree(#[from] TreeError),
 }
+type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
 
 fn committed_child_index(absolute_index: u32, range_start: u32, range_end: u32) -> Option<u32> {
     if absolute_index >= range_start && absolute_index < range_end {
@@ -78,11 +79,13 @@ pub struct ReactRoot {
     pending_visible_ranges: Rc<RefCell<HashMap<u32, (u32, u32)>>>,
     reported_visible_ranges: HashMap<u32, (u32, u32)>,
     active_drag_type: Rc<RefCell<Option<String>>>,
+    rendered_bounds: RenderedBounds,
     reported_layout_bounds: HashMap<u32, (f32, f32, f32, f32)>,
     animation_states: HashMap<u32, AnimationState>,
     animation_styles: HashMap<u32, Option<Style>>,
     frame_styles: HashMap<u32, Style>,
     animation_frame_requested: bool,
+    focus_observers: HashMap<u32, (Subscription, Subscription)>,
     window_observers: Option<(Subscription, Subscription, Subscription)>,
     window_observation_scheduled: bool,
     last_window_size: Option<(f32, f32)>,
@@ -110,6 +113,7 @@ impl ReactRoot {
             virtual_item_sizes: HashMap::new(),
             pending_visible_ranges: Rc::new(RefCell::new(HashMap::new())),
             reported_visible_ranges: HashMap::new(),
+            rendered_bounds: Rc::new(RefCell::new(HashMap::new())),
             active_drag_type: Rc::new(RefCell::new(None)),
             reported_layout_bounds: HashMap::new(),
             animation_states: HashMap::new(),
@@ -117,6 +121,7 @@ impl ReactRoot {
             animation_styles: HashMap::new(),
             frame_styles: HashMap::new(),
             animation_frame_requested: false,
+            focus_observers: HashMap::new(),
             window_observers: None,
             window_observation_scheduled: false,
             last_window_size: None,
@@ -249,6 +254,7 @@ impl ReactRoot {
         self.selectable_text_selections.clear();
         self.selectable_text_drag_anchor = None;
         self.focus_handles.clear();
+        self.focus_observers.clear();
         self.active_input = None;
         self.text_input_drag_anchor = None;
         self.active_drag_type.borrow_mut().take();
@@ -394,6 +400,83 @@ impl ReactRoot {
         );
         send_event_or_exit(self.runtime.as_ref(), "layout event", &event);
     }
+    fn ensure_focus_observers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let focusable_ids: HashSet<u32> = self
+            .store
+            .iter()
+            .filter(|node| {
+                (node.kind == crate::tree::KIND_VIEW || node.kind == crate::tree::KIND_PRESSABLE)
+                    && node.focusable
+                    && node.listener_id != 0
+            })
+            .map(|node| node.id)
+            .collect();
+        self.focus_observers
+            .retain(|node_id, _| focusable_ids.contains(node_id));
+        for node_id in focusable_ids {
+            if self.focus_observers.contains_key(&node_id) {
+                continue;
+            }
+            let Some(handle) = self.focus_handles.get(&node_id).cloned() else {
+                continue;
+            };
+            let focus = cx.on_focus(&handle, window, move |root, _, _| {
+                root.emit_focus_event(node_id, true);
+            });
+            let blur = cx.on_blur(&handle, window, move |root, _, _| {
+                root.emit_focus_event(node_id, false);
+            });
+            self.focus_observers.insert(node_id, (focus, blur));
+        }
+    }
+
+    fn emit_focus_event(&mut self, node_id: u32, focused: bool) {
+        let Some(node) = self.store.get(node_id) else {
+            return;
+        };
+        if (node.kind != crate::tree::KIND_VIEW && node.kind != crate::tree::KIND_PRESSABLE)
+            || !node.focusable
+            || node.listener_id == 0
+        {
+            return;
+        }
+        let event = Event::focus(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            node_id,
+            node.listener_id,
+            focused,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "focus event", &event);
+    }
+    fn emit_pointer_down_outside(&mut self, node_id: u32, listener_id: u32, x: f32, y: f32) {
+        let Some(node) = self.store.get(node_id) else {
+            return;
+        };
+        if node.kind != crate::tree::KIND_VIEW
+            || listener_id == 0
+            || node.listener_id != listener_id
+            || node.style.as_ref().and_then(|style| style.position) != Some(2)
+            || !x.is_finite()
+            || !y.is_finite()
+        {
+            return;
+        }
+        let event = Event::pointer_down_outside(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            node_id,
+            listener_id,
+            x,
+            y,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "pointer down outside event", &event);
+    }
+
     fn ensure_window_observers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.window_observers.is_some() {
             return;
@@ -486,7 +569,9 @@ impl ReactRoot {
 
 impl Render for ReactRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.rendered_bounds.borrow_mut().clear();
         self.ensure_window_observers(window, cx);
+        self.ensure_focus_observers(window, cx);
         self.process_commands(window, cx);
         self.prepare_animation_frame(window, cx);
         let entity = cx.entity();

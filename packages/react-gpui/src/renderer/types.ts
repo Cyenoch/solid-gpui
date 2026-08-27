@@ -122,6 +122,16 @@ export interface PointerEvent {
   readonly clickCount: number;
   readonly target: HostNode;
 }
+export interface FocusEvent {
+  readonly type: "focus" | "blur";
+  readonly target: HostNode;
+}
+export type FocusHandler = (event: FocusEvent) => void;
+export interface PointerDownOutsideEvent {
+  readonly x: number;
+  readonly y: number;
+}
+export type PointerDownOutsideHandler = (event: PointerDownOutsideEvent) => void;
 export type PointerHandler = (event: PointerEvent) => void;
 export type HoverHandler = (hovered: boolean) => void;
 export interface Draggable {
@@ -181,6 +191,9 @@ export interface ViewProps extends AccessibilityProps {
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
+  readonly onFocus?: FocusHandler;
+  readonly onBlur?: FocusHandler;
+  readonly onPointerDownOutside?: PointerDownOutsideHandler;
   readonly onScroll?: ScrollHandler;
   readonly onLayout?: LayoutHandler;
   readonly draggable?: Draggable;
@@ -217,6 +230,8 @@ export interface PressableProps extends AccessibilityProps {
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
+  readonly onFocus?: FocusHandler;
+  readonly onBlur?: FocusHandler;
   readonly children?: ReactNode;
 }
 export interface HostProps extends AccessibilityProps {
@@ -229,6 +244,9 @@ export interface HostProps extends AccessibilityProps {
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
   readonly onHoverChange?: HoverHandler;
+  readonly onFocus?: FocusHandler;
+  readonly onBlur?: FocusHandler;
+  readonly onPointerDownOutside?: PointerDownOutsideHandler;
   readonly onScroll?: ScrollHandler;
   readonly onSubmitEditing?: (value: string) => void;
   readonly maxLength?: number;
@@ -322,6 +340,9 @@ export interface HostNodeInternal extends HostNode {
   listenerId: number;
   keyListener: KeyHandler | undefined;
   pointerCallbacks: PointerCallbacks | null;
+  focusCallback: FocusHandler | undefined;
+  blurCallback: FocusHandler | undefined;
+  pointerDownOutsideCallback: PointerDownOutsideHandler | undefined;
   hoverCallback: HoverHandler | undefined;
   hovered: boolean;
   scrollCallback: ScrollHandler | undefined;

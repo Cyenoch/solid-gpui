@@ -5,12 +5,12 @@ use std::sync::atomic::Ordering;
 
 use gpui::{
     AnchoredPositionMode, AnyElement, App, AppContext, Bounds, BoxShadow as GpuiBoxShadow,
-    ClipboardItem, CursorStyle, Element, ElementId, ElementInputHandler, Entity,
+    ClipboardItem, CursorStyle, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     ExternalDragPayload, ExternalPaths, FileDragPaths, GlobalElementId, ImageSource,
-    InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, ObjectFit,
-    PaintQuad, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled,
-    StyledImage, TextRun, Window, anchored, deferred, div, fill, hsla, img, list, point, px,
-    relative, rgba, size,
+    InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, MouseDownEvent,
+    ObjectFit, PaintQuad, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
+    Styled, StyledImage, TextRun, Window, anchored, deferred, div, fill, hsla, img, list, point,
+    px, relative, rgba, size,
 };
 
 use crate::protocol::{
@@ -482,6 +482,196 @@ impl Element for MeasuredElement {
         self.element.paint(window, cx);
     }
 }
+struct RenderedBoundsElement {
+    element: AnyElement,
+    node_id: u32,
+    rendered_bounds: super::RenderedBounds,
+}
+
+impl IntoElement for RenderedBoundsElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for RenderedBoundsElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        (self.element.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let frame = (
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
+        if [frame.0, frame.1, frame.2, frame.3]
+            .into_iter()
+            .all(f32::is_finite)
+        {
+            self.rendered_bounds
+                .borrow_mut()
+                .insert(self.node_id, frame);
+        }
+        self.element.prepaint(window, cx);
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.element.paint(window, cx);
+    }
+}
+
+struct OverlayElement {
+    element: AnyElement,
+    entity: Entity<ReactRoot>,
+    node_id: u32,
+    listener_id: u32,
+    anchor_id: Option<u32>,
+    rendered_bounds: super::RenderedBounds,
+}
+
+impl IntoElement for OverlayElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for OverlayElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        (self.element.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let frame = (
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
+        if [frame.0, frame.1, frame.2, frame.3]
+            .into_iter()
+            .all(f32::is_finite)
+        {
+            self.rendered_bounds
+                .borrow_mut()
+                .insert(self.node_id, frame);
+        }
+        self.element.prepaint(window, cx);
+    }
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let overlay_bounds = (
+            f32::from(bounds.origin.x),
+            f32::from(bounds.origin.y),
+            f32::from(bounds.size.width),
+            f32::from(bounds.size.height),
+        );
+        let anchor_id = self.anchor_id;
+        let rendered_bounds = Rc::clone(&self.rendered_bounds);
+        let entity = self.entity.clone();
+        let node_id = self.node_id;
+        let listener_id = self.listener_id;
+        window.on_mouse_event(move |event: &MouseDownEvent, phase, _window, app| {
+            if phase != DispatchPhase::Capture {
+                return;
+            }
+            let inside_overlay = point_in_bounds(event.position, overlay_bounds);
+            let inside_anchor = anchor_id
+                .and_then(|id| rendered_bounds.borrow().get(&id).copied())
+                .is_some_and(|anchor_bounds| point_in_bounds(event.position, anchor_bounds));
+            if inside_overlay || inside_anchor {
+                return;
+            }
+            entity.update(app, |root, _| {
+                root.emit_pointer_down_outside(
+                    node_id,
+                    listener_id,
+                    f32::from(event.position.x),
+                    f32::from(event.position.y),
+                );
+            });
+        });
+        self.element.paint(window, cx);
+    }
+}
+
+fn point_in_bounds(point: gpui::Point<Pixels>, bounds: (f32, f32, f32, f32)) -> bool {
+    let x = f32::from(point.x);
+    let y = f32::from(point.y);
+    x >= bounds.0 && y >= bounds.1 && x <= bounds.0 + bounds.2 && y <= bounds.1 + bounds.3
+}
 
 fn measure_node(node: &StoredNode, element: AnyElement, entity: &Entity<ReactRoot>) -> AnyElement {
     if node.listener_id == 0
@@ -575,6 +765,19 @@ impl ReactRoot {
                     });
                 }
             });
+            let copy_entity = entity.clone();
+            input_element = input_element.on_key_down(move |event, _, app| {
+                let modifiers = event.keystroke.modifiers;
+                if !event.is_held
+                    && !modifiers.shift
+                    && (modifiers.platform || modifiers.control)
+                    && event.keystroke.key.eq_ignore_ascii_case("c")
+                    && let Some(text) = copy_entity.read(app).selected_text_for_copy(input_id)
+                {
+                    app.write_to_clipboard(ClipboardItem::new_string(text));
+                    app.stop_propagation();
+                }
+            });
             if node.listener_id != 0 {
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
@@ -627,6 +830,7 @@ impl ReactRoot {
                             input_id,
                             event.position,
                             event.modifiers.shift,
+                            event.click_count,
                             window,
                             cx,
                         );
@@ -871,6 +1075,10 @@ impl ReactRoot {
             );
         }
         element = apply_accessibility(element, node);
+        let captures_anchor_bounds = matches!(node.kind, KIND_VIEW | KIND_PRESSABLE)
+            && node
+                .children(&self.store)
+                .any(|child| child.style.as_ref().and_then(|style| style.position) == Some(2));
         if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
             && node.focusable
             && node.listener_id != 0
@@ -1125,6 +1333,20 @@ impl ReactRoot {
             }
         }
         let element = if let Some(style) = style.filter(|style| style.position == Some(2)) {
+            let element = element.into_any();
+            let element = if node.listener_id != 0 {
+                OverlayElement {
+                    element,
+                    entity: entity.clone(),
+                    node_id: node.id,
+                    listener_id: node.listener_id,
+                    anchor_id: (node.parent_id != 0).then_some(node.parent_id),
+                    rendered_bounds: Rc::clone(&self.rendered_bounds),
+                }
+                .into_any()
+            } else {
+                element
+            };
             deferred(
                 anchored()
                     .position_mode(AnchoredPositionMode::Local)
@@ -1138,6 +1360,16 @@ impl ReactRoot {
             .into_any()
         } else {
             element.into_any()
+        };
+        let element = if captures_anchor_bounds {
+            RenderedBoundsElement {
+                element,
+                node_id: node.id,
+                rendered_bounds: Rc::clone(&self.rendered_bounds),
+            }
+            .into_any()
+        } else {
+            element
         };
         measure_node(node, element, entity)
     }

@@ -41,7 +41,9 @@ import {
   EVENT_KEY,
   EVENT_POINTER,
   EVENT_POINTER_DOWN,
+  EVENT_POINTER_DOWN_OUTSIDE,
   EVENT_POINTER_UP,
+  EVENT_FOCUS,
   EVENT_BLUR,
   EVENT_SUBMIT,
   EVENT_SCROLL,
@@ -1497,6 +1499,65 @@ describe("renderer commits", () => {
       ["hover", true],
       ["hover", false],
     ]);
+    root.unmount();
+  });
+  it("dispatches generic focus and blur events to focusable Views", () => {
+    const transport = new MemoryTransport();
+    const received: string[] = [];
+    const root = createRoot(transport, { surfaceId: 66, epoch: 67 });
+    root.render(
+      <View
+        focusable
+        onFocus={(event) => received.push(`${event.type}:${event.target === undefined ? "missing" : "target"}`)}
+        onBlur={(event) => received.push(`${event.type}:${event.target === undefined ? "missing" : "target"}`)}
+      />,
+    );
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 66, 67, 1, 1, nodeId, listener, EVENT_FOCUS, null]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 66, 67, 1, 2, nodeId, listener, EVENT_BLUR, null]));
+    expect(received).toEqual(["focus:target", "blur:target"]);
+    root.unmount();
+  });
+
+  it("dispatches pointer-down-outside events to View callbacks", () => {
+    const transport = new MemoryTransport();
+    const received: Array<[number, number]> = [];
+    const root = createRoot(transport, { surfaceId: 68, epoch: 69 });
+    root.render(
+      <View
+        style={{ position: "overlay", width: 120, height: 80 }}
+        onPointerDownOutside={(event) => received.push([event.x, event.y])}
+      />,
+    );
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    transport.push(
+      encodeFrame([PROTOCOL_VERSION, 2, 68, 69, 1, 1, nodeId, listener, EVENT_POINTER_DOWN_OUTSIDE, [8, 12.5, -3.25]]),
+    );
+    expect(received).toEqual([[12.5, -3.25]]);
+    root.unmount();
+  });
+
+  it("dispatches pointer-down-outside events to Pressable callbacks", () => {
+    const transport = new MemoryTransport();
+    const received: Array<[number, number]> = [];
+    const root = createRoot(transport, { surfaceId: 70, epoch: 71 });
+    root.render(
+      <Pressable
+        style={{ position: "overlay", width: 120, height: 80 }}
+        onPointerDownOutside={(event) => received.push([event.x, event.y])}
+      />,
+    );
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    transport.push(
+      encodeFrame([PROTOCOL_VERSION, 2, 70, 71, 1, 1, nodeId, listener, EVENT_POINTER_DOWN_OUTSIDE, [8, 12.5, -3.25]]),
+    );
+    expect(received).toEqual([[12.5, -3.25]]);
     root.unmount();
   });
   it("dispatches View scroll notifications for pixel and line deltas", () => {

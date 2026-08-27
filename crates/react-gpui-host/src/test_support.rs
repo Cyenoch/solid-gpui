@@ -207,6 +207,11 @@ impl HeadlessSurface {
         .expect("resize headless test surface");
         cx.run_until_parked();
     }
+    pub fn activate(&self, cx: &mut TestAppContext) {
+        cx.update_window(self.window.into(), |_, window, _| window.activate_window())
+            .expect("activate headless test surface");
+        cx.run_until_parked();
+    }
     pub fn click(&self, cx: &mut TestAppContext, x: f32, y: f32) {
         let mut visual = gpui::VisualTestContext::from_window(self.window.into(), cx);
         let point = gpui::point(px(x), px(y));

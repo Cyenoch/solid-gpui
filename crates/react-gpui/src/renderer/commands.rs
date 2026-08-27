@@ -17,7 +17,7 @@ use crate::protocol::{
     MAX_CLIPBOARD_TEXT_BYTES, MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
-use crate::tree::{KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
+use crate::tree::{KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
 
 impl ReactRoot {
     fn menu_item(item: MenuItemDefinition) -> GpuiMenuItem {
@@ -422,6 +422,30 @@ impl ReactRoot {
                                 _ => {
                                     success = false;
                                     error = Some("unknown View command".to_string());
+                                }
+                            }
+                        }
+                    }
+                    Some(node) if node.kind == KIND_PRESSABLE => {
+                        if !node.focusable {
+                            success = false;
+                            error = Some("Pressable is not focusable".to_string());
+                        } else {
+                            match command.kind {
+                                COMMAND_FOCUS => {
+                                    if let Some(handle) = self.focus_handles.get(&command.node_id) {
+                                        window.focus(handle, cx);
+                                    } else {
+                                        success = false;
+                                        error = Some("Pressable is not mounted".to_string());
+                                    }
+                                }
+                                COMMAND_BLUR => {
+                                    window.blur();
+                                }
+                                _ => {
+                                    success = false;
+                                    error = Some("unknown Pressable command".to_string());
                                 }
                             }
                         }

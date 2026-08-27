@@ -5,9 +5,12 @@
 mod host;
 
 use gpui::TestAppContext;
+use react_gpui::Command as ReactCommand;
 use react_gpui::{
-    EVENT_POINTER, EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, EventPayload, KIND_PRESSABLE,
-    KIND_TEXT, KIND_VIEW, Node, Patch, PatchOperation, Snapshot, Style, read_frame, write_frame,
+    COMMAND_BLUR, COMMAND_FOCUS, EVENT_BLUR, EVENT_FOCUS, EVENT_POINTER, EVENT_POINTER_DOWN,
+    EVENT_POINTER_DOWN_OUTSIDE, EVENT_POINTER_UP, Event, EventPayload, KIND_PRESSABLE, KIND_TEXT,
+    KIND_VIEW, Node, PROTOCOL_VERSION, Patch, PatchOperation, Snapshot, Style, read_frame,
+    write_frame,
 };
 use std::collections::HashMap;
 use std::io::{BufReader, Write};
@@ -309,6 +312,84 @@ fn menu_node(patch: &Patch) -> Option<u32> {
         })
 }
 
+fn gallery_button_center(quads: &[host::test_support::PaintedQuad], scale: f32) -> (f32, f32) {
+    let bounds = quads
+        .iter()
+        .filter(|quad| {
+            opaque_quad(quad)
+                && quad.bounds.1 >= 90.0 * scale
+                && (80.0 * scale..=220.0 * scale).contains(&quad.bounds.2)
+                && (24.0 * scale..=48.0 * scale).contains(&quad.bounds.3)
+        })
+        .min_by(|left, right| {
+            left.bounds
+                .1
+                .total_cmp(&right.bounds.1)
+                .then(left.bounds.0.total_cmp(&right.bounds.0))
+        })
+        .map(|quad| quad.bounds)
+        .unwrap_or_else(|| panic!("gallery menu button quad is absent: {quads:?}"));
+    (
+        (bounds.0 + bounds.2 / 2.0) / scale,
+        (bounds.1 + bounds.3 / 2.0) / scale,
+    )
+}
+
+fn updated_style(patch: &Patch, node_id: u32) -> Option<&Style> {
+    patch
+        .operations
+        .iter()
+        .find_map(|operation| match operation {
+            PatchOperation::Update {
+                id,
+                mask,
+                style: Some(style),
+                ..
+            } if *id == node_id && mask & react_gpui::UPDATE_STYLE != 0 => Some(style),
+            _ => None,
+        })
+}
+
+fn forward_event_patch(
+    process: &mut RendererProcess,
+    surface: &host::test_support::HeadlessSurface,
+    cx: &mut TestAppContext,
+    event: &Event,
+) -> Patch {
+    process.send_event(event);
+    let patch_payload = process.read_frame_with_timeout();
+    let patch = Patch::decode(&patch_payload).expect("decode gallery interaction patch");
+    surface.apply(cx, &patch_payload);
+    surface.draw(cx);
+    patch
+}
+
+fn focus_command(
+    snapshot: &Snapshot,
+    after_revision: u32,
+    request_id: u32,
+    node_id: u32,
+    kind: u32,
+) -> ReactCommand {
+    ReactCommand {
+        protocol: PROTOCOL_VERSION,
+        message: react_gpui::COMMAND_MESSAGE,
+        surface_id: snapshot.surface_id,
+        epoch: snapshot.epoch,
+        after_revision,
+        request_id,
+        node_id,
+        kind,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+    }
+}
+
 fn rect_overlap(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> f32 {
     let left = a.0.max(b.0);
     let top = a.1.max(b.1);
@@ -539,6 +620,230 @@ fn gallery_dropdown_signal(
         Ok(signal)
     }
 }
+#[test]
+fn gallery_real_click_inside_menu_stays_inside_and_outside_closes_menu() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, snapshot) = read_snapshot(&mut process)
+        .expect("read gallery pointer-outside snapshot")
+        .expect("gallery pointer-outside probe emitted no snapshot");
+    let menu_button = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.kind == KIND_PRESSABLE
+                && node
+                    .accessibility
+                    .as_ref()
+                    .and_then(|accessibility| accessibility.label.as_deref())
+                    == Some("Show activity menu")
+        })
+        .expect("gallery menu button");
+
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.activate(&mut cx);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    let _ = surface.events();
+
+    let scale = surface.scale_factor(&mut cx);
+    let (button_x, button_y) = gallery_button_center(&surface.painted_quads(&mut cx), scale);
+    surface.click(&mut cx, button_x, button_y);
+    let trigger_events = surface.events();
+    assert!(
+        trigger_events.iter().any(|event| {
+            event.node_id == menu_button.id && event.event_type == react_gpui::EVENT_PRESS
+        }),
+        "real menu-button click did not produce a press event: {trigger_events:?}"
+    );
+    assert!(
+        trigger_events
+            .iter()
+            .all(|event| event.event_type != EVENT_POINTER_DOWN_OUTSIDE),
+        "menu-button click unexpectedly produced an outside event: {trigger_events:?}"
+    );
+    let mut open_patches = Vec::new();
+    for event in trigger_events
+        .iter()
+        .filter(|event| event.node_id == menu_button.id)
+    {
+        open_patches.push(forward_event_patch(&mut process, &surface, &mut cx, event));
+    }
+    let menu_id = open_patches
+        .iter()
+        .find_map(menu_node)
+        .expect("real menu-button click did not open the menu");
+
+    let _ = surface.events();
+    let menu_quad = surface
+        .painted_quads(&mut cx)
+        .into_iter()
+        .filter(|quad| quad.bounds.2 >= 300.0 && quad.bounds.2 <= 500.0)
+        .filter(|quad| quad.bounds.3 >= 40.0)
+        .filter(|quad| opaque_quad(quad))
+        .max_by_key(|quad| quad.order)
+        .expect("expanded menu background quad");
+    surface.click(
+        &mut cx,
+        (menu_quad.bounds.0 + 10.0 * scale) / scale,
+        (menu_quad.bounds.1 + 10.0 * scale) / scale,
+    );
+    let inside_events = surface.events();
+    assert!(
+        inside_events
+            .iter()
+            .all(|event| event.event_type != EVENT_POINTER_DOWN_OUTSIDE),
+        "menu-internal click produced an outside event: {inside_events:?}"
+    );
+    for event in inside_events.iter().filter(|event| {
+        event.node_id == menu_id
+            && event.event_type == EVENT_POINTER
+            && matches!(
+                &event.payload,
+                Some(EventPayload::Pointer(pointer)) if pointer.action == EVENT_POINTER_DOWN
+            )
+    }) {
+        forward_event_patch(&mut process, &surface, &mut cx, event);
+    }
+    assert!(
+        surface
+            .painted_quads(&mut cx)
+            .iter()
+            .any(|quad| quad.bounds.2 >= 300.0 && quad.bounds.2 <= 500.0 && opaque_quad(quad)),
+        "menu-internal click unexpectedly removed the menu"
+    );
+    let _ = surface.events();
+
+    surface.click(&mut cx, 790.0, 590.0);
+    let outside_events = surface.events();
+    let outside_event = outside_events
+        .iter()
+        .find(|event| event.event_type == EVENT_POINTER_DOWN_OUTSIDE)
+        .cloned()
+        .expect("real outside click did not produce pointer-down-outside event");
+    assert_eq!(outside_event.node_id, menu_id);
+    assert!(matches!(
+        outside_event.payload,
+        Some(EventPayload::PointerDownOutside { x, y }) if x.is_finite() && y.is_finite()
+    ));
+    let close_patch = forward_event_patch(&mut process, &surface, &mut cx, &outside_event);
+    assert!(
+        close_patch
+            .operations
+            .iter()
+            .any(|operation| matches!(operation, PatchOperation::Delete { id } if *id == menu_id)),
+        "outside event reached renderer without deleting menu {close_patch:?}"
+    );
+}
+
+#[test]
+fn gallery_focus_command_emits_focus_and_blur_style_patches() {
+    let root = repo_root();
+    let mut process = RendererProcess::spawn(&root, "packages/react-gpui/examples/gallery.tsx");
+    let (first_payload, snapshot) = read_snapshot(&mut process)
+        .expect("read gallery focus snapshot")
+        .expect("gallery focus probe emitted no snapshot");
+    let menu_button = snapshot
+        .nodes
+        .iter()
+        .find(|node| {
+            node.kind == KIND_PRESSABLE
+                && node
+                    .accessibility
+                    .as_ref()
+                    .and_then(|accessibility| accessibility.label.as_deref())
+                    == Some("Show activity menu")
+        })
+        .expect("gallery menu button");
+
+    let mut cx = TestAppContext::single();
+    let surface = host::test_support::HeadlessSurface::new(&mut cx);
+    surface.resize(&mut cx, 800.0, 600.0);
+    surface.activate(&mut cx);
+    surface.apply(&mut cx, &first_payload);
+    surface.draw(&mut cx);
+    let _ = surface.events();
+
+    let focus = focus_command(
+        &snapshot,
+        snapshot.revision,
+        900,
+        menu_button.id,
+        COMMAND_FOCUS,
+    );
+    surface.apply(&mut cx, &focus.encode().expect("encode focus command"));
+    surface.draw(&mut cx);
+    let mut focus_events = Vec::new();
+    for _ in 0..4 {
+        focus_events.extend(surface.events());
+        if focus_events
+            .iter()
+            .any(|event| event.event_type == EVENT_FOCUS)
+        {
+            break;
+        }
+        surface.advance_frame(&mut cx);
+    }
+    let focus_event = focus_events
+        .iter()
+        .find(|event| {
+            event.event_type == EVENT_FOCUS
+                && event.node_id == menu_button.id
+                && event.listener_id == menu_button.listener_id
+        })
+        .cloned()
+        .expect("focus command did not emit a menu-button focus event");
+    let focus_patch = forward_event_patch(&mut process, &surface, &mut cx, &focus_event);
+    assert_eq!(
+        updated_style(&focus_patch, menu_button.id)
+            .expect("focus patch omitted menu-button style")
+            .background_rgba,
+        Some(0x2458b8ff),
+        "focus event did not apply the focused menu-button style"
+    );
+    let _ = surface.events();
+
+    let blur = focus_command(
+        &snapshot,
+        focus_patch.revision,
+        901,
+        menu_button.id,
+        COMMAND_BLUR,
+    );
+    surface.apply(&mut cx, &blur.encode().expect("encode blur command"));
+    surface.draw(&mut cx);
+    let mut blur_events = Vec::new();
+    for _ in 0..4 {
+        blur_events.extend(surface.events());
+        if blur_events
+            .iter()
+            .any(|event| event.event_type == EVENT_BLUR)
+        {
+            break;
+        }
+        surface.advance_frame(&mut cx);
+    }
+    let blur_event = blur_events
+        .iter()
+        .find(|event| {
+            event.event_type == EVENT_BLUR
+                && event.node_id == menu_button.id
+                && event.listener_id == menu_button.listener_id
+        })
+        .cloned()
+        .expect("blur command did not emit a menu-button blur event");
+    let blur_patch = forward_event_patch(&mut process, &surface, &mut cx, &blur_event);
+    assert_eq!(
+        updated_style(&blur_patch, menu_button.id)
+            .expect("blur patch omitted menu-button style")
+            .background_rgba,
+        Some(0x2d6cdfff),
+        "blur event did not restore the menu-button style"
+    );
+}
+
 #[test]
 fn gallery_root_scroll_reaches_content() {
     let root = repo_root();

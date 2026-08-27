@@ -15,6 +15,7 @@ import {
   EVENT_NOTIFICATION_RESPONSE,
   EVENT_POINTER,
   EVENT_POINTER_DOWN,
+  EVENT_POINTER_DOWN_OUTSIDE,
   EVENT_PRESS,
   EVENT_SCROLL,
   EVENT_SELECTION,
@@ -118,6 +119,44 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
   if (event[8] === EVENT_WINDOW_APPEARANCE) {
     if (payload !== "light" && payload !== "dark") return;
     context.onAppearance?.(payload);
+    return;
+  }
+  if (event[8] === EVENT_POINTER_DOWN_OUTSIDE) {
+    const node = context.findListener(event[7]);
+    if (
+      node === undefined ||
+      !node.attached ||
+      node.kind !== "View" ||
+      node.id !== event[6] ||
+      node.listenerId !== event[7] ||
+      !Array.isArray(payload) ||
+      payload.length !== 3 ||
+      payload[0] !== 8 ||
+      typeof payload[1] !== "number" ||
+      !Number.isFinite(payload[1]) ||
+      typeof payload[2] !== "number" ||
+      !Number.isFinite(payload[2])
+    )
+      return;
+    node.pointerDownOutsideCallback?.({ x: payload[1], y: payload[2] });
+    return;
+  }
+  if ((event[8] === EVENT_FOCUS || event[8] === EVENT_BLUR) && payload === null) {
+    const node = context.findListener(event[7]);
+    if (
+      node === undefined ||
+      !node.attached ||
+      (node.kind !== "View" && node.kind !== "Pressable") ||
+      !node.focusable ||
+      node.id !== event[6] ||
+      node.listenerId !== event[7]
+    )
+      return;
+    const callback = event[8] === EVENT_FOCUS ? node.focusCallback : node.blurCallback;
+    callback?.({
+      type: event[8] === EVENT_FOCUS ? "focus" : "blur",
+      target: node,
+    });
     return;
   }
   if (event[8] === EVENT_LAYOUT) {

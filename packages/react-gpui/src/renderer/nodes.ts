@@ -80,6 +80,9 @@ export class NodeGraph {
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
+      focusCallback: undefined,
+      blurCallback: undefined,
+      pointerDownOutsideCallback: undefined,
       hoverCallback: undefined,
       scrollCallback: undefined,
       hovered: false,
@@ -115,6 +118,9 @@ export class NodeGraph {
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
+      focusCallback: undefined,
+      blurCallback: undefined,
+      pointerDownOutsideCallback: undefined,
       hoverCallback: undefined,
       scrollCallback: undefined,
       hovered: false,
@@ -191,6 +197,12 @@ export class NodeGraph {
       !node.disabled && (node.kind === "View" || node.kind === "Pressable")
         ? { down: props.onPointerDown, up: props.onPointerUp }
         : null;
+    node.focusCallback =
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onFocus : undefined;
+    node.blurCallback =
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onBlur : undefined;
+    node.pointerDownOutsideCallback =
+      !node.disabled && node.kind === "View" ? props.onPointerDownOutside : undefined;
     node.hoverCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onHoverChange : undefined;
     node.scrollCallback = node.kind === "View" ? props.onScroll : undefined;
@@ -225,6 +237,9 @@ export class NodeGraph {
       node.keyListener !== undefined ||
       (node.pointerCallbacks !== null &&
         (node.pointerCallbacks.down !== undefined || node.pointerCallbacks.up !== undefined)) ||
+      node.focusCallback !== undefined ||
+      node.blurCallback !== undefined ||
+      node.pointerDownOutsideCallback !== undefined ||
       node.hoverCallback !== undefined ||
       node.scrollCallback !== undefined ||
       node.layoutCallback !== undefined ||
@@ -277,6 +292,9 @@ export class NodeGraph {
     node.listener = undefined;
     node.keyListener = undefined;
     node.pointerCallbacks = null;
+    node.focusCallback = undefined;
+    node.blurCallback = undefined;
+    node.pointerDownOutsideCallback = undefined;
     node.hoverCallback = undefined;
     node.scrollCallback = undefined;
     node.inputCallbacks = null;

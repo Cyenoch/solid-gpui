@@ -56,6 +56,9 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     onPointerUp: true,
     onHoverChange: true,
     onScroll: true,
+    onFocus: true,
+    onBlur: true,
+    onPointerDownOutside: true,
     children: true,
     ref: true,
     ...ACCESSIBILITY_PROPS,
@@ -75,6 +78,8 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     onPointerDown: true,
     onPointerUp: true,
     onHoverChange: true,
+    onFocus: true,
+    onBlur: true,
     children: true,
     ref: true,
     ...ACCESSIBILITY_PROPS,
@@ -349,6 +354,14 @@ export function validateProps(kind: HostKind, props: HostProps): void {
       throw new TypeError(`${kind} onPointerUp must be a function`);
     if (props.onHoverChange !== undefined && typeof props.onHoverChange !== "function")
       throw new TypeError(`${kind} onHoverChange must be a function`);
+    if (props.onFocus !== undefined && typeof props.onFocus !== "function")
+      throw new TypeError(`${kind} onFocus must be a function`);
+    if (props.onBlur !== undefined && typeof props.onBlur !== "function")
+      throw new TypeError(`${kind} onBlur must be a function`);
+    if ((props.onFocus !== undefined || props.onBlur !== undefined) && props.focusable !== true)
+      throw new TypeError(`${kind} onFocus/onBlur requires focusable=true`);
+    if (kind === "View" && props.onPointerDownOutside !== undefined && typeof props.onPointerDownOutside !== "function")
+      throw new TypeError(`${kind} onPointerDownOutside must be a function`);
     if (props.draggable !== undefined) {
       const draggable = props.draggable;
       if (
