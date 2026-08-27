@@ -9,6 +9,10 @@ from this work tree.
 ## [Unreleased]
 
 ### Added
+- Shared appearance-aware theme tokens now drive all visual React GPUI
+  examples, including dark surfaces and interaction-state colors; README and
+  getting-started guidance document the application-owned token-module
+  pattern. This is an examples/docs change with no library API change.
 
 - Protocol tap reporting now includes frames-by-kind, overall and patch byte
   rates, one-second frame/byte timeline buckets, byte-size histograms, and

@@ -1,14 +1,37 @@
-import { useEffect, useState } from "react";
-import { Pressable, StdioTransport, Text, View, createProcessTerminationHandler, createRoot } from "../src/index";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Pressable,
+  StdioTransport,
+  StyleSheet,
+  Text,
+  View,
+  createAppearanceStore,
+  createProcessTerminationHandler,
+  createRoot,
+  useAppearance,
+} from "../src/index";
+import { useTheme, type Theme } from "./theme";
 
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    root: { flexDirection: "column", gap: 4, padding: 8, backgroundColor: theme.canvas, color: theme.text },
+    button: { padding: 6, borderRadius: 5, backgroundColor: theme.accent },
+    buttonLabel: { color: theme.onAccent },
+  });
+}
+
+const appearanceStore = createAppearanceStore();
 const root = createRoot(new StdioTransport(), {
   surfaceId: 1,
   epoch: 1,
+  onAppearance: (appearance) => appearanceStore.set(appearance),
   onTransportTermination: createProcessTerminationHandler(),
 });
 
 function StressSurface() {
   const [tick, setTick] = useState(0);
+  const theme = useTheme(useAppearance(appearanceStore));
+  const styles = useMemo(() => createStyles(theme), [theme]);
   useEffect(() => {
     const timer = setInterval(() => {
       setTick((current) => current + 1);
@@ -20,10 +43,10 @@ function StressSurface() {
     void root.getWindowSize().catch(() => undefined);
   }, [tick]);
   return (
-    <View style={{ flexDirection: "column", gap: 4, padding: 8, backgroundColor: "#ffffff", color: "#111827" }}>
+    <View style={styles.root}>
       <Text>Process soak tick {tick}</Text>
-      <Pressable onPress={() => setTick((current) => current + 1)}>
-        <Text>Advance</Text>
+      <Pressable style={styles.button} onPress={() => setTick((current) => current + 1)}>
+        <Text style={styles.buttonLabel}>Advance</Text>
       </Pressable>
     </View>
   );

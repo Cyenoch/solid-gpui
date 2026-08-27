@@ -1,23 +1,31 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
   StdioTransport,
   Text,
   View,
+  createAppearanceStore,
   createProcessTerminationHandler,
   createRoot,
+  useAppearance,
+  type AppearanceStore,
 } from "../src/index";
+import { useTheme, type Theme } from "./theme";
 
-const styles = StyleSheet.create({
-  root: { flexDirection: "column", flexGrow: 1, gap: 8, padding: 16, backgroundColor: "#ffffff" },
-  count: { color: "#111827" },
-  button: { padding: 8, backgroundColor: "#2d6cdf" },
-  label: { color: "#ffffff" },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    root: { flexDirection: "column", flexGrow: 1, gap: 8, padding: 16, backgroundColor: theme.canvas },
+    count: { color: theme.text },
+    button: { padding: 8, backgroundColor: theme.accent },
+    label: { color: theme.onAccent },
+  });
+}
 
-function Counter() {
+function Counter({ appearanceStore }: { readonly appearanceStore: AppearanceStore }) {
   const [count, setCount] = useState(0);
+  const theme = useTheme(useAppearance(appearanceStore));
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const increment = useCallback(() => setCount((current) => current + 1), []);
   return (
     <View style={styles.root}>
@@ -29,9 +37,11 @@ function Counter() {
   );
 }
 
+const appearanceStore = createAppearanceStore();
 const root = createRoot(new StdioTransport(), {
   surfaceId: 1,
   epoch: 1,
+  onAppearance: (appearance) => appearanceStore.set(appearance),
   onTransportTermination: createProcessTerminationHandler(),
 });
-root.render(<Counter />);
+root.render(<Counter appearanceStore={appearanceStore} />);

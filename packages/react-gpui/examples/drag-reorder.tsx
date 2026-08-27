@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   StdioTransport,
   StyleSheet,
   Text,
   View,
   VirtualList,
+  createAppearanceStore,
   createProcessTerminationHandler,
   createRoot,
+  useAppearance,
+  type AppearanceStore,
 } from "../src/index";
+import { useTheme, type Theme } from "./theme";
 
 type Activity = {
   readonly id: number;
@@ -23,29 +27,31 @@ const INITIAL_ACTIVITIES: Activity[] = [
   { id: 5, title: "Send team update", detail: "Communication" },
 ];
 
-const styles = StyleSheet.create({
-  root: { flexDirection: "column", flexGrow: 1, gap: 12, padding: 20, backgroundColor: "#f7f8fa" },
-  title: { fontSize: 18, lineHeight: 24, fontWeight: "bold", color: "#172033" },
-  helper: { fontSize: 12, lineHeight: 18, color: "#5b6b7f" },
-  list: { height: 320, flexShrink: 0 },
-  rowSlot: { height: 56, flexShrink: 0 },
-  row: {
-    height: 48,
-    flexDirection: "column",
-    justifyContent: "center",
-    gap: 2,
-    padding: 8,
-    borderWidth: 1,
-    borderRadius: 8,
-    borderColor: "#e2e7ee",
-    backgroundColor: "#ffffff",
-    cursor: "grab",
-  },
-  rowDragOver: { borderColor: "#2d6cdf", backgroundColor: "#eaf1ff" },
-  rowTitle: { fontSize: 13, lineHeight: 18, fontWeight: "semibold", color: "#172033" },
-  rowDetail: { fontSize: 11, lineHeight: 16, color: "#5b6b7f" },
-  footer: { fontSize: 12, lineHeight: 18, color: "#5b6b7f" },
-});
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    root: { flexDirection: "column", flexGrow: 1, gap: 12, padding: 20, backgroundColor: theme.canvas },
+    title: { fontSize: 18, lineHeight: 24, fontWeight: "bold", color: theme.text },
+    helper: { fontSize: 12, lineHeight: 18, color: theme.textMuted },
+    list: { height: 320, flexShrink: 0 },
+    rowSlot: { height: 56, flexShrink: 0 },
+    row: {
+      height: 48,
+      flexDirection: "column",
+      justifyContent: "center",
+      gap: 2,
+      padding: 8,
+      borderWidth: 1,
+      borderRadius: 8,
+      borderColor: theme.borderSubtle,
+      backgroundColor: theme.surface,
+      cursor: "grab",
+    },
+    rowDragOver: { borderColor: theme.focusRing, backgroundColor: theme.accentSoft },
+    rowTitle: { fontSize: 13, lineHeight: 18, fontWeight: "semibold", color: theme.text },
+    rowDetail: { fontSize: 11, lineHeight: 16, color: theme.textMuted },
+    footer: { fontSize: 12, lineHeight: 18, color: theme.textMuted },
+  });
+}
 
 function dragSourceId(dragType: string): number | null {
   const prefix = "activity:";
@@ -54,9 +60,11 @@ function dragSourceId(dragType: string): number | null {
   return Number.isInteger(id) ? id : null;
 }
 
-function DragReorder() {
+function DragReorder({ appearanceStore }: { readonly appearanceStore: AppearanceStore }) {
   const [activities, setActivities] = useState(INITIAL_ACTIVITIES);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const theme = useTheme(useAppearance(appearanceStore));
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const moveActivity = (targetId: number, dragType: string) => {
     const sourceId = dragSourceId(dragType);
@@ -111,9 +119,11 @@ function DragReorder() {
   );
 }
 
+const appearanceStore = createAppearanceStore();
 const root = createRoot(new StdioTransport(), {
   surfaceId: 1,
   epoch: 1,
+  onAppearance: (appearance) => appearanceStore.set(appearance),
   onTransportTermination: createProcessTerminationHandler(),
 });
-root.render(<DragReorder />);
+root.render(<DragReorder appearanceStore={appearanceStore} />);

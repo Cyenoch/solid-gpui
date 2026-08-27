@@ -295,19 +295,34 @@ root.render(<Screen />);
 ### System appearance
 
 The renderer reports a two-value semantic appearance; it does not choose your
-palette:
+palette. Bridge each root to an explicit store, then select semantic color
+tokens. The example family keeps this pattern in
+[`packages/react-gpui/examples/theme.ts`](../packages/react-gpui/examples/theme.ts):
 
 ```tsx
-const appearance = createAppearanceStore();
+import { StdioTransport, createAppearanceStore, createRoot, Text, useAppearance, View } from "@react-gpui/core";
+import { useTheme } from "../packages/react-gpui/examples/theme";
+
+const appearanceStore = createAppearanceStore();
 const root = createRoot(new StdioTransport(), {
-  onAppearance: (value) => appearance.set(value),
+  onAppearance: (value) => appearanceStore.set(value),
 });
 function Screen() {
-  const mode = useAppearance(appearance);
-  return <View style={{ backgroundColor: mode === "dark" ? "#111827" : "#ffffff" }} />;
+  const theme = useTheme(useAppearance(appearanceStore));
+  return (
+    <View style={{ backgroundColor: theme.canvas, borderColor: theme.border, borderWidth: 1 }}>
+      <Text style={{ color: theme.text }}>System-aware</Text>
+      <Text style={{ color: theme.textMuted }}>State colors come from the same token set.</Text>
+    </View>
+  );
 }
 root.render(<Screen />);
 ```
+
+Use `theme.surface`, `theme.text`, `theme.textMuted`, `theme.border`,
+`theme.accent`, `theme.accentHover`, `theme.accentSoft`, `theme.focusRing`,
+and the state tokens for controls instead of scattering light-only hex
+values through component styles. Palette selection remains application-owned.
 
 ### Keyboard navigation
 

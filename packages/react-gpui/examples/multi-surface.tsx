@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import {
   StdioTransport,
+  StyleSheet,
   Text,
   View,
   createAppearanceStore,
@@ -11,6 +13,7 @@ import {
   type AppearanceStore,
   type WindowSizeStore,
 } from "../src/index";
+import { useTheme, type Theme } from "./theme";
 
 interface SurfacePanelProps {
   readonly name: string;
@@ -18,26 +21,29 @@ interface SurfacePanelProps {
   readonly appearanceStore: AppearanceStore;
 }
 
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    root: { flexDirection: "column", gap: 12, padding: 20, backgroundColor: theme.canvas },
+    title: { fontSize: 18, lineHeight: 24, fontWeight: "bold", color: theme.text },
+    detail: { fontSize: 13, lineHeight: 18, color: theme.textMuted },
+    helper: { fontSize: 12, lineHeight: 18, color: theme.textMuted },
+  });
+}
+
 function SurfacePanel({ name, sizeStore, appearanceStore }: SurfacePanelProps) {
   const { width, height, scaleFactor } = useWindowSize(sizeStore);
   const appearance = useAppearance(appearanceStore);
-  const dark = appearance === "dark";
-  const backgroundColor = dark ? "#111827" : "#f7f8fa";
-  const textColor = dark ? "#f9fafb" : "#172033";
-  const mutedColor = dark ? "#cbd5e1" : "#5b6b7f";
+  const theme = useTheme(appearance);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <View
-      style={{ flexDirection: "column", gap: 12, width, height, padding: 20, backgroundColor }}
-      accessibilityRole="generic"
-      accessibilityLabel={`${name} surface`}
-    >
-      <Text style={{ fontSize: 18, lineHeight: 24, fontWeight: "bold", color: textColor }}>{name}</Text>
-      <Text style={{ fontSize: 13, lineHeight: 18, color: mutedColor }}>
+    <View style={{ ...styles.root, width, height }} accessibilityRole="generic" accessibilityLabel={`${name} surface`}>
+      <Text style={styles.title}>{name}</Text>
+      <Text style={styles.detail}>
         {width}×{height} logical pixels at {scaleFactor}x
       </Text>
-      <Text style={{ fontSize: 13, lineHeight: 18, color: mutedColor }}>System appearance: {appearance}</Text>
-      <Text style={{ fontSize: 12, lineHeight: 18, color: mutedColor }}>
+      <Text style={styles.detail}>System appearance: {appearance}</Text>
+      <Text style={styles.helper}>
         Each root owns an explicit size and appearance bridge; changing one window does not use a module-global
         singleton.
       </Text>

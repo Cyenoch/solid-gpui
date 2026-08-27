@@ -533,19 +533,38 @@ by default) and updates when the native callback fires.
 values are `"light"` and `"dark"`. It emits an initial value on the first
 window observation frame and coalesces later changes with resize/activation.
 Bridge it explicitly with `createAppearanceStore` and `useAppearance`; the
-store is per root and the library does not impose a color palette:
+store is per root and the library does not impose a color palette. For a
+small application, keep semantic colors in one plain token module (the
+examples use [`examples/theme.ts`](examples/theme.ts)) and select that set
+from the appearance value:
 
 ```tsx
+import { createAppearanceStore, createRoot, Text, useAppearance, View } from "@react-gpui/core";
+import { useTheme } from "./examples/theme";
+
 const appearanceStore = createAppearanceStore();
 const root = createRoot(transport, {
   onAppearance: (appearance) => appearanceStore.set(appearance),
 });
 
-function ThemeAwareLabel() {
-  const appearance = useAppearance(appearanceStore);
-  return <Text style={{ color: appearance === "dark" ? "#ffffff" : "#111827" }}>System-aware</Text>;
+function ThemeAwareSurface() {
+  const theme = useTheme(useAppearance(appearanceStore));
+  return (
+    <View style={{ backgroundColor: theme.canvas, borderColor: theme.border, borderWidth: 1 }}>
+      <Text style={{ color: theme.text }}>System-aware</Text>
+      <Text style={{ color: theme.textMuted }}>Use theme.accentSoft for focused/hovered surfaces.</Text>
+    </View>
+  );
 }
+
+root.render(<ThemeAwareSurface />);
 ```
+
+The shared module exports `lightTheme`, `darkTheme`, and the `Theme` union.
+Its tokens cover canvas/surface layers, border and text hierarchy, accent
+hover/pressed/soft variants, focus rings, success/danger, disabled, input,
+and shadow colors. Keep state styles token-backed too; do not hand-roll
+light-only hex values in individual examples.
 
 `"light"` includes GPUI light/vibrant-light appearances and `"dark"` includes
 dark/vibrant-dark appearances. Palette selection remains application-owned.
