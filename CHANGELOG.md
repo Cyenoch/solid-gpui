@@ -16,6 +16,11 @@ from this work tree.
 - Static menus use nested `SET_MENUS=21` wire payloads and
   `EVENT_ACTION=17` string action events, with `RootOptions.onAction`; dynamic
   enablement and keybinding registration remain intentionally unsupported.
+- Generic focusable `View` and `Pressable` nodes emit native `EVENT_FOCUS` and
+  `EVENT_BLUR` notifications and expose `onFocus`/`onBlur` callbacks.
+- Overlay `View` nodes emit `EVENT_POINTER_DOWN_OUTSIDE=22` on capture-phase
+  mouse-down outside both the rendered overlay and direct anchor subtree;
+  `onPointerDownOutside` can close the overlay without an invisible scrim.
 - TextInput double-click selects the UAX #29 word under the caret and
   triple-click selects the clicked logical line; multiline selection stays
   within the clicked line, and word/line selections extend by their
@@ -425,9 +430,6 @@ from this work tree.
   pinned-source evidence showed cosmic-text already performs UAX #9 reordering
   and HarfRust directional shaping for rendering, so pure RTL rendering is no
   longer listed as an upstream gap.
-- Focusable `View` and `Pressable` nodes now emit native Focus/Blur callbacks,
-  and overlay nodes expose capture-phase `onPointerDownOutside` dismissal with
-  rendered anchor/overlay bounds.
 
 ### Fixed
 
