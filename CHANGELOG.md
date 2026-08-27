@@ -43,6 +43,9 @@ from this work tree.
   TypeScript termination details retain `crashReportPath`, exit code, and the
   bounded stderr tail, and package Troubleshooting documents fresh-process
   restart.
+- Protocol v3 decoders now reject mismatched renderer/host versions with a
+  typed, version-bearing diagnostic; `SurfaceHost` and `RootContainer` retain
+  it as a fail-fast protocol termination, and compatibility remains lockstep.
 - Pending-command lifecycle regression coverage locks seven paths: surface
   close, transport-termination fan-out, unmount, every command family on a
   closed root, silent event drops, and host disposal; dangling Promises are

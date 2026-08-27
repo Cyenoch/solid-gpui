@@ -59,6 +59,22 @@ All protocol messages are MessagePack arrays. The first two fields are always
 | Patch    | `[3, 3, surfaceId, epoch, baseRevision, revision, operations]`                         | Atomic incremental tree changes after a snapshot.                        | `protocol.rs:112-173`, `wire/snapshot_patch.rs:50-89`   |
 | Command  | `[3, 4, surfaceId, epoch, afterRevision, requestId, nodeId, kind, payload]`            | JavaScript request to the host surface or a host node.                   | `protocol.rs:176-219`, `wire/command.rs:6-76,87-249`  |
 
+### Version compatibility
+
+Protocol v3 is a lockstep boundary: every decoder accepts only its own
+`PROTOCOL_VERSION` and rejects a valid frame from another version before
+validating the message body. Rust reports both versions and the upgrade remedy
+(`renderer speaks protocol vN; this host binary speaks protocol v3 — update the
+host binary / pin @react-gpui/core to a v3 release`) through
+`ProtocolError::UnsupportedProtocol`
+(`crates/react-gpui/src/protocol.rs:1205-1208`). The TypeScript event decoder
+reports the symmetric host/renderer diagnostic through
+`ProtocolVersionMismatchError` (`packages/react-gpui/src/protocol.ts:11-20,
+773-785`), and `SurfaceHost`/`RootContainer` preserve it as a typed
+`TransportTerminatedError` with `{ kind: "protocol", detail }`. Update the host
+binary and `@react-gpui/core` together, or pin the renderer to the host's
+protocol release; there is no version negotiation or dual-version support.
+
 ### Multi-surface routing and lifecycle
 
 The host keeps one `RuntimeAdapter` reader and a registry keyed by `surfaceId`.
