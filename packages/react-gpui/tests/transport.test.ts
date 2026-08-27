@@ -263,6 +263,47 @@ describe("StdioTransport backpressure", () => {
     root.unmount();
   });
 
+  it("rejects every pending root command when stdio input ends", async () => {
+    const input = new FakeInput();
+    const output = new FakeOutput([]);
+    const transport = new StdioTransport(output, input);
+    const terminations: TransportTerminatedError[] = [];
+    const root = createRoot(transport, {
+      onTransportTermination: (error) => terminations.push(error),
+    });
+
+    root.render(null);
+    const pending = [
+      root.setTitle("pending"),
+      root.resize(640, 480),
+      root.getWindowSize(),
+      root.setClipboardText("pending"),
+      root.getClipboardText(),
+      root.zoom(),
+      root.toggleFullscreen(),
+      root.openSurface(),
+      root.pickFiles(),
+      root.pickSavePath(),
+      root.showNotification({ title: "pending", body: "pending" }),
+      root.setMenus([]),
+      root.setKeybindings([]),
+      root.openUrl("https://example.com"),
+      root.focusNext(),
+      root.focusPrev(),
+    ];
+
+    input.emitEnd();
+
+    const errors = await Promise.all(pending.map((command) => command.catch((error: unknown) => error)));
+    expect(errors).toHaveLength(16);
+    expect(terminations).toHaveLength(1);
+    const termination = terminations[0]!;
+    expect(termination.cause).toEqual({ kind: "eof" });
+    for (const error of errors) expect(error).toBe(termination);
+    await expect(root.setTitle("after")).rejects.toBe(termination);
+    root.unmount();
+  });
+
   it("keeps a pending overflow as RangeError before a later termination", () => {
     const input = new FakeInput();
     const output = new FakeOutput([false]);
