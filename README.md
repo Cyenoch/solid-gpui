@@ -32,6 +32,20 @@ point-to-character mapping, and IME candidate bounds, including empty and
 trailing-newline lines. Ctrl/Cmd word-boundary movement and double-/triple-click
 selection remain outside this renderer's minimal interaction contract.
 
+## Platform support
+
+The supported process-mode host targets are intentionally explicit:
+
+| Target | Process-mode status | Validation and remaining scope |
+| --- | --- | --- |
+| macOS ARM | Validated candidate | The Cocoa/AppKit + Metal host is covered by the current macOS gates; process mode uses an external renderer command. |
+| Linux Wayland/X11 | Feature-enabled build target | The host enables both GPUI backends. Ubuntu CI runs locked checks, Clippy, and platform-neutral protocol tests; display-backed WGPU smoke and compositor/portal/font/GPU validation remain pending on real runners. |
+| Windows | Build target | Windows CI runs a locked workspace check and process-host build with the hosted Windows SDK/FXC toolchain; display-backed D3D11, text, input, accessibility, and swap-chain smoke remains pending. |
+| Embedded Bun | macOS-only by design | The current Bun/JavaScriptCore build rejects non-macOS targets. Linux and Windows process mode still require an externally supplied renderer; no embedded-Bun support is claimed there. |
+
+Linux and Windows entries describe build coverage, not release artifacts or
+display-backed runtime support.
+
 ## Architecture
 
 ```text
