@@ -452,8 +452,10 @@ bun add -d @react-gpui/dev
 
 Its `render` helper uses a real core `MemoryTransport`, exposes submitted
 frames/decoded commits, and injects Press/Key/TextInput/Submit/VisibleRange
-events. It does not open a window. See
-`packages/react-gpui-dev/README.md#headless-component-tests`.
+events. For behavior-level tests, `renderTestApp` adds accessibility-label
+and text locators plus ergonomic interactions over the same dispatch path. It
+does not open a window. See
+`packages/react-gpui-dev/README.md#behavior-level-testapp-recipe`.
 
 ## Known boundaries
 - There is no DOM, CSS cascade, or browser event cancellation. `letterSpacing`

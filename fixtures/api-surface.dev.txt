@@ -13,6 +13,8 @@ RefreshRoot	type
 render	value
 RenderOptions	type
 RenderResult	type
+renderTestApp	value
+TestApp	type
 TestNode	type
 TestNodeHandle	type
 TestNodePredicate	type

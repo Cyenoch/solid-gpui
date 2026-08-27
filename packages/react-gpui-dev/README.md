@@ -16,6 +16,7 @@ import {
   installFastRefreshTransform,
   performReactRefresh,
   render,
+  renderTestApp,
   transformRefreshSource,
   watchModule,
   type CommandResultOptions,
@@ -24,6 +25,7 @@ import {
   type RefreshResult,
   type RefreshRoot,
   type RenderResult,
+  type TestApp,
   type TestNodeHandle,
 } from "@react-gpui/dev";
 ```
@@ -64,6 +66,46 @@ test("a button can be rendered and pressed without a display", () => {
   testView.unmount();
 });
 ```
+
+### Behavior-level `TestApp` recipe
+
+Use `renderTestApp` when the test should read like a user flow rather than a
+wire assertion. Labels are the app-level identity, text locators find rendered
+text, and interaction methods return the latest decoded commit:
+
+```tsx
+import { expect, test } from "bun:test";
+import { renderTestApp } from "@react-gpui/dev";
+
+test("filters and selects a todo", () => {
+  const app = renderTestApp(<FilteredList />);
+  app.input("Filter", "ap");
+  expect(() => app.node("Banana")).toThrow('accessibility label "Banana"');
+  const commit = app.press("Apple");
+  expect(commit[1]).toBe(3);
+  expect(app.text("Selected: Apple").text).toBe("Selected: Apple");
+  app.unmount();
+});
+```
+
+`TestApp` methods still use the real core receive/dispatch path through
+`MemoryTransport`; they are ergonomics over that seam, not a fake event
+system. `node(labelOrPredicate)` and `text(value)` report the query in their
+not-found errors. The facade also provides `hover`, `key`, `input`, `submit`,
+`scroll`, `pointer`, `dragOver`, `drop`, `pointerDownOutside`, `focus`, `blur`,
+`visibleRange`, and inferred `commandResult` interactions. Keep
+`dispatchFrame(rawEvent)` for an event not represented by a helper.
+
+`TestApp` covers renderer semantics: state transitions, patches, retained-node
+lookup, and event routing. It cannot prove host-owned semantics such as drag
+preview geometry, painted quads, native hit testing, or real wheel scrolling.
+Those assertions belong in the display-backed Rust `HeadlessSurface` /
+`VisualTestContext` suites; the TypeScript facade does not simulate them.
+
+The facade's `focus`/`blur` helpers inject `EVENT_FOCUS`/`EVENT_BLUR`
+notifications to verify renderer-side listener routing and state updates; they
+do not exercise imperative native focus commands. The host command chain is
+covered by the Rust `command_roundtrip` suite.
 
 Use `node(kind, predicate?)` to locate the latest retained Host Node. Event
 helpers `press`, `key`, `input`, `submit`, and `visibleRange` inject real

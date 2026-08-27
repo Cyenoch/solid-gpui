@@ -12,7 +12,7 @@ import {
   type KeyEvent,
   type WindowSizeStore,
 } from "@react-gpui/core";
-import { render } from "./testing";
+import { render, renderTestApp } from "./testing";
 type TodoFixture = { TodoApp: (props: { windowSizeStore: WindowSizeStore }) => React.ReactElement };
 
 // Intentional dynamic import: this integration fixture lives in the sibling
@@ -21,6 +21,12 @@ const { TodoApp } = (await import(
   `${import.meta.dir}/../node_modules/@react-gpui/core/examples/todo.tsx`
 )) as TodoFixture;
 
+// The core reconciler and this package have separate local React installations;
+// use the core instance for hooks so its dispatcher is the one the renderer sets.
+const { useState } = (await import(`${import.meta.dir}/../../react-gpui/node_modules/react/index.js`)) as Pick<
+  typeof React,
+  "useState"
+>;
 function frame(value: readonly unknown[]): Uint8Array {
   const payload = encode(value, { sortKeys: false, forceFloat32: true });
   const result = new Uint8Array(payload.byteLength + 4);
@@ -163,6 +169,50 @@ describe("@react-gpui/dev headless renderer", () => {
 
   it("does not swallow unbounded render errors", () => {
     expect(() => render(<View style={{ width: -1 }} />)).toThrow("width");
+  });
+
+  it("drives a filtered list through the consumer facade and returns the state patch", () => {
+    function FilteredList() {
+      const [filter, setFilter] = useState("");
+      const [selected, setSelected] = useState("none");
+      const items = ["Apple", "Banana", "Apricot"];
+      const visible = items.filter((item) => item.toLowerCase().includes(filter.toLowerCase()));
+      return (
+        <View>
+          <TextInput accessibilityLabel="Filter" value={filter} onChangeText={setFilter} />
+          {visible.map((item) => (
+            <Pressable key={item} accessibilityLabel={item} onPress={() => setSelected(item)}>
+              <Text>{item}</Text>
+            </Pressable>
+          ))}
+          <Text>Selected: {selected}</Text>
+        </View>
+      );
+    }
+
+    const app = renderTestApp(<FilteredList />);
+    app.input("Filter", "ap");
+    expect(() => app.node("Banana")).toThrow('accessibility label "Banana"');
+    const commit = app.press("Apple");
+    expect(commit[1]).toBe(3);
+    expect(app.text("Selected: Apple").text).toBe("Selected: Apple");
+    app.unmount();
+  });
+
+  it("locates by label and text and explains missing queries", () => {
+    const app = renderTestApp(
+      <View>
+        <Pressable accessibilityLabel="save" onPress={() => undefined}>
+          <Text>Save</Text>
+        </Pressable>
+        <Text>Ready</Text>
+      </View>,
+    );
+    expect(app.node("save").kind).toBe("Pressable");
+    expect(app.text("Ready").kind).toBe("RawText");
+    expect(() => app.node("missing")).toThrow('accessibility label "missing"');
+    expect(() => app.text("Missing")).toThrow('text not found: "Missing"');
+    app.unmount();
   });
 
   it("reuses any public core protocol constants and guards the internal tag table by real round trips", () => {

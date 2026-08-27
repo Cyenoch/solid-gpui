@@ -20,11 +20,30 @@ const EVENT_MESSAGE = 2;
 const COMMAND_MESSAGE = 4;
 const EVENT_PRESS = 1;
 const EVENT_CHANGE = 2;
+const EVENT_FOCUS = 4;
+const EVENT_BLUR = 5;
 const EVENT_VISIBLE_RANGE = 7;
 const EVENT_KEY = 9;
+const EVENT_POINTER = 10;
+const EVENT_HOVER = 11;
+const EVENT_SCROLL = 12;
 const EVENT_SUBMIT = 13;
+const EVENT_DRAG = 20;
+const EVENT_POINTER_DOWN_OUTSIDE = 22;
 const COMMAND_RESULT_EVENT = 6;
 const KEY_DOWN = 1;
+const KEY_REPEAT = 2;
+const POINTER_DOWN = 1;
+const POINTER_BUTTON_LEFT = 1;
+const POINTER_BUTTON_RIGHT = 2;
+const POINTER_BUTTON_MIDDLE = 3;
+const POINTER_BUTTON_BACK = 4;
+const POINTER_BUTTON_FORWARD = 5;
+const SCROLL_PIXELS = 1;
+const SCROLL_LINES = 2;
+const DRAG_OVER = 1;
+const DRAG_DROP = 2;
+const INPUT_PAYLOAD = 1;
 
 const HOST_KIND_BY_CODE: Record<number, HostKind> = {
   1: "View",
@@ -70,7 +89,6 @@ export interface RenderOptions {
   readonly onWindowResize?: RootOptions["onWindowResize"];
   readonly onWindowActivation?: RootOptions["onWindowActivation"];
 }
-
 export interface RenderResult {
   readonly root: Root;
   readonly frames: readonly Uint8Array[];
@@ -84,6 +102,53 @@ export interface RenderResult {
   commandResult(requestId: number, options?: CommandResultOptions): void;
   dispatchFrame(rawEvent: Uint8Array | ArrayBuffer): void;
   unmount(): void;
+}
+
+type TestAppLocator = string | TestNodePredicate | TestNodeHandle;
+type TestAppKey = Pick<KeyEvent, "key" | "action"> & { readonly modifiers?: readonly string[] };
+type TestAppScroll = {
+  readonly dx: number;
+  readonly dy: number;
+  readonly deltaKind?: "pixels" | "lines";
+  readonly x?: number;
+  readonly y?: number;
+  readonly modifiers?: readonly string[];
+};
+type TestAppPointer = {
+  readonly action: "down" | "up";
+  readonly button?: "left" | "right" | "middle" | "back" | "forward";
+  readonly modifiers?: readonly string[];
+  readonly clickCount?: number;
+};
+
+/** Consumer-facing behavior test facade over the real headless Root seam. */
+export interface TestApp {
+  readonly root: Root;
+  readonly frames: readonly Uint8Array[];
+  commits(): readonly unknown[];
+  node(locator: TestAppLocator): TestNodeHandle;
+  text(value: string | RegExp): TestNodeHandle;
+  press(locator: TestAppLocator): readonly unknown[];
+  hover(locator: TestAppLocator, hovered: boolean): readonly unknown[];
+  key(locator: TestAppLocator, event: TestAppKey): readonly unknown[];
+  input(locator: TestAppLocator, text: string): readonly unknown[];
+  submit(locator: TestAppLocator, text?: string | null): readonly unknown[];
+  scroll(locator: TestAppLocator, options: TestAppScroll): readonly unknown[];
+  pointer(locator: TestAppLocator, options: TestAppPointer): readonly unknown[];
+  dragOver(locator: TestAppLocator, dragType: string): readonly unknown[];
+  drop(locator: TestAppLocator, dragType: string): readonly unknown[];
+  pointerDownOutside(locator: TestAppLocator, point: { readonly x: number; readonly y: number }): readonly unknown[];
+  focus(locator: TestAppLocator): readonly unknown[];
+  blur(locator: TestAppLocator): readonly unknown[];
+  visibleRange(locator: TestAppLocator, start: number, end: number): readonly unknown[];
+  commandResult(options?: CommandResultOptions): readonly unknown[];
+  commandResult(requestId: number, options?: CommandResultOptions): readonly unknown[];
+  dispatchFrame(rawEvent: Uint8Array | ArrayBuffer): readonly unknown[];
+  unmount(): void;
+}
+
+interface InternalRenderResult extends RenderResult {
+  dispatchEvent(handle: TestNodeHandle, eventType: number, payload: unknown): void;
 }
 
 function frame(payload: unknown): Uint8Array {
@@ -227,6 +292,99 @@ function eventFrame(
     payload,
   ]);
 }
+function latestCommit(commits: readonly unknown[]): readonly unknown[] {
+  const commit = commits[commits.length - 1];
+  if (!Array.isArray(commit)) throw new Error("testing app has no commit after dispatch");
+  return commit;
+}
+
+function retainedNodes(commits: readonly unknown[]): TestNode[] {
+  const nodes: TestNode[] = [];
+  for (const raw of latestNodes(commits).values()) {
+    const node = normalizedNode(raw);
+    if (node !== undefined) nodes.push(node);
+  }
+  return nodes;
+}
+
+function isNodeHandle(value: unknown): value is TestNodeHandle {
+  return typeof value === "object" && value !== null && "id" in value && "kind" in value;
+}
+
+function queryDescription(locator: TestAppLocator): string {
+  if (typeof locator === "string") return `accessibility label ${JSON.stringify(locator)}`;
+  if (typeof locator === "function") return "predicate";
+  return `node id ${locator.id}`;
+}
+
+function locateNode(commits: readonly unknown[], locator: TestAppLocator): TestNodeHandle {
+  const nodes = retainedNodes(commits);
+  const match = isNodeHandle(locator)
+    ? nodes.find((node) => node.id === locator.id)
+    : typeof locator === "string"
+      ? nodes.find((node) => node.accessibility?.[1] === locator)
+      : nodes.find(locator);
+  if (match !== undefined) return match;
+  throw new Error(`testing app node not found for ${queryDescription(locator)}`);
+}
+
+function textMatches(value: string | RegExp, text: string): boolean {
+  if (typeof value === "string") return text === value;
+  value.lastIndex = 0;
+  return value.test(text);
+}
+
+function locateText(commits: readonly unknown[], value: string | RegExp): TestNodeHandle {
+  const nodes = retainedNodes(commits);
+  const rawMatch = nodes.find((node) => node.kind === "RawText" && node.text !== null && textMatches(value, node.text));
+  if (rawMatch !== undefined) return rawMatch;
+
+  const textNodes = nodes.filter((node) => node.kind === "Text");
+  for (const textNode of textNodes) {
+    const children = nodes
+      .filter((node) => node.parentId === textNode.id && node.kind === "RawText" && node.text !== null)
+      .sort((left, right) => left.index - right.index);
+    const text = children.map((child) => child.text ?? "").join("");
+    if (textMatches(value, text)) return { ...textNode, text };
+  }
+
+  const description = typeof value === "string" ? JSON.stringify(value) : value.toString();
+  throw new Error(`testing app text not found: ${description}`);
+}
+
+function finiteNumber(name: string, value: number): void {
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new RangeError(`${name} must be finite`);
+}
+
+function pointerButtonCode(button: NonNullable<TestAppPointer["button"]>): number {
+  switch (button) {
+    case "left":
+      return POINTER_BUTTON_LEFT;
+    case "right":
+      return POINTER_BUTTON_RIGHT;
+    case "middle":
+      return POINTER_BUTTON_MIDDLE;
+    case "back":
+      return POINTER_BUTTON_BACK;
+    case "forward":
+      return POINTER_BUTTON_FORWARD;
+  }
+}
+
+function inputEventPayload(handle: TestNodeHandle): readonly unknown[] {
+  const properties = handle.hostProperties;
+  if (properties === null || Number(properties[0]) !== INPUT_PAYLOAD) {
+    return [INPUT_PAYLOAD, "", 0, 0, null, null, 0, false];
+  }
+  const text = typeof properties[1] === "string" ? properties[1] : "";
+  const start = typeof properties[7] === "number" ? properties[7] : 0;
+  const end = typeof properties[8] === "number" ? properties[8] : start;
+  const markedStart = typeof properties[9] === "number" ? properties[9] : null;
+  const markedEnd = typeof properties[10] === "number" ? properties[10] : null;
+  const editSeq = typeof properties[6] === "number" ? properties[6] : 0;
+  const reversed = properties[12] === true;
+  return [INPUT_PAYLOAD, text, start, end, markedStart, markedEnd, editSeq, reversed];
+}
 
 function commandValue(value: CommandResultOptions["value"]): WirePayload | null {
   if (value === undefined || value === null) return null;
@@ -257,7 +415,10 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
 
   const commits = (): readonly unknown[] =>
     transport.submitted.map((submitted) => decode(submitted.slice(4), { useBigInt64: false }));
-  const result: RenderResult = {
+  const dispatchEvent = (handle: TestNodeHandle, eventType: number, payload: unknown): void => {
+    transport.push(eventFrame(surfaceId, epoch, 1, sequence++, handle, eventType, payload));
+  };
+  const result: InternalRenderResult = {
     root,
     get frames(): readonly Uint8Array[] {
       return transport.submitted;
@@ -271,20 +432,12 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
       }
       throw new Error(`testing node not found: ${kind}`);
     },
+    dispatchEvent,
     press(handle) {
-      requireListener(handle);
-      transport.push(eventFrame(surfaceId, epoch, 1, sequence++, handle, EVENT_PRESS, null));
+      dispatchEvent(handle, EVENT_PRESS, null);
     },
     key(handle, event) {
-      requireListener(handle);
-      transport.push(
-        eventFrame(surfaceId, epoch, 1, sequence++, handle, EVENT_KEY, [
-          5,
-          event.key,
-          event.modifiers,
-          actionCode(event.action),
-        ]),
-      );
+      dispatchEvent(handle, EVENT_KEY, [5, event.key, event.modifiers, actionCode(event.action)]);
     },
     input(handle, text) {
       requireKind(handle, "TextInput");
@@ -292,22 +445,12 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
       const editSeq = (editSequences.get(handle.id) ?? 0) + 1;
       editSequences.set(handle.id, editSeq);
       const selection = text.length;
-      transport.push(
-        eventFrame(surfaceId, epoch, 1, sequence++, handle, EVENT_CHANGE, [
-          1,
-          text,
-          selection,
-          selection,
-          null,
-          null,
-          editSeq,
-        ]),
-      );
+      dispatchEvent(handle, EVENT_CHANGE, [INPUT_PAYLOAD, text, selection, selection, null, null, editSeq, false]);
     },
     submit(handle, text = null) {
       requireKind(handle, "TextInput");
       requireListener(handle);
-      transport.push(eventFrame(surfaceId, epoch, 1, sequence++, handle, EVENT_SUBMIT, text));
+      dispatchEvent(handle, EVENT_SUBMIT, text ?? "");
     },
     visibleRange(handle, start, end) {
       requireKind(handle, "VirtualList");
@@ -315,7 +458,7 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
       u32("start", start);
       u32("end", end);
       if (start > end) throw new RangeError("visible range start must not exceed end");
-      transport.push(eventFrame(surfaceId, epoch, 1, sequence++, handle, EVENT_VISIBLE_RANGE, [3, start, end]));
+      dispatchEvent(handle, EVENT_VISIBLE_RANGE, [3, start, end]);
     },
     commandResult(requestId, resultOptions = {}) {
       const command = findCommand(commits(), requestId);
@@ -358,10 +501,179 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
   };
   return result;
 }
+function dispatchFocus(renderResult: InternalRenderResult, handle: TestNodeHandle, eventType: number): void {
+  if (handle.kind === "TextInput") {
+    requireListener(handle);
+    renderResult.dispatchEvent(handle, eventType, inputEventPayload(handle));
+    return;
+  }
+  if (handle.kind !== "View" && handle.kind !== "Pressable") {
+    throw new TypeError(`testing app focus requires View, Pressable, or TextInput; received ${handle.kind}`);
+  }
+  if (!handle.focusable) throw new TypeError(`testing app focus requires a focusable ${handle.kind} node`);
+  renderResult.dispatchEvent(handle, eventType, null);
+}
+
+/** Render a component behind a locator- and interaction-oriented test facade. */
+export function renderTestApp(element: ReactElement | null, options: RenderOptions = {}): TestApp {
+  const renderResult = render(element, options) as InternalRenderResult;
+  const hovered = new Map<number, boolean>();
+  const resolve = (locator: TestAppLocator): TestNodeHandle => locateNode(renderResult.commits(), locator);
+  const commit = (): readonly unknown[] => latestCommit(renderResult.commits());
+  const app: TestApp = {
+    root: renderResult.root,
+    get frames(): readonly Uint8Array[] {
+      return renderResult.frames;
+    },
+    commits: renderResult.commits,
+    node: resolve,
+    text(value) {
+      return locateText(renderResult.commits(), value);
+    },
+    press(locator) {
+      const node = resolve(locator);
+      requireKind(node, "Pressable");
+      renderResult.press(node);
+      return commit();
+    },
+    hover(locator, nextHovered) {
+      const node = resolve(locator);
+      if (node.kind !== "View" && node.kind !== "Pressable") {
+        throw new TypeError(`testing app hover requires View or Pressable; received ${node.kind}`);
+      }
+      requireListener(node);
+      const currentHovered = hovered.get(node.id) ?? false;
+      if (currentHovered !== nextHovered) {
+        renderResult.dispatchEvent(node, EVENT_HOVER, null);
+        hovered.set(node.id, nextHovered);
+      }
+      return commit();
+    },
+    key(locator, event) {
+      const node = resolve(locator);
+      renderResult.key(node, {
+        key: event.key,
+        modifiers: [...(event.modifiers ?? [])],
+        action: event.action,
+      });
+      return commit();
+    },
+    input(locator, text) {
+      const node = resolve(locator);
+      renderResult.input(node, text);
+      return commit();
+    },
+    submit(locator, text = null) {
+      const node = resolve(locator);
+      renderResult.submit(node, text);
+      return commit();
+    },
+    scroll(locator, options) {
+      const node = resolve(locator);
+      requireKind(node, "View");
+      requireListener(node);
+      finiteNumber("scroll dx", options.dx);
+      finiteNumber("scroll dy", options.dy);
+      const x = options.x ?? 0;
+      const y = options.y ?? 0;
+      finiteNumber("scroll x", x);
+      finiteNumber("scroll y", y);
+      renderResult.dispatchEvent(node, EVENT_SCROLL, [
+        7,
+        options.deltaKind === "lines" ? SCROLL_LINES : SCROLL_PIXELS,
+        options.dx,
+        options.dy,
+        x,
+        y,
+        [...(options.modifiers ?? [])],
+      ]);
+      return commit();
+    },
+    pointer(locator, options) {
+      const node = resolve(locator);
+      if (node.kind !== "View" && node.kind !== "Pressable") {
+        throw new TypeError(`testing app pointer requires View or Pressable; received ${node.kind}`);
+      }
+      requireListener(node);
+      const clickCount = options.clickCount ?? 1;
+      u32("clickCount", clickCount);
+      if (clickCount === 0) throw new RangeError("clickCount must be greater than zero");
+      renderResult.dispatchEvent(node, EVENT_POINTER, [
+        6,
+        pointerButtonCode(options.button ?? "left"),
+        [...(options.modifiers ?? [])],
+        options.action === "down" ? POINTER_DOWN : 2,
+        clickCount,
+      ]);
+      return commit();
+    },
+    dragOver(locator, dragType) {
+      const node = resolve(locator);
+      requireListener(node);
+      renderResult.dispatchEvent(node, EVENT_DRAG, [DRAG_OVER, dragType]);
+      return commit();
+    },
+    drop(locator, dragType) {
+      const node = resolve(locator);
+      requireListener(node);
+      renderResult.dispatchEvent(node, EVENT_DRAG, [DRAG_DROP, dragType]);
+      return commit();
+    },
+    pointerDownOutside(locator, point) {
+      const node = resolve(locator);
+      requireKind(node, "View");
+      requireListener(node);
+      finiteNumber("pointer-down-outside x", point.x);
+      finiteNumber("pointer-down-outside y", point.y);
+      renderResult.dispatchEvent(node, EVENT_POINTER_DOWN_OUTSIDE, [8, point.x, point.y]);
+      return commit();
+    },
+    focus(locator) {
+      dispatchFocus(renderResult, resolve(locator), EVENT_FOCUS);
+      return commit();
+    },
+    blur(locator) {
+      dispatchFocus(renderResult, resolve(locator), EVENT_BLUR);
+      return commit();
+    },
+    visibleRange(locator, start, end) {
+      const node = resolve(locator);
+      renderResult.visibleRange(node, start, end);
+      return commit();
+    },
+    commandResult(
+      requestIdOrOptions: number | CommandResultOptions | undefined,
+      resultOptions: CommandResultOptions = {},
+    ) {
+      let requestId: number;
+      let optionsForResult: CommandResultOptions;
+      if (typeof requestIdOrOptions === "number") {
+        requestId = requestIdOrOptions;
+        optionsForResult = resultOptions;
+      } else {
+        optionsForResult = requestIdOrOptions ?? {};
+        const command = findLatestCommand(renderResult.commits());
+        if (command === undefined) throw new Error("testing app command result has no captured command");
+        requestId = Number(command[5]);
+      }
+      renderResult.commandResult(requestId, optionsForResult);
+      return commit();
+    },
+    dispatchFrame(rawEvent) {
+      renderResult.dispatchFrame(rawEvent);
+      return commit();
+    },
+    unmount() {
+      hovered.clear();
+      renderResult.unmount();
+    },
+  };
+  return app;
+}
 
 function actionCode(action: KeyEvent["action"]): number {
   if (action === "down") return KEY_DOWN;
-  if (action === "repeat") return 2;
+  if (action === "repeat") return KEY_REPEAT;
   return 3;
 }
 
@@ -369,6 +681,14 @@ function findCommand(commits: readonly unknown[], requestId: number): WirePayloa
   for (const commit of [...commits].reverse()) {
     const message = asPayload(commit);
     if (message !== null && message[1] === COMMAND_MESSAGE && message[5] === requestId) return message;
+  }
+  return undefined;
+}
+
+function findLatestCommand(commits: readonly unknown[]): WirePayload | undefined {
+  for (const commit of [...commits].reverse()) {
+    const message = asPayload(commit);
+    if (message !== null && message[1] === COMMAND_MESSAGE) return message;
   }
   return undefined;
 }
