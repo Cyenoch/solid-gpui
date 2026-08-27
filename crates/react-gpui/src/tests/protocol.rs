@@ -102,11 +102,11 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
 fn generic_focus_and_pointer_down_outside_events_round_trip() {
     let focus = Event::focus(7, 3, 1, 20, 2, 44, true);
     assert_eq!(Event::decode(&focus.encode().unwrap()).unwrap(), focus);
-    assert!(matches!(focus.payload, None));
+    assert!(focus.payload.is_none());
 
     let blur = Event::focus(7, 3, 1, 21, 2, 44, false);
     assert_eq!(Event::decode(&blur.encode().unwrap()).unwrap(), blur);
-    assert!(matches!(blur.payload, None));
+    assert!(blur.payload.is_none());
 
     let outside = Event::pointer_down_outside(7, 3, 1, 22, 2, 44, 12.5, -3.25);
     assert_eq!(Event::decode(&outside.encode().unwrap()).unwrap(), outside);

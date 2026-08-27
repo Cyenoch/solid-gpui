@@ -682,7 +682,7 @@ fn gallery_real_click_inside_menu_stays_inside_and_outside_closes_menu() {
         .into_iter()
         .filter(|quad| quad.bounds.2 >= 300.0 && quad.bounds.2 <= 500.0)
         .filter(|quad| quad.bounds.3 >= 40.0)
-        .filter(|quad| opaque_quad(quad))
+        .filter(opaque_quad)
         .max_by_key(|quad| quad.order)
         .expect("expanded menu background quad");
     surface.click(
