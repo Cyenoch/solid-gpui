@@ -83,6 +83,8 @@ export class NodeGraph {
       pointerCallbacks: null,
       focusCallback: undefined,
       blurCallback: undefined,
+      detachedFocusPending: false,
+      nativeFocused: false,
       pointerDownOutsideCallback: undefined,
       hoverCallback: undefined,
       scrollCallback: undefined,
@@ -122,6 +124,8 @@ export class NodeGraph {
       pointerCallbacks: null,
       focusCallback: undefined,
       blurCallback: undefined,
+      detachedFocusPending: false,
+      nativeFocused: false,
       pointerDownOutsideCallback: undefined,
       hoverCallback: undefined,
       scrollCallback: undefined,
@@ -290,18 +294,38 @@ export class NodeGraph {
   }
 
   detachSubtree(node: HostNodeInternal): void {
+    const retainFocusCallbacks = node.nativeFocused;
     node.attached = false;
+    node.detachedFocusPending = retainFocusCallbacks;
     this.nodesById.delete(node.id);
+    if (!retainFocusCallbacks && node.listenerId !== 0) {
+      this.listeners.delete(node.listenerId);
+      this.inputListeners.delete(node.listenerId);
+    }
     node.listener = undefined;
     node.keyListener = undefined;
     node.pointerCallbacks = null;
-    node.focusCallback = undefined;
-    node.blurCallback = undefined;
+    if (!retainFocusCallbacks) {
+      node.focusCallback = undefined;
+      node.blurCallback = undefined;
+    }
     node.pointerDownOutsideCallback = undefined;
     node.hoverCallback = undefined;
     node.scrollCallback = undefined;
     node.inputCallbacks = null;
     for (const child of node.children) this.detachSubtree(child);
+  }
+
+  releaseDetachedFocus(node: HostNodeInternal): void {
+    if (node.attached || !node.detachedFocusPending) return;
+    node.detachedFocusPending = false;
+    if (node.listenerId !== 0) {
+      this.listeners.delete(node.listenerId);
+      this.inputListeners.delete(node.listenerId);
+    }
+    node.focusCallback = undefined;
+    node.blurCallback = undefined;
+    node.nativeFocused = false;
   }
 
   refreshChildIndexes(parent: HostNodeInternal): void {

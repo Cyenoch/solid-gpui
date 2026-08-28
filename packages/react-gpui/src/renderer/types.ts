@@ -7,6 +7,7 @@ export interface RootOwner {
   validationError: Error | undefined;
   submitCommand(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<void>;
   submitCommandValue(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<unknown>;
+  releaseDetachedFocus(node: HostNodeInternal): void;
   setNodeProps(node: HostNodeInternal, props: HostProps): void;
   updateNodeProps(node: HostNodeInternal, props: HostProps): number;
   detachFromParent(node: HostNodeInternal): void;
@@ -349,6 +350,8 @@ export interface HostNodeInternal extends HostNode {
   pointerCallbacks: PointerCallbacks | null;
   focusCallback: FocusHandler | undefined;
   blurCallback: FocusHandler | undefined;
+  detachedFocusPending: boolean;
+  nativeFocused: boolean;
   pointerDownOutsideCallback: PointerDownOutsideHandler | undefined;
   hoverCallback: HoverHandler | undefined;
   hovered: boolean;

@@ -219,6 +219,9 @@ export class RootContainer implements DispatchContext {
   detachSubtree(node: HostNodeInternal): void {
     this.nodes.detachSubtree(node);
   }
+  releaseDetachedFocus(node: HostNodeInternal): void {
+    this.nodes.releaseDetachedFocus(node);
+  }
 
   private submitCommandFrame(command: Command): Promise<unknown> {
     const requestId = command[5];

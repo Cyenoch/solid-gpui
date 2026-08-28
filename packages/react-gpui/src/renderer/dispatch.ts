@@ -58,6 +58,7 @@ export interface DispatchContext {
   findListener(listenerId: number): HostNodeInternal | undefined;
   findNode(nodeId: number): HostNodeInternal | undefined;
   findInputCallbacks(listenerId: number): TextInputCallbacks | undefined;
+  releaseDetachedFocus(node: HostNodeInternal): void;
   resolveCommandResult(requestId: number, success: boolean, errorPayload: unknown, value?: unknown): void;
   onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void;
   onAction?: (action: string) => void;
@@ -159,14 +160,15 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     const node = context.findListener(event[7]);
     if (
       node === undefined ||
-      !node.attached ||
-      (node.kind !== "View" && node.kind !== "Pressable") ||
-      !node.focusable ||
+      (node.attached ? node.kind !== "View" && node.kind !== "Pressable" : !node.detachedFocusPending) ||
+      (node.attached && !node.focusable) ||
       node.id !== event[6] ||
       node.listenerId !== event[7]
     )
       return;
     const callback = event[8] === EVENT_FOCUS ? node.focusCallback : node.blurCallback;
+    node.nativeFocused = event[8] === EVENT_FOCUS;
+    if (!node.attached) context.releaseDetachedFocus(node);
     callback?.({
       type: event[8] === EVENT_FOCUS ? "focus" : "blur",
       target: node,

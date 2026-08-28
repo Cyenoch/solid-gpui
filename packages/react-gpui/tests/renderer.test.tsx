@@ -1693,6 +1693,23 @@ describe("renderer commits", () => {
     expect(received).toEqual(["focus:target", "blur:target"]);
     root.unmount();
   });
+  it("delivers one terminal blur to a detached focused node and rejects later notifications", () => {
+    const transport = new MemoryTransport();
+    const received: string[] = [];
+    const root = createRoot(transport, { surfaceId: 166, epoch: 167 });
+    root.render(
+      <View focusable onFocus={(event) => received.push(event.type)} onBlur={(event) => received.push(event.type)} />,
+    );
+    const node = snapshots(transport)[0][6].find((entry) => entry[0] !== 1) as readonly unknown[];
+    const nodeId = node[0] as number;
+    const listener = node[6] as number;
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 166, 167, 1, 1, nodeId, listener, EVENT_FOCUS, null]));
+    root.render(null);
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 166, 167, 1, 2, nodeId, listener, EVENT_BLUR, null]));
+    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 166, 167, 1, 3, nodeId, listener, EVENT_BLUR, null]));
+    expect(received).toEqual(["focus", "blur"]);
+    root.unmount();
+  });
 
   it("dispatches pointer-down-outside events to View callbacks", () => {
     const transport = new MemoryTransport();

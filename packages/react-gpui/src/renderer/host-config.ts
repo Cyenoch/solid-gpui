@@ -155,6 +155,7 @@ export const hostConfig = {
     assertChildForRoot(parent.root, parent.kind, child.kind);
     parent.root.markMoved(child);
     child.root.detachFromParent(child);
+    child.detachedFocusPending = false;
     parent.children.push(child);
     child.parent = parent;
     parent.root.refreshChildIndexes(parent);
@@ -163,6 +164,7 @@ export const hostConfig = {
     assertChildForRoot(container, container.syntheticRoot.kind, child.kind);
     container.markMoved(child);
     child.root.detachFromParent(child);
+    child.detachedFocusPending = false;
     container.children.push(child);
     child.parent = null;
     container.refreshChildIndexes(container.syntheticRoot);
@@ -171,6 +173,7 @@ export const hostConfig = {
     assertChildForRoot(parent.root, parent.kind, child.kind);
     parent.root.markMoved(child);
     child.root.detachFromParent(child);
+    child.detachedFocusPending = false;
     const index = parent.children.indexOf(before);
     parent.children.splice(index < 0 ? parent.children.length : index, 0, child);
     child.parent = parent;
@@ -180,6 +183,7 @@ export const hostConfig = {
     assertChildForRoot(container, container.syntheticRoot.kind, child.kind);
     container.markMoved(child);
     child.root.detachFromParent(child);
+    child.detachedFocusPending = false;
     const index = container.children.indexOf(before);
     container.children.splice(index < 0 ? container.children.length : index, 0, child);
     child.parent = null;
@@ -211,6 +215,7 @@ export const hostConfig = {
   },
   detachDeletedInstance: (instance: HostNodeInternal) => {
     instance.attached = false;
+    instance.detachedFocusPending = true;
   },
   preparePortalMount: () => undefined,
   scheduleTimeout: setTimeout,
