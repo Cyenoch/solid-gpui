@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-27T09:23:29Z
+Generated: 2026-08-28T03:13:21Z
 Decision owner: human release owner  
-Current HEAD: `06922c3` (`feat(examples): adopt appearance-aware theming`)
+Current HEAD: `bb0d99d` (`fix(image): stable element ids and documented render semantics`)
 
 This is an evidence package, not a release approval. It records fresh command
 runs, the current protocol/API surface, documentation consistency, known
@@ -22,12 +22,12 @@ published and no push, rebase, version change, or tag was performed.
   **104 Added**, **9 Fixed**, and **7 Changed**. This is materially beyond a
   patch-sized change set and provides stronger evidence for considering
   `0.2.0`. No option is selected: the human release owner retains the decision.
-- `git log --oneline 5ca34e1..HEAD` reports **51 commits** in this refresh delta,
-  spanning selectable Text, surface options, glyph/layout/gallery repairs,
-  focus/overlay and drag input, cross-platform runner scaffolding, transport
-  and protocol hardening, TestApp/examples, event-storm budgets, animation,
-  clipboard/word navigation, VirtualList restoration, and appearance-aware
-  example theming.
+- `git log --oneline 5ca34e1..HEAD` reports **57 commits** in this refresh
+  delta, spanning selectable Text, surface options, image loading/fallback and
+  stable element IDs, glyph/layout/gallery repairs, focus/overlay and drag input,
+  cross-platform runner scaffolding, transport and protocol hardening,
+  TestApp/examples, event-storm budgets, animation, clipboard/word navigation,
+  VirtualList restoration, and appearance-aware example theming.
 - The implementation backlog for the current 0.2.0 contract is empty. Remaining
   items are documented product/platform boundaries or human release decisions,
   not unrecorded implementation residue: selectable Text is now a host-owned
@@ -92,7 +92,9 @@ published.
   infeasible, and placeholder flicker remains display-backed.
 - Image supports an optional `fallbackSource` in its tag-3 four-slot host
   payload; GPUI `with_loading` and `with_fallback` share the visual fallback
-  path, while JavaScript `onError` remains a true upstream gap.
+  path, stable element IDs prevent state collisions across mounted images,
+  SVG byte sources load through the same pinned GPUI image element, and
+  JavaScript `onError` remains a true upstream gap.
 - The public Root surface includes render/unmount, title/resize/zoom/fullscreen,
   focus traversal, URL opening, clipboard, window-size query, multi-surface
   opening, asynchronous file dialogs, notifications, static menus, and the
@@ -183,30 +185,51 @@ are part of the successful rehearsal contract, not command failures.
 
 | Command | Exit | Real time | Fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **59.25 s** | Rust: `react_gpui` **96**, frame peer 0, module-boundary **6**, perf **3**, perf-event-storm **1**, process-roundtrip **3**, protocol-fuzz **1**, protocol-golden **3**, Bun lib 0, embedded counter 0, host **12**, command-roundtrip **17**, examples-render **25**, glyph-platform **2**, doctests 0+0 = **169 passing tests**. Core Bun: **108 tests / 53,212 assertions**; dev Bun: **18 tests / 46 assertions**. Format/check/clippy/typecheck/build/package smoke all passed.
-| `make embedded-bun` | 0 | **2.71 s** | Host embedded feature check passed; `react-gpui-bun` embedded counter **1 passed**; library/doc suites had 0 tests and no failures.
-| `make host-candidate-smoke` | 0 | **13.05 s** | Release archive and extracted-host checks passed; identical archive SHA-256 `4c7dd6c7fdc46a2f702c2673a6f3de5cc83e91140286411d038ffe369bc43232`; README/LICENSE checks passed; snapshot commit **312 bytes** observed; process error/info rehearsals timed out at **5.013/5.015 s** as expected; version/help passed.
-| `make host-embedded-candidate-smoke` | 0 | **5.68 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=1, status=None`; embedded rehearsal timed out at **5.013 s** as expected; version/help passed.
-| `make bun-pack-smoke` | 0 | **2.63 s** | Frozen installs, JS/type builds, both tarballs, external consumer install, and `package tarball consumer smoke passed`; consumer installed **59 packages**.
+| `make ci` | 0 | **55.82 s** | Rust: **172 passing tests** (`react_gpui` **98**, module-boundary **6**, perf **3**, perf-event-storm **1**, process-roundtrip **3**, protocol-fuzz **1**, protocol-golden **3**, host **12**, command-roundtrip **18**, examples-render **25**, glyph-platform **2**, doctests 0+0); Core Bun: **111 tests / 53,225 assertions**; dev Bun: **18 tests / 46 assertions**. Format/check/clippy/typecheck/build/package smoke all passed. Expected malformed-input diagnostics were contained. |
+| `make embedded-bun` | 0 | **2.21 s** | Host embedded feature check passed; `react-gpui-bun` embedded counter **1 passed**; library/doc suites had 0 tests and no failures. |
+| `make host-candidate-smoke` | 0 | **48.90 s** | Release archive and extracted-host checks passed; identical archive SHA-256 `05ccc718b744d813e4f2fb952090f6ca3b3bee0cfbd3d83b22036c663492c27d`; README/LICENSE checks passed; snapshot commit **312 bytes** observed; process error/info rehearsals timed out at **5.013/5.014 s** as expected; version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **26.09 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=1, status=None`; embedded rehearsal timed out at **5.022 s** as expected; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.70 s** | Frozen installs, JS/type builds, both tarballs, external consumer install, and `package tarball consumer smoke passed`; consumer installed **59 packages**. |
 
-The measured sequential five-gate wall-time sum was **83.32 s**. The serial
-protocol golden generator completed in **0.97 s**, and the serial API surface
-generator completed in **2.13 s** on its first pass and **2.06 s** on its
-second pass; both generator runs left their checked-in fixtures unchanged.
+The measured sequential five-gate wall-time sum was **135.72 s**. Focused
+image tests `image_loading_fallback_appears_after_delay_with_stable_id` and
+`svg_bytes_render_through_img_loader` passed **2/2** within the fresh `make ci`.
+The serial protocol golden and API surface generators were not rerun as
+standalone commands in this final matrix; the checked-in golden/API tests ran
+within `make ci`.
 
 ## 3. Quality evidence matrix
 
 | Area | Current evidence |
 | --- | --- |
-| Rust workspace | Fresh `make ci`: **169 passing tests**, 0 failures; `react_gpui` lib **96**; command-roundtrip **17**; examples-render **25**; glyph-platform **2**; module-boundary guard **6/6**; host panic-hook suite **12/12**. |
-| TypeScript renderer | Fresh `make ci`: **108/108 tests**, **53,212 assertions**, 0 failures, including the 50k stress invariant and event-storm scenarios. |
+| Rust workspace | Fresh `make ci`: **172 passing tests**, 0 failures; `react_gpui` lib **98**; command-roundtrip **18**; examples-render **25**; glyph-platform **2**; module-boundary guard **6/6**; host panic-hook suite **12/12**. |
+| TypeScript renderer | Fresh `make ci`: **111/111 tests**, **53,225 assertions**, 0 failures, including the 50k stress invariant and event-storm scenarios. |
 | Development package | Fresh `make ci`: **18/18 tests**, **46 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
-| Fuzz / malformed input | Rust deterministic protocol-fuzz **1/1** (1,039 mutation cases) and the TypeScript malformed-input coverage remain green; no panic or uncaught decoder exception observed. |
-| Performance smoke | Fresh Rust perf suites **3/3** plus perf-event-storm **1/1**. Final TypeScript hot paths: surface route 2 **6.380 ms / 2,000 events** (budget 60), route 8 **12.912 ms / 8,000** (budget 100), press **3.046 ms / 2,000** (budget 15), scroll **2.006 ms / 2,000** (budget 30), drag **1.930 ms / 2,000** (budget 35). The final event-storm suite covered 60/120/240 Hz scroll and drag paths, 10,000-node trees, bursts, no-op, layout, and visible-range cases. |
-| Golden vectors | Rust golden **3/3**; focused TypeScript golden **4/4**, **275 assertions**, with current Image fallback, scale-factor, selectable-text, keybinding, and outbound-drag vectors, 0 fixture drift. |
+| Fuzz / malformed input | Rust deterministic protocol-fuzz **1/1** (1,039 mutation cases) and TypeScript malformed-input coverage remain green; no panic or uncaught decoder exception observed. |
+| Performance smoke | Fresh Rust perf suites **3/3** plus perf-event-storm **1/1**. Final TypeScript hot paths stayed within their documented budgets, and the event-storm suite covered 60/120/240 Hz scroll and drag paths, 10,000-node trees, bursts, no-op, layout, and visible-range cases. |
+| Golden vectors | Rust golden **3/3**; current Image fallback/SVG, scale-factor, selectable-text, keybinding, and outbound-drag vectors remained covered within `make ci`. |
 | API surface locks | Checked-in name/kind fixtures currently lock **core 110 / dev 20** exports. |
 | Protocol tap / crash diagnostics | Tap aggregate tests remain in the fresh Rust/Bun suites; host panic-hook, typed transport-cause, crash-path, and termination evidence remain green in the fresh matrix. |
 | Release packaging | Process and embedded candidate scripts, deterministic archive checks, package tarball consumer smoke, and embedded package gate all passed. Checksums establish reproducibility, not publisher authenticity. |
+
+## 3.1 Citation audit evidence
+
+The final citation audit covered `docs/protocol.md`, `docs/getting-started.md`,
+`docs/troubleshooting.md`, the root `README.md`, and both package READMEs.
+Occurrence-based guide/README sampling checked **90** explicit repository
+references before the independent corrections (**20 getting-started, 43
+troubleshooting, 27 root README**): **3 wrong, 3 fixed, 0 remaining**. The
+three fixes are in commit `393e71d`: the README `#debugging` anchor, the
+`style.ts:258-437` range, and the fully qualified `06-cross-platform-host`
+issue path. `docs/protocol.md` was then checked for **290 citation occurrences
+and 480 numeric range segments** against the final tree: **0 out of range**.
+The four intentionally pathless shorthand/image references are documented
+source aliases (`protocol.rs`, `protocol.ts`, `renderer/paint/virtual_list.rs`,
+and the pinned GPUI image source). The moved retained-tree validation citations
+now point to `tree/validation.rs` and current `tree.rs` entrypoints. Method:
+read each cited source/range on the final tree, resolve aliases, and reject
+any range whose end exceeds the target file or whose cited symbol/claim no
+longer matches.
 
 ## 4. Consistency and crosswalk audit
 
@@ -214,7 +237,7 @@ second pass; both generator runs left their checked-in fixtures unchanged.
 
 The current section contains **120** aggregate capability entries: **104 Added**,
 **9 Fixed**, and **7 Changed**. These are aggregate statements rather than one
-line per commit. `git log --oneline 5ca34e1..HEAD` reports **51 commits** in the
+line per commit. `git log --oneline 5ca34e1..HEAD` reports **57 commits** in the
 refresh delta; the latest reachable implementation/documentation crosswalk is:
 
 | Changelog domain | Reachable evidence |
@@ -257,6 +280,7 @@ refresh delta; the latest reachable implementation/documentation crosswalk is:
 | TextInput clipboard, select-all, and word navigation | `506fdea` |
 | VirtualList scroll preservation and behavior contracts | `887711a` |
 | Appearance-aware example theming | `06922c3` |
+| Citation audit and stable Image rendering | `393e71d`, `bb0d99d` |
 
 ### (b) Protocol directory versus source constants
 
@@ -267,9 +291,9 @@ rows, a **42-slot** style tuple with `boxShadow`/`fontFamily` tails, and one
 current wire form for TextInput (13 slots), Image (4), Drag (5), CommandResult
 (7), Submit (string), and WindowResize (3). OpenSurface retains its valid
 no-options two-item form plus the optional creation-options tuple; other
-historical compatibility forms were removed by the cutover. The protocol
-citation follow-up mapped the 75 historical references to the five split wire
-files; no bare `wire.rs` path remains.
+historical compatibility forms were removed by the cutover. The final citation
+audit checked 290 explicit protocol occurrences and 480 numeric range segments
+with no out-of-range references; no bare `wire.rs` path remains.
 - Selectable read-only Text is in the current wire as a Text-only optional tail;
   the host owns anchor/head, geometry, highlighting, and clipboard copy without
   adding a JavaScript event or mirrored selection state.
@@ -370,6 +394,10 @@ refresh window:
 45. `506fdea` — TextInput clipboard, select-all, and word navigation.
 46. `887711a` — VirtualList scroll preservation and behavior contracts.
 47. `06922c3` — appearance-aware example theming.
+48. `393e71d` — stale source citation ranges, README anchor, and release issue
+    path corrected after a 90-reference guide/README audit.
+49. `bb0d99d` — stable Image element IDs, delayed loading/fallback behavior,
+    SVG-byte loading coverage, and final Image protocol semantics.
 
 Earlier readiness checkpoints remain reachable through `d8619d7`; this list is
 an additive refresh, not a claim that older history was rewritten.
@@ -419,11 +447,11 @@ The workspace remains `0.1.0`; `release-prep` can synchronize a chosen version
 into Cargo and both Bun packages. The current Unreleased inventory is **120
 entries (104/9/7)** across protocol, selectable Text, renderer API, native
 runtime, VirtualList native variable-height layout and scroll restoration,
-Image fallback, scale-factor observations, focus/overlay and drag input,
+Image fallback, stable Image element IDs and SVG loading, scale-factor observations, focus/overlay and drag input,
 appearance-aware examples, pointer/zoom boundaries, keybinding registration,
 outbound file drag, precise TextInput geometry and host editing, troubleshooting,
-and long-run stability. The fresh matrix reports **169 Rust tests**, **108+18
-Bun tests**, **275 focused golden assertions**, and **110+20 API locks**. These
+and long-run stability. The fresh matrix reports **172 Rust tests**, **111+18
+Bun tests**, current Image fallback/SVG coverage, and **110+20 API locks**. These
 facts support considering `0.2.0` rather than a patch cut, but no version option
 is selected by this inventory.
 
