@@ -99,13 +99,23 @@ No gate was removed, loosened, or parallelized.
 
 - Warm `/usr/bin/time -p make ci`: PASS, `real 54.14 s`.
 - The independently timed recipe commands above: all PASS.
-- A second warm `make ci` after this note was written is recorded below.
+- A second warm attempt while concurrent source edits were active exited 2 in
+  `rust-format` after 0.28 s and did not enter the gates.
+- After source commit `622394c` settled, the final warm `/usr/bin/time -p make
+  ci` passed with `real 138.63 s`. Its Rust steps rebuilt the changed source
+  (check 2.88 s, Clippy 4.09 s, test compile 6.20 s), and the core Bun suite
+  measured 41.36 s; this sample was therefore cache-invalidated by the source
+  change rather than an uncontended warm-cache repetition. It still passed all
+  109 Rust tests and 128 core Bun tests, plus the dev and package gates.
 
 ### Second warm run
 
 The post-note `/usr/bin/time -p make ci` attempt exited 2 in `rust-format` after
-0.28 s. It did not enter the gates: concurrent edits in
-`crates/react-gpui/src/renderer.rs` were not yet rustfmt-clean. This source file
-is outside this workstream and was left untouched. The earlier full warm run
-remains the valid 54.14 s baseline; once the concurrent source work is settled,
-the owner should rerun `make ci` to obtain an uncontended second warm sample.
+0.28 s because concurrent edits in `crates/react-gpui/src/renderer.rs` were not
+yet rustfmt-clean. That source file was outside this workstream and left
+untouched. The later 138.63 s run passed after source commit `622394c`, but is a
+cache-invalidated rebuild sample, not a second warm-cache timing point.
+The subsequent uncontended warm `/usr/bin/time -p make ci` passed with `real
+50.57 s` (109 Rust tests, 128 core Bun tests, 20 dev Bun tests, and package
+smoke all green). This confirms the 138.63 s source-rebuild sample falls back to
+the expected warm envelope once compilation artifacts are reused.
