@@ -120,6 +120,22 @@ continue while the native modal is open.
 Headless tests cover command validation, asynchronous completion, cancellation,
 and value routing. Actual NSOpenPanel/NSSavePanel interaction requires a
 display-backed macOS Quartz host run and is not exercised in headless CI.
+Text-file persistence is also root-scoped and asynchronous:
+
+```tsx
+const text = await root.readTextFile(path);
+const bytesWritten = await root.writeTextFile(path, text);
+```
+
+Both methods require a non-empty absolute path with no control characters and
+at most 1024 UTF-8 bytes. File content is UTF-8 and bounded to the frame-safe
+`MAX_FRAME_SIZE - 1024` bytes; reads reject directories, oversized files, and
+invalid UTF-8, while writes return the number of UTF-8 bytes written. Native
+filesystem failures reject the Promise. Applications commonly obtain paths
+from the file dialogs above; symlink handling follows ordinary host filesystem
+semantics rather than an additional sandbox policy. See
+`packages/react-gpui/examples/notes.tsx` for an end-to-end editor.
+
 
 System notifications and static menus are root-scoped integrations:
 
