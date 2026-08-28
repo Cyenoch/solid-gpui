@@ -13,7 +13,18 @@ from this work tree.
   `SurfaceIdReusedError`, while pending commands on a closed root reject with
   typed `SurfaceClosedError`; epochs remain generation checks, not a reuse
   escape hatch. Protocol wire frames are unchanged.
+
 ### Added
+
+- `View` and `Pressable` now support bounded native `tooltip` text through the
+  pinned GPUI tooltip path, including compatible optional tuple tails and
+  tooltip-only updates.
+- Native per-window close policy now supports asynchronous confirmation:
+  `require-confirmation` emits a deduplicated `EVENT_CLOSE_REQUESTED`, and
+  JavaScript resolves it with `resolveCloseRequest(requestId, allow)`.
+- Context menus remain application-composed in-window overlays using
+  right-pointer events, positioned overlay views, and
+  `onPointerDownOutside`; no native context-menu API is added.
 - Shared appearance-aware theme tokens now drive all visual React GPUI
   examples, including dark surfaces and interaction-state colors; README and
   getting-started guidance document the application-owned token-module

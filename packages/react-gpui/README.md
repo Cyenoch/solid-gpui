@@ -35,12 +35,52 @@ const root = createRoot(transport, { surfaceId: 1, epoch: 1 });
 root.render(<Counter />);
 ```
 
-`View`, `Text`, and `Pressable` accept `ref` values that resolve to typed host nodes. `Pressable` accepts `onPress`; callbacks stay in JavaScript and receive a semantic press notification. There is intentionally no synchronous `preventDefault()` because the transport cannot cancel a native action synchronously.
+`View`, `Text`, and `Pressable` accept `ref` values that resolve to typed host nodes. `Pressable` accepts `onPress`; `View` and `Pressable` also accept bounded native `tooltip` text. Callbacks stay in JavaScript and receive semantic notifications. There is intentionally no synchronous `preventDefault()` because the transport cannot cancel a native action synchronously.
 `View`, `Text`, `Pressable`, and `Image` accept `onLayout={(frame) => ...}`.
 The callback receives `{ x, y, width, height }` in window pixels after native
 post-layout measurement. The first report is delivered on the next frame;
 identical finite frames are deduplicated. Layout reports are asynchronous and
 are not available for `TextInput`, `VirtualList`, or virtualized rows.
+
+## Tooltips
+
+`View` and `Pressable` accept an optional `tooltip` string. The host validates
+non-empty text without control characters and caps it at 256 UTF-8 bytes, then
+uses pinned GPUI's native tooltip interactivity with its default 500 ms hover
+delay. Tooltip text stays independent from drag metadata, and the tooltip is
+painted by a compact host-owned text view.
+
+## Close policy
+
+Native window close is permissive by default. To make an individual surface
+wait for an asynchronous JavaScript decision, set the policy and handle the
+request callback:
+
+```tsx
+const root = createRoot(transport, {
+  onCloseRequested: (requestId) => {
+    void confirmDiscard().then((allow) => root.resolveCloseRequest(requestId, allow));
+  },
+});
+await root.setClosePolicy("require-confirmation");
+```
+
+`require-confirmation` vetoes the synchronous native close and emits one
+`EVENT_CLOSE_REQUESTED` at a time. Resolving with `false` keeps the window open;
+resolving with `true` removes it through the host close path. Duplicate native
+attempts while a request is pending, and stale or already-resolved request IDs,
+are ignored. This policy covers per-window native close callbacks; application
+quit and Wayland layer-shell teardown remain platform-level boundaries.
+
+## Context menus
+
+Context menus are application-composed in-window overlays rather than a native
+menu API. Handle the right-pointer event, store its window position, render a
+`position="overlay"` `View`, and close it from `onPointerDownOutside` (plus an
+Escape key handler when desired). This follows the dropdown pattern and keeps
+menu contents and dismissal in React state; browser and native platform popup
+surfaces are not assumed to have identical behavior.
+
 ## Drag and drop
 
 `View` and `Pressable` support internal drag sources and drop targets:
