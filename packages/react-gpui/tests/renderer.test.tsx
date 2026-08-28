@@ -18,11 +18,14 @@ import {
 } from "../src/index";
 import { decode } from "@msgpack/msgpack";
 import {
+  COMMAND_ACTIVATE_WINDOW,
   COMMAND_BLUR,
   COMMAND_CLIPBOARD_READ,
   COMMAND_CLIPBOARD_WRITE,
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
+  COMMAND_GET_WINDOW_BOUNDS,
+  COMMAND_GET_WINDOW_STATE,
   COMMAND_SCROLL_TO_END,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
@@ -31,6 +34,7 @@ import {
   COMMAND_FOCUS_PREV,
   COMMAND_GET_FOCUS,
   COMMAND_GET_WINDOW_SIZE,
+  COMMAND_MINIMIZE_WINDOW,
   COMMAND_OPEN_URL,
   COMMAND_RESIZE_WINDOW,
   COMMAND_TOGGLE_FULLSCREEN,
@@ -2051,6 +2055,35 @@ describe("renderer commits", () => {
     await expect(titlePromise).resolves.toBeUndefined();
     root.unmount();
   });
+  it("frames and decodes root window control commands", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 76, epoch: 77 });
+    root.render(<View />);
+    const complete = (sequence: number, requestId: number, command: number, value: readonly unknown[] | null = null) =>
+      encodeFrame([3, 2, 76, 77, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null, value]] as never);
+
+    const minimize = root.minimizeWindow();
+    expect(message(transport, 1)).toEqual([3, 4, 76, 77, 1, 1, 1, COMMAND_MINIMIZE_WINDOW, null]);
+    transport.push(complete(1, 1, COMMAND_MINIMIZE_WINDOW));
+    await minimize;
+
+    const bounds = root.getWindowBounds();
+    expect(message(transport, 2)).toEqual([3, 4, 76, 77, 1, 2, 1, COMMAND_GET_WINDOW_BOUNDS, null]);
+    transport.push(complete(2, 2, COMMAND_GET_WINDOW_BOUNDS, [8, [12.5, -4, 800, 600]]));
+    await expect(bounds).resolves.toEqual({ x: 12.5, y: -4, width: 800, height: 600 });
+
+    const state = root.getWindowState();
+    expect(message(transport, 3)).toEqual([3, 4, 76, 77, 1, 3, 1, COMMAND_GET_WINDOW_STATE, null]);
+    transport.push(complete(3, 3, COMMAND_GET_WINDOW_STATE, [9, [false, true]]));
+    await expect(state).resolves.toEqual({ fullscreen: false, maximized: true });
+
+    const activate = root.activateWindow();
+    expect(message(transport, 4)).toEqual([3, 4, 76, 77, 1, 4, 1, COMMAND_ACTIVATE_WINDOW, null]);
+    transport.push(complete(4, 4, COMMAND_ACTIVATE_WINDOW));
+    await activate;
+    root.unmount();
+  });
+
   it("frames root-level resize, zoom, fullscreen, and URL commands", async () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 75, epoch: 76 });
@@ -2083,6 +2116,35 @@ describe("renderer commits", () => {
     await expect(root.openUrl("file:///tmp/example")).rejects.toThrow();
     root.unmount();
   });
+  it("frames and decodes root window control commands", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 76, epoch: 77 });
+    root.render(<View />);
+    const complete = (sequence: number, requestId: number, command: number, value: readonly unknown[] | null = null) =>
+      encodeFrame([3, 2, 76, 77, 1, sequence, 1, 0, 6, [2, requestId, command, 1, true, null, value]] as never);
+
+    const minimize = root.minimizeWindow();
+    expect(message(transport, 1)).toEqual([3, 4, 76, 77, 1, 1, 1, 30, null]);
+    transport.push(complete(1, 1, 30));
+    await minimize;
+
+    const bounds = root.getWindowBounds();
+    expect(message(transport, 2)).toEqual([3, 4, 76, 77, 1, 2, 1, 31, null]);
+    transport.push(complete(2, 2, 31, [8, [12.5, -4, 800, 600]]));
+    await expect(bounds).resolves.toEqual({ x: 12.5, y: -4, width: 800, height: 600 });
+
+    const state = root.getWindowState();
+    expect(message(transport, 3)).toEqual([3, 4, 76, 77, 1, 3, 1, 32, null]);
+    transport.push(complete(3, 3, 32, [9, [false, true]]));
+    await expect(state).resolves.toEqual({ fullscreen: false, maximized: true });
+
+    const activate = root.activateWindow();
+    expect(message(transport, 4)).toEqual([3, 4, 76, 77, 1, 4, 1, 33, null]);
+    transport.push(complete(4, 4, 33));
+    await activate;
+    root.unmount();
+  });
+
   it("frames file dialog commands and maps async results and cancellation", async () => {
     const transport = new MemoryTransport();
     const root = createRoot(transport, { surfaceId: 79, epoch: 80 });

@@ -1,18 +1,19 @@
 use super::*;
 use gpui::{SharedString, TestAppContext, TextRun, VisualTestContext, font, px};
 use react_gpui::{
-    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
-    COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
-    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_SIZE, COMMAND_LOAD_FONT, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY,
-    COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, ClipboardImage,
-    EventPayload, HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW,
-    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
-    NotificationActionDefinition, PROTOCOL_VERSION, PatchOperation, TextInputProperties,
-    VirtualListProperties, WindowOpenOptions,
+    COMMAND_ACTIVATE_WINDOW, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE,
+    COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN,
+    COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
+    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE,
+    COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_SURFACE,
+    COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, ClipboardImage, EventPayload, HostProperties, InMemoryAdapter,
+    KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
+    MenuAction, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
+    PROTOCOL_VERSION, PatchOperation, TextInputProperties, VirtualListProperties,
+    WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -317,6 +318,7 @@ fn route_command(registry: &Entity<SurfaceRegistry>, cx: &mut TestAppContext, co
         .expect("route test command");
     draw_surface(registry, cx, command.surface_id);
 }
+
 fn install_notification_callback(registry: &Entity<SurfaceRegistry>, cx: &mut TestAppContext) {
     let registry = registry.downgrade();
     cx.update(|cx| {
@@ -589,6 +591,40 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
         Some(react_gpui::CommandValue::Pair((width, height)))
             if width > 0.0 && height > 0.0
     ));
+    route_command(
+        &registry,
+        cx,
+        command(24, COMMAND_GET_WINDOW_BOUNDS, 1, None, None, None, None),
+    );
+    let bounds = command_result(&take_events(&runtime), 24);
+    assert!(bounds.success, "getWindowBounds result: {:?}", bounds.error);
+    assert!(matches!(
+        bounds.value,
+        Some(react_gpui::CommandValue::Bounds((x, y, width, height)))
+            if x.is_finite() && y.is_finite() && width > 0.0 && height > 0.0
+    ));
+    route_command(
+        &registry,
+        cx,
+        command(25, COMMAND_GET_WINDOW_STATE, 1, None, None, None, None),
+    );
+    let state = command_result(&take_events(&runtime), 25);
+    assert!(state.success, "getWindowState result: {:?}", state.error);
+    assert_eq!(
+        state.value,
+        Some(react_gpui::CommandValue::WindowState((false, false)))
+    );
+    let invalid_minimize = command(26, COMMAND_MINIMIZE_WINDOW, 2, None, None, None, None);
+    assert!(
+        invalid_minimize.encode().is_err(),
+        "minimizeWindow must reject non-root node IDs"
+    );
+    route_command(
+        &registry,
+        cx,
+        command(27, COMMAND_ACTIVATE_WINDOW, 1, None, None, None, None),
+    );
+    assert!(command_result(&take_events(&runtime), 27).success);
 
     for (request_id, kind, payload) in [
         (11, COMMAND_RESIZE_WINDOW, Some((640, 480))),

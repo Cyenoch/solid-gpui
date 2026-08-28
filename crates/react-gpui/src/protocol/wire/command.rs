@@ -227,6 +227,21 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             (Some(payload), None, None, None, None) => Some(CommandPayloadWire::Pair(*payload)),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
+        COMMAND_MINIMIZE_WINDOW
+        | COMMAND_GET_WINDOW_BOUNDS
+        | COMMAND_GET_WINDOW_STATE
+        | COMMAND_ACTIVATE_WINDOW => {
+            if command.node_id != 1
+                || command.payload.is_some()
+                || command.title.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            None
+        }
         _ => {
             if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
@@ -346,6 +361,10 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_CLIPBOARD_WRITE_IMAGE
             | COMMAND_CLIPBOARD_READ_IMAGE
             | COMMAND_LOAD_FONT
+            | COMMAND_MINIMIZE_WINDOW
+            | COMMAND_GET_WINDOW_BOUNDS
+            | COMMAND_GET_WINDOW_STATE
+            | COMMAND_ACTIVATE_WINDOW
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -508,6 +527,20 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             (COMMAND_ZOOM_WINDOW | COMMAND_TOGGLE_FULLSCREEN, _) => {
                 return Err(ProtocolError::InvalidCommandPayload);
             }
+            (
+                COMMAND_MINIMIZE_WINDOW
+                | COMMAND_GET_WINDOW_BOUNDS
+                | COMMAND_GET_WINDOW_STATE
+                | COMMAND_ACTIVATE_WINDOW,
+                None,
+            ) if wire.6 == 1 => (None, None, None),
+            (
+                COMMAND_MINIMIZE_WINDOW
+                | COMMAND_GET_WINDOW_BOUNDS
+                | COMMAND_GET_WINDOW_STATE
+                | COMMAND_ACTIVATE_WINDOW,
+                _,
+            ) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, None) if wire.6 == 1 => (None, None, None),
             (COMMAND_FOCUS_NEXT | COMMAND_FOCUS_PREV, _) => {
                 return Err(ProtocolError::InvalidCommandPayload);

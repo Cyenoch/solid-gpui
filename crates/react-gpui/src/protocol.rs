@@ -75,6 +75,10 @@ pub const COMMAND_WRITE_TEXT_FILE: u32 = 26;
 pub const COMMAND_CLIPBOARD_WRITE_IMAGE: u32 = 27;
 pub const COMMAND_CLIPBOARD_READ_IMAGE: u32 = 28;
 pub const COMMAND_LOAD_FONT: u32 = 29;
+pub const COMMAND_MINIMIZE_WINDOW: u32 = 30;
+pub const COMMAND_GET_WINDOW_BOUNDS: u32 = 31;
+pub const COMMAND_GET_WINDOW_STATE: u32 = 32;
+pub const COMMAND_ACTIVATE_WINDOW: u32 = 33;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 /// File and clipboard-image payloads leave 1 KiB for the complete MessagePack command/frame envelope.
@@ -277,7 +281,7 @@ pub struct ClipboardImage {
 /// Optional typed data returned by a command. The tag is part of the wire
 /// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=clipboard/path
 /// text` (also the metadata family returned by LoadFont), `5=selected paths`,
-/// `6=file text`, and `7=clipboard image`.
+/// `6=file text`, `7=clipboard image`, `8=window bounds`, and `9=window state`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
@@ -287,6 +291,8 @@ pub enum CommandValue {
     Paths(Vec<String>),
     FileText(String),
     Image(ClipboardImage),
+    Bounds((f32, f32, f32, f32)),
+    WindowState((bool, bool)),
 }
 
 #[derive(Debug, Clone, PartialEq)]

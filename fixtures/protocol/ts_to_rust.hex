@@ -1,5 +1,6 @@
 # protocol-golden-v1
 # id	message	payload_hex
+ts-command-activate-window	command	99030407032acc850121c0
 ts-command-blur	command	99030407032a660402c0
 ts-command-clipboard-read	command	99030407032a740110c0
 ts-command-clipboard-read-image	command	99030407032acc80011cc0
@@ -12,16 +13,21 @@ ts-command-focus-next	command	99030407032a6f010bc0
 ts-command-focus-prev	command	99030407032a70010cc0
 ts-command-fullscreen	command	99030407032a6d0109c0
 ts-command-get-focus	command	99030407032a72040ec0
+ts-command-get-window-bounds	command	99030407032acc83011fc0
 ts-command-get-window-size	command	99030407032a71010dc0
+ts-command-get-window-state	command	99030407032acc840120c0
 ts-command-load-font	command	99030407032acc81011dae2f746d702f54756666792e747466
+ts-command-minimize-window	command	99030407032acc82011ec0
 ts-command-notification	command	99030407032a78011493a4446f6e65a846696e69736865649192a46f70656ea44f70656e
 ts-command-open-surface	command	99030407032a75011192a54368696c6492cd0280cd01e0
 ts-command-open-surface-options	command	99030407032a7b011193a9496e73706563746f7292cd0280cd01e09401c2cd0140ccf0
 ts-command-read-text-file	command	99030407032a7d0119ae2f746d702f6e6f7465732e747874
 ts-command-resize	command	99030407032a6b010792cd0320cd0258
+ts-command-resolve-close	command	99030407032a7c0118927b01
 ts-command-scroll-end	command	99030407032a690605c0
 ts-command-scroll-index	command	99030407032a680604920900
 ts-command-selection	command	99030407032a670503920204
+ts-command-set-close-policy	command	99030407032a7b0117b4726571756972652d636f6e6669726d6174696f6e
 ts-command-set-keybindings	command	99030407032a7a01169292ab636d642d73686966742d70ac70616c657474652e6f70656e92ad6374726c2d6b206374726c2d31aa6d656e752e6f74686572
 ts-command-set-menus	command	99030407032a7901159192a446696c65939301a46f70656e92c3c39100920292a44d6f7265919201a56f74686572
 ts-command-title	command	99030407032a6a0106b1476f6c64656e20f09f9880207469746c65
@@ -31,6 +37,7 @@ ts-command-zoom	command	99030407032a6c0108c0
 ts-event-action	event	9a030207032a15010011a46f70656e
 ts-event-animation	event	9a030207032a07010008920404
 ts-event-blur	event	9a030207032a18040705c0
+ts-event-close-requested	event	9a030207032a1c01001792097b
 ts-event-command-result	event	9a030207032a0801000697026d0a01c2a872656a6563746564c0
 ts-event-command-result-clipboard	event	9a030207032a0f0100069702701001c3c09204ab7061737465642074657874
 ts-event-command-result-clipboard-image	event	9a030207032a1a0100069702cc801c01c3c092079201c40489504e47

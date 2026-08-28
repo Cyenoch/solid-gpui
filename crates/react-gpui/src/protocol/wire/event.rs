@@ -91,6 +91,10 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_RESOLVE_CLOSE_REQUEST
                         | COMMAND_READ_TEXT_FILE
                         | COMMAND_WRITE_TEXT_FILE
+                        | COMMAND_MINIMIZE_WINDOW
+                        | COMMAND_GET_WINDOW_BOUNDS
+                        | COMMAND_GET_WINDOW_STATE
+                        | COMMAND_ACTIVATE_WINDOW
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);
@@ -467,6 +471,8 @@ enum CommandValueWire {
     Text((u32, String)),
     Paths((u32, Vec<String>)),
     Image((u32, (u32, serde_bytes::ByteBuf))),
+    Bounds((u32, (f32, f32, f32, f32))),
+    WindowState((u32, (bool, bool))),
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct VisibleRangeWire(u32, u32, u32);
@@ -721,6 +727,12 @@ impl From<&CommandValue> for CommandValueWire {
                     serde_bytes::ByteBuf::from(image.bytes.clone()),
                 ),
             )),
+            CommandValue::Bounds((x, y, width, height)) => {
+                Self::Bounds((8, (*x, *y, *width, *height)))
+            }
+            CommandValue::WindowState((fullscreen, maximized)) => {
+                Self::WindowState((9, (*fullscreen, *maximized)))
+            }
         }
     }
 }
@@ -756,6 +768,16 @@ impl TryFrom<CommandValueWire> for CommandValue {
                     format,
                     bytes: bytes.into_vec(),
                 }))
+            }
+            CommandValueWire::Bounds((8, (x, y, width, height)))
+                if [x, y, width, height].into_iter().all(f32::is_finite)
+                    && width >= 0.0
+                    && height >= 0.0 =>
+            {
+                Ok(Self::Bounds((x, y, width, height)))
+            }
+            CommandValueWire::WindowState((9, (fullscreen, maximized))) => {
+                Ok(Self::WindowState((fullscreen, maximized)))
             }
             _ => Err(ProtocolError::InvalidEventPayload),
         }

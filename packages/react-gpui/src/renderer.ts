@@ -147,6 +147,10 @@ export interface Root {
   setTitle(title: string): Promise<void>;
   resize(width: number, height: number): Promise<void>;
   getWindowSize(): Promise<[number, number]>;
+  minimizeWindow(): Promise<void>;
+  getWindowBounds(): Promise<{ x: number; y: number; width: number; height: number }>;
+  getWindowState(): Promise<{ fullscreen: boolean; maximized: boolean }>;
+  activateWindow(): Promise<void>;
   setClipboardText(text: string): Promise<void>;
   getClipboardText(): Promise<string>;
   setClipboardImage(image: ClipboardImage): Promise<void>;
@@ -240,6 +244,22 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     getWindowSize(): Promise<[number, number]> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.getWindowSize();
+    },
+    minimizeWindow(): Promise<void> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.minimizeWindow();
+    },
+    getWindowBounds(): Promise<{ x: number; y: number; width: number; height: number }> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.getWindowBounds();
+    },
+    getWindowState(): Promise<{ fullscreen: boolean; maximized: boolean }> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.getWindowState();
+    },
+    activateWindow(): Promise<void> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.activateWindow();
     },
     setClipboardText(text: string): Promise<void> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));

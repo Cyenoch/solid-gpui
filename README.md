@@ -93,6 +93,25 @@ minimum size. `"floating"` is above-parent where supported, not a portable
 global always-on-top guarantee; popup, max-size, runtime option setters, and a
 center toggle remain unsupported. The host's initial window is a centered
 `800×600` surface created before JavaScript starts.
+Root window controls are root-scoped and asynchronous:
+
+```tsx
+await root.minimizeWindow();
+const bounds = await root.getWindowBounds();
+const state = await root.getWindowState();
+await root.activateWindow();
+```
+
+`getWindowBounds()` returns finite logical/global `[x, y, width, height]`
+coordinates; on macOS the origin is screen-relative global top-left. The
+state read returns `{ fullscreen, maximized }`, while `EVENT_WINDOW_ACTIVATION`
+remains the activation observation channel. For persistence, save bounds and
+restore the saved size with `openSurface({ width, height })`; creation remains
+centered because the pinned GPUI public API has no runtime or creation-position
+setter, so exact position restoration is an upstream boundary. Minimize and
+activation have visible effects only on a display-backed host; the pinned
+headless TestWindow leaves minimize unimplemented and reports inactive state.
+
 
 `OpenSurface` is always a command from its requesting, already registered root
 (`nodeId=1`); the host rejects unknown surface IDs and never implicitly opens a

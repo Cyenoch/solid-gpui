@@ -30,6 +30,17 @@ from this work tree.
   do not invalidate cached fallback choices. Repeated registration is forwarded
   to the native backend. WOFF/WOFF2 are not supported.
 
+- Added root-only window controls: `minimizeWindow()` (command 30),
+  `getWindowBounds()` (31, value tag 8), `getWindowState()` (32, value tag 9),
+  and `activateWindow()` (33). Bounds are finite logical/global coordinates;
+  on macOS they use the screen-relative global top-left origin. The activation
+  event remains the observable state channel. The pinned headless TestWindow
+  leaves minimize unimplemented and reports inactive, so visible minimize and
+  activation behavior requires a display-backed host. Saved bounds can restore
+  size through centered `openSurface` creation, but exact position restoration
+  is unsupported because pinned GPUI exposes no public position setter.
+
+
 ### Added
 
 - `View` and `Pressable` now support bounded native `tooltip` text through the

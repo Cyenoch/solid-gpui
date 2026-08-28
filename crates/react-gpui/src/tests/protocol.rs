@@ -627,6 +627,10 @@ fn command_result_accepts_surface_command_kinds() {
         COMMAND_GET_FOCUS,
         COMMAND_CLIPBOARD_WRITE,
         COMMAND_CLIPBOARD_READ,
+        COMMAND_MINIMIZE_WINDOW,
+        COMMAND_GET_WINDOW_BOUNDS,
+        COMMAND_GET_WINDOW_STATE,
+        COMMAND_ACTIVATE_WINDOW,
     ] {
         let event = Event::command_result(
             7,
@@ -655,6 +659,14 @@ fn command_result_accepts_surface_command_kinds() {
             COMMAND_FILE_DIALOG_OPEN,
             CommandValue::Paths(vec!["/tmp/a.txt".to_owned(), "/tmp/b.txt".to_owned()]),
         ),
+        (
+            COMMAND_GET_WINDOW_BOUNDS,
+            CommandValue::Bounds((-12.5, 24.0, 640.0, 480.0)),
+        ),
+        (
+            COMMAND_GET_WINDOW_STATE,
+            CommandValue::WindowState((true, false)),
+        ),
     ] {
         let event = Event::command_result(
             7,
@@ -672,6 +684,7 @@ fn command_result_accepts_surface_command_kinds() {
         );
         assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
     }
+
     let empty_paths = rmp_serde::to_vec(&(
         3u32,
         2u32,

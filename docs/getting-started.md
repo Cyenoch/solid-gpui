@@ -208,14 +208,14 @@ fallback stack. The complete positional table and enum codes live in
 
 ### Root commands
 
-| Domain         | Root methods                                                                 |
-| -------------- | ---------------------------------------------------------------------------- |
-| Window         | `setTitle`, `resize`, `getWindowSize`, `zoom`, `toggleFullscreen`, `openUrl` |
-| Surfaces       | `createSurfaceHost`, `root.openSurface`, `host.createRoot`, `root.onClose`   |
-| Focus          | `focusNext`, `focusPrev`                                                     |
-| Clipboard      | `setClipboardText`, `getClipboardText`                                       |
-| Files          | `pickFiles`, `pickSavePath`                                                  |
-| User-facing OS | `showNotification`, `setMenus`, `setKeybindings`                    |
+| Domain         | Root methods                                                                                              |
+| -------------- | ---------------------------------------------------------------------------------------------------------- |
+| Window         | `setTitle`, `resize`, `getWindowSize`, `getWindowBounds`, `getWindowState`, `minimizeWindow`, `activateWindow`, `zoom`, `toggleFullscreen`, `openUrl` |
+| Surfaces       | `createSurfaceHost`, `root.openSurface`, `host.createRoot`, `root.onClose`                                  |
+| Focus          | `focusNext`, `focusPrev`                                                                                    |
+| Clipboard      | `setClipboardText`, `getClipboardText`                                                                      |
+| Files          | `pickFiles`, `pickSavePath`                                                                                 |
+| User-facing OS | `showNotification`, `setMenus`, `setKeybindings`                                                            |
 
 Node refs expose narrower commands: TextInput focus/blur/selection, View or
 Pressable focus/blur where supported, and VirtualList `scrollToIndex`/

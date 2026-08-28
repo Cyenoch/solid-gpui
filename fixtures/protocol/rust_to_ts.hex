@@ -1,5 +1,6 @@
 # protocol-golden-v1
 # id	message	payload_hex
+rust-command-activate-window	command	99030407032acc850121c0
 rust-command-blur	command	99030407032a660402c0
 rust-command-clipboard-read	command	99030407032a740110c0
 rust-command-clipboard-read-image	command	99030407032acc80011cc0
@@ -12,16 +13,21 @@ rust-command-focus-next	command	99030407032a6f010bc0
 rust-command-focus-prev	command	99030407032a70010cc0
 rust-command-fullscreen	command	99030407032a6d0109c0
 rust-command-get-focus	command	99030407032a72040ec0
+rust-command-get-window-bounds	command	99030407032acc83011fc0
 rust-command-get-window-size	command	99030407032a71010dc0
+rust-command-get-window-state	command	99030407032acc840120c0
 rust-command-load-font	command	99030407032acc81011dae2f746d702f54756666792e747466
+rust-command-minimize-window	command	99030407032acc82011ec0
 rust-command-notification	command	99030407032a78011493a4446f6e65a846696e69736865649192a46f70656ea44f70656e
 rust-command-open-surface	command	99030407032a75011192a54368696c6492cd0280cd01e0
 rust-command-open-surface-options	command	99030407032a7b011193a9496e73706563746f7292cd0280cd01e09401c2cd0140ccf0
 rust-command-read-text-file	command	99030407032a7d0119ae2f746d702f6e6f7465732e747874
 rust-command-resize	command	99030407032a6b010792cd0320cd0258
+rust-command-resolve-close	command	99030407032a7c0118927b01
 rust-command-scroll-end	command	99030407032a690605c0
 rust-command-scroll-index	command	99030407032a680604920900
 rust-command-selection	command	99030407032a670503920204
+rust-command-set-close-policy	command	99030407032a7b0117b4726571756972652d636f6e6669726d6174696f6e
 rust-command-set-keybindings	command	99030407032a7a01169292ab636d642d73686966742d70ac70616c657474652e6f70656e92ad6374726c2d6b206374726c2d31aa6d656e752e6f74686572
 rust-command-set-menus	command	99030407032a7901159192a446696c65939301a46f70656e92c3c39100920292a44d6f7265919201a56f74686572
 rust-command-title	command	99030407032a6a0106b1476f6c64656e20f09f9880207469746c65
@@ -30,6 +36,7 @@ rust-command-zoom	command	99030407032a6c0108c0
 rust-event-action	event	9a030207032a15010011a46f70656e
 rust-event-animation	event	9a030207032a07010008920404
 rust-event-blur	event	9a030207032a18040705c0
+rust-event-close-requested	event	9a030207032a1c01001792097b
 rust-event-command-result	event	9a030207032a0801000697026d0a01c2a872656a6563746564c0
 rust-event-command-result-clipboard	event	9a030207032a0f0100069702701001c3c09204ab7061737465642074657874
 rust-event-command-result-clipboard-image	event	9a030207032a1a0100069702cc801c01c3c092079201c40489504e47

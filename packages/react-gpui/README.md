@@ -598,10 +598,27 @@ is demonstrated in `examples/todo.tsx`.
 `Root.focusNext()` and `Root.focusPrev()` delegate traversal to the native
 tab-stop graph and return Promise acknowledgements. A `CommandResult` may omit
 its value when the command has no typed return value; value tags are
-`[1,number]`, `[2,[width,height]]`, `[3,bool]`, and `[4,string]`.
+`[1,number]`, `[2,[width,height]]`, `[3,bool]`, `[4,string]`,
+`[5,[path,...]]`, `[6,fileText]`, `[7,[format,bytes]]`,
+`[8,[x,y,width,height]]`, and `[9,[fullscreen,maximized]]`.
 `Root.setTitle(title)` sends root command `COMMAND_SET_TITLE=6`; title must be
 non-empty and at most 256 Unicode code points. The command returns a Promise
 resolved by the native CommandResult.
+
+`Root.minimizeWindow()` sends command `30` and requests native
+miniaturization. `Root.getWindowBounds()` sends command `31` and resolves to
+`{ x, y, width, height }` from finite logical/global bounds (macOS uses a
+screen-relative global top-left origin). `Root.getWindowState()` sends command
+`32` and resolves to `{ fullscreen, maximized }`; these are observations rather
+than setters. `Root.activateWindow()` sends command `33` and requests native
+foreground activation. `EVENT_WINDOW_ACTIVATION` remains the state channel.
+The pinned headless TestWindow does not implement minimize and reports inactive
+state, so visible minimize/activation behavior requires a display-backed host.
+
+For persistence, save `getWindowBounds()` and restore its width/height with
+`openSurface({ width, height })`; new surfaces are centered. The pinned GPUI
+public API has no position setter, so exact position restoration is explicitly
+unsupported rather than simulated.
 
 `Root.loadFont(path)` sends root command `COMMAND_LOAD_FONT=29` and resolves
 with the family name from the loaded font's metadata. See [Runtime fonts](#runtime-fonts)

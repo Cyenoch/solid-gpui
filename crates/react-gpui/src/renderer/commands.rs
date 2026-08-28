@@ -10,16 +10,17 @@ use gpui::{
 
 use super::ReactRoot;
 use crate::protocol::{
-    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
-    COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
-    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_SIZE, COMMAND_LOAD_FONT, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
-    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
-    CommandValue, EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_IMAGE_BYTES,
-    MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION,
-    MenuAction, MenuDefinition, MenuItemDefinition,
+    COMMAND_ACTIVATE_WINDOW, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE,
+    COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN,
+    COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
+    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE,
+    COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_URL,
+    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
+    COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
+    COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage,
+    Command, CommandResult, CommandValue, EVENT_SELECTION, Event, HostProperties,
+    MAX_CLIPBOARD_IMAGE_BYTES, MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES,
+    MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
 
@@ -438,6 +439,10 @@ impl ReactRoot {
                     | COMMAND_FOCUS_NEXT
                     | COMMAND_FOCUS_PREV
                     | COMMAND_GET_WINDOW_SIZE
+                    | COMMAND_MINIMIZE_WINDOW
+                    | COMMAND_GET_WINDOW_BOUNDS
+                    | COMMAND_GET_WINDOW_STATE
+                    | COMMAND_ACTIVATE_WINDOW
                     | COMMAND_CLIPBOARD_WRITE
                     | COMMAND_CLIPBOARD_READ
                     | COMMAND_CLIPBOARD_WRITE_IMAGE
@@ -565,6 +570,51 @@ impl ReactRoot {
                                     f32::from(bounds.size.width),
                                     f32::from(bounds.size.height),
                                 )));
+                            }
+                        }
+                        COMMAND_GET_WINDOW_BOUNDS => {
+                            if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error =
+                                    Some("getWindowBounds does not accept a payload".to_string());
+                            } else {
+                                let bounds = window.bounds();
+                                value = Some(CommandValue::Bounds((
+                                    f32::from(bounds.origin.x),
+                                    f32::from(bounds.origin.y),
+                                    f32::from(bounds.size.width),
+                                    f32::from(bounds.size.height),
+                                )));
+                            }
+                        }
+                        COMMAND_GET_WINDOW_STATE => {
+                            if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error =
+                                    Some("getWindowState does not accept a payload".to_string());
+                            } else {
+                                value = Some(CommandValue::WindowState((
+                                    window.is_fullscreen(),
+                                    window.is_maximized(),
+                                )));
+                            }
+                        }
+                        COMMAND_MINIMIZE_WINDOW => {
+                            if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error =
+                                    Some("minimizeWindow does not accept a payload".to_string());
+                            } else {
+                                window.minimize_window();
+                            }
+                        }
+                        COMMAND_ACTIVATE_WINDOW => {
+                            if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error =
+                                    Some("activateWindow does not accept a payload".to_string());
+                            } else {
+                                window.activate_window();
                             }
                         }
                         COMMAND_RESIZE_WINDOW => {

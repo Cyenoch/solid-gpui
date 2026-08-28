@@ -100,6 +100,10 @@ export const COMMAND_WRITE_TEXT_FILE = 26 as const;
 export const COMMAND_CLIPBOARD_WRITE_IMAGE = 27 as const;
 export const COMMAND_CLIPBOARD_READ_IMAGE = 28 as const;
 export const COMMAND_LOAD_FONT = 29 as const;
+export const COMMAND_MINIMIZE_WINDOW = 30 as const;
+export const COMMAND_GET_WINDOW_BOUNDS = 31 as const;
+export const COMMAND_GET_WINDOW_STATE = 32 as const;
+export const COMMAND_ACTIVATE_WINDOW = 33 as const;
 export const CLIPBOARD_IMAGE_FORMAT_PNG = 1 as const;
 export const CLIPBOARD_IMAGE_FORMAT_JPEG = 2 as const;
 export const CLIPBOARD_IMAGE_FORMAT_GIF = 3 as const;
@@ -291,6 +295,10 @@ export type Command = readonly [
     | typeof COMMAND_CLIPBOARD_WRITE_IMAGE
     | typeof COMMAND_CLIPBOARD_READ_IMAGE
     | typeof COMMAND_LOAD_FONT
+    | typeof COMMAND_MINIMIZE_WINDOW
+    | typeof COMMAND_GET_WINDOW_BOUNDS
+    | typeof COMMAND_GET_WINDOW_STATE
+    | typeof COMMAND_ACTIVATE_WINDOW
   ),
   (
     | readonly [number, number]
@@ -312,7 +320,9 @@ export type CommandValuePayload =
   | readonly [4, string]
   | readonly [5, readonly string[]]
   | readonly [6, string]
-  | readonly [7, ClipboardImagePayload];
+  | readonly [7, ClipboardImagePayload]
+  | readonly [8, readonly [number, number, number, number]]
+  | readonly [9, readonly [boolean, boolean]];
 export type CommandResultPayload = readonly [
   2,
   number,
@@ -436,6 +446,24 @@ function validateCommandValue(value: unknown): value is CommandValuePayload {
       value[1][1] instanceof Uint8Array &&
       value[1][1].byteLength > 0 &&
       value[1][1].byteLength <= MAX_CLIPBOARD_IMAGE_BYTES
+    );
+  }
+  if (value[0] === 8) {
+    return (
+      value.length === 2 &&
+      Array.isArray(value[1]) &&
+      value[1].length === 4 &&
+      value[1].every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) &&
+      value[1][2] >= 0 &&
+      value[1][3] >= 0
+    );
+  }
+  if (value[0] === 9) {
+    return (
+      value.length === 2 &&
+      Array.isArray(value[1]) &&
+      value[1].length === 2 &&
+      value[1].every((state) => typeof state === "boolean")
     );
   }
   return (
@@ -845,6 +873,10 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       COMMAND_READ_TEXT_FILE,
       COMMAND_WRITE_TEXT_FILE,
       COMMAND_LOAD_FONT,
+      COMMAND_MINIMIZE_WINDOW,
+      COMMAND_GET_WINDOW_BOUNDS,
+      COMMAND_GET_WINDOW_STATE,
+      COMMAND_ACTIVATE_WINDOW,
     ];
     if (!validCommands.includes(payload[2] as number)) return false;
     if (typeof payload[4] !== "boolean" || (payload[5] !== null && typeof payload[5] !== "string")) return false;

@@ -1,11 +1,13 @@
 import {
+  COMMAND_ACTIVATE_WINDOW,
   COMMAND_BLUR,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
   COMMAND_FOCUS_PREV,
   COMMAND_GET_FOCUS,
+  COMMAND_GET_WINDOW_BOUNDS,
   COMMAND_GET_WINDOW_SIZE,
-  COMMAND_RESIZE_WINDOW,
+  COMMAND_GET_WINDOW_STATE,
   COMMAND_CLIPBOARD_READ,
   COMMAND_CLIPBOARD_READ_IMAGE,
   COMMAND_CLIPBOARD_WRITE,
@@ -13,21 +15,24 @@ import {
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
   COMMAND_KIND,
+  COMMAND_LOAD_FONT,
+  COMMAND_MINIMIZE_WINDOW,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
-  COMMAND_LOAD_FONT,
   COMMAND_READ_TEXT_FILE,
+  COMMAND_RESIZE_WINDOW,
+  COMMAND_RESOLVE_CLOSE_REQUEST,
+  COMMAND_SET_CLOSE_POLICY,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
-  COMMAND_SET_CLOSE_POLICY,
-  COMMAND_RESOLVE_CLOSE_REQUEST,
+  COMMAND_SET_SELECTION,
   COMMAND_SHOW_NOTIFICATION,
   COMMAND_SCROLL_TO_END,
   COMMAND_SCROLL_TO_INDEX,
-  COMMAND_SET_SELECTION,
   COMMAND_TOGGLE_FULLSCREEN,
   COMMAND_WRITE_TEXT_FILE,
   COMMAND_ZOOM_WINDOW,
+  COMMAND_SET_TITLE,
   CLIPBOARD_IMAGE_FORMAT_GIF,
   CLIPBOARD_IMAGE_FORMAT_JPEG,
   CLIPBOARD_IMAGE_FORMAT_PNG,
@@ -376,15 +381,15 @@ export class RootContainer implements DispatchContext {
     return this.submitCommandFrame(command).then(() => undefined);
   }
 
+  recordUnhandledError(error: unknown): void {
+    this.unhandledError = error instanceof Error ? error : new Error(String(error));
+  }
+
   beginRender(): void {
     this.invalid = false;
     this.validationError = undefined;
     this.unhandledError = undefined;
     this.clearMutations();
-  }
-
-  recordUnhandledError(error: unknown): void {
-    this.unhandledError = error instanceof Error ? error : new Error(String(error));
   }
   private submitSurfaceCommandValue(
     kind:
@@ -395,6 +400,10 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_FOCUS_NEXT
       | typeof COMMAND_FOCUS_PREV
       | typeof COMMAND_GET_WINDOW_SIZE
+      | typeof COMMAND_MINIMIZE_WINDOW
+      | typeof COMMAND_GET_WINDOW_BOUNDS
+      | typeof COMMAND_GET_WINDOW_STATE
+      | typeof COMMAND_ACTIVATE_WINDOW
       | typeof COMMAND_CLIPBOARD_WRITE
       | typeof COMMAND_CLIPBOARD_READ
       | typeof COMMAND_CLIPBOARD_WRITE_IMAGE
@@ -453,7 +462,9 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_TOGGLE_FULLSCREEN
       | typeof COMMAND_OPEN_URL
       | typeof COMMAND_FOCUS_NEXT
-      | typeof COMMAND_FOCUS_PREV,
+      | typeof COMMAND_FOCUS_PREV
+      | typeof COMMAND_MINIMIZE_WINDOW
+      | typeof COMMAND_ACTIVATE_WINDOW,
     payload: readonly [number, number] | string | null,
   ): Promise<void> {
     return this.submitSurfaceCommandValue(kind, payload).then(() => undefined);
@@ -799,6 +810,47 @@ export class RootContainer implements DispatchContext {
         throw new Error("native getWindowSize returned an invalid value");
       return [value[1][0], value[1][1]];
     });
+  }
+
+  minimizeWindow(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_MINIMIZE_WINDOW, null);
+  }
+
+  getWindowBounds(): Promise<{ x: number; y: number; width: number; height: number }> {
+    return this.submitSurfaceCommandValue(COMMAND_GET_WINDOW_BOUNDS, null).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 8 ||
+        !Array.isArray(value[1]) ||
+        value[1].length !== 4 ||
+        !value[1].every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) ||
+        value[1][2] < 0 ||
+        value[1][3] < 0
+      )
+        throw new Error("native getWindowBounds returned an invalid value");
+      return { x: value[1][0], y: value[1][1], width: value[1][2], height: value[1][3] };
+    });
+  }
+
+  getWindowState(): Promise<{ fullscreen: boolean; maximized: boolean }> {
+    return this.submitSurfaceCommandValue(COMMAND_GET_WINDOW_STATE, null).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 9 ||
+        !Array.isArray(value[1]) ||
+        value[1].length !== 2 ||
+        typeof value[1][0] !== "boolean" ||
+        typeof value[1][1] !== "boolean"
+      )
+        throw new Error("native getWindowState returned an invalid value");
+      return { fullscreen: value[1][0], maximized: value[1][1] };
+    });
+  }
+
+  activateWindow(): Promise<void> {
+    return this.submitSurfaceCommand(COMMAND_ACTIVATE_WINDOW, null);
   }
 
   setClipboardText(text: string): Promise<void> {
