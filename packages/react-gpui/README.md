@@ -157,9 +157,17 @@ The root-scoped API accepts only PNG, JPEG, GIF, and SVG with a bounded binary
 payload and preserves the original format and bytes on reads:
 
 ```tsx
+// Obtain encoded PNG bytes from your app's image source (for example, a
+// screenshot/export API), then preserve that format across the native seam.
+const pngBytes = await createPngBytes();
 await root.setClipboardImage({ format: "png", bytes: pngBytes });
 const image = await root.getClipboardImage();
 ```
+
+`pngBytes` above is intentionally an application-owned encoded-image source;
+this API does not generate pixels or accept RGBA buffers. The runnable
+examples use host-local assets for `Image`, while this recipe covers encoded
+bytes copied to the native clipboard.
 
 `getClipboardImage()` returns `null` for empty or non-image clipboard contents.
 macOS and Windows use native image clipboard paths; X11 and Wayland return
@@ -260,21 +268,17 @@ root.render(
 );
 ```
 
-`loadFont(path)` is root-scoped and returns the family name read from the font
-metadata; it does not accept a caller-provided alias. The path must be an
-absolute, non-empty UTF-8 path no longer than 1024 bytes and must name a regular
-file. Font data is bounded by the same `MAX_FILE_READ_BYTES` limit used by
-`readTextFile` (below the 16 MiB frame limit). TTF and OTF are supported;
-WOFF/WOFF2 are not. Font collections are accepted where the native backend can
-load them, and the family returned is the first face's metadata family.
-
 Load each family before its first layout/use. GPUI caches both successful and
 failed family resolution, and this API intentionally does not invalidate that
 cache: a late call can leave already-laid-out text using the fallback family.
 Repeated calls are allowed and are forwarded to the native registration seam;
 applications should keep using the returned metadata family. For deterministic
-startup typography, await all `loadFont` calls before the initial
-`root.render`, matching the host's startup-preload pattern.
+startup typography, await all `loadFont` calls before the initial `root.render`,
+matching the host's startup-preload pattern. The runnable
+[`text-input.tsx`](examples/text-input.tsx) instead keeps its first frame on
+the fallback stack, then switches to the returned family after registration so
+the registration and repaint boundary is visible without blocking startup.
+
 
 ## Image
 
@@ -975,14 +979,18 @@ The source tree includes focused entries for the main host surfaces:
 - [`gallery.tsx`](examples/gallery.tsx) — composed layout, pointer/scroll/drop, drag, appearance, and animation coverage.
 - [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, accessibility, and virtual-list integration.
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus/key notifications, keybindings, a native menu, and a fire-and-forget notification request.
-- [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, multi-click word/line selection, native copy, and focus handles.
+- [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, multi-click word/line selection, native copy, focus handles, and runtime font loading.
 - [`selectable-text.tsx`](examples/selectable-text.tsx) — host-owned text dragging, per-row highlighting, and Cmd/Ctrl-C clipboard copy.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 - [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
 - [`focus-flow.tsx`](examples/focus-flow.tsx) — focusable form controls with `onFocus`/`onBlur` styling and Tab/Shift-Tab navigation.
 - [`dropdown.tsx`](examples/dropdown.tsx) — an anchored overlay with pointer-down-outside and Escape dismissal plus a disabled item.
 - [`drag-reorder.tsx`](examples/drag-reorder.tsx) — a standalone draggable list with drag-over feedback, drop reordering, and the neutral native preview.
-- [`multi-surface.tsx`](examples/multi-surface.tsx) — a second native window with per-surface resize and appearance bridges.
+- [`multi-surface.tsx`](examples/multi-surface.tsx) — a second native window with per-surface resize and appearance bridges, plus minimize/activate controls and bounds/state reads.
+
+Clipboard image reads and writes are covered by the [Clipboard images](#clipboard-images)
+recipe; encoded PNG/JPEG/GIF/SVG bytes must come from an application-owned
+image source.
 
 ## Recipes
 
@@ -1102,7 +1110,25 @@ function Panel() {
 
 After `await root.openSurface(...)` resolves, register the returned ID with
 `host.createRoot` and wire a second pair of stores. See
-[`multi-surface.tsx`](examples/multi-surface.tsx).
+[`multi-surface.tsx`](examples/multi-surface.tsx) for the window-controls panel
+and its pull-based bounds/state refresh.
+
+### Runtime font loading
+
+Resolve a bundled font to an absolute filesystem path, register it through the
+root, and use the family returned from its metadata:
+
+```tsx
+const fontPath = new URL("./fonts/Tuffy.ttf", import.meta.url).pathname;
+const family = await root.loadFont(fontPath);
+return <Text style={{ fontFamily: family }}>Custom typography</Text>;
+```
+
+The complete runnable flow, including fallback text while registration is in
+flight, is [`text-input.tsx`](examples/text-input.tsx). For encoded clipboard
+images, see [Clipboard images](#clipboard-images); obtain PNG/JPEG/GIF/SVG
+bytes from an application-owned source and pass them to
+`setClipboardImage({ format, bytes })`.
 
 ## Local commands
 

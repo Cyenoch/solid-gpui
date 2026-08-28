@@ -15,6 +15,8 @@ import {
 } from "../src/index";
 import { useTheme, type Theme } from "./theme";
 
+const FONT_PATH = new URL("./assets/tuffy.ttf", import.meta.url).pathname;
+
 function createStyles(theme: Theme) {
   return StyleSheet.create({
     root: { flexDirection: "column", flexGrow: 1, gap: 8, padding: 16, backgroundColor: theme.canvas },
@@ -27,14 +29,23 @@ function createStyles(theme: Theme) {
     },
     label: { color: theme.text },
     action: { color: theme.accentText, textDecoration: "underline" },
+    fontSample: { fontSize: 24, lineHeight: 30, color: theme.text },
   });
 }
 
-function TwoInputs({ appearanceStore }: { readonly appearanceStore: AppearanceStore }) {
+function TwoInputs({
+  appearanceStore,
+  fontReady,
+}: {
+  readonly appearanceStore: AppearanceStore;
+  readonly fontReady: Promise<string>;
+}) {
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("Uncontrolled input");
   const [firstStatus, setFirstStatus] = useState("unfocused");
   const [selection, setSelection] = useState("0-0");
+  const [fontFamily, setFontFamily] = useState<string>();
+  const [fontStatus, setFontStatus] = useState("Loading Tuffy…");
   const firstRef = useRef<TextInputHandle>(null);
   const secondRef = useRef<TextInputHandle>(null);
   const theme = useTheme(useAppearance(appearanceStore));
@@ -42,6 +53,21 @@ function TwoInputs({ appearanceStore }: { readonly appearanceStore: AppearanceSt
   useEffect(() => {
     void firstRef.current?.focus();
   }, []);
+  useEffect(() => {
+    let mounted = true;
+    void fontReady
+      .then((family) => {
+        if (!mounted) return;
+        setFontFamily(family);
+        setFontStatus(`Fonts loaded: ${family}`);
+      })
+      .catch((error: unknown) => {
+        if (mounted) setFontStatus(`Font load failed: ${String(error)}`);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [fontReady]);
   return (
     <View style={styles.root} accessibilityRole="generic" accessibilityLabel="Text input demo">
       <Text style={styles.label}>First: {first}</Text>
@@ -79,6 +105,8 @@ function TwoInputs({ appearanceStore }: { readonly appearanceStore: AppearanceSt
       <Pressable onPress={() => void secondRef.current?.blur()}>
         <Text style={styles.action}>Blur second input</Text>
       </Pressable>
+      <Text style={styles.label}>{fontStatus}</Text>
+      <Text style={{ ...styles.fontSample, ...(fontFamily ? { fontFamily } : {}) }}>Runtime typography</Text>
     </View>
   );
 }
@@ -90,4 +118,5 @@ const root = createRoot(new StdioTransport(), {
   onAppearance: (appearance) => appearanceStore.set(appearance),
   onTransportTermination: createProcessTerminationHandler(),
 });
-root.render(<TwoInputs appearanceStore={appearanceStore} />);
+const fontReady = root.loadFont(FONT_PATH);
+root.render(<TwoInputs appearanceStore={appearanceStore} fontReady={fontReady} />);

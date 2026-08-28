@@ -39,6 +39,9 @@ from this work tree.
   activation behavior requires a display-backed host. Saved bounds can restore
   size through centered `openSurface` creation, but exact position restoration
   is unsupported because pinned GPUI exposes no public position setter.
+- Extended the runnable examples with a themed window-controls panel in
+  `multi-surface.tsx`, a bundled Tuffy runtime-font flow in `text-input.tsx`,
+  and a README recipe for encoded clipboard image bytes.
 
 
 ### Added

@@ -1,0 +1,6 @@
+# Example showcase coverage
+
+- `multi-surface.tsx` now exposes themed Minimize, Activate, and Refresh controls on the inspector surface, with pull-based bounds/state readouts.
+- `text-input.tsx` resolves `assets/tuffy.ttf` from `import.meta.url`, starts on fallback typography, and switches to the metadata family after `loadFont` resolves.
+- Tuffy font and public-domain license are bundled under `packages/react-gpui/examples/assets/`.
+- Clipboard image discoverability is documentation-only: the package README recipe requires application-owned encoded PNG/JPEG/GIF/SVG bytes and calls `setClipboardImage`/`getClipboardImage`.

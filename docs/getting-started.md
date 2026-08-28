@@ -118,9 +118,14 @@ semantics.
 
 At this point the counter has become a small native app: React owns state and
 composition, while GPUI owns layout, focus traversal, overlay hit testing, and
-list virtualization. The four focused entries in
-[`packages/react-gpui/examples`](../packages/react-gpui/examples/) keep each
-capability easy to inspect when the combined app needs debugging.
+list virtualization. For typography and window-level operations, see the
+runtime-font flow in [`text-input.tsx`](../packages/react-gpui/examples/text-input.tsx)
+and the window-controls panel in
+[`multi-surface.tsx`](../packages/react-gpui/examples/multi-surface.tsx). Clipboard
+image bytes use the bounded recipe in the package
+[`README`](../packages/react-gpui/README.md#clipboard-images). The four focused
+entries in [`packages/react-gpui/examples`](../packages/react-gpui/examples/)
+keep each capability easy to inspect when the combined app needs debugging.
 
 ## Core model
 
