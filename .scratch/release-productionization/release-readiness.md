@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-28T18:08:23Z
+Generated: 2026-08-28T22:11:50Z
 Decision owner: human release owner  
-Current HEAD: `a097f3c` (`feat(protocol): carry pointer coordinates`)
+Current HEAD: `96bccc1` (`feat(examples): demonstrate window controls and runtime fonts`)
 
 This is an evidence package, not a release approval. It records fresh command
 runs, the current protocol/API surface, documentation consistency, known
@@ -11,30 +11,28 @@ published and no push, rebase, version change, or tag was performed.
 
 ## Executive readout
 
-- The complete five-gate matrix passed at exit code 0 on the final tree. `make
-  ci` ran immediately before the pointer-coordinate commit; the other four
-  gates ran after `a097f3c` landed.
+- The complete five-gate matrix passed at exit code 0 on the final tree at `96bccc1`. `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all ran after the showcase commit landed; the dirty-tree wait is recorded below.
 - The current candidate remains `0.1.0` on macOS ARM. The release scripts prove
   archive consistency and CLI/runtime behavior, not display-backed GUI behavior.
   Both process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The current Unreleased inventory contains **128 top-level entries**:
-  **109 Added**, **12 Fixed**, and **7 Changed**. This is materially beyond a
+- The current Unreleased inventory contains **129 top-level entries**:
+  **110 Added**, **12 Fixed**, and **7 Changed**. This is materially beyond a
   patch-sized change set and provides stronger evidence for considering
   `0.2.0`. No option is selected: the human release owner retains the decision.
-- `git log --oneline 5ab0794..HEAD` reports **15 commits** in this refresh
-  delta, spanning typed surface errors, tooltips and close/context-menu policy,
-  deterministic gate waits, accessibility semantics, real keyboard tab-stop
-  traversal and focus restoration, text-file commands and the notes example,
-  interchange boundaries, clipboard images, the embedded representative example
-  matrix, and pointer coordinates. The crosswalk below aggregates these commits
-  by domain without rewriting prior history.
-- The implementation backlog for the current 0.2.0 contract is empty. Remaining
-  items are documented product/platform boundaries or human release decisions,
-  not unrecorded implementation residue. Multi-click, clipboard text/image,
-  select-all, word-navigation, file I/O, focus traversal/restoration, and
-  pointer-coordinate behavior are covered by the current implementation and
-  tests.
+- `git log --oneline 1992367..HEAD` reports **6 commits** in this refresh
+  delta: pointer-move streaming and font work, font documentation, API fixture
+  refresh, window controls, surface-coverage closure, and showcase examples/
+  documentation/assets. The crosswalk below aggregates these commits by
+  domain without rewriting prior history.
+- The implementation backlog for the current 0.2.0 contract remains empty.
+  The latest pass adds executable runtime-font and window-control examples;
+  display-backed behavior remains a documented acceptance boundary.
+- Remaining items are documented product/platform boundaries or human release
+  decisions, not unrecorded implementation residue. Multi-click, clipboard
+  text/image, select-all, word-navigation, file I/O, focus traversal/
+  restoration, and pointer-coordinate behavior are covered by the current
+  implementation and tests.
 
 `.scratch/release-productionization/v0.2.0-cut-checklist.md` is the companion
 local checklist. `.scratch/release-productionization/dependency-audit.md` and
@@ -49,12 +47,11 @@ convention. No artifacts were published.
 
 - Protocol v3 uses positional MessagePack Snapshot, Event, Patch, and Command
   frames with explicit surface/epoch/revision/request sequencing.
-- The command directory is complete for codes `1..28`: focus/blur/selection,
-  VirtualList scrolling, title/window commands, text clipboard and image
-  clipboard, surface creation, file dialogs, notifications, static menus,
-  keybindings, close-policy resolution, and bounded text-file I/O.
-- The event directory is complete for codes `1..23`: TextInput
-  change/selection/focus/blur, command results, visible ranges, animation,
+- The command directory is complete for codes `1..33`: focus/blur/selection,
+  VirtualList scrolling, title/window commands, text and image clipboard,
+  surface creation, file dialogs, notifications, static menus, keybindings,
+  close-policy resolution, bounded text-file I/O, runtime font registration,
+  minimize/bounds/state/activation controls.
   keyboard, pointer, hover, scroll, submit, window lifecycle, action,
   appearance, layout, drag, notification response, pointer-down-outside, and
   close-requested.
@@ -198,35 +195,33 @@ convention. No artifacts were published.
 ## 2. Fresh five-gate evidence
 
 All times below are fresh wall-clock `real` values from `/usr/bin/time -p` on
-the final tree at HEAD `a097f3c`. Every command exited 0. Expected timeout lines
-in candidate scripts are part of the successful rehearsal contract, not command
-failures. `make ci` ran immediately before the pointer commit; the other four
-gates ran after `a097f3c` landed.
+the final tree at HEAD `96bccc1`. Every command exited 0. Showcase edits were
+in flight for more than 15 minutes before the gate sequence; the first `make
+ci` attempt stopped at rustfmt on an intermediate dirty tree, then all five
+gates passed after showcase reported completion and committed `96bccc1`.
 
 | Command | Exit | Real time | Fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **38.12 s** | Rust/Bun format, check, test, build, and package stages passed; Core Bun **124 tests / 53,299 assertions**; dev Bun **18 tests / 46 assertions**. This run preceded the pointer-coordinate commit. |
-| `make embedded-bun` | 0 | **3.20 s** | Host embedded feature check passed; `embedded_examples` **2 passed** (representative gallery/text-input/virtual-list/notes startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**; doc suites 0 tests. |
-| `make host-candidate-smoke` | 0 | **38.11 s** | Extracted host and archive check passed; identical archive SHA-256 `e7d496636e1404a8c719c5dcff02cf910e99dd263d84cb2ecb1ece3b9c03db1a`; snapshot commit **312 bytes** observed; process error/info rehearsals timed out at **5.014/5.012 s** as expected; version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **21.03 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; embedded rehearsal timed out at **5.229 s** as expected; version/help passed. |
-| `make bun-pack-smoke` | 0 | **2.39 s** | Frozen installs, JS/type builds, both tarballs, external consumer install, and `package tarball consumer smoke passed`; consumer installed **59 packages**. |
+| `make ci` | 0 | **166.49 s** | Rust format/check/clippy/workspace tests passed; Core Bun **128 tests / 89,300 assertions**; dev Bun **20 tests / 50 assertions**; package builds and tarball consumer smoke passed. Expected malformed-source diagnostics remained contained. |
+| `make embedded-bun` | 0 | **87.01 s** | Embedded host check passed; `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
+| `make host-candidate-smoke` | 0 | **58.58 s** | Extracted host/archive check passed with identical SHA-256 `10b63ddc700079f0ecd4e7738f12084fe0e017bfae8874cf64f76da08c434e94`; snapshot commit **312 bytes**; expected process timeout **5.015 s** (error) and **5.010 s** (info); version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **21.55 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.722 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.79 s** | Frozen installs, JS/type builds, both tarballs, external consumer install, and `package tarball consumer smoke passed`; consumer installed **59 packages**. |
 
-The measured sequential five-gate wall-time sum is **102.85 s**. `make
-embedded-bun` increased from the prior **2.21 s** baseline to **3.20 s** because
-the gate now runs the serial four-entry examples startup matrix and Fast Refresh
-lifecycle probe: this is the intended embedded coverage-round cost, not a
-regression in an unchanged test.
+The measured sequential five-gate wall-time sum is **336.42 s**. The first
+dirty-tree `make ci` attempt exited 2 at rustfmt in the in-flight
+`examples_render.rs` edit (**0.22 s**) and is not part of the passing matrix.
 
 ## 3. Quality evidence matrix
 
 | Area | Current evidence |
 | --- | --- |
-| Rust workspace | Fresh `make ci` before pointer commit passed; final `make embedded-bun` passed its host matrix **2/2** and embedded counter **1/1**. |
-| TypeScript renderer | Fresh `make ci`: **124/124 tests**, **53,299 assertions**, 0 failures. |
-| Development package | Fresh `make ci`: **18/18 tests**, **46 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
+| Rust workspace | Fresh `make ci` passed; `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
+| TypeScript renderer | Fresh `make ci`: **128/128 tests**, **89,300 assertions**, 0 failures. |
+| Development package | Fresh `make ci`: **20/20 tests**, **50 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
 | Fuzz / malformed input | Rust deterministic protocol-fuzz and TypeScript malformed-input coverage remained green in fresh `make ci`. |
 | Performance smoke | Fresh Rust perf suites and TypeScript event-storm scenarios remained green in `make ci`. |
-| Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; pointer-coordinate vectors passed in the final-tree golden checks. |
+| Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; pointer-move and window-control vectors are covered by the current protocol tests. |
 | API surface locks | Checked-in name/kind fixtures currently lock **core 114 / dev 20** exports. |
 | Protocol tap / crash diagnostics | Typed transport-cause, crash-path, tap, and termination suites passed in `make ci`. |
 | Release packaging | Process and embedded candidate scripts, deterministic archive checks, package tarball consumer smoke, and embedded package gate all passed. Checksums establish reproducibility, not publisher authenticity. |
@@ -247,9 +242,9 @@ claims above; it does not claim a new citation audit.
 
 ### (a) Current Unreleased inventory
 
-The current section contains **128** aggregate capability entries: **109 Added**,
+The current section contains **129** aggregate capability entries: **110 Added**,
 **12 Fixed**, and **7 Changed**. These are aggregate statements rather than one
-line per commit. `git log --oneline 5ab0794..HEAD` reports **15 commits** in the
+line per commit. `git log --oneline 1992367..HEAD` reports **6 commits** in the
 refresh delta. The crosswalk retains the earlier aggregated-domain style and
 appends the current delta domains below:
 
@@ -303,17 +298,21 @@ appends the current delta domains below:
 | Data interchange boundaries and clipboard-image commands | `952586b`, `18d0aca` |
 | Embedded representative examples startup matrix and Fast Refresh probe | `1c369a9` |
 | Pointer-coordinate wire contract, dispatch, examples, and tests | `a097f3c` |
+| Pointer move streaming and font registration | `d99c69b`, `5622671` |
+| API fixture and window controls | `1f9e3c0`, `102fbdd` |
+| Surface coverage fuzz/golden closure | `1d3da65` |
+| Window-control/runtime-font showcase, docs, and bundled asset | `96bccc1` |
 
 ### (b) Protocol directory versus source constants
 
-The current source has exactly **28 command constants** with values `1..28` and
+The current source has exactly **33 command constants** with values `1..33` and
 **23 semantic event constants** with values `1..23` (pointer/key sub-action and
 button constants excluded). The protocol reference has matching event/command
 rows, a **42-slot** style tuple with `boxShadow`/`fontFamily` tails, and one
 current wire form for TextInput (13 slots), Image (4), Drag (5), Pointer (7),
-CommandResult (7), Submit (string), and WindowResize (3). OpenSurface retains
-its valid no-options form plus the optional creation-options tuple; other
-historical compatibility forms were removed by the cutover.
+CommandResult (7), string Submit, and WindowResize (3). OpenSurface retains its
+valid no-options form plus the optional creation-options tuple; other historical
+compatibility forms were removed by the cutover.
 
 ### (c) README and consumer-guide capability audit
 
@@ -321,8 +320,9 @@ Root/package README claims were checked against the current Root and TypeScript
 interfaces. They cover typed surface/transport errors, tooltip and close-policy
 behavior, expanded/heading-level accessibility, native keyboard focus traversal
 and focused-unmount restoration, text-file persistence, clipboard images,
-embedded startup coverage, and pointer press/release coordinates. No pointer
-work is treated as in-flight at this committed HEAD.
+embedded startup coverage, pointer press/release coordinates, runtime font
+loading, and window controls. No pointer, font, or window-control work is treated
+as in-flight at this committed HEAD.
 
 ### (d) ADR alignment
 
@@ -330,16 +330,16 @@ ADR-0008's four failure seams remain aligned with implementation: consumer
 Error-Boundary ownership for render failures, fail-fast protocol/tree rejection,
 local blank-image degradation, and host-fatal GPUI paint panic. Shared-runtime
 fatal errors close every registered surface. The typed surface errors,
-close-policy, file/clipboard commands, and pointer-coordinate contract agree
-with the protocol and consumer documentation.
+close-policy, file/clipboard commands, pointer-coordinate contract, runtime
+fonts, and window controls agree with the protocol and consumer documentation.
 
 ## 5. Known limits and human decision items
 
 The implementation backlog for the current 0.2.0 contract is empty after the
 current input/geometry/image/scale/focus/tooltip/accessibility/file/clipboard/
-keybinding/drag/selectable-text/pointer-coordinate review. Selectable Text is
-implemented as a host-owned visual surface; the following are explicit
-acceptance boundaries or human decisions, not hidden TODOs:
+keybinding/drag/selectable-text/pointer-coordinate/font/window-control review.
+Selectable Text is implemented as a host-owned visual surface; the following
+are explicit acceptance boundaries or human decisions, not hidden TODOs:
 
 - Issue 01 remains `needs-triage`: the candidate is unsigned and not notarized;
   checksums do not authenticate the publisher.
@@ -373,17 +373,18 @@ acceptance boundaries or human decisions, not hidden TODOs:
 ## 6. Version-cut guidance (not a decision)
 
 The workspace remains `0.1.0`; `release-prep` can synchronize a chosen version
-into Cargo and both Bun packages. The current Unreleased inventory is **128
-entries (109/12/7)** across protocol, typed surface lifecycle errors, tooltips
+into Cargo and both Bun packages. The current Unreleased inventory is **129
+entries (110/12/7)** across protocol, typed surface lifecycle errors, tooltips
 and close policy, accessibility semantics, native keyboard focus traversal and
 focused-unmount restoration, text-file persistence, clipboard text/images,
 embedded representative examples, pointer coordinates, selectable Text,
-renderer API, native runtime, VirtualList, Image fallback, scale-factor
-observations, focus/overlay and drag input, appearance-aware examples,
-pointer/zoom boundaries, keybinding registration, outbound file drag, precise
-TextInput geometry and host editing, troubleshooting, and long-run stability.
-The final matrix reports **124 Core Bun tests / 53,299 assertions**, **18 dev
-tests / 46 assertions**, and **114+20 API locks**. These facts support
+runtime font registration, window controls, renderer API, native runtime,
+VirtualList, Image fallback, scale-factor observations, focus/overlay and drag
+input, appearance-aware examples, pointer/zoom boundaries, keybinding
+registration, outbound file drag, precise TextInput geometry and host editing,
+troubleshooting, and long-run stability.
+The final matrix reports **128 Core Bun tests / 89,300 assertions**, **20 dev
+tests / 50 assertions**, and **114+20 API locks**. These facts support
 considering `0.2.0` rather than a patch cut, but no version option is selected
 by this inventory.
 
