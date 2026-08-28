@@ -440,7 +440,7 @@ root.render(<App />);
 
 For host crash artifacts, set `REACT_GPUI_CRASH_DIR` (the host also accepts
 `REACT_GPUI_LOG=off|error|info|debug`). See the [README debugging
-section](../README.md#troubleshooting) for crash files, `REACT_GPUI_TAP`, and
+section](../README.md#debugging) for crash files, `REACT_GPUI_TAP`, and
 the metadata-only tap report.
 
 ## Error and recovery boundaries

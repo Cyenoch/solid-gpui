@@ -321,7 +321,7 @@ and checks the in-process Snapshot commit count, info diagnostic, timeout
 `124`, `--help`, and `--version`. It is an exercise rather than a release
 archive: embedded package inclusion remains a ready-for-human release-matrix
 decision tracked in `.scratch/release-productionization/issues/03-embedded-build-coverage.md`
-and `06-cross-platform-host.md`.
+and `.scratch/release-productionization/issues/06-cross-platform-host.md`.
 
 Before a candidate release, synchronize the workspace and package versions
 from one Cargo version with a matching `CHANGELOG.md` section:

@@ -138,7 +138,7 @@ bun test tests/renderer.test.tsx --test-name-pattern "validates, freezes"
 ```
 
 The source of the TypeError family is
-`packages/react-gpui/src/style.ts:258-429`; host-kind and Image validation are
+`packages/react-gpui/src/style.ts:258-437`; host-kind and Image validation are
 in `packages/react-gpui/src/renderer/props.ts`. A stack pointing at
 `validateStyle`, `validateProps`, or `createInstance` confirms a synchronous
 consumer-input failure rather than a native paint failure.
