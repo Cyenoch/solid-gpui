@@ -136,6 +136,18 @@ export type HostPropertiesWire =
   | ImagePropertiesWire
   | DragPropertiesWire;
 
+export type AccessibilityPropertiesWire = readonly [
+  number,
+  string | null,
+  string | null,
+  boolean,
+  boolean | null,
+  boolean | null,
+  string | null,
+  (boolean | null)?,
+  (number | null)?,
+];
+
 export type SnapshotNode = readonly [
   number,
   number,
@@ -145,7 +157,7 @@ export type SnapshotNode = readonly [
   string | null,
   number,
   HostPropertiesWire | null,
-  readonly unknown[] | null,
+  AccessibilityPropertiesWire | null,
   boolean,
   boolean?,
   (string | null)?,
@@ -170,7 +182,7 @@ export type PatchCreate = readonly [
   string | null,
   number,
   HostPropertiesWire | null,
-  readonly unknown[] | null,
+  AccessibilityPropertiesWire | null,
   boolean,
   boolean?,
   (string | null)?,
@@ -183,7 +195,7 @@ export type PatchUpdate = readonly [
   string | null,
   number,
   HostPropertiesWire | null,
-  readonly unknown[] | null,
+  AccessibilityPropertiesWire | null,
   boolean,
   boolean?,
   (string | null)?,

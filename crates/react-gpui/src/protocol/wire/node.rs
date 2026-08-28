@@ -1,5 +1,5 @@
 use super::*;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct NodeWire(
     u32,
@@ -47,7 +47,7 @@ pub(super) struct VirtualListWire(u32, u32, u32, u32, f32, u32);
 pub(super) struct ImageWire(u32, String, u32, Option<String>);
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct DragWire(u32, Option<String>, Option<Vec<String>>, bool, bool);
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(super) struct AccessibilityWire(
     u32,
     Option<String>,
@@ -56,7 +56,39 @@ pub(super) struct AccessibilityWire(
     Option<bool>,
     Option<bool>,
     Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<u32>,
 );
+
+impl Serialize for AccessibilityWire {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let length = if self.8.is_some() {
+            9
+        } else if self.7.is_some() {
+            8
+        } else {
+            7
+        };
+        let mut sequence = serializer.serialize_seq(Some(length))?;
+        sequence.serialize_element(&self.0)?;
+        sequence.serialize_element(&self.1)?;
+        sequence.serialize_element(&self.2)?;
+        sequence.serialize_element(&self.3)?;
+        sequence.serialize_element(&self.4)?;
+        sequence.serialize_element(&self.5)?;
+        sequence.serialize_element(&self.6)?;
+        if self.8.is_some() {
+            sequence.serialize_element(&self.7)?;
+            sequence.serialize_element(&self.8)?;
+        } else if self.7.is_some() {
+            sequence.serialize_element(&self.7)?;
+        }
+        sequence.end()
+    }
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub(super) struct BoxShadowValueWire(f32, f32, f32, f32, u32, u32);
 
@@ -628,6 +660,8 @@ impl From<&AccessibilityProperties> for AccessibilityWire {
             value.checked,
             value.selected,
             value.value.clone(),
+            value.expanded,
+            value.level,
         )
     }
 }
@@ -642,6 +676,8 @@ impl From<AccessibilityWire> for AccessibilityProperties {
             checked: value.4,
             selected: value.5,
             value: value.6,
+            expanded: value.7,
+            level: value.8,
         }
     }
 }

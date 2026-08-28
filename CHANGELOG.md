@@ -282,6 +282,12 @@ from this work tree.
   `toggled`, and patch role/checked validation is complete. No upstream public
   builder exposes `disabled`, so it remains explicitly unsupported; AX-tree
   verification remains display-backed.
+- Accessibility now carries optional `accessibilityExpanded` and positive
+  heading-only `accessibilityLevel` tail fields through the wire to pinned
+  GPUI's `aria_expanded`/`aria_level` builders; labels and descriptions remain
+  independently applied. AccessKit 0.24.1's `Live` property has no pinned
+  GPUI public builder/write path, so live-region announcements remain an
+  explicit upstream gap; headless AX-tree inspection remains unavailable.
 - Public API snapshots initially locked core's 94 and dev's 18 exports by name
   and kind. Subsequent cursor and text-alignment additions now leave the
   checked-in fixtures at core 96 and dev 18; the generator runs against built

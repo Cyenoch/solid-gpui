@@ -153,6 +153,21 @@ pub(super) fn validate_accessibility_shape(
             reason: "checked requires checkbox role",
         });
     }
+    if accessibility.level.is_some() && accessibility.role != 6 {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "level requires heading role",
+        });
+    }
+    if accessibility
+        .level
+        .is_some_and(|level| level == 0 || usize::try_from(level).is_err())
+    {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "level must be a positive usize",
+        });
+    }
     Ok(())
 }
 pub(super) fn validate_host_properties_shape(

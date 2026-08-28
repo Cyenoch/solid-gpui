@@ -131,14 +131,22 @@ supports `Files`.
 Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
 node has a recognized role and stable host ID:
 
-| React role | GPUI/AccessKit role | Label/description | Checked/selected | Value |
-| --- | --- | --- | --- | --- |
-| `button` | `Button` | supported | selected supported | supported |
-| `text` | `Label` | supported | selected supported | supported |
-| `textbox` | `TextInput` | supported | selected supported | supported |
-| `checkbox` | `CheckBox` | supported | `checked` maps to toggled true/false; selected supported | supported |
-| `heading` | `Heading` | supported | selected supported | supported |
-| `generic` | GPUI's role-less container | not exposed as an AX node | not exposed | not exposed |
+| React role | GPUI/AccessKit role | Label/description | Checked/selected | Value | Expanded | Level |
+| --- | --- | --- | --- | --- | --- | --- |
+| `button` | `Button` | supported | selected supported | supported | supported | — |
+| `text` | `Label` | supported | selected supported | supported | supported | — |
+| `textbox` | `TextInput` | supported | selected supported | supported | supported | — |
+| `checkbox` | `CheckBox` | supported | `checked` maps to toggled true/false; selected supported | supported | supported | — |
+| `heading` | `Heading` | supported | selected supported | supported | supported | positive `accessibilityLevel` |
+| `generic` | GPUI's role-less container | not exposed as an AX node | not exposed | not exposed | not exposed | not exposed |
+
+`accessibilityExpanded` is an optional boolean state for recognized roles and
+maps to GPUI's `aria_expanded` builder. `accessibilityLevel` is an optional
+positive u32 and requires `accessibilityRole="heading"`; it maps to GPUI's
+`aria_level` builder. Both fields are appended optional accessibility-tuple
+tail slots, so old seven-field tuples remain valid. The native painter applies
+label and description independently: labels name the node, while descriptions
+provide supplementary text announced after the name, role, and value.
 
 `accessibilityDisabled` is retained and validated on the wire, but GPUI 0.2.2
 does not expose a public AX disabled-state builder. Pressable interaction and
@@ -146,7 +154,9 @@ focus behavior still honor `disabled`; only the AccessKit disabled flag is
 unsupported until GPUI exposes that surface. Stock headless/TestPlatform runs
 cannot activate or inspect an AccessKit tree; verify the final tree on a real
 desktop adapter (for example with `Window::debug_a11y_tree_json` and a screen
-reader).
+reader). AccessKit 0.24.1 defines a `Live` property, but pinned GPUI exposes
+no public `aria_live`/live-region builder or write path, so live-region
+announcements remain an upstream gap rather than a wire field.
 
 ## Styles
 

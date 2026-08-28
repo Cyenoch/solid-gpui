@@ -33,6 +33,8 @@ export interface AccessibilityProps {
   readonly accessibilityChecked?: boolean;
   readonly accessibilitySelected?: boolean;
   readonly accessibilityValue?: string;
+  readonly accessibilityExpanded?: boolean;
+  readonly accessibilityLevel?: number;
 }
 
 export interface TextInputProps extends AccessibilityProps {
@@ -310,6 +312,8 @@ export interface AccessibilityWire {
   readonly checked: boolean | null;
   readonly selected: boolean | null;
   readonly value: string | null;
+  readonly expanded: boolean | null;
+  readonly level: number | null;
 }
 export interface PendingCommand {
   readonly resolve: (value: unknown) => void;

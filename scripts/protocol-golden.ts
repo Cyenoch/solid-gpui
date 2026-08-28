@@ -57,7 +57,7 @@ const doubleStyle = fullStyle.map((value, index) =>
       ]
     : value,
 );
-const accessibility = [5, "golden label", "golden description", false, true, false, "42"];
+const accessibility = [5, "golden label", "golden description", false, true, false, "42", true, 2];
 const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8, false];
 const virtualList = [2, 20, 2, 9, 24.5, 3];
 const image = [3, "assets/😀.png", 3, "assets/avatar-fallback.png"];

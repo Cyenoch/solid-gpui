@@ -106,6 +106,8 @@ fn accessibility() -> AccessibilityProperties {
         checked: Some(true),
         selected: Some(false),
         value: Some("42".into()),
+        expanded: Some(true),
+        level: Some(2),
     }
 }
 

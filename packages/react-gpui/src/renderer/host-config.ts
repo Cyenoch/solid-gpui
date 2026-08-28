@@ -103,6 +103,8 @@ export const hostConfig = {
         oldProps.accessibilityChecked,
         oldProps.accessibilitySelected,
         oldProps.accessibilityValue,
+        oldProps.accessibilityExpanded,
+        oldProps.accessibilityLevel,
       ]) !==
       JSON.stringify([
         newProps.accessibilityRole,
@@ -113,6 +115,8 @@ export const hostConfig = {
         newProps.accessibilityChecked,
         newProps.accessibilitySelected,
         newProps.accessibilityValue,
+        newProps.accessibilityExpanded,
+        newProps.accessibilityLevel,
       ]);
     const interactionChanged =
       oldProps.disabled !== newProps.disabled ||

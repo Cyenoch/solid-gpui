@@ -1,7 +1,6 @@
 import { utf8ByteLength } from "../protocol";
 import { validateStyle } from "../style";
-import type { HostPropertiesWire } from "../protocol";
-
+import type { AccessibilityPropertiesWire, HostPropertiesWire } from "../protocol";
 import type {
   AccessibilityProps,
   AccessibilityWire,
@@ -41,6 +40,8 @@ const ACCESSIBILITY_PROPS: Record<string, true> = {
   accessibilityChecked: true,
   accessibilitySelected: true,
   accessibilityValue: true,
+  accessibilityExpanded: true,
+  accessibilityLevel: true,
 };
 const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
   View: {
@@ -141,9 +142,17 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
   const role =
     props.accessibilityRole ?? (kind === "TextInput" ? "textbox" : kind === "Pressable" ? "button" : undefined);
   const checked = props.accessibilityChecked;
+  const expanded = props.accessibilityExpanded;
+  const level = props.accessibilityLevel;
   const input = props as TextInputProps;
   if (checked !== undefined && role !== "checkbox")
     throw new TypeError("accessibilityChecked requires accessibilityRole=checkbox");
+  if (expanded !== undefined && typeof expanded !== "boolean")
+    throw new TypeError("accessibilityExpanded must be a boolean");
+  if (level !== undefined && (!Number.isInteger(level) || level < 1 || level > 0xffff_ffff))
+    throw new TypeError("accessibilityLevel must be a positive u32");
+  if (level !== undefined && role !== "heading")
+    throw new TypeError("accessibilityLevel requires accessibilityRole=heading");
   if (role === undefined && Object.keys(props).every((key) => !ACCESSIBILITY_PROPS[key])) return null;
   return {
     role: role === undefined ? 0 : ROLE_CODES[role],
@@ -153,6 +162,8 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
     checked: checked ?? null,
     selected: props.accessibilitySelected ?? null,
     value: props.accessibilityValue ?? null,
+    expanded: expanded ?? null,
+    level: level ?? null,
   };
 }
 export function inputFor(node: HostNodeInternal, props: HostProps): TextInputWire | null {
@@ -304,10 +315,20 @@ export function hostPropertiesWire(
   if ("dragType" in value) return [4, value.dragType, value.exportFiles, value.acceptsDragOver, value.acceptsDrop];
   return [2, value.itemCount, value.rangeStart, value.rangeEnd, value.estimatedItemSize, value.overscan];
 }
-export function accessibilityWire(value: AccessibilityWire | null): readonly unknown[] | null {
-  return value === null
-    ? null
-    : [value.role, value.label, value.description, value.disabled, value.checked, value.selected, value.value];
+export function accessibilityWire(value: AccessibilityWire | null): AccessibilityPropertiesWire | null {
+  if (value === null) return null;
+  const base = [
+    value.role,
+    value.label,
+    value.description,
+    value.disabled,
+    value.checked,
+    value.selected,
+    value.value,
+  ] as const;
+  if (value.level !== null) return [...base, value.expanded, value.level] as AccessibilityPropertiesWire;
+  if (value.expanded !== null) return [...base, value.expanded] as AccessibilityPropertiesWire;
+  return base;
 }
 
 export function nextU32(value: number, name: string): number {

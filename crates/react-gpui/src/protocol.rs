@@ -330,6 +330,8 @@ pub struct AccessibilityProperties {
     pub checked: Option<bool>,
     pub selected: Option<bool>,
     pub value: Option<String>,
+    pub expanded: Option<bool>,
+    pub level: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

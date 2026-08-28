@@ -78,6 +78,7 @@ function Dropdown({ appearanceStore }: { readonly appearanceStore: AppearanceSto
           style={styles.trigger}
           accessibilityRole="button"
           accessibilityLabel={open ? "Close actions" : "Open actions"}
+          accessibilityExpanded={open}
           onPress={() => setOpen((current) => !current)}
           onKeyDown={closeOnEscape}
         >

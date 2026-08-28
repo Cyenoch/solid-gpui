@@ -294,20 +294,32 @@ GPUI exposes a password-obscuring primitive. Implementation evidence:
 
 ### Accessibility tuple
 
+The accessibility value is a seven-field tuple with optional tail fields:
+`[role,label,description,disabled,checked,selected,value,expanded?,level?]`.
+The tail follows the same append-only optional-slot convention as tooltip;
+`level` is emitted only when present, and an `expanded` placeholder is retained
+before it when needed. Old seven-field tuples remain valid.
+
 | Position | Field       | Type/values     | Constraint and semantics                                                                                                 | Source                                |
 | -------: | ----------- | --------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
 |        0 | role        | u32             | `0=unspecified`, `1=generic`, `2=button`, `3=text`, `4=textbox`, `5=checkbox`, `6=heading`; values above 6 are rejected. | `props.ts:101-108`; `tree/validation.rs:137-156` |
-|        1 | label       | string or null  | Accessible label.                                                                                                        | `wire/node.rs:66-74,531-557`; `props.ts:118-125` |
-|        2 | description | string or null  | Accessible description.                                                                                                  | Same sources.                         |
-|        3 | disabled    | boolean         | Retained and validated, but not exposed in AccessKit: GPUI 0.2.2 has no public AX disabled-state builder. Pressable interaction/focus behavior still honors `disabled`. | Same sources; `renderer/paint/accessibility.rs:53-55` |
-|        4 | checked     | boolean or null | Non-null only with role `5=checkbox`.                                                                                    | `props.ts:113-116`; `tree/validation.rs:144-155` |
-|        5 | selected    | boolean or null | Optional selected state.                                                                                                 | `wire/node.rs:66-74,531-557`                     |
+|        1 | label       | string or null  | Accessible label; applied independently from description.                                                               | `wire/node.rs:66-74,631-652`; `props.ts:142-168`; `renderer/paint/accessibility.rs:33-38` |
+|        2 | description | string or null  | Supplementary accessible description, applied independently from label.                                                  | Same sources.                         |
+|        3 | disabled    | boolean         | Retained and validated, but not exposed in AccessKit: GPUI 0.2.2 has no public AX disabled-state builder. Pressable interaction/focus behavior still honors `disabled`. | Same sources; `renderer/paint/accessibility.rs:59-61` |
+|        4 | checked     | boolean or null | Non-null only with role `5=checkbox`; maps to AccessKit `Toggled::True/False`.                                           | `props.ts:149-164`; `tree/validation.rs:144-155` |
+|        5 | selected    | boolean or null | Optional selected state.                                                                                                 | `wire/node.rs:51-61,631-652`                     |
 |        6 | value       | string or null  | Optional accessible value.                                                                                               | Same sources.                         |
+|        7 | expanded    | boolean or null, optional | Optional popup/disclosure state; maps to GPUI's public `aria_expanded` builder.                                          | `props.ts:145-168`; `wire/node.rs:51-61,631-652`; `renderer/paint/accessibility.rs:53-54`; pinned `references/zed/crates/gpui/src/elements/div.rs:1339-1343,3408-3410` |
+|        8 | level       | u32 or null, optional | Positive value requiring role `6=heading`; maps to GPUI's public `aria_level` builder.                                  | `props.ts:147-168`; `tree/validation.rs:156-170`; `renderer/paint/accessibility.rs:55-57`; pinned `references/zed/crates/gpui/src/elements/div.rs:1396-1400,3435-3437` |
+
 The native painter applies recognized roles, labels, descriptions, checked
-(`AccessKit::Toggled::True/False`), selected, values, and stable IDs to the
-GPUI element. `generic` intentionally remains GPUI's role-less container and
-does not produce an AccessKit node, so its other fields are not exposed.
-Image, VirtualList, and RawText branches use the same accessibility helper.
+(`AccessKit::Toggled::True/False`), selected, values, expanded state, heading
+levels, and stable IDs to the GPUI element. `generic` intentionally remains
+GPUI's role-less container and does not produce an AccessKit node, so its other
+fields are not exposed. Image, VirtualList, and RawText branches use the same
+accessibility helper. AccessKit 0.24.1 has a `Live` property, but pinned GPUI
+has no public `aria_live`/live-region builder or write path; live-region
+announcements are therefore an upstream gap and no live field is carried.
 The stock headless TestPlatform has no active AccessKit adapter; display-backed
 desktop verification is required for a real tree inspection.
 

@@ -474,6 +474,7 @@ function Gallery({
                 focusable
                 accessibilityRole="button"
                 accessibilityLabel={menuOpen ? "Hide activity menu" : "Show activity menu"}
+                accessibilityExpanded={menuOpen}
                 onPress={() => setMenuOpen((value) => !value)}
                 onPointerDown={() => setPointer("menu-down")}
                 onPointerUp={() => setPointer("menu-up")}
