@@ -7,17 +7,18 @@ use react_gpui::{
     AccessibilityProperties, BoxShadow, COMMAND_BLUR, COMMAND_CLIPBOARD_READ,
     COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS,
     COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
-    COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
-    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
-    Command, CommandResult, CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER,
-    EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties, KIND_PRESSABLE,
-    KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
-    MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION,
-    Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
-    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
-    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
-    UPDATE_TEXT, VirtualListProperties, WindowAppearance, WindowOpenOptions,
+    COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
+    DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties,
+    ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node,
+    NotificationActionDefinition, PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS,
+    Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
+    TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY,
+    UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
+    WindowAppearance, WindowOpenOptions,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -231,6 +232,25 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         payload,
         title: title.map(str::to_owned),
         body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+    }
+}
+fn text_file_command(kind: u32, request_id: u32, path: &str, content: Option<&str>) -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id,
+        node_id: 1,
+        kind,
+        payload: None,
+        title: Some(path.to_owned()),
+        body: content.map(str::to_owned),
         actions: None,
         menus: None,
         keybindings: None,
@@ -965,6 +985,69 @@ fn main() {
         command(COMMAND_FILE_DIALOG_SAVE, 1, None, Some("report.json"))
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-read-text-file",
+        "command",
+        text_file_command(COMMAND_READ_TEXT_FILE, 125, "/tmp/notes.txt", None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-write-text-file",
+        "command",
+        text_file_command(
+            COMMAND_WRITE_TEXT_FILE,
+            126,
+            "/tmp/notes.txt",
+            Some("hello π"),
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-read-text-file",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            24,
+            CommandResult {
+                request_id: 125,
+                command: COMMAND_READ_TEXT_FILE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::FileText("hello π".into())),
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-write-text-file",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            25,
+            CommandResult {
+                request_id: 126,
+                command: COMMAND_WRITE_TEXT_FILE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Number(8.0)),
+            },
+        )
+        .encode()
+        .unwrap(),
     );
     emit(
         &mut rows,

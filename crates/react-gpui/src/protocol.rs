@@ -70,8 +70,13 @@ pub const COMMAND_SET_MENUS: u32 = 21;
 pub const COMMAND_SET_KEYBINDINGS: u32 = 22;
 pub const COMMAND_SET_CLOSE_POLICY: u32 = 23;
 pub const COMMAND_RESOLVE_CLOSE_REQUEST: u32 = 24;
+pub const COMMAND_READ_TEXT_FILE: u32 = 25;
+pub const COMMAND_WRITE_TEXT_FILE: u32 = 26;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
+/// File payloads leave 1 KiB for the complete MessagePack command/frame envelope.
+pub const MAX_FILE_WRITE_BYTES: usize = MAX_FRAME_LENGTH - 1024;
+pub const MAX_FILE_READ_BYTES: usize = MAX_FRAME_LENGTH - 1024;
 
 pub const UPDATE_STYLE: u32 = 1;
 pub const UPDATE_TEXT: u32 = 2;
@@ -255,8 +260,8 @@ pub struct Command {
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire
-/// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=text`, and
-/// `5=selected paths`.
+/// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=clipboard/path
+/// text`, `5=selected paths`, and `6=file text`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
@@ -264,6 +269,7 @@ pub enum CommandValue {
     Bool(bool),
     Text(String),
     Paths(Vec<String>),
+    FileText(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

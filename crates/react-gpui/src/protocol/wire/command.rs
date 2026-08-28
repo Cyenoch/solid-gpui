@@ -1,4 +1,5 @@
 use std::io::Cursor;
+use std::path::Path;
 
 use super::*;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,44 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
         return Err(ProtocolError::InvalidCommandPayload);
     }
     let payload = match command.kind {
+        COMMAND_READ_TEXT_FILE => {
+            if command.payload.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.keybindings.is_some()
+                || command.window_options.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.title, command.node_id) {
+                (Some(path), 1) if valid_file_path(path) => {
+                    Some(CommandPayloadWire::Title(path.clone()))
+                }
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
+        COMMAND_WRITE_TEXT_FILE => {
+            if command.payload.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.keybindings.is_some()
+                || command.window_options.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match (&command.title, &command.body, command.node_id) {
+                (Some(path), Some(content), 1)
+                    if valid_file_path(path) && content.len() <= MAX_FILE_WRITE_BYTES =>
+                {
+                    Some(CommandPayloadWire::StringPair((
+                        path.clone(),
+                        content.clone(),
+                    )))
+                }
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
         COMMAND_OPEN_SURFACE => {
             if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
@@ -159,6 +198,13 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
     .map_err(ProtocolError::Encode)
 }
 
+fn valid_file_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 1024
+        && !path.chars().any(char::is_control)
+        && Path::new(path).is_absolute()
+}
+
 fn valid_http_url(url: &str) -> bool {
     if url.is_empty() || url.len() > 2048 || url.chars().any(char::is_whitespace) {
         return false;
@@ -235,6 +281,8 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_SET_KEYBINDINGS
             | COMMAND_SET_CLOSE_POLICY
             | COMMAND_RESOLVE_CLOSE_REQUEST
+            | COMMAND_READ_TEXT_FILE
+            | COMMAND_WRITE_TEXT_FILE
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -252,6 +300,20 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     };
     let (payload, title, body): (Option<(u32, u32)>, Option<String>, Option<String>) =
         match (wire.7, wire.8) {
+            (COMMAND_READ_TEXT_FILE, Some(CommandPayloadWire::Title(path)))
+                if wire.6 == 1 && valid_file_path(&path) =>
+            {
+                (None, Some(path), None)
+            }
+            (COMMAND_READ_TEXT_FILE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_WRITE_TEXT_FILE, Some(CommandPayloadWire::StringPair((path, content))))
+                if wire.6 == 1
+                    && valid_file_path(&path)
+                    && content.len() <= MAX_FILE_WRITE_BYTES =>
+            {
+                (None, Some(path), Some(content))
+            }
+            (COMMAND_WRITE_TEXT_FILE, _) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_SET_TITLE, Some(CommandPayloadWire::Title(title)))
                 if wire.6 == 1 && !title.is_empty() && title.chars().count() <= 256 =>
             {

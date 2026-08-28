@@ -12,6 +12,7 @@ import {
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
+  COMMAND_READ_TEXT_FILE,
   COMMAND_RESIZE_WINDOW,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
@@ -22,17 +23,19 @@ import {
   COMMAND_SCROLL_TO_INDEX,
   COMMAND_SET_SELECTION,
   COMMAND_TOGGLE_FULLSCREEN,
+  COMMAND_WRITE_TEXT_FILE,
   COMMAND_ZOOM_WINDOW,
   FrameDecoder,
   MAX_CLIPBOARD_TEXT_BYTES,
+  MAX_FILE_WRITE_BYTES,
   PROTOCOL_VERSION,
-  UPDATE_ACCESSIBILITY,
   UPDATE_LISTENER,
   UPDATE_PROPERTIES,
   UPDATE_SELECTABLE,
   UPDATE_STYLE,
   UPDATE_TEXT,
   UPDATE_TOOLTIP,
+  UPDATE_ACCESSIBILITY,
   decodeEvent,
   encodeFrame,
   type Command,
@@ -359,7 +362,9 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_SET_MENUS
       | typeof COMMAND_SET_KEYBINDINGS
       | typeof COMMAND_SET_CLOSE_POLICY
-      | typeof COMMAND_RESOLVE_CLOSE_REQUEST,
+      | typeof COMMAND_RESOLVE_CLOSE_REQUEST
+      | typeof COMMAND_READ_TEXT_FILE
+      | typeof COMMAND_WRITE_TEXT_FILE,
     payload:
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
@@ -556,6 +561,46 @@ export class RootContainer implements DispatchContext {
         value[1].length === 0
       )
         throw new Error("native pickSavePath returned an invalid value");
+      return value[1];
+    });
+  }
+
+  readTextFile(path: string): Promise<string> {
+    if (
+      typeof path !== "string" ||
+      path.length === 0 ||
+      utf8ByteLength(path) > 1024 ||
+      /[\u0000-\u001f\u007f]/.test(path) ||
+      !path.startsWith("/")
+    )
+      return Promise.reject(new TypeError("file path must be a non-empty absolute path of at most 1024 UTF-8 bytes"));
+    return this.submitSurfaceCommandValue(COMMAND_READ_TEXT_FILE, path).then((value) => {
+      if (!Array.isArray(value) || value.length !== 2 || value[0] !== 6 || typeof value[1] !== "string")
+        throw new Error("native readTextFile returned an invalid value");
+      return value[1];
+    });
+  }
+
+  writeTextFile(path: string, content: string): Promise<number> {
+    if (
+      typeof path !== "string" ||
+      path.length === 0 ||
+      utf8ByteLength(path) > 1024 ||
+      /[\u0000-\u001f\u007f]/.test(path) ||
+      !path.startsWith("/")
+    )
+      return Promise.reject(new TypeError("file path must be a non-empty absolute path of at most 1024 UTF-8 bytes"));
+    if (typeof content !== "string" || utf8ByteLength(content) > MAX_FILE_WRITE_BYTES)
+      return Promise.reject(new RangeError("file content exceeds the supported size"));
+    return this.submitSurfaceCommandValue(COMMAND_WRITE_TEXT_FILE, [path, content]).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 1 ||
+        typeof value[1] !== "number" ||
+        !Number.isFinite(value[1])
+      )
+        throw new Error("native writeTextFile returned an invalid byte count");
       return value[1];
     });
   }

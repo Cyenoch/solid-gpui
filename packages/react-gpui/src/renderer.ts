@@ -153,6 +153,8 @@ export interface Root {
   openSurface(options?: SurfaceOpenOptions): Promise<number>;
   pickFiles(options?: PickFilesOptions): Promise<string[] | null>;
   pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
+  readTextFile(path: string): Promise<string>;
+  writeTextFile(path: string, content: string): Promise<number>;
   showNotification(options: NotificationOptions): Promise<void>;
   setMenus(menus: readonly MenuDefinition[]): Promise<void>;
   setKeybindings(bindings: readonly Keybinding[]): Promise<void>;
@@ -264,6 +266,14 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     pickSavePath(options: PickSavePathOptions = {}): Promise<string | null> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.pickSavePath(options);
+    },
+    readTextFile(path: string): Promise<string> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.readTextFile(path);
+    },
+    writeTextFile(path: string, content: string): Promise<number> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.writeTextFile(path, content);
     },
     showNotification(options: NotificationOptions): Promise<void> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));

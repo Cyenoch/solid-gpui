@@ -28,7 +28,9 @@ export const PATCH_KIND = 3 as const;
 export const COMMAND_KIND = 4 as const;
 export const MAX_FRAME_SIZE = 16 * 1024 * 1024;
 export const MAX_CLIPBOARD_TEXT_BYTES = 1 << 20;
-
+/** File payloads leave 1 KiB for the complete MessagePack command/frame envelope. */
+export const MAX_FILE_WRITE_BYTES = MAX_FRAME_SIZE - 1024;
+export const MAX_FILE_READ_BYTES = MAX_FRAME_SIZE - 1024;
 export const EVENT_PRESS = 1 as const;
 export const EVENT_CHANGE = 2 as const;
 export const EVENT_SELECTION = 3 as const;
@@ -91,7 +93,8 @@ export const COMMAND_SET_MENUS = 21 as const;
 export const COMMAND_SET_KEYBINDINGS = 22 as const;
 export const COMMAND_SET_CLOSE_POLICY = 23 as const;
 export const COMMAND_RESOLVE_CLOSE_REQUEST = 24 as const;
-export const IMAGE_OBJECT_FIT_FILL = 1 as const;
+export const COMMAND_READ_TEXT_FILE = 25 as const;
+export const COMMAND_WRITE_TEXT_FILE = 26 as const;
 export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
 export const IMAGE_OBJECT_FIT_COVER = 3 as const;
 export const IMAGE_OBJECT_FIT_SCALE_DOWN = 4 as const;
@@ -249,10 +252,13 @@ export type Command = readonly [
     | typeof COMMAND_OPEN_SURFACE
     | typeof COMMAND_FILE_DIALOG_OPEN
     | typeof COMMAND_FILE_DIALOG_SAVE
+    | typeof COMMAND_SHOW_NOTIFICATION
     | typeof COMMAND_SET_MENUS
     | typeof COMMAND_SET_KEYBINDINGS
     | typeof COMMAND_SET_CLOSE_POLICY
     | typeof COMMAND_RESOLVE_CLOSE_REQUEST
+    | typeof COMMAND_READ_TEXT_FILE
+    | typeof COMMAND_WRITE_TEXT_FILE
   ),
   (
     | readonly [number, number]
@@ -271,7 +277,8 @@ export type CommandValuePayload =
   | readonly [2, readonly [number, number]]
   | readonly [3, boolean]
   | readonly [4, string]
-  | readonly [5, readonly string[]];
+  | readonly [5, readonly string[]]
+  | readonly [6, string];
 export type CommandResultPayload = readonly [
   2,
   number,
@@ -385,6 +392,9 @@ function validateCommandValue(value: unknown): value is CommandValuePayload {
       value[1].length > 0 &&
       value[1].every((path) => typeof path === "string" && path.length > 0)
     );
+  }
+  if (value[0] === 6) {
+    return value.length === 2 && typeof value[1] === "string" && utf8ByteLength(value[1]) <= MAX_FILE_READ_BYTES;
   }
   return (
     value[0] === 4 &&
@@ -760,6 +770,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       COMMAND_SET_KEYBINDINGS,
       COMMAND_SET_CLOSE_POLICY,
       COMMAND_RESOLVE_CLOSE_REQUEST,
+      COMMAND_READ_TEXT_FILE,
+      COMMAND_WRITE_TEXT_FILE,
     ];
     if (!validCommands.includes(payload[2] as number)) return false;
     if (typeof payload[4] !== "boolean" || (payload[5] !== null && typeof payload[5] !== "string")) return false;

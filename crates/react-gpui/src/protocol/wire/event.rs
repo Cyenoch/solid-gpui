@@ -86,6 +86,8 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_SET_KEYBINDINGS
                         | COMMAND_SET_CLOSE_POLICY
                         | COMMAND_RESOLVE_CLOSE_REQUEST
+                        | COMMAND_READ_TEXT_FILE
+                        | COMMAND_WRITE_TEXT_FILE
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);
@@ -660,6 +662,7 @@ impl From<&CommandValue> for CommandValueWire {
             CommandValue::Bool(active) => Self::Bool((3, *active)),
             CommandValue::Text(text) => Self::Text((4, text.clone())),
             CommandValue::Paths(paths) => Self::Paths((5, paths.clone())),
+            CommandValue::FileText(text) => Self::Text((6, text.clone())),
         }
     }
 }
@@ -678,6 +681,9 @@ impl TryFrom<CommandValueWire> for CommandValue {
             CommandValueWire::Bool((3, active)) => Ok(Self::Bool(active)),
             CommandValueWire::Text((4, text)) if text.len() <= MAX_CLIPBOARD_TEXT_BYTES => {
                 Ok(Self::Text(text))
+            }
+            CommandValueWire::Text((6, text)) if text.len() <= MAX_FILE_READ_BYTES => {
+                Ok(Self::FileText(text))
             }
             CommandValueWire::Paths((5, paths))
                 if !paths.is_empty() && paths.iter().all(|path| !path.is_empty()) =>

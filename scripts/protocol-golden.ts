@@ -229,6 +229,10 @@ const rows = [
   ]),
   row("ts-command-file-dialog-open", "command", [3, 4, 7, 3, 42, 118, 1, 18, ["Choose", [1, 1]]]),
   row("ts-command-file-dialog-save", "command", [3, 4, 7, 3, 42, 119, 1, 19, "report.json"]),
+  row("ts-command-read-text-file", "command", [3, 4, 7, 3, 42, 125, 1, 25, "/tmp/notes.txt"]),
+  row("ts-command-write-text-file", "command", [3, 4, 7, 3, 42, 126, 1, 26, ["/tmp/notes.txt", "hello π"]]),
+  row("ts-event-command-result-read-text-file", "event", [3, 2, 7, 3, 42, 24, 1, 0, 6, [2, 125, 25, 1, true, null, [6, "hello π"]]]),
+  row("ts-event-command-result-write-text-file", "event", [3, 2, 7, 3, 42, 25, 1, 0, 6, [2, 126, 26, 1, true, null, [1, 8]]]),
   row("ts-command-notification", "command", [3, 4, 7, 3, 42, 120, 1, 20, ["Done", "Finished", [["open", "Open"]]]]),
   row("ts-command-set-menus", "command", [
     3,

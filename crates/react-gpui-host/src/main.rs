@@ -6,10 +6,11 @@ use gpui::{
     WindowOptions, px, size,
 };
 use react_gpui::{
-    COMMAND_OPEN_SURFACE, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SET_CLOSE_POLICY,
-    COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition, MenuAction,
-    PROTOCOL_VERSION, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter,
-    RuntimeStatus, Snapshot, WindowOpenOptions, fatal_runtime_failure,
+    COMMAND_OPEN_SURFACE, COMMAND_READ_TEXT_FILE, COMMAND_RESOLVE_CLOSE_REQUEST,
+    COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_WRITE_TEXT_FILE, Command,
+    CommandValue, KeybindingDefinition, MenuAction, PROTOCOL_VERSION, Patch, ProcessAdapter,
+    ProtocolError, ReactRoot, RuntimeAdapter, RuntimeStatus, Snapshot, WindowOpenOptions,
+    fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
 use react_gpui::{Event, send_event_or_exit};
@@ -466,6 +467,11 @@ impl SurfaceRegistry {
         } else if command.kind == COMMAND_RESOLVE_CLOSE_REQUEST {
             self.resolve_close_request(command, cx);
             Ok(())
+        } else if matches!(
+            command.kind,
+            COMMAND_READ_TEXT_FILE | COMMAND_WRITE_TEXT_FILE
+        ) {
+            self.apply_to_surface(command.surface_id, payload, cx)
         } else if command.kind == COMMAND_OPEN_SURFACE {
             self.open_surface(command, cx)
         } else {

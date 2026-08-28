@@ -2,21 +2,39 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    ClipboardEntry, ClipboardItem, Context, ListOffset, Menu as GpuiMenu, MenuItem as GpuiMenuItem,
-    PathPromptOptions, SystemNotification, SystemNotificationAction, Window, px, size,
+    AppContext, ClipboardEntry, ClipboardItem, Context, ListOffset, Menu as GpuiMenu,
+    MenuItem as GpuiMenuItem, PathPromptOptions, SystemNotification, SystemNotificationAction,
+    Window, px, size,
 };
 
 use super::ReactRoot;
 use crate::protocol::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
-    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
-    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_ZOOM_WINDOW,
-    Command, CommandResult, CommandValue, EVENT_SELECTION, Event, HostProperties,
-    MAX_CLIPBOARD_TEXT_BYTES, MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
+    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
+    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
+    EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES,
+    MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
+fn file_error(error: std::io::Error) -> String {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => "file not found".to_owned(),
+        std::io::ErrorKind::PermissionDenied => "permission denied".to_owned(),
+        std::io::ErrorKind::IsADirectory => "path is a directory".to_owned(),
+        _ => {
+            let detail = error.to_string();
+            if detail.len() <= 256 {
+                format!("file operation failed: {detail}")
+            } else {
+                "file operation failed".to_owned()
+            }
+        }
+    }
+}
+
 use crate::tree::{KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
 
 impl ReactRoot {
@@ -143,6 +161,55 @@ impl ReactRoot {
         .detach();
     }
 
+    fn spawn_text_file_command(&self, command: Command, cx: &mut Context<Self>) {
+        let path = command.title.clone().unwrap_or_default();
+        let content = command.body.clone();
+        let kind = command.kind;
+        let request_id = command.request_id;
+        let node_id = command.node_id;
+        let entity = cx.weak_entity();
+        let task = cx.background_spawn(async move {
+            match kind {
+                COMMAND_READ_TEXT_FILE => {
+                    let metadata = std::fs::metadata(&path).map_err(file_error)?;
+                    if !metadata.is_file() {
+                        return Err("path is a directory".to_owned());
+                    }
+                    if metadata.len() > MAX_FILE_READ_BYTES as u64 {
+                        return Err("file is too large".to_owned());
+                    }
+                    let bytes = std::fs::read(&path).map_err(file_error)?;
+                    if bytes.len() > MAX_FILE_READ_BYTES {
+                        return Err("file is too large".to_owned());
+                    }
+                    String::from_utf8(bytes)
+                        .map(CommandValue::FileText)
+                        .map_err(|_| "file is not valid UTF-8".to_owned())
+                }
+                COMMAND_WRITE_TEXT_FILE => {
+                    let content = content.ok_or_else(|| "file content is required".to_owned())?;
+                    if content.len() > MAX_FILE_WRITE_BYTES {
+                        return Err("file content is too large".to_owned());
+                    }
+                    std::fs::write(&path, content.as_bytes()).map_err(file_error)?;
+                    Ok(CommandValue::Number(content.len() as f32))
+                }
+                _ => Err("unknown text file command".to_owned()),
+            }
+        });
+        cx.spawn(async move |_, cx| {
+            let result = task.await;
+            let (success, error, value) = match result {
+                Ok(value) => (true, None, Some(value)),
+                Err(error) => (false, Some(error), None),
+            };
+            let _ = entity.update(cx, |root, _| {
+                root.emit_command_ack(request_id, kind, node_id, success, error, value);
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn process_commands(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let mut refresh = false;
         for command in std::mem::take(&mut self.commands) {
@@ -235,6 +302,17 @@ impl ReactRoot {
                 } else {
                     success = false;
                     error = Some("file dialog save payload is invalid".to_owned());
+                }
+            } else if matches!(
+                command.kind,
+                COMMAND_READ_TEXT_FILE | COMMAND_WRITE_TEXT_FILE
+            ) {
+                if command.node_id != 1 {
+                    success = false;
+                    error = Some("text file command requires the root container".to_owned());
+                } else {
+                    self.spawn_text_file_command(command, cx);
+                    continue;
                 }
             } else if command.kind == COMMAND_SET_TITLE {
                 if command.node_id != 1 {

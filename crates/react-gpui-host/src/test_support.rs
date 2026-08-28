@@ -4,11 +4,12 @@ use react_gpui::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
     COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    EventPayload, HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW,
-    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
+    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY,
+    COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
+    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, EventPayload,
+    HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
+    KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
     NotificationActionDefinition, PROTOCOL_VERSION, PatchOperation, TextInputProperties,
     VirtualListProperties, WindowOpenOptions,
 };
@@ -1483,6 +1484,106 @@ pub fn dialog_command_roundtrip(cx: &mut TestAppContext) {
             .iter()
             .all(|event| event.event_type != react_gpui::EVENT_COMMAND_RESULT)
     );
+}
+pub fn text_file_command_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open text file test surface");
+    let window = draw_surface(&registry, cx, 1);
+    let snapshot_payload = snapshot().encode().expect("encode text file snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot_payload, cx)
+        })
+        .expect("route text file snapshot");
+    draw_surface(&registry, cx, 1);
+    let dir = std::env::temp_dir().join(format!("react-gpui-file-{}", std::process::id()));
+    let path = dir.join("notes.txt");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create text file test directory");
+    let path = path.to_str().expect("temporary path is UTF-8").to_owned();
+    route_command(
+        &registry,
+        cx,
+        command(
+            201,
+            COMMAND_WRITE_TEXT_FILE,
+            1,
+            None,
+            Some(&path),
+            Some("hello π"),
+            None,
+        ),
+    );
+    cx.run_until_parked();
+    advance_frame(window, cx);
+    let result = command_result(&take_events(&runtime), 201);
+    assert!(result.success, "write result: {:?}", result.error);
+    assert_eq!(result.value, Some(react_gpui::CommandValue::Number(8.0)));
+    assert_eq!(
+        std::fs::read_to_string(&path).expect("read written file"),
+        "hello π"
+    );
+    route_command(
+        &registry,
+        cx,
+        command(
+            202,
+            COMMAND_READ_TEXT_FILE,
+            1,
+            None,
+            Some(&path),
+            None,
+            None,
+        ),
+    );
+    cx.run_until_parked();
+    advance_frame(window, cx);
+    let result = command_result(&take_events(&runtime), 202);
+    assert!(result.success, "read result: {:?}", result.error);
+    assert_eq!(
+        result.value,
+        Some(react_gpui::CommandValue::FileText("hello π".to_owned()))
+    );
+    route_command(
+        &registry,
+        cx,
+        command(
+            203,
+            COMMAND_READ_TEXT_FILE,
+            1,
+            None,
+            Some(&format!("{path}.missing")),
+            None,
+            None,
+        ),
+    );
+    cx.run_until_parked();
+    advance_frame(window, cx);
+    let result = command_result(&take_events(&runtime), 203);
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("file not found"));
+    route_command(
+        &registry,
+        cx,
+        command(
+            204,
+            COMMAND_READ_TEXT_FILE,
+            1,
+            None,
+            Some(&dir.to_string_lossy()),
+            None,
+            None,
+        ),
+    );
+    cx.run_until_parked();
+    advance_frame(window, cx);
+    let result = command_result(&take_events(&runtime), 204);
+    assert!(!result.success);
+    assert_eq!(result.error.as_deref(), Some("path is a directory"));
+    let _ = std::fs::remove_dir_all(dir);
 }
 pub fn notification_response_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();

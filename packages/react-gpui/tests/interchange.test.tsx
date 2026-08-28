@@ -14,7 +14,6 @@ import {
   utf8ByteLength,
 } from "../src/protocol";
 
-
 function lastCommand(transport: MemoryTransport): readonly unknown[] {
   const frame = transport.submitted.at(-1);
   if (frame === undefined) throw new Error("expected a submitted command");
@@ -87,9 +86,7 @@ describe("interchange clipboard byte limits", () => {
       await expect(writePromise).resolves.toBeUndefined();
 
       const beforeOversizedWrite = transport.submitted.length;
-      await expect(root.setClipboardText(overLimit)).rejects.toThrow(
-        "clipboard text exceeds the supported size",
-      );
+      await expect(root.setClipboardText(overLimit)).rejects.toThrow("clipboard text exceeds the supported size");
       expect(transport.submitted).toHaveLength(beforeOversizedWrite);
 
       const readPromise = root.getClipboardText();
