@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AnyElement, App, Bounds, Element, ElementId, Entity, GlobalElementId, InspectorElementId,
-    InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement, Pixels, SharedString,
-    StatefulInteractiveElement, Styled, Window, div,
+    AnyElement, App, AppContext, Bounds, Element, ElementId, Entity, GlobalElementId,
+    InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement,
+    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Window, div, px, rgba,
 };
 
 use crate::protocol::{EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction};
@@ -22,6 +22,23 @@ use super::ReactRoot;
 use super::events::{emit_key_event, emit_pointer_event, emit_scroll_event};
 
 pub(super) type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
+struct TooltipView {
+    text: SharedString,
+}
+
+impl Render for TooltipView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut gpui::Context<Self>) -> impl IntoElement {
+        div()
+            .px(px(8.0))
+            .py(px(4.0))
+            .rounded(px(4.0))
+            .bg(rgba(0x1f2937f5))
+            .text_color(rgba(0xf8fafcff))
+            .text_size(px(11.0))
+            .line_height(px(16.0))
+            .child(self.text.clone())
+    }
+}
 
 mod accessibility;
 mod drag;
@@ -335,7 +352,17 @@ impl ReactRoot {
                 );
             });
         }
-
+        if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+            && let Some(tooltip) = node.tooltip.as_ref()
+        {
+            let tooltip = SharedString::new(Arc::clone(tooltip));
+            element = element.tooltip(move |_, cx| {
+                cx.new(|_| TooltipView {
+                    text: tooltip.clone(),
+                })
+                .into()
+            });
+        }
         element = drag::apply(element, self, node);
         let element = overlay::apply(self, element.into_any(), node, style, entity);
         measure_node(node, element, entity)

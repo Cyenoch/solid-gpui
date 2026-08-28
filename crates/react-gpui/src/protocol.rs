@@ -32,6 +32,7 @@ pub const EVENT_LAYOUT: u32 = 19;
 pub const EVENT_DRAG: u32 = 20;
 pub const EVENT_NOTIFICATION_RESPONSE: u32 = 21;
 pub const EVENT_POINTER_DOWN_OUTSIDE: u32 = 22;
+pub const EVENT_CLOSE_REQUESTED: u32 = 23;
 pub const EVENT_POINTER_DOWN: u32 = 1;
 pub const EVENT_POINTER_UP: u32 = 2;
 pub const POINTER_BUTTON_LEFT: u32 = 1;
@@ -67,6 +68,8 @@ pub const COMMAND_FILE_DIALOG_SAVE: u32 = 19;
 pub const COMMAND_SHOW_NOTIFICATION: u32 = 20;
 pub const COMMAND_SET_MENUS: u32 = 21;
 pub const COMMAND_SET_KEYBINDINGS: u32 = 22;
+pub const COMMAND_SET_CLOSE_POLICY: u32 = 23;
+pub const COMMAND_RESOLVE_CLOSE_REQUEST: u32 = 24;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 
@@ -77,6 +80,7 @@ pub const UPDATE_PROPERTIES: u32 = 8;
 pub const UPDATE_ACCESSIBILITY: u32 = 16;
 pub const UPDATE_FOCUSABLE: u32 = 32;
 pub const UPDATE_SELECTABLE: u32 = 64;
+pub const UPDATE_TOOLTIP: u32 = 128;
 pub const MAX_FRAME_LENGTH: usize = 16 * 1024 * 1024;
 
 pub const TRANSITION_OPACITY: u32 = 1;
@@ -151,6 +155,7 @@ pub enum PatchOperation {
         accessibility: Option<AccessibilityProperties>,
         focusable: bool,
         selectable: bool,
+        tooltip: Option<String>,
     },
     Move {
         id: u32,
@@ -295,6 +300,7 @@ pub struct Node {
     pub accessibility: Option<AccessibilityProperties>,
     pub focusable: bool,
     pub selectable: bool,
+    pub tooltip: Option<String>,
 }
 
 impl Node {
@@ -311,6 +317,7 @@ impl Node {
             accessibility: None,
             focusable: false,
             selectable: false,
+            tooltip: None,
         }
     }
 }
@@ -560,6 +567,9 @@ pub enum EventPayload {
     PointerDownOutside {
         x: f32,
         y: f32,
+    },
+    CloseRequested {
+        request_id: u32,
     },
 }
 
@@ -1073,6 +1083,27 @@ impl Event {
             payload: Some(EventPayload::NotificationResponse(
                 NotificationResponseEvent { tag, action_id },
             )),
+        }
+    }
+
+    pub fn close_requested(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        request_id: u32,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id: 1,
+            listener_id: 0,
+            event_type: EVENT_CLOSE_REQUESTED,
+            payload: Some(EventPayload::CloseRequested { request_id }),
         }
     }
 

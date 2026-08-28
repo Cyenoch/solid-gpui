@@ -13,6 +13,7 @@ pub(super) struct NodeWire(
     Option<AccessibilityWire>,
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
 );
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -127,11 +128,11 @@ impl From<&Node> for NodeWire {
             node.host_properties.as_ref().map(HostPropertiesWire::from),
             node.accessibility.as_ref().map(AccessibilityWire::from),
             node.focusable,
-            node.selectable.then_some(true),
+            (node.selectable || node.tooltip.is_some()).then_some(node.selectable),
+            node.tooltip.clone(),
         )
     }
 }
-
 impl TryFrom<NodeWire> for Node {
     type Error = ProtocolError;
 
@@ -145,6 +146,13 @@ impl TryFrom<NodeWire> for Node {
         }
         let host_properties = node.7.map(HostProperties::try_from).transpose()?;
         validate_host_kind(node.3, host_properties.as_ref())?;
+        let tooltip = node.11;
+        if tooltip
+            .as_ref()
+            .is_some_and(|value| !valid_tooltip_text(value))
+        {
+            return Err(ProtocolError::InvalidHostProperties);
+        }
         Ok(Self {
             id: node.0,
             parent_id: node.1,
@@ -157,6 +165,7 @@ impl TryFrom<NodeWire> for Node {
             accessibility: node.8.map(AccessibilityProperties::from),
             focusable: node.9,
             selectable,
+            tooltip,
         })
     }
 }
@@ -422,6 +431,10 @@ impl TryFrom<HostPropertiesWire> for HostProperties {
         }
     }
 }
+pub(super) fn valid_tooltip_text(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 256 && !value.chars().any(char::is_control)
+}
+
 fn validate_host_kind(
     kind: u32,
     host_properties: Option<&HostProperties>,
@@ -433,7 +446,7 @@ fn validate_host_kind(
         | (7, Some(HostProperties::Image(_))) => Ok(()),
         (5..=7, None) => Err(ProtocolError::InvalidHostProperties),
         (_, Some(_)) => Err(ProtocolError::InvalidHostProperties),
-        _ => Ok(()),
+        (_, None) => Ok(()),
     }
 }
 

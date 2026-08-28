@@ -47,6 +47,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
             | EVENT_DRAG
             | EVENT_NOTIFICATION_RESPONSE
             | EVENT_POINTER_DOWN_OUTSIDE
+            | EVENT_CLOSE_REQUESTED
     ) {
         return Err(ProtocolError::UnknownEvent(wire.8));
     }
@@ -83,6 +84,8 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_SHOW_NOTIFICATION
                         | COMMAND_SET_MENUS
                         | COMMAND_SET_KEYBINDINGS
+                        | COMMAND_SET_CLOSE_POLICY
+                        | COMMAND_RESOLVE_CLOSE_REQUEST
                 )
             {
                 return Err(ProtocolError::InvalidEventPayload);
@@ -177,6 +180,11 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                 x: value.1,
                 y: value.2,
             })
+        }
+        (EVENT_CLOSE_REQUESTED, Some(EventPayloadWire::CloseRequested((tag, request_id))))
+            if wire.6 == 1 && wire.7 == 0 && tag == 9 =>
+        {
+            Some(EventPayload::CloseRequested { request_id })
         }
         (EVENT_LAYOUT, Some(EventPayloadWire::Layout((x, y, width, height))))
             if wire.6 != 0
@@ -333,6 +341,10 @@ impl<'de> Visitor<'de> for EventWireVisitor {
             EVENT_POINTER_DOWN_OUTSIDE => {
                 typed_payload!(PointerDownOutsideWire, EventPayloadWire::PointerDownOutside)
             }
+            EVENT_CLOSE_REQUESTED => sequence
+                .next_element::<Option<(u32, u32)>>()?
+                .flatten()
+                .map(EventPayloadWire::CloseRequested),
             EVENT_PRESS | EVENT_HOVER => {
                 let payload: Option<Option<de::IgnoredAny>> = sequence.next_element()?;
                 if payload.flatten().is_some() {
@@ -387,6 +399,7 @@ enum EventPayloadWire {
     Layout((f32, f32, f32, f32)),
     Drag(DragPayloadWire),
     PointerDownOutside(PointerDownOutsideWire),
+    CloseRequested((u32, u32)),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -737,6 +750,7 @@ impl From<&EventPayload> for EventPayloadWire {
             EventPayload::PointerDownOutside { x, y } => {
                 Self::PointerDownOutside(PointerDownOutsideWire(8, *x, *y))
             }
+            EventPayload::CloseRequested { request_id } => Self::CloseRequested((9, *request_id)),
         }
     }
 }

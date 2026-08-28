@@ -34,3 +34,9 @@ fn focus_and_blur_events_remain_routed_to_each_surface() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::cross_surface_focus_blur_roundtrip(&mut cx);
 }
+
+#[test]
+fn close_policy_simulate_close_requires_and_resolves_confirmation() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::close_policy_simulate_close_roundtrip(&mut cx);
+}

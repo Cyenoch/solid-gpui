@@ -51,6 +51,7 @@ export const EVENT_LAYOUT = 19 as const;
 export const EVENT_DRAG = 20 as const;
 export const EVENT_NOTIFICATION_RESPONSE = 21 as const;
 export const EVENT_POINTER_DOWN_OUTSIDE = 22 as const;
+export const EVENT_CLOSE_REQUESTED = 23 as const;
 export const DRAG_OVER = 1 as const;
 export const DRAG_DROP = 2 as const;
 export const DRAG_EXTERNAL_FILE_DROP = 3 as const;
@@ -88,6 +89,8 @@ export const COMMAND_FILE_DIALOG_SAVE = 19 as const;
 export const COMMAND_SHOW_NOTIFICATION = 20 as const;
 export const COMMAND_SET_MENUS = 21 as const;
 export const COMMAND_SET_KEYBINDINGS = 22 as const;
+export const COMMAND_SET_CLOSE_POLICY = 23 as const;
+export const COMMAND_RESOLVE_CLOSE_REQUEST = 24 as const;
 export const IMAGE_OBJECT_FIT_FILL = 1 as const;
 export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
 export const IMAGE_OBJECT_FIT_COVER = 3 as const;
@@ -100,6 +103,7 @@ export const UPDATE_PROPERTIES = 8 as const;
 export const UPDATE_ACCESSIBILITY = 16 as const;
 export const UPDATE_FOCUSABLE = 32 as const;
 export const UPDATE_SELECTABLE = 64 as const;
+export const UPDATE_TOOLTIP = 128 as const;
 const KEY_MODIFIER_NAMES: Record<string, true> = {
   cmd: true,
   ctrl: true,
@@ -144,6 +148,7 @@ export type SnapshotNode = readonly [
   readonly unknown[] | null,
   boolean,
   boolean?,
+  (string | null)?,
 ];
 export type Snapshot = readonly [
   typeof PROTOCOL_VERSION,
@@ -168,6 +173,7 @@ export type PatchCreate = readonly [
   readonly unknown[] | null,
   boolean,
   boolean?,
+  (string | null)?,
 ];
 export type PatchUpdate = readonly [
   2,
@@ -180,6 +186,7 @@ export type PatchUpdate = readonly [
   readonly unknown[] | null,
   boolean,
   boolean?,
+  (string | null)?,
 ];
 export type PatchMove = readonly [3, number, number, number];
 export type PatchDelete = readonly [4, number];
@@ -230,9 +237,10 @@ export type Command = readonly [
     | typeof COMMAND_OPEN_SURFACE
     | typeof COMMAND_FILE_DIALOG_OPEN
     | typeof COMMAND_FILE_DIALOG_SAVE
-    | typeof COMMAND_SHOW_NOTIFICATION
     | typeof COMMAND_SET_MENUS
     | typeof COMMAND_SET_KEYBINDINGS
+    | typeof COMMAND_SET_CLOSE_POLICY
+    | typeof COMMAND_RESOLVE_CLOSE_REQUEST
   ),
   (
     | readonly [number, number]
@@ -272,6 +280,7 @@ export type WindowResizeEventPayload = readonly [number, number, number];
 export type WindowActivationEventPayload = boolean;
 export type ActionEventPayload = string;
 export type WindowAppearanceEventPayload = "light" | "dark";
+export type CloseRequestedEventPayload = readonly [9, number];
 export type LayoutEventPayload = readonly [number, number, number, number];
 export type DragEventPayload =
   | readonly [typeof DRAG_OVER, string]
@@ -291,11 +300,11 @@ export type EventPayload =
   | WindowResizeEventPayload
   | WindowActivationEventPayload
   | ActionEventPayload
-  | WindowAppearanceEventPayload
   | LayoutEventPayload
   | DragEventPayload
   | NotificationResponseEventPayload
-  | PointerDownOutsideEventPayload;
+  | PointerDownOutsideEventPayload
+  | CloseRequestedEventPayload;
 export type PressEventFrame = readonly [
   typeof PROTOCOL_VERSION,
   typeof EVENT_KIND,
@@ -328,6 +337,7 @@ export type PressEventFrame = readonly [
     | typeof EVENT_DRAG
     | typeof EVENT_NOTIFICATION_RESPONSE
     | typeof EVENT_POINTER_DOWN_OUTSIDE
+    | typeof EVENT_CLOSE_REQUESTED
   ),
   EventPayload | null,
 ];
@@ -453,6 +463,14 @@ function decodeWire(payload: Uint8Array): unknown {
 export function decodeWireForGolden(payload: Uint8Array): unknown {
   return decodeWire(payload);
 }
+function validateTooltip(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    utf8ByteLength(value) <= 256 &&
+    !/[\u0000-\u001f\u007f]/.test(value)
+  );
+}
 function validateHostProperties(value: unknown): value is HostPropertiesWire {
   if (!Array.isArray(value)) return false;
   if (value[0] === 1) {
@@ -562,6 +580,17 @@ function validateHostProperties(value: unknown): value is HostPropertiesWire {
 function validateEventPayload(eventType: number, payload: unknown): payload is EventPayload | null {
   if (eventType === EVENT_PRESS || eventType === EVENT_HOVER || eventType === EVENT_SURFACE_CLOSED)
     return payload === null;
+  if (eventType === EVENT_CLOSE_REQUESTED) {
+    return (
+      Array.isArray(payload) &&
+      payload.length === 2 &&
+      payload[0] === 9 &&
+      typeof payload[1] === "number" &&
+      Number.isInteger(payload[1]) &&
+      payload[1] >= 0 &&
+      payload[1] <= 0xffff_ffff
+    );
+  }
   if ((eventType === EVENT_FOCUS || eventType === EVENT_BLUR) && payload === null) return true;
   if (eventType === EVENT_SUBMIT) return typeof payload === "string";
   if (eventType === EVENT_LAYOUT) {
@@ -717,6 +746,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       COMMAND_SHOW_NOTIFICATION,
       COMMAND_SET_MENUS,
       COMMAND_SET_KEYBINDINGS,
+      COMMAND_SET_CLOSE_POLICY,
+      COMMAND_RESOLVE_CLOSE_REQUEST,
     ];
     if (!validCommands.includes(payload[2] as number)) return false;
     if (typeof payload[4] !== "boolean" || (payload[5] !== null && typeof payload[5] !== "string")) return false;
@@ -794,7 +825,7 @@ export function decodeEvent(payload: Uint8Array): PressEventFrame | null {
     typeof value[8] !== "number" ||
     !Number.isInteger(value[8]) ||
     value[8] < EVENT_PRESS ||
-    value[8] > EVENT_POINTER_DOWN_OUTSIDE
+    value[8] > EVENT_CLOSE_REQUESTED
   )
     return null;
   if (value[8] === EVENT_SURFACE_CLOSED && (value[6] !== 0 || value[7] !== 0)) return null;

@@ -29,8 +29,8 @@ pub(super) use crate::{
     StoredNode, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
     TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, TreeError,
     UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT,
-    VirtualListProperties, WindowAppearance, fatal_runtime_failure, read_frame, send_event_or_exit,
-    write_frame,
+    UPDATE_TOOLTIP, VirtualListProperties, WindowAppearance, fatal_runtime_failure, read_frame,
+    send_event_or_exit, write_frame,
 };
 
 pub(super) fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {

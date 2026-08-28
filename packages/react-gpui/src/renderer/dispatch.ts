@@ -3,6 +3,7 @@ import {
   DRAG_EXTERNAL_FILE_DROP,
   DRAG_OVER,
   EVENT_ACTION,
+  EVENT_CLOSE_REQUESTED,
   EVENT_ANIMATION_COMPLETE,
   EVENT_BLUR,
   EVENT_CHANGE,
@@ -60,6 +61,7 @@ export interface DispatchContext {
   resolveCommandResult(requestId: number, success: boolean, errorPayload: unknown, value?: unknown): void;
   onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void;
   onAction?: (action: string) => void;
+  onCloseRequested?: (requestId: number) => void;
   onSurfaceClosed?: () => void;
   onWindowResize?: (width: number, height: number, scaleFactor?: number) => void;
   onWindowActivation?: (active: boolean) => void;
@@ -68,11 +70,23 @@ export interface DispatchContext {
 
 export function dispatchEvent(context: DispatchContext, event: PressEventFrame | null): void {
   if (event === null || !context.acceptEvent(event)) return;
+  const payload = event[9];
   if (event[8] === EVENT_SURFACE_CLOSED) {
     context.onSurfaceClosed?.();
     return;
   }
-  const payload = event[9];
+  if (event[8] === EVENT_CLOSE_REQUESTED) {
+    if (
+      !Array.isArray(payload) ||
+      payload.length !== 2 ||
+      payload[0] !== 9 ||
+      typeof payload[1] !== "number" ||
+      !Number.isInteger(payload[1])
+    )
+      return;
+    context.onCloseRequested?.(payload[1]);
+    return;
+  }
   if (event[8] === EVENT_ACTION) {
     if (typeof payload !== "string") return;
     context.onAction?.(payload);

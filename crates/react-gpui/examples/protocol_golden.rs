@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 
-use react_gpui::protocol::{KeyAction, UPDATE_FOCUSABLE};
+use react_gpui::protocol::{KeyAction, UPDATE_FOCUSABLE, UPDATE_TOOLTIP};
 use react_gpui::{
     AccessibilityProperties, BoxShadow, COMMAND_BLUR, COMMAND_CLIPBOARD_READ,
     COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS,
@@ -121,6 +121,7 @@ fn snapshot() -> Snapshot {
     let mut pressable = Node::new(4, 1, 1, KIND_PRESSABLE);
     pressable.listener_id = 7;
     pressable.accessibility = Some(accessibility());
+    pressable.tooltip = Some("Press to open".into());
     let mut drag = Node::new(8, 1, 5, KIND_PRESSABLE);
     drag.listener_id = 11;
     drag.host_properties = Some(HostProperties::Drag(DragProperties {
@@ -190,7 +191,8 @@ fn patch() -> Patch {
                     | UPDATE_LISTENER
                     | UPDATE_PROPERTIES
                     | UPDATE_ACCESSIBILITY
-                    | UPDATE_FOCUSABLE,
+                    | UPDATE_FOCUSABLE
+                    | UPDATE_TOOLTIP,
                 style: Some(style()),
                 text: Some("updated".into()),
                 listener_id: 12,
@@ -202,6 +204,7 @@ fn patch() -> Patch {
                 accessibility: Some(accessibility()),
                 focusable: true,
                 selectable: false,
+                tooltip: Some("Updated tooltip".into()),
             },
             PatchOperation::Move {
                 id: 4,

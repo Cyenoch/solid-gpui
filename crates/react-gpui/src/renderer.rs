@@ -215,6 +215,17 @@ impl ReactRoot {
         );
         send_event_or_exit(self.runtime.as_ref(), "notification response event", &event);
     }
+    /// Notify the renderer that the native window close was vetoed pending a JS decision.
+    pub fn emit_close_requested(&self, request_id: u32) {
+        let event = Event::close_requested(
+            self.store.surface_id(),
+            self.store.epoch(),
+            self.store.revision(),
+            self.next_sequence.fetch_add(1, Ordering::Relaxed),
+            request_id,
+        );
+        send_event_or_exit(self.runtime.as_ref(), "close requested event", &event);
+    }
 
     /// Decode, validate, atomically commit, and notify exactly once. This
     /// method is intended to run from a GPUI foreground callback.
@@ -1068,6 +1079,7 @@ mod input_tests {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             }],
         );
         let patch_payload = patch.encode().expect("encode animation patch");
@@ -1207,6 +1219,7 @@ mod input_tests {
                         accessibility: None,
                         focusable: false,
                         selectable: false,
+                        tooltip: None,
                     },
                     PatchOperation::Create(Node::new(3, 1, 1, KIND_VIEW)),
                     PatchOperation::Move {
@@ -1244,6 +1257,7 @@ mod input_tests {
                     accessibility: None,
                     focusable: false,
                     selectable: false,
+                    tooltip: None,
                 }],
             ))
             .expect("estimated size patch");
@@ -1314,6 +1328,7 @@ mod input_tests {
                     accessibility: None,
                     focusable: false,
                     selectable: false,
+                    tooltip: None,
                 }],
             ))
             .expect("grow VirtualList");
@@ -1348,6 +1363,7 @@ mod input_tests {
                     accessibility: None,
                     focusable: false,
                     selectable: false,
+                    tooltip: None,
                 }],
             ))
             .expect("shrink VirtualList");
@@ -1378,6 +1394,7 @@ mod input_tests {
                     accessibility: None,
                     focusable: false,
                     selectable: false,
+                    tooltip: None,
                 }],
             ))
             .expect("restore VirtualList");
@@ -1541,6 +1558,7 @@ mod input_tests {
                     accessibility: None,
                     focusable: false,
                     selectable: false,
+                    tooltip: None,
                 },
             ],
         );
@@ -2179,6 +2197,7 @@ mod input_tests {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             }],
         );
         let text_payload = text_patch.encode().expect("encode text update");

@@ -45,6 +45,7 @@ const ACCESSIBILITY_PROPS: Record<string, true> = {
 const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
   View: {
     style: true,
+    tooltip: true,
     onLayout: true,
     draggable: true,
     onDragOver: true,
@@ -66,6 +67,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
   Text: { style: true, selectable: true, onLayout: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
   Pressable: {
     style: true,
+    tooltip: true,
     onLayout: true,
     onPress: true,
     disabled: true,
@@ -344,8 +346,14 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   if (kind === "Text" && props.selectable !== undefined && typeof props.selectable !== "boolean") {
     throw new TypeError("Text selectable must be a boolean");
   }
-  if (kind === "Pressable" && props.onPress !== undefined && typeof props.onPress !== "function") {
-    throw new TypeError("Pressable onPress must be a function");
+  if ((kind === "View" || kind === "Pressable") && props.tooltip !== undefined) {
+    if (
+      typeof props.tooltip !== "string" ||
+      props.tooltip.length === 0 ||
+      utf8ByteLength(props.tooltip) > 256 ||
+      /[\u0000-\u001f\u007f]/.test(props.tooltip)
+    )
+      throw new TypeError(`${kind} tooltip must be a non-empty safe string of at most 256 UTF-8 bytes`);
   }
   if (kind === "View" || kind === "Pressable") {
     if (props.onPointerDown !== undefined && typeof props.onPointerDown !== "function")

@@ -62,6 +62,7 @@ import {
   PROTOCOL_VERSION,
   MAX_CLIPBOARD_TEXT_BYTES,
   UPDATE_SELECTABLE,
+  UPDATE_TOOLTIP,
 } from "../src/protocol";
 
 type Snapshot = readonly [number, number, number, number, number, number, readonly unknown[][]];
@@ -528,6 +529,50 @@ describe("selectable Text protocol", () => {
     const update = (patch[6] as readonly (readonly unknown[])[]).find((operation) => operation[0] === 2);
     expect(update?.[2]).toBe(UPDATE_SELECTABLE);
     expect(update?.[9]).toBeUndefined();
+    root.unmount();
+  });
+});
+
+describe("View and Pressable tooltips", () => {
+  it("encodes tooltip tails and tooltip-only updates independently from drag properties", () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 203, epoch: 204 });
+    root.render(
+      <View tooltip="View hint">
+        <Pressable
+          tooltip="Press hint"
+          draggable={{ type: "card", exportFiles: ["/tmp/card"] }}
+          onDragOver={() => undefined}
+          onDrop={() => undefined}
+        />
+      </View>,
+    );
+    const initial = snapshots(transport)[0][6];
+    const view = initial.find((node) => node[3] === 1 && node[0] !== 1) as readonly unknown[];
+    const pressable = initial.find((node) => node[3] === 3) as readonly unknown[];
+    expect(view.slice(10)).toEqual([false, "View hint"]);
+    expect(pressable[7]).toEqual([4, "card", ["/tmp/card"], true, true]);
+    expect(pressable.slice(10)).toEqual([false, "Press hint"]);
+
+    root.render(
+      <View tooltip="Updated view hint">
+        <Pressable
+          tooltip={undefined}
+          draggable={{ type: "card", exportFiles: ["/tmp/card"] }}
+          onDragOver={() => undefined}
+          onDrop={() => undefined}
+        />
+      </View>,
+    );
+    const operations = message(transport, 1)[6] as readonly unknown[][];
+    const updates = operations.filter((operation) => operation[0] === 2);
+    expect(updates).toHaveLength(2);
+    expect(updates.every((operation) => (operation[2] as number) & UPDATE_TOOLTIP)).toBe(true);
+    const viewUpdate = updates.find((operation) => operation[1] === view[0]);
+    const pressableUpdate = updates.find((operation) => operation[1] === pressable[0]);
+    expect(viewUpdate?.slice(9)).toEqual([false, "Updated view hint"]);
+    expect(pressableUpdate?.slice(9)).toEqual([false, null]);
+    expect((pressableUpdate?.[2] as number) & 8).toBe(0);
     root.unmount();
   });
 });

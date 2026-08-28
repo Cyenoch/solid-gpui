@@ -183,9 +183,9 @@ export interface Keybinding {
   readonly keystrokes: string;
   readonly actionName: string;
 }
-
 export interface ViewProps extends AccessibilityProps {
   readonly style?: StyleProp;
+  readonly tooltip?: string;
   readonly focusable?: boolean;
   readonly onKeyDown?: KeyHandler;
   readonly onPointerDown?: PointerHandler;
@@ -218,6 +218,7 @@ export interface TextProps extends AccessibilityProps {
 }
 export interface PressableProps extends AccessibilityProps {
   readonly style?: StyleProp;
+  readonly tooltip?: string;
   readonly onPress?: PressHandler;
   readonly focusable?: boolean;
   readonly onKeyDown?: KeyHandler;
@@ -236,6 +237,7 @@ export interface PressableProps extends AccessibilityProps {
 }
 export interface HostProps extends AccessibilityProps {
   readonly style?: StyleProp;
+  readonly tooltip?: string;
   readonly onPress?: PressHandler;
   readonly focusable?: boolean;
   readonly selectable?: boolean;
@@ -337,6 +339,7 @@ export interface HostNodeInternal extends HostNode {
   index: number;
   style: StyleProp;
   text: string | null;
+  tooltip: string | null;
   listenerId: number;
   keyListener: KeyHandler | undefined;
   pointerCallbacks: PointerCallbacks | null;

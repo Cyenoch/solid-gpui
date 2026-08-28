@@ -1,7 +1,8 @@
 use std::io::Cursor;
 
 use super::node::{
-    AccessibilityWire, HostPropertiesWire, NodeWire, StyleWire, validate_style_wire,
+    AccessibilityWire, HostPropertiesWire, NodeWire, StyleWire, valid_tooltip_text,
+    validate_style_wire,
 };
 use super::*;
 use serde::{Deserialize, Serialize};
@@ -119,8 +120,8 @@ struct CreateWire(
     Option<AccessibilityWire>,
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
 );
-
 #[derive(Debug, Serialize, Deserialize)]
 struct UpdateWire(
     u32,
@@ -133,6 +134,7 @@ struct UpdateWire(
     Option<AccessibilityWire>,
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -156,7 +158,8 @@ impl From<&PatchOperation> for OperationWire {
                 node.host_properties.as_ref().map(HostPropertiesWire::from),
                 node.accessibility.as_ref().map(AccessibilityWire::from),
                 node.focusable,
-                node.selectable.then_some(true),
+                (node.selectable || node.tooltip.is_some()).then_some(node.selectable),
+                node.tooltip.clone(),
             )),
             PatchOperation::Update {
                 id,
@@ -168,6 +171,7 @@ impl From<&PatchOperation> for OperationWire {
                 accessibility,
                 focusable,
                 selectable,
+                tooltip,
             } => Self::Update(UpdateWire(
                 2,
                 *id,
@@ -178,7 +182,8 @@ impl From<&PatchOperation> for OperationWire {
                 host_properties.as_ref().map(HostPropertiesWire::from),
                 accessibility.as_ref().map(AccessibilityWire::from),
                 *focusable,
-                (*selectable).then_some(true),
+                (*selectable || tooltip.is_some()).then_some(*selectable),
+                tooltip.clone(),
             )),
             PatchOperation::Move {
                 id,
@@ -207,6 +212,13 @@ impl TryFrom<OperationWire> for PatchOperation {
                     return Err(ProtocolError::InvalidHostProperties);
                 }
                 let host_properties = wire.8.map(HostProperties::try_from).transpose()?;
+                let tooltip = wire.12;
+                if tooltip
+                    .as_ref()
+                    .is_some_and(|value| !valid_tooltip_text(value))
+                {
+                    return Err(ProtocolError::InvalidHostProperties);
+                }
                 Ok(Self::Create(Node {
                     id: wire.1,
                     parent_id: wire.2,
@@ -219,6 +231,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     accessibility: wire.9.map(AccessibilityProperties::from),
                     focusable: wire.10,
                     selectable,
+                    tooltip,
                 }))
             }
             OperationWire::Update(wire) => {
@@ -229,6 +242,13 @@ impl TryFrom<OperationWire> for PatchOperation {
                     validate_style_wire(style)?;
                 }
                 let selectable = wire.9.unwrap_or(false);
+                let tooltip = wire.10;
+                if tooltip
+                    .as_ref()
+                    .is_some_and(|value| !valid_tooltip_text(value))
+                {
+                    return Err(ProtocolError::InvalidHostProperties);
+                }
                 let host_properties = wire.6.map(HostProperties::try_from).transpose()?;
                 Ok(Self::Update {
                     id: wire.1,
@@ -240,6 +260,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     accessibility: wire.7.map(AccessibilityProperties::from),
                     focusable: wire.8,
                     selectable,
+                    tooltip,
                 })
             }
             OperationWire::Move(wire) => {

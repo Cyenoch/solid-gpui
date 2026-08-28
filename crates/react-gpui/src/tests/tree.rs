@@ -105,6 +105,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
             accessibility: Some(invalid),
             focusable: false,
             selectable: false,
+            tooltip: None,
         }],
     );
     assert!(matches!(
@@ -143,6 +144,7 @@ fn accessibility_patch_updates_a_valid_label() {
             }),
             focusable: false,
             selectable: false,
+            tooltip: None,
         }],
     );
     store
@@ -659,6 +661,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             }],
         ))
         .unwrap();
@@ -691,6 +694,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             }],
         ))
         .unwrap();
@@ -758,6 +762,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -823,6 +828,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 accessibility: None,
                 focusable: false,
                 selectable: false,
+                tooltip: None,
             }],
         ))
         .unwrap();
@@ -942,6 +948,7 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
             accessibility: None,
             focusable: false,
             selectable: false,
+            tooltip: None,
         }],
     );
     assert!(matches!(
@@ -983,4 +990,55 @@ fn focusable_view_and_pressable_listener_combinations_are_validated() {
         ))
         .unwrap();
     assert!(store.get(2).unwrap().focusable);
+}
+
+#[test]
+fn tooltip_snapshot_and_patch_apply_for_view_and_pressable() {
+    let mut view = Node::new(2, 1, 0, KIND_VIEW);
+    view.tooltip = Some("View hint".to_owned());
+    let mut pressable = Node::new(3, 1, 1, KIND_PRESSABLE);
+    pressable.tooltip = Some("Press hint".to_owned());
+    pressable.host_properties = Some(HostProperties::Drag(DragProperties {
+        drag_type: Some("card".to_owned()),
+        export_files: None,
+        accepts_drag_over: true,
+        accepts_drop: true,
+    }));
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), view, pressable],
+        ))
+        .expect("tooltip snapshot applies");
+    assert_eq!(store.get(2).unwrap().tooltip.as_deref(), Some("View hint"));
+    assert_eq!(store.get(3).unwrap().tooltip.as_deref(), Some("Press hint"));
+    assert!(matches!(
+        store.get(3).unwrap().host_properties,
+        Some(HostProperties::Drag(_))
+    ));
+    store
+        .apply_patch(Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 2,
+                mask: UPDATE_TOOLTIP,
+                style: None,
+                text: None,
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: Some("Updated view hint".to_owned()),
+            }],
+        ))
+        .expect("tooltip patch applies");
+    assert_eq!(
+        store.get(2).unwrap().tooltip.as_deref(),
+        Some("Updated view hint")
+    );
 }

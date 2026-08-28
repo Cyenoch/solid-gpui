@@ -12,10 +12,12 @@ import {
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
+  COMMAND_RESIZE_WINDOW,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
+  COMMAND_SET_CLOSE_POLICY,
+  COMMAND_RESOLVE_CLOSE_REQUEST,
   COMMAND_SHOW_NOTIFICATION,
-  COMMAND_RESIZE_WINDOW,
   COMMAND_SCROLL_TO_END,
   COMMAND_SCROLL_TO_INDEX,
   COMMAND_SET_SELECTION,
@@ -30,6 +32,7 @@ import {
   UPDATE_SELECTABLE,
   UPDATE_STYLE,
   UPDATE_TEXT,
+  UPDATE_TOOLTIP,
   decodeEvent,
   encodeFrame,
   type Command,
@@ -102,9 +105,10 @@ export class RootContainer implements DispatchContext {
   private unsubscribe: (() => void) | undefined;
   private unsubscribeTermination: (() => void) | undefined;
   private readonly onTransportTermination: TransportTerminationListener | undefined;
+  private readonly surfaceClosedHandler: (() => void) | undefined;
+  readonly onCloseRequested: ((requestId: number) => void) | undefined;
   readonly onWindowResize: WindowResizeHandler | undefined;
   readonly onWindowActivation: WindowActivationHandler | undefined;
-  private readonly surfaceClosedHandler: (() => void) | undefined;
   readonly onAction: ((action: string) => void) | undefined;
   readonly onAppearance: ((appearance: Appearance) => void) | undefined;
   readonly onNotificationResponse:
@@ -120,6 +124,7 @@ export class RootContainer implements DispatchContext {
     onWindowResize?: WindowResizeHandler,
     onWindowActivation?: WindowActivationHandler,
     onSurfaceClosed?: () => void,
+    onCloseRequested?: (requestId: number) => void,
     onAction?: (action: string) => void,
     onAppearance?: (appearance: Appearance) => void,
     onNotificationResponse?: (response: { readonly tag: string; readonly actionId: string | null }) => void,
@@ -141,6 +146,7 @@ export class RootContainer implements DispatchContext {
     this.onWindowResize = onWindowResize;
     this.onWindowActivation = onWindowActivation;
     this.surfaceClosedHandler = onSurfaceClosed;
+    this.onCloseRequested = onCloseRequested;
     this.onAction = onAction;
     this.onAppearance = onAppearance;
     this.onNotificationResponse = onNotificationResponse;
@@ -348,7 +354,9 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_FILE_DIALOG_SAVE
       | typeof COMMAND_SHOW_NOTIFICATION
       | typeof COMMAND_SET_MENUS
-      | typeof COMMAND_SET_KEYBINDINGS,
+      | typeof COMMAND_SET_KEYBINDINGS
+      | typeof COMMAND_SET_CLOSE_POLICY
+      | typeof COMMAND_RESOLVE_CLOSE_REQUEST,
     payload:
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
@@ -408,6 +416,24 @@ export class RootContainer implements DispatchContext {
     )
       return Promise.reject(new RangeError("window size must be integer pixels in the range 1..16384"));
     return this.submitSurfaceCommand(COMMAND_RESIZE_WINDOW, [width, height]);
+  }
+  setClosePolicy(policy: "allow" | "require-confirmation"): Promise<void> {
+    if (policy !== "allow" && policy !== "require-confirmation") {
+      return Promise.reject(new TypeError("close policy must be allow or require-confirmation"));
+    }
+    return this.submitSurfaceCommandValue(COMMAND_SET_CLOSE_POLICY, policy).then(() => undefined);
+  }
+
+  resolveCloseRequest(requestId: number, allow: boolean): Promise<void> {
+    if (!Number.isInteger(requestId) || requestId < 0 || requestId > 0xffff_ffff) {
+      return Promise.reject(new RangeError("close request id must be a u32"));
+    }
+    if (typeof allow !== "boolean") {
+      return Promise.reject(new TypeError("close request allow must be a boolean"));
+    }
+    return this.submitSurfaceCommandValue(COMMAND_RESOLVE_CLOSE_REQUEST, [requestId, allow ? 1 : 0]).then(
+      () => undefined,
+    );
   }
 
   zoom(): Promise<void> {
@@ -753,7 +779,9 @@ export class RootContainer implements DispatchContext {
           accessibilityWire(node.accessibility),
           node.focusable,
         ] as const;
-        operations.push(node.selectable ? [...base, true] : base);
+        if (node.tooltip !== null) operations.push([...base, node.selectable, node.tooltip]);
+        else if (node.selectable) operations.push([...base, true]);
+        else operations.push(base);
       }
       const moved = [...this.movedIds]
         .map((id) => this.nodesById.get(id))
@@ -764,7 +792,7 @@ export class RootContainer implements DispatchContext {
       }
       for (const [id, mask] of [...this.updatedMasks.entries()].sort(([a], [b]) => a - b)) {
         const node = this.nodesById.get(id);
-        if (node === undefined || this.createdIds.has(id)) continue;
+        if (node === undefined) continue;
         const base = [
           2,
           id,
@@ -776,7 +804,9 @@ export class RootContainer implements DispatchContext {
           mask & UPDATE_ACCESSIBILITY ? accessibilityWire(node.accessibility) : null,
           node.focusable,
         ] as const;
-        operations.push(node.selectable ? [...base, true] : base);
+        if (mask & UPDATE_TOOLTIP) operations.push([...base, node.selectable, node.tooltip]);
+        else if (mask & UPDATE_SELECTABLE && node.selectable) operations.push([...base, true]);
+        else operations.push(base);
       }
       for (const id of [...this.deletedRoots].sort((a, b) => a - b)) {
         if (!this.createdIds.has(id) && !this.nodesById.has(id)) operations.push([4, id]);

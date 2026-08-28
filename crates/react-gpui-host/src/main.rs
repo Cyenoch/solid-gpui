@@ -6,8 +6,9 @@ use gpui::{
     WindowOptions, px, size,
 };
 use react_gpui::{
-    COMMAND_OPEN_SURFACE, COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition,
-    MenuAction, PROTOCOL_VERSION, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter,
+    COMMAND_OPEN_SURFACE, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SET_CLOSE_POLICY,
+    COMMAND_SET_KEYBINDINGS, Command, CommandValue, KeybindingDefinition, MenuAction,
+    PROTOCOL_VERSION, Patch, ProcessAdapter, ProtocolError, ReactRoot, RuntimeAdapter,
     RuntimeStatus, Snapshot, WindowOpenOptions, fatal_runtime_failure,
 };
 #[cfg(feature = "embedded-bun")]
@@ -155,9 +156,18 @@ enum ReaderMessage {
     Transport(ProtocolError),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ClosePolicy {
+    Allow,
+    RequireConfirmation,
+}
+
 struct Surface {
     window: WindowHandle<ReactRoot>,
     root: Entity<ReactRoot>,
+    close_policy: ClosePolicy,
+    pending_close_request: Option<u32>,
+    next_close_request: u32,
 }
 
 struct SurfaceRegistry {
@@ -246,7 +256,180 @@ impl SurfaceRegistry {
             })
             .map_err(|error| format!("failed to open GPUI window: {error}"))?;
         let root = root.ok_or_else(|| "GPUI did not return a root entity".to_owned())?;
-        Ok(Surface { window, root })
+        let registry = cx.weak_entity();
+        let window_id = window.window_id();
+        window
+            .update(cx, |_, window, cx| {
+                window.on_window_should_close(cx, move |_, app| {
+                    registry
+                        .upgrade()
+                        .map(|registry| {
+                            registry
+                                .update(app, |registry, cx| registry.should_close(window_id, cx))
+                        })
+                        .unwrap_or(true)
+                });
+            })
+            .map_err(|error| format!("failed to install close policy: {error}"))?;
+        Ok(Surface {
+            window,
+            root,
+            close_policy: ClosePolicy::Allow,
+            pending_close_request: None,
+            next_close_request: 1,
+        })
+    }
+    fn should_close(&mut self, window_id: WindowId, cx: &mut Context<Self>) -> bool {
+        if self.transport_terminated {
+            return true;
+        }
+        let Some(surface_id) = self.windows.get(&window_id).copied() else {
+            return true;
+        };
+        let Some(surface) = self.surfaces.get_mut(&surface_id) else {
+            return true;
+        };
+        if surface.close_policy == ClosePolicy::Allow {
+            return true;
+        }
+        if surface.pending_close_request.is_some() {
+            return false;
+        }
+        let Some(request_id) = surface.next_close_request.checked_add(0) else {
+            return false;
+        };
+        let Some(next_request_id) = request_id.checked_add(1) else {
+            return false;
+        };
+        surface.next_close_request = next_request_id;
+        surface.pending_close_request = Some(request_id);
+        let root = surface.root.clone();
+        root.update(cx, |root, _| root.emit_close_requested(request_id));
+        false
+    }
+    fn set_close_policy(&mut self, command: Command, cx: &mut Context<Self>) {
+        let Some(surface) = self.surfaces.get(&command.surface_id) else {
+            return;
+        };
+        let metadata = surface.root.read_with(cx, |root, _| {
+            (
+                root.store().surface_id(),
+                root.store().epoch(),
+                root.store().revision(),
+            )
+        });
+        if command.node_id != 1 {
+            self.send_command_result(
+                &command,
+                false,
+                Some("setClosePolicy requires the root container".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        }
+        if command.surface_id != metadata.0
+            || command.epoch != metadata.1
+            || command.after_revision != metadata.2
+        {
+            let error = if command.epoch != metadata.1 || command.surface_id != metadata.0 {
+                "surface or epoch mismatch"
+            } else {
+                "command revision is stale"
+            };
+            self.send_command_result(&command, false, Some(error.to_owned()), None, cx);
+            return;
+        }
+        let Some(policy) = command.title.as_deref() else {
+            self.send_command_result(
+                &command,
+                false,
+                Some("setClosePolicy payload is required".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        };
+        let policy = match policy {
+            "allow" => ClosePolicy::Allow,
+            "require-confirmation" => ClosePolicy::RequireConfirmation,
+            _ => {
+                self.send_command_result(
+                    &command,
+                    false,
+                    Some("close policy is invalid".to_owned()),
+                    None,
+                    cx,
+                );
+                return;
+            }
+        };
+        if let Some(surface) = self.surfaces.get_mut(&command.surface_id)
+            && surface.close_policy != policy
+        {
+            surface.pending_close_request = None;
+            surface.close_policy = policy;
+        }
+        self.send_command_result(&command, true, None, None, cx);
+    }
+    fn resolve_close_request(&mut self, command: Command, cx: &mut Context<Self>) {
+        let Some(surface) = self.surfaces.get(&command.surface_id) else {
+            return;
+        };
+        let metadata = surface.root.read_with(cx, |root, _| {
+            (
+                root.store().surface_id(),
+                root.store().epoch(),
+                root.store().revision(),
+            )
+        });
+        if command.node_id != 1 {
+            self.send_command_result(
+                &command,
+                false,
+                Some("resolveCloseRequest requires the root container".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        }
+        if command.surface_id != metadata.0
+            || command.epoch != metadata.1
+            || command.after_revision != metadata.2
+        {
+            let error = if command.epoch != metadata.1 || command.surface_id != metadata.0 {
+                "surface or epoch mismatch"
+            } else {
+                "command revision is stale"
+            };
+            self.send_command_result(&command, false, Some(error.to_owned()), None, cx);
+            return;
+        }
+        let Some((request_id, allow)) = command.payload else {
+            self.send_command_result(
+                &command,
+                false,
+                Some("resolveCloseRequest payload is required".to_owned()),
+                None,
+                cx,
+            );
+            return;
+        };
+        let Some(surface) = self.surfaces.get_mut(&command.surface_id) else {
+            return;
+        };
+        if surface.pending_close_request != Some(request_id) {
+            self.send_command_result(&command, true, None, None, cx);
+            return;
+        }
+        surface.pending_close_request = None;
+        let window = surface.window;
+        self.send_command_result(&command, true, None, None, cx);
+        if allow == 1 {
+            cx.defer(move |cx| {
+                let _ = window.update(cx, |_, window, _| window.remove_window());
+            });
+        }
     }
     fn open_initial(&mut self, cx: &mut Context<Self>) -> Result<(), String> {
         let surface_id = self.allocate_surface_id()?;
@@ -276,6 +459,12 @@ impl SurfaceRegistry {
         }
         if command.kind == COMMAND_SET_KEYBINDINGS {
             self.set_keybindings(command, cx);
+            Ok(())
+        } else if command.kind == COMMAND_SET_CLOSE_POLICY {
+            self.set_close_policy(command, cx);
+            Ok(())
+        } else if command.kind == COMMAND_RESOLVE_CLOSE_REQUEST {
+            self.resolve_close_request(command, cx);
             Ok(())
         } else if command.kind == COMMAND_OPEN_SURFACE {
             self.open_surface(command, cx)

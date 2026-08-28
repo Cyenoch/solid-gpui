@@ -103,6 +103,7 @@ export interface RootOptions {
   readonly maxFrameSize?: number;
   readonly onTransportTermination?: TransportTerminationListener;
   readonly onClose?: () => void;
+  readonly onCloseRequested?: (requestId: number) => void;
   readonly onWindowResize?: WindowResizeHandler;
   readonly onWindowActivation?: WindowActivationHandler;
   readonly onNotificationResponse?: NotificationResponseHandler;
@@ -147,6 +148,8 @@ export interface Root {
   getClipboardText(): Promise<string>;
   zoom(): Promise<void>;
   toggleFullscreen(): Promise<void>;
+  setClosePolicy(policy: "allow" | "require-confirmation"): Promise<void>;
+  resolveCloseRequest(requestId: number, allow: boolean): Promise<void>;
   openSurface(options?: SurfaceOpenOptions): Promise<number>;
   pickFiles(options?: PickFilesOptions): Promise<string[] | null>;
   pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
@@ -187,6 +190,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
       closed = true;
       options.onClose?.();
     },
+    options.onCloseRequested,
     options.onAction,
     options.onAppearance,
     options.onNotificationResponse,
@@ -240,6 +244,14 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     zoom(): Promise<void> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.zoom();
+    },
+    setClosePolicy(policy: "allow" | "require-confirmation"): Promise<void> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.setClosePolicy(policy);
+    },
+    resolveCloseRequest(requestId: number, allow: boolean): Promise<void> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.resolveCloseRequest(requestId, allow);
     },
     openSurface(options: SurfaceOpenOptions = {}): Promise<number> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));

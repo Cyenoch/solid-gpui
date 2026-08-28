@@ -11,6 +11,7 @@ import {
   UPDATE_LISTENER,
   UPDATE_STYLE,
   UPDATE_PROPERTIES,
+  UPDATE_TOOLTIP,
   type SnapshotNode,
 } from "../protocol";
 import { encodeStyle } from "../style";
@@ -87,6 +88,7 @@ export class NodeGraph {
       scrollCallback: undefined,
       hovered: false,
       hostProperties: null,
+      tooltip: null,
       latestNativeText: null,
       latestNativeEditSeq: 0,
       latestNativeSelection: null,
@@ -125,6 +127,7 @@ export class NodeGraph {
       scrollCallback: undefined,
       hovered: false,
       hostProperties: null,
+      tooltip: null,
       latestNativeText: null,
       latestNativeEditSeq: 0,
       latestNativeSelection: null,
@@ -173,6 +176,8 @@ export class NodeGraph {
       throw error;
     }
     node.style = node.kind === "RawText" ? null : props.style;
+    node.tooltip =
+      node.kind === "View" || node.kind === "Pressable" ? ((props.tooltip as string | undefined) ?? null) : null;
     node.hostProperties =
       node.kind === "TextInput"
         ? inputFor(node, props)
@@ -180,9 +185,7 @@ export class NodeGraph {
           ? virtualListFor(node, props)
           : node.kind === "Image"
             ? imageFor(node, props)
-            : node.kind === "View" || node.kind === "Pressable"
-              ? dragFor(node, props)
-              : null;
+            : dragFor(node, props);
     node.accessibility = accessibilityFor(node.kind, props);
     node.disabled = (node.kind === "Pressable" || node.kind === "TextInput") && props.disabled === true;
     node.focusable =
@@ -257,7 +260,6 @@ export class NodeGraph {
       if (node.inputCallbacks !== null) this.inputListeners.set(node.listenerId, node.inputCallbacks);
     }
   }
-
   updateNodeProps(node: HostNodeInternal, props: HostProps): number {
     const previousStyle = node.style;
     const previousListenerId = node.listenerId;
@@ -265,12 +267,14 @@ export class NodeGraph {
     const previousSelectable = node.selectable;
     const previousProperties = node.hostProperties;
     const previousAccessibility = node.accessibility;
+    const previousTooltip = node.tooltip;
     this.setNodeProps(node, props);
     let mask = 0;
     if (previousStyle !== node.style) mask |= UPDATE_STYLE;
     if (previousListenerId !== node.listenerId) mask |= UPDATE_LISTENER;
     if (previousFocusable !== node.focusable) mask |= UPDATE_FOCUSABLE;
     if (previousSelectable !== node.selectable) mask |= UPDATE_SELECTABLE;
+    if (previousTooltip !== node.tooltip) mask |= UPDATE_TOOLTIP;
     if (JSON.stringify(previousProperties) !== JSON.stringify(node.hostProperties)) mask |= UPDATE_PROPERTIES;
     if (JSON.stringify(previousAccessibility) !== JSON.stringify(node.accessibility)) mask |= UPDATE_ACCESSIBILITY;
     return mask;
@@ -330,6 +334,8 @@ export class NodeGraph {
   snapshotNodes(): SnapshotNode[] {
     const nodes: SnapshotNode[] = [];
     const visit = (node: HostNodeInternal, parentId: number, index: number): void => {
+      const tooltip =
+        (node.kind === "View" || node.kind === "Pressable") && typeof node.tooltip === "string" ? node.tooltip : null;
       const base = [
         node.id,
         parentId,
@@ -342,7 +348,9 @@ export class NodeGraph {
         accessibilityWire(node.accessibility),
         node.focusable,
       ] as const;
-      nodes.push(node.selectable ? [...base, true] : base);
+      if (tooltip !== null) nodes.push([...base, node.selectable, tooltip]);
+      else if (node.selectable) nodes.push([...base, true]);
+      else nodes.push(base);
       node.children.forEach((child, childIndex) => visit(child, node.id, childIndex));
     };
     visit(this.syntheticRoot, 0, 0);

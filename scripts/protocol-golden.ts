@@ -78,10 +78,11 @@ const invalidShadowSnapshot = [3, 1, 7, 3, 0, 45, [[1, 0, 0, 1, invalidShadowSty
 const text = [2, 1, 0, 2, null, "hello", 0, null, null, false, true];
 const input = [5, 1, 2, 5, null, null, 0, textInput, null, false];
 const rawText = [3, 2, 0, 4, null, "raw 😀", 0, null, null, false];
-const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false];
+const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false, false, "Press to open"];
 const list = [6, 1, 3, 6, null, null, 0, virtualList, null, false];
 const dragNode = [8, 1, 5, 3, null, null, 11, drag, null, false];
 const imageNode = [7, 1, 4, 7, null, null, 0, image, null, false];
+const tooltipUpdate = [2, 4, 191, fullStyle, "updated", 12, [3, "assets/logo.png", 2, null], accessibility, true, false, "Updated tooltip"];
 const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode, dragNode]];
 const patch = [
   3,
@@ -92,7 +93,7 @@ const patch = [
   43,
   [
     [1, 8, 1, 5, 3, null, null, 11, drag, null, false],
-    [2, 4, 63, fullStyle, "updated", 12, [3, "assets/logo.png", 2, null], accessibility, true],
+    tooltipUpdate,
     [3, 4, 1, 0],
     [4, 6],
   ],

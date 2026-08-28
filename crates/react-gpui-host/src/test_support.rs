@@ -1,15 +1,16 @@
 use super::*;
-use gpui::TestAppContext;
+use gpui::{TestAppContext, VisualTestContext};
 use react_gpui::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
     COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS,
-    COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
-    COMMAND_TOGGLE_FULLSCREEN, EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT,
-    KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition,
-    MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties,
-    VirtualListProperties, WindowOpenOptions,
+    COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
+    KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
+    NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties, VirtualListProperties,
+    WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -1345,4 +1346,204 @@ pub fn renderer_termination_closes_surfaces_without_reentrant_update(cx: &mut Te
 
     assert!(!callback_called.get());
     assert!(registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+}
+
+fn install_close_callback(registry: &Entity<SurfaceRegistry>, cx: &mut TestAppContext) {
+    let registry_for_close = registry.downgrade();
+    let close_subscription = cx.update(|cx| {
+        cx.on_window_closed(move |cx, window_id| {
+            if let Some(registry) = registry_for_close.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.window_closed(window_id, cx);
+                });
+            }
+        })
+    });
+    registry.update(cx, |registry, _| {
+        registry.close_subscription = Some(close_subscription);
+    });
+}
+
+fn prepare_close_surface(
+    cx: &mut TestAppContext,
+    runtime: &Arc<InMemoryAdapter>,
+    registry: &Entity<SurfaceRegistry>,
+) -> WindowHandle<ReactRoot> {
+    let snapshot_payload = snapshot().encode().expect("encode close-policy snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot_payload, cx)
+        })
+        .expect("route close-policy snapshot");
+    let window = draw_surface(registry, cx, 1);
+    let _ = take_events(runtime);
+    install_close_callback(registry, cx);
+    window
+}
+
+fn close_policy_command(
+    registry: &Entity<SurfaceRegistry>,
+    cx: &mut TestAppContext,
+    runtime: &InMemoryAdapter,
+    request_id: u32,
+    kind: u32,
+    payload: Option<(u32, u32)>,
+    title: Option<&str>,
+) -> Vec<react_gpui::Event> {
+    let command = command(request_id, kind, 1, payload, title, None, None);
+    let surface_id = command.surface_id;
+    let payload = command.encode().expect("encode close-policy command");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&payload, cx))
+        .expect("route close-policy command");
+    if registry.read_with(cx, |registry, _| {
+        registry.surfaces.contains_key(&surface_id)
+    }) {
+        draw_surface(registry, cx, surface_id);
+    }
+    take_events(runtime)
+}
+
+pub fn close_policy_simulate_close_roundtrip(cx: &mut TestAppContext) {
+    let allow_runtime = InMemoryAdapter::new();
+    let allow_registry = cx.new(|_| SurfaceRegistry::new(allow_runtime.clone()));
+    allow_registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open default close-policy surface");
+    let allow_window = prepare_close_surface(cx, &allow_runtime, &allow_registry);
+    let mut allow_visual = VisualTestContext::from_window(allow_window.into(), cx);
+    assert!(
+        allow_visual.simulate_close(),
+        "default policy must allow close"
+    );
+    allow_window
+        .update(cx, |_, window, _| window.remove_window())
+        .expect("remove default close-policy surface");
+    assert!(allow_registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+    assert!(allow_window.update(cx, |_, _, _| ()).is_err());
+    let allow_events = take_events(&allow_runtime);
+    assert!(allow_events.iter().any(|event| {
+        event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 1
+    }));
+
+    let deny_runtime = InMemoryAdapter::new();
+    let deny_registry = cx.new(|_| SurfaceRegistry::new(deny_runtime.clone()));
+    deny_registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open confirmation close-policy surface");
+    let deny_window = prepare_close_surface(cx, &deny_runtime, &deny_registry);
+    let policy_events = close_policy_command(
+        &deny_registry,
+        cx,
+        &deny_runtime,
+        1,
+        COMMAND_SET_CLOSE_POLICY,
+        None,
+        Some("require-confirmation"),
+    );
+    assert!(command_result(&policy_events, 1).success);
+
+    let mut deny_visual = VisualTestContext::from_window(deny_window.into(), cx);
+    assert!(
+        !deny_visual.simulate_close(),
+        "confirmation policy must veto close"
+    );
+    let first_request = take_events(&deny_runtime);
+    let request = first_request
+        .iter()
+        .find(|event| event.event_type == react_gpui::EVENT_CLOSE_REQUESTED)
+        .expect("close request event");
+    assert_eq!(request.surface_id, 1);
+    assert_eq!(request.node_id, 1);
+    assert_eq!(request.listener_id, 0);
+    assert_eq!(
+        request.payload,
+        Some(EventPayload::CloseRequested { request_id: 1 })
+    );
+
+    assert!(
+        !deny_visual.simulate_close(),
+        "duplicate pending close must remain vetoed"
+    );
+    assert!(
+        take_events(&deny_runtime)
+            .iter()
+            .all(|event| event.event_type != react_gpui::EVENT_CLOSE_REQUESTED)
+    );
+    assert!(deny_registry.read_with(cx, |registry, _| registry.surfaces.contains_key(&1)));
+
+    let stale_events = close_policy_command(
+        &deny_registry,
+        cx,
+        &deny_runtime,
+        2,
+        COMMAND_RESOLVE_CLOSE_REQUEST,
+        Some((99, 1)),
+        None,
+    );
+    assert!(command_result(&stale_events, 2).success);
+    assert!(deny_registry.read_with(cx, |registry, _| registry.surfaces.contains_key(&1)));
+
+    let deny_events = close_policy_command(
+        &deny_registry,
+        cx,
+        &deny_runtime,
+        3,
+        COMMAND_RESOLVE_CLOSE_REQUEST,
+        Some((1, 0)),
+        None,
+    );
+    assert!(command_result(&deny_events, 3).success);
+    assert!(deny_registry.read_with(cx, |registry, _| registry.surfaces.contains_key(&1)));
+    let resolved_events = close_policy_command(
+        &deny_registry,
+        cx,
+        &deny_runtime,
+        5,
+        COMMAND_RESOLVE_CLOSE_REQUEST,
+        Some((1, 1)),
+        None,
+    );
+    assert!(command_result(&resolved_events, 5).success);
+    assert!(
+        resolved_events
+            .iter()
+            .all(|event| event.event_type != react_gpui::EVENT_CLOSE_REQUESTED)
+    );
+    assert!(deny_registry.read_with(cx, |registry, _| registry.surfaces.contains_key(&1)));
+
+    assert!(
+        !deny_visual.simulate_close(),
+        "denied request must leave policy pending again"
+    );
+    let second_request = take_events(&deny_runtime)
+        .into_iter()
+        .find(|event| event.event_type == react_gpui::EVENT_CLOSE_REQUESTED)
+        .expect("second close request event");
+    assert_eq!(
+        second_request.payload,
+        Some(EventPayload::CloseRequested { request_id: 2 })
+    );
+
+    let allow_events = close_policy_command(
+        &deny_registry,
+        cx,
+        &deny_runtime,
+        4,
+        COMMAND_RESOLVE_CLOSE_REQUEST,
+        Some((2, 1)),
+        None,
+    );
+    assert!(command_result(&allow_events, 4).success);
+    assert!(deny_registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+    let sequences = allow_events
+        .iter()
+        .map(|event| event.sequence)
+        .chain(
+            take_events(&deny_runtime)
+                .iter()
+                .map(|event| event.sequence),
+        )
+        .collect::<Vec<_>>();
+    assert!(sequences.windows(2).all(|window| window[0] < window[1]));
 }

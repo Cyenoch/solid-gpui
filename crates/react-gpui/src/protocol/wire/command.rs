@@ -109,6 +109,30 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             )),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
+        COMMAND_SET_CLOSE_POLICY => match (
+            &command.payload,
+            &command.title,
+            &command.body,
+            &command.actions,
+            &command.menus,
+        ) {
+            (None, Some(policy), None, None, None)
+                if matches!(policy.as_str(), "allow" | "require-confirmation") =>
+            {
+                Some(CommandPayloadWire::Title(policy.clone()))
+            }
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        },
+        COMMAND_RESOLVE_CLOSE_REQUEST => match (
+            &command.payload,
+            &command.title,
+            &command.body,
+            &command.actions,
+            &command.menus,
+        ) {
+            (Some(payload), None, None, None, None) => Some(CommandPayloadWire::Pair(*payload)),
+            _ => return Err(ProtocolError::InvalidCommandPayload),
+        },
         _ => {
             if command.body.is_some() || command.actions.is_some() || command.menus.is_some() {
                 return Err(ProtocolError::InvalidCommandPayload);
@@ -209,6 +233,8 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_SHOW_NOTIFICATION
             | COMMAND_SET_MENUS
             | COMMAND_SET_KEYBINDINGS
+            | COMMAND_SET_CLOSE_POLICY
+            | COMMAND_RESOLVE_CLOSE_REQUEST
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -280,6 +306,17 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (None, None, None)
             }
             (COMMAND_SET_MENUS, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_SET_CLOSE_POLICY, Some(CommandPayloadWire::Title(policy)))
+                if wire.6 == 1 && matches!(policy.as_str(), "allow" | "require-confirmation") =>
+            {
+                (None, Some(policy), None)
+            }
+            (COMMAND_SET_CLOSE_POLICY, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (
+                COMMAND_RESOLVE_CLOSE_REQUEST,
+                Some(CommandPayloadWire::Pair((request_id, allow))),
+            ) if wire.6 == 1 && allow <= 1 => (Some((request_id, allow)), None, None),
+            (COMMAND_RESOLVE_CLOSE_REQUEST, _) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_OPEN_URL, Some(CommandPayloadWire::Title(url)))
                 if wire.6 == 1 && valid_http_url(&url) =>
             {

@@ -8,7 +8,7 @@ use crate::protocol::{
     PatchOperation, SNAPSHOT_MESSAGE, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, UPDATE_ACCESSIBILITY,
     UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE,
-    UPDATE_TEXT,
+    UPDATE_TEXT, UPDATE_TOOLTIP,
 };
 mod validation;
 use validation::*;
@@ -122,6 +122,7 @@ pub struct StoredNode {
     pub accessibility: Option<AccessibilityProperties>,
     pub focusable: bool,
     pub selectable: bool,
+    pub tooltip: Option<Arc<str>>,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -280,6 +281,7 @@ impl NodeStore {
                     accessibility: node.accessibility.clone(),
                     focusable: node.focusable,
                     selectable: node.selectable,
+                    tooltip: node.tooltip.map(Arc::<str>::from),
                     accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -351,6 +353,7 @@ impl NodeStore {
                     accessibility,
                     focusable,
                     selectable,
+                    tooltip,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -362,6 +365,7 @@ impl NodeStore {
                     accessibility.clone(),
                     *focusable,
                     *selectable,
+                    tooltip.clone(),
                     undo,
                     stats,
                     &mut affected_parents,
@@ -450,6 +454,7 @@ impl NodeStore {
             accessibility: node.accessibility.clone(),
             focusable: node.focusable,
             selectable: node.selectable,
+            tooltip: node.tooltip.clone().map(Arc::<str>::from),
             accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -467,7 +472,6 @@ impl NodeStore {
     }
 
     // Patch fields stay positional to mirror protocol validation; bookkeeping
-    // references are kept explicit for atomic rollback.
     #[allow(clippy::too_many_arguments)]
     fn apply_update(
         &mut self,
@@ -481,6 +485,7 @@ impl NodeStore {
         accessibility: Option<AccessibilityProperties>,
         focusable: bool,
         selectable: bool,
+        tooltip: Option<String>,
         undo: &mut Vec<Undo>,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
@@ -493,7 +498,8 @@ impl NodeStore {
                     | UPDATE_PROPERTIES
                     | UPDATE_ACCESSIBILITY
                     | UPDATE_FOCUSABLE
-                    | UPDATE_SELECTABLE)
+                    | UPDATE_SELECTABLE
+                    | UPDATE_TOOLTIP)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -576,6 +582,22 @@ impl NodeStore {
                 reason: "accessibility update cannot remove required role",
             });
         }
+        if mask & UPDATE_TOOLTIP != 0 && node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "tooltip updates require View or Pressable",
+            });
+        }
+        if mask & UPDATE_TOOLTIP != 0
+            && tooltip.as_ref().is_some_and(|value| {
+                value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+            })
+        {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "invalid tooltip",
+            });
+        }
         if mask & UPDATE_STYLE != 0 {
             validate_style(id, style.as_ref()).map_err(|_| TreeError::InvalidPatchOperation {
                 operation,
@@ -598,6 +620,9 @@ impl NodeStore {
         }
         if mask & UPDATE_PROPERTIES != 0 {
             target.host_properties = host_properties;
+        }
+        if mask & UPDATE_TOOLTIP != 0 {
+            target.tooltip = tooltip.map(Arc::<str>::from);
         }
         if mask & UPDATE_ACCESSIBILITY != 0 {
             target.accessibility = accessibility;
