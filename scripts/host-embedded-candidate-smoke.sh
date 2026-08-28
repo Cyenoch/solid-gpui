@@ -28,7 +28,7 @@ mkdir -p "$run_dir"
 [[ -f "$user_entry" ]] || { printf 'user renderer entry is missing: %s\n' "$user_entry" >&2; exit 1; }
 
 set +e
-python3 - "$binary" "$user_entry" "$run_dir" > "$stdout_file" 2> "$stderr_file" <<'PY'
+python3 - "$binary" "$user_entry" "$run_dir" "$stderr_file" > "$stdout_file" 2> "$stderr_file" <<'PY'
 import os
 import re
 import signal
@@ -36,29 +36,65 @@ import subprocess
 import sys
 import time
 
-binary, entry, cwd = sys.argv[1:]
+binary, entry, cwd, stderr_path = sys.argv[1:]
 environment = os.environ.copy()
 environment["REACT_GPUI_LOG"] = "info"
+child_stderr_path = stderr_path + ".child"
+stderr_sink = open(child_stderr_path, "w", encoding="utf-8")
 process = subprocess.Popen(
     [binary, "--runtime", "embedded", entry, "--smoke-press"],
     cwd=cwd,
     env=environment,
+    stdout=subprocess.PIPE,
+    stderr=stderr_sink,
     start_new_session=True,
 )
 started = time.monotonic()
-try:
-    process.communicate(timeout=5.0)
-except subprocess.TimeoutExpired:
-    os.killpg(process.pid, signal.SIGTERM)
+commit_deadline = started + 10.0
+
+def diagnostics() -> str:
+    stderr_sink.flush()
     try:
-        process.communicate(timeout=1.0)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-    print(f"embedded candidate timed out after {time.monotonic() - started:.3f}s", file=sys.stderr)
-    sys.exit(124)
-print(f"embedded candidate exited early code={process.returncode} after {time.monotonic() - started:.3f}s", file=sys.stderr)
-sys.exit(process.returncode if process.returncode is not None else 1)
+        return open(child_stderr_path, encoding="utf-8").read()
+    except FileNotFoundError:
+        return ""
+def finish(message: str) -> None:
+    text = diagnostics()
+    stderr_sink.close()
+    print(text, end="", file=sys.stderr)
+    print(message, file=sys.stderr)
+
+try:
+    while True:
+        if process.poll() is not None:
+            finish(
+                f"embedded candidate exited early code={process.returncode} after {time.monotonic() - started:.3f}s"
+            )
+            sys.exit(process.returncode if process.returncode is not None else 1)
+        text = diagnostics()
+        match = re.search(r"embedded smoke press sent=true, commits=(\d+), status=", text)
+        if match is not None and int(match.group(1)) >= 1:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.communicate(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.communicate()
+            finish(f"embedded candidate timed out after {time.monotonic() - started:.3f}s")
+            sys.exit(124)
+        if time.monotonic() >= commit_deadline:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.communicate(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.communicate()
+            finish("embedded candidate timed out waiting for a committed Snapshot")
+            sys.exit(124)
+        time.sleep(0.02)
+finally:
+    if stderr_sink is not None and not stderr_sink.closed:
+        stderr_sink.close()
 PY
 status=$?
 set -e

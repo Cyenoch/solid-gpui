@@ -3,8 +3,6 @@ import { MAX_FRAME_SIZE } from "./protocol";
 
 export const PROTOCOL_TAP_CAPACITY_BYTES = 64 * 1024 * 1024;
 const TAP_STOP_RESERVE_BYTES = 256;
-let openFailureDisabled = false;
-let openFailureWarned = false;
 
 interface Classification {
   readonly kind: "snapshot" | "patch" | "event" | "command" | "unknown";
@@ -34,17 +32,12 @@ export class ProtocolTap {
     try {
       this.file = openSync(path, "w", 0o600);
     } catch (error) {
-      openFailureDisabled = true;
-      if (!openFailureWarned) {
-        openFailureWarned = true;
-        console.error(`react-gpui: protocol tap disabled; cannot open ${path}: ${String(error)}`);
-      }
+      console.error(`react-gpui: protocol tap disabled; cannot open ${path}: ${String(error)}`);
       throw error;
     }
   }
 
   static fromEnv(): ProtocolTap | undefined {
-    if (openFailureDisabled) return undefined;
     const path = process.env.REACT_GPUI_TAP;
     if (path === undefined || path === "") return undefined;
     try {

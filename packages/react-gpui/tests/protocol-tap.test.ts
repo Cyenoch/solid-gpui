@@ -119,6 +119,28 @@ describe("protocol tap", () => {
       else process.env.REACT_GPUI_TAP = previous;
     }
   });
+  it("does not disable a later tap after an earlier path failure", () => {
+    const previous = process.env.REACT_GPUI_TAP;
+    const missingPath = join(tmpdir(), `react-gpui-tap-missing-${Date.now()}-${Math.random()}`, "tap.jsonl");
+    const validPath = join(tmpdir(), `react-gpui-tap-followup-${Date.now()}-${Math.random()}.jsonl`);
+    const frame = protocolFrame([0x92, 0x03, 0x01]);
+    try {
+      process.env.REACT_GPUI_TAP = missingPath;
+      const failedTransport = new StdioTransport(new FakeOutput(), new FakeInput());
+      failedTransport.submit(frame);
+      failedTransport.dispose();
+
+      process.env.REACT_GPUI_TAP = validPath;
+      const followupTransport = new StdioTransport(new FakeOutput(), new FakeInput());
+      followupTransport.submit(frame);
+      followupTransport.dispose();
+      expect(readRecords(validPath)).toHaveLength(1);
+    } finally {
+      if (previous === undefined) delete process.env.REACT_GPUI_TAP;
+      else process.env.REACT_GPUI_TAP = previous;
+      rmSync(validPath, { force: true });
+    }
+  });
 
   it("writes a final capacity record and then disables tap writes", () => {
     const path = join(tmpdir(), `react-gpui-tap-capacity-${Date.now()}-${Math.random()}.jsonl`);
