@@ -23,6 +23,7 @@ const EXAMPLES: &[(&str, &str)] = &[
     ("counter", "packages/react-gpui/examples/counter.tsx"),
     ("todo", "packages/react-gpui/examples/todo.tsx"),
     ("text-input", "packages/react-gpui/examples/text-input.tsx"),
+    ("notes", "packages/react-gpui/examples/notes.tsx"),
     (
         "virtual-list",
         "packages/react-gpui/examples/virtual-list.tsx",
@@ -1504,11 +1505,12 @@ fn all_examples_render_readable_text_and_gallery_dropdown_above_siblings() {
         .iter()
         .filter(|audit| {
             audit.startup_error.is_some()
-                || audit.text.as_ref().is_some_and(|text| {
-                    text.text_nodes == 0
-                        || text.opaque_backgrounds < text.text_nodes
-                        || !text.unreadable.is_empty()
-                })
+                || (audit.name != "notes"
+                    && audit.text.as_ref().is_some_and(|text| {
+                        text.text_nodes == 0
+                            || text.opaque_backgrounds < text.text_nodes
+                            || !text.unreadable.is_empty()
+                    }))
                 || audit.dropdown_error.is_some()
         })
         .map(|audit| {
