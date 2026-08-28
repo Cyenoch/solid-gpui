@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use gpui::{
-    AnyElement, App, Bounds, ClipboardItem, Element, ElementId, ElementInputHandler, Entity,
-    GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton,
-    PaintQuad, ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled, TextRun,
-    Window, div, fill, hsla, px, relative, rgba, size,
+    AnyElement, App, Bounds, ClipboardItem, ContentMask, Element, ElementId, ElementInputHandler,
+    Entity, GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
+    MouseButton, PaintQuad, ParentElement, Pixels, Point, SharedString, StatefulInteractiveElement,
+    Styled, TextRun, Window, div, fill, hsla, px, relative, rgba, size,
 };
 
 use crate::protocol::{HostProperties, KeyAction, Style};
@@ -22,6 +22,7 @@ struct TextInputElement {
     fallback_text: String,
     placeholder: String,
     multiline: bool,
+    bounded_height: bool,
 }
 
 struct SelectableTextPrepaint {
@@ -34,6 +35,7 @@ struct TextInputPrepaint {
     text: super::super::input::TextInputTextLayout,
     cursor: Option<PaintQuad>,
     selection: Option<PaintQuad>,
+    scroll_offset: Point<Pixels>,
     content: String,
     placeholder: bool,
 }
@@ -64,21 +66,25 @@ impl Element for TextInputElement {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
+        let line_height = window.line_height();
         let mut style = gpui::Style::default();
         style.size.width = relative(1.).into();
-        let line_height = window.line_height();
-        let line_count = if self.multiline {
-            let root = self.entity.read(cx);
-            let content = root
-                .input_states
-                .get(&self.node_id)
-                .map(|state| state.text.as_str())
-                .unwrap_or(self.fallback_text.as_str());
-            content.split('\n').count().max(1)
+        if self.bounded_height {
+            style.size.height = relative(1.).into();
         } else {
-            1
-        };
-        style.size.height = (line_height * line_count as f32).into();
+            let line_count = if self.multiline {
+                let root = self.entity.read(cx);
+                let content = root
+                    .input_states
+                    .get(&self.node_id)
+                    .map(|state| state.text.as_str())
+                    .unwrap_or(self.fallback_text.as_str());
+                content.split('\n').count().max(1)
+            } else {
+                1
+            };
+            style.size.height = (line_height * line_count as f32).into();
+        }
         (window.request_layout(style, [], cx), ())
     }
 
@@ -92,11 +98,27 @@ impl Element for TextInputElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let root = self.entity.read(cx);
-        let (content, selection) = root
+        let (content, selection, selection_reversed, marked, current_offset) = root
             .input_states
             .get(&self.node_id)
-            .map(|state| (state.text.clone(), state.selection.clone()))
-            .unwrap_or_else(|| (self.fallback_text.clone(), 0..0));
+            .map(|state| {
+                (
+                    state.text.clone(),
+                    state.selection.clone(),
+                    state.selection_reversed,
+                    state.marked.clone(),
+                    state.scroll_offset,
+                )
+            })
+            .unwrap_or_else(|| {
+                (
+                    self.fallback_text.clone(),
+                    0..0,
+                    false,
+                    None,
+                    Point::default(),
+                )
+            });
         let (display_text, is_placeholder) =
             input_display_text(content.clone(), Some(&self.placeholder));
         let text_style = window.text_style();
@@ -146,6 +168,29 @@ impl Element for TextInputElement {
                 line_height,
             }
         };
+        let scroll_offset = if is_placeholder {
+            Point::default()
+        } else {
+            let target = if let Some(marked) = marked.as_ref() {
+                let start = super::super::input::utf16_byte_index(&content, marked.start);
+                let end = super::super::input::utf16_byte_index(&content, marked.end);
+                text_layout.bounds_for_range(start..end, bounds)
+            } else {
+                let caret = if selection_reversed {
+                    selection.start
+                } else {
+                    selection.end
+                };
+                let byte = super::super::input::utf16_byte_index(&content, caret);
+                text_layout.target_bounds_for_utf8(byte, bounds)
+            };
+            super::super::input::TextInputTextLayout::adjust_scroll_offset(
+                current_offset,
+                target,
+                bounds,
+                text_layout.content_size(),
+            )
+        };
         let (cursor, selection_quad) = if is_placeholder || selection.start == selection.end {
             let byte_offset = if is_placeholder {
                 0
@@ -156,7 +201,7 @@ impl Element for TextInputElement {
             (
                 Some(fill(
                     Bounds::new(
-                        bounds.origin + position.point,
+                        bounds.origin + position.point - scroll_offset,
                         size(px(2.0), position.line_height),
                     ),
                     rgba(0x2d6cdfff),
@@ -169,7 +214,7 @@ impl Element for TextInputElement {
             (
                 None,
                 Some(fill(
-                    text_layout.bounds_for_range(start..end, bounds),
+                    text_layout.bounds_for_range_with_offset(start..end, bounds, scroll_offset),
                     rgba(0x2d6cdf66),
                 )),
             )
@@ -178,6 +223,7 @@ impl Element for TextInputElement {
             text: text_layout,
             cursor,
             selection: selection_quad,
+            scroll_offset,
             content,
             placeholder: is_placeholder,
         }
@@ -197,20 +243,30 @@ impl Element for TextInputElement {
             self.entity
                 .update(cx, |root, _| root.set_input_focus(self.node_id, true));
         }
+        let scroll_offset = prepaint.scroll_offset;
+        self.entity.update(cx, |root, _| {
+            if let Some(state) = root.input_states.get_mut(&self.node_id) {
+                state.scroll_offset = scroll_offset;
+            }
+        });
         window.handle_input(
             &self.focus,
             ElementInputHandler::new(bounds, self.entity.clone()),
             cx,
         );
-        if let Some(selection) = prepaint.selection.take() {
-            window.paint_quad(selection);
-        }
-        prepaint.text.paint(bounds.origin, bounds, window, cx);
-        if self.focus.is_focused(window)
-            && let Some(cursor) = prepaint.cursor.take()
-        {
-            window.paint_quad(cursor);
-        }
+        window.with_content_mask(Some(ContentMask { bounds }), |window| {
+            if let Some(selection) = prepaint.selection.take() {
+                window.paint_quad(selection);
+            }
+            prepaint
+                .text
+                .paint(bounds.origin, bounds, scroll_offset, window, cx);
+            if self.focus.is_focused(window)
+                && let Some(cursor) = prepaint.cursor.take()
+            {
+                window.paint_quad(cursor);
+            }
+        });
         let text = std::mem::take(&mut prepaint.text);
         let content = prepaint.content.clone();
         let placeholder = prepaint.placeholder;
@@ -224,6 +280,7 @@ impl Element for TextInputElement {
                     super::super::input::TextInputLayout {
                         text,
                         bounds,
+                        scroll_offset,
                         content,
                         placeholder,
                     },
@@ -342,7 +399,9 @@ impl Element for SelectableTextElement {
         for selection in prepaint.selection.drain(..) {
             window.paint_quad(selection);
         }
-        prepaint.text.paint(bounds.origin, bounds, window, cx);
+        prepaint
+            .text
+            .paint(bounds.origin, bounds, Point::default(), window, cx);
         let text = std::mem::take(&mut prepaint.text);
         let content = prepaint.content.clone();
         let node_id = self.node_id;
@@ -352,6 +411,7 @@ impl Element for SelectableTextElement {
                 super::super::input::TextInputLayout {
                     text,
                     bounds,
+                    scroll_offset: Point::default(),
                     content,
                     placeholder: false,
                 },
@@ -523,6 +583,9 @@ pub(super) fn render_text_input(
     input_element = input_element.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
         mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
     });
+    let bounded_height = style
+        .and_then(|style| style.height.or(style.max_height))
+        .is_some();
     let input_element = input_element
         .child(TextInputElement {
             entity: entity.clone(),
@@ -531,6 +594,7 @@ pub(super) fn render_text_input(
             fallback_text: input.value.clone(),
             placeholder: input.placeholder.clone().unwrap_or_default(),
             multiline: input.multiline || actual_text.contains('\n'),
+            bounded_height,
         })
         .id(ElementId::Integer(node.id as u64))
         .focusable()

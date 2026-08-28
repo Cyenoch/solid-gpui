@@ -36,6 +36,7 @@ pub(super) struct NativeInputState {
     pub(super) edit_seq: u32,
     pub(super) focused: bool,
     pub(super) max_length: Option<usize>,
+    pub(super) scroll_offset: Point<Pixels>,
     pub(crate) drag_granularity: TextInputSelectionGranularity,
     pub(crate) drag_origin: usize,
     pub(crate) drag_selection: Range<usize>,
@@ -65,6 +66,7 @@ impl Default for TextInputTextLayout {
 pub(super) struct TextInputLayout {
     pub(super) text: TextInputTextLayout,
     pub(super) bounds: Bounds<Pixels>,
+    pub(super) scroll_offset: Point<Pixels>,
     pub(super) content: String,
     pub(super) placeholder: bool,
 }
@@ -107,6 +109,10 @@ impl TextInputTextLayout {
                             (f32::from(point.y) / f32::from(*line_height)).max(0.0) as usize
                         } else {
                             0
+                        };
+                        let point = Point {
+                            x: point.x,
+                            y: point.y + *line_height * physical_line as f32,
                         };
                         return TextInputPosition {
                             point,
@@ -159,9 +165,11 @@ impl TextInputTextLayout {
         &self,
         origin: Point<Pixels>,
         bounds: Bounds<Pixels>,
+        offset: Point<Pixels>,
         window: &mut Window,
         cx: &mut App,
     ) {
+        let origin = origin - offset;
         match self {
             Self::Single { line, line_height } => {
                 let _ = line.paint(
@@ -190,6 +198,95 @@ impl TextInputTextLayout {
                 }
             }
         }
+    }
+
+    pub(super) fn content_size(&self) -> gpui::Size<Pixels> {
+        match self {
+            Self::Single { line, line_height } => size(line.width(), *line_height),
+            Self::Multiline {
+                lines, line_height, ..
+            } => size(
+                lines
+                    .iter()
+                    .map(|line| line.width())
+                    .max()
+                    .unwrap_or(px(0.0)),
+                lines
+                    .iter()
+                    .map(|line| line.size(*line_height).height)
+                    .sum(),
+            ),
+        }
+    }
+
+    pub(super) fn closest_index_for_viewport_point(
+        &self,
+        at: Point<Pixels>,
+        offset: Point<Pixels>,
+    ) -> usize {
+        self.closest_index_for_point(at + offset)
+    }
+
+    pub(super) fn bounds_for_range_with_offset(
+        &self,
+        range: Range<usize>,
+        bounds: Bounds<Pixels>,
+        offset: Point<Pixels>,
+    ) -> Bounds<Pixels> {
+        let result = self.bounds_for_range(range, bounds);
+        Bounds::new(result.origin - offset, result.size)
+    }
+
+    pub(super) fn target_bounds_for_utf8(
+        &self,
+        index: usize,
+        bounds: Bounds<Pixels>,
+    ) -> Bounds<Pixels> {
+        let position = self.position_for_utf8(index);
+        Bounds::new(
+            bounds.origin + position.point,
+            size(px(2.0), position.line_height),
+        )
+    }
+
+    pub(super) fn adjust_scroll_offset(
+        current: Point<Pixels>,
+        target: Bounds<Pixels>,
+        viewport: Bounds<Pixels>,
+        content: gpui::Size<Pixels>,
+    ) -> Point<Pixels> {
+        const MARGIN: f32 = 2.0;
+        fn adjust(current: f32, start: f32, end: f32, viewport: f32) -> f32 {
+            let margin = MARGIN.min(viewport.max(0.0) / 2.0);
+            if start < current + margin {
+                start - margin
+            } else if end > current + viewport - margin {
+                end - viewport + margin
+            } else {
+                current
+            }
+        }
+        let x = adjust(
+            f32::from(current.x),
+            f32::from(target.origin.x - viewport.origin.x),
+            f32::from(target.bottom_right().x - viewport.origin.x),
+            f32::from(viewport.size.width),
+        )
+        .clamp(
+            0.0,
+            (f32::from(content.width) - f32::from(viewport.size.width)).max(0.0),
+        );
+        let y = adjust(
+            f32::from(current.y),
+            f32::from(target.origin.y - viewport.origin.y),
+            f32::from(target.bottom_right().y - viewport.origin.y),
+            f32::from(viewport.size.height),
+        )
+        .clamp(
+            0.0,
+            (f32::from(content.height) - f32::from(viewport.size.height)).max(0.0),
+        );
+        point(px(x), px(y))
     }
 
     pub(super) fn bounds_for_range(
@@ -496,6 +593,7 @@ impl ReactRoot {
                         edit_seq: 0,
                         focused: false,
                         max_length: input.max_length.map(|value| value as usize),
+                        scroll_offset: Point::default(),
                         drag_granularity: TextInputSelectionGranularity::Character,
                         drag_origin: 0,
                         drag_selection: 0..0,
@@ -1356,7 +1454,11 @@ impl EntityInputHandler for ReactRoot {
         }
         let start = utf16_byte_index(&state.text, range_utf16.start);
         let end = utf16_byte_index(&state.text, range_utf16.end);
-        Some(layout.text.bounds_for_range(start..end, layout.bounds))
+        Some(layout.text.bounds_for_range_with_offset(
+            start..end,
+            layout.bounds,
+            layout.scroll_offset,
+        ))
     }
 
     fn character_index_for_point(
@@ -1375,7 +1477,9 @@ impl EntityInputHandler for ReactRoot {
             return Some(state.selection.end);
         }
         let local = layout.bounds.localize(&point)?;
-        let utf8_offset = layout.text.closest_index_for_point(local);
+        let utf8_offset = layout
+            .text
+            .closest_index_for_viewport_point(local, layout.scroll_offset);
         Some(utf8_byte_to_utf16(&layout.content, utf8_offset))
     }
 }
@@ -1535,5 +1639,27 @@ mod tests {
         assert_eq!(line_selection_range(text, 2), 0..7);
         assert_eq!(line_selection_range(text, 8), 8..14);
         assert_eq!(line_selection_range(text, 15), 15..15);
+    }
+
+    #[test]
+    fn text_input_scroll_offset_follows_target_and_clamps_to_content() {
+        let viewport = Bounds::new(point(px(0.0), px(0.0)), size(px(40.0), px(20.0)));
+        let target = Bounds::new(point(px(80.0), px(60.0)), size(px(2.0), px(20.0)));
+        let offset = TextInputTextLayout::adjust_scroll_offset(
+            Point::default(),
+            target,
+            viewport,
+            size(px(82.0), px(80.0)),
+        );
+        assert_eq!(offset, point(px(42.0), px(60.0)));
+
+        let target_at_start = Bounds::new(point(px(0.0), px(0.0)), size(px(2.0), px(20.0)));
+        let reset = TextInputTextLayout::adjust_scroll_offset(
+            offset,
+            target_at_start,
+            viewport,
+            size(px(82.0), px(80.0)),
+        );
+        assert_eq!(reset, Point::default());
     }
 }

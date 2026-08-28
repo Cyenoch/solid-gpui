@@ -29,7 +29,9 @@ remains always visible rather than blinking so keyboard focus and the insertion
 point stay available to users who benefit from reduced visual timing demands.
 Multiline TextInput now uses GPUI wrapped-line shaping for painting,
 point-to-character mapping, and IME candidate bounds, including empty and
-trailing-newline lines. Ctrl/Cmd word-boundary movement and double-/triple-click
+trailing-newline lines. The host keeps the caret and active marked range visible
+by following them vertically (and horizontally for long single-line input),
+without adding wire state. Ctrl/Cmd word-boundary movement and double-/triple-click
 selection remain outside this renderer's minimal interaction contract.
 
 ## Platform support

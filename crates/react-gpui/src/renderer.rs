@@ -1885,6 +1885,97 @@ mod input_tests {
         assert_eq!(list_state.logical_scroll_top().item_ix, 95);
     }
     #[gpui::test]
+    fn overflowing_multiline_text_input_keeps_caret_inside_element_bounds(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(300.0), px(160.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let value = "one\ntwo\nthree\nfour\nfive\nsix";
+        let mut input = Node::new(2, 1, 0, crate::tree::KIND_TEXT_INPUT);
+        input.style = Some(Style {
+            width: Some(160.0),
+            height: Some(40.0),
+            overflow: Some(2),
+            flex_shrink: Some(1.0),
+            ..Style::default()
+        });
+        input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+            value: value.into(),
+            placeholder: None,
+            multiline: true,
+            disabled: false,
+            controlled: true,
+            ack_edit_seq: 0,
+            selection_start: value.encode_utf16().count() as u32,
+            selection_end: value.encode_utf16().count() as u32,
+            marked_start: None,
+            marked_end: None,
+            max_length: None,
+            selection_reversed: false,
+        }));
+        let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), input]);
+        let payload = snapshot
+            .encode()
+            .expect("encode overflowing multiline snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply overflowing multiline snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw overflowing multiline text input");
+        cx.run_until_parked();
+
+        let (viewport, caret, content_height, scroll_offset) = root.read_with(cx, |root, _| {
+            let layout = root
+                .text_input_layouts
+                .get(&2)
+                .expect("overflowing multiline layout");
+            let state = root.input_states.get(&2).expect("overflowing input state");
+            let position = layout
+                .text
+                .position_for_utf8(super::input::utf16_byte_index(
+                    &state.text,
+                    state.selection.end,
+                ));
+            let content_height = match &layout.text {
+                super::input::TextInputTextLayout::Multiline {
+                    lines, line_height, ..
+                } => lines
+                    .iter()
+                    .map(|line| line.size(*line_height).height)
+                    .sum::<gpui::Pixels>(),
+                super::input::TextInputTextLayout::Single { .. } => px(0.0),
+            };
+            (
+                layout.bounds,
+                gpui::Bounds::new(
+                    layout.bounds.origin + position.point - layout.scroll_offset,
+                    gpui::size(px(2.0), position.line_height),
+                ),
+                content_height,
+                layout.scroll_offset,
+            )
+        });
+        assert!(
+            content_height > viewport.size.height,
+            "test setup must overflow: content height {content_height:?}, viewport {viewport:?}"
+        );
+        assert!(
+            scroll_offset.y > px(0.0),
+            "caret-follow offset must advance"
+        );
+        assert!(
+            caret.origin.y >= viewport.origin.y
+                && caret.bottom_right().y <= viewport.bottom_right().y,
+            "caret {caret:?} is outside viewport {viewport:?}"
+        );
+    }
+
+    #[gpui::test]
     fn multiline_text_input_uses_wrapped_layout_and_preserves_empty_lines(
         cx: &mut gpui::TestAppContext,
     ) {

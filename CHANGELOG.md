@@ -16,6 +16,7 @@ from this work tree.
 
 - Added root-only asynchronous `readTextFile(path)` and `writeTextFile(path, content)` commands (25/26). They perform bounded UTF-8 filesystem I/O off the UI executor, return file text/bytes written, and reject invalid paths, directories, oversized data, invalid UTF-8, and native I/O failures.
 - Added the `notes.tsx` persistence example with Open/Save, dirty tracking, multiline editing, and close confirmation.
+- Fixed multiline editing so typing no longer continues below the visible fold; the host now follows the caret (and IME marked range) with bounded vertical and horizontal offsets.
 - Embedded-Bun coverage now includes a bounded gallery/text-input/virtual-list/notes startup matrix through `EmbeddedBunAdapter`, plus a Fast Refresh lifecycle probe; `make embedded-bun` runs the host target alongside the adapter test.
 - Added bounded root-scoped `setClipboardImage()` and `getClipboardImage()`
   commands (27/28). The protocol carries encoded PNG, JPEG, GIF, or SVG bytes
