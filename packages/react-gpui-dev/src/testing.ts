@@ -119,6 +119,8 @@ type TestAppPointer = {
   readonly button?: "left" | "right" | "middle" | "back" | "forward";
   readonly modifiers?: readonly string[];
   readonly clickCount?: number;
+  readonly x?: number;
+  readonly y?: number;
 };
 
 /** Consumer-facing behavior test facade over the real headless Root seam. */
@@ -598,12 +600,19 @@ export function renderTestApp(element: ReactElement | null, options: RenderOptio
       const clickCount = options.clickCount ?? 1;
       u32("clickCount", clickCount);
       if (clickCount === 0) throw new RangeError("clickCount must be greater than zero");
+      const x = options.x ?? 0;
+      const y = options.y ?? 0;
+      finiteNumber("pointer x", x);
+      finiteNumber("pointer y", y);
+      if (x < 0 || y < 0) throw new RangeError("pointer coordinates must be non-negative");
       renderResult.dispatchEvent(node, EVENT_POINTER, [
         6,
         pointerButtonCode(options.button ?? "left"),
         [...(options.modifiers ?? [])],
         options.action === "down" ? POINTER_DOWN : 2,
         clickCount,
+        x,
+        y,
       ]);
       return commit();
     },

@@ -1,7 +1,7 @@
 use super::support::*;
 
 #[test]
-fn pointer_and_hover_events_round_trip_and_reject_invalid_buttons() {
+fn pointer_and_hover_events_round_trip_and_reject_invalid_coordinates() {
     for action in [EVENT_POINTER_DOWN, EVENT_POINTER_UP] {
         let pointer = Event::pointer(
             EVENT_POINTER,
@@ -15,6 +15,8 @@ fn pointer_and_hover_events_round_trip_and_reject_invalid_buttons() {
             vec!["cmd".to_owned(), "shift".to_owned()],
             action,
             2,
+            42.5,
+            24.25,
         );
         assert_eq!(Event::decode(&pointer.encode().unwrap()).unwrap(), pointer);
     }
@@ -24,23 +26,33 @@ fn pointer_and_hover_events_round_trip_and_reject_invalid_buttons() {
     let submit = Event::submit(7, 3, 1, 4, 2, 11, String::new());
     assert_eq!(Event::decode(&submit.encode().unwrap()).unwrap(), submit);
 
-    let malformed = rmp_serde::to_vec(&(
-        3u32,
-        2u32,
-        7u32,
-        3u32,
-        1u32,
-        4u32,
-        9u32,
-        11u32,
-        EVENT_POINTER,
-        Some((6u32, 9u32, Vec::<String>::new(), EVENT_POINTER_DOWN, 1u32)),
-    ))
-    .unwrap();
-    assert!(matches!(
-        Event::decode(&malformed),
-        Err(ProtocolError::InvalidEventPayload)
-    ));
+    for (x, y) in [(f32::NAN, 1.0), (1.0, f32::NAN), (-1.0, 1.0), (1.0, -1.0)] {
+        let malformed = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            4u32,
+            9u32,
+            11u32,
+            EVENT_POINTER,
+            Some((
+                6u32,
+                9u32,
+                Vec::<String>::new(),
+                EVENT_POINTER_DOWN,
+                1u32,
+                x,
+                y,
+            )),
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&malformed),
+            Err(ProtocolError::InvalidEventPayload)
+        ));
+    }
 }
 
 #[test]

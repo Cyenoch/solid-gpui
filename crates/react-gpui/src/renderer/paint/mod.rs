@@ -283,7 +283,7 @@ impl ReactRoot {
             for button in MouseButton::all() {
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
-                element = element.on_mouse_down(button, move |event, _, _| {
+                element = element.on_mouse_down(button, move |event, window, _| {
                     emit_pointer_event(
                         runtime.as_ref(),
                         sequence.as_ref(),
@@ -296,13 +296,15 @@ impl ReactRoot {
                         event.button,
                         &event.modifiers,
                         event.click_count,
+                        event.position,
+                        window.viewport_size(),
                     );
                 });
             }
             for button in MouseButton::all() {
                 let runtime = Arc::clone(&self.runtime);
                 let sequence = Arc::clone(&self.next_sequence);
-                element = element.on_mouse_up(button, move |event, _, _| {
+                element = element.on_mouse_up(button, move |event, window, _| {
                     emit_pointer_event(
                         runtime.as_ref(),
                         sequence.as_ref(),
@@ -315,6 +317,8 @@ impl ReactRoot {
                         event.button,
                         &event.modifiers,
                         event.click_count,
+                        event.position,
+                        window.viewport_size(),
                     );
                 });
             }

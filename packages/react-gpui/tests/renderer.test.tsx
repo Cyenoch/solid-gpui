@@ -100,15 +100,74 @@ describe("protocol framing", () => {
     const malformed = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, 6, [2, 1, 99, 2, true, null, null]] as never);
     expect(decodeEvent(malformed.slice(4))).toBeNull();
   });
-  it("decodes pointer down and up payloads and rejects invalid pointer buttons", () => {
-    const pointerDown = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 1, 2, 7, EVENT_POINTER, [6, 4, ["cmd"], 1, 2]]);
-    const pointerUp = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 2, 2, 7, EVENT_POINTER, [6, 4, ["cmd"], 2, 2]]);
+  it("decodes pointer down and up payloads with coordinates and rejects invalid values", () => {
+    const pointerDown = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      1,
+      2,
+      7,
+      EVENT_POINTER,
+      [6, 4, ["cmd"], 1, 2, 120.5, 80],
+    ]);
+    const pointerUp = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      2,
+      2,
+      7,
+      EVENT_POINTER,
+      [6, 4, ["cmd"], 2, 2, 120.5, 80],
+    ]);
     const hover = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 3, 2, 7, EVENT_HOVER, null]);
-    const invalid = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 4, 2, 7, EVENT_POINTER, [6, 9, [], 1, 1]] as never);
+    const invalidButton = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      4,
+      2,
+      7,
+      EVENT_POINTER,
+      [6, 9, [], 1, 1, 10, 20],
+    ] as never);
+    const invalidCoordinate = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      5,
+      2,
+      7,
+      EVENT_POINTER,
+      [6, 4, [], 1, 1, -1, 20],
+    ] as never);
+    const missingCoordinates = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      6,
+      2,
+      7,
+      EVENT_POINTER,
+      [6, 4, [], 1, 1],
+    ] as never);
     expect(decodeEvent(pointerDown.slice(4))).not.toBeNull();
     expect(decodeEvent(pointerUp.slice(4))).not.toBeNull();
     expect(decodeEvent(hover.slice(4))).not.toBeNull();
-    expect(decodeEvent(invalid.slice(4))).toBeNull();
+    expect(decodeEvent(invalidButton.slice(4))).toBeNull();
+    expect(decodeEvent(invalidCoordinate.slice(4))).toBeNull();
+    expect(decodeEvent(missingCoordinates.slice(4))).toBeNull();
   });
   it("decodes pixel and line scroll payloads and rejects invalid scroll values", () => {
     const pixels = encodeFrame([
@@ -1646,14 +1705,18 @@ describe("renderer commits", () => {
       { key: "ArrowLeft", modifiers: ["shift", "cmd"], action: "up" },
     ]);
   });
-  it("dispatches pointer buttons and hover edge notifications", () => {
+  it("dispatches pointer buttons, coordinates, and hover edge notifications", () => {
     const transport = new MemoryTransport();
     const received: Array<unknown> = [];
     const root = createRoot(transport, { surfaceId: 65, epoch: 66 });
     root.render(
       <Pressable
-        onPointerDown={(event) => received.push([event.type, event.button, event.modifiers, event.clickCount])}
-        onPointerUp={(event) => received.push([event.type, event.button, event.modifiers, event.clickCount])}
+        onPointerDown={(event) =>
+          received.push([event.type, event.button, event.modifiers, event.clickCount, event.x, event.y])
+        }
+        onPointerUp={(event) =>
+          received.push([event.type, event.button, event.modifiers, event.clickCount, event.x, event.y])
+        }
         onHoverChange={(hovered) => received.push(["hover", hovered])}
       />,
     );
@@ -1661,14 +1724,27 @@ describe("renderer commits", () => {
     const listener = node[6] as number;
     const nodeId = node[0] as number;
     transport.push(
-      encodeFrame([PROTOCOL_VERSION, 2, 65, 66, 1, 1, nodeId, listener, EVENT_POINTER, [6, 1, ["cmd"], 1, 2]]),
+      encodeFrame([
+        PROTOCOL_VERSION,
+        2,
+        65,
+        66,
+        1,
+        1,
+        nodeId,
+        listener,
+        EVENT_POINTER,
+        [6, 1, ["cmd"], 1, 2, 20.5, 30],
+      ]),
     );
-    transport.push(encodeFrame([PROTOCOL_VERSION, 2, 65, 66, 1, 2, nodeId, listener, EVENT_POINTER, [6, 4, [], 2, 1]]));
+    transport.push(
+      encodeFrame([PROTOCOL_VERSION, 2, 65, 66, 1, 2, nodeId, listener, EVENT_POINTER, [6, 4, [], 2, 1, 40, 50]]),
+    );
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 65, 66, 1, 3, nodeId, listener, EVENT_HOVER, null]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 65, 66, 1, 4, nodeId, listener, EVENT_HOVER, null]));
     expect(received).toEqual([
-      ["pointerdown", "left", ["cmd"], 2],
-      ["pointerup", "back", [], 1],
+      ["pointerdown", "left", ["cmd"], 2, 20.5, 30],
+      ["pointerup", "back", [], 1, 40, 50],
       ["hover", true],
       ["hover", false],
     ]);

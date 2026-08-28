@@ -93,8 +93,10 @@ test("filters and selects a todo", () => {
 system. `node(labelOrPredicate)` and `text(value)` report the query in their
 not-found errors. The facade also provides `hover`, `key`, `input`, `submit`,
 `scroll`, `pointer`, `dragOver`, `drop`, `pointerDownOutside`, `focus`, `blur`,
-`visibleRange`, and inferred `commandResult` interactions. Keep
-`dispatchFrame(rawEvent)` for an event not represented by a helper.
+`visibleRange`, and inferred `commandResult` interactions. `pointer` accepts
+non-negative logical window-pixel `x`/`y` coordinates (defaulting to `0` when
+omitted) so renderer tests exercise the same pointer payload shape as the host.
+Keep `dispatchFrame(rawEvent)` for an event not represented by a helper.
 
 `TestApp` covers renderer semantics: state transitions, patches, retained-node
 lookup, and event routing. It cannot prove host-owned semantics such as drag

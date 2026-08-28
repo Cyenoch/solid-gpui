@@ -35,6 +35,11 @@ from this work tree.
 - Context menus remain application-composed in-window overlays using
   right-pointer events, positioned overlay views, and
   `onPointerDownOutside`; no native context-menu API is added.
+- Pointer down/up notifications now carry required finite non-negative logical
+  window-pixel `x`/`y` coordinates in the v3 payload. The host clamps native
+  positions to viewport bounds before emitting them, enabling cursor-anchored
+  in-window context-menu overlays; hover/move coordinate streaming remains
+  intentionally unsupported.
 - Shared appearance-aware theme tokens now drive all visual React GPUI
   examples, including dark surfaces and interaction-state colors; README and
   getting-started guidance document the application-owned token-module

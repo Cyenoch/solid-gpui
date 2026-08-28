@@ -1237,14 +1237,12 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
     }
     let record_quad = record_button_bounds(&page_quads, 600.0, scale)
         .expect("page wheel did not reveal the painted Record press hitbox");
-    surface.click(
-        &mut cx,
-        (record_quad.0 + record_quad.2 / 2.0) / scale,
-        (record_quad.1 + record_quad.3 / 2.0) / scale,
-    );
+    let click_x = (record_quad.0 + record_quad.2 / 2.0) / scale;
+    let click_y = (record_quad.1 + record_quad.3 / 2.0) / scale;
+    surface.click(&mut cx, click_x, click_y);
     let click_events = surface.events();
     let pointer_event = |action| {
-        click_events.iter().any(|event| {
+        click_events.iter().find(|event| {
             event.node_id == record_button.id
                 && event.event_type == EVENT_POINTER
                 && matches!(
@@ -1253,8 +1251,15 @@ fn gallery_page_scroll_reveals_activity_controls_and_nested_wheel_scrolls_rows()
                 )
         })
     };
+    for action in [EVENT_POINTER_DOWN, EVENT_POINTER_UP] {
+        let event = pointer_event(action).expect("painted Record press did not emit pointer event");
+        let Some(EventPayload::Pointer(pointer)) = event.payload.as_ref() else {
+            panic!("expected pointer payload");
+        };
+        assert_eq!((pointer.x, pointer.y), (click_x, click_y));
+    }
     assert!(
-        pointer_event(EVENT_POINTER_DOWN) && pointer_event(EVENT_POINTER_UP),
+        pointer_event(EVENT_POINTER_DOWN).is_some() && pointer_event(EVENT_POINTER_UP).is_some(),
         "painted Record press hitbox did not target its actual node: quad={record_quad:?} events={click_events:?}"
     );
 

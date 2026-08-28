@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use gpui::{MouseButton, NavigationDirection, ScrollDelta, ScrollWheelEvent};
+use gpui::{MouseButton, NavigationDirection, Pixels, Point, ScrollDelta, ScrollWheelEvent, Size};
 
 use crate::protocol::{
     EVENT_POINTER, EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction, POINTER_BUTTON_BACK,
@@ -79,6 +79,8 @@ pub(super) fn emit_pointer_event(
     event_button: MouseButton,
     modifiers: &gpui::Modifiers,
     click_count: usize,
+    position: Point<Pixels>,
+    viewport_size: Size<Pixels>,
 ) {
     let Some(button) = pointer_button(event_button) else {
         return;
@@ -88,6 +90,8 @@ pub(super) fn emit_pointer_event(
     } else {
         EVENT_POINTER_UP
     };
+    let x = clamp_coordinate(position.x.as_f32(), viewport_size.width.as_f32());
+    let y = clamp_coordinate(position.y.as_f32(), viewport_size.height.as_f32());
     let event = Event::pointer(
         EVENT_POINTER,
         surface_id,
@@ -100,8 +104,17 @@ pub(super) fn emit_pointer_event(
         key_modifiers(modifiers),
         action,
         click_count.min(u32::MAX as usize) as u32,
+        x,
+        y,
     );
     send_event_or_exit(runtime, "pointer event", &event);
+}
+
+fn clamp_coordinate(value: f32, upper_bound: f32) -> f32 {
+    if !value.is_finite() {
+        return 0.0;
+    }
+    value.clamp(0.0, upper_bound.max(0.0))
 }
 #[allow(clippy::too_many_arguments)]
 pub(super) fn emit_scroll_event(
@@ -206,8 +219,40 @@ pub(super) fn emit_external_file_drop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{EVENT_POINTER_UP, EventPayload};
+    use crate::protocol::{EVENT_POINTER_DOWN, EVENT_POINTER_UP, EventPayload};
     use crate::transport::InMemoryAdapter;
+
+    #[test]
+    fn pointer_coordinates_are_clamped_before_wire_encoding() {
+        let runtime = InMemoryAdapter::new();
+        let sequence = AtomicU32::new(1);
+        emit_pointer_event(
+            runtime.as_ref(),
+            &sequence,
+            7,
+            3,
+            1,
+            2,
+            9,
+            EVENT_POINTER_DOWN,
+            MouseButton::Left,
+            &gpui::Modifiers::none(),
+            1,
+            gpui::point(gpui::px(-10.0), gpui::px(900.0)),
+            gpui::size(gpui::px(800.0), gpui::px(600.0)),
+        );
+
+        let event = runtime
+            .take_event()
+            .expect("in-memory event should decode")
+            .expect("pointer event should be queued");
+        let Some(EventPayload::Pointer(pointer)) = event.payload else {
+            panic!("expected pointer payload");
+        };
+        assert_eq!(pointer.action, EVENT_POINTER_DOWN);
+        assert_eq!(pointer.x, 0.0);
+        assert_eq!(pointer.y, 600.0);
+    }
 
     #[test]
     fn zero_click_count_mouse_up_is_normalized_before_wire_encoding() {
@@ -225,6 +270,8 @@ mod tests {
             MouseButton::Left,
             &gpui::Modifiers::none(),
             0,
+            gpui::point(gpui::px(12.5), gpui::px(24.0)),
+            gpui::size(gpui::px(800.0), gpui::px(600.0)),
         );
 
         let event = runtime
@@ -236,5 +283,7 @@ mod tests {
         };
         assert_eq!(pointer.action, EVENT_POINTER_UP);
         assert_eq!(pointer.click_count, 1);
+        assert_eq!(pointer.x, 12.5);
+        assert_eq!(pointer.y, 24.0);
     }
 }

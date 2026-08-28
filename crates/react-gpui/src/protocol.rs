@@ -511,6 +511,8 @@ pub struct PointerEvent {
     pub modifiers: Vec<String>,
     pub action: u32,
     pub click_count: u32,
+    pub x: f32,
+    pub y: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -701,6 +703,8 @@ impl Event {
         modifiers: Vec<String>,
         action: u32,
         click_count: u32,
+        x: f32,
+        y: f32,
     ) -> Self {
         Self {
             protocol: PROTOCOL_VERSION,
@@ -717,6 +721,8 @@ impl Event {
                 modifiers,
                 action,
                 click_count,
+                x,
+                y,
             })),
         }
     }

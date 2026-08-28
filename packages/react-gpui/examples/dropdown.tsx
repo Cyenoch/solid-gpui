@@ -48,6 +48,18 @@ function createStyles(theme: Theme) {
     itemLabel: { fontSize: 13, lineHeight: 18, color: theme.text },
     itemDisabled: { opacity: 0.45, backgroundColor: theme.disabled, cursor: "not-allowed" },
     status: { fontSize: 12, lineHeight: 18, color: theme.textMuted },
+    contextMenu: {
+      position: "overlay",
+      width: 180,
+      flexDirection: "column",
+      gap: 4,
+      padding: 8,
+      borderWidth: 1,
+      borderRadius: 8,
+      borderColor: theme.borderInput,
+      backgroundColor: theme.surface,
+      boxShadow: { offsetX: 0, offsetY: 4, blurRadius: 12, spreadRadius: 0, color: theme.shadowStrong },
+    },
   });
 }
 
@@ -55,6 +67,7 @@ function Dropdown({ appearanceStore }: { readonly appearanceStore: AppearanceSto
   const [open, setOpen] = useState(false);
   const [selection, setSelection] = useState("none");
   const [dismissal, setDismissal] = useState("none");
+  const [contextPoint, setContextPoint] = useState<{ x: number; y: number } | null>(null);
   const theme = useTheme(useAppearance(appearanceStore));
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -64,13 +77,39 @@ function Dropdown({ appearanceStore }: { readonly appearanceStore: AppearanceSto
       setDismissal("Escape");
     }
   };
+  const contextMenu = contextPoint ? (
+    <View
+      style={{ ...styles.contextMenu, left: contextPoint.x, top: contextPoint.y }}
+      onPointerDownOutside={() => setContextPoint(null)}
+    >
+      <Pressable
+        focusable
+        style={styles.item}
+        accessibilityRole="button"
+        accessibilityLabel="Copy context item"
+        onPress={() => {
+          setSelection("Copy context item");
+          setContextPoint(null);
+        }}
+      >
+        <Text style={styles.itemLabel}>Copy</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   return (
-    <View style={styles.root} accessibilityRole="generic" accessibilityLabel="Dropdown example">
+    <View
+      style={styles.root}
+      accessibilityRole="generic"
+      accessibilityLabel="Dropdown example"
+      onPointerDown={(event) => {
+        if (event.button === "right") setContextPoint({ x: event.x, y: event.y });
+      }}
+    >
       <Text style={styles.title}>Dropdown with outside dismissal</Text>
       <Text style={styles.helper}>
         The overlay closes on an outside pointer down or Escape. One item stays disabled to show native interaction
-        state.
+        state. Right-click anywhere to open a cursor-anchored context menu.
       </Text>
       <View style={styles.anchor}>
         <Pressable
@@ -119,6 +158,7 @@ function Dropdown({ appearanceStore }: { readonly appearanceStore: AppearanceSto
           </View>
         ) : null}
       </View>
+      {contextMenu}
       <Text style={styles.status}>
         Selection: {selection}; dismissed by: {dismissal}
       </Text>

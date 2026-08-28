@@ -123,6 +123,9 @@ export interface PointerEvent {
   readonly button: PointerButton;
   readonly modifiers: string[];
   readonly clickCount: number;
+  /** Logical window pixels at press/release time. Hover/move coordinates are not exposed. */
+  readonly x: number;
+  readonly y: number;
   readonly target: HostNode;
 }
 export interface FocusEvent {

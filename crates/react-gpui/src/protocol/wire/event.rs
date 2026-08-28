@@ -465,7 +465,7 @@ struct KeyEventWire(u32, String, Vec<String>, u32);
 #[derive(Debug, Serialize, Deserialize)]
 struct AnimationCompleteWire(u32, u32);
 #[derive(Debug, Serialize, Deserialize)]
-struct PointerEventWire(u32, u32, Vec<String>, u32, u32);
+struct PointerEventWire(u32, u32, Vec<String>, u32, u32, f32, f32);
 #[derive(Debug, Serialize, Deserialize)]
 struct ScrollEventWire(u32, u32, f32, f32, f32, f32, Vec<String>);
 #[derive(Debug, Serialize, Deserialize)]
@@ -568,6 +568,10 @@ impl TryFrom<PointerEventWire> for PointerEvent {
             })
             || !matches!(event.3, EVENT_POINTER_DOWN | EVENT_POINTER_UP)
             || event.4 == 0
+            || !event.5.is_finite()
+            || event.5 < 0.0
+            || !event.6.is_finite()
+            || event.6 < 0.0
         {
             return Err(ProtocolError::InvalidEventPayload);
         }
@@ -576,10 +580,11 @@ impl TryFrom<PointerEventWire> for PointerEvent {
             modifiers: event.2,
             action: event.3,
             click_count: event.4,
+            x: event.5,
+            y: event.6,
         })
     }
 }
-
 impl From<&PointerEvent> for PointerEventWire {
     fn from(event: &PointerEvent) -> Self {
         Self(
@@ -588,6 +593,8 @@ impl From<&PointerEvent> for PointerEventWire {
             event.modifiers.clone(),
             event.action,
             event.click_count.max(1),
+            event.x,
+            event.y,
         )
     }
 }

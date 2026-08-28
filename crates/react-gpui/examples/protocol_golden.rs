@@ -541,6 +541,8 @@ fn main() {
             vec!["cmd".into()],
             EVENT_POINTER_UP,
             2,
+            310.5,
+            220.25,
         )
         .encode()
         .unwrap(),
@@ -561,6 +563,8 @@ fn main() {
             vec!["cmd".into()],
             EVENT_POINTER_UP,
             0,
+            0.0,
+            0.0,
         )
         .encode()
         .unwrap(),

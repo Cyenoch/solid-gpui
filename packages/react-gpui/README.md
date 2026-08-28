@@ -512,9 +512,11 @@ Keyboard events are semantic notifications and cannot be synchronously canceled.
 ## Pointer and focus
 
 `View` and `Pressable` accept `onPointerDown`, `onPointerUp`, and
-`onHoverChange`. Pointer events are semantic notifications with button codes
-left/right/middle/back/forward, the compact modifier names above, and a
-`clickCount`; Pressable's existing `onPress` notification remains unchanged.
+`onHoverChange`. Pointer events are semantic press/release notifications with
+button codes left/right/middle/back/forward, the compact modifier names above,
+`clickCount`, and `x`/`y` logical window-pixel coordinates. Coordinates are
+available on both down and up and are not emitted for hover/move events in this
+round. Pressable's existing `onPress` notification remains unchanged.
 Hover uses a null wire payload and alternates the `onHoverChange` boolean on
 ordered enter/leave edges from GPUI's `.on_hover` callback.
 
@@ -959,30 +961,30 @@ boundary: an open overlay/menu can therefore remain part of the same window's
 tab graph, and applications should provide Escape handling when they need to
 close it. The dropdown example above demonstrates that boundary explicitly.
 
-### Dropdown with outside dismissal
+### Cursor-anchored context menu
 
-Keep the trigger and menu under a relative anchor. The overlay listener sees
-capture-phase pointer downs outside both the overlay and its direct anchor
-subtree; the trigger and enabled items can close on Escape:
+Store the right-press coordinates from `onPointerDown` and use them as the
+overlay's logical `left`/`top` offsets. The overlay's outside callback closes
+it without a scrim:
 
 ```tsx
-<View style={{ position: "relative" }}>
-  <Pressable focusable onPress={() => setOpen((open) => !open)} onKeyDown={closeOnEscape}>
-    <Text>{open ? "Close actions" : "Open actions"}</Text>
-  </Pressable>
-  {open ? (
-    <View style={{ position: "overlay", left: 0, top: 42 }} onPointerDownOutside={() => setOpen(false)}>
-      <Pressable focusable onKeyDown={closeOnEscape} onPress={() => setOpen(false)}>
-        <Text>Refresh data</Text>
-      </Pressable>
-      <Pressable disabled>
-        <Text>Export data (disabled)</Text>
-      </Pressable>
-    </View>
-  ) : null}
-</View>
+const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+return (
+  <View onPointerDown={(event) => event.button === "right" && setMenu({ x: event.x, y: event.y })}>
+    <Text>Right-click anywhere</Text>
+    {menu ? (
+      <View style={{ position: "overlay", left: menu.x, top: menu.y }} onPointerDownOutside={() => setMenu(null)}>
+        <Pressable onPress={() => setMenu(null)}>
+          <Text>Copy</Text>
+        </Pressable>
+      </View>
+    ) : null}
+  </View>
+);
 ```
 
+Coordinates are logical window pixels and are supplied for press/release only;
+hover/move positions are intentionally not part of this event surface.
 See [`dropdown.tsx`](examples/dropdown.tsx) for the complete styled entry.
 
 ### Drag-reorder list

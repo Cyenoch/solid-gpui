@@ -166,6 +166,23 @@ describe("@react-gpui/dev headless renderer", () => {
     expect(pressed).toEqual(["pressed"]);
     result.unmount();
   });
+  it("pointer injects coordinates through the real dispatch path", () => {
+    const received: Array<unknown> = [];
+    const app = renderTestApp(
+      <Pressable
+        accessibilityLabel="pointer"
+        onPointerDown={(event) => received.push([event.type, event.x, event.y])}
+        onPointerUp={(event) => received.push([event.type, event.x, event.y])}
+      />,
+    );
+    app.pointer("pointer", { action: "down", button: "right", x: 45.5, y: 62 });
+    app.pointer("pointer", { action: "up", button: "right", x: 45.5, y: 62 });
+    expect(received).toEqual([
+      ["pointerdown", 45.5, 62],
+      ["pointerup", 45.5, 62],
+    ]);
+    app.unmount();
+  });
 
   it("does not swallow unbounded render errors", () => {
     expect(() => render(<View style={{ width: -1 }} />)).toThrow("width");

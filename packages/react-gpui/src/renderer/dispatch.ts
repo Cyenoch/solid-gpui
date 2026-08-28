@@ -297,6 +297,8 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
       button: POINTER_BUTTON_NAMES[pointerPayload[1]],
       modifiers: [...pointerPayload[2]],
       clickCount: pointerPayload[4],
+      x: pointerPayload[5],
+      y: pointerPayload[6],
       target: node,
     });
     return;

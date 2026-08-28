@@ -320,7 +320,7 @@ export type TextInputEventPayload = readonly [1, string, number, number, number 
 export type VisibleRangePayload = readonly [3, number, number];
 export type AnimationCompletePayload = readonly [4, number];
 export type KeyEventPayload = readonly [5, string, readonly string[], 1 | 2 | 3];
-export type PointerEventPayload = readonly [6, 1 | 2 | 3 | 4 | 5, readonly string[], 1 | 2, number];
+export type PointerEventPayload = readonly [6, 1 | 2 | 3 | 4 | 5, readonly string[], 1 | 2, number, number, number];
 export type ScrollEventPayload = readonly [7, 1 | 2, number, number, number, number, readonly string[]];
 export type SubmitEventPayload = string;
 export type WindowResizeEventPayload = readonly [number, number, number];
@@ -721,7 +721,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   }
   if (!Array.isArray(payload)) return false;
   if (eventType === EVENT_POINTER) {
-    if (payload.length !== 5 || payload[0] !== 6) return false;
+    if (payload.length !== 7 || payload[0] !== 6) return false;
     const pointerButtons: readonly number[] = [
       POINTER_BUTTON_LEFT,
       POINTER_BUTTON_RIGHT,
@@ -742,7 +742,15 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
     } catch {
       return false;
     }
-    return payload[4] > 0;
+    return (
+      payload[4] > 0 &&
+      typeof payload[5] === "number" &&
+      Number.isFinite(payload[5]) &&
+      payload[5] >= 0 &&
+      typeof payload[6] === "number" &&
+      Number.isFinite(payload[6]) &&
+      payload[6] >= 0
+    );
   }
   if (eventType === EVENT_SCROLL) {
     if (
