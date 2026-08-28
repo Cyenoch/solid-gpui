@@ -169,6 +169,7 @@ const rows = [
   ]),
   row("ts-event-command-result-menus", "event", [3, 2, 7, 3, 42, 23, 1, 0, 6, [2, 121, 21, 1, true, null, null]]),
   row("ts-event-text-unicode", "event", [3, 2, 7, 3, 42, 2, 5, 9, 2, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
+  row("ts-event-selection", "event", [3, 2, 7, 3, 42, 28, 5, 9, 3, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
   row("ts-event-key", "event", [3, 2, 7, 3, 42, 3, 4, 7, 9, [5, "Enter", ["ctrl", "shift"], 2]]),
   row("ts-event-pointer", "event", [3, 2, 7, 3, 42, 4, 4, 7, 10, [6, 5, ["cmd"], 2, 2, 310.5, 220.25]]),
   row("ts-event-pointer-move", "event", [3, 2, 7, 3, 42, 27, 4, 7, 10, [10, 310.5, 220.25, ["cmd", "shift"]]]),

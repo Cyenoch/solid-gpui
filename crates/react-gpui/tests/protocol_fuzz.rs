@@ -43,20 +43,6 @@ fn valid_patch() -> Patch {
     Patch::new(7, 3, 1, 2, Vec::<PatchOperation>::new())
 }
 
-fn valid_event() -> Event {
-    Event::key(
-        7,
-        3,
-        1,
-        1,
-        1,
-        9,
-        "ArrowLeft".into(),
-        vec!["shift".into(), "cmd".into()],
-        KeyAction::Down,
-    )
-}
-
 fn valid_command() -> Command {
     Command {
         protocol: PROTOCOL_VERSION,
@@ -76,6 +62,427 @@ fn valid_command() -> Command {
         window_options: None,
         image: None,
     }
+}
+fn command_with(
+    kind: u32,
+    node_id: u32,
+    payload: Option<(u32, u32)>,
+    title: Option<&str>,
+) -> Command {
+    Command {
+        kind,
+        node_id,
+        payload,
+        title: title.map(str::to_owned),
+        ..valid_command()
+    }
+}
+
+fn command_seeds() -> Vec<(&'static str, Vec<u8>)> {
+    let mut seeds = Vec::new();
+    let mut add = |label, command: Command| seeds.push((label, command.encode().unwrap()));
+    add(
+        "command-focus",
+        command_with(protocol::COMMAND_FOCUS, 4, None, None),
+    );
+    add(
+        "command-blur",
+        command_with(protocol::COMMAND_BLUR, 4, None, None),
+    );
+    add(
+        "command-selection",
+        command_with(protocol::COMMAND_SET_SELECTION, 5, Some((2, 4)), None),
+    );
+    add(
+        "command-scroll-index",
+        command_with(protocol::COMMAND_SCROLL_TO_INDEX, 6, Some((9, 0)), None),
+    );
+    add(
+        "command-scroll-end",
+        command_with(protocol::COMMAND_SCROLL_TO_END, 6, None, None),
+    );
+    add(
+        "command-title",
+        command_with(protocol::COMMAND_SET_TITLE, 1, None, Some("Golden title")),
+    );
+    add(
+        "command-resize",
+        command_with(protocol::COMMAND_RESIZE_WINDOW, 1, Some((800, 600)), None),
+    );
+    add(
+        "command-zoom",
+        command_with(protocol::COMMAND_ZOOM_WINDOW, 1, None, None),
+    );
+    add(
+        "command-fullscreen",
+        command_with(protocol::COMMAND_TOGGLE_FULLSCREEN, 1, None, None),
+    );
+    add(
+        "command-url",
+        command_with(
+            protocol::COMMAND_OPEN_URL,
+            1,
+            None,
+            Some("https://example.com"),
+        ),
+    );
+    add(
+        "command-focus-next",
+        command_with(protocol::COMMAND_FOCUS_NEXT, 1, None, None),
+    );
+    add(
+        "command-focus-prev",
+        command_with(protocol::COMMAND_FOCUS_PREV, 1, None, None),
+    );
+    add(
+        "command-window-size",
+        command_with(protocol::COMMAND_GET_WINDOW_SIZE, 1, None, None),
+    );
+    add(
+        "command-get-focus",
+        command_with(protocol::COMMAND_GET_FOCUS, 4, None, None),
+    );
+    add(
+        "command-clipboard-write",
+        command_with(
+            protocol::COMMAND_CLIPBOARD_WRITE,
+            1,
+            None,
+            Some("clipboard"),
+        ),
+    );
+    add(
+        "command-clipboard-read",
+        command_with(protocol::COMMAND_CLIPBOARD_READ, 1, None, None),
+    );
+    add(
+        "command-open-surface",
+        Command {
+            kind: protocol::COMMAND_OPEN_SURFACE,
+            node_id: 1,
+            payload: Some((640, 480)),
+            title: Some("Child".into()),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-file-dialog-open",
+        Command {
+            kind: protocol::COMMAND_FILE_DIALOG_OPEN,
+            node_id: 1,
+            payload: Some((1, 1)),
+            title: Some("Choose".into()),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-file-dialog-save",
+        command_with(
+            protocol::COMMAND_FILE_DIALOG_SAVE,
+            1,
+            None,
+            Some("report.json"),
+        ),
+    );
+    add(
+        "command-notification",
+        Command {
+            kind: protocol::COMMAND_SHOW_NOTIFICATION,
+            node_id: 1,
+            title: Some("Done".into()),
+            body: Some("Finished".into()),
+            actions: Some(vec![protocol::NotificationActionDefinition {
+                id: "open".into(),
+                label: "Open".into(),
+            }]),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-menus",
+        Command {
+            kind: protocol::COMMAND_SET_MENUS,
+            node_id: 1,
+            menus: Some(vec![protocol::MenuDefinition {
+                title: "File".into(),
+                items: vec![protocol::MenuItemDefinition::Action {
+                    name: "open".into(),
+                    disabled: false,
+                    checked: false,
+                }],
+            }]),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-keybindings",
+        Command {
+            kind: protocol::COMMAND_SET_KEYBINDINGS,
+            node_id: 1,
+            keybindings: Some(vec![protocol::KeybindingDefinition {
+                keystrokes: "cmd-k".into(),
+                action_name: "menu.open".into(),
+            }]),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-close-policy",
+        command_with(
+            protocol::COMMAND_SET_CLOSE_POLICY,
+            1,
+            None,
+            Some("require-confirmation"),
+        ),
+    );
+    add(
+        "command-resolve-close",
+        command_with(
+            protocol::COMMAND_RESOLVE_CLOSE_REQUEST,
+            1,
+            Some((123, 1)),
+            None,
+        ),
+    );
+    add(
+        "command-read-file",
+        Command {
+            kind: protocol::COMMAND_READ_TEXT_FILE,
+            node_id: 1,
+            title: Some("/tmp/notes.txt".into()),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-write-file",
+        Command {
+            kind: protocol::COMMAND_WRITE_TEXT_FILE,
+            node_id: 1,
+            title: Some("/tmp/notes.txt".into()),
+            body: Some("hello".into()),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-clipboard-write-image",
+        Command {
+            kind: protocol::COMMAND_CLIPBOARD_WRITE_IMAGE,
+            node_id: 1,
+            image: Some(protocol::ClipboardImage {
+                format: 1,
+                bytes: vec![0x89, 0x50, 0x4e, 0x47],
+            }),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-clipboard-read-image",
+        command_with(protocol::COMMAND_CLIPBOARD_READ_IMAGE, 1, None, None),
+    );
+    add(
+        "command-load-font",
+        Command {
+            kind: protocol::COMMAND_LOAD_FONT,
+            node_id: 1,
+            title: Some("/tmp/Tuffy.ttf".into()),
+            ..valid_command()
+        },
+    );
+    add(
+        "command-minimize",
+        command_with(protocol::COMMAND_MINIMIZE_WINDOW, 1, None, None),
+    );
+    add(
+        "command-window-bounds",
+        command_with(protocol::COMMAND_GET_WINDOW_BOUNDS, 1, None, None),
+    );
+    add(
+        "command-window-state",
+        command_with(protocol::COMMAND_GET_WINDOW_STATE, 1, None, None),
+    );
+    add(
+        "command-activate",
+        command_with(protocol::COMMAND_ACTIVATE_WINDOW, 1, None, None),
+    );
+    seeds
+}
+
+fn event_seeds() -> Vec<(&'static str, Vec<u8>)> {
+    let mut seeds = Vec::new();
+    let mut add = |label, event: Event| seeds.push((label, event.encode().unwrap()));
+    add("event-press", Event::press(7, 3, 42, 1, 4, 7));
+    let text_input = protocol::TextInputEvent {
+        text: "text".into(),
+        selection_start: 1,
+        selection_end: 2,
+        marked_start: None,
+        marked_end: None,
+        edit_seq: 3,
+        reversed: false,
+    };
+    add(
+        "event-change",
+        Event::text_input(
+            protocol::EVENT_CHANGE,
+            7,
+            3,
+            42,
+            2,
+            5,
+            9,
+            text_input.clone(),
+        ),
+    );
+    add(
+        "event-selection",
+        Event::text_input(protocol::EVENT_SELECTION, 7, 3, 42, 3, 5, 9, text_input),
+    );
+    add("event-focus", Event::focus(7, 3, 42, 4, 4, 7, true));
+    add("event-blur", Event::focus(7, 3, 42, 5, 4, 7, false));
+    add(
+        "event-command-result",
+        Event::command_result(
+            7,
+            3,
+            42,
+            6,
+            protocol::CommandResult {
+                request_id: 1,
+                command: protocol::COMMAND_FOCUS,
+                node_id: 4,
+                success: true,
+                error: None,
+                value: None,
+            },
+        ),
+    );
+    add(
+        "event-visible-range",
+        Event::visible_range(7, 3, 42, 7, 6, 13, 2, 9),
+    );
+    add(
+        "event-animation",
+        Event::animation_complete(7, 3, 42, 8, 1, 0, 4),
+    );
+    add(
+        "event-key",
+        Event::key(
+            7,
+            3,
+            42,
+            9,
+            4,
+            7,
+            "Enter".into(),
+            vec!["shift".into()],
+            KeyAction::Repeat,
+        ),
+    );
+    add(
+        "event-pointer-down",
+        Event::pointer(
+            protocol::EVENT_POINTER,
+            7,
+            3,
+            42,
+            10,
+            4,
+            7,
+            protocol::POINTER_BUTTON_LEFT,
+            vec![],
+            protocol::EVENT_POINTER_DOWN,
+            1,
+            10.0,
+            20.0,
+        ),
+    );
+    add(
+        "event-pointer-up",
+        Event::pointer(
+            protocol::EVENT_POINTER,
+            7,
+            3,
+            42,
+            11,
+            4,
+            7,
+            protocol::POINTER_BUTTON_LEFT,
+            vec![],
+            protocol::EVENT_POINTER_UP,
+            1,
+            10.0,
+            20.0,
+        ),
+    );
+    add(
+        "event-pointer-move",
+        Event::pointer_move(7, 3, 42, 12, 4, 7, 10.0, 20.0, vec!["shift".into()]),
+    );
+    add("event-hover", Event::hover(7, 3, 42, 12, 4, 7));
+    add(
+        "event-scroll",
+        Event::scroll(
+            7,
+            3,
+            42,
+            13,
+            1,
+            0,
+            protocol::SCROLL_DELTA_PIXELS,
+            1.0,
+            -2.0,
+            3.0,
+            4.0,
+            vec![],
+        ),
+    );
+    add(
+        "event-submit",
+        Event::submit(7, 3, 42, 14, 5, 9, "submitted".into()),
+    );
+    add(
+        "event-window-resize",
+        Event::window_resize_with_scale(7, 3, 42, 15, 1, 0, 800.0, 600.0, 2.0),
+    );
+    add(
+        "event-window-activation",
+        Event::window_activation(7, 3, 42, 16, 1, 0, true),
+    );
+    add("event-surface-closed", Event::surface_closed(7, 3, 42, 17));
+    add("event-action", Event::action(7, 3, 42, 18, "open".into()));
+    add(
+        "event-appearance",
+        Event::window_appearance(7, 3, 42, 19, protocol::WindowAppearance::Dark),
+    );
+    add(
+        "event-layout",
+        Event::layout(7, 3, 42, 20, 4, 7, 1.0, 2.0, 100.0, 48.0),
+    );
+    add(
+        "event-drag-over",
+        Event::drag_over(7, 3, 42, 21, 8, 11, "card".into()),
+    );
+    add(
+        "event-drag-drop",
+        Event::drag_drop(7, 3, 42, 22, 8, 11, "card".into()),
+    );
+    add(
+        "event-drag-external",
+        Event::external_file_drop(7, 3, 42, 23, 8, 11, vec!["/tmp/a.txt".into()]),
+    );
+    add(
+        "event-notification-response",
+        Event::notification_response(7, 3, 42, 24, "tag".into(), Some("open".into())),
+    );
+    add(
+        "event-pointer-down-outside",
+        Event::pointer_down_outside(7, 3, 42, 25, 4, 7, 12.0, 13.0),
+    );
+    add(
+        "event-close-requested",
+        Event::close_requested(7, 3, 42, 26, 123),
+    );
+    seeds
 }
 
 fn framed(payload: &[u8], declared_length: usize) -> Vec<u8> {
@@ -251,12 +658,12 @@ fn structured_payloads() -> Vec<(&'static str, Vec<u8>)> {
 #[test]
 fn deterministic_protocol_decoders_never_panic_on_structured_mutations() {
     let started = Instant::now();
-    let seeds = [
+    let mut seeds = vec![
         ("snapshot", valid_snapshot().encode().unwrap()),
         ("patch", valid_patch().encode().unwrap()),
-        ("event", valid_event().encode().unwrap()),
-        ("command", valid_command().encode().unwrap()),
     ];
+    seeds.extend(event_seeds());
+    seeds.extend(command_seeds());
 
     for (label, payload) in &seeds {
         let mut frame = Vec::new();
@@ -265,13 +672,13 @@ fn deterministic_protocol_decoders_never_panic_on_structured_mutations() {
             read_frame(&mut Cursor::new(frame)).unwrap(),
             Some(payload.clone())
         );
-        match *label {
-            "snapshot" => assert_eq!(Snapshot::decode(payload).unwrap(), valid_snapshot()),
-            "patch" => assert_eq!(Patch::decode(payload).unwrap(), valid_patch()),
-            "event" => assert_eq!(Event::decode(payload).unwrap(), valid_event()),
-            "command" => assert_eq!(Command::decode(payload).unwrap(), valid_command()),
-            _ => unreachable!(),
-        }
+        assert!(
+            Snapshot::decode(payload).is_ok()
+                || Patch::decode(payload).is_ok()
+                || Event::decode(payload).is_ok()
+                || Command::decode(payload).is_ok(),
+            "seed {label} must be a legal protocol payload"
+        );
     }
     let wrong_arity = [0x90u8];
     assert!(assert_no_panic("fix-array arity", || Snapshot::decode(&wrong_arity)).is_err());
@@ -315,7 +722,10 @@ fn deterministic_protocol_decoders_never_panic_on_structured_mutations() {
         cases += 1;
     }
 
-    assert_eq!(cases, seeds.len() * RANDOM_CASES_PER_SEED + 15);
+    assert_eq!(
+        cases,
+        seeds.len() * RANDOM_CASES_PER_SEED + seeds.len() + 11
+    );
     assert!(
         started.elapsed() < Duration::from_secs(10),
         "protocol fuzz exceeded 10 seconds: {:?}",

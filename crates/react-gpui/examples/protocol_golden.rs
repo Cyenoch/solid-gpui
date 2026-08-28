@@ -15,14 +15,14 @@ use react_gpui::{
     COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
     COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE,
     COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult, CommandValue, DragProperties,
-    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties, ImageProperties,
-    KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
-    PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style,
-    TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
-    TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER,
-    UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties, WindowAppearance,
-    WindowOpenOptions,
+    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, EVENT_SELECTION, Easing, Event, HostProperties,
+    ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node,
+    NotificationActionDefinition, PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS,
+    Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
+    TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY,
+    UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
+    WindowAppearance, WindowOpenOptions,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -496,6 +496,31 @@ fn main() {
             3,
             42,
             2,
+            5,
+            9,
+            TextInputEvent {
+                text: "hé😀".into(),
+                selection_start: 2,
+                selection_end: 4,
+                marked_start: Some(2),
+                marked_end: Some(3),
+                edit_seq: 8,
+                reversed: true,
+            },
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-selection",
+        "event",
+        Event::text_input(
+            EVENT_SELECTION,
+            7,
+            3,
+            42,
+            28,
             5,
             9,
             TextInputEvent {
@@ -1094,6 +1119,19 @@ fn main() {
         text_file_command(COMMAND_READ_TEXT_FILE, 125, "/tmp/notes.txt", None)
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-write-text-file",
+        "command",
+        text_file_command(
+            COMMAND_WRITE_TEXT_FILE,
+            126,
+            "/tmp/notes.txt",
+            Some("hello π"),
+        )
+        .encode()
+        .unwrap(),
     );
     emit(
         &mut rows,
