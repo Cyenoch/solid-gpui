@@ -146,7 +146,12 @@ fn process_event_writer_kills_closed_stdin_child_for_reader_eof() {
             .send(reader_runtime.recv_commit())
             .expect("send reader result");
     });
-    let result = match receiver.recv_timeout(Duration::from_secs(1)) {
+    if !runtime.wait_for_event_writer_failure(Duration::from_secs(2)) {
+        let _ = runtime.shutdown();
+        let _ = reader.join();
+        panic!("writer failure did not complete before deadline");
+    }
+    let result = match receiver.recv_timeout(Duration::from_secs(2)) {
         Ok(result) => result,
         Err(error) => {
             let _ = runtime.shutdown();

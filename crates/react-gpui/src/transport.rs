@@ -4,6 +4,8 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
+#[cfg(test)]
+use std::time::{Duration, Instant};
 
 use crate::protocol::{Event, MAX_FRAME_LENGTH, ProtocolError, read_frame, write_frame};
 pub use crate::protocol_tap::ProtocolTap;
@@ -225,6 +227,8 @@ impl EventQueue {
 struct EventWriter {
     queue: Arc<EventQueue>,
     join: Mutex<Option<JoinHandle<()>>>,
+    #[cfg(test)]
+    completion: Arc<(Mutex<bool>, Condvar)>,
 }
 
 impl EventWriter {
@@ -236,6 +240,10 @@ impl EventWriter {
         let queue = EventQueue::new();
         let queue_for_thread = Arc::clone(&queue);
         let on_failure_for_thread = Arc::clone(&on_failure);
+        #[cfg(test)]
+        let completion = Arc::new((Mutex::new(false), Condvar::new()));
+        #[cfg(test)]
+        let completion_for_thread = Arc::clone(&completion);
         let join = thread::Builder::new()
             .name("react-gpui-event-writer".to_owned())
             .spawn(move || {
@@ -246,12 +254,16 @@ impl EventWriter {
                         Err(error) => {
                             queue_for_thread.fail(error);
                             on_failure_for_thread();
+                            #[cfg(test)]
+                            mark_writer_failure_complete(&completion_for_thread);
                             break;
                         }
                     };
                     if let Err(error) = write_frame(&mut writer, &payload) {
                         queue_for_thread.fail(error.to_string());
                         on_failure_for_thread();
+                        #[cfg(test)]
+                        mark_writer_failure_complete(&completion_for_thread);
                         break;
                     }
                     tap.record_outbound_payload(&payload);
@@ -260,6 +272,8 @@ impl EventWriter {
         Ok(Self {
             queue,
             join: Mutex::new(Some(join)),
+            #[cfg(test)]
+            completion,
         })
     }
 
@@ -269,6 +283,25 @@ impl EventWriter {
 
     fn failure(&self) -> Option<String> {
         self.queue.failure()
+    }
+
+    #[cfg(test)]
+    fn wait_for_failure(&self, timeout: Duration) -> Option<String> {
+        let (lock, changed) = &*self.completion;
+        let mut complete = lock.lock().ok()?;
+        let started = Instant::now();
+        while !*complete {
+            let remaining = timeout.checked_sub(started.elapsed())?;
+            if remaining.is_zero() {
+                return None;
+            }
+            let (next, result) = changed.wait_timeout(complete, remaining).ok()?;
+            complete = next;
+            if result.timed_out() && !*complete {
+                return None;
+            }
+        }
+        self.failure()
     }
 
     fn close(&self) {
@@ -281,6 +314,15 @@ impl EventWriter {
         {
             let _ = join.join();
         }
+    }
+}
+
+#[cfg(test)]
+fn mark_writer_failure_complete(completion: &Arc<(Mutex<bool>, Condvar)>) {
+    let (lock, changed) = &**completion;
+    if let Ok(mut complete) = lock.lock() {
+        *complete = true;
+        changed.notify_all();
     }
 }
 
@@ -461,6 +503,13 @@ impl ProcessAdapter {
             events,
             tap,
         }))
+    }
+    /// Wait for the writer's retained failure. The writer records this only
+    /// after its child-stop callback has completed, so this is a completion
+    /// signal for the writer/child shutdown path rather than a timing guess.
+    #[cfg(test)]
+    pub(crate) fn wait_for_event_writer_failure(&self, timeout: Duration) -> bool {
+        self.events.wait_for_failure(timeout).is_some()
     }
 
     pub fn try_wait(&self) -> io::Result<Option<std::process::ExitStatus>> {
