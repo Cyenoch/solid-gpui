@@ -1155,6 +1155,7 @@ mod input_tests {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             }],
         );
         let patch_payload = patch.encode().expect("encode animation patch");
@@ -1295,6 +1296,7 @@ mod input_tests {
                         focusable: false,
                         selectable: false,
                         tooltip: None,
+                        accepts_pointer_move: false,
                     },
                     PatchOperation::Create(Node::new(3, 1, 1, KIND_VIEW)),
                     PatchOperation::Move {
@@ -1333,6 +1335,7 @@ mod input_tests {
                     focusable: false,
                     selectable: false,
                     tooltip: None,
+                    accepts_pointer_move: false,
                 }],
             ))
             .expect("estimated size patch");
@@ -1404,6 +1407,7 @@ mod input_tests {
                     focusable: false,
                     selectable: false,
                     tooltip: None,
+                    accepts_pointer_move: false,
                 }],
             ))
             .expect("grow VirtualList");
@@ -1439,6 +1443,7 @@ mod input_tests {
                     focusable: false,
                     selectable: false,
                     tooltip: None,
+                    accepts_pointer_move: false,
                 }],
             ))
             .expect("shrink VirtualList");
@@ -1470,6 +1475,7 @@ mod input_tests {
                     focusable: false,
                     selectable: false,
                     tooltip: None,
+                    accepts_pointer_move: false,
                 }],
             ))
             .expect("restore VirtualList");
@@ -1634,6 +1640,7 @@ mod input_tests {
                     focusable: false,
                     selectable: false,
                     tooltip: None,
+                    accepts_pointer_move: false,
                 },
             ],
         );
@@ -2274,6 +2281,7 @@ mod input_tests {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             }],
         );
         let text_payload = text_patch.encode().expect("encode text update");

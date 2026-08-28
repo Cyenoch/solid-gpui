@@ -24,13 +24,30 @@ fn event(kind: &str, sequence: u32) -> Event {
         "drag-over" => Event::drag_over(7, 3, 1, sequence, 2, 11, "card:42".to_owned()),
         "visible-range" => Event::visible_range(7, 3, 1, sequence, 2, 11, 12, 20),
         "layout" => Event::layout(7, 3, 1, sequence, 2, 11, 12.5, -3.25, 100.0, 48.75),
+        "pointer-move" => Event::pointer_move(
+            7,
+            3,
+            1,
+            sequence,
+            2,
+            11,
+            320.0,
+            240.0,
+            vec!["shift".to_owned()],
+        ),
         _ => panic!("unknown event kind"),
     }
 }
 
 #[test]
 fn native_event_frame_sizes_and_encode_budget() {
-    for kind in ["scroll", "drag-over", "visible-range", "layout"] {
+    for kind in [
+        "scroll",
+        "drag-over",
+        "visible-range",
+        "layout",
+        "pointer-move",
+    ] {
         let sample = event(kind, 1).encode().expect("encode sample event");
         let started = Instant::now();
         let mut bytes = 0usize;

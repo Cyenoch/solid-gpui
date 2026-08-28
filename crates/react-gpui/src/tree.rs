@@ -7,8 +7,8 @@ use crate::protocol::{
     AccessibilityProperties, HostProperties, Node, PATCH_MESSAGE, PROTOCOL_VERSION, Patch,
     PatchOperation, SNAPSHOT_MESSAGE, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, UPDATE_ACCESSIBILITY,
-    UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE,
-    UPDATE_TEXT, UPDATE_TOOLTIP,
+    UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_POINTER_MOVE, UPDATE_PROPERTIES, UPDATE_SELECTABLE,
+    UPDATE_STYLE, UPDATE_TEXT, UPDATE_TOOLTIP,
 };
 mod validation;
 use validation::*;
@@ -123,6 +123,7 @@ pub struct StoredNode {
     pub focusable: bool,
     pub selectable: bool,
     pub tooltip: Option<Arc<str>>,
+    pub accepts_pointer_move: bool,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -282,6 +283,7 @@ impl NodeStore {
                     focusable: node.focusable,
                     selectable: node.selectable,
                     tooltip: node.tooltip.map(Arc::<str>::from),
+                    accepts_pointer_move: node.accepts_pointer_move,
                     accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -354,6 +356,7 @@ impl NodeStore {
                     focusable,
                     selectable,
                     tooltip,
+                    accepts_pointer_move,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -366,6 +369,7 @@ impl NodeStore {
                     *focusable,
                     *selectable,
                     tooltip.clone(),
+                    *accepts_pointer_move,
                     undo,
                     stats,
                     &mut affected_parents,
@@ -413,6 +417,14 @@ impl NodeStore {
                 operation,
                 node_id: node.parent_id,
             })?;
+        if node.accepts_pointer_move
+            && (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE || node.listener_id == 0)
+        {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "pointer move capability requires View or Pressable listener",
+            });
+        }
         validate_node_shape(node).map_err(|_| TreeError::InvalidPatchOperation {
             operation,
             reason: "invalid created node",
@@ -455,6 +467,7 @@ impl NodeStore {
             focusable: node.focusable,
             selectable: node.selectable,
             tooltip: node.tooltip.clone().map(Arc::<str>::from),
+            accepts_pointer_move: node.accepts_pointer_move,
             accessibility_id: Arc::<str>::from(format!("react-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -471,7 +484,6 @@ impl NodeStore {
         Ok(())
     }
 
-    // Patch fields stay positional to mirror protocol validation; bookkeeping
     #[allow(clippy::too_many_arguments)]
     fn apply_update(
         &mut self,
@@ -486,6 +498,7 @@ impl NodeStore {
         focusable: bool,
         selectable: bool,
         tooltip: Option<String>,
+        accepts_pointer_move: bool,
         undo: &mut Vec<Undo>,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
@@ -499,7 +512,8 @@ impl NodeStore {
                     | UPDATE_ACCESSIBILITY
                     | UPDATE_FOCUSABLE
                     | UPDATE_SELECTABLE
-                    | UPDATE_TOOLTIP)
+                    | UPDATE_TOOLTIP
+                    | UPDATE_POINTER_MOVE)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -588,6 +602,15 @@ impl NodeStore {
                 reason: "tooltip updates require View or Pressable",
             });
         }
+        if mask & UPDATE_POINTER_MOVE != 0
+            && (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE
+                || accepts_pointer_move && resulting_listener == 0)
+        {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "pointer move capability requires View or Pressable listener",
+            });
+        }
         if mask & UPDATE_TOOLTIP != 0
             && tooltip.as_ref().is_some_and(|value| {
                 value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
@@ -623,6 +646,9 @@ impl NodeStore {
         }
         if mask & UPDATE_TOOLTIP != 0 {
             target.tooltip = tooltip.map(Arc::<str>::from);
+        }
+        if mask & UPDATE_POINTER_MOVE != 0 {
+            target.accepts_pointer_move = accepts_pointer_move;
         }
         if mask & UPDATE_ACCESSIBILITY != 0 {
             target.accessibility = accessibility;

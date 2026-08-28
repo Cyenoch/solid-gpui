@@ -124,6 +124,7 @@ fn build_patch() -> Patch {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         });
     }
     for offset in 0..300u32 {

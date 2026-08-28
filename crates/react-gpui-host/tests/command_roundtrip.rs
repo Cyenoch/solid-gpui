@@ -24,6 +24,12 @@ fn text_file_commands_round_trip_real_utf8_files_asynchronously() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::text_file_command_roundtrip(&mut cx);
 }
+
+#[test]
+fn load_font_registers_family_and_rasterizes_glyph() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::font_command_roundtrip(&mut cx);
+}
 #[test]
 fn keybinding_commands_register_replace_and_route_actions_headlessly() {
     let mut cx = gpui::TestAppContext::single();

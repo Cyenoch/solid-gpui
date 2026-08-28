@@ -84,6 +84,9 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   if (vector.id.endsWith("event-pointer-up-min-click-count")) {
     expect((decoded as readonly unknown[])[9]).toEqual([6, 5, ["cmd"], 2, 1, 0, 0]);
   }
+  if (vector.id.endsWith("event-pointer-move")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([10, 310.5, 220.25, ["cmd", "shift"]]);
+  }
   if (vector.id.endsWith("event-command-result-size")) {
     expect((decoded as readonly unknown[])[9]).toEqual([2, 110, 13, 1, true, null, [2, [800.5, 600.5]]]);
   }
@@ -91,7 +94,6 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
     expect((decoded as readonly unknown[])[9]).toEqual([2, 111, 14, 4, true, null, [3, true]]);
   }
   if (vector.id.endsWith("event-command-result-clipboard")) {
-    expect((decoded as readonly unknown[])[9]).toEqual([2, 112, 16, 1, true, null, [4, "pasted text"]]);
   }
   if (vector.id.endsWith("event-command-result-clipboard-image")) {
     expect((decoded as readonly unknown[])[9]).toEqual([

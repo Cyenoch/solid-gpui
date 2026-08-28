@@ -286,11 +286,22 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
       (node.kind !== "View" && node.kind !== "Pressable") ||
       node.id !== event[6] ||
       node.listenerId !== event[7] ||
-      !Array.isArray(payload) ||
-      payload[0] !== 6
+      !Array.isArray(payload)
     )
       return;
-    const pointerPayload = payload as PointerEventPayload;
+    if (payload[0] === 10) {
+      if (!node.acceptsPointerMove || payload.length !== 4) return;
+      node.pointerMoveCallback?.({
+        type: "pointermove",
+        x: payload[1] as number,
+        y: payload[2] as number,
+        modifiers: [...(payload[3] as readonly string[])],
+        target: node,
+      });
+      return;
+    }
+    if (payload[0] !== 6) return;
+    const pointerPayload = payload as Exclude<PointerEventPayload, readonly [10, number, number, readonly string[]]>;
     const callback = pointerPayload[3] === EVENT_POINTER_DOWN ? node.pointerCallbacks?.down : node.pointerCallbacks?.up;
     callback?.({
       type: pointerPayload[3] === EVENT_POINTER_DOWN ? "pointerdown" : "pointerup",

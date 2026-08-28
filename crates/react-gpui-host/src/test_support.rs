@@ -1,18 +1,18 @@
 use super::*;
-use gpui::{TestAppContext, VisualTestContext};
+use gpui::{SharedString, TestAppContext, TextRun, VisualTestContext, font, px};
 use react_gpui::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
     COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
     COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
-    COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    COMMAND_WRITE_TEXT_FILE, ClipboardImage, EventPayload, HostProperties, InMemoryAdapter,
-    KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
-    MenuAction, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
-    PROTOCOL_VERSION, PatchOperation, TextInputProperties, VirtualListProperties,
-    WindowOpenOptions,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_LOAD_FONT, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
+    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY,
+    COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
+    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, ClipboardImage,
+    EventPayload, HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
+    NotificationActionDefinition, PROTOCOL_VERSION, PatchOperation, TextInputProperties,
+    VirtualListProperties, WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -123,6 +123,18 @@ fn snapshot_for(surface_id: u32) -> Snapshot {
         1,
         vec![Node::new(1, 0, 0, KIND_VIEW), view, input, list],
     )
+}
+fn font_snapshot() -> Snapshot {
+    let mut text = Node::new(2, 1, 0, react_gpui::KIND_TEXT);
+    text.style = Some(react_gpui::Style {
+        font_family: Some("Tuffy".to_owned()),
+        font_size: Some(24.0),
+        color_rgba: Some(0x000000ff),
+        ..react_gpui::Style::default()
+    });
+    let mut raw = Node::new(3, 2, 0, react_gpui::KIND_RAW_TEXT);
+    raw.text = Some("Tuffy A".to_owned());
+    Snapshot::new(1, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), text, raw])
 }
 
 fn window_for(
@@ -1035,6 +1047,7 @@ pub fn pressable_focusable_update_roundtrip(cx: &mut TestAppContext) {
             focusable: true,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     )
     .encode()
@@ -1623,6 +1636,67 @@ pub fn text_file_command_roundtrip(cx: &mut TestAppContext) {
     assert!(!result.success);
     assert_eq!(result.error.as_deref(), Some("path is a directory"));
     let _ = std::fs::remove_dir_all(dir);
+}
+pub fn font_command_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open font test surface");
+    let window = window_for(&registry, cx, 1);
+    let snapshot_payload = font_snapshot().encode().expect("encode font snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot_payload, cx)
+        })
+        .expect("route font snapshot");
+
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tuffy.ttf");
+    let path = fixture
+        .to_str()
+        .expect("font fixture path is UTF-8")
+        .to_owned();
+    let load_command = command(205, COMMAND_LOAD_FONT, 1, None, Some(&path), None, None);
+    let load_payload = load_command.encode().expect("encode font command");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&load_payload, cx))
+        .expect("route font command");
+    cx.run_until_parked();
+    let result = command_result(&take_events(&runtime), 205);
+    assert!(result.success, "font result: {:?}", result.error);
+    assert_eq!(
+        result.value,
+        Some(react_gpui::CommandValue::Text("Tuffy".to_owned()))
+    );
+
+    // Use the public WindowTextSystem shaping path after a retained-tree draw.
+    draw_surface(&registry, cx, 1);
+    // The resulting run/glyph data is the input consumed by GPUI's text painter.
+    let shaped = cx
+        .update_window(window.into(), |_, window, _| {
+            let text = SharedString::from("Tuffy A");
+            window.text_system().shape_line(
+                text.clone(),
+                px(24.0),
+                &[TextRun {
+                    len: text.len(),
+                    font: font("Tuffy"),
+                    color: gpui::black(),
+                    ..TextRun::default()
+                }],
+                None,
+            )
+        })
+        .expect("shape loaded Tuffy text in the rendered window");
+    assert!(shaped.width() > px(0.0), "loaded Tuffy line has no advance");
+    assert!(
+        !shaped.runs.is_empty(),
+        "loaded Tuffy line has no shaped runs"
+    );
+    assert!(
+        shaped.runs.iter().any(|run| !run.glyphs.is_empty()),
+        "loaded Tuffy line has no shaped glyphs"
+    );
 }
 pub fn notification_response_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();

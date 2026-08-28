@@ -80,6 +80,7 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_CLIPBOARD_READ
                         | COMMAND_CLIPBOARD_WRITE_IMAGE
                         | COMMAND_CLIPBOARD_READ_IMAGE
+                        | COMMAND_LOAD_FONT
                         | COMMAND_OPEN_SURFACE
                         | COMMAND_FILE_DIALOG_OPEN
                         | COMMAND_FILE_DIALOG_SAVE
@@ -116,9 +117,12 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
         (EVENT_KEY, Some(EventPayloadWire::Key(value))) => {
             Some(EventPayload::Key(KeyEvent::try_from(value)?))
         }
-        (EVENT_POINTER, Some(EventPayloadWire::Pointer(value))) => {
+        (EVENT_POINTER, Some(EventPayloadWire::Pointer(PointerPayloadWire::Press(value)))) => {
             Some(EventPayload::Pointer(PointerEvent::try_from(value)?))
         }
+        (EVENT_POINTER, Some(EventPayloadWire::Pointer(PointerPayloadWire::Move(value)))) => Some(
+            EventPayload::PointerMove(PointerMoveEvent::try_from(value)?),
+        ),
         (EVENT_SCROLL, Some(EventPayloadWire::Scroll(value))) => {
             Some(EventPayload::Scroll(ScrollEvent::try_from(value)?))
         }
@@ -309,7 +313,7 @@ impl<'de> Visitor<'de> for EventWireVisitor {
                 typed_payload!(AnimationCompleteWire, EventPayloadWire::Animation)
             }
             EVENT_KEY => typed_payload!(KeyEventWire, EventPayloadWire::Key),
-            EVENT_POINTER => typed_payload!(PointerEventWire, EventPayloadWire::Pointer),
+            EVENT_POINTER => typed_payload!(PointerPayloadWire, EventPayloadWire::Pointer),
             EVENT_SCROLL => typed_payload!(ScrollEventWire, EventPayloadWire::Scroll),
             EVENT_WINDOW_RESIZE => {
                 typed_payload!(WindowResizeWire, EventPayloadWire::WindowResize)
@@ -393,7 +397,7 @@ enum EventPayloadWire {
     Visible(VisibleRangeWire),
     Animation(AnimationCompleteWire),
     Key(KeyEventWire),
-    Pointer(PointerEventWire),
+    Pointer(PointerPayloadWire),
     Scroll(ScrollEventWire),
     Submit(String),
     WindowActivation(bool),
@@ -404,6 +408,12 @@ enum EventPayloadWire {
     Drag(DragPayloadWire),
     PointerDownOutside(PointerDownOutsideWire),
     CloseRequested((u32, u32)),
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum PointerPayloadWire {
+    Press(PointerEventWire),
+    Move(PointerMoveEventWire),
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -466,6 +476,8 @@ struct KeyEventWire(u32, String, Vec<String>, u32);
 struct AnimationCompleteWire(u32, u32);
 #[derive(Debug, Serialize, Deserialize)]
 struct PointerEventWire(u32, u32, Vec<String>, u32, u32, f32, f32);
+#[derive(Debug, Serialize, Deserialize)]
+struct PointerMoveEventWire(u32, f32, f32, Vec<String>);
 #[derive(Debug, Serialize, Deserialize)]
 struct ScrollEventWire(u32, u32, f32, f32, f32, f32, Vec<String>);
 #[derive(Debug, Serialize, Deserialize)]
@@ -596,6 +608,36 @@ impl From<&PointerEvent> for PointerEventWire {
             event.x,
             event.y,
         )
+    }
+}
+impl TryFrom<PointerMoveEventWire> for PointerMoveEvent {
+    type Error = ProtocolError;
+
+    fn try_from(event: PointerMoveEventWire) -> Result<Self, Self::Error> {
+        if event.0 != 10
+            || !event.1.is_finite()
+            || event.1 < 0.0
+            || !event.2.is_finite()
+            || event.2 < 0.0
+            || event.3.iter().enumerate().any(|(index, modifier)| {
+                !matches!(
+                    modifier.as_str(),
+                    "cmd" | "ctrl" | "alt" | "shift" | "function"
+                ) || event.3[..index].contains(modifier)
+            })
+        {
+            return Err(ProtocolError::InvalidEventPayload);
+        }
+        Ok(Self {
+            x: event.1,
+            y: event.2,
+            modifiers: event.3,
+        })
+    }
+}
+impl From<&PointerMoveEvent> for PointerMoveEventWire {
+    fn from(event: &PointerMoveEvent) -> Self {
+        Self(10, event.x, event.y, event.modifiers.clone())
     }
 }
 impl TryFrom<ScrollEventWire> for ScrollEvent {
@@ -751,7 +793,12 @@ impl From<&EventPayload> for EventPayloadWire {
                 Self::Animation(AnimationCompleteWire(4, *generation))
             }
             EventPayload::Key(event) => Self::Key(KeyEventWire::from(event)),
-            EventPayload::Pointer(event) => Self::Pointer(PointerEventWire::from(event)),
+            EventPayload::Pointer(event) => {
+                Self::Pointer(PointerPayloadWire::Press(PointerEventWire::from(event)))
+            }
+            EventPayload::PointerMove(event) => {
+                Self::Pointer(PointerPayloadWire::Move(PointerMoveEventWire::from(event)))
+            }
             EventPayload::Scroll(event) => Self::Scroll(ScrollEventWire::from(event)),
             EventPayload::Submit { text } => Self::Submit(text.clone()),
             EventPayload::WindowResize {

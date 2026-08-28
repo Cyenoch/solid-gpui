@@ -121,6 +121,7 @@ struct CreateWire(
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
 );
 #[derive(Debug, Serialize, Deserialize)]
 struct UpdateWire(
@@ -135,6 +136,7 @@ struct UpdateWire(
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
 );
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -158,8 +160,10 @@ impl From<&PatchOperation> for OperationWire {
                 node.host_properties.as_ref().map(HostPropertiesWire::from),
                 node.accessibility.as_ref().map(AccessibilityWire::from),
                 node.focusable,
-                (node.selectable || node.tooltip.is_some()).then_some(node.selectable),
+                (node.selectable || node.tooltip.is_some() || node.accepts_pointer_move)
+                    .then_some(node.selectable),
                 node.tooltip.clone(),
+                node.accepts_pointer_move.then_some(true),
             )),
             PatchOperation::Update {
                 id,
@@ -172,6 +176,7 @@ impl From<&PatchOperation> for OperationWire {
                 focusable,
                 selectable,
                 tooltip,
+                accepts_pointer_move,
             } => Self::Update(UpdateWire(
                 2,
                 *id,
@@ -182,8 +187,9 @@ impl From<&PatchOperation> for OperationWire {
                 host_properties.as_ref().map(HostPropertiesWire::from),
                 accessibility.as_ref().map(AccessibilityWire::from),
                 *focusable,
-                (*selectable || tooltip.is_some()).then_some(*selectable),
+                (*selectable || tooltip.is_some() || *accepts_pointer_move).then_some(*selectable),
                 tooltip.clone(),
+                (*accepts_pointer_move).then_some(true),
             )),
             PatchOperation::Move {
                 id,
@@ -219,6 +225,13 @@ impl TryFrom<OperationWire> for PatchOperation {
                 {
                     return Err(ProtocolError::InvalidHostProperties);
                 }
+                let accepts_pointer_move = wire.13.unwrap_or(false);
+                if accepts_pointer_move
+                    && (!matches!(wire.4, crate::tree::KIND_VIEW | crate::tree::KIND_PRESSABLE)
+                        || wire.7 == 0)
+                {
+                    return Err(ProtocolError::InvalidHostProperties);
+                }
                 Ok(Self::Create(Node {
                     id: wire.1,
                     parent_id: wire.2,
@@ -232,6 +245,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     focusable: wire.10,
                     selectable,
                     tooltip,
+                    accepts_pointer_move,
                 }))
             }
             OperationWire::Update(wire) => {
@@ -249,6 +263,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                 {
                     return Err(ProtocolError::InvalidHostProperties);
                 }
+                let accepts_pointer_move = wire.11.unwrap_or(false);
                 let host_properties = wire.6.map(HostProperties::try_from).transpose()?;
                 Ok(Self::Update {
                     id: wire.1,
@@ -261,6 +276,7 @@ impl TryFrom<OperationWire> for PatchOperation {
                     focusable: wire.8,
                     selectable,
                     tooltip,
+                    accepts_pointer_move,
                 })
             }
             OperationWire::Move(wire) => {

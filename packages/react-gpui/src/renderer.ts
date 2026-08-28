@@ -23,9 +23,9 @@ import type {
   PointerAction,
   PointerButton,
   PointerEvent,
+  PointerMoveEvent,
   PointerHandler,
-  PressEventType,
-  PressHandler,
+  PointerMoveHandler,
   ScrollDeltaKind,
   ScrollEvent,
   ScrollHandler,
@@ -70,7 +70,9 @@ export type {
   PointerAction,
   PointerButton,
   PointerEvent,
+  PointerMoveEvent,
   PointerHandler,
+  PointerMoveHandler,
   PressEventType,
   PressHandler,
   ScrollDeltaKind,
@@ -157,6 +159,7 @@ export interface Root {
   pickFiles(options?: PickFilesOptions): Promise<string[] | null>;
   pickSavePath(options?: PickSavePathOptions): Promise<string | null>;
   readTextFile(path: string): Promise<string>;
+  loadFont(path: string): Promise<string>;
   writeTextFile(path: string, content: string): Promise<number>;
   showNotification(options: NotificationOptions): Promise<void>;
   setMenus(menus: readonly MenuDefinition[]): Promise<void>;
@@ -281,6 +284,10 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     readTextFile(path: string): Promise<string> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.readTextFile(path);
+    },
+    loadFont(path: string): Promise<string> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.loadFont(path);
     },
     writeTextFile(path: string, content: string): Promise<number> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));

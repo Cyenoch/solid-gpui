@@ -56,6 +56,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     onKeyDown: true,
     onPointerDown: true,
     onPointerUp: true,
+    onPointerMove: true,
     onHoverChange: true,
     onScroll: true,
     onFocus: true,
@@ -80,6 +81,7 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     onKeyDown: true,
     onPointerDown: true,
     onPointerUp: true,
+    onPointerMove: true,
     onHoverChange: true,
     onFocus: true,
     onBlur: true,
@@ -379,6 +381,8 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   if (kind === "View" || kind === "Pressable") {
     if (props.onPointerDown !== undefined && typeof props.onPointerDown !== "function")
       throw new TypeError(`${kind} onPointerDown must be a function`);
+    if (props.onPointerMove !== undefined && typeof props.onPointerMove !== "function")
+      throw new TypeError(`${kind} onPointerMove must be a function`);
     if (props.onPointerUp !== undefined && typeof props.onPointerUp !== "function")
       throw new TypeError(`${kind} onPointerUp must be a function`);
     if (props.onHoverChange !== undefined && typeof props.onHoverChange !== "function")

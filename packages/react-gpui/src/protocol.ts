@@ -99,6 +99,7 @@ export const COMMAND_READ_TEXT_FILE = 25 as const;
 export const COMMAND_WRITE_TEXT_FILE = 26 as const;
 export const COMMAND_CLIPBOARD_WRITE_IMAGE = 27 as const;
 export const COMMAND_CLIPBOARD_READ_IMAGE = 28 as const;
+export const COMMAND_LOAD_FONT = 29 as const;
 export const CLIPBOARD_IMAGE_FORMAT_PNG = 1 as const;
 export const CLIPBOARD_IMAGE_FORMAT_JPEG = 2 as const;
 export const CLIPBOARD_IMAGE_FORMAT_GIF = 3 as const;
@@ -115,6 +116,7 @@ export const UPDATE_ACCESSIBILITY = 16 as const;
 export const UPDATE_FOCUSABLE = 32 as const;
 export const UPDATE_SELECTABLE = 64 as const;
 export const UPDATE_TOOLTIP = 128 as const;
+export const UPDATE_POINTER_MOVE = 256 as const;
 function assertU32(name: string, value: unknown): asserts value is number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {
     throw new TypeError(`${name} must be a uint32`);
@@ -182,6 +184,7 @@ export type SnapshotNode = readonly [
   boolean,
   boolean?,
   (string | null)?,
+  boolean?,
 ];
 export type Snapshot = readonly [
   typeof PROTOCOL_VERSION,
@@ -207,6 +210,7 @@ export type PatchCreate = readonly [
   boolean,
   boolean?,
   (string | null)?,
+  boolean?,
 ];
 export type PatchUpdate = readonly [
   2,
@@ -220,6 +224,7 @@ export type PatchUpdate = readonly [
   boolean,
   boolean?,
   (string | null)?,
+  boolean?,
 ];
 export type PatchMove = readonly [3, number, number, number];
 export type PatchDelete = readonly [4, number];
@@ -285,6 +290,7 @@ export type Command = readonly [
     | typeof COMMAND_WRITE_TEXT_FILE
     | typeof COMMAND_CLIPBOARD_WRITE_IMAGE
     | typeof COMMAND_CLIPBOARD_READ_IMAGE
+    | typeof COMMAND_LOAD_FONT
   ),
   (
     | readonly [number, number]
@@ -321,6 +327,7 @@ export type VisibleRangePayload = readonly [3, number, number];
 export type AnimationCompletePayload = readonly [4, number];
 export type KeyEventPayload = readonly [5, string, readonly string[], 1 | 2 | 3];
 export type PointerEventPayload = readonly [6, 1 | 2 | 3 | 4 | 5, readonly string[], 1 | 2, number, number, number];
+export type PointerMoveEventPayload = readonly [10, number, number, readonly string[]];
 export type ScrollEventPayload = readonly [7, 1 | 2, number, number, number, number, readonly string[]];
 export type SubmitEventPayload = string;
 export type WindowResizeEventPayload = readonly [number, number, number];
@@ -721,6 +728,26 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
   }
   if (!Array.isArray(payload)) return false;
   if (eventType === EVENT_POINTER) {
+    if (payload[0] === 10) {
+      if (payload.length !== 4) return false;
+      if (
+        typeof payload[1] !== "number" ||
+        !Number.isFinite(payload[1]) ||
+        payload[1] < 0 ||
+        typeof payload[2] !== "number" ||
+        !Number.isFinite(payload[2]) ||
+        payload[2] < 0 ||
+        !Array.isArray(payload[3])
+      )
+        return false;
+      const seen: Record<string, true> = {};
+      for (const modifier of payload[3]) {
+        if (typeof modifier !== "string" || !Object.hasOwn(KEY_MODIFIER_NAMES, modifier) || seen[modifier])
+          return false;
+        seen[modifier] = true;
+      }
+      return true;
+    }
     if (payload.length !== 7 || payload[0] !== 6) return false;
     const pointerButtons: readonly number[] = [
       POINTER_BUTTON_LEFT,
@@ -817,6 +844,7 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       COMMAND_RESOLVE_CLOSE_REQUEST,
       COMMAND_READ_TEXT_FILE,
       COMMAND_WRITE_TEXT_FILE,
+      COMMAND_LOAD_FONT,
     ];
     if (!validCommands.includes(payload[2] as number)) return false;
     if (typeof payload[4] !== "boolean" || (payload[5] !== null && typeof payload[5] !== "string")) return false;

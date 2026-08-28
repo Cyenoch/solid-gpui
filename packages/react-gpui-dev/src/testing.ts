@@ -67,6 +67,7 @@ export interface TestNode extends HostNode {
   readonly hostProperties: readonly unknown[] | null;
   readonly accessibility: readonly unknown[] | null;
   readonly focusable: boolean;
+  readonly acceptsPointerMove: boolean;
   readonly raw: WireNode;
 }
 
@@ -98,6 +99,7 @@ export interface RenderResult {
   key(handle: TestNodeHandle, event: KeyEvent): void;
   input(handle: TestNodeHandle, text: string): void;
   submit(handle: TestNodeHandle, text?: string | null): void;
+  move(handle: TestNodeHandle, x: number, y: number, modifiers?: readonly string[]): void;
   visibleRange(handle: TestNodeHandle, start: number, end: number): void;
   commandResult(requestId: number, options?: CommandResultOptions): void;
   dispatchFrame(rawEvent: Uint8Array | ArrayBuffer): void;
@@ -133,6 +135,7 @@ export interface TestApp {
   press(locator: TestAppLocator): readonly unknown[];
   hover(locator: TestAppLocator, hovered: boolean): readonly unknown[];
   key(locator: TestAppLocator, event: TestAppKey): readonly unknown[];
+  move(locator: TestAppLocator, x: number, y: number, modifiers?: readonly string[]): readonly unknown[];
   input(locator: TestAppLocator, text: string): readonly unknown[];
   submit(locator: TestAppLocator, text?: string | null): readonly unknown[];
   scroll(locator: TestAppLocator, options: TestAppScroll): readonly unknown[];
@@ -179,6 +182,7 @@ function normalizedNode(raw: WireNode): TestNode | undefined {
     hostProperties: (raw[7] as readonly unknown[] | null) ?? null,
     accessibility: (raw[8] as readonly unknown[] | null) ?? null,
     focusable: raw[9] === true,
+    acceptsPointerMove: raw[12] === true,
     raw,
   };
 }
@@ -195,6 +199,7 @@ function applyUpdate(nodes: Map<number, WireNode>, operation: WireNode): void {
   if (mask & 8) next[7] = operation[6];
   if (mask & 16) next[8] = operation[7];
   if (mask & 32) next[9] = operation[8];
+  if (mask & 256) next[12] = operation[11];
   nodes.set(id, next);
 }
 
@@ -441,6 +446,16 @@ export function render(element: ReactElement | null, options: RenderOptions = {}
     key(handle, event) {
       dispatchEvent(handle, EVENT_KEY, [5, event.key, event.modifiers, actionCode(event.action)]);
     },
+    move(handle, x, y, modifiers = []) {
+      if (handle.kind !== "View" && handle.kind !== "Pressable") {
+        throw new TypeError(`testing app move requires View or Pressable; received ${handle.kind}`);
+      }
+      requireListener(handle);
+      finiteNumber("pointer move x", x);
+      finiteNumber("pointer move y", y);
+      if (x < 0 || y < 0) throw new RangeError("pointer move coordinates must be non-negative");
+      dispatchEvent(handle, EVENT_POINTER, [10, x, y, [...modifiers]]);
+    },
     input(handle, text) {
       requireKind(handle, "TextInput");
       requireListener(handle);
@@ -589,6 +604,18 @@ export function renderTestApp(element: ReactElement | null, options: RenderOptio
         y,
         [...(options.modifiers ?? [])],
       ]);
+      return commit();
+    },
+    move(locator, x, y, modifiers = []) {
+      const node = resolve(locator);
+      if (node.kind !== "View" && node.kind !== "Pressable") {
+        throw new TypeError(`testing app move requires View or Pressable; received ${node.kind}`);
+      }
+      requireListener(node);
+      finiteNumber("pointer move x", x);
+      finiteNumber("pointer move y", y);
+      if (x < 0 || y < 0) throw new RangeError("pointer move coordinates must be non-negative");
+      renderResult.dispatchEvent(node, EVENT_POINTER, [10, x, y, [...modifiers]]);
       return commit();
     },
     pointer(locator, options) {

@@ -49,6 +49,21 @@ non-empty text without control characters and caps it at 256 UTF-8 bytes, then
 uses pinned GPUI's native tooltip interactivity with its default 500 ms hover
 delay. Tooltip text stays independent from drag metadata, and the tooltip is
 painted by a compact host-owned text view.
+## Pointer movement
+
+`View` and `Pressable` accept an opt-in `onPointerMove` callback:
+
+```tsx
+<View onPointerMove={(event) => setCursor({ x: event.x, y: event.y })} />
+```
+
+The event contains `{ type: "pointermove", x, y, modifiers, target }`.
+Coordinates are logical window pixels, clamped to the native viewport, and
+modifiers use the ordered `cmd`, `ctrl`, `alt`, `shift`, and `function` names.
+The host registers a native move listener only while a node has this handler;
+nodes without it emit no move frames. Button state is intentionally absent.
+Hover changes remain edge notifications, while drag-over delivery uses the
+separate drag event path (including its active-drag boundaries).
 
 ## Close policy
 
@@ -210,6 +225,7 @@ announcements remain an upstream gap rather than a wire field.
 - `fontFamily` — a non-empty font-family string up to 64 Unicode characters.
   GPUI resolves the requested family through its configured fallback stack when
   the primary family is unavailable.
+
   The exported `BoxShadow` type describes one layer, while `BoxShadowInput`
   accepts that type or a two-element tuple of layers.
 
@@ -229,6 +245,36 @@ Negative inset offsets are passed through to GPUI/Taffy for relative and absolut
 - Unknown fields, invalid colors, non-finite values, negative numeric fields other than positioning insets, zero `fontSize`, invalid alignment/weight/overflow/font-style/
   decoration values, invalid easing values, duplicate transition properties,
   malformed shadows, and invalid font-family strings are rejected.
+
+### Runtime fonts
+
+Register a bundled TrueType or OpenType font before rendering the first node
+that uses its family:
+
+```tsx
+const family = await root.loadFont(new URL("./fonts/Tuffy.ttf", import.meta.url).pathname);
+root.render(
+  <Text style={{ fontFamily: family, fontSize: 24 }}>
+    Custom typography
+  </Text>,
+);
+```
+
+`loadFont(path)` is root-scoped and returns the family name read from the font
+metadata; it does not accept a caller-provided alias. The path must be an
+absolute, non-empty UTF-8 path no longer than 1024 bytes and must name a regular
+file. Font data is bounded by the same `MAX_FILE_READ_BYTES` limit used by
+`readTextFile` (below the 16 MiB frame limit). TTF and OTF are supported;
+WOFF/WOFF2 are not. Font collections are accepted where the native backend can
+load them, and the family returned is the first face's metadata family.
+
+Load each family before its first layout/use. GPUI caches both successful and
+failed family resolution, and this API intentionally does not invalidate that
+cache: a late call can leave already-laid-out text using the fallback family.
+Repeated calls are allowed and are forwarded to the native registration seam;
+applications should keep using the returned metadata family. For deterministic
+startup typography, await all `loadFont` calls before the initial
+`root.render`, matching the host's startup-preload pattern.
 
 ## Image
 
@@ -556,6 +602,11 @@ its value when the command has no typed return value; value tags are
 `Root.setTitle(title)` sends root command `COMMAND_SET_TITLE=6`; title must be
 non-empty and at most 256 Unicode code points. The command returns a Promise
 resolved by the native CommandResult.
+
+`Root.loadFont(path)` sends root command `COMMAND_LOAD_FONT=29` and resolves
+with the family name from the loaded font's metadata. See [Runtime fonts](#runtime-fonts)
+for the required pre-layout ordering, supported formats, bounded absolute path,
+duplicate registration, and late-load fallback behavior.
 `Root.resize(width, height)` resizes the window client area in integer pixels
 from `1` through `16384`. `Root.getWindowSize()` returns a
 `Promise<[number, number]>` of logical client-area pixels via

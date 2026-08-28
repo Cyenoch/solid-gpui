@@ -14,6 +14,7 @@ pub(super) struct NodeWire(
     bool,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")] Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] Option<bool>,
 );
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -160,8 +161,10 @@ impl From<&Node> for NodeWire {
             node.host_properties.as_ref().map(HostPropertiesWire::from),
             node.accessibility.as_ref().map(AccessibilityWire::from),
             node.focusable,
-            (node.selectable || node.tooltip.is_some()).then_some(node.selectable),
+            (node.selectable || node.tooltip.is_some() || node.accepts_pointer_move)
+                .then_some(node.selectable),
             node.tooltip.clone(),
+            node.accepts_pointer_move.then_some(true),
         )
     }
 }
@@ -185,6 +188,13 @@ impl TryFrom<NodeWire> for Node {
         {
             return Err(ProtocolError::InvalidHostProperties);
         }
+        let accepts_pointer_move = node.12.unwrap_or(false);
+        if accepts_pointer_move
+            && (!matches!(node.3, crate::tree::KIND_VIEW | crate::tree::KIND_PRESSABLE)
+                || node.6 == 0)
+        {
+            return Err(ProtocolError::InvalidHostProperties);
+        }
         Ok(Self {
             id: node.0,
             parent_id: node.1,
@@ -198,6 +208,7 @@ impl TryFrom<NodeWire> for Node {
             focusable: node.9,
             selectable,
             tooltip,
+            accepts_pointer_move,
         })
     }
 }

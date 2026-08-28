@@ -123,9 +123,15 @@ export interface PointerEvent {
   readonly button: PointerButton;
   readonly modifiers: string[];
   readonly clickCount: number;
-  /** Logical window pixels at press/release time. Hover/move coordinates are not exposed. */
   readonly x: number;
   readonly y: number;
+  readonly target: HostNode;
+}
+export interface PointerMoveEvent {
+  readonly type: "pointermove";
+  readonly x: number;
+  readonly y: number;
+  readonly modifiers: string[];
   readonly target: HostNode;
 }
 export interface FocusEvent {
@@ -139,6 +145,7 @@ export interface PointerDownOutsideEvent {
 }
 export type PointerDownOutsideHandler = (event: PointerDownOutsideEvent) => void;
 export type PointerHandler = (event: PointerEvent) => void;
+export type PointerMoveHandler = (event: PointerMoveEvent) => void;
 export type HoverHandler = (hovered: boolean) => void;
 export interface Draggable {
   readonly type: string;
@@ -196,6 +203,7 @@ export interface ViewProps extends AccessibilityProps {
   readonly onKeyDown?: KeyHandler;
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
+  readonly onPointerMove?: PointerMoveHandler;
   readonly onHoverChange?: HoverHandler;
   readonly onFocus?: FocusHandler;
   readonly onBlur?: FocusHandler;
@@ -236,6 +244,7 @@ export interface PressableProps extends AccessibilityProps {
   readonly onExternalFileDrop?: ExternalFileDropHandler;
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
+  readonly onPointerMove?: PointerMoveHandler;
   readonly onHoverChange?: HoverHandler;
   readonly onFocus?: FocusHandler;
   readonly onBlur?: FocusHandler;
@@ -251,6 +260,7 @@ export interface HostProps extends AccessibilityProps {
   readonly disabled?: boolean;
   readonly onPointerDown?: PointerHandler;
   readonly onPointerUp?: PointerHandler;
+  readonly onPointerMove?: PointerMoveHandler;
   readonly onHoverChange?: HoverHandler;
   readonly onFocus?: FocusHandler;
   readonly onBlur?: FocusHandler;
@@ -342,15 +352,17 @@ export interface DragCallbacks {
 export interface HostNodeInternal extends HostNode {
   readonly kind: HostKind;
   readonly root: RootOwner;
+  pointerCallbacks: PointerCallbacks | null;
+  pointerMoveCallback: PointerMoveHandler | undefined;
   parent: HostNodeInternal | null;
   children: HostNodeInternal[];
   index: number;
   style: StyleProp;
   text: string | null;
   tooltip: string | null;
-  listenerId: number;
+  acceptsPointerMove: boolean;
   keyListener: KeyHandler | undefined;
-  pointerCallbacks: PointerCallbacks | null;
+  listenerId: number;
   focusCallback: FocusHandler | undefined;
   blurCallback: FocusHandler | undefined;
   detachedFocusPending: boolean;

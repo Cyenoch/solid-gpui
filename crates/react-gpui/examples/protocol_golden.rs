@@ -7,10 +7,10 @@ use react_gpui::{
     AccessibilityProperties, BoxShadow, COMMAND_BLUR, COMMAND_CLIPBOARD_READ,
     COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE,
     COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT,
-    COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE,
-    COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
-    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_LOAD_FONT,
+    COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
     COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
     CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event,
     HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT,
@@ -209,6 +209,7 @@ fn patch() -> Patch {
                 focusable: true,
                 selectable: false,
                 tooltip: Some("Updated tooltip".into()),
+                accepts_pointer_move: false,
             },
             PatchOperation::Move {
                 id: 4,
@@ -565,6 +566,24 @@ fn main() {
             0,
             0.0,
             0.0,
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-pointer-move",
+        "event",
+        Event::pointer_move(
+            7,
+            3,
+            42,
+            27,
+            4,
+            7,
+            310.5,
+            220.25,
+            vec!["cmd".into(), "shift".into()],
         )
         .encode()
         .unwrap(),
@@ -1075,13 +1094,29 @@ fn main() {
     );
     emit(
         &mut rows,
-        "rust-command-write-text-file",
+        "rust-command-load-font",
         "command",
-        text_file_command(
-            COMMAND_WRITE_TEXT_FILE,
-            126,
-            "/tmp/notes.txt",
-            Some("hello π"),
+        text_file_command(COMMAND_LOAD_FONT, 129, "/tmp/Tuffy.ttf", None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-load-font",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            29,
+            CommandResult {
+                request_id: 129,
+                command: COMMAND_LOAD_FONT,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Text("Tuffy".into())),
+            },
         )
         .encode()
         .unwrap(),

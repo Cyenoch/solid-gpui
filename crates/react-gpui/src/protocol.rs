@@ -74,6 +74,7 @@ pub const COMMAND_READ_TEXT_FILE: u32 = 25;
 pub const COMMAND_WRITE_TEXT_FILE: u32 = 26;
 pub const COMMAND_CLIPBOARD_WRITE_IMAGE: u32 = 27;
 pub const COMMAND_CLIPBOARD_READ_IMAGE: u32 = 28;
+pub const COMMAND_LOAD_FONT: u32 = 29;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 /// File and clipboard-image payloads leave 1 KiB for the complete MessagePack command/frame envelope.
@@ -88,6 +89,7 @@ pub const UPDATE_ACCESSIBILITY: u32 = 16;
 pub const UPDATE_FOCUSABLE: u32 = 32;
 pub const UPDATE_SELECTABLE: u32 = 64;
 pub const UPDATE_TOOLTIP: u32 = 128;
+pub const UPDATE_POINTER_MOVE: u32 = 256;
 pub const MAX_FRAME_LENGTH: usize = 16 * 1024 * 1024;
 
 pub const TRANSITION_OPACITY: u32 = 1;
@@ -163,6 +165,7 @@ pub enum PatchOperation {
         focusable: bool,
         selectable: bool,
         tooltip: Option<String>,
+        accepts_pointer_move: bool,
     },
     Move {
         id: u32,
@@ -273,7 +276,8 @@ pub struct ClipboardImage {
 
 /// Optional typed data returned by a command. The tag is part of the wire
 /// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=clipboard/path
-/// text`, `5=selected paths`, `6=file text`, and `7=clipboard image`.
+/// text` (also the metadata family returned by LoadFont), `5=selected paths`,
+/// `6=file text`, and `7=clipboard image`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
@@ -320,6 +324,7 @@ pub struct Node {
     pub focusable: bool,
     pub selectable: bool,
     pub tooltip: Option<String>,
+    pub accepts_pointer_move: bool,
 }
 
 impl Node {
@@ -337,6 +342,7 @@ impl Node {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }
     }
 }
@@ -516,6 +522,13 @@ pub struct PointerEvent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct PointerMoveEvent {
+    pub x: f32,
+    pub y: f32,
+    pub modifiers: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrollEvent {
     pub delta_kind: u32,
     pub dx: f32,
@@ -553,6 +566,7 @@ pub enum EventPayload {
     },
     Key(KeyEvent),
     Pointer(PointerEvent),
+    PointerMove(PointerMoveEvent),
     Scroll(ScrollEvent),
     Submit {
         text: String,
@@ -723,6 +737,35 @@ impl Event {
                 click_count,
                 x,
                 y,
+            })),
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn pointer_move(
+        surface_id: u32,
+        epoch: u32,
+        revision: u32,
+        sequence: u32,
+        node_id: u32,
+        listener_id: u32,
+        x: f32,
+        y: f32,
+        modifiers: Vec<String>,
+    ) -> Self {
+        Self {
+            protocol: PROTOCOL_VERSION,
+            message: EVENT_MESSAGE,
+            surface_id,
+            epoch,
+            revision,
+            sequence,
+            node_id,
+            listener_id,
+            event_type: EVENT_POINTER,
+            payload: Some(EventPayload::PointerMove(PointerMoveEvent {
+                x,
+                y,
+                modifiers,
             })),
         }
     }

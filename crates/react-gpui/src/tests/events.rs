@@ -54,6 +54,46 @@ fn pointer_and_hover_events_round_trip_and_reject_invalid_coordinates() {
         ));
     }
 }
+#[test]
+fn pointer_move_events_round_trip_and_reject_invalid_payloads() {
+    let event = Event::pointer_move(
+        7,
+        3,
+        1,
+        10,
+        2,
+        9,
+        42.5,
+        24.25,
+        vec!["cmd".into(), "shift".into()],
+    );
+    assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+
+    for (x, y, modifiers) in [
+        (f32::NAN, 1.0, vec![]),
+        (1.0, f32::INFINITY, vec![]),
+        (-1.0, 1.0, vec![]),
+        (1.0, 1.0, vec!["shift", "shift"]),
+    ] {
+        let malformed = rmp_serde::to_vec(&(
+            3u32,
+            2u32,
+            7u32,
+            3u32,
+            1u32,
+            11u32,
+            2u32,
+            9u32,
+            EVENT_POINTER,
+            Some((10u32, x, y, modifiers)),
+        ))
+        .unwrap();
+        assert!(matches!(
+            Event::decode(&malformed),
+            Err(ProtocolError::InvalidEventPayload)
+        ));
+    }
+}
 
 #[test]
 fn scroll_events_round_trip_pixels_and_lines_and_reject_invalid_payloads() {

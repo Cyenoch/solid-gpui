@@ -190,6 +190,25 @@ implementations may be no-ops, and Windows AppUserModel identity remains a
 host packaging concern.
 
 A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
+## Pointer movement
+
+`View` and `Pressable` can opt into native pointer-coordinate streaming with
+`onPointerMove`. The callback receives finite logical window pixels and the
+currently active modifiers:
+
+```tsx
+<View
+  onPointerMove={({ x, y, modifiers }) => {
+    setCursor({ x, y, modifiers });
+  }}
+/>;
+```
+
+Moves are registered only for nodes that provide the handler, so ordinary
+nodes do not pay for native move listeners or event frames. Coordinates are
+clamped to the viewport by the host; the event does not expose button state.
+`onHoverChange` remains a null-payload edge notification, and drag-over
+notifications remain a separate drag path rather than pointer-move events.
 
 ## Quick start
 

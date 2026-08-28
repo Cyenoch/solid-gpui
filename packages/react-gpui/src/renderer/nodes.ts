@@ -12,6 +12,7 @@ import {
   UPDATE_STYLE,
   UPDATE_PROPERTIES,
   UPDATE_TOOLTIP,
+  UPDATE_POINTER_MOVE,
   type SnapshotNode,
 } from "../protocol";
 import { encodeStyle } from "../style";
@@ -81,16 +82,18 @@ export class NodeGraph {
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
+      pointerMoveCallback: undefined,
       focusCallback: undefined,
       blurCallback: undefined,
-      detachedFocusPending: false,
       nativeFocused: false,
       pointerDownOutsideCallback: undefined,
+      detachedFocusPending: false,
       hoverCallback: undefined,
       scrollCallback: undefined,
       hovered: false,
       hostProperties: null,
       tooltip: null,
+      acceptsPointerMove: false,
       latestNativeText: null,
       latestNativeEditSeq: 0,
       latestNativeSelection: null,
@@ -102,7 +105,6 @@ export class NodeGraph {
     this.nodesById.set(1, this.syntheticRoot);
     this.children = this.syntheticRoot.children;
   }
-
   allocateNode(kind: HostKind): HostNodeInternal {
     const node: HostNodeInternal = {
       id: this.nextNodeId,
@@ -122,6 +124,7 @@ export class NodeGraph {
       disabled: false,
       keyListener: undefined,
       pointerCallbacks: null,
+      pointerMoveCallback: undefined,
       focusCallback: undefined,
       blurCallback: undefined,
       detachedFocusPending: false,
@@ -132,6 +135,7 @@ export class NodeGraph {
       hovered: false,
       hostProperties: null,
       tooltip: null,
+      acceptsPointerMove: false,
       latestNativeText: null,
       latestNativeEditSeq: 0,
       latestNativeSelection: null,
@@ -204,6 +208,9 @@ export class NodeGraph {
       !node.disabled && (node.kind === "View" || node.kind === "Pressable")
         ? { down: props.onPointerDown, up: props.onPointerUp }
         : null;
+    node.pointerMoveCallback =
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onPointerMove : undefined;
+    node.acceptsPointerMove = node.pointerMoveCallback !== undefined;
     node.focusCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onFocus : undefined;
     node.blurCallback =
@@ -241,6 +248,7 @@ export class NodeGraph {
     const hasListener =
       node.listener !== undefined ||
       node.keyListener !== undefined ||
+      node.acceptsPointerMove ||
       (node.pointerCallbacks !== null &&
         (node.pointerCallbacks.down !== undefined || node.pointerCallbacks.up !== undefined)) ||
       node.focusCallback !== undefined ||
@@ -272,6 +280,7 @@ export class NodeGraph {
     const previousProperties = node.hostProperties;
     const previousAccessibility = node.accessibility;
     const previousTooltip = node.tooltip;
+    const previousAcceptsPointerMove = node.acceptsPointerMove;
     this.setNodeProps(node, props);
     let mask = 0;
     if (previousStyle !== node.style) mask |= UPDATE_STYLE;
@@ -279,6 +288,7 @@ export class NodeGraph {
     if (previousFocusable !== node.focusable) mask |= UPDATE_FOCUSABLE;
     if (previousSelectable !== node.selectable) mask |= UPDATE_SELECTABLE;
     if (previousTooltip !== node.tooltip) mask |= UPDATE_TOOLTIP;
+    if (previousAcceptsPointerMove !== node.acceptsPointerMove) mask |= UPDATE_POINTER_MOVE;
     if (JSON.stringify(previousProperties) !== JSON.stringify(node.hostProperties)) mask |= UPDATE_PROPERTIES;
     if (JSON.stringify(previousAccessibility) !== JSON.stringify(node.accessibility)) mask |= UPDATE_ACCESSIBILITY;
     return mask;
@@ -305,6 +315,8 @@ export class NodeGraph {
     node.listener = undefined;
     node.keyListener = undefined;
     node.pointerCallbacks = null;
+    node.pointerMoveCallback = undefined;
+    node.acceptsPointerMove = false;
     if (!retainFocusCallbacks) {
       node.focusCallback = undefined;
       node.blurCallback = undefined;
@@ -372,9 +384,17 @@ export class NodeGraph {
         accessibilityWire(node.accessibility),
         node.focusable,
       ] as const;
-      if (tooltip !== null) nodes.push([...base, node.selectable, tooltip]);
-      else if (node.selectable) nodes.push([...base, true]);
-      else nodes.push(base);
+      if (tooltip !== null) {
+        nodes.push(
+          node.acceptsPointerMove ? [...base, node.selectable, tooltip, true] : [...base, node.selectable, tooltip],
+        );
+      } else if (node.selectable) {
+        nodes.push(node.acceptsPointerMove ? [...base, true, null, true] : [...base, true]);
+      } else if (node.acceptsPointerMove) {
+        nodes.push([...base, false, null, true]);
+      } else {
+        nodes.push(base);
+      }
       node.children.forEach((child, childIndex) => visit(child, node.id, childIndex));
     };
     visit(this.syntheticRoot, 0, 0);

@@ -5,6 +5,7 @@ import {
   COMMAND_FOCUS_PREV,
   COMMAND_GET_FOCUS,
   COMMAND_GET_WINDOW_SIZE,
+  COMMAND_RESIZE_WINDOW,
   COMMAND_CLIPBOARD_READ,
   COMMAND_CLIPBOARD_READ_IMAGE,
   COMMAND_CLIPBOARD_WRITE,
@@ -14,8 +15,8 @@ import {
   COMMAND_KIND,
   COMMAND_OPEN_URL,
   COMMAND_OPEN_SURFACE,
+  COMMAND_LOAD_FONT,
   COMMAND_READ_TEXT_FILE,
-  COMMAND_RESIZE_WINDOW,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
   COMMAND_SET_CLOSE_POLICY,
@@ -35,14 +36,16 @@ import {
   MAX_CLIPBOARD_IMAGE_BYTES,
   MAX_CLIPBOARD_TEXT_BYTES,
   MAX_FILE_WRITE_BYTES,
+  MAX_FILE_READ_BYTES,
   PROTOCOL_VERSION,
   UPDATE_LISTENER,
   UPDATE_PROPERTIES,
   UPDATE_SELECTABLE,
   UPDATE_STYLE,
-  UPDATE_TEXT,
   UPDATE_TOOLTIP,
   UPDATE_ACCESSIBILITY,
+  UPDATE_POINTER_MOVE,
+  UPDATE_TEXT,
   decodeEvent,
   encodeFrame,
   type ClipboardImage,
@@ -405,7 +408,8 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_SET_CLOSE_POLICY
       | typeof COMMAND_RESOLVE_CLOSE_REQUEST
       | typeof COMMAND_READ_TEXT_FILE
-      | typeof COMMAND_WRITE_TEXT_FILE,
+      | typeof COMMAND_WRITE_TEXT_FILE
+      | typeof COMMAND_LOAD_FONT,
     payload:
       | readonly [number, number]
       | readonly [string, readonly [number, number]]
@@ -622,7 +626,27 @@ export class RootContainer implements DispatchContext {
       return value[1];
     });
   }
-
+  loadFont(path: string): Promise<string> {
+    if (
+      typeof path !== "string" ||
+      path.length === 0 ||
+      utf8ByteLength(path) > 1024 ||
+      /[\u0000-\u001f\u007f]/.test(path) ||
+      !path.startsWith("/")
+    )
+      return Promise.reject(new TypeError("font path must be a non-empty absolute path of at most 1024 UTF-8 bytes"));
+    return this.submitSurfaceCommandValue(COMMAND_LOAD_FONT, path).then((value) => {
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 4 ||
+        typeof value[1] !== "string" ||
+        value[1].length === 0
+      )
+        throw new Error("native loadFont returned an invalid family name");
+      return value[1];
+    });
+  }
   writeTextFile(path: string, content: string): Promise<number> {
     if (
       typeof path !== "string" ||
@@ -904,9 +928,19 @@ export class RootContainer implements DispatchContext {
           accessibilityWire(node.accessibility),
           node.focusable,
         ] as const;
-        if (node.tooltip !== null) operations.push([...base, node.selectable, node.tooltip]);
-        else if (node.selectable) operations.push([...base, true]);
-        else operations.push(base);
+        if (node.tooltip !== null) {
+          operations.push(
+            node.acceptsPointerMove
+              ? [...base, node.selectable, node.tooltip, true]
+              : [...base, node.selectable, node.tooltip],
+          );
+        } else if (node.selectable) {
+          operations.push(node.acceptsPointerMove ? [...base, true, null, true] : [...base, true]);
+        } else if (node.acceptsPointerMove) {
+          operations.push([...base, false, null, true]);
+        } else {
+          operations.push(base);
+        }
       }
       const moved = [...this.movedIds]
         .map((id) => this.nodesById.get(id))
@@ -929,8 +963,23 @@ export class RootContainer implements DispatchContext {
           mask & UPDATE_ACCESSIBILITY ? accessibilityWire(node.accessibility) : null,
           node.focusable,
         ] as const;
-        if (mask & UPDATE_TOOLTIP) operations.push([...base, node.selectable, node.tooltip]);
-        else if (mask & UPDATE_SELECTABLE && node.selectable) operations.push([...base, true]);
+        if (mask & UPDATE_TOOLTIP || mask & UPDATE_POINTER_MOVE) {
+          if (node.tooltip !== null) {
+            operations.push(
+              node.acceptsPointerMove
+                ? [...base, node.selectable, node.tooltip, true]
+                : [...base, node.selectable, node.tooltip],
+            );
+          } else if (mask & UPDATE_TOOLTIP || node.selectable) {
+            operations.push(
+              node.acceptsPointerMove ? [...base, node.selectable, null, true] : [...base, node.selectable, null],
+            );
+          } else if (node.acceptsPointerMove) {
+            operations.push([...base, false, null, true]);
+          } else {
+            operations.push(base);
+          }
+        } else if (mask & UPDATE_SELECTABLE && node.selectable) operations.push([...base, true]);
         else operations.push(base);
       }
       for (const id of [...this.deletedRoots].sort((a, b) => a - b)) {

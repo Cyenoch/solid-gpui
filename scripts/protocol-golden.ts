@@ -171,6 +171,7 @@ const rows = [
   row("ts-event-text-unicode", "event", [3, 2, 7, 3, 42, 2, 5, 9, 2, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
   row("ts-event-key", "event", [3, 2, 7, 3, 42, 3, 4, 7, 9, [5, "Enter", ["ctrl", "shift"], 2]]),
   row("ts-event-pointer", "event", [3, 2, 7, 3, 42, 4, 4, 7, 10, [6, 5, ["cmd"], 2, 2, 310.5, 220.25]]),
+  row("ts-event-pointer-move", "event", [3, 2, 7, 3, 42, 27, 4, 7, 10, [10, 310.5, 220.25, ["cmd", "shift"]]]),
   row("ts-event-pointer-up-min-click-count", "event", [3, 2, 7, 3, 42, 26, 4, 7, 10, [6, 5, ["cmd"], 2, 1, 0, 0]]),
   row("ts-event-scroll", "event", [3, 2, 7, 3, 42, 5, 1, 0, 12, [7, 1, 3.5, -2.25, 10, 20.5, ["alt"]]]),
   row("ts-event-visible", "event", [3, 2, 7, 3, 42, 6, 6, 13, 7, [3, 2, 9]]),
@@ -260,8 +261,10 @@ const rows = [
   ]),
   row("ts-command-file-dialog-open", "command", [3, 4, 7, 3, 42, 118, 1, 18, ["Choose", [1, 1]]]),
   row("ts-command-file-dialog-save", "command", [3, 4, 7, 3, 42, 119, 1, 19, "report.json"]),
+  row("ts-command-load-font", "command", [3, 4, 7, 3, 42, 129, 1, 29, "/tmp/Tuffy.ttf"]),
   row("ts-command-read-text-file", "command", [3, 4, 7, 3, 42, 125, 1, 25, "/tmp/notes.txt"]),
   row("ts-command-write-text-file", "command", [3, 4, 7, 3, 42, 126, 1, 26, ["/tmp/notes.txt", "hello π"]]),
+  row("ts-event-command-result-load-font", "event", [3, 2, 7, 3, 42, 29, 1, 0, 6, [2, 129, 29, 1, true, null, [4, "Tuffy"]]]),
   row("ts-event-command-result-read-text-file", "event", [
     3,
     2,

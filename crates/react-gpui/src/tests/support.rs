@@ -28,9 +28,9 @@ pub(super) use crate::{
     ProtocolError, ReactRoot, RenderError, RuntimeAdapter, RuntimeStatus, SCROLL_DELTA_LINES,
     SCROLL_DELTA_PIXELS, ScrollEvent, Snapshot, StoredNode, Style, TRANSITION_BACKGROUND_COLOR,
     TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
-    Transition, TreeError, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
-    UPDATE_TEXT, UPDATE_TOOLTIP, VirtualListProperties, WindowAppearance, fatal_runtime_failure,
-    read_frame, send_event_or_exit, write_frame,
+    Transition, TreeError, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_POINTER_MOVE,
+    UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, UPDATE_TOOLTIP, VirtualListProperties,
+    WindowAppearance, fatal_runtime_failure, read_frame, send_event_or_exit, write_frame,
 };
 
 pub(super) fn root_snapshot(revision: u32, nodes: Vec<Node>) -> Snapshot {

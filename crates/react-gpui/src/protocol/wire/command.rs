@@ -49,6 +49,24 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             }
             None
         }
+        COMMAND_LOAD_FONT => {
+            if command.node_id != 1
+                || command.payload.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.keybindings.is_some()
+                || command.window_options.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match &command.title {
+                Some(path) if valid_file_path(path) => {
+                    Some(CommandPayloadWire::Title(path.clone()))
+                }
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
         COMMAND_READ_TEXT_FILE => {
             if command.payload.is_some()
                 || command.body.is_some()
@@ -327,6 +345,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_WRITE_TEXT_FILE
             | COMMAND_CLIPBOARD_WRITE_IMAGE
             | COMMAND_CLIPBOARD_READ_IMAGE
+            | COMMAND_LOAD_FONT
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -370,6 +389,12 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 (None, Some(path), None)
             }
             (COMMAND_READ_TEXT_FILE, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_LOAD_FONT, Some(CommandPayloadWire::Title(path)))
+                if wire.6 == 1 && valid_file_path(&path) =>
+            {
+                (None, Some(path), None)
+            }
+            (COMMAND_LOAD_FONT, _) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_WRITE_TEXT_FILE, Some(CommandPayloadWire::StringPair((path, content))))
                 if wire.6 == 1
                     && valid_file_path(&path)
@@ -1091,5 +1116,44 @@ mod tests {
         let mut invalid = event;
         invalid.node_id = 1;
         assert!(Event::decode(&invalid.encode().expect("encode invalid close event")).is_err());
+    }
+    #[test]
+    fn load_font_round_trips_root_path_only() {
+        let command = Command {
+            protocol: PROTOCOL_VERSION,
+            message: COMMAND_MESSAGE,
+            surface_id: 1,
+            epoch: 2,
+            after_revision: 3,
+            request_id: 29,
+            node_id: 1,
+            kind: COMMAND_LOAD_FONT,
+            payload: None,
+            title: Some("/tmp/Tuffy.ttf".to_owned()),
+            body: None,
+            actions: None,
+            menus: None,
+            keybindings: None,
+            window_options: None,
+            image: None,
+        };
+        let bytes = command.encode().expect("encode load font");
+        assert_eq!(Command::decode(&bytes).expect("decode load font"), command);
+        assert!(
+            Command {
+                node_id: 2,
+                ..command.clone()
+            }
+            .encode()
+            .is_err()
+        );
+        assert!(
+            Command {
+                title: Some("relative.ttf".to_owned()),
+                ..command
+            }
+            .encode()
+            .is_err()
+        );
     }
 }

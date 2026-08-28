@@ -19,8 +19,7 @@ use crate::tree::{
 };
 
 use super::ReactRoot;
-use super::events::{emit_key_event, emit_pointer_event, emit_scroll_event};
-
+use super::events::{emit_key_event, emit_pointer_event, emit_pointer_move, emit_scroll_event};
 pub(super) type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
 struct TooltipView {
     text: SharedString,
@@ -334,6 +333,32 @@ impl ReactRoot {
                     listener_id,
                 );
                 send_event_or_exit(runtime.as_ref(), "hover event", &event);
+            });
+        }
+        if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+            && node.accepts_pointer_move
+            && node.listener_id != 0
+        {
+            let runtime = Arc::clone(&self.runtime);
+            let sequence = Arc::clone(&self.next_sequence);
+            let surface_id = self.store.surface_id();
+            let epoch = self.store.epoch();
+            let revision = self.store.revision();
+            let node_id = node.id;
+            let listener_id = node.listener_id;
+            element = element.on_mouse_move(move |event, window, _| {
+                emit_pointer_move(
+                    runtime.as_ref(),
+                    sequence.as_ref(),
+                    surface_id,
+                    epoch,
+                    revision,
+                    node_id,
+                    listener_id,
+                    event.position,
+                    &event.modifiers,
+                    window.viewport_size(),
+                );
             });
         }
         if node.kind == KIND_VIEW && node.listener_id != 0 {

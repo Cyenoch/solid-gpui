@@ -183,6 +183,23 @@ describe("@react-gpui/dev headless renderer", () => {
     ]);
     app.unmount();
   });
+  it("move injects registered pointer coordinates and ignores unregistered nodes", () => {
+    const received: Array<unknown> = [];
+    const app = renderTestApp(
+      <View>
+        <View accessibilityLabel="move" onPointerMove={(event) => received.push([event.x, event.y, event.modifiers])} />
+        <View accessibilityLabel="plain" onPointerDown={() => undefined} />
+      </View>,
+    );
+    const move = app.node("move");
+    const plain = app.node("plain");
+    expect(move.acceptsPointerMove).toBe(true);
+    expect(plain.acceptsPointerMove).toBe(false);
+    app.move("move", 12.5, 24, ["shift"]);
+    app.move("plain", 1, 2);
+    expect(received).toEqual([[12.5, 24, ["shift"]]]);
+    app.unmount();
+  });
 
   it("does not swallow unbounded render errors", () => {
     expect(() => render(<View style={{ width: -1 }} />)).toThrow("width");

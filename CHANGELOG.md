@@ -23,12 +23,22 @@ from this work tree.
   preserves format/bytes on reads. macOS and Windows use native clipboard image
   entries; X11 and Wayland reject the unsupported path explicitly rather than
   falling back to text.
+- Added root-only `Root.loadFont(path)` (`COMMAND_LOAD_FONT=29`) for bounded
+  asynchronous TTF/OTF registration through GPUI's runtime text-system seam.
+  The promise returns the font metadata family for use with `fontFamily`; load
+  before first layout/use because GPUI caches family resolution, and late calls
+  do not invalidate cached fallback choices. Repeated registration is forwarded
+  to the native backend. WOFF/WOFF2 are not supported.
 
 ### Added
 
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and
   tooltip-only updates.
+- Opt-in `onPointerMove` support for `View` and `Pressable` streams clamped
+  logical window coordinates and ordered modifier names through the existing
+  pointer event family. Nodes without a handler register no native move
+  listener; hover edge notifications and drag-over delivery remain separate.
 - Native per-window close policy now supports asynchronous confirmation:
   `require-confirmation` emits a deduplicated `EVENT_CLOSE_REQUESTED`, and
   JavaScript resolves it with `resolveCloseRequest(requestId, allow)`.
@@ -156,8 +166,8 @@ from this work tree.
   `examples/keyboard.tsx` entry.
 - Layout and text style fields now share the validated Style wire tuple,
   including positive `fontSize`, layout enums, colors, and `fontWeight` up to
-  `BLACK=900`; `fontFamily` remains intentionally unsupported and is documented
-  as such.
+  `BLACK=900`; `fontFamily` is supported for registered runtime families and
+  falls back through GPUI when the requested family is unavailable.
 - Protocol decoding has deterministic seeded fuzz coverage with 1,039 Rust
   cases and 1,034 TypeScript cases; no panic was found.
 - Pointer and hover events plus `ViewHandle` focus/blur are supported: the node

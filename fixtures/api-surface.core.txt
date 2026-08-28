@@ -63,6 +63,8 @@ PointerDownOutsideEvent	type
 PointerDownOutsideHandler	type
 PointerEvent	type
 PointerHandler	type
+PointerMoveEvent	type
+PointerMoveHandler	type
 Position	type
 Pressable	value
 PressableProps	type
@@ -70,7 +72,6 @@ PressEventType	type
 PressHandler	type
 Root	type
 RootOptions	type
-ScrollDeltaKind	type
 ScrollEvent	type
 ScrollHandler	type
 StdioTransport	both

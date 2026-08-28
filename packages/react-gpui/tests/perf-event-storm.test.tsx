@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import {
   EVENT_DRAG,
   EVENT_LAYOUT,
+  EVENT_POINTER,
   EVENT_SCROLL,
   EVENT_VISIBLE_RANGE,
   PROTOCOL_VERSION,
@@ -30,8 +31,8 @@ type Metric = {
 
 const TREE_SIZES = [143, 10_000] as const;
 const RATES = [60, 120, 240] as const;
+const SURFACE_IDS = { scroll: 301, drag: 302, visible: 303, layout: 304, pointerMove: 305 } as const;
 const DURATION_MS = 1_000;
-const SURFACE_IDS = { scroll: 301, drag: 302, visible: 303, layout: 304 } as const;
 
 function sleep(ms: number): Promise<void> {
   const { promise, resolve } = Promise.withResolvers<void>();
@@ -96,6 +97,16 @@ function LayoutProbe({ treeNodes }: { readonly treeNodes: number }): React.React
   return (
     <View onLayout={(frame) => setWidth(Math.round(frame.x))}>
       <Text>{width}</Text>
+      {children}
+    </View>
+  );
+}
+function PointerMoveProbe({ treeNodes }: { readonly treeNodes: number }): React.ReactElement {
+  const [position, setPosition] = useState(0);
+  const children = Array.from({ length: Math.max(0, treeNodes - 3) }, (_, index) => <View key={index} />);
+  return (
+    <View onPointerMove={(event) => setPosition(Math.round(event.x))}>
+      <Text>{position}</Text>
       {children}
     </View>
   );
@@ -317,7 +328,20 @@ describe("event storm measurements", () => {
         },
       ),
     );
-
+    metrics.push(
+      await drive(
+        "pointer-move",
+        240,
+        143,
+        (transport) => {
+          const root = createRoot(transport, { surfaceId: SURFACE_IDS.pointerMove, epoch: 1 });
+          root.render(<PointerMoveProbe treeNodes={143} />);
+          return root;
+        },
+        (index, node) =>
+          eventFrame(SURFACE_IDS.pointerMove, EVENT_POINTER, index + 1, node, [10, index + 1, 24, ["shift"]]),
+      ),
+    );
     for (const metric of metrics) {
       const commitsPerSecond = (metric.commits * 1_000) / metric.elapsedMs;
       const inputBytesPerSecond = (metric.inputBytes * 1_000) / metric.elapsedMs;
@@ -334,8 +358,6 @@ describe("event storm measurements", () => {
       } else {
         expect(metric.commits).toBeGreaterThanOrEqual(metric.events - 1);
         expect(metric.commits).toBeLessThanOrEqual(metric.events);
-      }
-      if (metric.name !== "scroll-noop") {
         expect(metric.bytes).toBeGreaterThan(metric.commits * 4);
       }
       expect(metric.p99Ms).toBeLessThan(100);

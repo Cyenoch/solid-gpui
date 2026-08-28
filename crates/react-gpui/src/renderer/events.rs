@@ -109,6 +109,34 @@ pub(super) fn emit_pointer_event(
     );
     send_event_or_exit(runtime, "pointer event", &event);
 }
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_pointer_move(
+    runtime: &dyn RuntimeAdapter,
+    sequence: &AtomicU32,
+    surface_id: u32,
+    epoch: u32,
+    revision: u32,
+    node_id: u32,
+    listener_id: u32,
+    position: Point<Pixels>,
+    modifiers: &gpui::Modifiers,
+    viewport_size: Size<Pixels>,
+) {
+    let x = clamp_coordinate(position.x.as_f32(), viewport_size.width.as_f32());
+    let y = clamp_coordinate(position.y.as_f32(), viewport_size.height.as_f32());
+    let event = Event::pointer_move(
+        surface_id,
+        epoch,
+        revision,
+        sequence.fetch_add(1, Ordering::Relaxed),
+        node_id,
+        listener_id,
+        x,
+        y,
+        key_modifiers(modifiers),
+    );
+    send_event_or_exit(runtime, "pointer move event", &event);
+}
 
 fn clamp_coordinate(value: f32, upper_bound: f32) -> f32 {
     if !value.is_finite() {
@@ -252,6 +280,31 @@ mod tests {
         assert_eq!(pointer.action, EVENT_POINTER_DOWN);
         assert_eq!(pointer.x, 0.0);
         assert_eq!(pointer.y, 600.0);
+    }
+    #[test]
+    fn pointer_move_coordinates_are_clamped_before_wire_encoding() {
+        let runtime = InMemoryAdapter::new();
+        let sequence = AtomicU32::new(1);
+        emit_pointer_move(
+            runtime.as_ref(),
+            &sequence,
+            7,
+            3,
+            1,
+            2,
+            9,
+            gpui::point(gpui::px(-10.0), gpui::px(900.0)),
+            &gpui::Modifiers::none(),
+            gpui::size(gpui::px(800.0), gpui::px(600.0)),
+        );
+        let event = runtime
+            .take_event()
+            .expect("in-memory event should decode")
+            .expect("pointer move should be queued");
+        let Some(EventPayload::PointerMove(pointer)) = event.payload else {
+            panic!("expected pointer move payload");
+        };
+        assert_eq!((pointer.x, pointer.y), (0.0, 600.0));
     }
 
     #[test]

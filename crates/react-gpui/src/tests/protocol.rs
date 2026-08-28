@@ -40,6 +40,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     );
     let text_event = Event::text_input(

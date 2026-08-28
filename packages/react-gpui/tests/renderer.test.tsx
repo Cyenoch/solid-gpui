@@ -63,6 +63,7 @@ import {
   MAX_CLIPBOARD_TEXT_BYTES,
   UPDATE_SELECTABLE,
   UPDATE_TOOLTIP,
+  UPDATE_POINTER_MOVE,
 } from "../src/protocol";
 
 type Snapshot = readonly [number, number, number, number, number, number, readonly unknown[][]];
@@ -168,6 +169,49 @@ describe("protocol framing", () => {
     expect(decodeEvent(invalidButton.slice(4))).toBeNull();
     expect(decodeEvent(invalidCoordinate.slice(4))).toBeNull();
     expect(decodeEvent(missingCoordinates.slice(4))).toBeNull();
+  });
+  it("decodes pointer move coordinates and modifiers and rejects malformed values", () => {
+    const valid = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      7,
+      2,
+      7,
+      EVENT_POINTER,
+      [10, 120.5, 80, ["cmd", "shift"]],
+    ] as never);
+    const invalidCoordinate = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      8,
+      2,
+      7,
+      EVENT_POINTER,
+      [10, -1, 80, []],
+    ] as never);
+    const invalidModifiers = encodeFrame([
+      PROTOCOL_VERSION,
+      2,
+      1,
+      1,
+      1,
+      9,
+      2,
+      7,
+      EVENT_POINTER,
+      [10, 1, 2, ["shift", "shift"]],
+    ] as never);
+    const invalidTagLength = encodeFrame([PROTOCOL_VERSION, 2, 1, 1, 1, 10, 2, 7, EVENT_POINTER, [10, 1, 2]] as never);
+    expect(decodeEvent(valid.slice(4))).not.toBeNull();
+    expect(decodeEvent(invalidCoordinate.slice(4))).toBeNull();
+    expect(decodeEvent(invalidModifiers.slice(4))).toBeNull();
+    expect(decodeEvent(invalidTagLength.slice(4))).toBeNull();
   });
   it("decodes pixel and line scroll payloads and rejects invalid scroll values", () => {
     const pixels = encodeFrame([
@@ -1767,6 +1811,57 @@ describe("renderer commits", () => {
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 66, 67, 1, 1, nodeId, listener, EVENT_FOCUS, null]));
     transport.push(encodeFrame([PROTOCOL_VERSION, 2, 66, 67, 1, 2, nodeId, listener, EVENT_BLUR, null]));
     expect(received).toEqual(["focus:target", "blur:target"]);
+    root.unmount();
+  });
+  it("dispatches pointer moves only to registered View and Pressable handlers", () => {
+    const transport = new MemoryTransport();
+    const received: Array<unknown> = [];
+    const root = createRoot(transport, { surfaceId: 165, epoch: 166 });
+    root.render(
+      <View>
+        <View onPointerMove={(event) => received.push([event.type, event.x, event.y, event.modifiers])} />
+        <Pressable onPointerMove={(event) => received.push([event.type, event.x, event.y, event.modifiers])} />
+        <View onPointerDown={() => undefined} />
+      </View>,
+    );
+    const nodes = snapshots(transport)[0][6] as readonly (readonly unknown[])[];
+    const registered = nodes.filter((node) => node[12] === true);
+    const unregistered = nodes.find((node) => node[0] !== 1 && node[12] !== true) as readonly unknown[];
+    expect(registered).toHaveLength(2);
+    for (const [sequence, node] of registered.entries()) {
+      transport.push(
+        encodeFrame([
+          PROTOCOL_VERSION,
+          2,
+          165,
+          166,
+          1,
+          sequence + 1,
+          node[0],
+          node[6],
+          EVENT_POINTER,
+          [10, 12.5 + sequence, 24, ["shift"]],
+        ] as never),
+      );
+    }
+    transport.push(
+      encodeFrame([
+        PROTOCOL_VERSION,
+        2,
+        165,
+        166,
+        1,
+        3,
+        unregistered[0],
+        unregistered[6],
+        EVENT_POINTER,
+        [10, 1, 2, []],
+      ] as never),
+    );
+    expect(received).toEqual([
+      ["pointermove", 12.5, 24, ["shift"]],
+      ["pointermove", 13.5, 24, ["shift"]],
+    ]);
     root.unmount();
   });
   it("delivers one terminal blur to a detached focused node and rejects later notifications", () => {

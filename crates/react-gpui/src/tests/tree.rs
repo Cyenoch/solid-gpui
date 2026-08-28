@@ -112,6 +112,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     );
     assert!(matches!(
@@ -153,6 +154,7 @@ fn accessibility_patch_updates_a_valid_label() {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     );
     store
@@ -670,6 +672,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             }],
         ))
         .unwrap();
@@ -703,6 +706,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             }],
         ))
         .unwrap();
@@ -771,6 +775,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -837,6 +842,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 focusable: false,
                 selectable: false,
                 tooltip: None,
+                accepts_pointer_move: false,
             }],
         ))
         .unwrap();
@@ -957,6 +963,7 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
             focusable: false,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     );
     assert!(matches!(
@@ -1026,6 +1033,7 @@ fn pressable_focusable_patch_is_accepted() {
             focusable: true,
             selectable: false,
             tooltip: None,
+            accepts_pointer_move: false,
         }],
     );
     store.apply_patch(patch).expect("Pressable focusable patch");
@@ -1074,6 +1082,7 @@ fn tooltip_snapshot_and_patch_apply_for_view_and_pressable() {
                 focusable: false,
                 selectable: false,
                 tooltip: Some("Updated view hint".to_owned()),
+                accepts_pointer_move: false,
             }],
         ))
         .expect("tooltip patch applies");
@@ -1081,4 +1090,52 @@ fn tooltip_snapshot_and_patch_apply_for_view_and_pressable() {
         store.get(2).unwrap().tooltip.as_deref(),
         Some("Updated view hint")
     );
+}
+#[test]
+fn pointer_move_capability_requires_interactive_listener_and_can_be_cleared() {
+    let mut view = Node::new(2, 1, 0, KIND_VIEW);
+    view.listener_id = 9;
+    view.accepts_pointer_move = true;
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), view]))
+        .expect("pointer move capability snapshot");
+    assert!(store.get(2).unwrap().accepts_pointer_move);
+
+    let patch = Patch::new(
+        7,
+        3,
+        1,
+        2,
+        vec![PatchOperation::Update {
+            id: 2,
+            mask: UPDATE_POINTER_MOVE,
+            style: None,
+            text: None,
+            listener_id: 0,
+            host_properties: None,
+            accessibility: None,
+            focusable: false,
+            selectable: false,
+            tooltip: None,
+            accepts_pointer_move: false,
+        }],
+    );
+    store
+        .apply_patch(patch)
+        .expect("pointer move capability clear");
+    assert!(!store.get(2).unwrap().accepts_pointer_move);
+
+    let mut invalid = Node::new(3, 1, 1, KIND_TEXT);
+    invalid.listener_id = 9;
+    invalid.accepts_pointer_move = true;
+    assert!(matches!(
+        NodeStore::default().apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), invalid]
+        )),
+        Err(TreeError::InvalidPatchOperation { .. })
+            | Err(TreeError::InvalidProperties { .. })
+            | Err(TreeError::InvalidListener { .. })
+    ));
 }

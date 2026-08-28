@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -12,15 +13,16 @@ use crate::protocol::{
     COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
     COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
     COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
-    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_LOAD_FONT, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
+    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
     COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
     CommandValue, EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_IMAGE_BYTES,
     MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION,
     MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
+
 fn file_error(error: std::io::Error) -> String {
     match error.kind() {
         std::io::ErrorKind::NotFound => "file not found".to_owned(),
@@ -35,6 +37,32 @@ fn file_error(error: std::io::Error) -> String {
             }
         }
     }
+}
+
+fn font_family(bytes: &[u8]) -> Result<String, String> {
+    let face = ttf_parser::Face::parse(bytes, 0)
+        .map_err(|_| "font is malformed or unsupported".to_owned())?;
+    let mut family = None;
+    for name in face.names() {
+        if name.name_id == ttf_parser::name_id::TYPOGRAPHIC_FAMILY {
+            if let Some(value) = name.to_string()
+                && !value.is_empty()
+                && value.chars().count() <= 64
+                && !value.chars().any(char::is_control)
+            {
+                return Ok(value);
+            }
+        } else if name.name_id == ttf_parser::name_id::FAMILY
+            && family.is_none()
+            && let Some(value) = name.to_string()
+            && !value.is_empty()
+            && value.chars().count() <= 64
+            && !value.chars().any(char::is_control)
+        {
+            family = Some(value);
+        }
+    }
+    family.ok_or_else(|| "font has no usable family name".to_owned())
 }
 fn gpui_image_format(format: u32) -> Option<ImageFormat> {
     match format {
@@ -189,6 +217,51 @@ impl ReactRoot {
         .detach();
     }
 
+    fn spawn_load_font(&self, command: Command, cx: &mut Context<Self>) {
+        let path = command.title.clone().unwrap_or_default();
+        let kind = command.kind;
+        let request_id = command.request_id;
+        let node_id = command.node_id;
+        let entity = cx.weak_entity();
+        let task = cx.background_spawn(async move {
+            let metadata = std::fs::metadata(&path).map_err(file_error)?;
+            if !metadata.is_file() {
+                return Err("path is a directory".to_owned());
+            }
+            if metadata.len() > MAX_FILE_READ_BYTES as u64 {
+                return Err("font file is too large".to_owned());
+            }
+            let bytes = std::fs::read(&path).map_err(file_error)?;
+            if bytes.len() > MAX_FILE_READ_BYTES {
+                return Err("font file is too large".to_owned());
+            }
+            let family = font_family(&bytes)?;
+            Ok((bytes, family))
+        });
+        cx.spawn(async move |_, cx| {
+            let (success, error, value) = match task.await {
+                Ok((bytes, family)) => {
+                    match cx.update(|app| app.text_system().add_fonts(vec![Cow::Owned(bytes)])) {
+                        Ok(()) => {
+                            cx.refresh();
+                            (true, None, Some(CommandValue::Text(family)))
+                        }
+                        Err(error) => (
+                            false,
+                            Some(format!("font registration failed: {error}")),
+                            None,
+                        ),
+                    }
+                }
+                Err(error) => (false, Some(error), None),
+            };
+            let _ = entity.update(cx, |root, _| {
+                root.emit_command_ack(request_id, kind, node_id, success, error, value);
+            });
+        })
+        .detach();
+    }
+
     fn spawn_text_file_command(&self, command: Command, cx: &mut Context<Self>) {
         let path = command.title.clone().unwrap_or_default();
         let content = command.body.clone();
@@ -333,11 +406,15 @@ impl ReactRoot {
                 }
             } else if matches!(
                 command.kind,
-                COMMAND_READ_TEXT_FILE | COMMAND_WRITE_TEXT_FILE
+                COMMAND_LOAD_FONT | COMMAND_READ_TEXT_FILE | COMMAND_WRITE_TEXT_FILE
             ) {
                 if command.node_id != 1 {
                     success = false;
-                    error = Some("text file command requires the root container".to_owned());
+                    error =
+                        Some("font and text file commands require the root container".to_owned());
+                } else if command.kind == COMMAND_LOAD_FONT {
+                    self.spawn_load_font(command, cx);
+                    continue;
                 } else {
                     self.spawn_text_file_command(command, cx);
                     continue;
