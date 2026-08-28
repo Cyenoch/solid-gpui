@@ -398,6 +398,7 @@ fn focus_command(
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 
@@ -1500,6 +1501,16 @@ fn all_examples_render_readable_text_and_gallery_dropdown_above_siblings() {
             dropdown_signal,
             dropdown_error,
         });
+        if name == "notes" {
+            let confirmation_quads = quads
+                .iter()
+                .filter(|quad| opaque_quad(quad) && quad.bounds.0 >= 15.0 && quad.bounds.1 >= 15.0)
+                .count();
+            assert!(
+                confirmation_quads > 0,
+                "notes overlay should be positioned from left/top insets: quads={quads:?}"
+            );
+        }
     }
     let failed = audits
         .iter()

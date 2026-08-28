@@ -78,6 +78,8 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_GET_FOCUS
                         | COMMAND_CLIPBOARD_WRITE
                         | COMMAND_CLIPBOARD_READ
+                        | COMMAND_CLIPBOARD_WRITE_IMAGE
+                        | COMMAND_CLIPBOARD_READ_IMAGE
                         | COMMAND_OPEN_SURFACE
                         | COMMAND_FILE_DIALOG_OPEN
                         | COMMAND_FILE_DIALOG_SAVE
@@ -454,6 +456,7 @@ enum CommandValueWire {
     Bool((u32, bool)),
     Text((u32, String)),
     Paths((u32, Vec<String>)),
+    Image((u32, (u32, serde_bytes::ByteBuf))),
 }
 #[derive(Debug, Serialize, Deserialize)]
 struct VisibleRangeWire(u32, u32, u32);
@@ -653,7 +656,6 @@ impl From<&CommandResult> for CommandResultWire {
         )
     }
 }
-
 impl From<&CommandValue> for CommandValueWire {
     fn from(value: &CommandValue) -> Self {
         match value {
@@ -663,10 +665,16 @@ impl From<&CommandValue> for CommandValueWire {
             CommandValue::Text(text) => Self::Text((4, text.clone())),
             CommandValue::Paths(paths) => Self::Paths((5, paths.clone())),
             CommandValue::FileText(text) => Self::Text((6, text.clone())),
+            CommandValue::Image(image) => Self::Image((
+                7,
+                (
+                    image.format,
+                    serde_bytes::ByteBuf::from(image.bytes.clone()),
+                ),
+            )),
         }
     }
 }
-
 impl TryFrom<CommandValueWire> for CommandValue {
     type Error = ProtocolError;
 
@@ -690,9 +698,23 @@ impl TryFrom<CommandValueWire> for CommandValue {
             {
                 Ok(Self::Paths(paths))
             }
+            CommandValueWire::Image((7, (format, bytes)))
+                if valid_clipboard_image_format(format)
+                    && !bytes.is_empty()
+                    && bytes.len() <= MAX_CLIPBOARD_IMAGE_BYTES =>
+            {
+                Ok(Self::Image(ClipboardImage {
+                    format,
+                    bytes: bytes.into_vec(),
+                }))
+            }
             _ => Err(ProtocolError::InvalidEventPayload),
         }
     }
+}
+
+fn valid_clipboard_image_format(format: u32) -> bool {
+    matches!(format, 1..=4)
 }
 
 impl TryFrom<CommandResultWire> for CommandResult {

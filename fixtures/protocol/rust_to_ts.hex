@@ -2,7 +2,9 @@
 # id	message	payload_hex
 rust-command-blur	command	99030407032a660402c0
 rust-command-clipboard-read	command	99030407032a740110c0
+rust-command-clipboard-read-image	command	99030407032acc80011cc0
 rust-command-clipboard-write	command	99030407032a73010fae636c6970626f6172642074657874
+rust-command-clipboard-write-image	command	99030407032a7f011b9201c40489504e47
 rust-command-file-dialog-open	command	99030407032a76011292a643686f6f7365920101
 rust-command-file-dialog-save	command	99030407032a770113ab7265706f72742e6a736f6e
 rust-command-focus	command	99030407032a650401c0
@@ -30,6 +32,7 @@ rust-event-animation	event	9a030207032a07010008920404
 rust-event-blur	event	9a030207032a18040705c0
 rust-event-command-result	event	9a030207032a0801000697026d0a01c2a872656a6563746564c0
 rust-event-command-result-clipboard	event	9a030207032a0f0100069702701001c3c09204ab7061737465642074657874
+rust-event-command-result-clipboard-image	event	9a030207032a1a0100069702cc801c01c3c092079201c40489504e47
 rust-event-command-result-file-open	event	9a030207032a130100069702761201c3c0920592aa2f746d702f612e747874aa2f746d702f622e747874
 rust-event-command-result-file-save	event	9a030207032a140100069702771301c3c09204b02f746d702f7265706f72742e6a736f6e
 rust-event-command-result-focus	event	9a030207032a0e04000697026f0e04c3c09203c3

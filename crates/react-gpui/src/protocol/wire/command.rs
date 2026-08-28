@@ -11,7 +11,44 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
     if command.kind != COMMAND_OPEN_SURFACE && command.window_options.is_some() {
         return Err(ProtocolError::InvalidCommandPayload);
     }
+    if command.kind != COMMAND_CLIPBOARD_WRITE_IMAGE && command.image.is_some() {
+        return Err(ProtocolError::InvalidCommandPayload);
+    }
     let payload = match command.kind {
+        COMMAND_CLIPBOARD_WRITE_IMAGE => {
+            if command.node_id != 1
+                || command.payload.is_some()
+                || command.title.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.keybindings.is_some()
+                || command.window_options.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            match &command.image {
+                Some(image) if valid_clipboard_image(image) => Some(CommandPayloadWire::Image((
+                    image.format,
+                    serde_bytes::ByteBuf::from(image.bytes.clone()),
+                ))),
+                _ => return Err(ProtocolError::InvalidCommandPayload),
+            }
+        }
+        COMMAND_CLIPBOARD_READ_IMAGE => {
+            if command.node_id != 1
+                || command.payload.is_some()
+                || command.title.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+                || command.keybindings.is_some()
+                || command.window_options.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            None
+        }
         COMMAND_READ_TEXT_FILE => {
             if command.payload.is_some()
                 || command.body.is_some()
@@ -197,6 +234,11 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
     ))
     .map_err(ProtocolError::Encode)
 }
+fn valid_clipboard_image(image: &ClipboardImage) -> bool {
+    matches!(image.format, 1..=4)
+        && !image.bytes.is_empty()
+        && image.bytes.len() <= MAX_CLIPBOARD_IMAGE_BYTES
+}
 
 fn valid_file_path(path: &str) -> bool {
     !path.is_empty()
@@ -283,6 +325,8 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_RESOLVE_CLOSE_REQUEST
             | COMMAND_READ_TEXT_FILE
             | COMMAND_WRITE_TEXT_FILE
+            | COMMAND_CLIPBOARD_WRITE_IMAGE
+            | COMMAND_CLIPBOARD_READ_IMAGE
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
@@ -290,6 +334,26 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     // the meaning, so the same [string,[u32,u32]] shape is validated
     // independently for OpenSurface versus FileDialogOpen.
     let command_payload = wire.8.clone();
+    let image = match (wire.7, command_payload.clone()) {
+        (COMMAND_CLIPBOARD_WRITE_IMAGE, Some(CommandPayloadWire::Image((format, bytes))))
+            if wire.6 == 1 =>
+        {
+            let image = ClipboardImage {
+                format,
+                bytes: bytes.into_vec(),
+            };
+            if valid_clipboard_image(&image) {
+                Some(image)
+            } else {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+        }
+        (COMMAND_CLIPBOARD_READ_IMAGE, None) if wire.6 == 1 => None,
+        (COMMAND_CLIPBOARD_WRITE_IMAGE | COMMAND_CLIPBOARD_READ_IMAGE, _) => {
+            return Err(ProtocolError::InvalidCommandPayload);
+        }
+        _ => None,
+    };
     let window_options = match command_payload.clone() {
         Some(CommandPayloadWire::StringWithPairAndOptions((_, _, options)))
             if wire.7 == COMMAND_OPEN_SURFACE =>
@@ -393,6 +457,16 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             (COMMAND_CLIPBOARD_WRITE, _) => return Err(ProtocolError::InvalidCommandPayload),
             (COMMAND_CLIPBOARD_READ, None) if wire.6 == 1 => (None, None, None),
             (COMMAND_CLIPBOARD_READ, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_CLIPBOARD_WRITE_IMAGE, Some(CommandPayloadWire::Image(_))) if wire.6 == 1 => {
+                (None, None, None)
+            }
+            (COMMAND_CLIPBOARD_WRITE_IMAGE, _) => {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            (COMMAND_CLIPBOARD_READ_IMAGE, None) if wire.6 == 1 => (None, None, None),
+            (COMMAND_CLIPBOARD_READ_IMAGE, _) => {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
             (COMMAND_RESIZE_WINDOW, Some(CommandPayloadWire::Pair(payload)))
                 if wire.6 == 1
                     && payload.0 > 0
@@ -500,6 +574,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         body,
         menus,
         window_options,
+        image,
     })
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -513,6 +588,7 @@ enum CommandPayloadWire {
     StringWithPairAndOptions((String, (u32, u32), WindowOpenOptionsWire)),
     Keybindings(Vec<(String, String)>),
     Menus(Vec<MenuWire>),
+    Image((u32, serde_bytes::ByteBuf)),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -698,6 +774,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
             .expect("decode open surface");
@@ -726,6 +803,7 @@ mod tests {
                 resizable: Some(false),
                 min_size: Some((320, 240)),
             }),
+            image: None,
         };
         let bytes = command.encode().expect("encode open surface options");
         assert_eq!(
@@ -761,6 +839,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
             command.protocol,
@@ -820,6 +899,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&open.encode().expect("encode open dialog"))
@@ -843,6 +923,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&save.encode().expect("encode save dialog"))
@@ -886,6 +967,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&notification.encode().expect("encode notification"))
@@ -927,6 +1009,7 @@ mod tests {
             }]),
             keybindings: None,
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&menus.encode().expect("encode menus")).expect("decode menus"),
@@ -957,6 +1040,7 @@ mod tests {
                 },
             ]),
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&keybindings.encode().expect("encode keybindings"))

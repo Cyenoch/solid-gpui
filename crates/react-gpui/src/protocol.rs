@@ -72,12 +72,14 @@ pub const COMMAND_SET_CLOSE_POLICY: u32 = 23;
 pub const COMMAND_RESOLVE_CLOSE_REQUEST: u32 = 24;
 pub const COMMAND_READ_TEXT_FILE: u32 = 25;
 pub const COMMAND_WRITE_TEXT_FILE: u32 = 26;
+pub const COMMAND_CLIPBOARD_WRITE_IMAGE: u32 = 27;
+pub const COMMAND_CLIPBOARD_READ_IMAGE: u32 = 28;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
-/// File payloads leave 1 KiB for the complete MessagePack command/frame envelope.
+/// File and clipboard-image payloads leave 1 KiB for the complete MessagePack command/frame envelope.
 pub const MAX_FILE_WRITE_BYTES: usize = MAX_FRAME_LENGTH - 1024;
 pub const MAX_FILE_READ_BYTES: usize = MAX_FRAME_LENGTH - 1024;
-
+pub const MAX_CLIPBOARD_IMAGE_BYTES: usize = MAX_FRAME_LENGTH - 1024;
 pub const UPDATE_STYLE: u32 = 1;
 pub const UPDATE_TEXT: u32 = 2;
 pub const UPDATE_LISTENER: u32 = 4;
@@ -257,11 +259,21 @@ pub struct Command {
     pub menus: Option<Vec<MenuDefinition>>,
     pub keybindings: Option<Vec<KeybindingDefinition>>,
     pub window_options: Option<WindowOpenOptions>,
+    pub image: Option<ClipboardImage>,
+}
+
+/// A bounded encoded image exchanged through the native clipboard.
+///
+/// Format codes are `1=png`, `2=jpeg`, `3=gif`, and `4=svg`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClipboardImage {
+    pub format: u32,
+    pub bytes: Vec<u8>,
 }
 
 /// Optional typed data returned by a command. The tag is part of the wire
 /// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=clipboard/path
-/// text`, `5=selected paths`, and `6=file text`.
+/// text`, `5=selected paths`, `6=file text`, and `7=clipboard image`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
@@ -270,6 +282,7 @@ pub enum CommandValue {
     Text(String),
     Paths(Vec<String>),
     FileText(String),
+    Image(ClipboardImage),
 }
 
 #[derive(Debug, Clone, PartialEq)]

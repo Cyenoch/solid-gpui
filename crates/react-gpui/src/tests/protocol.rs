@@ -80,6 +80,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     };
     assert_eq!(
         Command::decode(&command.encode().unwrap()).unwrap(),
@@ -95,9 +96,102 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
         ..command.clone()
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
+}
+
+#[test]
+fn clipboard_image_commands_and_values_round_trip_with_binary_bytes() {
+    let image = ClipboardImage {
+        format: 2,
+        bytes: vec![0, 1, 2, 0xff],
+    };
+    let command = Command {
+        protocol: PROTOCOL_VERSION,
+        message: COMMAND_MESSAGE,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 2,
+        request_id: 27,
+        node_id: 1,
+        kind: COMMAND_CLIPBOARD_WRITE_IMAGE,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+        image: Some(image.clone()),
+    };
+    assert_eq!(
+        Command::decode(&command.encode().unwrap()).unwrap(),
+        command
+    );
+    let read = Command {
+        kind: COMMAND_CLIPBOARD_READ_IMAGE,
+        request_id: 28,
+        image: None,
+        ..command
+    };
+    assert_eq!(Command::decode(&read.encode().unwrap()).unwrap(), read);
+    let event = Event::command_result(
+        7,
+        3,
+        2,
+        1,
+        CommandResult {
+            request_id: 28,
+            command: COMMAND_CLIPBOARD_READ_IMAGE,
+            node_id: 1,
+            success: true,
+            error: None,
+            value: Some(CommandValue::Image(image)),
+        },
+    );
+    assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+}
+
+#[test]
+fn clipboard_image_wire_rejects_invalid_formats_and_sizes() {
+    let base = Command {
+        protocol: PROTOCOL_VERSION,
+        message: COMMAND_MESSAGE,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 2,
+        request_id: 1,
+        node_id: 1,
+        kind: COMMAND_CLIPBOARD_WRITE_IMAGE,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+        image: Some(ClipboardImage {
+            format: 9,
+            bytes: vec![1],
+        }),
+    };
+    assert!(matches!(
+        base.encode(),
+        Err(ProtocolError::InvalidCommandPayload)
+    ));
+    let empty = Command {
+        image: Some(ClipboardImage {
+            format: 1,
+            bytes: vec![],
+        }),
+        ..base
+    };
+    assert!(matches!(
+        empty.encode(),
+        Err(ProtocolError::InvalidCommandPayload)
+    ));
 }
 
 #[test]
@@ -121,6 +215,7 @@ fn protocol_v3_rejects_adjacent_versions_with_actionable_diagnostics() {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     };
     let event = Event::press(7, 3, 1, 1, 0, 0);
     let assert_mismatch = |result: Result<(), ProtocolError>, received: u32| {
@@ -195,6 +290,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -212,6 +308,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -229,6 +326,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -246,6 +344,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -263,6 +362,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -280,6 +380,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
     ];
     for command in commands {
@@ -306,6 +407,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         assert_eq!(
             Command::decode(&command.encode().unwrap()).unwrap(),
@@ -329,6 +431,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -346,6 +449,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -363,6 +467,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
         Command {
             protocol: PROTOCOL_VERSION,
@@ -380,6 +485,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         },
     ] {
         assert!(matches!(
@@ -403,6 +509,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     };
     assert!(matches!(
         Command::decode(&unknown.encode().unwrap()),

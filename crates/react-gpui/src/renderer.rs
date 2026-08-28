@@ -1775,6 +1775,7 @@ mod input_tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            image: None,
         };
         let command_payload = scroll_to_index.encode().expect("encode index command");
         root.update(cx, |root, cx| root.apply_payload(&command_payload, cx))

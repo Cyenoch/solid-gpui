@@ -93,6 +93,17 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   if (vector.id.endsWith("event-command-result-clipboard")) {
     expect((decoded as readonly unknown[])[9]).toEqual([2, 112, 16, 1, true, null, [4, "pasted text"]]);
   }
+  if (vector.id.endsWith("event-command-result-clipboard-image")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([
+      2,
+      128,
+      28,
+      1,
+      true,
+      null,
+      [7, [1, new Uint8Array([0x89, 0x50, 0x4e, 0x47])]],
+    ]);
+  }
   if (vector.id.endsWith("event-submit-text")) {
     expect((decoded as readonly unknown[])[9]).toBe("submitted text");
   }

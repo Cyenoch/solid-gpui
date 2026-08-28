@@ -2,21 +2,23 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 
 use gpui::{
-    AppContext, ClipboardEntry, ClipboardItem, Context, ListOffset, Menu as GpuiMenu,
-    MenuItem as GpuiMenuItem, PathPromptOptions, SystemNotification, SystemNotificationAction,
-    Window, px, size,
+    AppContext, ClipboardEntry, ClipboardItem, Context, Image, ImageFormat, ListOffset,
+    Menu as GpuiMenu, MenuItem as GpuiMenuItem, PathPromptOptions, SystemNotification,
+    SystemNotificationAction, Window, px, size,
 };
 
 use super::ReactRoot;
 use crate::protocol::{
-    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
-    COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
-    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
-    COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
-    EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES,
-    MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
+    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
+    COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
+    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
+    CommandValue, EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_IMAGE_BYTES,
+    MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION,
+    MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
 fn file_error(error: std::io::Error) -> String {
@@ -33,6 +35,32 @@ fn file_error(error: std::io::Error) -> String {
             }
         }
     }
+}
+fn gpui_image_format(format: u32) -> Option<ImageFormat> {
+    match format {
+        1 => Some(ImageFormat::Png),
+        2 => Some(ImageFormat::Jpeg),
+        3 => Some(ImageFormat::Gif),
+        4 => Some(ImageFormat::Svg),
+        _ => None,
+    }
+}
+
+fn clipboard_image_value(image: &Image) -> Option<CommandValue> {
+    let format = match image.format() {
+        ImageFormat::Png => 1,
+        ImageFormat::Jpeg => 2,
+        ImageFormat::Gif => 3,
+        ImageFormat::Svg => 4,
+        _ => return None,
+    };
+    if image.bytes().is_empty() || image.bytes().len() > MAX_CLIPBOARD_IMAGE_BYTES {
+        return None;
+    }
+    Some(CommandValue::Image(ClipboardImage {
+        format,
+        bytes: image.bytes().to_vec(),
+    }))
 }
 
 use crate::tree::{KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST};
@@ -335,6 +363,8 @@ impl ReactRoot {
                     | COMMAND_GET_WINDOW_SIZE
                     | COMMAND_CLIPBOARD_WRITE
                     | COMMAND_CLIPBOARD_READ
+                    | COMMAND_CLIPBOARD_WRITE_IMAGE
+                    | COMMAND_CLIPBOARD_READ_IMAGE
             ) {
                 if command.node_id != 1 {
                     success = false;
@@ -391,6 +421,61 @@ impl ReactRoot {
                             } else {
                                 success = false;
                                 error = Some("clipboard has no text content".to_string());
+                            }
+                        }
+                        COMMAND_CLIPBOARD_WRITE_IMAGE => {
+                            if !cfg!(any(target_os = "macos", target_os = "windows")) {
+                                success = false;
+                                error = Some("platform-unsupported".to_owned());
+                            } else if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error = Some("clipboard image payload is invalid".to_owned());
+                            } else if let Some(image) = command.image.as_ref() {
+                                if image.bytes.is_empty()
+                                    || image.bytes.len() > MAX_CLIPBOARD_IMAGE_BYTES
+                                {
+                                    success = false;
+                                    error = Some("clipboard image bytes are invalid".to_owned());
+                                } else if let Some(format) = gpui_image_format(image.format) {
+                                    let native_image =
+                                        Image::from_bytes(format, image.bytes.clone());
+                                    cx.write_to_clipboard(ClipboardItem::new_image(&native_image));
+                                } else {
+                                    success = false;
+                                    error =
+                                        Some("clipboard image format is unsupported".to_owned());
+                                }
+                            } else {
+                                success = false;
+                                error = Some("clipboard image payload is required".to_owned());
+                            }
+                        }
+                        COMMAND_CLIPBOARD_READ_IMAGE => {
+                            if command.payload.is_some() || command.title.is_some() {
+                                success = false;
+                                error = Some(
+                                    "clipboard image read does not accept a payload".to_owned(),
+                                );
+                            } else if !cfg!(any(target_os = "macos", target_os = "windows")) {
+                                success = false;
+                                error = Some("platform-unsupported".to_owned());
+                            } else if let Some(item) = cx.read_from_clipboard()
+                                && let Some(image) = item.entries().iter().find_map(|entry| {
+                                    if let ClipboardEntry::Image(image) = entry {
+                                        Some(image)
+                                    } else {
+                                        None
+                                    }
+                                })
+                            {
+                                if let Some(image) = clipboard_image_value(image) {
+                                    value = Some(image);
+                                } else {
+                                    success = false;
+                                    error = Some(
+                                        "clipboard image is unsupported or too large".to_owned(),
+                                    );
+                                }
                             }
                         }
                         COMMAND_GET_WINDOW_SIZE => {

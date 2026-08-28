@@ -74,6 +74,7 @@ fn valid_command() -> Command {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 

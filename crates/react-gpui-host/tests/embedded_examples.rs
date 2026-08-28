@@ -11,11 +11,7 @@ use react_gpui_bun::{CommitPoll, EmbeddedBunAdapter};
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 
 const EXAMPLES: &[(&str, &str, usize)] = &[
-    (
-        "gallery",
-        "packages/react-gpui/examples/gallery.tsx",
-        30,
-    ),
+    ("gallery", "packages/react-gpui/examples/gallery.tsx", 30),
     (
         "text-input",
         "packages/react-gpui/examples/text-input.tsx",
@@ -26,11 +22,7 @@ const EXAMPLES: &[(&str, &str, usize)] = &[
         "packages/react-gpui/examples/virtual-list.tsx",
         20,
     ),
-    (
-        "notes",
-        "packages/react-gpui/examples/notes.tsx",
-        10,
-    ),
+    ("notes", "packages/react-gpui/examples/notes.tsx", 10),
 ];
 
 fn repo_root() -> PathBuf {
@@ -65,7 +57,9 @@ fn startup_snapshot(runtime: &EmbeddedBunAdapter, name: &str) -> Snapshot {
 
 fn contains_startup_signal(snapshot: &Snapshot, expected: &str) -> bool {
     snapshot.nodes.iter().any(|node| {
-        node.text.as_deref().is_some_and(|text| text.contains(expected))
+        node.text
+            .as_deref()
+            .is_some_and(|text| text.contains(expected))
             || node.accessibility.as_ref().is_some_and(|accessibility| {
                 accessibility
                     .label
@@ -196,7 +190,10 @@ fn embedded_refresh_queue_keeps_runtime_alive_until_shutdown() {
         ),
     };
     assert!(
-        refreshed.nodes.iter().any(|node| node.kind == KIND_RAW_TEXT),
+        refreshed
+            .nodes
+            .iter()
+            .any(|node| node.kind == KIND_RAW_TEXT),
         "embedded refresh commit contains no text nodes"
     );
     assert_eq!(runtime.refresh_count(), 1);

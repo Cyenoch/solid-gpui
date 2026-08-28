@@ -1,7 +1,7 @@
 # Clipboard image interchange
 
-Status: resolved
-Verdict: future
+Status: implemented
+Verdict: supported with bounded platform-specific semantics
 
 ## Question
 

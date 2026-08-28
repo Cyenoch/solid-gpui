@@ -6,7 +6,9 @@ import {
   COMMAND_GET_FOCUS,
   COMMAND_GET_WINDOW_SIZE,
   COMMAND_CLIPBOARD_READ,
+  COMMAND_CLIPBOARD_READ_IMAGE,
   COMMAND_CLIPBOARD_WRITE,
+  COMMAND_CLIPBOARD_WRITE_IMAGE,
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
   COMMAND_KIND,
@@ -25,7 +27,12 @@ import {
   COMMAND_TOGGLE_FULLSCREEN,
   COMMAND_WRITE_TEXT_FILE,
   COMMAND_ZOOM_WINDOW,
+  CLIPBOARD_IMAGE_FORMAT_GIF,
+  CLIPBOARD_IMAGE_FORMAT_JPEG,
+  CLIPBOARD_IMAGE_FORMAT_PNG,
+  CLIPBOARD_IMAGE_FORMAT_SVG,
   FrameDecoder,
+  MAX_CLIPBOARD_IMAGE_BYTES,
   MAX_CLIPBOARD_TEXT_BYTES,
   MAX_FILE_WRITE_BYTES,
   PROTOCOL_VERSION,
@@ -38,6 +45,10 @@ import {
   UPDATE_ACCESSIBILITY,
   decodeEvent,
   encodeFrame,
+  type ClipboardImage,
+  type ClipboardImageFormat,
+  type ClipboardImageFormatCode,
+  type ClipboardImagePayload,
   type Command,
   type KeybindingsPayload,
   type MenuItemPayload,
@@ -78,6 +89,34 @@ export class SurfaceClosedError extends Error {
   }
 }
 
+const CLIPBOARD_IMAGE_FORMAT_CODES: Record<ClipboardImageFormat, ClipboardImageFormatCode> = {
+  png: CLIPBOARD_IMAGE_FORMAT_PNG,
+  jpeg: CLIPBOARD_IMAGE_FORMAT_JPEG,
+  gif: CLIPBOARD_IMAGE_FORMAT_GIF,
+  svg: CLIPBOARD_IMAGE_FORMAT_SVG,
+};
+const CLIPBOARD_IMAGE_FORMAT_NAMES: Record<ClipboardImageFormatCode, ClipboardImageFormat> = {
+  [CLIPBOARD_IMAGE_FORMAT_PNG]: "png",
+  [CLIPBOARD_IMAGE_FORMAT_JPEG]: "jpeg",
+  [CLIPBOARD_IMAGE_FORMAT_GIF]: "gif",
+  [CLIPBOARD_IMAGE_FORMAT_SVG]: "svg",
+};
+function normalizeClipboardImage(image: ClipboardImage): ClipboardImage {
+  if (image === null || typeof image !== "object") {
+    throw new TypeError("clipboard image must be an object");
+  }
+  if (!Object.hasOwn(CLIPBOARD_IMAGE_FORMAT_CODES, image.format)) {
+    throw new TypeError("clipboard image format must be png, jpeg, gif, or svg");
+  }
+  const normalized = image.bytes;
+  if (!(normalized instanceof Uint8Array)) {
+    throw new TypeError("clipboard image bytes must be a Uint8Array");
+  }
+  if (normalized.byteLength === 0 || normalized.byteLength > MAX_CLIPBOARD_IMAGE_BYTES) {
+    throw new RangeError("clipboard image bytes must be non-empty and within the supported size");
+  }
+  return { format: image.format, bytes: normalized };
+}
 export class RootContainer implements DispatchContext {
   readonly nodes: NodeGraph;
   readonly children: HostNodeInternal[];
@@ -355,6 +394,8 @@ export class RootContainer implements DispatchContext {
       | typeof COMMAND_GET_WINDOW_SIZE
       | typeof COMMAND_CLIPBOARD_WRITE
       | typeof COMMAND_CLIPBOARD_READ
+      | typeof COMMAND_CLIPBOARD_WRITE_IMAGE
+      | typeof COMMAND_CLIPBOARD_READ_IMAGE
       | typeof COMMAND_OPEN_SURFACE
       | typeof COMMAND_FILE_DIALOG_OPEN
       | typeof COMMAND_FILE_DIALOG_SAVE
@@ -371,6 +412,7 @@ export class RootContainer implements DispatchContext {
       | readonly [string, readonly [number, number], WindowOpenOptionsPayload]
       | readonly [string, string]
       | readonly [string, string, readonly (readonly [string, string])[]]
+      | ClipboardImagePayload
       | KeybindingsPayload
       | string
       | MenuPayload
@@ -734,6 +776,7 @@ export class RootContainer implements DispatchContext {
       return [value[1][0], value[1][1]];
     });
   }
+
   setClipboardText(text: string): Promise<void> {
     if (typeof text !== "string") return Promise.reject(new TypeError("clipboard text must be a string"));
     if (utf8ByteLength(text) > MAX_CLIPBOARD_TEXT_BYTES)
@@ -752,6 +795,40 @@ export class RootContainer implements DispatchContext {
       )
         throw new Error("native getClipboardText returned an invalid value");
       return value[1];
+    });
+  }
+
+  setClipboardImage(image: ClipboardImage): Promise<void> {
+    try {
+      const normalized = normalizeClipboardImage(image);
+      const payload: ClipboardImagePayload = [CLIPBOARD_IMAGE_FORMAT_CODES[normalized.format], normalized.bytes];
+      return this.submitSurfaceCommandValue(COMMAND_CLIPBOARD_WRITE_IMAGE, payload).then(() => undefined);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  getClipboardImage(): Promise<ClipboardImage | null> {
+    return this.submitSurfaceCommandValue(COMMAND_CLIPBOARD_READ_IMAGE, null).then((value) => {
+      if (value === undefined || value === null) return null;
+      if (
+        !Array.isArray(value) ||
+        value.length !== 2 ||
+        value[0] !== 7 ||
+        !Array.isArray(value[1]) ||
+        value[1].length !== 2 ||
+        typeof value[1][0] !== "number" ||
+        !Number.isInteger(value[1][0]) ||
+        value[1][0] < CLIPBOARD_IMAGE_FORMAT_PNG ||
+        value[1][0] > CLIPBOARD_IMAGE_FORMAT_SVG ||
+        !(value[1][1] instanceof Uint8Array) ||
+        value[1][1].byteLength === 0 ||
+        value[1][1].byteLength > MAX_CLIPBOARD_IMAGE_BYTES
+      ) {
+        throw new Error("native getClipboardImage returned an invalid value");
+      }
+      const formatCode = value[1][0] as ClipboardImageFormatCode;
+      return { format: CLIPBOARD_IMAGE_FORMAT_NAMES[formatCode], bytes: value[1][1] };
     });
   }
 

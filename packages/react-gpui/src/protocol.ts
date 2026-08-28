@@ -28,6 +28,8 @@ export const PATCH_KIND = 3 as const;
 export const COMMAND_KIND = 4 as const;
 export const MAX_FRAME_SIZE = 16 * 1024 * 1024;
 export const MAX_CLIPBOARD_TEXT_BYTES = 1 << 20;
+/** File and clipboard-image payloads leave 1 KiB for the complete MessagePack envelope. */
+export const MAX_CLIPBOARD_IMAGE_BYTES = MAX_FRAME_SIZE - 1024;
 /** File payloads leave 1 KiB for the complete MessagePack command/frame envelope. */
 export const MAX_FILE_WRITE_BYTES = MAX_FRAME_SIZE - 1024;
 export const MAX_FILE_READ_BYTES = MAX_FRAME_SIZE - 1024;
@@ -95,8 +97,14 @@ export const COMMAND_SET_CLOSE_POLICY = 23 as const;
 export const COMMAND_RESOLVE_CLOSE_REQUEST = 24 as const;
 export const COMMAND_READ_TEXT_FILE = 25 as const;
 export const COMMAND_WRITE_TEXT_FILE = 26 as const;
-export const IMAGE_OBJECT_FIT_CONTAIN = 2 as const;
-export const IMAGE_OBJECT_FIT_COVER = 3 as const;
+export const COMMAND_CLIPBOARD_WRITE_IMAGE = 27 as const;
+export const COMMAND_CLIPBOARD_READ_IMAGE = 28 as const;
+export const CLIPBOARD_IMAGE_FORMAT_PNG = 1 as const;
+export const CLIPBOARD_IMAGE_FORMAT_JPEG = 2 as const;
+export const CLIPBOARD_IMAGE_FORMAT_GIF = 3 as const;
+export const CLIPBOARD_IMAGE_FORMAT_SVG = 4 as const;
+export type ClipboardImageFormat = "png" | "jpeg" | "gif" | "svg";
+export type ClipboardImage = { readonly format: ClipboardImageFormat; readonly bytes: Uint8Array };
 export const IMAGE_OBJECT_FIT_SCALE_DOWN = 4 as const;
 export const IMAGE_OBJECT_FIT_NONE = 5 as const;
 export const UPDATE_STYLE = 1 as const;
@@ -107,6 +115,16 @@ export const UPDATE_ACCESSIBILITY = 16 as const;
 export const UPDATE_FOCUSABLE = 32 as const;
 export const UPDATE_SELECTABLE = 64 as const;
 export const UPDATE_TOOLTIP = 128 as const;
+function assertU32(name: string, value: unknown): asserts value is number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {
+    throw new TypeError(`${name} must be a uint32`);
+  }
+}
+
+function assertBool(name: string, value: unknown): asserts value is boolean {
+  if (typeof value !== "boolean") throw new TypeError(`${name} must be a boolean`);
+}
+
 const KEY_MODIFIER_NAMES: Record<string, true> = {
   cmd: true,
   ctrl: true,
@@ -224,6 +242,12 @@ export type MenuPayload = readonly (readonly [string, readonly MenuItemPayload[]
 export type KeybindingsPayload = readonly (readonly [string, string])[];
 export type WindowOpenOptionsPayload = readonly [0 | 1 | 2 | null, boolean | null, number | null, number | null];
 
+export type ClipboardImageFormatCode =
+  | typeof CLIPBOARD_IMAGE_FORMAT_PNG
+  | typeof CLIPBOARD_IMAGE_FORMAT_JPEG
+  | typeof CLIPBOARD_IMAGE_FORMAT_GIF
+  | typeof CLIPBOARD_IMAGE_FORMAT_SVG;
+export type ClipboardImagePayload = readonly [ClipboardImageFormatCode, Uint8Array];
 export type Command = readonly [
   typeof PROTOCOL_VERSION,
   typeof COMMAND_KIND,
@@ -259,6 +283,8 @@ export type Command = readonly [
     | typeof COMMAND_RESOLVE_CLOSE_REQUEST
     | typeof COMMAND_READ_TEXT_FILE
     | typeof COMMAND_WRITE_TEXT_FILE
+    | typeof COMMAND_CLIPBOARD_WRITE_IMAGE
+    | typeof COMMAND_CLIPBOARD_READ_IMAGE
   ),
   (
     | readonly [number, number]
@@ -266,6 +292,7 @@ export type Command = readonly [
     | readonly [string, readonly [number, number], WindowOpenOptionsPayload]
     | readonly [string, string]
     | readonly [string, string, readonly (readonly [string, string])[]]
+    | ClipboardImagePayload
     | KeybindingsPayload
     | string
     | MenuPayload
@@ -278,7 +305,8 @@ export type CommandValuePayload =
   | readonly [3, boolean]
   | readonly [4, string]
   | readonly [5, readonly string[]]
-  | readonly [6, string];
+  | readonly [6, string]
+  | readonly [7, ClipboardImagePayload];
 export type CommandResultPayload = readonly [
   2,
   number,
@@ -361,13 +389,6 @@ export type PressEventFrame = readonly [
   EventPayload | null,
 ];
 
-function assertU32(name: string, value: unknown): asserts value is number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 0xffff_ffff)
-    throw new TypeError(`${name} must be a u32`);
-}
-function assertBool(name: string, value: unknown): asserts value is boolean {
-  if (typeof value !== "boolean") throw new TypeError(`${name} must be a boolean`);
-}
 function validateCommandValue(value: unknown): value is CommandValuePayload {
   if (!Array.isArray(value)) return false;
   if (value[0] === 1) return value.length === 2 && typeof value[1] === "number" && Number.isFinite(value[1]);
@@ -395,6 +416,20 @@ function validateCommandValue(value: unknown): value is CommandValuePayload {
   }
   if (value[0] === 6) {
     return value.length === 2 && typeof value[1] === "string" && utf8ByteLength(value[1]) <= MAX_FILE_READ_BYTES;
+  }
+  if (value[0] === 7) {
+    return (
+      value.length === 2 &&
+      Array.isArray(value[1]) &&
+      value[1].length === 2 &&
+      typeof value[1][0] === "number" &&
+      Number.isInteger(value[1][0]) &&
+      value[1][0] >= CLIPBOARD_IMAGE_FORMAT_PNG &&
+      value[1][0] <= CLIPBOARD_IMAGE_FORMAT_SVG &&
+      value[1][1] instanceof Uint8Array &&
+      value[1][1].byteLength > 0 &&
+      value[1][1].byteLength <= MAX_CLIPBOARD_IMAGE_BYTES
+    );
   }
   return (
     value[0] === 4 &&
@@ -746,6 +781,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       return false;
     }
     const validCommands: readonly number[] = [
+      COMMAND_CLIPBOARD_WRITE_IMAGE,
+      COMMAND_CLIPBOARD_READ_IMAGE,
       COMMAND_FOCUS,
       COMMAND_BLUR,
       COMMAND_SET_SELECTION,

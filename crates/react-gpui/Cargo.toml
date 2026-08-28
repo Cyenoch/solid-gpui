@@ -10,6 +10,7 @@ futures.workspace = true
 gpui.workspace = true
 rmp-serde.workspace = true
 serde.workspace = true
+serde_bytes.workspace = true
 thiserror.workspace = true
 
 unicode-segmentation.workspace = true

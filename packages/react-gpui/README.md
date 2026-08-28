@@ -129,27 +129,41 @@ supports `Files`.
 
 The external-file callback is intentionally path-only: it delivers ordered host-local paths, and the count is `paths.length`. It does not stat each dropped path or carry size, modification time, MIME data, or file bytes. If an application needs metadata or contents, it can compose the callback with its own host-visible file persistence/path operations after receiving the paths; keeping that work out of the drag event preserves a small, bounded notification. This callback is not promised by browser runtimes.
 
-There is no clipboard-change event. `getClipboardText()` is a pull operation; pinned GPUI's public `Platform` seam exposes clipboard reads/writes (and an async read fallback), not a public observer. The X11 backend has a private condition variable for its own selection bookkeeping, but it is not an application notification seam. A subscription can be reconsidered when a concrete consumer requires it.
+There is no clipboard-change event. `getClipboardText()` and
+`getClipboardImage()` are pull operations; pinned GPUI's public `Platform`
+seam exposes clipboard reads/writes (and an async read fallback), not a public
+observer. The X11 backend has a private condition variable for its own
+selection bookkeeping, but it is not an application notification seam.
 
-## Clipboard image audit
+## Clipboard images
 
-Pinned GPUI's `ClipboardItem` can carry an encoded image with an `ImageFormat` and bytes, rather than an RGBA buffer. The native seam is uneven: macOS reads and writes the supported image formats; Windows reads and writes PNG/JPEG/GIF/SVG (and may provide PNG conversion); X11 reads image MIME formats, but its current platform adapter writes clipboard entries through the text path; and Wayland reads image MIME offers while its write path advertises and sends text only. The headless test platform stores arbitrary `ClipboardItem` values but does not exercise a desktop clipboard.
+Pinned GPUI's `ClipboardItem` carries encoded image bytes and an `ImageFormat`.
+The root-scoped API accepts only PNG, JPEG, GIF, and SVG with a bounded binary
+payload and preserves the original format and bytes on reads:
 
-This protocol therefore does not expose `setClipboardImage()` or `getClipboardImage()`. A future bounded design needs a new binary payload/value tag, an image-format field, and a per-image byte cap below the 16 MiB frame limit; it must not pretend the platform returns a portable RGBA buffer. The design is recorded in [the interchange spec](../../.scratch/interchange/spec.md), and remains future work until the shared wire surface is coordinated.
+```tsx
+await root.setClipboardImage({ format: "png", bytes: pngBytes });
+const image = await root.getClipboardImage();
+```
+
+`getClipboardImage()` returns `null` for empty or non-image clipboard contents.
+macOS and Windows use native image clipboard paths; X11 and Wayland return
+`platform-unsupported` instead of silently converting image writes to text. No
+RGBA conversion or format transcoding is promised.
 
 ## Accessibility
 
 Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
 node has a recognized role and stable host ID:
 
-| React role | GPUI/AccessKit role | Label/description | Checked/selected | Value | Expanded | Level |
-| --- | --- | --- | --- | --- | --- | --- |
-| `button` | `Button` | supported | selected supported | supported | supported | — |
-| `text` | `Label` | supported | selected supported | supported | supported | — |
-| `textbox` | `TextInput` | supported | selected supported | supported | supported | — |
-| `checkbox` | `CheckBox` | supported | `checked` maps to toggled true/false; selected supported | supported | supported | — |
-| `heading` | `Heading` | supported | selected supported | supported | supported | positive `accessibilityLevel` |
-| `generic` | GPUI's role-less container | not exposed as an AX node | not exposed | not exposed | not exposed | not exposed |
+| React role | GPUI/AccessKit role        | Label/description         | Checked/selected                                         | Value       | Expanded    | Level                         |
+| ---------- | -------------------------- | ------------------------- | -------------------------------------------------------- | ----------- | ----------- | ----------------------------- |
+| `button`   | `Button`                   | supported                 | selected supported                                       | supported   | supported   | —                             |
+| `text`     | `Label`                    | supported                 | selected supported                                       | supported   | supported   | —                             |
+| `textbox`  | `TextInput`                | supported                 | selected supported                                       | supported   | supported   | —                             |
+| `checkbox` | `CheckBox`                 | supported                 | `checked` maps to toggled true/false; selected supported | supported   | supported   | —                             |
+| `heading`  | `Heading`                  | supported                 | selected supported                                       | supported   | supported   | positive `accessibilityLevel` |
+| `generic`  | GPUI's role-less container | not exposed as an AX node | not exposed                                              | not exposed | not exposed | not exposed                   |
 
 `accessibilityExpanded` is an optional boolean state for recognized roles and
 maps to GPUI's `aria_expanded` builder. `accessibilityLevel` is an optional
@@ -196,8 +210,8 @@ announcements remain an upstream gap rather than a wire field.
 - `fontFamily` — a non-empty font-family string up to 64 Unicode characters.
   GPUI resolves the requested family through its configured fallback stack when
   the primary family is unavailable.
-The exported `BoxShadow` type describes one layer, while `BoxShadowInput`
-accepts that type or a two-element tuple of layers.
+  The exported `BoxShadow` type describes one layer, while `BoxShadowInput`
+  accepts that type or a two-element tuple of layers.
 
 The transport uses one fixed positional 42-slot style tuple: slots `0..39`
 retain the existing fields, `40=boxShadow`, and `41=fontFamily`; omitted fields
@@ -205,6 +219,7 @@ are encoded as `null` except position and text alignment, whose default codes
 are `0` (relative and unset respectively), and cursor, whose default code `0`
 means Arrow.
 Negative inset offsets are passed through to GPUI/Taffy for relative and absolute positioning. Overlay offsets are supplied to GPUI's local anchored placement so its fit logic can flip a dropdown back into the viewport. No `zIndex` field is exposed; normal layering follows subtree paint order, while explicit overlays are deferred above normal siblings.
+
 - `pointerEvents` is intentionally not exposed. GPUI's default normal
   hitboxes do not occlude underlying hitboxes, so an overlay with no listener
   already permits basic pass-through; a declaration that suppresses only this
@@ -247,7 +262,6 @@ const avatarSource = new URL("./todo-avatar.svg", import.meta.url).pathname;
 ```
 
 When an application generates image bytes, persist them to a host-visible temporary or sidecar file through its app-owned file persistence path, then pass that path as `Image.source`. This keeps generated bytes out of the retained-tree commit and uses the same host path/cache behavior as shipped assets. Data URLs and base64 `Image.source` values are intentionally not supported; they would require a new byte-bearing image wire surface and a second loading path.
-
 
 ## Transport and framing
 
@@ -334,12 +348,12 @@ runtime setters, and a centered toggle are intentionally unsupported. The
 initial host window remains a centered `800×600` window configured outside the
 React protocol before JavaScript starts.
 
-| Creation option | macOS | Windows | X11 | Wayland | Web/test |
-| --- | --- | --- | --- | --- | --- |
-| `floating` | floating level | not topmost | transient parent | parent-linked | rejected/adapter-defined |
-| `dialog` | sheet/modal | modal parent | dialog/transient | optional modal extension | rejected/adapter-defined |
-| `resizable` | native style | native style | ignored by pinned adapter | no portable toggle | adapter-defined |
-| `minSize` | native content minimum | `WM_GETMINMAXINFO` | WM minimum hint | `xdg_toplevel` minimum | adapter-defined |
+| Creation option | macOS                  | Windows            | X11                       | Wayland                  | Web/test                 |
+| --------------- | ---------------------- | ------------------ | ------------------------- | ------------------------ | ------------------------ |
+| `floating`      | floating level         | not topmost        | transient parent          | parent-linked            | rejected/adapter-defined |
+| `dialog`        | sheet/modal            | modal parent       | dialog/transient          | optional modal extension | rejected/adapter-defined |
+| `resizable`     | native style           | native style       | ignored by pinned adapter | no portable toggle       | adapter-defined          |
+| `minSize`       | native content minimum | `WM_GETMINMAXINFO` | WM minimum hint           | `xdg_toplevel` minimum   | adapter-defined          |
 
 ## Native file dialogs
 
@@ -957,10 +971,7 @@ subtree; the trigger and enabled items can close on Escape:
     <Text>{open ? "Close actions" : "Open actions"}</Text>
   </Pressable>
   {open ? (
-    <View
-      style={{ position: "overlay", left: 0, top: 42 }}
-      onPointerDownOutside={() => setOpen(false)}
-    >
+    <View style={{ position: "overlay", left: 0, top: 42 }} onPointerDownOutside={() => setOpen(false)}>
       <Pressable focusable onKeyDown={closeOnEscape} onPress={() => setOpen(false)}>
         <Text>Refresh data</Text>
       </Pressable>

@@ -1,17 +1,18 @@
 use super::*;
 use gpui::{TestAppContext, VisualTestContext};
 use react_gpui::{
-    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN,
-    COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
-    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY,
-    COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, EventPayload,
-    HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
-    NotificationActionDefinition, PROTOCOL_VERSION, PatchOperation, TextInputProperties,
-    VirtualListProperties, WindowOpenOptions,
+    COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
+    COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
+    COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE,
+    COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
+    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, ClipboardImage, EventPayload, HostProperties, InMemoryAdapter,
+    KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
+    MenuAction, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
+    PROTOCOL_VERSION, PatchOperation, TextInputProperties, VirtualListProperties,
+    WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -38,6 +39,7 @@ fn command(
         menus,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 fn keybinding_command(
@@ -493,6 +495,43 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
             .as_deref(),
         Some("copied")
     );
+
+    let mut image_command = command(22, COMMAND_CLIPBOARD_WRITE_IMAGE, 1, None, None, None, None);
+    image_command.image = Some(ClipboardImage {
+        format: 1,
+        bytes: vec![0x89, 0x50, 0x4e, 0x47],
+    });
+    route_command(&registry, cx, image_command);
+    let image_events = take_events(&runtime);
+    let image_result = command_result(&image_events, 22);
+    if cfg!(any(target_os = "macos", target_os = "windows")) {
+        assert!(
+            image_result.success,
+            "native image clipboard write should succeed"
+        );
+    } else {
+        assert_eq!(image_result.error.as_deref(), Some("platform-unsupported"));
+    }
+    route_command(
+        &registry,
+        cx,
+        command(23, COMMAND_CLIPBOARD_READ_IMAGE, 1, None, None, None, None),
+    );
+    let image_read_result = command_result(&take_events(&runtime), 23);
+    if cfg!(any(target_os = "macos", target_os = "windows")) {
+        assert_eq!(
+            image_read_result.value,
+            Some(react_gpui::CommandValue::Image(ClipboardImage {
+                format: 1,
+                bytes: vec![0x89, 0x50, 0x4e, 0x47],
+            }))
+        );
+    } else {
+        assert_eq!(
+            image_read_result.error.as_deref(),
+            Some("platform-unsupported")
+        );
+    }
 
     route_command(
         &registry,

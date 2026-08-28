@@ -47,6 +47,7 @@ import type {
 } from "./renderer/types";
 import type { Transport, TransportTerminationListener } from "./transport";
 import type { Appearance } from "./hooks";
+import type { ClipboardImage } from "./protocol";
 export type {
   AccessibilityProps,
   AnimationCompleteEvent,
@@ -146,6 +147,8 @@ export interface Root {
   getWindowSize(): Promise<[number, number]>;
   setClipboardText(text: string): Promise<void>;
   getClipboardText(): Promise<string>;
+  setClipboardImage(image: ClipboardImage): Promise<void>;
+  getClipboardImage(): Promise<ClipboardImage | null>;
   zoom(): Promise<void>;
   toggleFullscreen(): Promise<void>;
   setClosePolicy(policy: "allow" | "require-confirmation"): Promise<void>;
@@ -242,6 +245,14 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
     getClipboardText(): Promise<string> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
       return container.getClipboardText();
+    },
+    setClipboardImage(image: ClipboardImage): Promise<void> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.setClipboardImage(image);
+    },
+    getClipboardImage(): Promise<ClipboardImage | null> {
+      if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
+      return container.getClipboardImage();
     },
     zoom(): Promise<void> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));

@@ -4422,6 +4422,7 @@ dependencies = [
  "image",
  "rmp-serde",
  "serde",
+ "serde_bytes",
  "smallvec",
  "thiserror 2.0.20",
  "unicode-segmentation",

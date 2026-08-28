@@ -31,8 +31,7 @@ function createStyles(theme: Theme) {
     confirmation: {
       position: "overlay",
       left: 16,
-      right: 16,
-      bottom: 16,
+      top: 16,
       flexDirection: "column",
       gap: 8,
       padding: 12,

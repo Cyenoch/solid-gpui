@@ -5,15 +5,16 @@ use std::path::PathBuf;
 use react_gpui::protocol::{KeyAction, UPDATE_FOCUSABLE, UPDATE_TOOLTIP};
 use react_gpui::{
     AccessibilityProperties, BoxShadow, COMMAND_BLUR, COMMAND_CLIPBOARD_READ,
-    COMMAND_CLIPBOARD_WRITE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS,
-    COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE,
-    COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, Command, CommandResult, CommandValue,
-    DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event, HostProperties,
-    ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
-    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node,
+    COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE,
+    COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT,
+    COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_SIZE, COMMAND_OPEN_SURFACE,
+    COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
+    CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, Easing, Event,
+    HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT,
+    KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node,
     NotificationActionDefinition, PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS,
     Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
     TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY,
@@ -219,6 +220,27 @@ fn patch() -> Patch {
     )
 }
 
+fn clipboard_image_command(kind: u32, request_id: u32, image: Option<ClipboardImage>) -> Command {
+    Command {
+        protocol: PROTOCOL_VERSION,
+        message: 4,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 42,
+        request_id,
+        node_id: 1,
+        kind,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+        image,
+    }
+}
+
 fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&str>) -> Command {
     Command {
         protocol: PROTOCOL_VERSION,
@@ -236,6 +258,7 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 fn text_file_command(kind: u32, request_id: u32, path: &str, content: Option<&str>) -> Command {
@@ -255,6 +278,7 @@ fn text_file_command(kind: u32, request_id: u32, path: &str, content: Option<&st
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 fn surface_command(title: &str, width: u32, height: u32) -> Command {
@@ -274,6 +298,7 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 fn surface_options_command() -> Command {
@@ -306,6 +331,7 @@ fn notification_command(title: &str, body: &str) -> Command {
         menus: None,
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 
@@ -344,6 +370,7 @@ fn menus_command() -> Command {
         }]),
         keybindings: None,
         window_options: None,
+        image: None,
     }
 }
 fn keybindings_command() -> Command {
@@ -372,6 +399,7 @@ fn keybindings_command() -> Command {
             },
         ]),
         window_options: None,
+        image: None,
     }
 }
 
@@ -935,6 +963,53 @@ fn main() {
         command(COMMAND_GET_WINDOW_SIZE, 1, None, None)
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-clipboard-write-image",
+        "command",
+        clipboard_image_command(
+            COMMAND_CLIPBOARD_WRITE_IMAGE,
+            127,
+            Some(ClipboardImage {
+                format: 1,
+                bytes: vec![0x89, 0x50, 0x4e, 0x47],
+            }),
+        )
+        .encode()
+        .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-clipboard-read-image",
+        "command",
+        clipboard_image_command(COMMAND_CLIPBOARD_READ_IMAGE, 128, None)
+            .encode()
+            .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-clipboard-image",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            26,
+            CommandResult {
+                request_id: 128,
+                command: COMMAND_CLIPBOARD_READ_IMAGE,
+                node_id: 1,
+                success: true,
+                error: None,
+                value: Some(CommandValue::Image(ClipboardImage {
+                    format: 1,
+                    bytes: vec![0x89, 0x50, 0x4e, 0x47],
+                })),
+            },
+        )
+        .encode()
+        .unwrap(),
     );
     emit(
         &mut rows,

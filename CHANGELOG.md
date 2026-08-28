@@ -17,7 +17,15 @@ from this work tree.
 - Added root-only asynchronous `readTextFile(path)` and `writeTextFile(path, content)` commands (25/26). They perform bounded UTF-8 filesystem I/O off the UI executor, return file text/bytes written, and reject invalid paths, directories, oversized data, invalid UTF-8, and native I/O failures.
 - Added the `notes.tsx` persistence example with Open/Save, dirty tracking, multiline editing, and close confirmation.
 - Embedded-Bun coverage now includes a bounded gallery/text-input/virtual-list/notes startup matrix through `EmbeddedBunAdapter`, plus a Fast Refresh lifecycle probe; `make embedded-bun` runs the host target alongside the adapter test.
+- Added bounded root-scoped `setClipboardImage()` and `getClipboardImage()`
+  commands (27/28). The protocol carries encoded PNG, JPEG, GIF, or SVG bytes
+  through binary MessagePack with a cap below the 16 MiB frame limit and
+  preserves format/bytes on reads. macOS and Windows use native clipboard image
+  entries; X11 and Wayland reject the unsupported path explicitly rather than
+  falling back to text.
+
 ### Added
+
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and
   tooltip-only updates.
@@ -498,6 +506,7 @@ from this work tree.
   longer listed as an upstream gap.
 
 ### Fixed
+
 - Keyboard focus traversal previously failed for all React nodes because GPUI
   focusable elements were not registered as native tab stops; traversal now
   reaches React View, Pressable, TextInput, and selectable Text nodes through

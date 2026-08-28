@@ -1,3 +1,4 @@
+export type { ClipboardImage, ClipboardImageFormat } from "./protocol";
 import { createElement, forwardRef, useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {

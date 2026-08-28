@@ -13,6 +13,8 @@ ByteInputEventListener	type
 ByteInputListener	type
 ByteOutput	type
 ByteOutputEventListener	type
+ClipboardImage	type
+ClipboardImageFormat	type
 createAppearanceStore	value
 createProcessTerminationHandler	value
 createRoot	value

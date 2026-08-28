@@ -82,7 +82,19 @@ const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false, false,
 const list = [6, 1, 3, 6, null, null, 0, virtualList, null, false];
 const dragNode = [8, 1, 5, 3, null, null, 11, drag, null, false];
 const imageNode = [7, 1, 4, 7, null, null, 0, image, null, false];
-const tooltipUpdate = [2, 4, 191, fullStyle, "updated", 12, [3, "assets/logo.png", 2, null], accessibility, true, false, "Updated tooltip"];
+const tooltipUpdate = [
+  2,
+  4,
+  191,
+  fullStyle,
+  "updated",
+  12,
+  [3, "assets/logo.png", 2, null],
+  accessibility,
+  true,
+  false,
+  "Updated tooltip",
+];
 const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode, dragNode]];
 const patch = [
   3,
@@ -91,12 +103,7 @@ const patch = [
   3,
   42,
   43,
-  [
-    [1, 8, 1, 5, 3, null, null, 11, drag, null, false],
-    tooltipUpdate,
-    [3, 4, 1, 0],
-    [4, 6],
-  ],
+  [[1, 8, 1, 5, 3, null, null, 11, drag, null, false], tooltipUpdate, [3, 4, 1, 0], [4, 6]],
 ];
 
 const rows = [
@@ -201,6 +208,18 @@ const rows = [
     6,
     [2, 112, 16, 1, true, null, [4, "pasted text"]],
   ]),
+  row("ts-event-command-result-clipboard-image", "event", [
+    3,
+    2,
+    7,
+    3,
+    42,
+    26,
+    1,
+    0,
+    6,
+    [2, 128, 28, 1, true, null, [7, [1, new Uint8Array([0x89, 0x50, 0x4e, 0x47])]]],
+  ]),
   row("ts-command-focus", "command", [3, 4, 7, 3, 42, 101, 4, 1, null]),
   row("ts-command-selection", "command", [3, 4, 7, 3, 42, 103, 5, 3, [2, 4]]),
   row("ts-command-scroll-index", "command", [3, 4, 7, 3, 42, 104, 6, 4, [9, 0]]),
@@ -215,6 +234,18 @@ const rows = [
   row("ts-command-get-window-size", "command", [3, 4, 7, 3, 42, 113, 1, 13, null]),
   row("ts-command-clipboard-write", "command", [3, 4, 7, 3, 42, 115, 1, 15, "clipboard text"]),
   row("ts-command-clipboard-read", "command", [3, 4, 7, 3, 42, 116, 1, 16, null]),
+  row("ts-command-clipboard-write-image", "command", [
+    3,
+    4,
+    7,
+    3,
+    42,
+    127,
+    1,
+    27,
+    [1, new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
+  ]),
+  row("ts-command-clipboard-read-image", "command", [3, 4, 7, 3, 42, 128, 1, 28, null]),
   row("ts-command-open-surface", "command", [3, 4, 7, 3, 42, 117, 1, 17, ["Child", [640, 480]]]),
   row("ts-command-open-surface-options", "command", [
     3,
@@ -231,8 +262,30 @@ const rows = [
   row("ts-command-file-dialog-save", "command", [3, 4, 7, 3, 42, 119, 1, 19, "report.json"]),
   row("ts-command-read-text-file", "command", [3, 4, 7, 3, 42, 125, 1, 25, "/tmp/notes.txt"]),
   row("ts-command-write-text-file", "command", [3, 4, 7, 3, 42, 126, 1, 26, ["/tmp/notes.txt", "hello π"]]),
-  row("ts-event-command-result-read-text-file", "event", [3, 2, 7, 3, 42, 24, 1, 0, 6, [2, 125, 25, 1, true, null, [6, "hello π"]]]),
-  row("ts-event-command-result-write-text-file", "event", [3, 2, 7, 3, 42, 25, 1, 0, 6, [2, 126, 26, 1, true, null, [1, 8]]]),
+  row("ts-event-command-result-read-text-file", "event", [
+    3,
+    2,
+    7,
+    3,
+    42,
+    24,
+    1,
+    0,
+    6,
+    [2, 125, 25, 1, true, null, [6, "hello π"]],
+  ]),
+  row("ts-event-command-result-write-text-file", "event", [
+    3,
+    2,
+    7,
+    3,
+    42,
+    25,
+    1,
+    0,
+    6,
+    [2, 126, 26, 1, true, null, [1, 8]],
+  ]),
   row("ts-command-notification", "command", [3, 4, 7, 3, 42, 120, 1, 20, ["Done", "Finished", [["open", "Open"]]]]),
   row("ts-command-set-menus", "command", [
     3,
@@ -272,17 +325,7 @@ const invalid = [
     encode([3, 2, 7, 3, 42, 21, 1, 0, 6, [2, 120, 18, 1, true, null, [5, []]]]),
   )}\terror\tevent-null`,
   `ts-invalid-keybinding-count\tcommand\t${hex(
-    encode([
-      3,
-      4,
-      7,
-      3,
-      42,
-      123,
-      1,
-      22,
-      Array.from({ length: 65 }, () => ["ctrl-a", "action"]),
-    ]),
+    encode([3, 4, 7, 3, 42, 123, 1, 22, Array.from({ length: 65 }, () => ["ctrl-a", "action"])]),
   )}\terror\traw`,
   `ts-invalid-event-type\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 99, null]))}\terror\tevent-null`,
   `ts-invalid-surface-close-node\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 16, null]))}\terror\tevent-null`,
