@@ -911,6 +911,23 @@ navigation through the root:
 
 `focusable` and a listener put `View`/`Pressable` nodes in the native
 tab-stop graph. See [`focus-flow.tsx`](examples/focus-flow.tsx).
+Keyboard focus traversal is native to each GPUI window. A `View` or `Pressable`
+enters the tab-stop graph when it has `focusable` and at least one listener
+(for example `onFocus`, `onBlur`, `onKeyDown`, or `onPress`). `TextInput` and
+`selectable` `Text` are tab stops through their native controls; a disabled
+`TextInput` or disabled `Pressable` is skipped. React does not assign a second
+ordering: without a native tab group or explicit tab index, GPUI orders stops
+by tab-group path and then element insertion order, which is React tree/commit
+order for ordinary siblings. Traversal wraps at the end and stays isolated to
+the current native window.
+
+Focus restoration after a focused node unmounts prefers the nearest still-live
+ancestor/restore target and otherwise chooses the first eligible stop in tree
+order. This emits the unmounted node's JavaScript `onBlur` synchronously before
+restoration. GPUI's pinned focus model has no React FocusScope containment
+boundary: an open overlay/menu can therefore remain part of the same window's
+tab graph, and applications should provide Escape handling when they need to
+close it. The dropdown example above demonstrates that boundary explicitly.
 
 ### Dropdown with outside dismissal
 

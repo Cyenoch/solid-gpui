@@ -15,7 +15,6 @@ from this work tree.
   escape hatch. Protocol wire frames are unchanged.
 
 ### Added
-
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and
   tooltip-only updates.
@@ -496,6 +495,14 @@ from this work tree.
   longer listed as an upstream gap.
 
 ### Fixed
+- Keyboard focus traversal previously failed for all React nodes because GPUI
+  focusable elements were not registered as native tab stops; traversal now
+  reaches React View, Pressable, TextInput, and selectable Text nodes through
+  explicit native tab stops. GPUI tab-group/insertion order, wrapping,
+  disabled-control skipping, and per-window isolation are preserved.
+- Focused-node unmount now emits JavaScript blur synchronously and restores
+  focus to the live ancestor/restore target or the first eligible stop.
+- `UPDATE_FOCUSABLE` patches are now accepted for `Pressable` nodes.
 
 - Host pointer events normalize platform `click_count=0` mouse-up values to the
   wire contract's minimum `clickCount=1`, preventing valid native pointer
