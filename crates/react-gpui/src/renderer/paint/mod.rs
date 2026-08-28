@@ -217,6 +217,7 @@ impl ReactRoot {
             let listener_id = node.listener_id;
             element = element
                 .focusable()
+                .tab_stop(true)
                 .track_focus(&focus)
                 .on_key_down(move |event, _, _| {
                     emit_key_event(

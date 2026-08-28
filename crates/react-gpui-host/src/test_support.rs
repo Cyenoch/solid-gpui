@@ -7,10 +7,10 @@ use react_gpui::{
     COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
     COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
     COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
-    EventPayload, HostProperties, InMemoryAdapter, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
-    NotificationActionDefinition, PROTOCOL_VERSION, TextInputProperties, VirtualListProperties,
-    WindowOpenOptions,
+    EventPayload, HostProperties, InMemoryAdapter, KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW,
+    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuAction, MenuDefinition, MenuItemDefinition, Node,
+    NotificationActionDefinition, PROTOCOL_VERSION, PatchOperation, TextInputProperties,
+    VirtualListProperties, WindowOpenOptions,
 };
 fn command(
     request_id: u32,
@@ -756,6 +756,280 @@ pub fn cross_surface_focus_blur_roundtrip(cx: &mut TestAppContext) {
         .find(|event| event.event_type == react_gpui::EVENT_FOCUS)
         .expect("second focus event");
     assert_ne!(first_focus.surface_id, second_focus.surface_id);
+}
+fn focus_node(id: u32, parent_id: u32, index: u32, kind: u32, listener_id: u32) -> Node {
+    let mut node = Node::new(id, parent_id, index, kind);
+    node.listener_id = listener_id;
+    node.focusable = true;
+    node.style = Some(react_gpui::Style {
+        flex_direction: Some(1),
+        width: Some(100.0),
+        height: Some(30.0),
+        ..Default::default()
+    });
+    node
+}
+
+fn focus_surface_snapshot(nodes: Vec<Node>) -> Snapshot {
+    Snapshot::new(1, 1, 0, 1, nodes)
+}
+
+fn open_focus_surface(
+    cx: &mut TestAppContext,
+    nodes: Vec<Node>,
+) -> (
+    Entity<SurfaceRegistry>,
+    WindowHandle<ReactRoot>,
+    Arc<InMemoryAdapter>,
+) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open focus test surface");
+    let payload = focus_surface_snapshot(nodes)
+        .encode()
+        .expect("encode focus snapshot");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&payload, cx))
+        .expect("route focus snapshot");
+    let window = draw_surface(&registry, cx, 1);
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("activate focus test surface");
+    cx.run_until_parked();
+    take_events(&runtime);
+    (registry, window, runtime)
+}
+
+pub fn focus_traversal_roundtrip(cx: &mut TestAppContext) {
+    let (registry, window, runtime) = open_focus_surface(
+        cx,
+        vec![
+            Node::new(1, 0, 0, KIND_VIEW),
+            focus_node(2, 1, 0, KIND_VIEW, 20),
+            focus_node(3, 1, 1, KIND_VIEW, 30),
+            focus_node(4, 1, 2, KIND_VIEW, 40),
+        ],
+    );
+    route_command(
+        &registry,
+        cx,
+        command(1, COMMAND_FOCUS, 2, None, None, None, None),
+    );
+    let _ = take_events(&runtime);
+    draw_surface(&registry, cx, 1);
+    for (request_id, kind, expected) in [
+        (2, COMMAND_FOCUS_NEXT, 3),
+        (3, COMMAND_FOCUS_NEXT, 4),
+        (4, COMMAND_FOCUS_NEXT, 2),
+        (5, COMMAND_FOCUS_PREV, 4),
+    ] {
+        route_command(
+            &registry,
+            cx,
+            command(request_id, kind, 1, None, None, None, None),
+        );
+        let mut events = take_events(&runtime);
+        for _ in 0..4 {
+            if events
+                .iter()
+                .any(|event| event.event_type == react_gpui::EVENT_FOCUS)
+            {
+                break;
+            }
+            advance_frame(window, cx);
+            events.extend(take_events(&runtime));
+        }
+        assert!(command_result(&events, request_id).success);
+        assert!(
+            events
+                .iter()
+                .any(|event| event.event_type == react_gpui::EVENT_FOCUS
+                    && event.node_id == expected),
+            "focus traversal request {request_id} did not focus node {expected}: {events:?}"
+        );
+    }
+}
+pub fn disabled_pressable_is_skipped_roundtrip(cx: &mut TestAppContext) {
+    let (registry, window, runtime) = open_focus_surface(
+        cx,
+        vec![
+            Node::new(1, 0, 0, KIND_VIEW),
+            focus_node(2, 1, 0, KIND_VIEW, 20),
+            Node::new(3, 1, 1, KIND_PRESSABLE),
+            focus_node(4, 1, 2, KIND_VIEW, 40),
+        ],
+    );
+    route_command(
+        &registry,
+        cx,
+        command(1, COMMAND_FOCUS, 2, None, None, None, None),
+    );
+    let _ = take_events(&runtime);
+    draw_surface(&registry, cx, 1);
+    route_command(
+        &registry,
+        cx,
+        command(2, COMMAND_FOCUS_NEXT, 1, None, None, None, None),
+    );
+    let mut events = take_events(&runtime);
+    for _ in 0..4 {
+        if events
+            .iter()
+            .any(|event| event.event_type == react_gpui::EVENT_FOCUS)
+        {
+            break;
+        }
+        advance_frame(window, cx);
+        events.extend(take_events(&runtime));
+    }
+    assert!(command_result(&events, 2).success);
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_FOCUS && event.node_id == 4 })
+    );
+    assert!(!events.iter().any(|event| event.node_id == 3));
+}
+
+pub fn conditional_focus_mount_keeps_tree_order(cx: &mut TestAppContext) {
+    let (registry, _window, runtime) = open_focus_surface(
+        cx,
+        vec![
+            Node::new(1, 0, 0, KIND_VIEW),
+            focus_node(2, 1, 0, KIND_VIEW, 20),
+            focus_node(4, 1, 1, KIND_VIEW, 40),
+        ],
+    );
+    route_command(
+        &registry,
+        cx,
+        command(1, COMMAND_FOCUS, 2, None, None, None, None),
+    );
+    take_events(&runtime);
+    let patch = Patch::new(
+        1,
+        1,
+        1,
+        2,
+        vec![PatchOperation::Create(focus_node(3, 1, 1, KIND_VIEW, 30))],
+    )
+    .encode()
+    .expect("encode conditional focus patch");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&patch, cx))
+        .expect("route conditional focus patch");
+    draw_surface(&registry, cx, 1);
+    take_events(&runtime);
+    let mut next = command(2, COMMAND_FOCUS_NEXT, 1, None, None, None, None);
+    next.after_revision = 2;
+    route_command(&registry, cx, next);
+    let events = take_events(&runtime);
+    assert!(command_result(&events, 2).success);
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_FOCUS && event.node_id == 3 })
+    );
+}
+
+pub fn focused_unmount_blurs_and_restores_ancestor(cx: &mut TestAppContext) {
+    let (registry, window, runtime) = open_focus_surface(
+        cx,
+        vec![
+            Node::new(1, 0, 0, KIND_VIEW),
+            focus_node(2, 1, 0, KIND_VIEW, 20),
+            focus_node(3, 2, 0, KIND_PRESSABLE, 30),
+        ],
+    );
+    route_command(
+        &registry,
+        cx,
+        command(1, COMMAND_FOCUS, 3, None, None, None, None),
+    );
+    take_events(&runtime);
+    let patch = Patch::new(1, 1, 1, 2, vec![PatchOperation::Delete { id: 3 }])
+        .encode()
+        .expect("encode focus unmount patch");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&patch, cx))
+        .expect("route focus unmount patch");
+    draw_surface(&registry, cx, 1);
+    advance_frame(window, cx);
+    let events = take_events(&runtime);
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_BLUR && event.node_id == 3 }),
+        "unmounted focus blur missing: {events:?}"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_FOCUS && event.node_id == 2 }),
+        "focus was not restored to ancestor: {events:?}"
+    );
+}
+pub fn pressable_focusable_update_roundtrip(cx: &mut TestAppContext) {
+    let (registry, window, runtime) = open_focus_surface(
+        cx,
+        vec![Node::new(1, 0, 0, KIND_VIEW), {
+            let mut pressable = Node::new(2, 1, 0, KIND_PRESSABLE);
+            pressable.listener_id = 21;
+            pressable
+        }],
+    );
+    let patch = Patch::new(
+        1,
+        1,
+        1,
+        2,
+        vec![PatchOperation::Update {
+            id: 2,
+            mask: react_gpui::protocol::UPDATE_FOCUSABLE,
+            style: None,
+            text: None,
+            listener_id: 21,
+            host_properties: None,
+            accessibility: None,
+            focusable: true,
+            selectable: false,
+            tooltip: None,
+        }],
+    )
+    .encode()
+    .expect("encode Pressable focusable update");
+    registry
+        .update(cx, |registry, cx| registry.route_payload(&patch, cx))
+        .expect("route Pressable focusable update");
+    assert!(registry.read_with(cx, |registry, _| {
+        registry.surfaces.get(&1).is_some_and(|surface| {
+            surface.root.read_with(cx, |root, _| {
+                root.store().get(2).is_some_and(|node| node.focusable)
+            })
+        })
+    }));
+    draw_surface(&registry, cx, 1);
+    let mut focus = command(1, COMMAND_FOCUS, 2, None, None, None, None);
+    focus.after_revision = 2;
+    route_command(&registry, cx, focus);
+    let mut events = take_events(&runtime);
+    for _ in 0..4 {
+        if events
+            .iter()
+            .any(|event| event.event_type == react_gpui::EVENT_FOCUS && event.node_id == 2)
+        {
+            break;
+        }
+        advance_frame(window, cx);
+        events.extend(take_events(&runtime));
+    }
+    assert!(command_result(&events, 1).success);
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.event_type == react_gpui::EVENT_FOCUS && event.node_id == 2 })
+    );
 }
 pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();

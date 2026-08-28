@@ -34,6 +34,34 @@ fn focus_and_blur_events_remain_routed_to_each_surface() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::cross_surface_focus_blur_roundtrip(&mut cx);
 }
+#[test]
+fn focus_traversal_follows_tree_order_and_wraps() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::focus_traversal_roundtrip(&mut cx);
+}
+
+#[test]
+fn disabled_pressable_is_skipped_by_focus_traversal() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::disabled_pressable_is_skipped_roundtrip(&mut cx);
+}
+
+#[test]
+fn conditionally_mounted_focus_node_keeps_tree_order() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::conditional_focus_mount_keeps_tree_order(&mut cx);
+}
+
+#[test]
+fn focused_unmount_blurs_and_restores_focus() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::focused_unmount_blurs_and_restores_ancestor(&mut cx);
+}
+#[test]
+fn pressable_focusable_updates_are_accepted_and_focusable() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::pressable_focusable_update_roundtrip(&mut cx);
+}
 
 #[test]
 fn close_policy_simulate_close_requires_and_resolves_confirmation() {

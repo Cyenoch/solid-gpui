@@ -37,6 +37,8 @@ fn accessibility_properties_validate_and_keep_stable_ids() {
         checked: None,
         selected: Some(true),
         value: Some("A".into()),
+        expanded: Some(false),
+        level: None,
     });
     let store = {
         let mut store = NodeStore::default();
@@ -68,6 +70,8 @@ fn accessibility_properties_validate_and_keep_stable_ids() {
         checked: Some(true),
         selected: None,
         value: None,
+        expanded: None,
+        level: None,
     });
     assert!(matches!(
         NodeStore::default().apply_snapshot(root_snapshot(1, vec![invalid])),
@@ -89,6 +93,8 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
         checked: Some(true),
         selected: None,
         value: None,
+        expanded: None,
+        level: None,
     };
     let patch = Patch::new(
         7,
@@ -141,6 +147,8 @@ fn accessibility_patch_updates_a_valid_label() {
                 checked: None,
                 selected: None,
                 value: None,
+                expanded: Some(true),
+                level: None,
             }),
             focusable: false,
             selectable: false,
@@ -989,6 +997,38 @@ fn focusable_view_and_pressable_listener_combinations_are_validated() {
             vec![Node::new(1, 0, 0, KIND_VIEW), valid_pressable],
         ))
         .unwrap();
+    assert!(store.get(2).unwrap().focusable);
+}
+#[test]
+fn pressable_focusable_patch_is_accepted() {
+    let mut pressable = Node::new(2, 1, 0, KIND_PRESSABLE);
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), pressable.clone()],
+        ))
+        .expect("initial Pressable tree");
+    pressable.focusable = true;
+    let patch = Patch::new(
+        7,
+        3,
+        1,
+        2,
+        vec![PatchOperation::Update {
+            id: 2,
+            mask: UPDATE_FOCUSABLE,
+            style: None,
+            text: None,
+            listener_id: 0,
+            host_properties: None,
+            accessibility: None,
+            focusable: true,
+            selectable: false,
+            tooltip: None,
+        }],
+    );
+    store.apply_patch(patch).expect("Pressable focusable patch");
     assert!(store.get(2).unwrap().focusable);
 }
 

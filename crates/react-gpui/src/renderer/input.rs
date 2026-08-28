@@ -500,18 +500,22 @@ impl ReactRoot {
                         drag_origin: 0,
                         drag_selection: 0..0,
                     });
-                self.focus_handles
+                let focus_handle = self
+                    .focus_handles
                     .entry(id)
                     .or_insert_with(|| cx.focus_handle());
+                *focus_handle = focus_handle.clone().tab_stop(!input.disabled);
                 state.set_max_length(input.max_length.map(|value| value as usize));
                 state.apply_controlled(&input);
             } else if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
                 && node.focusable
                 && node.listener_id != 0
             {
-                self.focus_handles
+                let focus_handle = self
+                    .focus_handles
                     .entry(id)
                     .or_insert_with(|| cx.focus_handle());
+                *focus_handle = focus_handle.clone().tab_stop(true);
             }
         }
     }
@@ -562,9 +566,11 @@ impl ReactRoot {
                 node.text_content.as_deref().unwrap_or_default(),
                 len,
             );
-            self.focus_handles
+            let focus_handle = self
+                .focus_handles
                 .entry(node.id)
                 .or_insert_with(|| cx.focus_handle());
+            *focus_handle = focus_handle.clone().tab_stop(true);
         }
     }
 

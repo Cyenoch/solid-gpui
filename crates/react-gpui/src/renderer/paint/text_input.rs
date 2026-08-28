@@ -534,6 +534,7 @@ pub(super) fn render_text_input(
         })
         .id(ElementId::Integer(node.id as u64))
         .focusable()
+        .tab_stop(!input.disabled)
         .track_focus(&focus);
     apply_accessibility(input_element, node).into_any()
 }
@@ -563,6 +564,7 @@ pub(super) fn render_selectable(
     element = apply_text_style(element, style);
     let mut selectable = element
         .focusable()
+        .tab_stop(true)
         .track_focus(&focus)
         .cursor(gpui::CursorStyle::IBeam)
         .child(SelectableTextElement {

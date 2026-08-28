@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 pub(super) use crate::InMemoryAdapter;
-pub(super) use crate::protocol::{EVENT_LAYOUT, KeyAction};
+pub(super) use crate::protocol::{EVENT_LAYOUT, KeyAction, UPDATE_FOCUSABLE};
 pub(super) use std::io::Cursor;
 pub(super) use std::process::Command as ProcessCommand;
 pub(super) use std::sync::Arc;

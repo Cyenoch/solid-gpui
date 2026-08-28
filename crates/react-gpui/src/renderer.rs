@@ -18,7 +18,10 @@ use crate::protocol::{
     ProtocolError, Snapshot, Style, WindowAppearance,
 };
 use crate::transport::{RuntimeAdapter, send_event_or_exit};
-use crate::tree::{KIND_VIRTUAL_LIST, NodeStore, TreeError};
+use crate::tree::{
+    KIND_PRESSABLE, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, NodeStore,
+    StoredNode, TreeError,
+};
 
 mod animation;
 mod commands;
@@ -82,6 +85,7 @@ pub struct ReactRoot {
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
     selectable_text_selections: HashMap<u32, Range<usize>>,
     focus_handles: HashMap<u32, FocusHandle>,
+    focused_node: Option<(u32, u32)>,
     active_input: Option<u32>,
     text_input_drag_anchor: Option<(u32, usize)>,
     selectable_text_drag_anchor: Option<(u32, usize)>,
@@ -99,6 +103,7 @@ pub struct ReactRoot {
     frame_styles: HashMap<u32, Style>,
     animation_frame_requested: bool,
     focus_observers: HashMap<u32, (Subscription, Subscription)>,
+    focus_lost_observer: Option<Subscription>,
     window_observers: Option<(Subscription, Subscription, Subscription)>,
     window_observation_scheduled: bool,
     last_window_size: Option<(f32, f32)>,
@@ -117,6 +122,7 @@ impl ReactRoot {
             selectable_text_layouts: HashMap::new(),
             selectable_text_selections: HashMap::new(),
             focus_handles: HashMap::new(),
+            focused_node: None,
             active_input: None,
             text_input_drag_anchor: None,
             selectable_text_drag_anchor: None,
@@ -135,6 +141,7 @@ impl ReactRoot {
             frame_styles: HashMap::new(),
             animation_frame_requested: false,
             focus_observers: HashMap::new(),
+            focus_lost_observer: None,
             window_observers: None,
             window_observation_scheduled: false,
             last_window_size: None,
@@ -279,6 +286,7 @@ impl ReactRoot {
         self.selectable_text_drag_anchor = None;
         self.focus_handles.clear();
         self.focus_observers.clear();
+        self.focused_node = None;
         self.active_input = None;
         self.text_input_drag_anchor = None;
         self.active_drag_type.borrow_mut().take();
@@ -438,12 +446,19 @@ impl ReactRoot {
         );
         send_event_or_exit(self.runtime.as_ref(), "layout event", &event);
     }
+
     fn ensure_focus_observers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.focus_lost_observer.is_none() {
+            let focus_lost = cx.on_focus_lost(window, |root, window, cx| {
+                root.handle_focus_lost(window, cx);
+            });
+            self.focus_lost_observer = Some(focus_lost);
+        }
         let focusable_ids: HashSet<u32> = self
             .store
             .iter()
             .filter(|node| {
-                (node.kind == crate::tree::KIND_VIEW || node.kind == crate::tree::KIND_PRESSABLE)
+                (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
                     && node.focusable
                     && node.listener_id != 0
             })
@@ -468,26 +483,86 @@ impl ReactRoot {
         }
     }
 
-    fn emit_focus_event(&mut self, node_id: u32, focused: bool) {
-        let Some(node) = self.store.get(node_id) else {
-            return;
-        };
-        if (node.kind != crate::tree::KIND_VIEW && node.kind != crate::tree::KIND_PRESSABLE)
-            || !node.focusable
-            || node.listener_id == 0
+    fn node_can_receive_focus(node: &StoredNode) -> bool {
+        match node.kind {
+            KIND_VIEW | KIND_PRESSABLE => node.focusable && node.listener_id != 0,
+            KIND_TEXT_INPUT => matches!(
+                node.host_properties.as_ref(),
+                Some(HostProperties::TextInput(input)) if !input.disabled
+            ),
+            KIND_TEXT => node.selectable,
+            _ => false,
+        }
+    }
+
+    fn first_focus_handle(&self) -> Option<FocusHandle> {
+        fn visit(root: &ReactRoot, node: &StoredNode) -> Option<FocusHandle> {
+            if ReactRoot::node_can_receive_focus(node)
+                && let Some(handle) = root.focus_handles.get(&node.id)
+            {
+                return Some(handle.clone());
+            }
+            node.children(&root.store)
+                .find_map(|child| visit(root, child))
+        }
+
+        self.store.root().and_then(|root| visit(self, root))
+    }
+
+    fn handle_focus_lost(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let detached_focus = self
+            .focused_node
+            .take()
+            .filter(|(node_id, _)| self.store.get(*node_id).is_none());
+        if let Some((node_id, listener_id)) = detached_focus
+            && !self.focus_observers.contains_key(&node_id)
         {
+            self.emit_focus_event_for_listener(node_id, listener_id, false);
+        } else if detached_focus.is_none() {
             return;
         }
+
+        let restore = window.focus_lost_restore_target(cx).and_then(|target| {
+            self.focus_handles
+                .values()
+                .find(|handle| handle == &&target)
+                .cloned()
+        });
+        if let Some(handle) = restore.or_else(|| self.first_focus_handle()) {
+            window.focus(&handle, cx);
+        }
+    }
+
+    fn emit_focus_event_for_listener(&mut self, node_id: u32, listener_id: u32, focused: bool) {
         let event = Event::focus(
             self.store.surface_id(),
             self.store.epoch(),
             self.store.revision(),
             self.next_sequence.fetch_add(1, Ordering::Relaxed),
             node_id,
-            node.listener_id,
+            listener_id,
             focused,
         );
         send_event_or_exit(self.runtime.as_ref(), "focus event", &event);
+    }
+
+    fn emit_focus_event(&mut self, node_id: u32, focused: bool) {
+        let Some(node) = self.store.get(node_id) else {
+            return;
+        };
+        if (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE)
+            || !node.focusable
+            || node.listener_id == 0
+        {
+            return;
+        }
+        let listener_id = node.listener_id;
+        if focused {
+            self.focused_node = Some((node_id, listener_id));
+        } else if self.focused_node == Some((node_id, listener_id)) {
+            self.focused_node = None;
+        }
+        self.emit_focus_event_for_listener(node_id, listener_id, focused);
     }
     fn emit_pointer_down_outside(&mut self, node_id: u32, listener_id: u32, x: f32, y: f32) {
         let Some(node) = self.store.get(node_id) else {

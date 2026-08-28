@@ -521,10 +521,10 @@ impl NodeStore {
                 reason: "text updates require RawText",
             });
         }
-        if mask & UPDATE_FOCUSABLE != 0 && node.kind != KIND_VIEW {
+        if mask & UPDATE_FOCUSABLE != 0 && node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
-                reason: "focusable updates require View",
+                reason: "focusable updates require View or Pressable",
             });
         }
         if mask & UPDATE_SELECTABLE != 0 && node.kind != KIND_TEXT {
