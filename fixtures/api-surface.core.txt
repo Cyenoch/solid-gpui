@@ -72,6 +72,7 @@ PressEventType	type
 PressHandler	type
 Root	type
 RootOptions	type
+ScrollDeltaKind	type
 ScrollEvent	type
 ScrollHandler	type
 StdioTransport	both
