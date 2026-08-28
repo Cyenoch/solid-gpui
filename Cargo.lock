@@ -2688,6 +2688,7 @@ dependencies = [
  "qoi",
  "ravif",
  "rayon",
+ "rgb",
  "tiff",
  "zune-core",
  "zune-jpeg",
@@ -4418,8 +4419,10 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "gpui",
+ "image",
  "rmp-serde",
  "serde",
+ "smallvec",
  "thiserror 2.0.20",
  "unicode-segmentation",
 ]

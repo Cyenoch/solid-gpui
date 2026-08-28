@@ -16,4 +16,6 @@ unicode-segmentation.workspace = true
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 
+image = "0.25.10"
+smallvec = "1.15.2"
 gpui = { workspace = true, features = ["test-support"] }

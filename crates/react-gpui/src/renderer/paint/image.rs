@@ -34,18 +34,25 @@ pub(super) fn render(
             .into_any();
     };
     let object_fit_code = image.object_fit;
+    let image_id = gpui::ElementId::named_usize("react-gpui-image", node.id as usize);
     let mut image_element = img(ImageSource::from(PathBuf::from(&image.source)))
+        .id(image_id)
         .object_fit(object_fit_from_code(object_fit_code));
     if let Some(fallback_source) = image.fallback_source.as_ref() {
         let fallback_path = PathBuf::from(fallback_source);
         let loading_path = fallback_path.clone();
+        let loading_id = gpui::ElementId::named_usize("react-gpui-image-loading", node.id as usize);
+        let fallback_id =
+            gpui::ElementId::named_usize("react-gpui-image-fallback", node.id as usize);
         image_element = image_element.with_loading(move || {
             img(ImageSource::from(loading_path.clone()))
+                .id(loading_id.clone())
                 .object_fit(object_fit_from_code(object_fit_code))
                 .into_any()
         });
         image_element = image_element.with_fallback(move || {
             img(ImageSource::from(fallback_path.clone()))
+                .id(fallback_id.clone())
                 .object_fit(object_fit_from_code(object_fit_code))
                 .into_any()
         });

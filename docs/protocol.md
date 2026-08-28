@@ -219,8 +219,57 @@ shape to match the node kind.
 | --: | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 |   1 | TextInput   | `[1,value,placeholder,multiline,disabled,controlled,ackEditSeq,selectionStart,selectionEnd,markedStart,markedEnd,maxLength,selectionReversed]` | Strings may be null only where shown; sequence/selection/maxLength are u32; marked positions are both null or both numbers and ranges are ordered; `selectionReversed` preserves the UTF-16 head orientation. | `protocol.ts:94-108,426-466`; `wire/node.rs:27-61,292-326,423-508`; `tree.rs:1039-1041` |
 |   2 | VirtualList | `[2,itemCount,rangeStart,rangeEnd,estimatedItemSize,overscan]`; counts/ranges/overscan are u32, `rangeStart <= rangeEnd <= itemCount`, and estimated size is finite and positive. `estimatedItemSize` is the initial size hint for unmeasured or not-yet-committed rows; measured rows use their natural GPUI `list` height. | `protocol.ts:97,396-412`; `wire/node.rs:59-60,331-348,506-529`; `renderer/paint/virtual_list.rs:16-107`; `renderer.rs` |
-|   3 | Image       | `[3,source,objectFit,fallbackSource|null]` | Source and optional fallback are non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters; object fit is `1..5`. GPUI renders the fallback for loading and load-error states when present. | `protocol.ts:111-117,485-500`; `wire/node.rs:61-63,308-310,412-425,556-569`; `renderer/paint/image.rs:26-59` |
+|   3 | Image       | `[3,source,objectFit,fallbackSource|null]` | Source and optional fallback are non-empty host-local path strings of at most 1024 UTF-8 bytes with no control characters; `PathBuf` forces local-file semantics, so `file://` and `http(s)://` strings are path names, not URL fetches. Object fit is `1=Fill`, `2=Contain`, `3=Cover`, `4=ScaleDown`, `5=None`. GPUI renders `fallbackSource` only after a load error; a loading replacement is also configured and appears after 200ms when the image has a stable element ID. | `protocol.ts:111-117,485-500`; `wire/node.rs:61-63,308-310,412-425,556-569`; `renderer/paint/image.rs:26-65`; pinned `references/zed/crates/gpui/src/elements/img.rs:277-425` |
 |   4 | View/Pressable | `[4,dragType|null,exportFiles|null,acceptsDragOver,acceptsDrop]` | `dragType` is optional for drop targets; `acceptsDragOver` and `acceptsDrop` describe the independent JavaScript callbacks and may be true without a draggable source. Optional `exportFiles` contains 1..8 non-empty host-local paths of at most 1024 UTF-8 bytes with no control characters. Internal Event 20 notifications are emitted only for the advertised callbacks; outbound files are offered to the platform when the drag leaves the viewport and have no JavaScript completion event. macOS and Wayland Linux provide native starts; X11 and Windows retain the platform default that declines outbound drags. | `protocol.ts:116-124,521-545`; `wire/node.rs:64-72,372-385,449-483`; `renderer/paint/drag.rs:49-165` |
+ 
+Image rendering is owned by pinned GPUI's `img()` element. The host passes a
+`PathBuf`, so every source is a local filesystem path: relative paths are
+resolved against the host process current working directory, while absolute
+paths are portable across launch directories only when the application ships
+the asset and derives that path itself. `file://`, `http://`, and `https://`
+strings are not fetched; they are literal path names and normally fail to
+load. Missing, unreadable, oversized, or non-image bytes produce an image load
+error; the host keeps the retained tree and uses `fallbackSource` when one is
+provided, otherwise the image paints blank. There is no source-extension or
+MIME preflight in the React layer, and no new fallback layer is inserted.
+
+`objectFit` maps to pinned GPUI exactly:
+
+| Code/name | Native behavior |
+| --- | --- |
+| `1` / `fill` | Stretch the decoded image to the element bounds. |
+| `2` / `contain` | Preserve aspect ratio, fit inside the element, and center the image. |
+| `3` / `cover` | Preserve aspect ratio, cover the element, and center the oversized image; GPUI clips the painted tile to the element bounds regardless of the React `overflow` style. |
+| `4` / `scaleDown` | If either intrinsic dimension exceeds the element, behave like `contain`; otherwise retain intrinsic size and center it. |
+| `5` / `none` | Retain intrinsic size at the element's top-left origin; it is not CSS's centered object positioning. |
+
+The element's layout size comes from style and intrinsic image dimensions. With
+both `width` and `height` omitted, a successfully decoded image contributes
+its intrinsic dimensions (it does not collapse to zero). With exactly one
+definite pixel dimension, GPUI derives the other from the intrinsic aspect
+ratio. Percentage/flex/auto constraints do not trigger this cross-dimension
+derivation; give both dimensions when a deterministic slot is required. Before
+the image load completes, intrinsic size is unavailable, so an unsized image
+can initially occupy zero space and then grow when decoding completes; provide
+explicit dimensions to reserve layout space.
+
+SVG bytes are supported by `img()` when format sniffing falls through to the
+SVG renderer. The renderer rasterizes at a 2x quality scale and enforces its
+own 8192-pixel render cap; SVG source paths therefore work, but the React
+protocol does not expose GPUI's separate `svg()` asset resolver, MIME checks,
+or SVG-specific controls.
+
+When `fallbackSource` is set, the renderer configures both GPUI's error
+replacement and delayed loading replacement. The latter appears only after
+GPUI's 200ms loading delay and requires the stable image element ID installed
+by the native painter; the error replacement appears when the primary loader
+returns an error. The two callbacks share the same visual fallback path in
+this protocol, so applications needing distinct loading and error artwork
+cannot distinguish those states. Load errors are intentionally contained and
+are not sent as JavaScript events: pinned GPUI's asynchronous loader returns an
+error to `Img`, but `Img` consumes it for replacement/blank painting and
+exposes no completion/error callback or protocol event. `onError` remains
+unsupported.
 
 TextInput `maxLength` is a u32 protocol value; its text-unit meaning is
 specified in §5 and [ADR-0004](adr/0004-dual-length-semantics.md).

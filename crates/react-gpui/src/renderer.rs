@@ -610,6 +610,95 @@ impl Render for ReactRoot {
 }
 
 #[cfg(test)]
+mod image_tests {
+    use gpui::{
+        Context, Image, ImageSource, InteractiveElement, IntoElement, ObjectFit, Render,
+        RenderImage, Styled, StyledImage, TestAppContext, Window, div, img, red,
+    };
+    use image::{Frame, ImageBuffer, Rgba};
+    use smallvec::SmallVec;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::time::Duration;
+
+    struct ImageTestView {
+        source: ImageSource,
+        id: &'static str,
+    }
+
+    impl Render for ImageTestView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            img(self.source.clone())
+                .id(self.id)
+                .size_full()
+                .object_fit(ObjectFit::Contain)
+                .with_loading(|| {
+                    div()
+                        .size_full()
+                        .bg(red())
+                        .debug_selector(|| "image-loading".to_owned())
+                        .into_any_element()
+                })
+        }
+    }
+    fn test_image() -> Arc<RenderImage> {
+        let frame = Frame::new(ImageBuffer::from_pixel(1, 1, Rgba([0, 0, 0, 0])));
+        Arc::new(RenderImage::new(SmallVec::from_elem(frame, 1)))
+    }
+
+    #[gpui::test]
+    fn image_loading_fallback_appears_after_delay_with_stable_id(cx: &mut TestAppContext) {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let source_calls = calls.clone();
+        let ready = Arc::new(AtomicBool::new(false));
+        let source_ready = ready.clone();
+        let image = test_image();
+        let source = ImageSource::Custom(Arc::new(move |_, _| {
+            source_calls.fetch_add(1, Ordering::Relaxed);
+            if source_ready.load(Ordering::Relaxed) {
+                Some(Ok(image.clone()))
+            } else {
+                None
+            }
+        }));
+        let (_view, visual) = cx.add_window_view(|_, _| ImageTestView {
+            source,
+            id: "react-gpui-image-loading-test",
+        });
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(calls.load(Ordering::Relaxed) > 0);
+        visual.executor().advance_clock(Duration::from_millis(201));
+        visual.run_until_parked();
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(calls.load(Ordering::Relaxed) > 1);
+        ready.store(true, Ordering::Relaxed);
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert!(calls.load(Ordering::Relaxed) > 2);
+    }
+
+    #[gpui::test]
+    fn svg_bytes_render_through_img_loader(cx: &mut TestAppContext) {
+        let image = Arc::new(Image::from_bytes(
+            gpui::ImageFormat::Svg,
+            br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4"><rect width="8" height="4" fill="#38bdf8"/></svg>"##.to_vec(),
+        ));
+        let image_for_view = image.clone();
+        let (_view, visual) = cx.add_window_view(|_, _| ImageTestView {
+            source: ImageSource::Image(image_for_view),
+            id: "react-gpui-svg-test",
+        });
+        let image_for_decode = image.clone();
+        visual.update(|window, cx| {
+            let _ = image_for_decode.get_render_image(window, cx);
+            window.draw(cx).clear(cx);
+        });
+        visual.run_until_parked();
+        let rendered = visual.update(|window, cx| image.get_render_image(window, cx));
+        assert_eq!(rendered.map(|image| image.frame_count()), Some(1));
+    }
+}
+
+#[cfg(test)]
 mod input_tests {
     use super::*;
     use crate::protocol::{
