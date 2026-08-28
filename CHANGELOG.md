@@ -16,6 +16,7 @@ from this work tree.
 
 - Added root-only asynchronous `readTextFile(path)` and `writeTextFile(path, content)` commands (25/26). They perform bounded UTF-8 filesystem I/O off the UI executor, return file text/bytes written, and reject invalid paths, directories, oversized data, invalid UTF-8, and native I/O failures.
 - Added the `notes.tsx` persistence example with Open/Save, dirty tracking, multiline editing, and close confirmation.
+- Embedded-Bun coverage now includes a bounded gallery/text-input/virtual-list/notes startup matrix through `EmbeddedBunAdapter`, plus a Fast Refresh lifecycle probe; `make embedded-bun` runs the host target alongside the adapter test.
 ### Added
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and

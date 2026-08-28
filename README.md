@@ -268,11 +268,19 @@ make api-surface-generate
 
 The embedded Bun build is intentionally not part of `make ci` because it
 clones and compiles the pinned Bun/JSC source graph. Run its locked host
-feature check and embedded adapter tests explicitly with:
+feature check, representative example startup matrix, Fast Refresh lifecycle
+probe, and embedded adapter tests explicitly with:
 
 ```sh
 make embedded-bun
 ```
+
+The gate loads the gallery, text-input, virtual-list, and notes entries through
+`EmbeddedBunAdapter`, checks protocol-v3 Snapshot startup contracts and known
+signals, and verifies that a queued refresh keeps the runtime alive. It is a
+bounded transport/lifecycle check rather than a duplicate of process-mode
+display and interaction coverage; native painting, IME, file pickers, and
+actual asynchronous file command completion remain display-backed boundaries.
 
 The ordinary CI workflow runs on the GitHub-hosted `macos-15` ARM runner.
 The independent embedded-Bun workflow is manually dispatchable and only

@@ -45,6 +45,7 @@ bun-ci: bun-format bun-typecheck bun-test bun-pack-smoke
 
 embedded-bun:
 	cargo check -p react-gpui-host --features embedded-bun --locked
+	cargo test -p react-gpui-host --features embedded-bun --test embedded_examples --locked
 	cargo test -p react-gpui-bun --features embedded-bun --locked
 
 host-release-bundle:
