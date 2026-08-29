@@ -13,6 +13,7 @@ from this work tree.
 - Added a headless large-tree snapshot/first-frame performance guard covering 1,000, 5,000, and 20,000-node trees plus a one-operation patch on a 20,000-node tree; the guard records p50/p99 scaling and isolates host stages from GPUI frame/layout work.
 
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
+- Enhanced `multi-surface.tsx` with a settings surface, shared theme state, cross-surface activation/focus, and dirty-state close confirmation.
 
 ### Fixed
 - Validation and command failures now identify the affected node or command and include a corrective action, including clipboard, VirtualList, transport, and native response errors.

@@ -1066,7 +1066,7 @@ The source tree includes focused entries for the main host surfaces:
 - [`focus-flow.tsx`](examples/focus-flow.tsx) — focusable form controls with `onFocus`/`onBlur` styling and Tab/Shift-Tab navigation.
 - [`dropdown.tsx`](examples/dropdown.tsx) — an anchored overlay with pointer-down-outside and Escape dismissal plus a disabled item.
 - [`drag-reorder.tsx`](examples/drag-reorder.tsx) — a standalone draggable list with drag-over feedback, drop reordering, and the neutral native preview.
-- [`multi-surface.tsx`](examples/multi-surface.tsx) — a second native window with per-surface resize and appearance bridges, plus minimize/activate controls and bounds/state reads.
+- [`multi-surface.tsx`](examples/multi-surface.tsx) — a settings surface with shared theme state, cross-surface activation/focus, per-surface resize and appearance bridges, window controls, and asynchronous close confirmation.
 
 Clipboard image reads and writes are covered by the [Clipboard images](#clipboard-images)
 recipe; encoded PNG/JPEG/GIF/SVG bytes must come from an application-owned
@@ -1190,9 +1190,11 @@ function Panel() {
 ```
 
 After `await root.openSurface(...)` resolves, register the returned ID with
-`host.createRoot` and wire a second pair of stores. See
-[`multi-surface.tsx`](examples/multi-surface.tsx) for the window-controls panel
-and its pull-based bounds/state refresh.
+`host.createRoot` and wire a second pair of stores. The complete
+[`multi-surface.tsx`](examples/multi-surface.tsx) flow adds a settings surface,
+shared theme state, cross-surface activation/focus, and asynchronous dirty-state
+close confirmation alongside the window-controls panel and pull-based
+bounds/state refresh.
 
 ### Runtime font loading
 
