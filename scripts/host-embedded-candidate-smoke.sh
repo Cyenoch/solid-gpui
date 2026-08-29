@@ -5,10 +5,75 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-host-embedded-smoke.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
-(
-  cd "$repo_root"
-  cargo build -p react-gpui-host --features embedded-bun --release --locked --target "$(rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))')"
+build_timeout_seconds="${HOST_EMBEDDED_BUILD_TIMEOUT_SECONDS:-240}"
+build_log="$smoke_root/build.log"
+python3 - "$repo_root" "$build_timeout_seconds" "$build_log" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+import time
+
+repo_root, timeout_value, build_log = sys.argv[1:]
+timeout = float(timeout_value)
+target = subprocess.check_output(
+    ["rustc", "-vV"], cwd=repo_root, text=True
 )
+target = next(line.split(": ", 1)[1] for line in target.splitlines() if line.startswith("host: "))
+command = [
+    "cargo",
+    "build",
+    "-p",
+    "react-gpui-host",
+    "--features",
+    "embedded-bun",
+    "--release",
+    "--locked",
+    "--target",
+    target,
+]
+with open(build_log, "w", encoding="utf-8") as output:
+    process = subprocess.Popen(
+        command,
+        cwd=repo_root,
+        stdout=output,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(
+            f"embedded candidate build exceeded {timeout_value}s — concurrent cargo lock?",
+            file=sys.stderr,
+        )
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            deadline = time.monotonic() + 5.0
+            while process.poll() is None and time.monotonic() < deadline:
+                try:
+                    process.wait(timeout=0.5)
+                except subprocess.TimeoutExpired:
+                    continue
+        if process.poll() is None:
+            print("embedded candidate build teardown exceeded 5s", file=sys.stderr)
+            sys.exit(124)
+        sys.exit(124)
+    if process.returncode:
+        print(f"embedded candidate build failed with exit {process.returncode}", file=sys.stderr)
+        print(open(build_log, encoding="utf-8").read(), end="", file=sys.stderr)
+        sys.exit(process.returncode)
+PY
+cat "$build_log"
 metadata="$(
   cd "$repo_root"
   cargo metadata --format-version 1 --no-deps |
@@ -64,6 +129,30 @@ def finish(message: str) -> None:
     print(text, end="", file=sys.stderr)
     print(message, file=sys.stderr)
 
+def stop_process():
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.communicate(timeout=1.0)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    deadline = time.monotonic() + 5.0
+    while process.poll() is None and time.monotonic() < deadline:
+        try:
+            process.communicate(timeout=0.5)
+        except subprocess.TimeoutExpired:
+            continue
+    if process.poll() is None:
+        raise RuntimeError("embedded candidate teardown exceeded 5s after SIGKILL")
+    process.communicate()
+
 try:
     while True:
         if process.poll() is not None:
@@ -74,21 +163,11 @@ try:
         text = diagnostics()
         match = re.search(r"embedded smoke press sent=true, commits=(\d+), status=", text)
         if match is not None and int(match.group(1)) >= 1:
-            os.killpg(process.pid, signal.SIGTERM)
-            try:
-                process.communicate(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.communicate()
+            stop_process()
             finish(f"embedded candidate timed out after {time.monotonic() - started:.3f}s")
             sys.exit(124)
         if time.monotonic() >= commit_deadline:
-            os.killpg(process.pid, signal.SIGTERM)
-            try:
-                process.communicate(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.communicate()
+            stop_process()
             finish("embedded candidate timed out waiting for a committed Snapshot")
             sys.exit(124)
         time.sleep(0.02)
