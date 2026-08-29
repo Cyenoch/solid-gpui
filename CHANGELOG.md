@@ -10,6 +10,12 @@ from this work tree.
 
 ### Added
 
+- Added a headless large-tree snapshot/first-frame performance guard covering 1,000, 5,000, and 20,000-node trees plus a one-operation patch on a 20,000-node tree; the guard records p50/p99 scaling and isolates host stages from GPUI frame/layout work.
+
+### Fixed
+
+- Patch reconciliation now limits input, selectable-text, VirtualList, and animation maintenance to the affected node workset (including relevant ancestors), and animation style history is allocated only for styled nodes.
+
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
 
 ## [0.2.0] - 2026-08-30

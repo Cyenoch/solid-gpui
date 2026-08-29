@@ -679,28 +679,43 @@ impl ReactRoot {
         cx: &mut Context<Self>,
         affected: Option<&HashSet<u32>>,
     ) {
-        self.input_states.retain(|id, _| {
-            self.store.get(*id).is_some_and(|node| {
-                matches!(node.host_properties, Some(HostProperties::TextInput(_)))
-            })
-        });
-        self.text_input_layouts
-            .retain(|id, _| self.input_states.contains_key(id));
-        self.focus_handles.retain(|id, _| {
-            self.input_states.contains_key(id)
-                || self.store.get(*id).is_some_and(|node| {
-                    (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
-                        && node.focusable
-                        && node.listener_id != 0)
+        if let Some(ids) = affected {
+            for id in ids {
+                let keeps_input_state = self.store.get(*id).is_some_and(|node| {
+                    matches!(node.host_properties, Some(HostProperties::TextInput(_)))
+                });
+                if !keeps_input_state {
+                    self.input_states.remove(id);
+                    self.text_input_layouts.remove(id);
+                }
+                let keeps_focus_handle = self.store.get(*id).is_some_and(|node| {
+                    self.input_states.contains_key(id)
+                        || (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
+                            && node.focusable
+                            && node.listener_id != 0)
                         || (node.kind == KIND_TEXT && node.selectable)
+                });
+                if !keeps_focus_handle {
+                    self.focus_handles.remove(id);
+                }
+            }
+        } else {
+            self.input_states.retain(|id, _| {
+                self.store.get(*id).is_some_and(|node| {
+                    matches!(node.host_properties, Some(HostProperties::TextInput(_)))
                 })
-        });
-        if self
-            .active_input
-            .is_some_and(|id| !self.input_states.contains_key(&id))
-        {
-            self.active_input = None;
-            self.text_input_drag_anchor = None;
+            });
+            self.text_input_layouts
+                .retain(|id, _| self.input_states.contains_key(id));
+            self.focus_handles.retain(|id, _| {
+                self.input_states.contains_key(id)
+                    || self.store.get(*id).is_some_and(|node| {
+                        (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
+                            && node.focusable
+                            && node.listener_id != 0)
+                            || (node.kind == KIND_TEXT && node.selectable)
+                    })
+            });
         }
         let ids: Vec<u32> = match affected {
             Some(ids) => ids.iter().copied().collect(),
@@ -765,8 +780,66 @@ impl ReactRoot {
     pub(super) fn reconcile_selectable_text_states(
         &mut self,
         cx: &mut Context<Self>,
-        _affected: Option<&HashSet<u32>>,
+        affected: Option<&HashSet<u32>>,
     ) {
+        if let Some(ids) = affected {
+            self.selectable_text_selections.retain(|id, selection| {
+                if !ids.contains(id) {
+                    return true;
+                }
+                let Some(node) = self.store.get(*id) else {
+                    return false;
+                };
+                if node.kind != KIND_TEXT || !node.selectable {
+                    return false;
+                }
+                let len = node.text_content.as_ref().map_or(0, |text| text.len());
+                Self::clamp_utf8_range(
+                    selection,
+                    node.text_content.as_deref().unwrap_or_default(),
+                    len,
+                );
+                true
+            });
+            self.selectable_text_layouts.retain(|id, _| {
+                !ids.contains(id)
+                    || self
+                        .store
+                        .get(*id)
+                        .is_some_and(|node| node.kind == KIND_TEXT && node.selectable)
+            });
+            if let Some((id, _)) = self.selectable_text_drag_anchor
+                && ids.contains(&id)
+                && !self.selectable_text_selections.contains_key(&id)
+            {
+                self.selectable_text_drag_anchor = None;
+            }
+            for id in ids {
+                let Some(node) = self.store.get(*id) else {
+                    continue;
+                };
+                if node.kind != KIND_TEXT || !node.selectable {
+                    continue;
+                }
+                let len = node.text_content.as_ref().map_or(0, |text| text.len());
+                let selection = self
+                    .selectable_text_selections
+                    .entry(node.id)
+                    .or_insert_with(|| 0..0);
+                Self::clamp_utf8_range(
+                    selection,
+                    node.text_content.as_deref().unwrap_or_default(),
+                    len,
+                );
+                let focus_handle = self
+                    .focus_handles
+                    .entry(node.id)
+                    .or_insert_with(|| cx.focus_handle());
+                *focus_handle = focus_handle.clone().tab_stop(true);
+            }
+            return;
+        }
+
         self.selectable_text_selections.retain(|id, selection| {
             let Some(node) = self.store.get(*id) else {
                 return false;
@@ -815,7 +888,6 @@ impl ReactRoot {
             *focus_handle = focus_handle.clone().tab_stop(true);
         }
     }
-
     pub(super) fn emit_input_event(&self, node_id: u32, event_type: u32) {
         let Some(node) = self.store.get(node_id) else {
             return;

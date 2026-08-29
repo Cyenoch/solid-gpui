@@ -271,29 +271,42 @@ impl ReactRoot {
             .retain(|id, _| self.store.get(*id).is_some());
     }
 
+    fn prune_animation_states_for(&mut self, affected: Option<&HashSet<u32>>) {
+        if let Some(ids) = affected {
+            for id in ids {
+                if self.store.get(*id).is_none() {
+                    self.animation_states.remove(id);
+                    self.animation_styles.remove(id);
+                }
+            }
+        } else {
+            self.prune_animation_states();
+        }
+    }
+
     pub(super) fn reconcile_animation_states(
         &mut self,
         cx: &mut Context<Self>,
         affected: Option<&HashSet<u32>>,
     ) {
-        self.prune_animation_states();
+        self.prune_animation_states_for(affected);
         let ids: Vec<u32> = match affected {
             Some(ids) => ids.iter().copied().collect(),
             None => self.store.iter().map(|node| node.id).collect(),
         };
         for node_id in ids {
-            let current = self.store.get(node_id).and_then(|node| node.style.clone());
-            let previous = self
-                .animation_styles
-                .insert(node_id, current.clone())
-                .flatten();
-            let Some(style) = current.as_ref() else {
+            let Some(style) = self.store.get(node_id).and_then(|node| node.style.clone()) else {
+                self.animation_styles.remove(&node_id);
                 self.animation_states.remove(&node_id);
                 continue;
             };
+            let previous = self
+                .animation_styles
+                .insert(node_id, Some(style.clone()))
+                .flatten();
             let Some(previous) = previous else {
                 self.animation_states
-                    .insert(node_id, AnimationState::at_target(style));
+                    .insert(node_id, AnimationState::at_target(&style));
                 continue;
             };
             let transition = style.transition.as_ref().or(previous.transition.as_ref());
@@ -306,17 +319,17 @@ impl ReactRoot {
                 .map(|transition| transition.properties)
                 .or(active_properties)
                 .unwrap_or(0);
-            if !animation_target_changed_for_properties(&previous, style, properties) {
+            if !animation_target_changed_for_properties(&previous, &style, properties) {
                 if transition.is_none() && active_properties.is_none() {
                     self.animation_states
-                        .insert(node_id, AnimationState::at_target(style));
+                        .insert(node_id, AnimationState::at_target(&style));
                 }
                 continue;
             }
             if let Some(transition) = transition {
-                self.retarget_animation(node_id, style, transition, cx.reduce_motion());
+                self.retarget_animation(node_id, &style, transition, cx.reduce_motion());
             } else {
-                self.retarget_existing_animation(node_id, style, cx.reduce_motion());
+                self.retarget_existing_animation(node_id, &style, cx.reduce_motion());
             }
         }
     }

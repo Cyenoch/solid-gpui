@@ -71,6 +71,28 @@ fn virtual_list_ancestor(store: &NodeStore, mut node_id: u32) -> Option<u32> {
     }
 }
 
+fn add_store_ancestors(store: &NodeStore, ids: &mut HashSet<u32>, mut node_id: u32) {
+    while let Some(node) = store.get(node_id) {
+        ids.insert(node.id);
+        if node.parent_id == 0 {
+            break;
+        }
+        node_id = node.parent_id;
+    }
+}
+
+fn add_store_subtree(store: &NodeStore, ids: &mut HashSet<u32>, root_id: u32) {
+    let mut stack = vec![root_id];
+    while let Some(node_id) = stack.pop() {
+        if !ids.insert(node_id) {
+            continue;
+        }
+        if let Some(node) = store.get(node_id) {
+            stack.extend(node.children(store).map(|child| child.id));
+        }
+    }
+}
+
 fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppearance {
     match appearance {
         GpuiWindowAppearance::Light | GpuiWindowAppearance::VibrantLight => WindowAppearance::Light,
@@ -323,6 +345,7 @@ impl ReactRoot {
                         parent_by_id.insert(*id, *parent_id);
                     }
                     PatchOperation::Delete { id } => {
+                        add_store_subtree(&self.store, &mut touched, *id);
                         if let Some(old_parent_id) = parent_by_id
                             .get(id)
                             .copied()
@@ -349,10 +372,17 @@ impl ReactRoot {
             self.invalidate_rich_text_cache(&touched, &pre_patch_ancestors);
             self.reported_layout_bounds
                 .retain(|id, _| !affected.contains(id));
-            self.reconcile_input_states(cx, Some(&affected));
-            self.reconcile_selectable_text_states(cx, Some(&affected));
-            self.reconcile_virtual_lists_for(Some(&affected));
-            self.reconcile_animation_states(cx, Some(&affected));
+            for id in pre_patch_ancestors.iter().copied() {
+                touched.insert(id);
+            }
+            let touched_ids: Vec<u32> = touched.iter().copied().collect();
+            for id in touched_ids {
+                add_store_ancestors(&self.store, &mut touched, id);
+            }
+            self.reconcile_input_states(cx, Some(&touched));
+            self.reconcile_selectable_text_states(cx, Some(&touched));
+            self.reconcile_virtual_lists_for(Some(&touched));
+            self.reconcile_animation_states(cx, Some(&touched));
         } else {
             self.commands.push(Command::decode(payload)?);
         }
@@ -412,31 +442,47 @@ impl ReactRoot {
     }
 
     fn reconcile_virtual_lists_for(&mut self, affected: Option<&HashSet<u32>>) {
-        self.virtual_lists.retain(|id, _| {
-            self.store
-                .get(*id)
-                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-        });
-        self.virtual_ranges.retain(|id, _| {
-            self.store
-                .get(*id)
-                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-        });
-        self.virtual_item_sizes.retain(|id, _| {
-            self.store
-                .get(*id)
-                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-        });
-        self.reported_visible_ranges.retain(|id, _| {
-            self.store
-                .get(*id)
-                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-        });
-        self.pending_visible_ranges.borrow_mut().retain(|id, _| {
-            self.store
-                .get(*id)
-                .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-        });
+        if let Some(ids) = affected {
+            for id in ids {
+                if self
+                    .store
+                    .get(*id)
+                    .is_none_or(|node| node.kind != KIND_VIRTUAL_LIST)
+                {
+                    self.virtual_lists.remove(id);
+                    self.virtual_ranges.remove(id);
+                    self.virtual_item_sizes.remove(id);
+                    self.reported_visible_ranges.remove(id);
+                    self.pending_visible_ranges.borrow_mut().remove(id);
+                }
+            }
+        } else {
+            self.virtual_lists.retain(|id, _| {
+                self.store
+                    .get(*id)
+                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+            });
+            self.virtual_ranges.retain(|id, _| {
+                self.store
+                    .get(*id)
+                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+            });
+            self.virtual_item_sizes.retain(|id, _| {
+                self.store
+                    .get(*id)
+                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+            });
+            self.reported_visible_ranges.retain(|id, _| {
+                self.store
+                    .get(*id)
+                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+            });
+            self.pending_visible_ranges.borrow_mut().retain(|id, _| {
+                self.store
+                    .get(*id)
+                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
+            });
+        }
         let affected_virtual_lists: HashSet<u32> = affected
             .into_iter()
             .flat_map(|ids| ids.iter().copied())
@@ -905,6 +951,385 @@ mod input_tests {
     }
 
     const INPUT_PERF_KEYSTROKES: usize = 32;
+    const SNAPSHOT_PERF_RUNS: usize = 8;
+
+    struct SnapshotPerfSamples {
+        apply: Vec<Duration>,
+        draw: Vec<Duration>,
+    }
+
+    fn large_snapshot(node_count: usize) -> Snapshot {
+        assert!(node_count >= 1);
+        let group_count = (node_count - 1) / 5;
+        let remainder = node_count - 1 - group_count * 5;
+        let mut nodes = Vec::with_capacity(node_count);
+        nodes.push(Node::new(1, 0, 0, KIND_VIEW));
+
+        for group in 0..group_count {
+            let base = 2 + (group * 5) as u32;
+            nodes.push(Node::new(base, 1, group as u32, KIND_VIEW));
+            if group % 100 == 0 {
+                let mut paragraph = Node::new(base + 1, base, 0, KIND_TEXT);
+                paragraph.style = Some(Style {
+                    font_size: Some(14.0),
+                    ..Style::default()
+                });
+                nodes.push(paragraph);
+                let mut raw = Node::new(base + 2, base + 1, 0, KIND_RAW_TEXT);
+                raw.text = Some("snapshot row".to_owned());
+                nodes.push(raw);
+                let mut run = Node::new(base + 3, base + 1, 1, KIND_TEXT);
+                run.style = Some(Style {
+                    color_rgba: Some(0x3366ccff),
+                    ..Style::default()
+                });
+                nodes.push(run);
+                let mut run_raw = Node::new(base + 4, base + 3, 0, KIND_RAW_TEXT);
+                run_raw.text = Some(" link".to_owned());
+                nodes.push(run_raw);
+            } else if group == 1 {
+                let mut paragraph = Node::new(base + 1, base, 0, KIND_TEXT);
+                paragraph.selectable = true;
+                nodes.push(paragraph);
+                let mut raw = Node::new(base + 2, base + 1, 0, KIND_RAW_TEXT);
+                raw.text = Some("selectable row".to_owned());
+                nodes.push(raw);
+                nodes.push(Node::new(base + 3, base, 1, KIND_VIEW));
+                nodes.push(Node::new(base + 4, base, 2, KIND_VIEW));
+            } else {
+                for index in 0..4 {
+                    nodes.push(Node::new(base + 1 + index, base, index, KIND_VIEW));
+                }
+            }
+        }
+
+        let first_extra_id = 2 + (group_count * 5) as u32;
+        for extra in 0..remainder {
+            let id = first_extra_id + extra as u32;
+            let index = group_count as u32 + extra as u32;
+            match extra {
+                0 => {
+                    let mut input = Node::new(id, 1, index, KIND_TEXT_INPUT);
+                    input.listener_id = id;
+                    input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+                        value: "input".to_owned(),
+                        placeholder: None,
+                        multiline: false,
+                        disabled: false,
+                        controlled: false,
+                        ack_edit_seq: 0,
+                        selection_start: 0,
+                        selection_end: 0,
+                        marked_start: None,
+                        marked_end: None,
+                        max_length: None,
+                        selection_reversed: false,
+                    }));
+                    nodes.push(input);
+                }
+                1 => {
+                    let mut list = Node::new(id, 1, index, KIND_VIRTUAL_LIST);
+                    list.listener_id = id;
+                    list.host_properties =
+                        Some(HostProperties::VirtualList(VirtualListProperties {
+                            item_count: 100,
+                            range_start: 0,
+                            range_end: 4,
+                            estimated_item_size: 24.0,
+                            overscan: 2,
+                        }));
+                    nodes.push(list);
+                }
+                2 => {
+                    let mut interactive = Node::new(id, 1, index, KIND_VIEW);
+                    interactive.listener_id = id;
+                    interactive.focusable = true;
+                    nodes.push(interactive);
+                }
+                _ => nodes.push(Node::new(id, 1, index, KIND_VIEW)),
+            }
+        }
+        assert_eq!(nodes.len(), node_count);
+        Snapshot::new(7, 3, 0, 1, nodes)
+    }
+
+    fn drain_perf_events(runtime: &InMemoryAdapter) {
+        while runtime
+            .take_event()
+            .expect("read snapshot performance event")
+            .is_some()
+        {}
+    }
+
+    fn measure_snapshot_perf(
+        cx: &mut gpui::TestAppContext,
+        node_count: usize,
+    ) -> SnapshotPerfSamples {
+        let payload = large_snapshot(node_count)
+            .encode()
+            .expect("encode snapshot performance payload");
+        let mut apply = Vec::with_capacity(SNAPSHOT_PERF_RUNS);
+        let mut draw = Vec::with_capacity(SNAPSHOT_PERF_RUNS);
+        for _ in 0..SNAPSHOT_PERF_RUNS {
+            let runtime = InMemoryAdapter::new();
+            let window = cx.open_window(gpui::size(px(800.0), px(600.0)), {
+                let runtime = runtime.clone();
+                move |_, _| ReactRoot::new(runtime)
+            });
+            let root = window.root(cx).expect("snapshot performance root");
+            draw_window(cx, window.into());
+            drain_perf_events(&runtime);
+            let started = Instant::now();
+            root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+                .expect("apply snapshot performance payload");
+            apply.push(started.elapsed());
+            let started = Instant::now();
+            draw_window(cx, window.into());
+            draw.push(started.elapsed());
+            drain_perf_events(&runtime);
+            root.read_with(cx, |root, _| assert_eq!(root.store.len(), node_count));
+        }
+        SnapshotPerfSamples { apply, draw }
+    }
+
+    fn measure_large_tree_patch_perf(cx: &mut gpui::TestAppContext) -> SnapshotPerfSamples {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(800.0), px(600.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("patch performance root");
+        let snapshot_payload = large_snapshot(20_000)
+            .encode()
+            .expect("encode patch performance snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&snapshot_payload, cx))
+            .expect("apply patch performance snapshot");
+        draw_window(cx, window.into());
+        drain_perf_events(&runtime);
+
+        let patch_payloads: Vec<Vec<u8>> = (0..SNAPSHOT_PERF_RUNS)
+            .map(|run| {
+                Patch::new(
+                    7,
+                    3,
+                    1 + run as u32,
+                    2 + run as u32,
+                    vec![PatchOperation::Update {
+                        id: 504,
+                        mask: UPDATE_TEXT,
+                        style: None,
+                        text: Some(format!(" link {run}")),
+                        listener_id: 0,
+                        host_properties: None,
+                        accessibility: None,
+                        focusable: false,
+                        selectable: false,
+                        tooltip: None,
+                        accepts_pointer_move: false,
+                    }],
+                )
+                .encode()
+                .expect("encode large-tree patch")
+            })
+            .collect();
+        let mut apply = Vec::with_capacity(SNAPSHOT_PERF_RUNS);
+        let mut draw = Vec::with_capacity(SNAPSHOT_PERF_RUNS);
+        for payload in patch_payloads {
+            let started = Instant::now();
+            root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+                .expect("apply large-tree patch");
+            apply.push(started.elapsed());
+            let started = Instant::now();
+            draw_window(cx, window.into());
+            draw.push(started.elapsed());
+            drain_perf_events(&runtime);
+        }
+        root.read_with(cx, |root, _| assert_eq!(root.store.len(), 20_000));
+        SnapshotPerfSamples { apply, draw }
+    }
+    fn measure_snapshot_stages(cx: &mut gpui::TestAppContext, node_count: usize) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(800.0), px(600.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("snapshot stage root");
+        let payload = large_snapshot(node_count)
+            .encode()
+            .expect("encode snapshot stage payload");
+        root.update(cx, |root, cx| {
+            let started = Instant::now();
+            let snapshot = Snapshot::decode(&payload).expect("decode snapshot stage payload");
+            let decode = started.elapsed();
+            let started = Instant::now();
+            let reset_native_state = snapshot.base_revision == 0
+                || snapshot.surface_id != root.store.surface_id()
+                || snapshot.epoch != root.store.epoch();
+            root.store
+                .apply_snapshot(snapshot)
+                .expect("apply snapshot stage payload");
+            let store = started.elapsed();
+            root.rich_text_parts_cache.borrow_mut().clear();
+            root.reported_layout_bounds.clear();
+            if reset_native_state {
+                root.reset_native_state();
+            }
+            let started = Instant::now();
+            root.reconcile_input_states(cx, None);
+            let input = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_selectable_text_states(cx, None);
+            let selectable = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_virtual_lists_for(None);
+            let lists = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_animation_states(cx, None);
+            let animation = started.elapsed();
+            eprintln!(
+                "perf_snapshot_stage: nodes={node_count} decode={:.3}ms store={:.3}ms input={:.3}ms selectable={:.3}ms lists={:.3}ms animation={:.3}ms",
+                decode.as_secs_f64() * 1_000.0,
+                store.as_secs_f64() * 1_000.0,
+                input.as_secs_f64() * 1_000.0,
+                selectable.as_secs_f64() * 1_000.0,
+                lists.as_secs_f64() * 1_000.0,
+                animation.as_secs_f64() * 1_000.0,
+            );
+        });
+    }
+
+    fn measure_patch_stages(cx: &mut gpui::TestAppContext) -> Duration {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(800.0), px(600.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("patch stage root");
+        let snapshot_payload = large_snapshot(20_000)
+            .encode()
+            .expect("encode patch stage snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&snapshot_payload, cx))
+            .expect("apply patch stage snapshot");
+        let patch_payload = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 504,
+                mask: UPDATE_TEXT,
+                style: None,
+                text: Some(" link stage".to_owned()),
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        )
+        .encode()
+        .expect("encode patch stage payload");
+        root.update(cx, |root, cx| {
+            let total_started = Instant::now();
+            let started = Instant::now();
+            let patch = Patch::decode(&patch_payload).expect("decode patch stage payload");
+            let decode = started.elapsed();
+            let started = Instant::now();
+            let affected: HashSet<u32> = patch
+                .operations
+                .iter()
+                .map(|operation| match operation {
+                    PatchOperation::Create(node) => node.id,
+                    PatchOperation::Update { id, .. }
+                    | PatchOperation::Move { id, .. }
+                    | PatchOperation::Delete { id } => *id,
+                })
+                .collect();
+            let mut touched = affected.clone();
+            let bookkeeping = started.elapsed();
+            let started = Instant::now();
+            root.store
+                .apply_patch(patch)
+                .expect("apply patch stage payload");
+            let store = started.elapsed();
+            let started = Instant::now();
+            let pre_patch_ancestors = HashSet::new();
+            root.invalidate_rich_text_cache(&touched, &pre_patch_ancestors);
+            root.reported_layout_bounds
+                .retain(|id, _| !affected.contains(id));
+            let invalidation = started.elapsed();
+            add_store_ancestors(&root.store, &mut touched, 504);
+            let started = Instant::now();
+            root.reconcile_input_states(cx, Some(&touched));
+            let input = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_selectable_text_states(cx, Some(&touched));
+            let selectable = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_virtual_lists_for(Some(&touched));
+            let lists = started.elapsed();
+            let started = Instant::now();
+            root.reconcile_animation_states(cx, Some(&touched));
+            let animation = started.elapsed();
+            eprintln!(
+                "perf_patch_stage: nodes=20000 decode={:.3}ms bookkeeping={:.3}ms store={:.3}ms invalidation={:.3}ms input={:.3}ms selectable={:.3}ms lists={:.3}ms animation={:.3}ms touched={} total={:.3}ms",
+                decode.as_secs_f64() * 1_000.0,
+                bookkeeping.as_secs_f64() * 1_000.0,
+                store.as_secs_f64() * 1_000.0,
+                invalidation.as_secs_f64() * 1_000.0,
+                input.as_secs_f64() * 1_000.0,
+                selectable.as_secs_f64() * 1_000.0,
+                lists.as_secs_f64() * 1_000.0,
+                animation.as_secs_f64() * 1_000.0,
+                touched.len(),
+                total_started.elapsed().as_secs_f64() * 1_000.0,
+            );
+            total_started.elapsed()
+        })
+    }
+    #[gpui::test]
+    fn snapshot_apply_and_first_draw_scaling_guard(cx: &mut gpui::TestAppContext) {
+        measure_snapshot_stages(cx, 20_000);
+        let patch_host = measure_patch_stages(cx);
+        assert!(
+            patch_host < Duration::from_millis(1),
+            "affected patch host apply exceeded 1 ms: {patch_host:?}"
+        );
+        for node_count in [1_000, 5_000, 20_000] {
+            let samples = measure_snapshot_perf(cx, node_count);
+            let apply_p50 = percentile_ms(&samples.apply, 50);
+            let apply_p99 = percentile_ms(&samples.apply, 99);
+            let draw_p50 = percentile_ms(&samples.draw, 50);
+            let draw_p99 = percentile_ms(&samples.draw, 99);
+            eprintln!(
+                "perf_snapshot: nodes={node_count} runs={} apply_p50={apply_p50:.3}ms apply_p99={apply_p99:.3}ms draw_p50={draw_p50:.3}ms draw_p99={draw_p99:.3}ms",
+                samples.apply.len(),
+            );
+            assert_eq!(samples.apply.len(), SNAPSHOT_PERF_RUNS);
+            assert_eq!(samples.draw.len(), SNAPSHOT_PERF_RUNS);
+        }
+
+        let patch = measure_large_tree_patch_perf(cx);
+        let apply_p50 = percentile_ms(&patch.apply, 50);
+        let apply_p99 = percentile_ms(&patch.apply, 99);
+        let draw_p50 = percentile_ms(&patch.draw, 50);
+        let draw_p99 = percentile_ms(&patch.draw, 99);
+        eprintln!(
+            "perf_snapshot: patch_nodes=20000 operations=1 runs={} apply_p50={apply_p50:.3}ms apply_p99={apply_p99:.3}ms draw_p50={draw_p50:.3}ms draw_p99={draw_p99:.3}ms",
+            patch.apply.len(),
+        );
+        assert_eq!(patch.apply.len(), SNAPSHOT_PERF_RUNS);
+        assert_eq!(patch.draw.len(), SNAPSHOT_PERF_RUNS);
+    }
+
+    #[test]
+    fn affected_reconciliation_workset_is_small_for_single_patch() {
+        let mut affected = HashSet::from([504]);
+        add_store_ancestors(&NodeStore::empty(), &mut affected, 504);
+        assert_eq!(affected.len(), 1);
+    }
 
     fn percentile_ms(samples: &[Duration], percentile: usize) -> f64 {
         assert!(!samples.is_empty());
