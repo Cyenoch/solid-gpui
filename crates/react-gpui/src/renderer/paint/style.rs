@@ -317,7 +317,7 @@ pub(super) fn text_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_style, apply_style_without_cursor};
+    use super::*;
     use crate::protocol::Style;
     use gpui::{CursorStyle, Styled};
 
