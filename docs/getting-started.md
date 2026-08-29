@@ -7,39 +7,92 @@ guide stays at the application level.
 
 ## Five-minute start
 
-### 1. Install the pinned toolchain
+### 1. Install and verify the pinned toolchain
 
 The repository is locked to:
 
 - Bun `1.4.0` (`.bun-version`)
 - Rust `1.97.1` (`rust-toolchain.toml`)
 
-A consumer package needs React 19 and the core package:
+Install or select those versions with the version manager you prefer, then
+verify them before continuing:
+
+```sh
+bun --version
+rustc --version
+```
+
+The commands should report Bun `1.4.0` and Rust `1.97.1`. This guide assumes
+Bun and Rust are already installed; it does not prescribe a version manager.
+
+### 2. Create an application directory
+
+```sh
+mkdir dogfood-app
+cd dogfood-app
+bun init -y
+```
+
+### 3. Install React and the core package
+
+After the first npm publication, the consumer install is:
 
 ```sh
 bun add react @react-gpui/core
 ```
 
-The native host is a separate executable. A published/release workflow uses
-the host binary from the `dist/react-gpui-host-*.tar.gz` candidate archive
-(produced by `make host-release-bundle`). During local development, build and
-run the host from the repository instead:
+Until that publication happens, `@react-gpui/core` is available only from a
+repository checkout. Build and pack the checkout, then install the resulting
+tarball in the application directory:
 
 ```sh
-cargo run -p react-gpui-host -- --runtime process bun run path/to/counter.tsx
+REACT_GPUI_REPO=/path/to/vue-gpui
+APP_DIR="$PWD"
+cd "$REACT_GPUI_REPO/packages/react-gpui"
+bun install --frozen-lockfile
+bun run build
+CORE_TARBALL="$(bun pm pack --destination /tmp/react-gpui-package --quiet)"
+cd "$APP_DIR"
+bun add react "file:$CORE_TARBALL"
+```
+
+Use an absolute checkout path for `REACT_GPUI_REPO`. The package build is
+required because the package export points at its generated `dist/` files. For
+iterative local development, the tarball line may be replaced with this path
+install after `bun run build`:
+
+```sh
+bun add react "file:$REACT_GPUI_REPO/packages/react-gpui"
+```
+
+If the registry command returns a 404 before publication, see
+[Package installation returns 404](troubleshooting.md#package-installation-returns-404).
+
+### 4. Build and run the native host
+
+The host is a separate executable. Until a host release is available, build it
+from the same checkout and run it from the application directory:
+
+```sh
+cargo run --manifest-path "$REACT_GPUI_REPO/Cargo.toml" -p react-gpui-host -- \
+  --runtime process -- bun run "$APP_DIR/counter.tsx"
 ```
 
 The `--runtime process` host starts Bun as a child process and connects its
-stdin/stdout to `StdioTransport`. The host command must own that pipe; running a
+stdin/stdout to `StdioTransport`. The `--` before `bun` stops the host from
+parsing renderer arguments. The host command must own that pipe; running a
 `StdioTransport` entry directly without a host does not create a native
-surface. The optional embedded runtime is a separate macOS/JSC build:
+surface. A published/release workflow uses the host binary from the
+`dist/react-gpui-host-*.tar.gz` candidate archive (produced by
+`make host-release-bundle`) instead. The optional embedded runtime is a
+separate macOS/JSC build from the checkout:
 
 ```sh
-cargo run -p react-gpui-host --features embedded-bun -- \
-  --runtime embedded path/to/counter.tsx
+cargo run --manifest-path "$REACT_GPUI_REPO/Cargo.toml" -p react-gpui-host \
+  --features embedded-bun -- --runtime embedded "$APP_DIR/counter.tsx"
 ```
 
-### 2. Render one surface
+### 5. Render one surface
 
 Save this as `counter.tsx` and run it with the process-host command above. The
 example is intentionally complete rather than importing repository-only
@@ -77,8 +130,11 @@ when the application needs multiple native windows.
 
 Once the counter is running, grow it in the same order most small desktop
 surfaces need: form state, a bounded list, keyboard focus, and an overlay. The
-examples are complete runnable entries; use them as the source of truth for the
-composition rather than copying a large tutorial listing.
+linked files are complete runnable entries **inside this repository** and are
+the source of truth for the composition. When copying a capability into an
+external consumer app, replace repository-relative imports such as
+`../src/index` with `@react-gpui/core`, and copy/adapt any example-local helper
+such as the theme module; do not expect the example file to run unchanged.
 
 ### 1. Start with form state
 

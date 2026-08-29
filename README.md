@@ -320,7 +320,27 @@ notifications remain a separate drag path rather than pointer-move events.
 
 ## Quick start
 
-From the repository root. The gallery is the recommended first run:
+From the repository root, the gallery is the recommended first run. For a new
+consumer application, follow [getting started](docs/getting-started.md), which
+covers the pinned Bun/Rust versions, local package install, host command, and a
+small TextInput/VirtualList app.
+
+Until `@react-gpui/core` is published to npm, a consumer must build and pack
+the package from a repository checkout, then install the resulting tarball:
+
+```sh
+cd packages/react-gpui
+bun install --frozen-lockfile
+bun run build
+bun pm pack --destination /tmp/react-gpui-package --quiet
+```
+
+Run `bun add react file:/tmp/react-gpui-package/react-gpui-core-0.2.0.tgz`
+from the consumer app directory. After publication, `bun add react
+@react-gpui/core` is sufficient. The package export points at generated
+`dist/` files, so the build must precede packing. See the
+[installation troubleshooting entry](docs/troubleshooting.md#package-installation-returns-404)
+if the registry command fails before publication.
 
 ### Gallery (embedded Bun/JSC)
 
@@ -337,9 +357,12 @@ The first embedded build compiles the pinned Bun/JSC source graph under
 
 ```sh
 cargo run -p react-gpui-host -- \
-  --runtime process \
+  --runtime process -- \
   bun run packages/react-gpui/examples/counter.tsx
 ```
+
+The `--` before `bun` passes the renderer command to the host unchanged. A
+renderer script run by itself does not create a native surface.
 
 For opt-in Fast Refresh while developing an embedded entry, add `--watch`
 before the entry path:

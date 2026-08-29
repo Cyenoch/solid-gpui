@@ -8,6 +8,7 @@ a first application, see [getting started](getting-started.md).
 
 ## Contents
 
+- [Package installation returns 404](#package-installation-returns-404)
 - [Start with the host identity](#start-with-the-host-identity)
 - [Transport terminated](#transport-terminated)
 - [Protocol version mismatch](#protocol-version-mismatch)
@@ -24,6 +25,45 @@ a first application, see [getting started](getting-started.md).
 - [Text input or IME behavior is wrong](#text-input-or-ime-behavior-is-wrong)
 - [The app stutters](#the-app-stutters)
 - [Crash reports](#crash-reports)
+
+
+## Package installation returns 404
+
+### Symptom
+
+`bun add react @react-gpui/core` fails with a registry request such as
+`GET https://registry.npmjs.org/@react-gpui%2fcore - 404`.
+
+### Cause
+
+The core package is not available from npm until its first publication. A
+repository checkout can build and pack the package, but a registry install
+cannot resolve a package that has not been published.
+
+### Fix
+
+Until publication, use a checkout to build a consumer tarball and install it by
+file path, as shown in [getting started](getting-started.md#3-install-react-and-the-core-package):
+
+```sh
+APP_DIR=/path/to/consumer-app
+cd /path/to/vue-gpui/packages/react-gpui
+bun install --frozen-lockfile
+bun run build
+CORE_TARBALL="$(bun pm pack --destination /tmp/react-gpui-package --quiet)"
+cd "$APP_DIR"
+bun add react "file:$CORE_TARBALL"
+```
+
+The package export points to generated `dist/` files, so run the package build
+before packing. Once the package is published, use the registry command from
+the getting-started guide. The host is likewise built from the checkout until
+a host release archive is available; a renderer script by itself does not
+create a native surface.
+
+**Where this is enforced:** npm registry package resolution, `packages/react-gpui/package.json`
+(`main`, `types`, and `files`), `packages/react-gpui/README.md` (local build and
+pack commands), and `docs/getting-started.md` (consumer installation path).
 
 ## Start with the host identity
 

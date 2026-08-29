@@ -8,9 +8,23 @@
 
 ## JSX
 
+The smallest complete process-host example is below. It constructs
+`StdioTransport` and the process termination handler before creating the root.
+For a larger TextInput/VirtualList app, follow the
+[getting-started guide](../../docs/getting-started.md#5-render-one-surface).
+The host integration still owns the native process and pipe.
+
 ```tsx
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View, createRoot } from "@react-gpui/core";
+import {
+  Pressable,
+  StdioTransport,
+  StyleSheet,
+  Text,
+  View,
+  createProcessTerminationHandler,
+  createRoot,
+} from "@react-gpui/core";
 
 const styles = StyleSheet.create({
   root: { flexDirection: "column", gap: 8, padding: 16 },
@@ -31,9 +45,33 @@ function Counter() {
   );
 }
 
-const root = createRoot(transport, { surfaceId: 1, epoch: 1 });
+const root = createRoot(new StdioTransport(), {
+  surfaceId: 1,
+  epoch: 1,
+  onTransportTermination: createProcessTerminationHandler(),
+});
 root.render(<Counter />);
 ```
+
+The `root` above owns the renderer transport and lifecycle callback. Run this
+entry through the native host; a Bun script run by itself does not create a
+native surface.
+
+If the registry command returns a 404 before publication, follow the
+[installation recovery steps](../../docs/troubleshooting.md#package-installation-returns-404).
+
+Until the first npm publication, install this package from a built local
+checkout or tarball. From the package directory:
+
+```sh
+bun install --frozen-lockfile
+bun run build
+bun pm pack --destination /tmp/react-gpui-package --quiet
+```
+
+Then, from the consumer app directory, install the printed tarball path with
+`bun add react file:/tmp/react-gpui-package/react-gpui-core-0.2.0.tgz`.
+After publication, `bun add react @react-gpui/core` is sufficient.
 
 `View`, `Text`, `Pressable`, `TextInput`, `VirtualList`, and `Image` accept
 `ref` values that resolve to typed host nodes. `TextInput` and `VirtualList`
