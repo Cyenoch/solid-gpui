@@ -19,29 +19,31 @@ each seam:
 - `Root.render` records an unhandled reconciler error and throws it after the
   synchronous update; the Error Boundary tests prove a boundary can recover
   without an invalid frame, while an unbounded render throws
-  (`packages/react-gpui/src/renderer.ts:167-192`,
-  `packages/react-gpui/tests/renderer.test.tsx:528-583`).
+  (`packages/react-gpui/src/renderer.ts`, `packages/react-gpui/tests/renderer.test.tsx`).
 - `ReactRoot::apply_payload` validates before applying a Snapshot/Patch and
   `NodeStore::apply_patch` rolls back a failed patch; the commit reader sends
   the error to `fatal_runtime_failure`, which shuts down the runtime and exits
-  (`crates/react-gpui/src/renderer.rs:174-214`,
-  `crates/react-gpui/src/renderer/commit_reader.rs:70-95`,
-  `crates/react-gpui/src/tree.rs:310-326`,
-  `crates/react-gpui/src/transport.rs:66-77`).
+  (`crates/react-gpui/src/renderer.rs` — `ReactRoot::apply_payload`,
+  `crates/react-gpui/src/renderer/commit_reader.rs` —
+  `ReactRoot::start_commit_reader`, `crates/react-gpui/src/tree.rs` —
+  `NodeStore::apply_patch`, `crates/react-gpui/src/transport.rs` —
+  `fatal_runtime_failure`).
 - Image resources are loaded through GPUI's image path/cache path; a missing or
   undecodable primary resource renders `fallbackSource` while loading/after
   failure when supplied, and otherwise produces blank output without a
-  JavaScript failure (`crates/react-gpui/src/renderer/paint/image.rs:31-51`,
-  `packages/react-gpui/README.md:134-153`).
+  JavaScript failure
+  (`crates/react-gpui/src/renderer/paint/image.rs`,
+  `packages/react-gpui/README.md` — Image section).
 - GPUI's `Window::draw` runs the element layout/prepaint/paint lifecycle without
   a node-level unwind boundary; the host panic hook records a crash report but
-  does not resume a damaged draw (`references/zed/crates/gpui/src/window.rs:2851-2991`,
-  `crates/react-gpui-host/src/main.rs:78-140`).
+  does not resume a damaged draw (`crates/react-gpui-host/src/main.rs` —
+  panic-hook setup and `crates/react-gpui/src/renderer/paint/mod.rs`).
 - StdioTransport queues a `write=false` result until `drain`, bounds the queue,
   and terminates on synchronous write errors or stream close/error. The
   backpressure tests cover ordering, repeated drain, overflow, EPIPE, and
-  one-shot termination (`packages/react-gpui/src/transport.ts:163-278`,
-  `packages/react-gpui/tests/transport.test.ts:116-279`).
+  one-shot termination
+  (`packages/react-gpui/src/transport.ts`,
+  `packages/react-gpui/tests/transport.test.ts`).
 
 ## Decision
 

@@ -580,6 +580,9 @@ from this work tree.
   placement uses the corrected anchored path.
 
 ### Changed
+- Domain documentation now refreshes `CONTEXT.md` and records ADR-0009 through
+  ADR-0012 for asynchronous close confirmation, opt-in high-frequency event
+  streams, the single-form wire-tail doctrine, and host-owned input models.
 
 - TypeScript encoders now force float32 values; image source/URL resource caps
   count UTF-8 bytes consistently, while `maxLength` remains UTF-16 based.
