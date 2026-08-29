@@ -70,22 +70,33 @@ If the registry command returns a 404 before publication, see
 
 ### 4. Build and run the native host
 
-The host is a separate executable. Until a host release is available, build it
-from the same checkout and run it from the application directory:
+The host is a separate executable. Use either the checkout/Cargo command below
+or, once a release archive is available, extract the archive and invoke its
+`react-gpui-host` binary directly from the application directory; both run the
+same process host.
+
+From a checkout:
 
 ```sh
 cargo run --manifest-path "$REACT_GPUI_REPO/Cargo.toml" -p react-gpui-host -- \
   --runtime process -- bun run "$APP_DIR/counter.tsx"
 ```
 
+From a release archive:
+
+```sh
+HOST_ARCHIVE=/path/to/react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz
+tar -xzf "$HOST_ARCHIVE" -C /tmp
+HOST_BIN=/tmp/react-gpui-host-0.2.0-aarch64-apple-darwin/react-gpui-host
+"$HOST_BIN" --runtime process -- bun run "$APP_DIR/counter.tsx"
+```
+
 The `--runtime process` host starts Bun as a child process and connects its
 stdin/stdout to `StdioTransport`. The `--` before `bun` stops the host from
 parsing renderer arguments. The host command must own that pipe; running a
 `StdioTransport` entry directly without a host does not create a native
-surface. A published/release workflow uses the host binary from the
-`dist/react-gpui-host-*.tar.gz` candidate archive (produced by
-`make host-release-bundle`) instead. The optional embedded runtime is a
-separate macOS/JSC build from the checkout:
+surface. The optional embedded runtime is a separate macOS/JSC build from the
+checkout:
 
 ```sh
 cargo run --manifest-path "$REACT_GPUI_REPO/Cargo.toml" -p react-gpui-host \
