@@ -8,7 +8,8 @@ use std::sync::atomic::Ordering;
 use gpui::{
     AnyElement, App, AppContext, Bounds, Element, ElementId, Entity, GlobalElementId,
     InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement,
-    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Window, div, px, rgba,
+    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, StyledText, Window, div, px,
+    rgba,
 };
 
 use crate::protocol::{EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction};
@@ -187,8 +188,30 @@ impl ReactRoot {
             return accessibility::apply_accessibility(element, node).into_any();
         }
         if node.kind == KIND_TEXT {
-            if let Some(text) = node.text_content.as_ref() {
-                element = element.child(SharedString::new(Arc::clone(text)));
+            let mut text = String::new();
+            let mut runs = Vec::new();
+            let text_style = gpui::TextStyle::default();
+            if let Some(content) = node.text_content.as_ref() {
+                text.push_str(content);
+                runs.push(style::text_run(&text_style, style, content.len()));
+            }
+            for child in node.children(&self.store) {
+                if child.kind != KIND_TEXT {
+                    continue;
+                }
+                let Some(content) = child.text_content.as_ref() else {
+                    continue;
+                };
+                let start = text.len();
+                text.push_str(content);
+                runs.push(style::text_run(
+                    &text_style,
+                    child.style.as_ref(),
+                    text.len() - start,
+                ));
+            }
+            if !text.is_empty() {
+                element = element.child(StyledText::new(SharedString::from(text)).with_runs(runs));
             }
         } else {
             element = element.children(

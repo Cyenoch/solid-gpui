@@ -234,11 +234,12 @@ export interface ImageProps extends AccessibilityProps {
   readonly onLayout?: LayoutHandler;
   readonly children?: never;
 }
+export type TextChild = string | number | { readonly type: "Text"; readonly props?: TextProps };
 export interface TextProps extends AccessibilityProps {
   readonly style?: StyleProp;
   readonly selectable?: boolean;
   readonly onLayout?: LayoutHandler;
-  readonly children?: ReactNode;
+  readonly children?: TextChild | readonly TextChild[];
 }
 export interface PressableProps extends AccessibilityProps {
   readonly style?: StyleProp;
@@ -415,4 +416,6 @@ export interface HostNodeInternal extends HostNode {
 export interface HostContext {
   readonly root: RootOwner;
   readonly parentKind: HostKind | null;
+  /** Number of Text ancestors of the current host-context parent. */
+  readonly textDepth: number;
 }

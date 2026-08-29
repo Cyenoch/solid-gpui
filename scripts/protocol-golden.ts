@@ -96,6 +96,16 @@ const tooltipUpdate = [
   "Updated tooltip",
 ];
 const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode, dragNode]];
+const nestedTextRoot = [1, 0, 0, 1, fullStyle, null, 0, null, null, false];
+const nestedText = [2, 1, 0, 2, fullStyle, null, 0, null, null, false];
+const nestedPlain = [3, 2, 0, 4, null, "Hello ", 0, null, null, false];
+const nestedRunStyle = fullStyle.map((value, index) =>
+  index === 7 ? 0xff0000ff : index === 16 ? 700 : value,
+);
+const nestedRun = [4, 2, 1, 2, nestedRunStyle, null, 0, null, null, false];
+const nestedRunText = [5, 4, 0, 4, null, "world", 0, null, null, false];
+const nestedTrailing = [6, 2, 2, 4, null, "!", 0, null, null, false];
+const nestedTextSnapshot = [3, 1, 7, 3, 0, 46, [nestedTextRoot, nestedText, nestedPlain, nestedRun, nestedRunText, nestedTrailing]];
 const patch = [
   3,
   3,
@@ -110,6 +120,7 @@ const rows = [
   row("ts-snapshot-box-shadow-double", "snapshot", doubleSnapshot),
   row("ts-snapshot-all-kinds", "snapshot", snapshot),
   row("ts-patch-all-operations", "patch", patch),
+  row("ts-snapshot-nested-text-runs", "snapshot", nestedTextSnapshot),
   row("ts-event-press", "event", [3, 2, 7, 3, 42, 1, 4, 7, 1, null]),
   row("ts-event-hover", "event", [3, 2, 7, 3, 42, 10, 4, 7, 11, null]),
   row("ts-event-focus", "event", [3, 2, 7, 3, 42, 23, 4, 7, 4, null]),

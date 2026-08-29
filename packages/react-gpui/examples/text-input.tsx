@@ -106,7 +106,9 @@ function TwoInputs({
         <Text style={styles.action}>Blur second input</Text>
       </Pressable>
       <Text style={styles.label}>{fontStatus}</Text>
-      <Text style={{ ...styles.fontSample, ...(fontFamily ? { fontFamily } : {}) }}>Runtime typography</Text>
+      <Text style={{ ...styles.fontSample, ...(fontFamily ? { fontFamily } : {}) }}>
+        Runtime <Text style={{ color: theme.accentText, fontWeight: "bold" }}>typography</Text>
+      </Text>
     </View>
   );
 }

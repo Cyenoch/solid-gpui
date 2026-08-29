@@ -79,6 +79,10 @@ pub enum TreeError {
         child_id: u32,
         reason: &'static str,
     },
+    #[error("nested Text node {node_id} has unsupported style field {field}")]
+    InvalidNestedTextStyle { node_id: u32, field: &'static str },
+    #[error("Text node {node_id} cannot be selectable with nested styled Text runs")]
+    InvalidRichTextSelection { node_id: u32 },
     #[error("node {node_id} has non-contiguous child index {index}; expected {expected}")]
     NonContiguousChildIndex {
         node_id: u32,
@@ -223,7 +227,7 @@ impl NodeStore {
             });
         }
         let capacity = snapshot.nodes.len();
-        let mut nodes = HashMap::with_capacity(capacity);
+        let mut nodes: HashMap<u32, StoredNode> = HashMap::with_capacity(capacity);
         let mut children: HashMap<u32, Vec<u32>> = HashMap::with_capacity(capacity);
         let mut root_id = None;
         for (position, node) in snapshot.nodes.into_iter().enumerate() {
@@ -263,10 +267,22 @@ impl NodeStore {
                         parent_id: node.parent_id,
                     });
                 }
-                validate_parent_child_stored(parent, &node)?;
+                let parent_is_nested_text = parent.kind == KIND_TEXT
+                    && parent.parent_id != 0
+                    && nodes
+                        .get(&parent.parent_id)
+                        .is_some_and(|ancestor| ancestor.kind == KIND_TEXT);
+                validate_parent_child_stored(parent, &node, parent_is_nested_text)?;
                 children.entry(node.parent_id).or_default().push(node.id);
             }
             validate_style(node.id, node.style.as_ref())?;
+            if node.kind == KIND_TEXT
+                && nodes
+                    .get(&node.parent_id)
+                    .is_some_and(|parent| parent.kind == KIND_TEXT)
+            {
+                validate_nested_text_style(node.id, node.style.as_ref())?;
+            }
             nodes.insert(
                 node.id,
                 StoredNode {
@@ -429,7 +445,13 @@ impl NodeStore {
             operation,
             reason: "invalid created node",
         })?;
-        validate_parent_child_stored(parent, node).map_err(|_| {
+        let parent_is_nested_text = parent.kind == KIND_TEXT
+            && parent.parent_id != 0
+            && self
+                .nodes
+                .get(&parent.parent_id)
+                .is_some_and(|ancestor| ancestor.kind == KIND_TEXT);
+        validate_parent_child_stored(parent, node, parent_is_nested_text).map_err(|_| {
             TreeError::InvalidPatchOperation {
                 operation,
                 reason: "invalid parent/child relationship",
@@ -535,16 +557,47 @@ impl NodeStore {
                 reason: "text updates require RawText",
             });
         }
-        if mask & UPDATE_FOCUSABLE != 0 && node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE {
-            return Err(TreeError::InvalidPatchOperation {
-                operation,
-                reason: "focusable updates require View or Pressable",
-            });
-        }
         if mask & UPDATE_SELECTABLE != 0 && node.kind != KIND_TEXT {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
                 reason: "selectable updates require Text",
+            });
+        }
+        let parent = self.nodes.get(&node.parent_id);
+        let is_nested_text =
+            node.kind == KIND_TEXT && parent.is_some_and(|parent| parent.kind == KIND_TEXT);
+        if is_nested_text {
+            if mask & UPDATE_STYLE != 0 {
+                validate_nested_text_style(id, style.as_ref()).map_err(|_| {
+                    TreeError::InvalidPatchOperation {
+                        operation,
+                        reason: "nested Text style contains unsupported field",
+                    }
+                })?;
+            }
+            if mask & UPDATE_SELECTABLE != 0 && selectable {
+                return Err(TreeError::InvalidPatchOperation {
+                    operation,
+                    reason: "nested Text cannot be selectable",
+                });
+            }
+        } else if node.kind == KIND_TEXT
+            && mask & UPDATE_SELECTABLE != 0
+            && selectable
+            && self
+                .children
+                .get(&id)
+                .into_iter()
+                .flatten()
+                .any(|child_id| {
+                    self.nodes
+                        .get(child_id)
+                        .is_some_and(|child| child.kind == KIND_TEXT)
+                })
+        {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "Text with nested styled runs cannot be selectable",
             });
         }
         let resulting_listener = if mask & UPDATE_LISTENER != 0 {
@@ -699,11 +752,29 @@ impl NodeStore {
                 operation,
                 node_id: parent_id,
             })?;
+        let parent_is_nested_text = parent.kind == KIND_TEXT
+            && parent.parent_id != 0
+            && self
+                .nodes
+                .get(&parent.parent_id)
+                .is_some_and(|ancestor| ancestor.kind == KIND_TEXT);
         validate_parent_child_kinds(parent.id, parent.kind, id, node.kind).map_err(|_| {
             TreeError::InvalidPatchOperation {
                 operation,
                 reason: "invalid parent/child relationship",
             }
+        })?;
+        validate_nested_text_edge(
+            &parent,
+            id,
+            node.kind,
+            node.style.as_ref(),
+            node.selectable,
+            parent_is_nested_text,
+        )
+        .map_err(|_| TreeError::InvalidPatchOperation {
+            operation,
+            reason: "invalid parent/child relationship",
         })?;
         let mut ancestor = parent_id;
         while ancestor != 0 {
@@ -823,32 +894,23 @@ impl NodeStore {
     }
 
     fn recompute_text_content(&mut self, node_id: u32) -> Result<(), TreeError> {
-        let Some(node) = self.nodes.get(&node_id).cloned() else {
-            return Ok(());
-        };
-        if node.kind != KIND_TEXT {
-            return Ok(());
-        }
-        let mut content = String::new();
-        for child_id in self.children.get(&node_id).cloned().unwrap_or_default() {
-            let child = self.nodes.get(&child_id).ok_or(TreeError::MissingParent {
-                node_id: child_id,
-                parent_id: node_id,
-            })?;
-            let Some(text) = child.text.as_deref() else {
-                return Err(TreeError::InvalidChild {
-                    node_id,
-                    child_id,
-                    reason: "Text child must carry text",
-                });
+        let mut current = node_id;
+        loop {
+            let Some(node) = self.nodes.get(&current).cloned() else {
+                return Ok(());
             };
-            content.push_str(text);
+            if node.kind == KIND_TEXT {
+                let content = collect_text_content(current, &self.nodes, &self.children)?;
+                self.nodes
+                    .get_mut(&current)
+                    .expect("validated text node")
+                    .text_content = Some(Arc::<str>::from(content));
+            }
+            if node.parent_id == 0 {
+                return Ok(());
+            }
+            current = node.parent_id;
         }
-        self.nodes
-            .get_mut(&node_id)
-            .expect("validated node")
-            .text_content = Some(Arc::<str>::from(content));
-        Ok(())
     }
 }
 

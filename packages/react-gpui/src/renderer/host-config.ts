@@ -29,10 +29,11 @@ export const hostConfig = {
   },
   resolveUpdatePriority: () => currentUpdatePriority || DefaultEventPriority,
   getPublicInstance: (instance: HostNodeInternal) => instance,
-  getRootHostContext: (container: RootContainer): HostContext => ({ root: container, parentKind: null }),
+  getRootHostContext: (container: RootContainer): HostContext => ({ root: container, parentKind: null, textDepth: 0 }),
   getChildHostContext: (context: HostContext, type: string): HostContext => ({
     root: context.root,
     parentKind: type as HostKind,
+    textDepth: context.textDepth + (type === "Text" ? 1 : 0),
   }),
   prepareForCommit: () => null,
   resetAfterCommit: (container: RootContainer) => container.commit(),
@@ -43,7 +44,7 @@ export const hostConfig = {
     hostContext: HostContext,
   ): HostNodeInternal => {
     if (!VALID_HOST_TYPES[type]) throw new TypeError(`Unknown GPUI host type: ${type}`);
-    assertChildForRoot(rootContainer, hostContext.parentKind, type as HostKind);
+    assertChildForRoot(rootContainer, hostContext.parentKind, type as HostKind, hostContext.textDepth);
     const node = rootContainer.allocateNode(type as HostKind);
     rootContainer.setNodeProps(node, props);
     return node;
@@ -58,7 +59,12 @@ export const hostConfig = {
     return node;
   },
   appendInitialChild: (parent: HostNodeInternal, child: HostNodeInternal) => {
-    assertChildForRoot(parent.root, parent.kind, child.kind);
+    assertChildForRoot(
+      parent.root,
+      parent.kind,
+      child.kind,
+      parent.kind === "Text" && parent.parent?.kind === "Text" ? 2 : 1,
+    );
     parent.children.push(child);
     child.parent = parent;
     parent.root.refreshChildIndexes(parent);
@@ -152,7 +158,12 @@ export const hostConfig = {
     instance.root.markUpdated(instance, UPDATE_TEXT);
   },
   appendChild: (parent: HostNodeInternal, child: HostNodeInternal) => {
-    assertChildForRoot(parent.root, parent.kind, child.kind);
+    assertChildForRoot(
+      parent.root,
+      parent.kind,
+      child.kind,
+      parent.kind === "Text" && parent.parent?.kind === "Text" ? 2 : 1,
+    );
     parent.root.markMoved(child);
     child.root.detachFromParent(child);
     child.detachedFocusPending = false;
@@ -170,7 +181,12 @@ export const hostConfig = {
     container.refreshChildIndexes(container.syntheticRoot);
   },
   insertBefore: (parent: HostNodeInternal, child: HostNodeInternal, before: HostNodeInternal) => {
-    assertChildForRoot(parent.root, parent.kind, child.kind);
+    assertChildForRoot(
+      parent.root,
+      parent.kind,
+      child.kind,
+      parent.kind === "Text" && parent.parent?.kind === "Text" ? 2 : 1,
+    );
     parent.root.markMoved(child);
     child.root.detachFromParent(child);
     child.detachedFocusPending = false;

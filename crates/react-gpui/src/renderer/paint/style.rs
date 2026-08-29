@@ -262,3 +262,43 @@ pub(super) fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>)
     }
     element
 }
+
+pub(super) fn text_run(
+    style: &gpui::TextStyle,
+    node_style: Option<&Style>,
+    len: usize,
+) -> gpui::TextRun {
+    let mut text_style = style.clone();
+    if let Some(style) = node_style {
+        if let Some(color) = style.color_rgba {
+            text_style.color = rgba(color).into();
+        }
+        if let Some(font_family) = style.font_family.as_ref() {
+            text_style.font_family = SharedString::from(font_family.clone());
+        }
+        if let Some(font_style) = style.font_style {
+            text_style.font_style = if font_style == 1 {
+                gpui::FontStyle::Italic
+            } else {
+                gpui::FontStyle::Normal
+            };
+        }
+        if let Some(text_decoration) = style.text_decoration {
+            text_style.underline =
+                (text_decoration == 1).then_some(gpui::UnderlineStyle::default());
+            text_style.strikethrough =
+                (text_decoration == 2).then_some(gpui::StrikethroughStyle::default());
+        }
+        if let Some(weight) = style.font_weight {
+            text_style.font_weight = match weight {
+                400 => gpui::FontWeight::NORMAL,
+                500 => gpui::FontWeight::MEDIUM,
+                600 => gpui::FontWeight::SEMIBOLD,
+                700 => gpui::FontWeight::BOLD,
+                900 => gpui::FontWeight::BLACK,
+                _ => gpui::FontWeight::NORMAL,
+            };
+        }
+    }
+    text_style.to_run(len)
+}

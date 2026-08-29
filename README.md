@@ -46,6 +46,24 @@ paste, cut, and word/line selection edits create boundaries without recording
 selection-only changes. While IME marked text is active, undo first commits
 the composition and then treats that committed composition as one undo entry.
 
+`Text` owns one paragraph and may mix raw strings with one level of nested
+`Text` runs:
+
+```tsx
+<Text style={{ color: "#334155", fontSize: 16 }}>
+  Hello <Text style={{ color: "#2563eb", fontWeight: "bold" }}>world</Text>!
+</Text>
+```
+
+Raw strings use the parent style. A nested run may override only
+`color`, `fontWeight`, `fontStyle`, `textDecoration`, and `fontFamily`; its
+`fontSize` and `lineHeight` (and layout or other non-typography fields) are
+rejected because GPUI shapes one paragraph with one size and line height.
+Nested runs are flattened into one UTF-8 paragraph for wrapping and
+accessibility, while each run keeps its own color, font, weight, and decoration.
+Selectable rich text is not supported: `selectable` remains available for a
+single-style `Text` paragraph only.
+
 ## Platform support
 
 The supported process-mode host targets are intentionally explicit:

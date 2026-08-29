@@ -59,6 +59,15 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
       ],
     ]);
   }
+  if (vector.id.endsWith("snapshot-nested-text-runs")) {
+    const snapshot = decoded as readonly unknown[];
+    const nodes = snapshot[6] as readonly (readonly unknown[])[];
+    expect(nodes.map((node) => node[3])).toEqual([1, 2, 4, 2, 4, 4]);
+    expect(nodes[2][5]).toBe("Hello ");
+    expect(nodes[4][5]).toBe("world");
+    expect((nodes[3][4] as readonly unknown[])[7]).toBe(0xff0000ff);
+    expect((nodes[3][4] as readonly unknown[])[16]).toBe(700);
+  }
   if (vector.id === "rust-patch-all-operations" || vector.id === "ts-patch-all-operations") {
     const patch = decoded as readonly unknown[];
     expect((patch[6] as readonly (readonly unknown[])[]).map((operation) => operation[0])).toEqual([1, 2, 3, 4]);

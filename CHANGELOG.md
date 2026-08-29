@@ -46,6 +46,13 @@ from this work tree.
   `multi-surface.tsx`, a bundled Tuffy runtime-font flow in `text-input.tsx`,
   and a README recipe for encoded clipboard image bytes.
 
+- Added mixed-style inline `Text` runs: a paragraph can combine raw strings
+  with one level of nested `Text` children. Runs share the parent font size and
+  line height while overriding color, weight, style, decoration, or family;
+  nested `fontSize`/`lineHeight` and non-typography fields are rejected, and
+  selectable rich text remains intentionally unsupported. The wire keeps the
+  existing `Text`/`RawText` node kinds.
+
 
 ### Added
 

@@ -220,7 +220,14 @@ event is sent over this protocol.
 |       11 | `tooltip`        | optional string       | Only View and Pressable; non-empty, no control characters, at most 256 UTF-8 bytes. Omitted when absent. If present, position 10 is always emitted as a selectable placeholder (`false` is valid). | `protocol.ts:123-147`; `wire/node.rs:3-16,149-166`; `tree.rs:584-628`            |
 
 Images and RawText cannot contain children; RawText must be directly under
-Text, and Text may contain only RawText (`tree/validation.rs:238-272`).
+Text. A Text paragraph may contain direct RawText children and one level of
+nested Text run nodes; nested Text may contain RawText only. Nested Text remains
+the ordinary `kind=2` node on the wire—there is no new node kind or tuple shape.
+The outer Text style supplies paragraph font size and line height. A nested run
+may override only `color`, `fontWeight`, `fontStyle`, `textDecoration`, and
+`fontFamily`; `fontSize`, `lineHeight`, layout, and other non-typography fields
+are rejected by tree validation rather than silently ignored. The flattened
+UTF-8 `text_content` remains the concatenation of raw and nested descendants.
 ### VirtualList scroll commands
 
 VirtualList node commands use the node ID in position `6`:

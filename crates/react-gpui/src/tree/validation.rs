@@ -246,10 +246,114 @@ pub(super) fn validate_host_properties_shape(
 pub(super) fn validate_parent_child_stored(
     parent: &StoredNode,
     child: &Node,
+    parent_is_nested_text: bool,
 ) -> Result<(), TreeError> {
-    validate_parent_child_kinds(parent.id, parent.kind, child.id, child.kind)
+    validate_parent_child_kinds(parent.id, parent.kind, child.id, child.kind)?;
+    validate_nested_text_edge(
+        parent,
+        child.id,
+        child.kind,
+        child.style.as_ref(),
+        child.selectable,
+        parent_is_nested_text,
+    )
 }
 
+pub(super) fn validate_nested_text_edge(
+    parent: &StoredNode,
+    child_id: u32,
+    child_kind: u32,
+    child_style: Option<&Style>,
+    child_selectable: bool,
+    parent_is_nested_text: bool,
+) -> Result<(), TreeError> {
+    if parent.kind != KIND_TEXT || child_kind != KIND_TEXT {
+        return Ok(());
+    }
+    if parent_is_nested_text {
+        return Err(TreeError::InvalidChild {
+            node_id: parent.id,
+            child_id,
+            reason: "nested Text may contain only RawText children",
+        });
+    }
+    if parent.selectable || child_selectable {
+        return Err(TreeError::InvalidRichTextSelection { node_id: parent.id });
+    }
+    validate_nested_text_style(child_id, child_style)
+}
+
+pub(super) fn validate_nested_text_style(
+    node_id: u32,
+    style: Option<&Style>,
+) -> Result<(), TreeError> {
+    let Some(style) = style else {
+        return Ok(());
+    };
+    macro_rules! unsupported {
+        ($field:ident, $name:literal) => {
+            if style.$field.is_some() {
+                return Err(TreeError::InvalidNestedTextStyle {
+                    node_id,
+                    field: $name,
+                });
+            }
+        };
+    }
+    if style.width.is_some() {
+        return Err(TreeError::InvalidNestedTextStyle {
+            node_id,
+            field: "width",
+        });
+    }
+    if style.height.is_some() {
+        return Err(TreeError::InvalidNestedTextStyle {
+            node_id,
+            field: "height",
+        });
+    }
+    if style.flex_direction.is_some_and(|value| value != 0) {
+        return Err(TreeError::InvalidNestedTextStyle {
+            node_id,
+            field: "flexDirection",
+        });
+    }
+    unsupported!(padding, "padding");
+    unsupported!(gap, "gap");
+    unsupported!(justify_content, "justifyContent");
+    unsupported!(align_items, "alignItems");
+    unsupported!(border_radius, "borderRadius");
+    unsupported!(border_width, "borderWidth");
+    unsupported!(border_color_rgba, "borderColor");
+    unsupported!(font_size, "fontSize");
+    unsupported!(background_rgba, "backgroundColor");
+    unsupported!(opacity, "opacity");
+    unsupported!(transition, "transition");
+    unsupported!(overflow, "overflow");
+    unsupported!(line_clamp, "lineClamp");
+    unsupported!(text_overflow, "textOverflow");
+    unsupported!(margin_top, "marginTop");
+    unsupported!(margin_right, "marginRight");
+    unsupported!(margin_bottom, "marginBottom");
+    unsupported!(margin_left, "marginLeft");
+    unsupported!(line_height, "lineHeight");
+    unsupported!(min_width, "minWidth");
+    unsupported!(max_width, "maxWidth");
+    unsupported!(min_height, "minHeight");
+    if style.position.is_some_and(|value| value != 0) {
+        return Err(TreeError::InvalidNestedTextStyle {
+            node_id,
+            field: "position",
+        });
+    }
+    unsupported!(left, "left");
+    unsupported!(top, "top");
+    unsupported!(right, "right");
+    unsupported!(bottom, "bottom");
+    unsupported!(cursor, "cursor");
+    unsupported!(box_shadows, "boxShadow");
+    Ok(())
+}
 pub(super) fn validate_parent_child_kinds(
     parent_id: u32,
     parent_kind: u32,
@@ -277,11 +381,11 @@ pub(super) fn validate_parent_child_kinds(
             reason: "RawText must be directly under Text",
         });
     }
-    if parent_kind == KIND_TEXT && child_kind != KIND_RAW_TEXT {
+    if parent_kind == KIND_TEXT && !matches!(child_kind, KIND_RAW_TEXT | KIND_TEXT) {
         return Err(TreeError::InvalidChild {
             node_id: parent_id,
             child_id,
-            reason: "Text may contain only RawText",
+            reason: "Text may contain only RawText or one-level Text children",
         });
     }
     Ok(())
@@ -312,6 +416,41 @@ pub(super) fn validate_child_indexes(
     Ok(())
 }
 
+pub(super) fn collect_text_content(
+    node_id: u32,
+    nodes: &HashMap<u32, StoredNode>,
+    children: &HashMap<u32, Vec<u32>>,
+) -> Result<String, TreeError> {
+    let mut content = String::new();
+    for child_id in children.get(&node_id).cloned().unwrap_or_default() {
+        let child = nodes.get(&child_id).ok_or(TreeError::MissingParent {
+            node_id: child_id,
+            parent_id: node_id,
+        })?;
+        match child.kind {
+            KIND_RAW_TEXT => {
+                let Some(text) = child.text.as_deref() else {
+                    return Err(TreeError::InvalidChild {
+                        node_id,
+                        child_id,
+                        reason: "Text child must carry text",
+                    });
+                };
+                content.push_str(text);
+            }
+            KIND_TEXT => content.push_str(&collect_text_content(child_id, nodes, children)?),
+            _ => {
+                return Err(TreeError::InvalidChild {
+                    node_id,
+                    child_id,
+                    reason: "Text may contain only RawText or one-level Text children",
+                });
+            }
+        }
+    }
+    Ok(content)
+}
+
 pub(super) fn recompute_all_text_content(
     nodes: &mut HashMap<u32, StoredNode>,
     children: &HashMap<u32, Vec<u32>>,
@@ -322,18 +461,7 @@ pub(super) fn recompute_all_text_content(
         .map(|node| node.id)
         .collect();
     for id in text_ids {
-        let mut content = String::new();
-        for child_id in children.get(&id).cloned().unwrap_or_default() {
-            let child = nodes.get(&child_id).expect("child exists");
-            if child.kind != KIND_RAW_TEXT || child.text.is_none() {
-                return Err(TreeError::InvalidChild {
-                    node_id: id,
-                    child_id,
-                    reason: "Text child must carry text",
-                });
-            }
-            content.push_str(child.text.as_deref().expect("checked text"));
-        }
+        let content = collect_text_content(id, nodes, children)?;
         nodes.get_mut(&id).expect("text node exists").text_content =
             Some(Arc::<str>::from(content));
     }

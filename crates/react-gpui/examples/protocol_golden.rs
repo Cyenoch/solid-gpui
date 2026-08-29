@@ -175,6 +175,31 @@ fn snapshot() -> Snapshot {
     )
 }
 
+fn nested_text_snapshot() -> Snapshot {
+    let mut root = Node::new(1, 0, 0, KIND_VIEW);
+    root.style = Some(style());
+    let mut text = Node::new(2, 1, 0, KIND_TEXT);
+    text.style = Some(style());
+    let mut plain = Node::new(3, 2, 0, KIND_RAW_TEXT);
+    plain.text = Some("Hello ".into());
+    let mut nested = Node::new(4, 2, 1, KIND_TEXT);
+    let mut nested_style = style();
+    nested_style.color_rgba = Some(0xff00_00ff);
+    nested_style.font_weight = Some(700);
+    nested.style = Some(nested_style);
+    let mut nested_text = Node::new(5, 4, 0, KIND_RAW_TEXT);
+    nested_text.text = Some("world".into());
+    let mut trailing = Node::new(6, 2, 2, KIND_RAW_TEXT);
+    trailing.text = Some("!".into());
+    Snapshot::new(
+        7,
+        3,
+        0,
+        46,
+        vec![root, text, plain, nested, nested_text, trailing],
+    )
+}
+
 fn patch() -> Patch {
     let mut created = Node::new(8, 1, 5, KIND_PRESSABLE);
     created.listener_id = 11;
@@ -454,6 +479,12 @@ fn main() {
         ])
         .encode()
         .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-snapshot-nested-text-runs",
+        "snapshot",
+        nested_text_snapshot().encode().unwrap(),
     );
     emit(
         &mut rows,

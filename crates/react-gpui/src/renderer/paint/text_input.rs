@@ -14,6 +14,19 @@ use super::super::ReactRoot;
 use super::super::events::emit_key_event;
 use super::accessibility::apply_accessibility;
 use super::style::{apply_style, apply_text_style};
+pub(super) fn text_style_to_run(text_style: &gpui::TextStyle, len: usize) -> TextRun {
+    text_style.to_run(len)
+}
+
+pub(super) fn text_style_to_run_with_color(
+    text_style: &gpui::TextStyle,
+    len: usize,
+    color: gpui::Hsla,
+) -> TextRun {
+    let mut run = text_style_to_run(text_style, len);
+    run.color = color;
+    run
+}
 
 struct TextInputElement {
     entity: Entity<ReactRoot>,
@@ -127,14 +140,7 @@ impl Element for TextInputElement {
         } else {
             text_style.color
         };
-        let run = TextRun {
-            len: display_text.len(),
-            font: text_style.font(),
-            color: text_color,
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        };
+        let run = text_style_to_run_with_color(&text_style, display_text.len(), text_color);
         let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
         let text_layout = if self.multiline {
@@ -347,14 +353,7 @@ impl Element for SelectableTextElement {
         selection.start = selection.start.min(self.text.len());
         selection.end = selection.end.min(self.text.len());
         let text_style = window.text_style();
-        let run = TextRun {
-            len: self.text.len(),
-            font: text_style.font(),
-            color: text_style.color,
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        };
+        let run = text_style_to_run(&text_style, self.text.len());
         let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
         let lines = window

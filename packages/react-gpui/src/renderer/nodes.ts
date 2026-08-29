@@ -32,20 +32,27 @@ import {
 } from "./props";
 import type { HostKind, HostNodeInternal, HostProps, RootOwner, TextInputCallbacks, TextInputProps } from "./types";
 
-export function assertChildKind(parentKind: HostKind | null, childKind: HostKind): void {
+export function assertChildKind(parentKind: HostKind | null, childKind: HostKind, textDepth = 0): void {
   if (parentKind === null) return;
-  if (parentKind === "Text" && childKind !== "RawText") {
-    throw new TypeError("Text children must be raw text; use a separate Text node for nested content");
+  if (parentKind === "Text" && childKind !== "RawText" && childKind !== "Text") {
+    throw new TypeError("Text children must be raw text or one-level nested Text runs");
+  }
+  if (parentKind === "Text" && childKind === "Text" && textDepth > 1) {
+    throw new TypeError("Nested Text may contain only raw text; deeper Text nesting is unsupported");
   }
   if (parentKind === "Image") throw new TypeError("Image nodes cannot contain children");
   if (childKind === "RawText" && parentKind !== "Text") {
     throw new TypeError("Raw text is only valid directly under Text");
   }
 }
-
-export function assertChildForRoot(root: RootOwner, parentKind: HostKind | null, childKind: HostKind): void {
+export function assertChildForRoot(
+  root: RootOwner,
+  parentKind: HostKind | null,
+  childKind: HostKind,
+  textDepth = 0,
+): void {
   try {
-    assertChildKind(parentKind, childKind);
+    assertChildKind(parentKind, childKind, textDepth);
   } catch (error) {
     root.invalid = true;
     throw error;
