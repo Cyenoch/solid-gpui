@@ -871,7 +871,8 @@ impl ReactRoot {
                                         } else {
                                             success = false;
                                             error = Some(
-                                                "scroll offset must be finite and non-negative".to_string(),
+                                                "scroll offset must be finite and non-negative"
+                                                    .to_string(),
                                             );
                                         }
                                     } else {

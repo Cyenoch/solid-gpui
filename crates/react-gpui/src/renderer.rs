@@ -2521,7 +2521,9 @@ mod input_tests {
                 assert!(!result.success);
                 assert_eq!(
                     result.error.as_deref(),
-                    Some("VirtualList index is out of range for node 2; use an index from 0 through 100 - 1")
+                    Some(
+                        "VirtualList index is out of range for node 2; use an index from 0 through 100 - 1"
+                    )
                 );
             }
             payload => panic!("unexpected invalid command payload: {payload:?}"),

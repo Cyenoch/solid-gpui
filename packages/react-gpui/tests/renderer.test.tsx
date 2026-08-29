@@ -525,7 +525,15 @@ describe("clipboard commands", () => {
         1,
         0,
         6,
-        [2, failedCommand[5] as number, COMMAND_CLIPBOARD_READ, 1, false, "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText", null],
+        [
+          2,
+          failedCommand[5] as number,
+          COMMAND_CLIPBOARD_READ,
+          1,
+          false,
+          "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText",
+          null,
+        ],
       ]),
     );
     await expect(failedRead).rejects.toThrow(
@@ -1558,9 +1566,7 @@ describe("renderer commits", () => {
     );
     await expect(scroll).resolves.toBeUndefined();
     const framesBeforeInvalid = transport.submitted.length;
-    await expect(ref.current!.scrollToOffset(-1)).rejects.toThrow(
-      "scroll offset is invalid for VirtualList node",
-    );
+    await expect(ref.current!.scrollToOffset(-1)).rejects.toThrow("scroll offset is invalid for VirtualList node");
     await expect(ref.current!.scrollToOffset(Number.NaN)).rejects.toThrow(
       "scroll offset is invalid for VirtualList node",
     );

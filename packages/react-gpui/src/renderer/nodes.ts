@@ -177,23 +177,25 @@ export class NodeGraph {
       node.scrollToEnd = () => this.owner.submitCommand(node, COMMAND_SCROLL_TO_END, null);
       node.getScrollOffset = () =>
         this.owner.submitCommandValue(node, COMMAND_GET_SCROLL_OFFSET, null).then((value) => {
-        if (
-          !Array.isArray(value) ||
-          value.length !== 2 ||
-          value[0] !== 10 ||
-          typeof value[1] !== "number" ||
-          !Number.isFinite(value[1]) ||
-          value[1] < 0
-        )
-          throw new Error(
-            `native getScrollOffset returned an invalid value for VirtualList node ${node.id}; update the host binary and renderer package together`,
-          );
+          if (
+            !Array.isArray(value) ||
+            value.length !== 2 ||
+            value[0] !== 10 ||
+            typeof value[1] !== "number" ||
+            !Number.isFinite(value[1]) ||
+            value[1] < 0
+          )
+            throw new Error(
+              `native getScrollOffset returned an invalid value for VirtualList node ${node.id}; update the host binary and renderer package together`,
+            );
           return value[1];
         });
       node.scrollToOffset = (offset) => {
         if (typeof offset !== "number" || !Number.isFinite(offset) || offset < 0)
           return Promise.reject(
-            new TypeError(`scroll offset is invalid for VirtualList node ${node.id}; provide a finite non-negative number`),
+            new TypeError(
+              `scroll offset is invalid for VirtualList node ${node.id}; provide a finite non-negative number`,
+            ),
           );
         return this.owner.submitCommand(node, COMMAND_SCROLL_TO_OFFSET, offset);
       };

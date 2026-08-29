@@ -528,7 +528,9 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
     } else {
         assert_eq!(
             image_result.error.as_deref(),
-            Some("clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows")
+            Some(
+                "clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows"
+            )
         );
     }
     route_command(
@@ -548,7 +550,9 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
     } else {
         assert_eq!(
             image_read_result.error.as_deref(),
-            Some("clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows")
+            Some(
+                "clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows"
+            )
         );
     }
 
