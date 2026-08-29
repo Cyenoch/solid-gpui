@@ -336,7 +336,7 @@ before it when needed. Old seven-field tuples remain valid.
 
 | Position | Field       | Type/values               | Constraint and semantics                                                                                                                                                | Source                                                                                                                                                                 |
 | -------: | ----------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|        0 | role        | u32                       | `0=unspecified`, `1=generic`, `2=button`, `3=text`, `4=textbox`, `5=checkbox`, `6=heading`; values above 6 are rejected.                                                | `props.ts:101-108`; `tree/validation.rs:137-156`                                                                                                                       |
+|        0 | role        | u32                       | `0=unspecified`, `1=generic`, `2=button`, `3=text`, `4=textbox`, `5=checkbox`, `6=heading`, `7=link`; values above 7 are rejected.                                          | `props.ts:101-108`; `tree/validation.rs:137-156`                                                                                                                       |
 |        1 | label       | string or null            | Accessible label; applied independently from description.                                                                                                               | `wire/node.rs:66-74,631-652`; `props.ts:142-168`; `renderer/paint/accessibility.rs:33-38`                                                                              |
 |        2 | description | string or null            | Supplementary accessible description, applied independently from label.                                                                                                 | Same sources.                                                                                                                                                          |
 |        3 | disabled    | boolean                   | Retained and validated, but not exposed in AccessKit: GPUI 0.2.2 has no public AX disabled-state builder. Pressable interaction/focus behavior still honors `disabled`. | Same sources; `renderer/paint/accessibility.rs:59-61`                                                                                                                  |
@@ -348,14 +348,16 @@ before it when needed. Old seven-field tuples remain valid.
 
 The native painter applies recognized roles, labels, descriptions, checked
 (`AccessKit::Toggled::True/False`), selected, values, expanded state, heading
-levels, and stable IDs to the GPUI element. `generic` intentionally remains
+levels, links, and stable IDs to the GPUI element. `generic` intentionally remains
 GPUI's role-less container and does not produce an AccessKit node, so its other
-fields are not exposed. Image, VirtualList, and RawText branches use the same
-accessibility helper. AccessKit 0.24.1 has a `Live` property, but pinned GPUI
-has no public `aria_live`/live-region builder or write path; live-region
-announcements are therefore an upstream gap and no live field is carried.
-The stock headless TestPlatform has no active AccessKit adapter; display-backed
-desktop verification is required for a real tree inspection.
+fields are not exposed. Selectable Text uses one paragraph layout over all direct
+runs; pointer activation maps the paragraph byte index back to the matching
+nested Text listener. Per-run keyboard focus is a known boundary. AccessKit 0.24.1
+has a `Live` property, but pinned GPUI has no public `aria_live`/live-region
+builder or write path; live-region announcements are therefore an upstream gap
+and no live field is carried. The stock headless TestPlatform has no active
+AccessKit adapter; display-backed desktop verification is required for a real
+tree inspection.
 
 ### Style tuple: all 42 slots
 

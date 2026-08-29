@@ -49,4 +49,23 @@ describe("accessibility metadata", () => {
       "accessibilityLevel requires accessibilityRole=heading",
     );
   });
+
+  it("encodes link role and nested Text press listener", () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 75, epoch: 76 });
+    const onPress = () => undefined;
+    root.render(
+      <Text>
+        before{" "}
+        <Text accessibilityRole="link" onPress={onPress}>
+          link
+        </Text>{" "}
+        after
+      </Text>,
+    );
+    const nodes = snapshot(transport)[6] as ReadonlyArray<ReadonlyArray<unknown>>;
+    const link = nodes.find((node) => (node[8] as readonly unknown[] | null)?.[0] === 7);
+    expect(link?.[6]).not.toBe(0);
+    expect((link?.[8] as readonly unknown[] | null)?.[0]).toBe(7);
+  });
 });

@@ -35,7 +35,7 @@ export interface HostNode {
   readonly kind: HostKind;
 }
 export interface AccessibilityProps {
-  readonly accessibilityRole?: "button" | "text" | "textbox" | "checkbox" | "heading" | "generic";
+  readonly accessibilityRole?: "button" | "text" | "textbox" | "checkbox" | "heading" | "generic" | "link";
   readonly accessibilityLabel?: string;
   readonly accessibilityDescription?: string;
   readonly accessibilityDisabled?: boolean;
@@ -238,6 +238,7 @@ export type TextChild = string | number | { readonly type: "Text"; readonly prop
 export interface TextProps extends AccessibilityProps {
   readonly style?: StyleProp;
   readonly selectable?: boolean;
+  readonly onPress?: PressHandler;
   readonly onLayout?: LayoutHandler;
   readonly children?: TextChild | readonly TextChild[];
 }

@@ -230,7 +230,7 @@ export class NodeGraph {
       !node.disabled && (node.kind === "View" || node.kind === "Pressable" || node.kind === "TextInput")
         ? props.onKeyDown
         : undefined;
-    node.listener = node.kind === "Pressable" && !node.disabled ? props.onPress : undefined;
+    node.listener = (node.kind === "Pressable" || node.kind === "Text") && !node.disabled ? props.onPress : undefined;
     node.pointerCallbacks =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable")
         ? { down: props.onPointerDown, up: props.onPointerUp }

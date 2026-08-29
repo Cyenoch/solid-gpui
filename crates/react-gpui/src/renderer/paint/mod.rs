@@ -177,6 +177,9 @@ impl ReactRoot {
         if node.kind == KIND_TEXT && node.selectable {
             return text_input::render_selectable(self, node, entity, style);
         }
+        if node.kind == KIND_TEXT && node.has_children() {
+            return text_input::render_rich_text(self, node, style);
+        }
 
         if node.kind == KIND_RAW_TEXT {
             let element = element.child(

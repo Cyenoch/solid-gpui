@@ -1,19 +1,81 @@
+use std::ops::Range;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use gpui::{
     AnyElement, App, Bounds, ClipboardItem, ContentMask, Element, ElementId, ElementInputHandler,
-    Entity, GlobalElementId, InspectorElementId, InteractiveElement, IntoElement, LayoutId,
-    MouseButton, PaintQuad, ParentElement, Pixels, Point, SharedString, StatefulInteractiveElement,
-    Styled, TextRun, Window, div, fill, hsla, px, relative, rgba, size,
+    Entity, GlobalElementId, InspectorElementId, InteractiveElement, InteractiveText, IntoElement,
+    LayoutId, MouseButton, PaintQuad, ParentElement, Pixels, Point, SharedString,
+    StatefulInteractiveElement, Styled, StyledText, TextRun, Window, div, fill, hsla, px, relative,
+    rgba, size,
 };
 
-use crate::protocol::{HostProperties, KeyAction, Style};
+use crate::protocol::{Event, HostProperties, KeyAction, Style};
+use crate::transport::send_event_or_exit;
 use crate::tree::StoredNode;
 
 use super::super::ReactRoot;
 use super::super::events::emit_key_event;
 use super::accessibility::apply_accessibility;
 use super::style::{apply_style, apply_text_style};
+pub(super) struct RichTextParts {
+    pub(super) text: String,
+    pub(super) runs: Vec<TextRun>,
+    pub(super) clickable_ranges: Vec<Range<usize>>,
+    pub(super) clickable_targets: Vec<(u32, u32)>,
+}
+
+pub(super) fn rich_text_parts(
+    root: &ReactRoot,
+    node: &StoredNode,
+    style: Option<&Style>,
+) -> RichTextParts {
+    let text_style = gpui::TextStyle::default();
+    let mut text = String::new();
+    let mut runs = Vec::new();
+    let mut clickable_ranges = Vec::new();
+    let mut clickable_targets = Vec::new();
+    for child in node.children(&root.store) {
+        let content = match child.kind {
+            crate::tree::KIND_RAW_TEXT => child.text.as_deref(),
+            crate::tree::KIND_TEXT => child.text_content.as_deref(),
+            _ => None,
+        };
+        let Some(content) = content.filter(|content| !content.is_empty()) else {
+            continue;
+        };
+        let start = text.len();
+        text.push_str(content);
+        runs.push(super::style::text_run(
+            &text_style,
+            if child.kind == crate::tree::KIND_TEXT {
+                child.style.as_ref()
+            } else {
+                style
+            },
+            content.len(),
+        ));
+        if child.kind == crate::tree::KIND_TEXT && child.listener_id != 0 {
+            clickable_ranges.push(start..text.len());
+            clickable_targets.push((child.id, child.listener_id));
+        }
+    }
+    if text.is_empty()
+        && let Some(content) = node
+            .text_content
+            .as_deref()
+            .filter(|content| !content.is_empty())
+    {
+        text.push_str(content);
+        runs.push(super::style::text_run(&text_style, style, content.len()));
+    }
+    RichTextParts {
+        text,
+        runs,
+        clickable_ranges,
+        clickable_targets,
+    }
+}
 pub(super) fn text_style_to_run(text_style: &gpui::TextStyle, len: usize) -> TextRun {
     text_style.to_run(len)
 }
@@ -299,6 +361,7 @@ struct SelectableTextElement {
     entity: Entity<ReactRoot>,
     node_id: u32,
     text: String,
+    runs: Vec<TextRun>,
 }
 
 impl IntoElement for SelectableTextElement {
@@ -353,7 +416,6 @@ impl Element for SelectableTextElement {
         selection.start = selection.start.min(self.text.len());
         selection.end = selection.end.min(self.text.len());
         let text_style = window.text_style();
-        let run = text_style_to_run(&text_style, self.text.len());
         let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
         let lines = window
@@ -361,7 +423,7 @@ impl Element for SelectableTextElement {
             .shape_text(
                 SharedString::from(self.text.clone()),
                 font_size,
-                &[run],
+                &self.runs,
                 Some(bounds.size.width),
                 None,
             )
@@ -641,6 +703,52 @@ pub(super) fn render_text_input(
     apply_accessibility(input_element, node).into_any()
 }
 
+pub(super) fn render_rich_text(
+    root: &ReactRoot,
+    node: &StoredNode,
+    style: Option<&Style>,
+) -> AnyElement {
+    let parts = rich_text_parts(root, node, style);
+    let mut element = div().id(ElementId::Integer(node.id as u64));
+    if node.id == 1 {
+        element = element.size_full().flex().flex_col();
+    }
+    element = apply_style(element, style);
+    element = apply_text_style(element, style);
+    if parts.clickable_ranges.is_empty() {
+        if !parts.text.is_empty() {
+            element = element
+                .child(StyledText::new(SharedString::from(parts.text)).with_runs(parts.runs));
+        }
+        return apply_accessibility(element, node).into_any();
+    }
+    let targets = parts.clickable_targets;
+    let runtime = Arc::clone(&root.runtime);
+    let sequence = Arc::clone(&root.next_sequence);
+    let surface_id = root.store.surface_id();
+    let epoch = root.store.epoch();
+    let revision = root.store.revision();
+    let interactive = InteractiveText::new(
+        ElementId::named_usize("react-gpui-text-runs", node.id as usize),
+        StyledText::new(SharedString::from(parts.text)).with_runs(parts.runs),
+    )
+    .on_click(parts.clickable_ranges, move |index, _, _| {
+        let Some((node_id, listener_id)) = targets.get(index).copied() else {
+            return;
+        };
+        let event = Event::press(
+            surface_id,
+            epoch,
+            revision,
+            sequence.fetch_add(1, Ordering::Relaxed),
+            node_id,
+            listener_id,
+        );
+        send_event_or_exit(runtime.as_ref(), "text run press event", &event);
+    });
+    apply_accessibility(element.child(interactive), node).into_any()
+}
+
 pub(super) fn render_selectable(
     root: &ReactRoot,
     node: &StoredNode,
@@ -648,11 +756,9 @@ pub(super) fn render_selectable(
     style: Option<&Style>,
 ) -> AnyElement {
     let node_id = node.id;
-    let text = node
-        .text_content
-        .as_ref()
-        .map(|text| text.to_string())
-        .unwrap_or_default();
+    let parts = rich_text_parts(root, node, style);
+    let text = parts.text;
+    let runs = parts.runs;
     let focus = root
         .focus_handles
         .get(&node_id)
@@ -672,7 +778,8 @@ pub(super) fn render_selectable(
         .child(SelectableTextElement {
             entity: entity.clone(),
             node_id,
-            text,
+            text: text.clone(),
+            runs,
         });
     let mouse_entity = entity.clone();
     let mouse_focus = focus.clone();

@@ -179,13 +179,12 @@ RGBA conversion or format transcoding is promised.
 Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
 node has a recognized role and stable host ID:
 
-| React role | GPUI/AccessKit role        | Label/description         | Checked/selected                                         | Value       | Expanded    | Level                         |
-| ---------- | -------------------------- | ------------------------- | -------------------------------------------------------- | ----------- | ----------- | ----------------------------- |
 | `button`   | `Button`                   | supported                 | selected supported                                       | supported   | supported   | —                             |
 | `text`     | `Label`                    | supported                 | selected supported                                       | supported   | supported   | —                             |
 | `textbox`  | `TextInput`                | supported                 | selected supported                                       | supported   | supported   | —                             |
 | `checkbox` | `CheckBox`                 | supported                 | `checked` maps to toggled true/false; selected supported | supported   | supported   | —                             |
 | `heading`  | `Heading`                  | supported                 | selected supported                                       | supported   | supported   | positive `accessibilityLevel` |
+| `link`     | `Link`                     | supported                 | selected supported                                       | supported   | supported   | —                             |
 | `generic`  | GPUI's role-less container | not exposed as an AX node | not exposed                                              | not exposed | not exposed | not exposed                   |
 
 `accessibilityExpanded` is an optional boolean state for recognized roles and
@@ -195,6 +194,9 @@ positive u32 and requires `accessibilityRole="heading"`; it maps to GPUI's
 tail slots, so old seven-field tuples remain valid. The native painter applies
 label and description independently: labels name the node, while descriptions
 provide supplementary text announced after the name, role, and value.
+Nested Text runs may use `onPress` and `accessibilityRole="link"`; pointer
+activation maps the parent paragraph hit position to the matching run listener.
+Per-run keyboard focus and Enter/Space activation are not yet exposed.
 
 `accessibilityDisabled` is retained and validated on the wire, but GPUI 0.2.2
 does not expose a public AX disabled-state builder. Pressable interaction and

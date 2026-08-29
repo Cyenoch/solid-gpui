@@ -287,13 +287,14 @@ fn text_containment_listener_and_child_indexes_are_validated() {
     NodeStore::default()
         .apply_snapshot(pointer_listener_snapshot)
         .unwrap();
-    let mut invalid_listener = Node::new(2, 1, 0, KIND_TEXT);
-    invalid_listener.listener_id = 9;
-    let invalid_listener = root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), invalid_listener]);
-    assert!(matches!(
-        NodeStore::default().apply_snapshot(invalid_listener),
-        Err(TreeError::InvalidListener { .. })
-    ));
+    let mut valid_text_listener = Node::new(2, 1, 0, KIND_TEXT);
+    valid_text_listener.listener_id = 9;
+    NodeStore::default()
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), valid_text_listener],
+        ))
+        .expect("Text listener is valid");
 
     let non_contiguous = root_snapshot(
         1,
@@ -984,16 +985,14 @@ fn focusable_view_and_pressable_listener_combinations_are_validated() {
         .unwrap();
     assert!(store.get(2).unwrap().focusable);
 
-    let mut invalid_listener = Node::new(2, 1, 0, KIND_TEXT);
-    invalid_listener.listener_id = 9;
-    assert!(matches!(
-        NodeStore::default().apply_snapshot(root_snapshot(
+    let mut valid_text_listener = Node::new(2, 1, 0, KIND_TEXT);
+    valid_text_listener.listener_id = 9;
+    NodeStore::default()
+        .apply_snapshot(root_snapshot(
             1,
-            vec![Node::new(1, 0, 0, KIND_VIEW), invalid_listener]
-        )),
-        Err(TreeError::InvalidListener { .. })
-    ));
-
+            vec![Node::new(1, 0, 0, KIND_VIEW), valid_text_listener],
+        ))
+        .expect("Text listener is valid");
     let mut valid_pressable = Node::new(2, 1, 0, KIND_PRESSABLE);
     valid_pressable.focusable = true;
     valid_pressable.listener_id = 9;
@@ -1134,8 +1133,6 @@ fn pointer_move_capability_requires_interactive_listener_and_can_be_cleared() {
             1,
             vec![Node::new(1, 0, 0, KIND_VIEW), invalid]
         )),
-        Err(TreeError::InvalidPatchOperation { .. })
-            | Err(TreeError::InvalidProperties { .. })
-            | Err(TreeError::InvalidListener { .. })
+        Err(TreeError::InvalidProperties { .. })
     ));
 }

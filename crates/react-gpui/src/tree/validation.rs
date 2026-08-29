@@ -115,10 +115,10 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
         });
     }
     if node.listener_id != 0
-        && node.kind != KIND_PRESSABLE
-        && node.kind != KIND_TEXT_INPUT
-        && node.kind != KIND_VIRTUAL_LIST
-        && node.kind != KIND_VIEW
+        && !matches!(
+            node.kind,
+            KIND_PRESSABLE | KIND_TEXT_INPUT | KIND_VIRTUAL_LIST | KIND_VIEW | KIND_TEXT
+        )
         && node
             .style
             .as_ref()
@@ -128,6 +128,12 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
         return Err(TreeError::InvalidListener {
             node_id: node.id,
             listener_id: node.listener_id,
+        });
+    }
+    if node.accepts_pointer_move && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) {
+        return Err(TreeError::InvalidProperties {
+            node_id: node.id,
+            reason: "pointer move capability requires View or Pressable listener",
         });
     }
     validate_host_properties_shape(node.id, node.kind, node.host_properties.as_ref())?;
@@ -141,7 +147,7 @@ pub(super) fn validate_accessibility_shape(
     let Some(accessibility) = accessibility else {
         return Ok(());
     };
-    if accessibility.role > 6 {
+    if accessibility.role > 7 {
         return Err(TreeError::InvalidProperties {
             node_id,
             reason: "unsupported accessibility role",
@@ -277,8 +283,8 @@ pub(super) fn validate_nested_text_edge(
             reason: "nested Text may contain only RawText children",
         });
     }
-    if parent.selectable || child_selectable {
-        return Err(TreeError::InvalidRichTextSelection { node_id: parent.id });
+    if child_selectable {
+        return Err(TreeError::InvalidRichTextSelection { node_id: child_id });
     }
     validate_nested_text_style(child_id, child_style)
 }

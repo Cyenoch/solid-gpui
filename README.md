@@ -61,8 +61,10 @@ Raw strings use the parent style. A nested run may override only
 rejected because GPUI shapes one paragraph with one size and line height.
 Nested runs are flattened into one UTF-8 paragraph for wrapping and
 accessibility, while each run keeps its own color, font, weight, and decoration.
-Selectable rich text is not supported: `selectable` remains available for a
-single-style `Text` paragraph only.
+Selectable rich text is supported: selection and copy operate on the complete
+flattened paragraph across run boundaries. A nested run with `onPress` is a
+clickable link target; keyboard focus remains a known boundary until per-run
+focus support is added.
 
 ## Platform support
 

@@ -66,7 +66,15 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     ref: true,
     ...ACCESSIBILITY_PROPS,
   },
-  Text: { style: true, selectable: true, onLayout: true, children: true, ref: true, ...ACCESSIBILITY_PROPS },
+  Text: {
+    style: true,
+    selectable: true,
+    onPress: true,
+    onLayout: true,
+    children: true,
+    ref: true,
+    ...ACCESSIBILITY_PROPS,
+  },
   Pressable: {
     style: true,
     tooltip: true,
@@ -138,6 +146,7 @@ const ROLE_CODES: Record<NonNullable<AccessibilityProps["accessibilityRole"]>, n
   textbox: 4,
   checkbox: 5,
   heading: 6,
+  link: 7,
 };
 
 export function accessibilityFor(kind: HostKind, props: HostProps): AccessibilityWire | null {
@@ -365,7 +374,9 @@ export function validateProps(kind: HostKind, props: HostProps): void {
     typeof props.onLayout !== "function"
   )
     throw new TypeError(`${kind} onLayout must be a function`);
-  if (kind !== "RawText") validateStyle(props.style);
+  if (kind === "Text" && props.onPress !== undefined && typeof props.onPress !== "function") {
+    throw new TypeError("Text onPress must be a function");
+  }
   if (kind === "Text" && props.selectable !== undefined && typeof props.selectable !== "boolean") {
     throw new TypeError("Text selectable must be a boolean");
   }

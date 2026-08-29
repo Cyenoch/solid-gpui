@@ -55,6 +55,7 @@ from this work tree.
 
 
 ### Added
+- Added selectable rich-text paragraphs across nested styled runs and pointer-activated link runs. `Text` now accepts `onPress` and `accessibilityRole="link"`; per-run keyboard focus remains a documented boundary.
 
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and

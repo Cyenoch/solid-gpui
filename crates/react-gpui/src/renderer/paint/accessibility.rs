@@ -12,6 +12,7 @@ pub(super) fn accessibility_role(role: u32) -> Option<gpui::accesskit::Role> {
         4 => Some(gpui::accesskit::Role::TextInput),
         5 => Some(gpui::accesskit::Role::CheckBox),
         6 => Some(gpui::accesskit::Role::Heading),
+        7 => Some(gpui::accesskit::Role::Link),
         _ => None,
     }
 }

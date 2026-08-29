@@ -896,7 +896,11 @@ mod input_tests {
             super::paint::accessibility_role(6),
             Some(gpui::accesskit::Role::Heading)
         );
-        assert_eq!(super::paint::accessibility_role(7), None);
+        assert_eq!(
+            super::paint::accessibility_role(7),
+            Some(gpui::accesskit::Role::Link)
+        );
+        assert_eq!(super::paint::accessibility_role(8), None);
     }
     #[test]
     fn placeholder_display_is_visual_only() {
@@ -2459,6 +2463,82 @@ mod input_tests {
         });
         assert_eq!(content, "selectable text");
         assert!(selection_rows > 0);
+    }
+
+    #[gpui::test]
+    fn selectable_rich_text_runs_share_selection_geometry_and_copy(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(260.0), px(120.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("rich selectable root");
+        let mut text = Node::new(2, 1, 0, KIND_TEXT);
+        text.selectable = true;
+        let mut first = Node::new(3, 2, 0, KIND_RAW_TEXT);
+        first.text = Some("first ".into());
+        let mut run = Node::new(4, 2, 1, KIND_TEXT);
+        run.style = Some(Style {
+            color_rgba: Some(0xff0000ff),
+            ..Style::default()
+        });
+        let mut second = Node::new(5, 4, 0, KIND_RAW_TEXT);
+        second.text = Some("second".into());
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), text, first, run, second],
+        );
+        let payload = snapshot.encode().expect("encode rich selectable snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply rich selectable snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw rich selectable text");
+        cx.run_until_parked();
+        let point = root.read_with(cx, |root, _| {
+            let layout = root
+                .selectable_text_layouts
+                .get(&2)
+                .expect("rich selectable layout");
+            let start = layout.bounds.origin + gpui::point(px(1.0), px(8.0));
+            let end = layout.bounds.origin
+                + layout.text.position_for_utf8(12).point
+                + gpui::point(px(1.0), px(8.0));
+            (start, end, layout.bounds)
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_mouse_down(point.0, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_mouse_move(
+            point.1,
+            Some(gpui::MouseButton::Left),
+            gpui::Modifiers::none(),
+        );
+        visual.simulate_mouse_up(point.1, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_keystrokes("cmd-c");
+        let (content, selection) = root.read_with(cx, |root, _| {
+            let layout = root
+                .selectable_text_layouts
+                .get(&2)
+                .expect("rich selectable layout");
+            (
+                layout.content.clone(),
+                root.selectable_text_selections
+                    .get(&2)
+                    .cloned()
+                    .expect("selection"),
+            )
+        });
+        assert_eq!(content, "first second");
+        assert!(
+            selection.start < 6 && selection.end > 6,
+            "selection must cross run boundary: {selection:?}"
+        );
+        assert_eq!(
+            cx.read_from_clipboard().and_then(|item| item.text()),
+            Some(content[selection.clone()].to_string())
+        );
     }
 
     #[test]

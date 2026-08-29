@@ -218,7 +218,7 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     if (
       node === undefined ||
       !node.attached ||
-      node.kind !== "Pressable" ||
+      (node.kind !== "Pressable" && node.kind !== "Text") ||
       node.id !== event[6] ||
       node.listenerId !== event[7] ||
       node.listener === undefined
