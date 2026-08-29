@@ -8,6 +8,10 @@ from this work tree.
 
 ## [Unreleased]
 
+### Added
+
+- Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
+
 ## [0.2.0] - 2026-08-30
 
 - Multi-surface lifecycle now retires every closed or explicitly unmounted

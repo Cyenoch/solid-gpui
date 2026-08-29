@@ -146,6 +146,16 @@ function createStyles(theme: Theme) {
       lineClamp: 1,
       textOverflow: "ellipsis",
     },
+    richTextParagraph: { fontSize: 13, lineHeight: 19, color: theme.text, minWidth: 0 },
+    richTextBold: { color: theme.accentText, fontWeight: "bold" },
+    richTextItalic: { color: theme.success, fontStyle: "italic" },
+    richTextStrike: { color: theme.danger, textDecoration: "lineThrough" },
+    richTextUnderline: { color: theme.accentText, textDecoration: "underline" },
+    richTextLink: { color: theme.accentText, fontWeight: "semibold", textDecoration: "underline" },
+    richTextSelectable: { fontSize: 12, lineHeight: 18, color: theme.text, minWidth: 0 },
+    richTextSelectableAccent: { color: theme.accentText, fontWeight: "semibold" },
+    richTextSelectableMuted: { color: theme.textMuted, fontStyle: "italic" },
+    richTextCaption: { fontSize: 11, lineHeight: 16, color: theme.textSubtle },
     card: {
       flexDirection: "column",
       gap: 8,
@@ -342,6 +352,7 @@ function Gallery({
   const [externalDrop, setExternalDrop] = useState("none");
   const [pointer, setPointer] = useState("none");
   const [menuHovered, setMenuHovered] = useState(false);
+  const [richTextLinkActivations, setRichTextLinkActivations] = useState(0);
   const [menuFocused, setMenuFocused] = useState(false);
   const [activateFocused, setActivateFocused] = useState(false);
   const [recordFocused, setRecordFocused] = useState(false);
@@ -598,6 +609,33 @@ function Gallery({
               <Text style={styles.buttonSecondaryLabel}>Record press</Text>
             </Pressable>
             <Text style={styles.metadata}>Drag rows to reorder</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Rich text</Text>
+            <Text style={styles.metadata}>Inline styling, keyboard links, and native selection across runs.</Text>
+            <Text style={styles.richTextParagraph}>
+              Mix <Text style={styles.richTextBold}>bold</Text>, <Text style={styles.richTextItalic}>italic</Text>,{" "}
+              <Text style={styles.richTextStrike}>struck</Text>, and{" "}
+              <Text style={styles.richTextUnderline}>underlined</Text> runs.
+            </Text>
+            <Text style={styles.richTextParagraph}>
+              Read the{" "}
+              <Text
+                style={styles.richTextLink}
+                accessibilityRole="link"
+                accessibilityLabel="Rich text guide"
+                onPress={() => setRichTextLinkActivations((value) => value + 1)}
+              >
+                rich text guide
+              </Text>{" "}
+              to explore the same native run semantics.
+            </Text>
+            <Text style={styles.richTextCaption}>Tab to focus, Enter to activate</Text>
+            <Text style={styles.metadata}>Link activations: {richTextLinkActivations}</Text>
+            <Text selectable style={styles.richTextSelectable}>
+              Select across <Text style={styles.richTextSelectableAccent}>colored runs</Text> and{" "}
+              <Text style={styles.richTextSelectableMuted}>copy the paragraph natively</Text>.
+            </Text>
           </View>
         </View>
       </View>
