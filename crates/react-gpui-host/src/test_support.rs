@@ -526,7 +526,10 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
             "native image clipboard write should succeed"
         );
     } else {
-        assert_eq!(image_result.error.as_deref(), Some("platform-unsupported"));
+        assert_eq!(
+            image_result.error.as_deref(),
+            Some("clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows")
+        );
     }
     route_command(
         &registry,
@@ -545,7 +548,7 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
     } else {
         assert_eq!(
             image_read_result.error.as_deref(),
-            Some("platform-unsupported")
+            Some("clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows")
         );
     }
 

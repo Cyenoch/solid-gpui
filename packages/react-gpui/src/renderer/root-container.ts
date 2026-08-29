@@ -307,12 +307,18 @@ export class RootContainer implements DispatchContext {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
     if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
-    if (!node.attached) return Promise.reject(new Error("host node is unavailable"));
+    if (!node.attached)
+      return Promise.reject(
+        new Error(`host node ${node.id} is unavailable; ensure the node is mounted before invoking commands`),
+      );
     const isInput = node.kind === "TextInput";
     const isList = node.kind === "VirtualList";
     const isView = node.kind === "View";
     if (!isInput && !isList && !isView) return Promise.reject(new Error("host node does not support commands"));
-    if (isView && !node.focusable) return Promise.reject(new Error("View is not focusable"));
+    if (isView && !node.focusable)
+      return Promise.reject(
+        new Error(`View node ${node.id} is not focusable; set focusable={true} before calling focus`),
+      );
     if (
       isInput &&
       !([COMMAND_FOCUS, COMMAND_BLUR, COMMAND_SET_SELECTION, COMMAND_GET_FOCUS] as number[]).includes(kind)
@@ -341,7 +347,9 @@ export class RootContainer implements DispatchContext {
         !payload.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff) ||
         payload[0] > payload[1])
     )
-      return Promise.reject(new Error("invalid UTF-16 selection"));
+      return Promise.reject(
+        new Error(`invalid UTF-16 selection for TextInput node ${node.id}; provide offsets within the text range`),
+      );
     if (
       kind === COMMAND_SCROLL_TO_INDEX &&
       (payload === null ||
@@ -351,7 +359,9 @@ export class RootContainer implements DispatchContext {
         payload[0] > 0xffff_ffff ||
         (node.hostProperties && "itemCount" in node.hostProperties && payload[0] >= node.hostProperties.itemCount))
     )
-      return Promise.reject(new Error("VirtualList index is out of range"));
+      return Promise.reject(
+        new Error(`VirtualList index is out of range for node ${node.id}; use an index below itemCount`),
+      );
     let requestId: number;
     try {
       requestId = this.nextRequestId;

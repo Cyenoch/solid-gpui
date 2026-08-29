@@ -15,6 +15,7 @@ from this work tree.
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
 
 ### Fixed
+- Validation and command failures now identify the affected node or command and include a corrective action, including clipboard, VirtualList, transport, and native response errors.
 
 - Patch reconciliation now limits input, selectable-text, VirtualList, and animation maintenance to the affected node workset (including relevant ancestors), and animation style history is allocated only for styled nodes.
 

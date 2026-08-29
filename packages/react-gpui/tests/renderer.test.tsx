@@ -525,10 +525,12 @@ describe("clipboard commands", () => {
         1,
         0,
         6,
-        [2, failedCommand[5] as number, COMMAND_CLIPBOARD_READ, 1, false, "clipboard has no text content", null],
+        [2, failedCommand[5] as number, COMMAND_CLIPBOARD_READ, 1, false, "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText", null],
       ]),
     );
-    await expect(failedRead).rejects.toThrow("clipboard has no text content");
+    await expect(failedRead).rejects.toThrow(
+      "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText",
+    );
 
     const before = transport.submitted.length;
     await expect(root.setClipboardText("x".repeat(MAX_CLIPBOARD_TEXT_BYTES + 1))).rejects.toThrow(
@@ -1478,7 +1480,7 @@ describe("renderer commits", () => {
       (message(transport, 1)[6] as readonly unknown[][]).filter((operation) => operation[0] === 1).length,
     ).toBeLessThan(40);
     const framesBeforeInvalid = transport.submitted.length;
-    await expect(ref.current!.scrollToIndex(100_000)).rejects.toThrow("VirtualList index is out of range");
+    await expect(ref.current!.scrollToIndex(100_000)).rejects.toThrow("VirtualList index is out of range for node");
     expect(transport.submitted).toHaveLength(framesBeforeInvalid);
     const scroll = ref.current?.scrollToIndex(99_999);
     expect(message(transport, 2).slice(0, 9)).toEqual([3, 4, 41, 42, 2, 1, list[0], 4, [99_999, 0]]);
@@ -1556,9 +1558,11 @@ describe("renderer commits", () => {
     );
     await expect(scroll).resolves.toBeUndefined();
     const framesBeforeInvalid = transport.submitted.length;
-    await expect(ref.current!.scrollToOffset(-1)).rejects.toThrow("scroll offset must be finite and non-negative");
+    await expect(ref.current!.scrollToOffset(-1)).rejects.toThrow(
+      "scroll offset is invalid for VirtualList node",
+    );
     await expect(ref.current!.scrollToOffset(Number.NaN)).rejects.toThrow(
-      "scroll offset must be finite and non-negative",
+      "scroll offset is invalid for VirtualList node",
     );
     expect(transport.submitted).toHaveLength(framesBeforeInvalid);
   });

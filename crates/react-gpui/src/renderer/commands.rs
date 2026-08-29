@@ -499,17 +499,26 @@ impl ReactRoot {
                                     }
                                 } else {
                                     success = false;
-                                    error = Some("clipboard has no text content".to_string());
+                                    error = Some(
+                                        "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText"
+                                            .to_string(),
+                                    );
                                 }
                             } else {
                                 success = false;
-                                error = Some("clipboard has no text content".to_string());
+                                error = Some(
+                                    "clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText"
+                                        .to_string(),
+                                );
                             }
                         }
                         COMMAND_CLIPBOARD_WRITE_IMAGE => {
                             if !cfg!(any(target_os = "macos", target_os = "windows")) {
                                 success = false;
-                                error = Some("platform-unsupported".to_owned());
+                                error = Some(
+                                    "clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows"
+                                        .to_owned(),
+                                );
                             } else if command.payload.is_some() || command.title.is_some() {
                                 success = false;
                                 error = Some("clipboard image payload is invalid".to_owned());
@@ -541,7 +550,10 @@ impl ReactRoot {
                                 );
                             } else if !cfg!(any(target_os = "macos", target_os = "windows")) {
                                 success = false;
-                                error = Some("platform-unsupported".to_owned());
+                                error = Some(
+                                    "clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows"
+                                        .to_owned(),
+                                );
                             } else if let Some(item) = cx.read_from_clipboard()
                                 && let Some(image) = item.entries().iter().find_map(|entry| {
                                     if let ClipboardEntry::Image(image) = entry {
@@ -807,9 +819,10 @@ impl ReactRoot {
                                     if let Some((index, _)) = command.payload {
                                         if index >= list.item_count {
                                             success = false;
-                                            error = Some(
-                                                "VirtualList index is out of range".to_string(),
-                                            );
+                                            error = Some(format!(
+                                                "VirtualList index is out of range for node {}; use an index from 0 through {} - 1",
+                                                command.node_id, list.item_count
+                                            ));
                                         } else {
                                             state.scroll_to(ListOffset {
                                                 item_ix: index as usize,
@@ -858,8 +871,7 @@ impl ReactRoot {
                                         } else {
                                             success = false;
                                             error = Some(
-                                                "scroll offset must be finite and non-negative"
-                                                    .to_string(),
+                                                "scroll offset must be finite and non-negative".to_string(),
                                             );
                                         }
                                     } else {

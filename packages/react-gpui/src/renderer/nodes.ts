@@ -165,7 +165,9 @@ export class NodeGraph {
       node.isFocused = () =>
         this.owner.submitCommandValue(node, COMMAND_GET_FOCUS, null).then((value) => {
           if (!Array.isArray(value) || value.length !== 2 || value[0] !== 3 || typeof value[1] !== "boolean")
-            throw new Error("native getFocus returned an invalid value");
+            throw new Error(
+              `native getFocus returned an invalid value for View node ${node.id}; update the host binary and renderer package together`,
+            );
           return value[1];
         });
       node.blur = () => this.owner.submitCommand(node, COMMAND_BLUR, null);
@@ -175,20 +177,24 @@ export class NodeGraph {
       node.scrollToEnd = () => this.owner.submitCommand(node, COMMAND_SCROLL_TO_END, null);
       node.getScrollOffset = () =>
         this.owner.submitCommandValue(node, COMMAND_GET_SCROLL_OFFSET, null).then((value) => {
-          if (
-            !Array.isArray(value) ||
-            value.length !== 2 ||
-            value[0] !== 10 ||
-            typeof value[1] !== "number" ||
-            !Number.isFinite(value[1]) ||
-            value[1] < 0
-          )
-            throw new Error("native getScrollOffset returned an invalid value");
+        if (
+          !Array.isArray(value) ||
+          value.length !== 2 ||
+          value[0] !== 10 ||
+          typeof value[1] !== "number" ||
+          !Number.isFinite(value[1]) ||
+          value[1] < 0
+        )
+          throw new Error(
+            `native getScrollOffset returned an invalid value for VirtualList node ${node.id}; update the host binary and renderer package together`,
+          );
           return value[1];
         });
       node.scrollToOffset = (offset) => {
         if (typeof offset !== "number" || !Number.isFinite(offset) || offset < 0)
-          return Promise.reject(new TypeError("scroll offset must be finite and non-negative"));
+          return Promise.reject(
+            new TypeError(`scroll offset is invalid for VirtualList node ${node.id}; provide a finite non-negative number`),
+          );
         return this.owner.submitCommand(node, COMMAND_SCROLL_TO_OFFSET, offset);
       };
     }
