@@ -374,6 +374,7 @@ export function validateProps(kind: HostKind, props: HostProps): void {
     typeof props.onLayout !== "function"
   )
     throw new TypeError(`${kind} onLayout must be a function`);
+  if (kind !== "RawText") validateStyle(props.style);
   if (kind === "Text" && props.onPress !== undefined && typeof props.onPress !== "function") {
     throw new TypeError("Text onPress must be a function");
   }
