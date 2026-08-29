@@ -1,44 +1,53 @@
 # Release-readiness inventory
 
-Generated: 2026-08-30T02:43:06+0800
+Generated: 2026-08-30T05:46:56+0800
 Decision owner: human release owner  
-Current HEAD: `7edad1f` (`chore(host): drop unused rmp-serde dev dependency`)
+Current HEAD: `9e53ea9` (`perf(renderer): affected-aware reconciliation and snapshot guard`)
 
-This is an evidence package, not a release approval. It records fresh command
-runs, the current protocol/API surface, documentation consistency, known
-boundaries, and inputs for a human version-cut decision. No artifacts were
-published and no push, rebase, version change, or tag was performed.
+This is an evidence package, not a release approval. It records the post-release
+cycle position, fresh command runs, the current protocol/API surface,
+documentation consistency, known boundaries, and inputs for the human
+publication decision. Version `0.2.0` was cut and tagged locally; no artifact
+has been published or pushed.
 
 ## Executive readout
 
-- The complete five-gate matrix passed at exit code 0 on the final tree at `7edad1f`: `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all passed in the serial refresh below.
-- The current candidate remains `0.1.0` on macOS ARM. The release scripts prove
-  archive consistency and CLI/runtime behavior, not display-backed GUI behavior.
-  Both process and embedded candidate rehearsals passed their expected timeout,
-  help, version, and commit/press checks.
-- The current Unreleased inventory contains **137 sectioned entries**:
-  **114 Added**, **15 Fixed**, and **8 Changed**. The top-level Unreleased
-  entries are tracked separately by the changelog's historical layout; the
-  prior readiness convention reports the sectioned category counts. This is
-  materially beyond a patch-sized change set and provides stronger evidence for
-  considering `0.2.0`. No option is selected: the human release owner retains
-  the decision.
-- `git log --oneline 00f46a0..HEAD` reports **9 commits** in this refresh
-  delta: the bounded smoke-wait fix, dependency-graph refresh, public-doc/ADR
-  alignment, and the input typing-performance guard (including its formatting
-  and lint follow-ups), plus removal of the dead host `rmp-serde` declaration.
-  The crosswalk below records every commit in this delta.
+- All five fresh gates passed at exit code 0 on the current tree at `9e53ea9`:
+  `make ci`, `make embedded-bun`, `make host-candidate-smoke`,
+  `make host-embedded-candidate-smoke`, and `make bun-pack-smoke`, run
+  serially and exclusively under `/usr/bin/time -p`.
+- The current candidate is `0.2.0` on macOS ARM. The release scripts prove
+  archive consistency and CLI/runtime behavior, not display-backed GUI
+  behavior. Both process and embedded candidate rehearsals passed their
+  expected timeout, help, version, and commit/press checks.
+- The current `CHANGELOG.md` Unreleased section contains exactly **3 entries**:
+  **2 Added**, **1 Fixed**, and **0 Changed**. The gallery rich-text showcase is
+  an Added capability; the affected-aware reconciliation is the sole Fixed
+  entry; the large-tree guard is Added.
+- `git log --oneline 72a520c..HEAD` reports **7 post-cut commits**. The
+  crosswalk below records the local cut record, fuzz completion, gallery
+  showcase, artifact/evidence manifest, upstream assessment, troubleshooting
+  guide, and affected-aware renderer/performance work.
 - The implementation backlog for the current 0.2.0 contract remains empty.
-  The latest pass adds a bounded TextInput typing-performance guard and removes
-  an unused host dev dependency while retaining the documented input, rich-text,
-  release, and display-backed acceptance boundaries.
+  Current capability evidence includes deterministic protocol fuzz coverage
+  **35/35 commands and 23/23 events**, the gallery showcase, the isolated
+  20,000-node snapshot/patch guard, and the troubleshooting guide.
+
+## Current position
+
+**v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
+action.** The annotated local tag `v0.2.0` still points to release commit
+`72a520c`; the post-cut renderer work is intentionally not being moved onto
+that tag. The current candidate archive is therefore compared with, rather
+than substituted for, the cut artifact.
 
 `.scratch/release-productionization/v0.2.0-cut-checklist.md` is the companion
 local checklist. `.scratch/release-productionization/dependency-audit.md` and
 `.scratch/release-productionization/upstream-dependencies.md` are companion
-dependency and upstream boundary notes. `.scratch/` is gitignored by default;
-the readiness report and checklist follow the repository's force-add evidence
-convention. No artifacts were published.
+dependency and upstream boundary notes; the post-cut upstream verdict is that
+no released GPUI change unblocks the recorded boundaries. `.scratch/` is
+gitignored by default; the readiness report and checklist follow the
+repository's force-add evidence convention. No artifacts were published.
 
 ## 1. Capability inventory
 
@@ -221,44 +230,51 @@ convention. No artifacts were published.
 ## 2. Fresh five-gate evidence
 
 All times below are fresh wall-clock `real` values from `/usr/bin/time -p` on
-the final tree at HEAD `7edad1f`. The five commands ran serially and
+the current post-cut tree at HEAD `9e53ea9`. The five commands ran serially and
 exclusively in this order: `make ci`, `make embedded-bun`,
 `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
-`make bun-pack-smoke`. Every command exited 0. The prior smoke-hang fix
-(`f34ccfb`) bounds build and teardown waits; both candidate timeout lines below
-are expected successful rehearsal behavior.
+`make bun-pack-smoke`. Every command exited 0. Candidate timeout lines are
+expected successful rehearsal behavior.
 
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **35.89 s** | Rust **126 passed / 0 failed** (module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, glyph-platform 2/2); Core Bun **130 pass / 0 fail / 89,335 expect() calls** across 16 files; dev Bun **24 pass / 0 fail / 56 expect() calls** across 4 files; builds, typechecks, and package consumer smoke passed. Includes TextInput typing-performance guard. |
-| `make embedded-bun` | 0 | **1.72 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
-| `make host-candidate-smoke` | 0 | **34.60 s** | Deterministic archive SHA-256 **`fc9a926fb65163d748bd4059e43305857f0e704b3324ca23057814de1890bc58`** matched on both archives; snapshot commit **312 bytes**; expected process timeouts **5.018 s** (error) and **5.022 s** (info); version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **19.95 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.811 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **2.22 s** | Frozen installs, both JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **79.28 s** | Rust **128 passed / 0 failed**; Core Bun **130 pass / 0 fail / 90,533 expect() calls** across 16 files; dev Bun **24 pass / 0 fail / 56 expect() calls** across 4 files; formatting, checks, builds, typechecks, package consumer smoke, and TextInput typing-performance guard passed. |
+| `make embedded-bun` | 0 | **3.97 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**; locked checks passed. |
+| `make host-candidate-smoke` | 0 | **35.05 s** | Identical archive SHA-256 **`d3d3075697876f6a0d1055251693d5b5f5b03b9c26f969655729af7999478c3c`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.019 s** (error) and **5.013 s** (info); version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **19.85 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.795 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.03 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-The measured sequential five-gate wall-time sum for the successful recorded
-runs is **94.38 s**. Candidate timeout lines are expected successful rehearsal
-behavior. The host archive SHA is the process-candidate check's identical pair
-of SHA-256 values.
+The measured sequential five-gate wall-time sum for these successful runs is
+**140.18 s**. The host archive SHA is the process-candidate check's identical
+pair of SHA-256 values. Candidate timeout exits are expected behavior, not gate
+failures.
 
 ### Quality notes
 
-- Commit `f34ccfb` root-caused the prior smoke harness flake and bounded its
-  build and teardown waits; the final candidate gates above completed with
-  expected timeout exits rather than an unbounded foreground wait.
-- The input typing-performance guard records 100/1,000/10,000-character
-  single-line and wrapped multiline p50/p99 timings and call counts; its
-  attribution identifies pinned GPUI whole-line shaping as the dominant
-  long-line cost.
+- The current Unreleased section is intentionally classified as **2 Added / 1
+  Fixed / 0 Changed**. The gallery rich-text card is an Added showcase
+  capability, not a defect repair; this classification was corrected after the
+  previous refresh (the fourth section-placement correction in this evidence
+  series).
+- Deterministic protocol fuzz coverage is complete at **35/35 command seeds
+  and 23/23 event seeds** in both Rust and TypeScript coverage records.
+- The affected-aware reconciliation fix limits input, selectable-text,
+  VirtualList, and animation maintenance to affected nodes and relevant
+  ancestors; the guard covers 1,000/5,000/20,000-node snapshots and a one-op
+  20,000-node patch. The isolated 20k host stage is **70.705 ms** for the
+  snapshot and **0.131 ms** for the one-operation patch; 20k apply p50/p99 is
+  **259.019/259.656 ms** and first-draw p50/p99 is **195.747/198.639 ms**.
+- The troubleshooting guide now provides a symptom→diagnosis→repair entry
+  point while retaining the README debugging quick reference.
 
 ## 3. Quality evidence matrix
 
 | Area | Current evidence |
 | --- | --- |
-| Rust workspace | Fresh `make ci` passed with **126 tests / 0 failures** across the workspace (including module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, and glyph-platform 2/2); `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
-| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **89,335 assertions**, 0 failures; malformed-source diagnostics remained contained and the last-good tree was preserved. |
+| Rust workspace | Fresh `make ci` passed with **128 tests / 0 failures** across the workspace (including module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, and glyph-platform 2/2); `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
+| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **90,533 assertions**, 0 failures; malformed-source diagnostics remained contained and the last-good tree was preserved. |
 | Development package | Fresh `make ci`: **24/24 tests**, **56 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
-| Fuzz / malformed input | Rust deterministic protocol-fuzz and TypeScript malformed-input coverage remained green in fresh `make ci`. |
+| Fuzz / malformed input | Deterministic protocol fuzz coverage is complete at **35/35 command seeds and 23/23 event seeds** in both Rust and TypeScript records; fresh `make ci` remained green. |
 | Performance smoke | Fresh Rust perf suites, the TextInput typing-performance guard, and TypeScript event-storm scenarios remained green in `make ci`. |
 | Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; VirtualList offset, selectable rich Text, focusable Text-run, pointer-move, and window-control vectors are covered by current protocol tests. |
 | API surface locks | Checked-in name/kind fixtures currently lock **core 114 / dev 20** exports. |
@@ -280,27 +296,29 @@ claims above; it does not claim a new citation audit.
 
 ### (a) Current Unreleased inventory
 
-The current section contains **137** aggregate capability entries: **114 Added**,
-**15 Fixed**, and **8 Changed**. These are aggregate statements rather than one
-line per commit. The changelog also has **13 historical top-level Unreleased
-bullets** outside those categories; the category counts are the readiness
-inventory convention. `git log --oneline 00f46a0..HEAD` reports **9 commits** in
-this refresh delta. The crosswalk below records every commit in this delta:
+The current `CHANGELOG.md` Unreleased section contains exactly **3 aggregate
+capability entries**: **2 Added**, **1 Fixed**, and **0 Changed**. The Added
+entries are the headless large-tree snapshot/first-frame guard and the flagship
+gallery's mixed-style rich-text/link/selectable showcase. The Fixed entry is
+affected-aware input/selectable-text/VirtualList/animation reconciliation with
+lazy styled-node animation history. No historical top-level bullets remain in
+this freshly cut Unreleased section.
+
+### (b) Post-cut commit crosswalk
+
+`git log --oneline 72a520c..HEAD` reports **7 post-cut commits**:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `f34ccfb` | Root-caused and bounded the candidate smoke build/teardown waits after the prior harness flake. |
-| `d885f32` | Shaped-text cache verdict recorded in release evidence. |
-| `018ec62` | ADR-0013 interactive text runs and domain glossary updates. |
-| `30d5ee7` | Public API listings and protocol policy row aligned. |
-| `3d2b851` | Current upstream dependency graph regenerated from manifests and `Cargo.lock`, with verified purposes and locked versions. |
-| `d4dbc91` | Headless TextInput typing-performance guard for 100/1,000/10,000-character and wrapped multiline inputs. |
-| `93ba7fd` | Rustfmt follow-up for the typing-performance guard. |
-| `bf8b3cb` | Clippy/type-complexity follow-up for the typing-performance guard. |
-| `7edad1f` | Removed unused host `rmp-serde` dev dependency and its lock edge after full-repository audit. |
+| `f48f91e` | Recorded the executed local 0.2.0 cut, release commit, annotated tag, publication boundaries, and final pre-cut matrix in the companion checklist. |
+| `ddb21bf` | Completed deterministic protocol fuzz seed coverage at 35/35 commands and 23/23 events in Rust and TypeScript coverage records. |
+| `593ab52` | Added the flagship gallery rich-text/link/selectable showcase; its changelog entry is correctly classified under Added. |
+| `38a0f2d` | Added the v0.2.0 release artifact manifest and evidence index, including the pre-cut archive SHA and tag record. |
+| `ea6b67b` | Recorded the GPUI upstream drift assessment; no released upstream change unblocks the existing boundaries. |
+| `c01adf5` | Added and refreshed the troubleshooting guide while retaining the README debugging quick reference. |
+| `9e53ea9` | Added the affected-aware renderer reconciliation fix and large-tree snapshot/first-frame performance guard; this commit changed the host candidate binary. |
 
-
-### (b) Protocol directory versus source constants
+### (c) Protocol directory versus source constants
 The current source has exactly **35 command constants** with values `1..35` and
 **23 semantic event constants** with values `1..23` (pointer/key sub-action and
 button constants excluded). The protocol reference has matching event/command
@@ -310,40 +328,40 @@ CommandResult (7), string Submit, and WindowResize (3). OpenSurface retains its
 valid no-options form plus the optional creation-options tuple; other historical
 compatibility forms were removed by the cutover.
 
-### (c) README and consumer-guide capability audit
-
-Root/package README claims were checked against the current Root and TypeScript
+### (d) README and consumer-guide capability audit
+Root/package README claims remain aligned with the current Root and TypeScript
 interfaces. They cover typed surface/transport errors, tooltip and close-policy
 behavior, expanded/heading-level accessibility, native keyboard focus traversal
 and focused-unmount restoration, text-file persistence, clipboard images,
 embedded startup coverage, pointer press/release coordinates, runtime font
-loading, and window controls. No pointer, font, or window-control work is treated
-as in-flight at this committed HEAD.
+loading, and window controls. No pointer, font, or window-control work is
+treated as in-flight at this committed HEAD.
 
-### (d) ADR alignment
-
+### (e) ADR and upstream assessment alignment
 ADR-0008's four failure seams remain aligned with implementation: consumer
 Error-Boundary ownership for render failures, fail-fast protocol/tree rejection,
-local blank-image degradation, and host-fatal GPUI paint panic. Shared-runtime
-fatal errors close every registered surface. The typed surface errors,
-close-policy, file/clipboard commands, pointer-coordinate contract, runtime
-fonts, and window controls agree with the protocol and consumer documentation.
+local blank-image degradation, and host-fatal GPUI paint panic. The GPUI drift
+assessment's verdict is **no released unblocks**: released GPUI still lacks the
+recorded per-run typography, explicit direction, letter spacing, secure
+obscuring, live-region, runtime position-setter, and portable Linux image seams.
 
 ## 5. Known limits and human decision items
 
-The implementation backlog for the current 0.2.0 contract is empty after the
-current input/geometry/image/scale/focus/tooltip/accessibility/file/clipboard/
-keybinding/drag/selectable-text/pointer-coordinate/font/window-control review.
-Selectable Text is implemented as a host-owned visual surface; the following
-are explicit acceptance boundaries or human decisions, not hidden TODOs:
+The implementation backlog for the current 0.2.0 contract remains empty after
+the current input/geometry/image/scale/focus/tooltip/accessibility/file/
+clipboard/keybinding/drag/selectable-text/pointer-coordinate/font/window-
+control review. Selectable Text is implemented as a host-owned visual surface;
+the following are explicit acceptance boundaries or human decisions, not hidden
+TODOs:
 
 - Issue 01 remains `needs-triage`: the candidate is unsigned and not notarized;
   checksums do not authenticate the publisher.
-- Issue 02 remains `ready-for-human`: `block 0.1.6` emits a future-incompatibility
-  warning and no unreviewed fork should be patched automatically.
-- Issue 03 remains `ready-for-human`: embedded source build is separate, green,
-  expensive, and outside ordinary `make ci`; the representative startup matrix
-  is now covered by that gate.
+- Issue 02 remains `ready-for-human`: `block 0.1.6` emits a future-
+  incompatibility warning and no unreviewed fork should be patched
+  automatically.
+- Issue 03 remains `ready-for-human`: embedded source build is separate,
+  green, expensive, and outside ordinary `make ci`; the representative startup
+  matrix is covered by that gate.
 - Issue 04 remains `needs-triage`: Quartz dialogs, clipboard/menu/window
   behavior, glyph pixels, native drag visuals, tooltip appearance, pointer
   positioning, and AX-tree behavior require a real display/hardware runner;
@@ -357,46 +375,34 @@ are explicit acceptance boundaries or human decisions, not hidden TODOs:
 - Upstream gaps remain explicit: secure/password display, explicit RTL/container
   text base direction and bidi-aware hit/caret/IME semantics, `letterSpacing`,
   and JavaScript Image `onError`. Native TextInput undo/redo is host-owned and
-  implemented, while `fallbackSource` remains the visual Image degradation path.
-  ADR-0013 (`docs/adr/0013-interactive-text-runs.md`) records the interactive
-  Text-run contract and its focus/cursor/activation boundaries. The refreshed
-  dependency graph is commit `3d2b851`; dead host `rmp-serde` removal is commit
-  `7edad1f` and is reflected in the locked graph.
-  Targeted rich-text cache invalidation is now implemented and the deferred
-  rich-cache issue is resolved; unrelated patches preserve assembled runs while
-  changed paragraphs and final ancestors rebuild. The run-scoped pointing cursor
-  is likewise implemented for listener-bearing rich-text runs; no full-cache-clear
-  or parent-cursor behavior remains as a known tradeoff.
+  implemented, while `fallbackSource` remains the visual Image degradation
+  path. The GPUI upstream drift verdict is **no released unblocks**.
 
-## 6. Version-cut guidance (not a decision)
+## 6. Post-release cycle position
 
-The workspace remains `0.1.0`; `release-prep` can synchronize a chosen version
-into Cargo and both Bun packages. The current Unreleased inventory is **137
-entries (114/15/8)** across protocol, typed surface lifecycle errors, tooltips
-and close policy, accessibility semantics, native keyboard focus traversal and
-focused-unmount restoration, text-file persistence, clipboard text/images,
-embedded representative examples, pointer coordinates, selectable and styled
-Text runs with keyboard-accessible interactive links and focus affordances,
-targeted rich-text cache invalidation, run-scoped interactive cursors,
-rich-text examples, host-owned TextInput undo/redo, precise VirtualList offset
-persistence, runtime font registration, window controls, renderer API, native
-runtime, Image fallback, scale-factor observations, focus/overlay and drag
-input, appearance-aware examples, pointer/zoom boundaries, keybinding
-registration, outbound file drag, precise TextInput geometry and host editing,
-the TestApp facade event injectors and command drain, native notes titles,
-troubleshooting, and long-run stability.
-The final matrix reports **130 Core Bun tests / 89,335 assertions**, **24 dev
-tests / 56 assertions**, and **114+20 API locks**. These facts support
-considering `0.2.0` rather than a patch cut, but no version option is selected
-by this inventory.
+**v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
+action.** Tag `v0.2.0` remains anchored to release commit `72a520c`; no tag move
+or publication operation is part of this refresh. The post-cut candidate
+archive SHA is **`d3d3075697876f6a0d1055251693d5b5f5b03b9c26f969655729af7999478c3c`**.
+The cut checklist recorded **`d0dfc86e8c5b98d790d99eae0ec2ebb485e3b1a8cc28939cdafbf9a973e25ab`**;
+the values differ because `9e53ea9` changed the host binary. The tag still
+points at `72a520c`, honestly preserving the cut artifact record.
+
+The new cycle currently contains exactly **2 Added / 1 Fixed / 0 Changed**
+Unreleased entries: gallery showcase and large-tree guard under Added, and
+affected-aware reconciliation under Fixed. The affected-aware fix's measured
+20k host stage is approximately **70.705 ms** for the snapshot and **0.131 ms**
+for the one-operation patch; the guard reports 20k apply p50/p99
+**259.019/259.656 ms**, first-draw p50/p99 **195.747/198.639 ms**, and covers
+1k/5k/20k trees. Fuzz coverage is complete at **35/35 commands and 23/23
+events** in both languages. The gallery rich-text showcase, troubleshooting
+guide, artifact manifest, and upstream drift assessment are all recorded in
+the post-cut crosswalk above.
 
 The companion checklist is
-`.scratch/release-productionization/v0.2.0-cut-checklist.md`. Its five human
-decisions and seven-step mechanical sequence agree with this report's gate
-status. One mechanical caveat remains: `release-prep.sh` requires an exact
-`## [0.2.0]` heading and does not accept the dated
-`## [0.2.0] - YYYY-MM-DD` form without a small guard update or temporary exact
-heading. The checklist records that caveat and keeps the final decision with
-the human release owner.
+`.scratch/release-productionization/v0.2.0-cut-checklist.md`; its cut record
+remains historical, while its post-cut refresh records the new-cycle counts,
+fresh gates, archive comparison, and human publication boundaries.
 
-No option is selected by this inventory.
+No publication option is selected by this inventory; human action is required
+for push, npm publication, signing/notarization, and any Rust crate release.
