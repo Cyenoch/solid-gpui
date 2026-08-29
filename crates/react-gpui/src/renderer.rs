@@ -898,6 +898,11 @@ mod input_tests {
     use crate::tree::KIND_TEXT_INPUT;
     use crate::tree::{KIND_RAW_TEXT, KIND_TEXT, KIND_VIEW};
     use gpui::AppContext as _;
+    struct InputPerfMetrics {
+        samples: Vec<Duration>,
+        counters: (usize, usize, usize),
+        times: (Duration, Duration, Duration),
+    }
 
     const INPUT_PERF_KEYSTROKES: usize = 32;
 
@@ -947,11 +952,7 @@ mod input_tests {
         cx: &mut gpui::TestAppContext,
         length: usize,
         multiline: bool,
-    ) -> (
-        Vec<Duration>,
-        (usize, usize, usize),
-        (Duration, Duration, Duration),
-    ) {
+    ) -> InputPerfMetrics {
         let runtime = InMemoryAdapter::new();
         let window = cx.open_window(gpui::size(px(320.0), px(160.0)), {
             let runtime = runtime.clone();
@@ -1003,7 +1004,11 @@ mod input_tests {
                 root.input_shape_time.get(),
             )
         });
-        (samples, counters, times)
+        InputPerfMetrics {
+            samples,
+            counters,
+            times,
+        }
     }
 
     fn controlled(value: &str, ack_edit_seq: u32) -> TextInputProperties {
@@ -2383,21 +2388,21 @@ mod input_tests {
     #[gpui::test]
     fn text_input_typing_performance_measurement(cx: &mut gpui::TestAppContext) {
         for (length, multiline) in [(100, false), (1_000, false), (10_000, false), (1_000, true)] {
-            let (samples, counters, times) = measure_input_typing(cx, length, multiline);
+            let metrics = measure_input_typing(cx, length, multiline);
             eprintln!(
                 "perf_input: length={length} multiline={multiline} p50={:.3}ms p99={:.3}ms content_assembly={} run_assembly={} shape={} content_time={:.3}ms run_time={:.3}ms shape_time={:.3}ms",
-                percentile_ms(&samples, 50),
-                percentile_ms(&samples, 99),
-                counters.0,
-                counters.1,
-                counters.2,
-                times.0.as_secs_f64() * 1_000.0,
-                times.1.as_secs_f64() * 1_000.0,
-                times.2.as_secs_f64() * 1_000.0,
+                percentile_ms(&metrics.samples, 50),
+                percentile_ms(&metrics.samples, 99),
+                metrics.counters.0,
+                metrics.counters.1,
+                metrics.counters.2,
+                metrics.times.0.as_secs_f64() * 1_000.0,
+                metrics.times.1.as_secs_f64() * 1_000.0,
+                metrics.times.2.as_secs_f64() * 1_000.0,
             );
-            assert!(counters.0 <= INPUT_PERF_KEYSTROKES * 2 + 1);
-            assert!(counters.1 <= INPUT_PERF_KEYSTROKES * 2 + 1);
-            assert!(counters.2 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+            assert!(metrics.counters.0 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+            assert!(metrics.counters.1 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+            assert!(metrics.counters.2 <= INPUT_PERF_KEYSTROKES * 2 + 1);
         }
     }
 
