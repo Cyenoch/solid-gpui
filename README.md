@@ -67,6 +67,7 @@ clickable link target and receives a native focus handle/tab stop; focus and
 blur use the existing callbacks, and unmodified Enter synthesizes `onPress`.
 Space remains non-activating. A visible per-run focus affordance remains a
 documented boundary.
+The complete rich-text showcase is [`packages/react-gpui/examples/rich-text.tsx`](packages/react-gpui/examples/rich-text.tsx), including nested styles, interactive link runs, and native selection/copy across run boundaries.
 
 ## Platform support
 

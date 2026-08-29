@@ -53,19 +53,20 @@ from this work tree.
   selectable rich text remains intentionally unsupported. The wire keeps the
   existing `Text`/`RawText` node kinds.
 
-- Added keyboard focus affordances for nested `Text` link runs: focused runs
-  paint one high-contrast pixel rule per wrapped line without shifting layout.
-  Listener-bearing runs activate the existing `onPress` event on unmodified
-  Enter; Space remains non-activating. Cursor feedback remains scoped to the
-  parent text hitbox because the pinned GPUI text interaction surface does not
-  expose per-range cursor regions.
-
 ### Added
 - Added keyboard-accessible nested `Text` link runs. Listener-bearing runs now
   receive native GPUI focus handles and tab stops, emit the existing focus/blur
   events, and synthesize the existing `onPress` event for unmodified Enter
   while focused. Space remains non-activating. A visible per-run focus
   affordance remains a documented boundary.
+- Added the `rich-text.tsx` example, demonstrating nested typography, keyboard-accessible link runs, and native selection/copy across styled runs.
+
+- Added keyboard focus affordances for nested `Text` link runs: focused runs
+  paint one high-contrast pixel rule per wrapped line without shifting layout.
+  Listener-bearing runs activate the existing `onPress` event on unmodified
+  Enter; Space remains non-activating. Cursor feedback remains scoped to the
+  parent text hitbox because the pinned GPUI text interaction surface does not
+  expose per-range cursor regions.
 - `View` and `Pressable` now support bounded native `tooltip` text through the
   pinned GPUI tooltip path, including compatible optional tuple tails and
   tooltip-only updates.

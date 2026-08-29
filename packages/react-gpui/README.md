@@ -767,6 +767,9 @@ API. The GPUI test adapter exercises geometry, dragging, text-change clamping,
 unmount cleanup, and simulated clipboard copy;
 the final native cursor/clipboard behavior should also be checked on a
 display-backed desktop host.
+The runnable [`rich-text.tsx`](examples/rich-text.tsx) entry combines nested
+styles, interactive link runs, and native selection/copy across run boundaries.
+
 
 `TextInput` is controlled with `value`/`onChangeText` or initialized once with
 `defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`,
@@ -986,6 +989,7 @@ The source tree includes focused entries for the main host surfaces:
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus/key notifications, keybindings, a native menu, and a fire-and-forget notification request.
 - [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, multi-click word/line selection, native copy, focus handles, and runtime font loading.
 - [`selectable-text.tsx`](examples/selectable-text.tsx) — host-owned text dragging, per-row highlighting, and Cmd/Ctrl-C clipboard copy.
+- [`rich-text.tsx`](examples/rich-text.tsx) — nested typography, keyboard-accessible link runs, and selectable rich text in one surface.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 - [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
 - [`focus-flow.tsx`](examples/focus-flow.tsx) — focusable form controls with `onFocus`/`onBlur` styling and Tab/Shift-Tab navigation.

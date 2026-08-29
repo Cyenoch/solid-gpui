@@ -45,6 +45,7 @@ const EXAMPLES: &[(&str, &str)] = &[
         "multi-surface",
         "packages/react-gpui/examples/multi-surface.tsx",
     ),
+    ("rich-text", "packages/react-gpui/examples/rich-text.tsx"),
 ];
 
 struct RendererProcess {
