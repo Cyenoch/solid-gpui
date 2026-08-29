@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-29T05:03:57Z
+Generated: 2026-08-29T08:21:33Z
 Decision owner: human release owner  
-Current HEAD: `9d17120` (`fix(renderer): restore synchronous style validation`)
+Current HEAD: `9e885e9` (`feat(examples): rich text and interactive link runs showcase`)
 
 This is an evidence package, not a release approval. It records fresh command
 runs, the current protocol/API surface, documentation consistency, known
@@ -11,30 +11,26 @@ published and no push, rebase, version change, or tag was performed.
 
 ## Executive readout
 
-- The complete five-gate matrix passed at exit code 0 on the final tree at `9d17120`: `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all passed in the serial refresh below.
+- The complete five-gate matrix passed at exit code 0 on the final tree at `9e885e9`: `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all passed in the serial refresh below.
 - The current candidate remains `0.1.0` on macOS ARM. The release scripts prove
   archive consistency and CLI/runtime behavior, not display-backed GUI behavior.
   Both process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The current Unreleased inventory contains **132 top-level entries**:
-  **111 Added**, **13 Fixed**, and **8 Changed**. This is materially beyond a
+- The current Unreleased inventory contains **134 sectioned entries**:
+  **113 Added**, **13 Fixed**, and **8 Changed**. This is materially beyond a
   patch-sized change set and provides stronger evidence for considering
   `0.2.0`. No option is selected: the human release owner retains the decision.
-- `git log --oneline 96bccc1..HEAD` reports **13 commits** in this refresh
+- `git log --oneline 0f1983d..HEAD` reports **6 commits** in this refresh
   delta. The crosswalk below records the domain evidence for every commit,
-  including undo/redo, VirtualList offset commands, order-independence coverage,
-  release rehearsal, rich-text runs, and the synchronous validation hotfix.
+  including keyboard-accessible link runs, focus affordance, protocol golden
+  coverage, documentation corrections, rich-text example registration, and
+  the rustfmt-only cleanup.
 - The implementation backlog for the current 0.2.0 contract remains empty.
   The latest pass adds host-owned undo/redo, precise VirtualList offset
-  persistence, styled and selectable interactive Text runs, and release-tooling
-  rehearsal evidence; display-backed behavior remains a documented acceptance
-  boundary.
-- Remaining items are documented product/platform boundaries or human release
-  decisions, not unrecorded implementation residue. Multi-click, clipboard
-  text/image, select-all, word-navigation, file I/O, focus traversal/
-  restoration, pointer-coordinate behavior, undo/redo, rich Text runs, and
-  VirtualList offset commands are covered by the current implementation and
-  tests.
+  persistence, styled and selectable interactive Text runs, keyboard-accessible
+  links with a visible focus affordance, the rich-text showcase, and
+  release-tooling rehearsal evidence; display-backed behavior remains a
+  documented acceptance boundary.
 
 `.scratch/release-productionization/v0.2.0-cut-checklist.md` is the companion
 local checklist. `.scratch/release-productionization/dependency-audit.md` and
@@ -81,13 +77,12 @@ convention. No artifacts were published.
   bytes and semantic decoding cover current TextInput 13-slot, Image 4-slot,
   Drag 5-slot, strict Pointer 7-slot, CommandResult 7-slot, string Submit, and
   three-number WindowResize forms, plus fallback, outbound drag, keybinding,
-  selectable Text, text-file, and clipboard-image vectors.
+  selectable Text, focusable Text-run, text-file, and clipboard-image vectors.
+
 - Protocol references point at the split wire modules and contain zero bare
   `wire.rs` paths. `.scratch/release-productionization/upstream-dependencies.md`
   remains the three-tier tracking note for true upstream gaps, project limits
   that can be re-reviewed, and test-platform limitations.
-
-### React renderer and retained tree
 
 - Host kinds are View, Text, Pressable, RawText, TextInput, VirtualList, and
   Image. Retained-tree validation covers ownership, contiguous indexes,
@@ -108,10 +103,15 @@ convention. No artifacts were published.
 - Text supports one level of nested styled runs mixed with raw strings. Runs
   share the parent font size and line height while overriding color, weight,
   style, decoration, or family; nested `fontSize`/`lineHeight` and other
-  non-typography fields are rejected. Selectable rich-text paragraphs now span
+  non-typography fields are rejected. Selectable rich-text paragraphs span
   those runs, and pointer-activated link runs use `onPress` with
-  `accessibilityRole="link"`; per-run keyboard focus remains a documented
-  boundary. The existing Text/RawText node kinds and wire remain unchanged.
+  `accessibilityRole="link"`; listener-bearing links are keyboard-accessible
+  through native focus handles and tab stops, with existing focus/blur events,
+  unmodified Enter activation, and a high-contrast per-line focus affordance.
+  Space remains non-activating and cursor feedback remains scoped to the
+  parent text hitbox. The existing Text/RawText node kinds and wire remain
+  unchanged.
+
 - The public Root surface includes render/unmount, title/resize/zoom/fullscreen,
   focus traversal, URL opening, text and image clipboard, window-size query,
   multi-surface opening, asynchronous file dialogs and text-file I/O,
@@ -189,13 +189,14 @@ convention. No artifacts were published.
 - Both Bun packages build ESM and declaration artifacts, expose built package
   exports, carry license text, and pass an external tarball consumer smoke.
   Current API locks are **core 114 / dev 20** name-and-kind exports.
-- The core README indexes thirteen examples: counter, gallery, todo, keyboard,
-  text-input, VirtualList, selectable-text, stress, focus-flow, dropdown,
-  drag-reorder, multi-surface, and notes. These examples cover appearance
-  bridges, onLayout, drag handlers, styled/selectable Text runs, interactive
-  links, reversed selection, clipboard text/image, file persistence, and word
-  navigation. `@react-gpui/dev` also provides the behavior-level
-  `renderTestApp` facade.
+- The core README indexes fourteen examples: counter, gallery, todo, keyboard,
+  text-input, VirtualList, selectable-text, rich-text, stress, focus-flow,
+  dropdown, drag-reorder, multi-surface, and notes. These examples cover
+  appearance bridges, onLayout, drag handlers, styled/selectable Text runs,
+  interactive links, reversed selection, clipboard text/image, file
+  persistence, and word navigation. `@react-gpui/dev` also provides the
+  behavior-level `renderTestApp` facade.
+
 - The troubleshooting guide provides a symptom→diagnosis→repair entry point,
   while README Debugging retains the environment quick reference.
 - Makefile gates, fixed-SHA workflows, release archive/checksum validation,
@@ -214,18 +215,18 @@ convention. No artifacts were published.
 ## 2. Fresh five-gate evidence
 
 All times below are fresh wall-clock `real` values from `/usr/bin/time -p` on
-the final tree at HEAD `9d17120`. The five commands ran serially and exclusively;
+the final tree at HEAD `9e885e9`. The five commands ran serially and exclusively;
 every command exited 0.
 
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **70.49 s** | Rust **199 passed / 0 failed**; Core Bun **130 pass / 0 fail / 89,328 expect() calls** across 16 files; dev Bun **20 pass / 0 fail / 50 expect() calls** across 4 files; builds, typechecks, and package consumer smoke passed. |
-| `make embedded-bun` | 0 | **4.67 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
-| `make host-candidate-smoke` | 0 | **42.28 s** | Deterministic archive SHA-256 **`1010a5160122ed492492396de9c11e4e665f97c280cc0e2f84e33356315884bc`** matched on both archives; snapshot commit **312 bytes**; expected process timeouts **5.008 s** (error) and **5.005 s** (info); version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **26.41 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=1, status=None`; expected timeout **4.563 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **9.99 s** | Frozen installs, both JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **45.53 s** | Rust **199 passed / 0 failed**; Core Bun **130 pass / 0 fail / 89,335 expect() calls** across 16 files; dev Bun **20 pass / 0 fail / 50 expect() calls** across 4 files; builds, typechecks, and package consumer smoke passed. |
+| `make embedded-bun` | 0 | **3.33 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
+| `make host-candidate-smoke` | 0 | **52.90 s** | Deterministic archive SHA-256 **`bd8d5db88bae7f812f6717718991f9b43883b5d91635eb13b754930669c7b8b7`** matched on both archives; snapshot commit **312 bytes**; expected process timeouts **5.014 s** (error) and **5.015 s** (info); version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **24.42 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.872 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.38 s** | Frozen installs, both JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-The measured sequential five-gate wall-time sum is **153.84 s**. Candidate
+The measured sequential five-gate wall-time sum is **128.56 s**. Candidate
 timeout lines are expected successful rehearsal behavior. The host archive SHA
 is the process-candidate check's identical pair of SHA-256 values.
 
@@ -243,11 +244,11 @@ catches real regressions, not only build or packaging failures.
 | Area | Current evidence |
 | --- | --- |
 | Rust workspace | Fresh `make ci` passed with **199 tests / 0 failures**; `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
-| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **89,328 assertions**, 0 failures; the synchronous style-validation regression from `655c71a` was caught and fixed in `9d17120` before this final matrix. |
+| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **89,335 assertions**, 0 failures; the synchronous style-validation regression from `655c71a` was caught and fixed in `9d17120` before this final matrix. |
 | Development package | Fresh `make ci`: **20/20 tests**, **50 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
 | Fuzz / malformed input | Rust deterministic protocol-fuzz and TypeScript malformed-input coverage remained green in fresh `make ci`. |
 | Performance smoke | Fresh Rust perf suites and TypeScript event-storm scenarios remained green in `make ci`. |
-| Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; VirtualList offset, rich Text, pointer-move, and window-control vectors are covered by current protocol tests. |
+| Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; VirtualList offset, selectable rich Text, focusable Text-run, pointer-move, and window-control vectors are covered by current protocol tests. |
 | Order independence | Commit `c7850c5` recorded 10 randomized core Bun runs (128 tests each), randomized dev Bun, parallel/single-thread Rust modes, and repeated host example smoke with **0 failures**; this is retained as suite-order evidence. |
 | API surface locks | Checked-in name/kind fixtures currently lock **core 114 / dev 20** exports. |
 | Protocol tap / crash diagnostics | Typed transport-cause, crash-path, tap, and termination suites passed in `make ci`. |
@@ -269,9 +270,9 @@ claims above; it does not claim a new citation audit.
 
 ### (a) Current Unreleased inventory
 
-The current section contains **132** aggregate capability entries: **111 Added**,
+The current section contains **134** aggregate capability entries: **113 Added**,
 **13 Fixed**, and **8 Changed**. These are aggregate statements rather than one
-line per commit. `git log --oneline 96bccc1..HEAD` reports **13 commits** in the
+line per commit. `git log --oneline 0f1983d..HEAD` reports **6 commits** in the
 refresh delta. The crosswalk retains the earlier aggregated-domain style and
 records every commit in this delta below:
 
@@ -338,6 +339,12 @@ records every commit in this delta below:
 | `fc46d01` | Mixed raw/styled Text runs with one-level nesting and typography validation. |
 | `655c71a` | Selectable rich-text paragraphs and pointer-activated link runs with `onPress`/link accessibility semantics. |
 | `9d17120` | Renderer hotfix restoring eager synchronous `validateStyle` and the validation-throw contract. |
+| `30f6dd4` | Keyboard-accessible nested Text link runs with native focus handles/tab stops, focus/blur routing, and unmodified Enter activation. |
+| `8ce3246` | Cross-language protocol golden vectors and checks for focusable Text runs. |
+| `54807ce` | Protocol reference correction documenting Text focusability and Enter/Space behavior. |
+| `cf52b68` | High-contrast per-line focus affordance for focused interactive Text runs. |
+| `35e0150` | Rustfmt-only cleanup of the protocol golden example; no behavior or changelog entry. |
+| `9e885e9` | Rich-text showcase example, registration in host example rendering, and README/CHANGELOG coverage; amended landing commit places both new user-facing bullets under Added. |
 
 ### (b) Protocol directory versus source constants
 
@@ -409,18 +416,19 @@ are explicit acceptance boundaries or human decisions, not hidden TODOs:
 ## 6. Version-cut guidance (not a decision)
 
 The workspace remains `0.1.0`; `release-prep` can synchronize a chosen version
-into Cargo and both Bun packages. The current Unreleased inventory is **132
-entries (111/13/8)** across protocol, typed surface lifecycle errors, tooltips
+into Cargo and both Bun packages. The current Unreleased inventory is **134
+entries (113/13/8)** across protocol, typed surface lifecycle errors, tooltips
 and close policy, accessibility semantics, native keyboard focus traversal and
 focused-unmount restoration, text-file persistence, clipboard text/images,
 embedded representative examples, pointer coordinates, selectable and styled
-Text runs with interactive links, host-owned TextInput undo/redo, precise
-VirtualList offset persistence, runtime font registration, window controls,
-renderer API, native runtime, Image fallback, scale-factor observations,
-focus/overlay and drag input, appearance-aware examples, pointer/zoom
-boundaries, keybinding registration, outbound file drag, precise TextInput
-geometry and host editing, troubleshooting, and long-run stability.
-The final matrix reports **130 Core Bun tests / 89,328 assertions**, **20 dev
+Text runs with keyboard-accessible interactive links and focus affordances,
+rich-text examples, host-owned TextInput undo/redo, precise VirtualList offset
+persistence, runtime font registration, window controls, renderer API, native
+runtime, Image fallback, scale-factor observations, focus/overlay and drag
+input, appearance-aware examples, pointer/zoom boundaries, keybinding
+registration, outbound file drag, precise TextInput geometry and host editing,
+troubleshooting, and long-run stability.
+The final matrix reports **130 Core Bun tests / 89,335 assertions**, **20 dev
 tests / 50 assertions**, and **114+20 API locks**. These facts support
 considering `0.2.0` rather than a patch cut, but no version option is selected
 by this inventory.
