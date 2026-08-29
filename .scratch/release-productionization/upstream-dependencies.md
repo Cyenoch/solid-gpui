@@ -4,6 +4,61 @@ This is an internal release-productionization tracking note. It records the
 boundary evidence used for the current renderer review; it is not a roadmap or
 an upstream commitment.
 
+## Current Cargo dependency graph
+
+The graph below is regenerated from the workspace manifests and the locked
+package records in `Cargo.lock`. Manifest requests are shown first; the
+resolved version/source is the locked value, not a registry-latest claim.
+
+### Workspace declarations
+
+| Dependency | Manifest request | Locked resolution | Purpose / boundary |
+| --- | --- | --- | --- |
+| `futures` | `0.3` | `0.3.34` (crates.io) | Async channels, streams, and task composition in the renderer/host. |
+| `gpui` | `0.2.2` | `0.2.2` (Zed git revision `6805d952f9f3d702f760aa11b1547df8a625fa16`) | Pinned native retained UI, text, image, window, and test-adapter surface. |
+| `rmp-serde` | `1.3` | `1.3.1` (crates.io) | MessagePack encoding/decoding for snapshots, patches, commands, and events. |
+| `serde` | `1.0`, with `derive` | `1.0.229` (crates.io) | Data-model serialization and deserialization for the protocol. |
+| `serde_bytes` | `0.11.19` | `0.11.19` (crates.io) | MessagePack binary byte buffers for clipboard-image payloads rather than integer arrays. |
+| `thiserror` | `2.0` | `2.0.20` (crates.io) | Structured errors at the protocol, transport, renderer, and Bun seams. |
+| `ttf-parser` | `0.25.1` | `0.25.1` (crates.io) | Reads a loaded TTF/OTF face's family name before GPUI font registration. |
+| `unicode-segmentation` | `1.13.3` | `1.13.3` (crates.io) | Unicode word/grapheme boundaries for native TextInput editing. |
+
+The `gpui` crates are deliberately coupled to the Zed revision above: the
+workspace patches crates.io `gpui`, and `react-gpui-host` requests
+`gpui_platform` from the same revision. This is a source snapshot, not a
+floating semver upgrade; changing it requires reviewing the complete GPUI
+platform graph and API contract together.
+
+### Direct dependencies by workspace crate
+
+- **`react-gpui` (runtime):** `futures` 0.3.34, `gpui` 0.2.2, `rmp-serde`
+  1.3.1, `serde` 1.0.229, `serde_bytes` 0.11.19, `thiserror` 2.0.20,
+  `ttf-parser` 0.25.1, and `unicode-segmentation` 1.13.3. Its dev graph also
+  declares `gpui` 0.2.2 with `test-support`, `serde` with `derive`, `image`
+  0.25.10, and `smallvec` 1.15.2. The `image` and `smallvec` edges are
+  test-only: renderer tests construct a 1×1 `RenderImage` from an
+  `ImageBuffer` and a small frame collection; production clipboard-image
+  conversion uses GPUI's `Image::from_bytes`, not the dev `image` crate.
+- **`react-gpui-host` (runtime):** `futures` 0.3.34, `gpui` 0.2.2,
+  `gpui_platform` 0.1.0 from the pinned Zed revision with `font-kit` and
+  `test-support`, path `react-gpui` 0.1.0, and optional path
+  `react-gpui-bun` 0.1.0. On Linux the target-specific declaration adds the
+  same pinned `gpui_platform` package's `wayland` and `x11` backend features;
+  it does not select a different package or revision. Its dev graph declares
+  `gpui` with `test-support` and `rmp-serde` 1.3.1, but the full repository
+  audit found no host-side `rmp` reference; this declaration is dead and is
+  slated for removal rather than treated as a used fixture codec.
+- **`react-gpui-bun` (runtime):** path `react-gpui` 0.1.0 and `thiserror`
+  2.0.20. It has no non-empty build-dependency graph.
+
+`Cargo.lock` records the three workspace members as path packages and the
+external direct packages at the versions above. The lock also contains the
+transitive GPUI platform families (`gpui_macos`, `gpui_linux`, `gpui_windows`,
+and `gpui_web`) and their feature-selected backend graph; those records are
+resolved consequences of the pinned GPUI revision, not additional direct
+edges from this workspace.
+
+
 ## True upstream gaps
 
 These items require an upstream GPUI API/semantic change rather than another
