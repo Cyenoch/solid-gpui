@@ -18,7 +18,7 @@ bun-format: bun-install
 	cd packages/react-gpui && bun run format
 	cd packages/react-gpui-dev && bun run format
 
-bun-typecheck: bun-install
+bun-typecheck: bun-build
 	cd packages/react-gpui && bun run typecheck
 	cd packages/react-gpui-dev && bun run typecheck
 
