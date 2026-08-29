@@ -81,6 +81,7 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     };
     assert_eq!(
@@ -97,12 +98,70 @@ fn snapshot_and_event_use_positional_msgpack_and_frame_round_trip() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
         ..command.clone()
     };
     assert_eq!(Command::decode(&title.encode().unwrap()).unwrap(), title);
 }
 
+#[test]
+fn virtual_list_scroll_offset_commands_and_value_round_trip() {
+    let get = Command {
+        protocol: PROTOCOL_VERSION,
+        message: COMMAND_MESSAGE,
+        surface_id: 7,
+        epoch: 3,
+        after_revision: 2,
+        request_id: 30,
+        node_id: 4,
+        kind: COMMAND_GET_SCROLL_OFFSET,
+        payload: None,
+        title: None,
+        body: None,
+        actions: None,
+        menus: None,
+        keybindings: None,
+        window_options: None,
+        scroll_offset: None,
+        image: None,
+    };
+    assert_eq!(Command::decode(&get.encode().unwrap()).unwrap(), get);
+    let set = Command {
+        request_id: 31,
+        kind: COMMAND_SCROLL_TO_OFFSET,
+        scroll_offset: Some(123.5),
+        ..get.clone()
+    };
+    assert_eq!(Command::decode(&set.encode().unwrap()).unwrap(), set);
+    for offset in [f32::NAN, f32::INFINITY, -1.0] {
+        assert!(
+            Command {
+                scroll_offset: Some(offset),
+                ..set.clone()
+            }
+            .encode()
+            .is_err()
+        );
+    }
+    for offset in [0.0, 123.5] {
+        let event = Event::command_result(
+            7,
+            3,
+            4,
+            32,
+            CommandResult {
+                request_id: 32,
+                command: COMMAND_GET_SCROLL_OFFSET,
+                node_id: 4,
+                success: true,
+                error: None,
+                value: Some(CommandValue::ScrollOffset(offset)),
+            },
+        );
+        assert_eq!(Event::decode(&event.encode().unwrap()).unwrap(), event);
+    }
+}
 #[test]
 fn clipboard_image_commands_and_values_round_trip_with_binary_bytes() {
     let image = ClipboardImage {
@@ -125,6 +184,7 @@ fn clipboard_image_commands_and_values_round_trip_with_binary_bytes() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: Some(image.clone()),
     };
     assert_eq!(
@@ -173,6 +233,7 @@ fn clipboard_image_wire_rejects_invalid_formats_and_sizes() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: Some(ClipboardImage {
             format: 9,
             bytes: vec![1],
@@ -216,6 +277,7 @@ fn protocol_v3_rejects_adjacent_versions_with_actionable_diagnostics() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     };
     let event = Event::press(7, 3, 1, 1, 0, 0);
@@ -291,6 +353,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -309,6 +372,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -327,6 +391,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -345,6 +410,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -363,6 +429,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -381,6 +448,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
     ];
@@ -408,6 +476,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -432,6 +501,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -450,6 +520,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -468,6 +539,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
         Command {
@@ -486,6 +558,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         },
     ] {
@@ -510,6 +583,7 @@ fn surface_commands_round_trip_and_reject_invalid_arguments() {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     };
     assert!(matches!(

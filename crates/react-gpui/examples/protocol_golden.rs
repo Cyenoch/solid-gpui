@@ -8,21 +8,21 @@ use react_gpui::{
     COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE, COMMAND_CLIPBOARD_WRITE,
     COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN, COMMAND_FILE_DIALOG_SAVE,
     COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV, COMMAND_GET_FOCUS,
-    COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE, COMMAND_GET_WINDOW_STATE,
-    COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL,
-    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
-    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY,
-    COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE,
-    COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE,
-    COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult, CommandValue, DragProperties,
-    EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, EVENT_SELECTION, Easing, Event, HostProperties,
-    ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW,
-    KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition, MenuItemDefinition, Node,
-    NotificationActionDefinition, PROTOCOL_VERSION, Patch, PatchOperation, SCROLL_DELTA_PIXELS,
-    Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
-    TRANSITION_WIDTH, TextInputEvent, TextInputProperties, Transition, UPDATE_ACCESSIBILITY,
-    UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
-    WindowAppearance, WindowOpenOptions,
+    COMMAND_GET_SCROLL_OFFSET, COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE,
+    COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_SURFACE,
+    COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SCROLL_TO_OFFSET,
+    COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
+    CommandValue, DragProperties, EVENT_CHANGE, EVENT_POINTER, EVENT_POINTER_UP, EVENT_SELECTION,
+    Easing, Event, HostProperties, ImageProperties, KIND_PRESSABLE, KIND_RAW_TEXT, KIND_TEXT,
+    KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition, MenuDefinition,
+    MenuItemDefinition, Node, NotificationActionDefinition, PROTOCOL_VERSION, Patch,
+    PatchOperation, SCROLL_DELTA_PIXELS, Snapshot, Style, TRANSITION_BACKGROUND_COLOR,
+    TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH, TextInputEvent, TextInputProperties,
+    Transition, UPDATE_ACCESSIBILITY, UPDATE_LISTENER, UPDATE_PROPERTIES, UPDATE_STYLE,
+    UPDATE_TEXT, VirtualListProperties, WindowAppearance, WindowOpenOptions,
 };
 
 fn hex(bytes: &[u8]) -> String {
@@ -240,6 +240,7 @@ fn clipboard_image_command(kind: u32, request_id: u32, image: Option<ClipboardIm
         actions: None,
         menus: None,
         keybindings: None,
+        scroll_offset: None,
         window_options: None,
         image,
     }
@@ -262,6 +263,7 @@ fn command(kind: u32, node_id: u32, payload: Option<(u32, u32)>, title: Option<&
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -282,6 +284,7 @@ fn text_file_command(kind: u32, request_id: u32, path: &str, content: Option<&st
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -302,6 +305,7 @@ fn surface_command(title: &str, width: u32, height: u32) -> Command {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -335,6 +339,7 @@ fn notification_command(title: &str, body: &str) -> Command {
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -374,6 +379,7 @@ fn menus_command() -> Command {
         }]),
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -403,6 +409,7 @@ fn keybindings_command() -> Command {
             },
         ]),
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }
@@ -966,6 +973,43 @@ fn main() {
         command(COMMAND_SCROLL_TO_END, 6, None, None)
             .encode()
             .unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-command-get-scroll-offset",
+        "command",
+        command(COMMAND_GET_SCROLL_OFFSET, 6, None, None)
+            .encode()
+            .unwrap(),
+    );
+    let mut scroll_offset = command(COMMAND_SCROLL_TO_OFFSET, 6, None, None);
+    scroll_offset.scroll_offset = Some(37.5);
+    emit(
+        &mut rows,
+        "rust-command-scroll-offset",
+        "command",
+        scroll_offset.encode().unwrap(),
+    );
+    emit(
+        &mut rows,
+        "rust-event-command-result-scroll-offset",
+        "event",
+        Event::command_result(
+            7,
+            3,
+            42,
+            30,
+            CommandResult {
+                request_id: 130,
+                command: COMMAND_GET_SCROLL_OFFSET,
+                node_id: 6,
+                success: true,
+                error: None,
+                value: Some(CommandValue::ScrollOffset(37.5)),
+            },
+        )
+        .encode()
+        .unwrap(),
     );
     emit(
         &mut rows,

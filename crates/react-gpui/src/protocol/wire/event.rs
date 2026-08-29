@@ -67,6 +67,8 @@ pub(super) fn decode_event(payload: &[u8]) -> Result<Event, ProtocolError> {
                         | COMMAND_SET_SELECTION
                         | COMMAND_SCROLL_TO_INDEX
                         | COMMAND_SCROLL_TO_END
+                        | COMMAND_GET_SCROLL_OFFSET
+                        | COMMAND_SCROLL_TO_OFFSET
                         | COMMAND_SET_TITLE
                         | COMMAND_RESIZE_WINDOW
                         | COMMAND_ZOOM_WINDOW
@@ -733,6 +735,7 @@ impl From<&CommandValue> for CommandValueWire {
             CommandValue::WindowState((fullscreen, maximized)) => {
                 Self::WindowState((9, (*fullscreen, *maximized)))
             }
+            CommandValue::ScrollOffset(offset) => Self::Number((10, *offset)),
         }
     }
 }
@@ -741,6 +744,9 @@ impl TryFrom<CommandValueWire> for CommandValue {
 
     fn try_from(value: CommandValueWire) -> Result<Self, Self::Error> {
         match value {
+            CommandValueWire::Number((10, offset)) if offset.is_finite() && offset >= 0.0 => {
+                Ok(Self::ScrollOffset(offset))
+            }
             CommandValueWire::Number((1, number)) if number.is_finite() => Ok(Self::Number(number)),
             CommandValueWire::Pair((2, (width, height)))
                 if width.is_finite() && width >= 0.0 && height.is_finite() && height >= 0.0 =>

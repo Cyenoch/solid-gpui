@@ -76,6 +76,8 @@ export const COMMAND_BLUR = 2 as const;
 export const COMMAND_SET_SELECTION = 3 as const;
 export const COMMAND_SCROLL_TO_INDEX = 4 as const;
 export const COMMAND_SCROLL_TO_END = 5 as const;
+export const COMMAND_GET_SCROLL_OFFSET = 34 as const;
+export const COMMAND_SCROLL_TO_OFFSET = 35 as const;
 export const COMMAND_SET_TITLE = 6 as const;
 export const COMMAND_RESIZE_WINDOW = 7 as const;
 export const COMMAND_ZOOM_WINDOW = 8 as const;
@@ -271,6 +273,8 @@ export type Command = readonly [
     | typeof COMMAND_SET_SELECTION
     | typeof COMMAND_SCROLL_TO_INDEX
     | typeof COMMAND_SCROLL_TO_END
+    | typeof COMMAND_GET_SCROLL_OFFSET
+    | typeof COMMAND_SCROLL_TO_OFFSET
     | typeof COMMAND_SET_TITLE
     | typeof COMMAND_RESIZE_WINDOW
     | typeof COMMAND_ZOOM_WINDOW
@@ -310,6 +314,7 @@ export type Command = readonly [
     | KeybindingsPayload
     | string
     | MenuPayload
+    | number
     | null
   ),
 ];
@@ -322,7 +327,8 @@ export type CommandValuePayload =
   | readonly [6, string]
   | readonly [7, ClipboardImagePayload]
   | readonly [8, readonly [number, number, number, number]]
-  | readonly [9, readonly [boolean, boolean]];
+  | readonly [9, readonly [boolean, boolean]]
+  | readonly [10, number];
 export type CommandResultPayload = readonly [
   2,
   number,
@@ -408,6 +414,8 @@ export type PressEventFrame = readonly [
 
 function validateCommandValue(value: unknown): value is CommandValuePayload {
   if (!Array.isArray(value)) return false;
+  if (value[0] === 10)
+    return value.length === 2 && typeof value[1] === "number" && Number.isFinite(value[1]) && value[1] >= 0;
   if (value[0] === 1) return value.length === 2 && typeof value[1] === "number" && Number.isFinite(value[1]);
   if (value[0] === 2) {
     return (
@@ -851,6 +859,8 @@ function validateEventPayload(eventType: number, payload: unknown): payload is E
       COMMAND_SET_SELECTION,
       COMMAND_SCROLL_TO_INDEX,
       COMMAND_SCROLL_TO_END,
+      COMMAND_GET_SCROLL_OFFSET,
+      COMMAND_SCROLL_TO_OFFSET,
       COMMAND_SET_TITLE,
       COMMAND_RESIZE_WINDOW,
       COMMAND_ZOOM_WINDOW,

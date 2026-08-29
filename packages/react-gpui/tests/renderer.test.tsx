@@ -24,16 +24,18 @@ import {
   COMMAND_CLIPBOARD_WRITE,
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
-  COMMAND_GET_WINDOW_BOUNDS,
-  COMMAND_GET_WINDOW_STATE,
+  COMMAND_GET_SCROLL_OFFSET,
   COMMAND_SCROLL_TO_END,
+  COMMAND_SCROLL_TO_OFFSET,
   COMMAND_SET_KEYBINDINGS,
   COMMAND_SET_MENUS,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
   COMMAND_FOCUS_PREV,
   COMMAND_GET_FOCUS,
+  COMMAND_GET_WINDOW_BOUNDS,
   COMMAND_GET_WINDOW_SIZE,
+  COMMAND_GET_WINDOW_STATE,
   COMMAND_MINIMIZE_WINDOW,
   COMMAND_OPEN_URL,
   COMMAND_RESIZE_WINDOW,
@@ -1511,6 +1513,54 @@ describe("renderer commits", () => {
       ]),
     );
     await scrollEnd;
+  });
+  it("persists VirtualList logical pixel scroll offsets", async () => {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 61, epoch: 62 });
+    const ref = React.createRef<VirtualListHandle>();
+    root.render(
+      <VirtualList
+        ref={ref}
+        data={Array.from({ length: 20 }, (_, index) => index)}
+        itemKey={(item) => item}
+        renderItem={(item) => <Text>{item}</Text>}
+        estimatedItemSize={24}
+        initialNumToRender={8}
+      />,
+    );
+    const initial = snapshots(transport)[0][6];
+    const list = initial.find((node) => node[3] === 6) as readonly unknown[];
+    const nodeId = list[0] as number;
+    const get = ref.current!.getScrollOffset();
+    expect(message(transport, 1).slice(0, 9)).toEqual([3, 4, 61, 62, 1, 1, nodeId, COMMAND_GET_SCROLL_OFFSET, null]);
+    transport.push(
+      encodeFrame([
+        3,
+        2,
+        61,
+        62,
+        1,
+        1,
+        nodeId,
+        0,
+        6,
+        [2, 1, COMMAND_GET_SCROLL_OFFSET, nodeId, true, null, [10, 37.5]],
+      ]),
+    );
+    await expect(get).resolves.toBe(37.5);
+
+    const scroll = ref.current!.scrollToOffset(37.5);
+    expect(message(transport, 2).slice(0, 9)).toEqual([3, 4, 61, 62, 1, 2, nodeId, COMMAND_SCROLL_TO_OFFSET, 37.5]);
+    transport.push(
+      encodeFrame([3, 2, 61, 62, 1, 2, nodeId, 0, 6, [2, 2, COMMAND_SCROLL_TO_OFFSET, nodeId, true, null, null]]),
+    );
+    await expect(scroll).resolves.toBeUndefined();
+    const framesBeforeInvalid = transport.submitted.length;
+    await expect(ref.current!.scrollToOffset(-1)).rejects.toThrow("scroll offset must be finite and non-negative");
+    await expect(ref.current!.scrollToOffset(Number.NaN)).rejects.toThrow(
+      "scroll offset must be finite and non-negative",
+    );
+    expect(transport.submitted).toHaveLength(framesBeforeInvalid);
   });
   it("fires onEndReached at the reported range end once per reach", () => {
     const transport = new MemoryTransport();

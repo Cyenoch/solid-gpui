@@ -334,6 +334,9 @@ const rows = [
   row("ts-command-set-close-policy", "command", [3, 4, 7, 3, 42, 123, 1, 23, "require-confirmation"]),
   row("ts-command-resolve-close", "command", [3, 4, 7, 3, 42, 124, 1, 24, [123, 1]]),
   row("ts-event-close-requested", "event", [3, 2, 7, 3, 42, 28, 1, 0, 23, [9, 123]]),
+  row("ts-command-get-scroll-offset", "command", [3, 4, 7, 3, 42, 134, 6, 34, null]),
+  row("ts-command-scroll-offset", "command", [3, 4, 7, 3, 42, 135, 6, 35, 37.5]),
+  row("ts-event-command-result-scroll-offset", "event", [3, 2, 7, 3, 42, 30, 6, 0, 6, [2, 130, 34, 6, true, null, [10, 37.5]]]),
   row("ts-command-get-focus", "command", [3, 4, 7, 3, 42, 114, 4, 14, null]),
   row("ts-command-blur", "command", [3, 4, 7, 3, 42, 102, 4, 2, null]),
 ].sort();

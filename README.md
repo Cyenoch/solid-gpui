@@ -223,6 +223,27 @@ implementations may be no-ops, and Windows AppUserModel identity remains a
 host packaging concern.
 
 A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
+## VirtualList scroll persistence
+
+`VirtualList` exposes a ref handle for preserving the native logical-pixel
+scroll position across a remount or data refresh. Read the current offset and
+restore it after the list has mounted:
+
+```tsx
+const listRef = useRef<VirtualListHandle>(null);
+const savedOffset = await listRef.current?.getScrollOffset();
+await listRef.current?.scrollToOffset(savedOffset ?? 0);
+
+<VirtualList ref={listRef} data={rows} itemKey={(row) => row.id}
+  renderItem={(row) => <Text>{row.title}</Text>} estimatedItemSize={32} />
+```
+
+Offsets are logical layout pixels (not item indexes or device pixels).
+`scrollToOffset` accepts finite, non-negative values; the native list clamps a
+value beyond the content range, so a subsequent `getScrollOffset()` returns
+the effective clamped position. A write before the first native layout is
+accepted but has no effect; restore after the list has rendered once.
+
 ## Pointer movement
 
 `View` and `Pressable` can opt into native pointer-coordinate streaming with

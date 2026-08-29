@@ -221,6 +221,25 @@ event is sent over this protocol.
 
 Images and RawText cannot contain children; RawText must be directly under
 Text, and Text may contain only RawText (`tree/validation.rs:238-272`).
+### VirtualList scroll commands
+
+VirtualList node commands use the node ID in position `6`:
+
+| Command | Kind | Payload | Result |
+| --- | ---: | --- | --- |
+| `getScrollOffset()` | `34` | `null` | `[10, offset]` |
+| `scrollToOffset(offset)` | `35` | finite, non-negative logical-pixel number | `null` |
+
+The offset is measured in GPUI logical layout pixels. The renderer reads the
+native `ListState` pixel displacement rather than approximating from an item
+index, and writes through GPUI's scrollbar offset setter. Native clamping is
+preserved: values past the content end resolve successfully and a later read
+returns the effective position. A write before the first list layout is
+accepted but GPUI has no layout bounds to apply it to, so applications should
+restore after the list has rendered once. `getScrollOffset` rejects malformed
+or non-finite native values; both commands are node-scoped and reject unknown
+node kinds.
+
 
 ### `hostProperties` variants
 

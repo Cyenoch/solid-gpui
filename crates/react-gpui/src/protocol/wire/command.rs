@@ -227,6 +227,36 @@ pub(super) fn encode_command(command: &Command) -> Result<Vec<u8>, ProtocolError
             (Some(payload), None, None, None, None) => Some(CommandPayloadWire::Pair(*payload)),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         },
+        COMMAND_GET_SCROLL_OFFSET => {
+            if command.node_id == 0
+                || command.payload.is_some()
+                || command.scroll_offset.is_some()
+                || command.title.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            None
+        }
+        COMMAND_SCROLL_TO_OFFSET => {
+            if command.node_id == 0
+                || command.payload.is_some()
+                || command
+                    .scroll_offset
+                    .is_none_or(|offset| !offset.is_finite() || offset < 0.0)
+                || command.title.is_some()
+                || command.body.is_some()
+                || command.actions.is_some()
+                || command.menus.is_some()
+            {
+                return Err(ProtocolError::InvalidCommandPayload);
+            }
+            Some(CommandPayloadWire::Float(
+                command.scroll_offset.expect("validated scroll offset"),
+            ))
+        }
         COMMAND_MINIMIZE_WINDOW
         | COMMAND_GET_WINDOW_BOUNDS
         | COMMAND_GET_WINDOW_STATE
@@ -337,6 +367,8 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
             | COMMAND_SET_SELECTION
             | COMMAND_SCROLL_TO_INDEX
             | COMMAND_SCROLL_TO_END
+            | COMMAND_GET_SCROLL_OFFSET
+            | COMMAND_SCROLL_TO_OFFSET
             | COMMAND_SET_TITLE
             | COMMAND_RESIZE_WINDOW
             | COMMAND_ZOOM_WINDOW
@@ -368,10 +400,18 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
     ) {
         return Err(ProtocolError::UnknownCommand(wire.7));
     }
-    // The untagged wire enum only describes shapes. The command kind selects
     // the meaning, so the same [string,[u32,u32]] shape is validated
     // independently for OpenSurface versus FileDialogOpen.
     let command_payload = wire.8.clone();
+    let scroll_offset = match (wire.7, command_payload.clone()) {
+        (COMMAND_SCROLL_TO_OFFSET, Some(CommandPayloadWire::Float(offset)))
+            if offset.is_finite() && offset >= 0.0 =>
+        {
+            Some(offset)
+        }
+        (COMMAND_SCROLL_TO_OFFSET, _) => return Err(ProtocolError::InvalidCommandPayload),
+        _ => None,
+    };
     let image = match (wire.7, command_payload.clone()) {
         (COMMAND_CLIPBOARD_WRITE_IMAGE, Some(CommandPayloadWire::Image((format, bytes))))
             if wire.6 == 1 =>
@@ -559,6 +599,14 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
                 }
                 (Some(payload), None, None)
             }
+            (COMMAND_GET_SCROLL_OFFSET, None) if wire.6 != 0 => (None, None, None),
+            (COMMAND_GET_SCROLL_OFFSET, _) => return Err(ProtocolError::InvalidCommandPayload),
+            (COMMAND_SCROLL_TO_OFFSET, Some(CommandPayloadWire::Float(offset)))
+                if wire.6 != 0 && offset.is_finite() && offset >= 0.0 =>
+            {
+                (None, None, None)
+            }
+            (COMMAND_SCROLL_TO_OFFSET, _) => return Err(ProtocolError::InvalidCommandPayload),
             _ => return Err(ProtocolError::InvalidCommandPayload),
         };
     let menus = if wire.7 == COMMAND_SET_MENUS {
@@ -627,6 +675,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
         kind: wire.7,
         actions,
         keybindings,
+        scroll_offset,
         payload,
         title,
         body,
@@ -638,6 +687,7 @@ pub(super) fn decode_command(payload: &[u8]) -> Result<Command, ProtocolError> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 enum CommandPayloadWire {
+    Float(f32),
     Pair((u32, u32)),
     Title(String),
     StringPair((String, String)),
@@ -832,6 +882,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         let decoded = Command::decode(&command.encode().expect("encode open surface"))
@@ -861,6 +912,7 @@ mod tests {
                 resizable: Some(false),
                 min_size: Some((320, 240)),
             }),
+            scroll_offset: None,
             image: None,
         };
         let bytes = command.encode().expect("encode open surface options");
@@ -897,6 +949,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         let encoded = rmp_serde::to_vec(&CommandWire(
@@ -957,6 +1010,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -981,6 +1035,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -1025,6 +1080,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -1067,6 +1123,7 @@ mod tests {
             }]),
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -1098,6 +1155,7 @@ mod tests {
                 },
             ]),
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         assert_eq!(
@@ -1168,6 +1226,7 @@ mod tests {
             menus: None,
             keybindings: None,
             window_options: None,
+            scroll_offset: None,
             image: None,
         };
         let bytes = command.encode().expect("encode load font");

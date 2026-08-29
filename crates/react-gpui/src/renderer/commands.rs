@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering;
 
 use gpui::{
     AppContext, ClipboardEntry, ClipboardItem, Context, Image, ImageFormat, ListOffset,
-    Menu as GpuiMenu, MenuItem as GpuiMenuItem, PathPromptOptions, SystemNotification,
+    Menu as GpuiMenu, MenuItem as GpuiMenuItem, PathPromptOptions, Point, SystemNotification,
     SystemNotificationAction, Window, px, size,
 };
 
@@ -13,14 +13,15 @@ use crate::protocol::{
     COMMAND_ACTIVATE_WINDOW, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE,
     COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
-    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE,
-    COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_URL,
-    COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX,
-    COMMAND_SET_MENUS, COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION,
-    COMMAND_TOGGLE_FULLSCREEN, COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage,
-    Command, CommandResult, CommandValue, EVENT_SELECTION, Event, HostProperties,
-    MAX_CLIPBOARD_IMAGE_BYTES, MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES,
-    MAX_WINDOW_DIMENSION, MenuAction, MenuDefinition, MenuItemDefinition,
+    COMMAND_GET_FOCUS, COMMAND_GET_SCROLL_OFFSET, COMMAND_GET_WINDOW_BOUNDS,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW,
+    COMMAND_OPEN_URL, COMMAND_READ_TEXT_FILE, COMMAND_RESIZE_WINDOW, COMMAND_SCROLL_TO_END,
+    COMMAND_SCROLL_TO_INDEX, COMMAND_SCROLL_TO_OFFSET, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_WRITE_TEXT_FILE, COMMAND_ZOOM_WINDOW, ClipboardImage, Command, CommandResult,
+    CommandValue, EVENT_SELECTION, Event, HostProperties, MAX_CLIPBOARD_IMAGE_BYTES,
+    MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES, MAX_WINDOW_DIMENSION,
+    MenuAction, MenuDefinition, MenuItemDefinition,
 };
 use crate::transport::send_event_or_exit;
 
@@ -825,6 +826,47 @@ impl ReactRoot {
                                 COMMAND_SCROLL_TO_END => {
                                     state.scroll_to_end();
                                     refresh = true;
+                                }
+                                COMMAND_GET_SCROLL_OFFSET => {
+                                    if command.payload.is_some() || command.scroll_offset.is_some()
+                                    {
+                                        success = false;
+                                        error = Some(
+                                            "getScrollOffset does not accept a payload".to_string(),
+                                        );
+                                    } else {
+                                        let offset =
+                                            -state.scroll_px_offset_for_scrollbar().y.as_f32();
+                                        if offset.is_finite() && offset >= 0.0 {
+                                            value = Some(CommandValue::ScrollOffset(offset));
+                                        } else {
+                                            success = false;
+                                            error = Some(
+                                                "VirtualList scroll offset is invalid".to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                                COMMAND_SCROLL_TO_OFFSET => {
+                                    if let Some(offset) = command.scroll_offset {
+                                        if offset.is_finite() && offset >= 0.0 {
+                                            state.set_offset_from_scrollbar(Point::new(
+                                                px(0.0),
+                                                px(-offset),
+                                            ));
+                                            refresh = true;
+                                        } else {
+                                            success = false;
+                                            error = Some(
+                                                "scroll offset must be finite and non-negative"
+                                                    .to_string(),
+                                            );
+                                        }
+                                    } else {
+                                        success = false;
+                                        error =
+                                            Some("scroll offset payload is required".to_string());
+                                    }
                                 }
                                 _ => {
                                     success = false;

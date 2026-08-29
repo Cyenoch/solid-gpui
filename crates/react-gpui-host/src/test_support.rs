@@ -4,11 +4,12 @@ use react_gpui::{
     COMMAND_ACTIVATE_WINDOW, COMMAND_BLUR, COMMAND_CLIPBOARD_READ, COMMAND_CLIPBOARD_READ_IMAGE,
     COMMAND_CLIPBOARD_WRITE, COMMAND_CLIPBOARD_WRITE_IMAGE, COMMAND_FILE_DIALOG_OPEN,
     COMMAND_FILE_DIALOG_SAVE, COMMAND_FOCUS, COMMAND_FOCUS_NEXT, COMMAND_FOCUS_PREV,
-    COMMAND_GET_FOCUS, COMMAND_GET_WINDOW_BOUNDS, COMMAND_GET_WINDOW_SIZE,
-    COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW, COMMAND_OPEN_SURFACE,
-    COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST, COMMAND_SCROLL_TO_END,
-    COMMAND_SCROLL_TO_INDEX, COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS,
-    COMMAND_SET_SELECTION, COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
+    COMMAND_GET_FOCUS, COMMAND_GET_SCROLL_OFFSET, COMMAND_GET_WINDOW_BOUNDS,
+    COMMAND_GET_WINDOW_SIZE, COMMAND_GET_WINDOW_STATE, COMMAND_LOAD_FONT, COMMAND_MINIMIZE_WINDOW,
+    COMMAND_OPEN_SURFACE, COMMAND_OPEN_URL, COMMAND_RESIZE_WINDOW, COMMAND_RESOLVE_CLOSE_REQUEST,
+    COMMAND_SCROLL_TO_END, COMMAND_SCROLL_TO_INDEX, COMMAND_SCROLL_TO_OFFSET,
+    COMMAND_SET_CLOSE_POLICY, COMMAND_SET_KEYBINDINGS, COMMAND_SET_MENUS, COMMAND_SET_SELECTION,
+    COMMAND_SET_TITLE, COMMAND_SHOW_NOTIFICATION, COMMAND_TOGGLE_FULLSCREEN,
     COMMAND_WRITE_TEXT_FILE, ClipboardImage, EventPayload, HostProperties, InMemoryAdapter,
     KIND_PRESSABLE, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST, KeybindingDefinition,
     MenuAction, MenuDefinition, MenuItemDefinition, Node, NotificationActionDefinition,
@@ -39,6 +40,7 @@ fn command(
         actions: None,
         menus,
         keybindings: None,
+        scroll_offset: None,
         window_options: None,
         image: None,
     }
@@ -755,6 +757,86 @@ pub fn command_roundtrip(cx: &mut TestAppContext) {
         event.event_type == react_gpui::EVENT_SURFACE_CLOSED && event.surface_id == 2
     }));
 }
+pub fn virtual_list_scroll_offset_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open virtual list offset surface");
+    let window = window_for(&registry, cx, 1);
+    let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+    list.listener_id = 12;
+    list.style = Some(react_gpui::Style {
+        height: Some(100.0),
+        ..react_gpui::Style::default()
+    });
+    list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+        item_count: 100,
+        range_start: 0,
+        range_end: 10,
+        estimated_item_size: 24.0,
+        overscan: 2,
+    }));
+    let snapshot = Snapshot::new(1, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list]);
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot.encode().expect("encode offset snapshot"), cx)
+        })
+        .expect("route offset snapshot");
+    draw_surface(&registry, cx, 1);
+    while runtime
+        .take_event()
+        .expect("drain initial offset events")
+        .is_some()
+    {}
+
+    let mut visual = VisualTestContext::from_window(window.into(), cx);
+    let wheel = || gpui::ScrollWheelEvent {
+        position: gpui::point(px(60.0), px(50.0)),
+        delta: gpui::ScrollDelta::Pixels(gpui::point(px(0.0), px(-48.0))),
+        ..Default::default()
+    };
+    visual.simulate_event(wheel());
+    route_command(
+        &registry,
+        cx,
+        command(1, COMMAND_GET_SCROLL_OFFSET, 2, None, None, None, None),
+    );
+    let first_offset = match command_result(&take_events(&runtime), 1).value {
+        Some(react_gpui::CommandValue::ScrollOffset(offset)) => offset,
+        value => panic!("unexpected first offset result: {value:?}"),
+    };
+    assert!(first_offset > 0.0, "wheel should move the list");
+
+    visual.simulate_event(wheel());
+    route_command(
+        &registry,
+        cx,
+        command(2, COMMAND_GET_SCROLL_OFFSET, 2, None, None, None, None),
+    );
+    let second_offset = match command_result(&take_events(&runtime), 2).value {
+        Some(react_gpui::CommandValue::ScrollOffset(offset)) => offset,
+        value => panic!("unexpected second offset result: {value:?}"),
+    };
+    assert!(
+        second_offset > first_offset,
+        "wheel offset should be monotonic"
+    );
+
+    let mut set_offset = command(3, COMMAND_SCROLL_TO_OFFSET, 2, None, None, None, None);
+    set_offset.scroll_offset = Some(42.5);
+    route_command(&registry, cx, set_offset);
+    assert!(command_result(&take_events(&runtime), 3).success);
+    route_command(
+        &registry,
+        cx,
+        command(4, COMMAND_GET_SCROLL_OFFSET, 2, None, None, None, None),
+    );
+    assert!(
+        matches!(command_result(&take_events(&runtime), 4).value, Some(react_gpui::CommandValue::ScrollOffset(offset)) if (offset - 42.5).abs() < 0.01)
+    );
+}
+
 pub fn cross_surface_focus_blur_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
     let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));

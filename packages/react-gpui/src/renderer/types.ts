@@ -5,8 +5,16 @@ import type { StyleProp } from "../style";
 export interface RootOwner {
   invalid: boolean;
   validationError: Error | undefined;
-  submitCommand(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<void>;
-  submitCommandValue(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<unknown>;
+  submitCommand(
+    node: HostNodeInternal,
+    kind: number,
+    payload: readonly [number, number] | number | null,
+  ): Promise<void>;
+  submitCommandValue(
+    node: HostNodeInternal,
+    kind: number,
+    payload: readonly [number, number] | number | null,
+  ): Promise<unknown>;
   releaseDetachedFocus(node: HostNodeInternal): void;
   setNodeProps(node: HostNodeInternal, props: HostProps): void;
   updateNodeProps(node: HostNodeInternal, props: HostProps): number;
@@ -92,6 +100,8 @@ export interface VirtualListProps<T> extends AccessibilityProps {
 export interface VirtualListHandle extends HostNode {
   scrollToIndex(index: number): Promise<void>;
   scrollToEnd(): Promise<void>;
+  getScrollOffset(): Promise<number>;
+  scrollToOffset(offset: number): Promise<void>;
 }
 export interface AnimationCompleteEvent {
   readonly generation: number;
@@ -393,6 +403,8 @@ export interface HostNodeInternal extends HostNode {
   setSelection?: (start: number, end: number) => Promise<void>;
   scrollToIndex?: (index: number) => Promise<void>;
   scrollToEnd?: () => Promise<void>;
+  getScrollOffset?: () => Promise<number>;
+  scrollToOffset?: (offset: number) => Promise<void>;
   inputCallbacks: TextInputCallbacks | null;
   visibleRangeCallback?: (start: number, end: number) => void;
   animationCompleteCallback?: (generation: number) => void;

@@ -398,6 +398,7 @@ fn focus_command(
         menus: None,
         keybindings: None,
         window_options: None,
+        scroll_offset: None,
         image: None,
     }
 }

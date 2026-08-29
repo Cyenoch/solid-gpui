@@ -51,6 +51,8 @@ pub const COMMAND_BLUR: u32 = 2;
 pub const COMMAND_SET_SELECTION: u32 = 3;
 pub const COMMAND_SCROLL_TO_INDEX: u32 = 4;
 pub const COMMAND_SCROLL_TO_END: u32 = 5;
+pub const COMMAND_GET_SCROLL_OFFSET: u32 = 34;
+pub const COMMAND_SCROLL_TO_OFFSET: u32 = 35;
 pub const COMMAND_SET_TITLE: u32 = 6;
 pub const COMMAND_RESIZE_WINDOW: u32 = 7;
 pub const COMMAND_ZOOM_WINDOW: u32 = 8;
@@ -260,6 +262,7 @@ pub struct Command {
     pub node_id: u32,
     pub kind: u32,
     pub payload: Option<(u32, u32)>,
+    pub scroll_offset: Option<f32>,
     pub title: Option<String>,
     pub body: Option<String>,
     pub actions: Option<Vec<NotificationActionDefinition>>,
@@ -281,7 +284,8 @@ pub struct ClipboardImage {
 /// Optional typed data returned by a command. The tag is part of the wire
 /// contract: `1=number`, `2=window-size pair`, `3=boolean`, `4=clipboard/path
 /// text` (also the metadata family returned by LoadFont), `5=selected paths`,
-/// `6=file text`, `7=clipboard image`, `8=window bounds`, and `9=window state`.
+/// `6=file text`, `7=clipboard image`, `8=window bounds`, `9=window state`,
+/// and `10=VirtualList logical scroll offset in pixels`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandValue {
     Number(f32),
@@ -293,6 +297,7 @@ pub enum CommandValue {
     Image(ClipboardImage),
     Bounds((f32, f32, f32, f32)),
     WindowState((bool, bool)),
+    ScrollOffset(f32),
 }
 
 #[derive(Debug, Clone, PartialEq)]

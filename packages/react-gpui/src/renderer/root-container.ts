@@ -28,6 +28,8 @@ import {
   COMMAND_SET_SELECTION,
   COMMAND_SHOW_NOTIFICATION,
   COMMAND_SCROLL_TO_END,
+  COMMAND_GET_SCROLL_OFFSET,
+  COMMAND_SCROLL_TO_OFFSET,
   COMMAND_SCROLL_TO_INDEX,
   COMMAND_TOGGLE_FULLSCREEN,
   COMMAND_WRITE_TEXT_FILE,
@@ -289,13 +291,17 @@ export class RootContainer implements DispatchContext {
     });
   }
 
-  submitCommand(node: HostNodeInternal, kind: number, payload: readonly [number, number] | null): Promise<void> {
+  submitCommand(
+    node: HostNodeInternal,
+    kind: number,
+    payload: readonly [number, number] | number | null,
+  ): Promise<void> {
     return this.submitCommandValue(node, kind, payload).then(() => undefined);
   }
   submitCommandValue(
     node: HostNodeInternal,
     kind: number,
-    payload: readonly [number, number] | null,
+    payload: readonly [number, number] | number | null,
   ): Promise<unknown> {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
@@ -314,11 +320,24 @@ export class RootContainer implements DispatchContext {
       return Promise.reject(new Error("unknown TextInput command"));
     if (isView && !([COMMAND_FOCUS, COMMAND_BLUR, COMMAND_GET_FOCUS] as number[]).includes(kind))
       return Promise.reject(new Error("unknown View command"));
-    if (isList && !([COMMAND_SCROLL_TO_INDEX, COMMAND_SCROLL_TO_END] as number[]).includes(kind))
+    if (
+      isList &&
+      !(
+        [
+          COMMAND_SCROLL_TO_INDEX,
+          COMMAND_SCROLL_TO_END,
+          COMMAND_GET_SCROLL_OFFSET,
+          COMMAND_SCROLL_TO_OFFSET,
+        ] as number[]
+      ).includes(kind)
+    )
       return Promise.reject(new Error("unknown VirtualList command"));
+    if (kind === COMMAND_SCROLL_TO_OFFSET && (typeof payload !== "number" || !Number.isFinite(payload) || payload < 0))
+      return Promise.reject(new TypeError("scroll offset must be finite and non-negative"));
     if (
       kind === COMMAND_SET_SELECTION &&
       (payload === null ||
+        !Array.isArray(payload) ||
         !payload.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff) ||
         payload[0] > payload[1])
     )
@@ -326,6 +345,7 @@ export class RootContainer implements DispatchContext {
     if (
       kind === COMMAND_SCROLL_TO_INDEX &&
       (payload === null ||
+        !Array.isArray(payload) ||
         !Number.isInteger(payload[0]) ||
         payload[0] < 0 ||
         payload[0] > 0xffff_ffff ||

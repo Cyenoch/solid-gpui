@@ -13,6 +13,7 @@ ts-command-focus-next	command	99030407032a6f010bc0
 ts-command-focus-prev	command	99030407032a70010cc0
 ts-command-fullscreen	command	99030407032a6d0109c0
 ts-command-get-focus	command	99030407032a72040ec0
+ts-command-get-scroll-offset	command	99030407032acc860622c0
 ts-command-get-window-bounds	command	99030407032acc83011fc0
 ts-command-get-window-size	command	99030407032a71010dc0
 ts-command-get-window-state	command	99030407032acc840120c0
@@ -26,6 +27,7 @@ ts-command-resize	command	99030407032a6b010792cd0320cd0258
 ts-command-resolve-close	command	99030407032a7c0118927b01
 ts-command-scroll-end	command	99030407032a690605c0
 ts-command-scroll-index	command	99030407032a680604920900
+ts-command-scroll-offset	command	99030407032acc870623ca42160000
 ts-command-selection	command	99030407032a670503920204
 ts-command-set-close-policy	command	99030407032a7b0117b4726571756972652d636f6e6669726d6174696f6e
 ts-command-set-keybindings	command	99030407032a7a01169292ab636d642d73686966742d70ac70616c657474652e6f70656e92ad6374726c2d6b206374726c2d31aa6d656e752e6f74686572
@@ -49,6 +51,7 @@ ts-event-command-result-menus	event	9a030207032a170100069702791501c3c0c0
 ts-event-command-result-notification	event	9a030207032a160100069702781401c3c0c0
 ts-event-command-result-open-surface	event	9a030207032a120100069702751101c3c0920129
 ts-event-command-result-read-text-file	event	9a030207032a1801000697027d1901c3c09206a868656c6c6f20cf80
+ts-event-command-result-scroll-offset	event	9a030207032a1e0600069702cc822206c3c0920aca42160000
 ts-event-command-result-size	event	9a030207032a0d01000697026e0d01c3c0920292ca44482000ca44162000
 ts-event-command-result-write-text-file	event	9a030207032a1901000697027e1a01c3c0920108
 ts-event-drag-drop	event	9a030207032a13080b149202a463617264

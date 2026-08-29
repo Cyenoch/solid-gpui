@@ -95,6 +95,9 @@ function assertRepresentativeFields(vector: Vector, decoded: unknown): void {
   }
   if (vector.id.endsWith("event-command-result-clipboard")) {
   }
+  if (vector.id.endsWith("event-command-result-scroll-offset")) {
+    expect((decoded as readonly unknown[])[9]).toEqual([2, 130, 34, 6, true, null, [10, 37.5]]);
+  }
   if (vector.id.endsWith("event-command-result-clipboard-image")) {
     expect((decoded as readonly unknown[])[9]).toEqual([
       2,

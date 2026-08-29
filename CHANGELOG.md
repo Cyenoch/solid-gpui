@@ -14,6 +14,8 @@ from this work tree.
   typed `SurfaceClosedError`; epochs remain generation checks, not a reuse
   escape hatch. Protocol wire frames are unchanged.
 
+- Added node-scoped VirtualList logical-pixel scroll persistence: `getScrollOffset()` (command 34, value tag 10) reads the precise native offset, while `scrollToOffset(offset)` (command 35) restores it with native clamping. Invalid, negative, or non-finite offsets are rejected; restore after the first list layout.
+
 - Added root-only asynchronous `readTextFile(path)` and `writeTextFile(path, content)` commands (25/26). They perform bounded UTF-8 filesystem I/O off the UI executor, return file text/bytes written, and reject invalid paths, directories, oversized data, invalid UTF-8, and native I/O failures.
 - Added the `notes.tsx` persistence example with Open/Save, dirty tracking, multiline editing, and close confirmation.
 - Fixed multiline editing so typing no longer continues below the visible fold; the host now follows the caret (and IME marked range) with bounded vertical and horizontal offsets.
