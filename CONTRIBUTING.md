@@ -10,9 +10,9 @@ copying the contract here.
 1. Read [`AGENTS.md`](AGENTS.md) for the repository's non-negotiable principles.
 2. Read [`CONTEXT.md`](CONTEXT.md) for the glossary and the names of the
    protocol, surface, runtime, and native-host seams.
-3. For the area you will change, read the relevant
-   [architecture decision records](docs/adr/) and the
-   [domain/issue/triage guidance](docs/agents/).
+3. Start with the [documentation index](docs/README.md) to choose the relevant
+   architecture decision records and [agent conventions](docs/agents/) for your
+   area.
 4. Use [`docs/getting-started.md`](docs/getting-started.md) for the consumer
    path, [`docs/protocol.md`](docs/protocol.md) for wire details, and
    [`docs/troubleshooting.md`](docs/troubleshooting.md) for symptom-first
@@ -229,9 +229,8 @@ numeric detail.
 - For pinned GPUI capabilities and true upstream gaps, start with the
   [`upstream dependency assessment`](.scratch/release-productionization/upstream-dependencies.md)
   rather than assuming a missing project API is an upstream limitation.
-- The requested `docs/README.md` navigation index is **not present** today.
-  Until that machinery exists, the links above and the [workspace map in the
-  root README](README.md#workspace-map) are the authoritative navigation.
+- Use [`docs/README.md`](docs/README.md) as the reading-order index for product,
+  reference, architecture, contribution, and evidence documentation.
 
 The root [README workspace map](README.md#workspace-map) points here for this
 workflow; keep both pointers short and repair links when files move.
