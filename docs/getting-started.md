@@ -168,13 +168,14 @@ Important differences from web React:
 
 ### Components and common props
 
-| Host kind        | Common props                                                                                                                                               | Notes                                                                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `View`           | `style`, `children`, `focusable`, `onKeyDown`, `onPointerDown`, `onPointerUp`, `onHoverChange`, `onFocus`, `onBlur`, `onPointerDownOutside`, `onScroll`, `onLayout`, accessibility props | Generic layout/container Host Node. Focus callbacks require `focusable`; an overlay (`position: "overlay"`) can dismiss through `onPointerDownOutside`. |
-| `Text`           | `children`, `style`, `selectable`, `onLayout`, accessibility props                                                                                         | Text styling applies to its text content; raw strings must be direct children. `selectable` enables host-owned mouse drag selection, per-row highlighting, and Cmd/Ctrl-C clipboard copy without JS selection state/events. |
-| `Pressable`      | `children`, `style`, `onPress`, `focusable`, `onKeyDown`, `onFocus`, `onBlur`, `disabled`, pointer/hover/layout handlers, accessibility props                 | Pointer and native keyboard activation share the press path. Focus callbacks require `focusable`; disabled removes interaction and reports disabled accessibility state. |
-| `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`                              | Native GPUI measures visible/overdraw rows at natural heights; `estimatedItemSize` is the initial hint for unmeasured rows. Only the committed range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node.             |
-| `Image`          | `source`, `fallbackSource`, `objectFit`, `style`, `onLayout`, accessibility props                                                    | `source` and optional `fallbackSource` are host-resolved paths; GPUI shows the fallback while loading or when the primary image fails. |
+| Host kind        | Common props                                                                                                                                                                                         | Notes                                                                                                                                                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `View`           | `style`, `children`, `focusable`, keyboard/pointer/hover/focus/scroll/layout handlers, `draggable`, drag/drop handlers, `tooltip`, accessibility props                                               | Generic layout/container Host Node. Focus callbacks require `focusable`; an overlay (`position: "overlay"`) can dismiss through `onPointerDownOutside`.                                                                                     |
+| `Text`           | `children`, `style`, `selectable`, `onPress`, focus/layout handlers, accessibility props                                                                                                             | Text styling applies to its text content; raw strings must be direct children. `selectable` enables host-owned mouse drag selection, per-row highlighting, and Cmd/Ctrl-C clipboard copy without JS selection state/events.                 |
+| `TextInput`      | `value`, `defaultValue`, `placeholder`, `onChangeText`, `onSelectionChange`, `onSubmitEditing`, `onKeyDown`, `onFocus`, `onBlur`, `multiline`, `disabled`, `maxLength`, `style`, accessibility props | Controlled or initially uncontrolled native text input. Selection ranges use UTF-16 offsets and include the `reversed` head-orientation bit.                                                                                                |
+| `Pressable`      | `children`, `style`, `onPress`, `focusable`, keyboard/pointer/hover/focus/layout handlers, `disabled`, `draggable`, drag/drop handlers, `tooltip`, accessibility props                               | Pointer and native keyboard activation share the press path. Focus callbacks require `focusable`; disabled removes interaction and reports disabled accessibility state.                                                                    |
+| `VirtualList<T>` | `data`, `itemKey`, `renderItem`, `estimatedItemSize`, `overscan`, `initialNumToRender`, `onEndReached`, `emptyState`, `style`, accessibility props                                                   | Native GPUI measures visible/overdraw rows at natural heights; `estimatedItemSize` is the initial hint for unmeasured rows. Only the committed range becomes Host Nodes. Empty data renders `emptyState` without a native VirtualList node. |
+| `Image`          | `source`, `fallbackSource`, `objectFit`, `style`, `onLayout`, accessibility props                                                                                                                    | `source` and optional `fallbackSource` are host-resolved paths; GPUI shows the fallback while loading or when the primary image fails.                                                                                                      |
 
 `Image` cannot have children. Text input, list, and image host properties are
 validated tagged tuples. Empty native TextInput value renders `placeholder` as
@@ -213,18 +214,22 @@ fallback stack. The complete positional table and enum codes live in
 
 ### Root commands
 
-| Domain         | Root methods                                                                                              |
-| -------------- | ---------------------------------------------------------------------------------------------------------- |
-| Window         | `setTitle`, `resize`, `getWindowSize`, `getWindowBounds`, `getWindowState`, `minimizeWindow`, `activateWindow`, `zoom`, `toggleFullscreen`, `openUrl` |
-| Surfaces       | `createSurfaceHost`, `root.openSurface`, `host.createRoot`, `root.onClose`                                  |
-| Focus          | `focusNext`, `focusPrev`                                                                                    |
-| Clipboard      | `setClipboardText`, `getClipboardText`                                                                      |
-| Files          | `pickFiles`, `pickSavePath`                                                                                 |
-| User-facing OS | `showNotification`, `setMenus`, `setKeybindings`                                                            |
+| Domain         | Root methods                                                                                                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rendering      | `render(element)`, `unmount()`                                                                                                                                                                 |
+| Window         | `setTitle(title)`, `resize(width, height)`, `getWindowSize()`, `getWindowBounds()`, `getWindowState()`, `minimizeWindow()`, `activateWindow()`, `zoom()`, `toggleFullscreen()`, `openUrl(url)` |
+| Surfaces       | `root.openSurface(options?)`; setup uses `createSurfaceHost(transport, options?)` and `host.createRoot(options?)`                                                                              |
+| Focus          | `focusNext()`, `focusPrev()`                                                                                                                                                                   |
+| Clipboard      | `setClipboardText(text)`, `getClipboardText()`, `setClipboardImage(image)`, `getClipboardImage()`                                                                                              |
+| Files          | `pickFiles(options?)`, `pickSavePath(options?)`, `readTextFile(path)`, `loadFont(path)`, `writeTextFile(path, content)`                                                                        |
+| Close policy   | `setClosePolicy(policy)`, `resolveCloseRequest(requestId, allow)`                                                                                                                              |
+| User-facing OS | `showNotification(options)`, `setMenus(menus)`, `setKeybindings(bindings)`                                                                                                                     |
 
-Node refs expose narrower commands: TextInput focus/blur/selection, View or
-Pressable focus/blur where supported, and VirtualList `scrollToIndex`/
-`scrollToEnd`. Commands return Promises and rejected validation/native results
+Node refs expose narrower commands: TextInput `focus()`, `blur()`, and
+`setSelection(start, end)`; View `focus()`, `blur()`, and `isFocused()`; and
+VirtualList `scrollToIndex`, `scrollToEnd`, `getScrollOffset`, and
+`scrollToOffset`. Pressable and Text refs are base Host Nodes without command
+methods. Commands return Promises and rejected validation/native results
 must be handled by the application. See [protocol.md](protocol.md#4-command-directory)
 for root-only versus Host Node ownership and CommandResult value tags.
 
@@ -237,10 +242,10 @@ for root-only versus Host Node ownership and CommandResult value tags.
   `WindowAppearance`, `SurfaceClosed`, `Action`, and `NotificationResponse`.
 - **Command acknowledgement:** `CommandResult`, including optional typed
   number, pair, boolean, string, and newer surface values.
-Callbacks are semantic notifications, not cancellable browser events. Event
-18 appearance values are `"light"` and `"dark"`; palette selection is owned by
-the application. See [protocol.md](protocol.md#3-event-directory) for payload
-validation and root/node ownership.
+  Callbacks are semantic notifications, not cancellable browser events. Event
+  18 appearance values are `"light"` and `"dark"`; palette selection is owned by
+  the application. See [protocol.md](protocol.md#3-event-directory) for payload
+  validation and root/node ownership.
 
 ## Common tasks
 
@@ -371,6 +376,7 @@ const inspector = host.createRoot({ surfaceId: id, onClose: () => console.log("c
 // new epoch, throws SurfaceIdReusedError; pending commands reject with
 // SurfaceClosedError. Use a fresh host-allocated id.
 ```
+
 `kind`, `resizable`, and `minSize` are creation-time options. `"floating"`
 means above-parent where the platform supports it; it is not a portable global
 always-on-top guarantee. `maxSize` and runtime window-option setters are not
@@ -453,12 +459,12 @@ the metadata-only tap report.
 The failure owner determines the recovery behavior. React Error Boundaries are
 consumer code; the other rows are host/runtime contracts:
 
-| Failure                                      | Current behavior                                                                                                         | Owner/recovery                                                                                                        |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted.                                           | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one.           |
-| Bad Snapshot/Patch frame or tree invariant   | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry.                     | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
-| Image resource failure                     | The Image node remains in the tree; GPUI renders `fallbackSource` for loading/error states when supplied, otherwise blank output; no `Image` error callback exists in this protocol. | Ship/validate the primary and fallback assets or handle the visual fallback in the tree. |
-| GPUI paint panic/internal invariant          | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path. | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame.           |
+| Failure                                      | Current behavior                                                                                                                                                                     | Owner/recovery                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| React render error without an Error Boundary | `root.render()` throws synchronously and no invalid Commit Batch is submitted.                                                                                                       | Add an Error Boundary where the application can render a useful fallback; the renderer does not invent one.           |
+| Bad Snapshot/Patch frame or tree invariant   | The host rejects it, shuts down the Runtime Adapter, and exits; it does not drop the frame or retry.                                                                                 | Fix the producer/protocol mismatch. A shared Runtime Adapter failure closes every registered Surface on that runtime. |
+| Image resource failure                       | The Image node remains in the tree; GPUI renders `fallbackSource` for loading/error states when supplied, otherwise blank output; no `Image` error callback exists in this protocol. | Ship/validate the primary and fallback assets or handle the visual fallback in the tree.                              |
+| GPUI paint panic/internal invariant          | The host panic hook writes crash diagnostics, but there is no safe node-level paint boundary or resume-after-panic path.                                                             | Treat the host/window as failed; inspect the crash report rather than relying on a partially painted frame.           |
 
 The strict protocol choice is intentional: v3 revisions and Surface/epoch
 identity require both sides to agree on the same tree. The full rationale,
@@ -481,6 +487,7 @@ does not open a window. See
 `packages/react-gpui-dev/README.md#behavior-level-testapp-recipe`.
 
 ## Known boundaries
+
 - There is no DOM, CSS cascade, or browser event cancellation. `letterSpacing`
   and `zIndex` remain unsupported style fields.
 - `pointerEvents` is intentionally not exposed: an overlay with no native

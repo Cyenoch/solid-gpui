@@ -35,7 +35,14 @@ const root = createRoot(transport, { surfaceId: 1, epoch: 1 });
 root.render(<Counter />);
 ```
 
-`View`, `Text`, and `Pressable` accept `ref` values that resolve to typed host nodes. `Pressable` accepts `onPress`; `View` and `Pressable` also accept bounded native `tooltip` text. Callbacks stay in JavaScript and receive semantic notifications. There is intentionally no synchronous `preventDefault()` because the transport cannot cancel a native action synchronously.
+`View`, `Text`, `Pressable`, `TextInput`, `VirtualList`, and `Image` accept
+`ref` values that resolve to typed host nodes. `TextInput` and `VirtualList`
+refs expose their command handles; `View` refs expose focus commands, while
+`Text`, `Pressable`, and `Image` refs are base host nodes. `Pressable` accepts
+`onPress`; `View` and `Pressable` also accept bounded native `tooltip` text.
+Callbacks stay in JavaScript and receive semantic notifications. There is
+intentionally no synchronous `preventDefault()` because the transport cannot
+cancel a native action synchronously.
 `View`, `Text`, `Pressable`, and `Image` accept `onLayout={(frame) => ...}`.
 The callback receives `{ x, y, width, height }` in window pixels after native
 post-layout measurement. The first report is delivered on the next frame;
@@ -49,6 +56,7 @@ non-empty text without control characters and caps it at 256 UTF-8 bytes, then
 uses pinned GPUI's native tooltip interactivity with its default 500 ms hover
 delay. Tooltip text stays independent from drag metadata, and the tooltip is
 painted by a compact host-owned text view.
+
 ## Pointer movement
 
 `View` and `Pressable` accept an opt-in `onPointerMove` callback:
@@ -179,13 +187,13 @@ RGBA conversion or format transcoding is promised.
 Accessibility metadata is forwarded to GPUI's AccessKit-backed tree when the
 node has a recognized role and stable host ID:
 
-| `button`   | `Button`                   | supported                 | selected supported                                       | supported   | supported   | —                             |
-| `text`     | `Label`                    | supported                 | selected supported                                       | supported   | supported   | —                             |
-| `textbox`  | `TextInput`                | supported                 | selected supported                                       | supported   | supported   | —                             |
-| `checkbox` | `CheckBox`                 | supported                 | `checked` maps to toggled true/false; selected supported | supported   | supported   | —                             |
-| `heading`  | `Heading`                  | supported                 | selected supported                                       | supported   | supported   | positive `accessibilityLevel` |
-| `link`     | `Link`                     | supported                 | selected supported                                       | supported   | supported   | —                             |
-| `generic`  | GPUI's role-less container | not exposed as an AX node | not exposed                                              | not exposed | not exposed | not exposed                   |
+| `button` | `Button` | supported | selected supported | supported | supported | — |
+| `text` | `Label` | supported | selected supported | supported | supported | — |
+| `textbox` | `TextInput` | supported | selected supported | supported | supported | — |
+| `checkbox` | `CheckBox` | supported | `checked` maps to toggled true/false; selected supported | supported | supported | — |
+| `heading` | `Heading` | supported | selected supported | supported | supported | positive `accessibilityLevel` |
+| `link` | `Link` | supported | selected supported | supported | supported | — |
+| `generic` | GPUI's role-less container | not exposed as an AX node | not exposed | not exposed | not exposed | not exposed |
 
 `accessibilityExpanded` is an optional boolean state for recognized roles and
 maps to GPUI's `aria_expanded` builder. `accessibilityLevel` is an optional
@@ -268,11 +276,7 @@ that uses its family:
 
 ```tsx
 const family = await root.loadFont(new URL("./fonts/Tuffy.ttf", import.meta.url).pathname);
-root.render(
-  <Text style={{ fontFamily: family, fontSize: 24 }}>
-    Custom typography
-  </Text>,
-);
+root.render(<Text style={{ fontFamily: family, fontSize: 24 }}>Custom typography</Text>);
 ```
 
 Load each family before its first layout/use. GPUI caches both successful and
@@ -285,7 +289,6 @@ matching the host's startup-preload pattern. The runnable
 [`text-input.tsx`](examples/text-input.tsx) instead keeps its first frame on
 the fallback stack, then switches to the returned family after registration so
 the registration and repaint boundary is visible without blocking startup.
-
 
 ## Image
 
@@ -498,6 +501,33 @@ predicates and menu shortcut fields are intentionally not exposed. The host
 pre-validates every chord with GPUI before replacing bindings, so an invalid
 keystroke returns a rejected command without disturbing the previous set.
 
+## Root API inventory
+
+`Root` is the public per-surface API. It exposes `render(element)` and
+`unmount()`, asynchronous window controls (`setTitle`, `resize`,
+`getWindowSize`, `minimizeWindow`, `getWindowBounds`, `getWindowState`,
+`activateWindow`, `zoom`, `toggleFullscreen`, and `openUrl`), focus traversal
+(`focusNext`, `focusPrev`), close-policy controls (`setClosePolicy`,
+`resolveCloseRequest`), surface creation (`openSurface`), file and font
+operations (`pickFiles`, `pickSavePath`, `readTextFile`, `loadFont`,
+`writeTextFile`), clipboard text/image operations (`setClipboardText`,
+`getClipboardText`, `setClipboardImage`, `getClipboardImage`), and native
+integrations (`showNotification`, `setMenus`, `setKeybindings`). All command
+methods return promises; `getWindowSize` returns `[width, height]`,
+`getWindowBounds` returns `{ x, y, width, height }`, `getWindowState` returns
+`{ fullscreen, maximized }`, `openSurface` returns a surface ID, file pickers
+return paths (or `null` on cancellation), `loadFont` returns its metadata
+family, `writeTextFile` returns the UTF-8 byte count, and `getClipboardImage`
+returns an encoded image or `null`.
+
+`createSurfaceHost(transport, options?)` provides shared transport routing;
+`host.createRoot(options?)` returns the same `Root` API for each registered
+surface, and `host.dispose()` tears down all roots. The package also exports
+`createWindowSizeStore`/`useWindowSize` and
+`createAppearanceStore`/`useAppearance` for explicit React state bridges,
+`createStyleSheet` (also available as `StyleSheet.create`), and transport
+implementations `MemoryTransport` and `StdioTransport`.
+
 ## Debugging
 
 Set `REACT_GPUI_TAP` to a JSONL path before constructing a `StdioTransport` or
@@ -568,12 +598,13 @@ Keyboard events are semantic notifications and cannot be synchronously canceled.
 
 ## Pointer and focus
 
-`View` and `Pressable` accept `onPointerDown`, `onPointerUp`, and
-`onHoverChange`. Pointer events are semantic press/release notifications with
+`View` and `Pressable` accept `onPointerDown`, `onPointerUp`, `onPointerMove`,
+and `onHoverChange`. Pointer events are semantic press/release notifications with
 button codes left/right/middle/back/forward, the compact modifier names above,
 `clickCount`, and `x`/`y` logical window-pixel coordinates. Coordinates are
-available on both down and up and are not emitted for hover/move events in this
-round. Pressable's existing `onPress` notification remains unchanged.
+available on both down and up; `onPointerMove` separately receives streamed
+coordinates and modifiers when opted in. Pressable's existing `onPress`
+notification remains unchanged.
 Hover uses a null wire payload and alternates the `onHoverChange` boolean on
 ordered enter/leave edges from GPUI's `.on_hover` callback.
 
@@ -594,11 +625,12 @@ null payload (TextInput keeps its tag-1 text/selection payload). Native focus
 observers are tied to the mounted node and listener identity, so stale focus
 events are discarded after unmount or replacement.
 
-An overlay is a `View` or `Pressable` with `style={{ position: "overlay", left, top }}`.
-It is placed with GPUI's local anchored/deferred path and may provide
-`onPointerDownOutside={({ x, y }) => ...}`. The callback fires on a
+An overlay is a `View` or `Pressable` with
+`style={{ position: "overlay", left, top }}`. It is placed with GPUI's local
+anchored/deferred path. A `View` overlay may provide
+`onPointerDownOutside={({ x, y }) => ...}`; the callback fires on a
 capture-phase mouse down only when the point is outside both the rendered
-overlay and its direct anchor subtree; `x` and `y` are logical window
+overlay and its direct anchor subtree. `x` and `y` are logical window
 coordinates. Keep Escape handling in `onKeyDown` when an overlay should also
 dismiss from the keyboard.
 `TextInput` remains always focusable and accepts `onKeyDown` through the same
@@ -644,7 +676,7 @@ The command path is covered in headless tests; the visual zoom effect requires
 a display-backed desktop adapter because the pinned TestWindow does not
 implement native zoom.
 `Root.openUrl(url)` accepts only non-empty `http://` or `https://` URLs up to
-2048 characters; `file:` and other schemes are rejected. Centering,
+2048 UTF-8 bytes; `file:` and other schemes are rejected. Centering,
 `revealPath`, and `openWithSystem` are intentionally unsupported because GPUI
 only exposes centering during initial `WindowBounds` construction and path
 operations require a separate permission/Path design.
@@ -771,7 +803,6 @@ the final native cursor/clipboard behavior should also be checked on a
 display-backed desktop host.
 The runnable [`rich-text.tsx`](examples/rich-text.tsx) entry combines nested
 styles, interactive link runs, and native selection/copy across run boundaries.
-
 
 `TextInput` is controlled with `value`/`onChangeText` or initialized once with
 `defaultValue`. It also supports `placeholder`, `onSelectionChange`, `onFocus`,
@@ -1070,8 +1101,9 @@ return (
 );
 ```
 
-Coordinates are logical window pixels and are supplied for press/release only;
-hover/move positions are intentionally not part of this event surface.
+Coordinates are logical window pixels and are supplied for press/release and
+opt-in pointer-move events; hover positions remain intentionally absent from
+the hover event surface.
 See [`dropdown.tsx`](examples/dropdown.tsx) for the complete styled entry.
 
 ### Drag-reorder list

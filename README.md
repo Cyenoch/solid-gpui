@@ -151,7 +151,6 @@ setter, so exact position restoration is an upstream boundary. Minimize and
 activation have visible effects only on a display-backed host; the pinned
 headless TestWindow leaves minimize unimplemented and reports inactive state.
 
-
 `OpenSurface` is always a command from its requesting, already registered root
 (`nodeId=1`); the host rejects unknown surface IDs and never implicitly opens a
 window. A native close emits `EVENT_SURFACE_CLOSED` before teardown, routes only
@@ -247,7 +246,32 @@ submissions: delivery and authorization are not guaranteed, Web/test menu
 implementations may be no-ops, and Windows AppUserModel identity remains a
 host packaging concern.
 
+## Public API
+
+The `Root` returned by `createRoot` or `host.createRoot` exposes 29 methods:
+
+| Area               | Methods                                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rendering          | `render(element)`, `unmount()`                                                                                                                                                                 |
+| Window             | `setTitle(title)`, `resize(width, height)`, `getWindowSize()`, `minimizeWindow()`, `getWindowBounds()`, `getWindowState()`, `activateWindow()`, `zoom()`, `toggleFullscreen()`, `openUrl(url)` |
+| Surfaces and focus | `openSurface(options?)`, `focusNext()`, `focusPrev()`                                                                                                                                          |
+| Close policy       | `setClosePolicy(policy)`, `resolveCloseRequest(requestId, allow)`                                                                                                                              |
+| Clipboard          | `setClipboardText(text)`, `getClipboardText()`, `setClipboardImage(image)`, `getClipboardImage()`                                                                                              |
+| Files and fonts    | `pickFiles(options?)`, `pickSavePath(options?)`, `readTextFile(path)`, `loadFont(path)`, `writeTextFile(path, content)`                                                                        |
+| OS integrations    | `showNotification(options)`, `setMenus(menus)`, `setKeybindings(bindings)`                                                                                                                     |
+
+Command methods return promises. `getWindowSize()` returns `[width, height]`,
+`getWindowBounds()` returns `{ x, y, width, height }`, `getWindowState()` returns
+`{ fullscreen, maximized }`, `openSurface()` returns a surface ID, file pickers
+return paths or `null`, `loadFont()` returns the metadata family,
+`writeTextFile()` returns the UTF-8 byte count, and `getClipboardImage()`
+returns encoded image bytes or `null`. `createSurfaceHost(transport, options?)`
+adds `host.createRoot(options?)` and `host.dispose()` for shared transport
+routing. See the package [Root API inventory](packages/react-gpui/README.md#root-api-inventory)
+for return values, constraints, and component ref handles.
+
 A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
+
 ## VirtualList scroll persistence
 
 `VirtualList` exposes a ref handle for preserving the native logical-pixel
@@ -259,8 +283,13 @@ const listRef = useRef<VirtualListHandle>(null);
 const savedOffset = await listRef.current?.getScrollOffset();
 await listRef.current?.scrollToOffset(savedOffset ?? 0);
 
-<VirtualList ref={listRef} data={rows} itemKey={(row) => row.id}
-  renderItem={(row) => <Text>{row.title}</Text>} estimatedItemSize={32} />
+<VirtualList
+  ref={listRef}
+  data={rows}
+  itemKey={(row) => row.id}
+  renderItem={(row) => <Text>{row.title}</Text>}
+  estimatedItemSize={32}
+/>;
 ```
 
 Offsets are logical layout pixels (not item indexes or device pixels).
@@ -280,7 +309,7 @@ currently active modifiers:
   onPointerMove={({ x, y, modifiers }) => {
     setCursor({ x, y, modifiers });
   }}
-/>;
+/>
 ```
 
 Moves are registered only for nodes that provide the handler, so ordinary
