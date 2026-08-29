@@ -4446,7 +4446,6 @@ dependencies = [
  "gpui_platform",
  "react-gpui",
  "react-gpui-bun",
- "rmp-serde",
 ]
 
 [[package]]

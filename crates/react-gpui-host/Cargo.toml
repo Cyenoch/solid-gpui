@@ -22,4 +22,3 @@ gpui-platform = { git = "https://github.com/zed-industries/zed", rev = "6805d952
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support"] }
-rmp-serde.workspace = true
