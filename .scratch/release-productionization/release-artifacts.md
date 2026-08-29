@@ -1,0 +1,61 @@
+# v0.2.0 release artifact manifest
+
+This is the push-day reference for the local `v0.2.0` cut. The cut is
+complete locally; no artifact has been published, pushed, signed, or notarized.
+The existing user-owned `AGENTS.md` change is outside this manifest and remains
+unstaged.
+
+## Verified artifacts
+
+| Artifact | Path | SHA256 | Producing commit / gate | Status |
+| --- | --- | --- | --- | --- |
+| macOS ARM host archive | `dist/react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz` | `d0dfc86e8c5b98d790d99eae0ec2ebb485e3b1a8cc28939cdafbf9a973e25ab` | Release commit `72a520c`; final `make host-candidate-smoke` gate | **Local-only; unpublished. SHA matches the checklist.** |
+| Annotated Git tag | `v0.2.0` | Tag object is recorded in the checklist; peeled commit resolves to `72a520c30232e4089e80b149bcae9361c016f6ef` | Created after the five final gates | **Local-only; not pushed.** |
+| Core npm package tarball | No `*.tgz` under `packages/*/pack` or `dist` | — | `make bun-pack-smoke` | **Not retained locally; CI-ephemeral.** |
+| Dev npm package tarball | No `*.tgz` under `packages/*/pack` or `dist` | — | `make bun-pack-smoke` | **Not retained locally; CI-ephemeral.** |
+
+### Host archive contents
+
+`tar -tzf dist/react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz` contains the
+following five entries (one archive directory plus four payload files):
+
+```text
+react-gpui-host-0.2.0-aarch64-apple-darwin/
+react-gpui-host-0.2.0-aarch64-apple-darwin/react-gpui-host
+react-gpui-host-0.2.0-aarch64-apple-darwin/README.md
+react-gpui-host-0.2.0-aarch64-apple-darwin/LICENSE
+react-gpui-host-0.2.0-aarch64-apple-darwin/SHA256SUMS
+```
+
+The recorded SHA is an exact match for the checklist value
+`d0dfc86e8c5b98d790d99eae0ec2ebb485e3b1a8cc28939cdafbf9a973e25ab`. The package
+smoke script creates its core and dev tarballs below a deleted `mktemp`
+directory, so no package SHA can be recorded from this checkout; the release
+workflow's uploaded tarballs are the durable CI outputs.
+
+## Push-day checklist stub
+
+- [ ] Resolve the human release decisions in
+      `v0.2.0-cut-checklist.md`: unsigned/notarized host treatment, npm
+      registry/access/first-publication policy and token scope, and whether any
+      Rust crate is published separately.
+- [ ] Review the final tree and verify that the host archive SHA and annotated
+      tag still identify the approved `0.2.0` commit.
+- [ ] Push `main` and the annotated `v0.2.0` tag through the approved release
+      procedure. Do not push or publish from this local evidence step.
+- [ ] Let the first push/PR execution run the cross-platform workflow; capture
+      its Linux/Windows runner results. Local macOS checks are not
+      cross-platform runner evidence, and embedded Bun remains a separate
+      macOS gate.
+- [ ] Run the release workflow's versioned preparation and package packing;
+      retain the CI artifact uploads for the core and dev `.tgz` files.
+- [ ] Only after the registry, access, token, and first-publication decisions
+      are approved, decide and execute `npm publish` for `@react-gpui/core`
+      and/or `@react-gpui/dev`. Package packing alone does not publish.
+- [ ] If signing/notarization is approved, perform it in the release process
+      and replace or supplement this unsigned candidate with authenticated
+      outputs. `SHA256SUMS` proves contents and reproducibility, not publisher
+      identity.
+- [ ] Record the pushed tag, workflow run URLs/results, uploaded package
+      artifact names and hashes, and any publication decisions back in the
+      release record.
