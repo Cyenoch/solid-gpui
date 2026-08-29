@@ -689,7 +689,7 @@ impl ReactRoot {
         self.focus_handles.retain(|id, _| {
             self.input_states.contains_key(id)
                 || self.store.get(*id).is_some_and(|node| {
-                    ((node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+                    (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
                         && node.focusable
                         && node.listener_id != 0)
                         || (node.kind == KIND_TEXT && node.selectable)
@@ -709,9 +709,10 @@ impl ReactRoot {
                 .iter()
                 .filter(|node| {
                     matches!(node.host_properties, Some(HostProperties::TextInput(_)))
-                        || ((node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+                        || (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
                             && node.focusable
                             && node.listener_id != 0)
+                        || (node.kind == KIND_TEXT && node.selectable)
                 })
                 .map(|node| node.id)
                 .collect(),
@@ -748,7 +749,7 @@ impl ReactRoot {
                 *focus_handle = focus_handle.clone().tab_stop(!input.disabled);
                 state.set_max_length(input.max_length.map(|value| value as usize));
                 state.apply_controlled(&input);
-            } else if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+            } else if matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
                 && node.focusable
                 && node.listener_id != 0
             {

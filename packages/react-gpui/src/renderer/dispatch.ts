@@ -160,7 +160,9 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     const node = context.findListener(event[7]);
     if (
       node === undefined ||
-      (node.attached ? node.kind !== "View" && node.kind !== "Pressable" : !node.detachedFocusPending) ||
+      (node.attached
+        ? node.kind !== "View" && node.kind !== "Pressable" && node.kind !== "Text"
+        : !node.detachedFocusPending) ||
       (node.attached && !node.focusable) ||
       node.id !== event[6] ||
       node.listenerId !== event[7]
@@ -263,8 +265,8 @@ export function dispatchEvent(context: DispatchContext, event: PressEventFrame |
     if (
       node === undefined ||
       !node.attached ||
-      ((node.kind === "View" || node.kind === "Pressable") && !node.focusable) ||
-      (node.kind !== "View" && node.kind !== "Pressable" && node.kind !== "TextInput") ||
+      ((node.kind === "View" || node.kind === "Pressable" || node.kind === "Text") && !node.focusable) ||
+      (node.kind !== "View" && node.kind !== "Pressable" && node.kind !== "TextInput" && node.kind !== "Text") ||
       node.id !== event[6] ||
       node.listenerId !== event[7] ||
       node.keyListener === undefined

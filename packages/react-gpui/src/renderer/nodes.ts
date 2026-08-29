@@ -224,7 +224,10 @@ export class NodeGraph {
     node.accessibility = accessibilityFor(node.kind, props);
     node.disabled = (node.kind === "Pressable" || node.kind === "TextInput") && props.disabled === true;
     node.focusable =
-      (node.kind === "View" || node.kind === "Pressable") && !node.disabled ? (props.focusable ?? false) : false;
+      !node.disabled &&
+      (node.kind === "View" || node.kind === "Pressable"
+        ? (props.focusable ?? false)
+        : node.kind === "Text" && props.onPress !== undefined);
     node.selectable = node.kind === "Text" && props.selectable === true;
     node.keyListener =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable" || node.kind === "TextInput")
@@ -239,9 +242,13 @@ export class NodeGraph {
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onPointerMove : undefined;
     node.acceptsPointerMove = node.pointerMoveCallback !== undefined;
     node.focusCallback =
-      !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onFocus : undefined;
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable" || node.kind === "Text")
+        ? props.onFocus
+        : undefined;
     node.blurCallback =
-      !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onBlur : undefined;
+      !node.disabled && (node.kind === "View" || node.kind === "Pressable" || node.kind === "Text")
+        ? props.onBlur
+        : undefined;
     node.pointerDownOutsideCallback = !node.disabled && node.kind === "View" ? props.onPointerDownOutside : undefined;
     node.hoverCallback =
       !node.disabled && (node.kind === "View" || node.kind === "Pressable") ? props.onHoverChange : undefined;

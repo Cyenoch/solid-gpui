@@ -458,7 +458,7 @@ impl ReactRoot {
             .store
             .iter()
             .filter(|node| {
-                (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+                matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
                     && node.focusable
                     && node.listener_id != 0
             })
@@ -485,12 +485,11 @@ impl ReactRoot {
 
     fn node_can_receive_focus(node: &StoredNode) -> bool {
         match node.kind {
-            KIND_VIEW | KIND_PRESSABLE => node.focusable && node.listener_id != 0,
+            KIND_VIEW | KIND_PRESSABLE | KIND_TEXT => node.focusable && node.listener_id != 0,
             KIND_TEXT_INPUT => matches!(
                 node.host_properties.as_ref(),
                 Some(HostProperties::TextInput(input)) if !input.disabled
             ),
-            KIND_TEXT => node.selectable,
             _ => false,
         }
     }
@@ -550,7 +549,7 @@ impl ReactRoot {
         let Some(node) = self.store.get(node_id) else {
             return;
         };
-        if (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE)
+        if !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
             || !node.focusable
             || node.listener_id == 0
         {
@@ -2539,6 +2538,54 @@ mod input_tests {
             cx.read_from_clipboard().and_then(|item| item.text()),
             Some(content[selection.clone()].to_string())
         );
+    }
+
+    #[gpui::test]
+    fn interactive_text_run_gets_tab_stop_and_enter_press(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(240.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("interactive Text root");
+        let paragraph = Node::new(2, 1, 0, KIND_TEXT);
+        let mut run = Node::new(3, 2, 0, KIND_TEXT);
+        run.listener_id = 9;
+        run.focusable = true;
+        let mut raw = Node::new(4, 3, 0, KIND_RAW_TEXT);
+        raw.text = Some("link".into());
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), paragraph, run, raw],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&snapshot.encode().unwrap(), cx)
+        })
+        .expect("apply interactive Text snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw interactive Text");
+        cx.run_until_parked();
+        root.read_with(cx, |root, _| assert!(root.focus_handles.contains_key(&3)));
+        cx.update_window(window.into(), |_, window, cx| window.focus_next(cx))
+            .expect("focus next");
+        cx.run_until_parked();
+        cx.update_window(window.into(), |_, window, cx| {
+            assert!(root.read_with(cx, |root, _| { root.focus_handles[&3].is_focused(window) }));
+            window.dispatch_keystroke(gpui::Keystroke::parse("enter").unwrap(), cx)
+        })
+        .expect("dispatch Enter");
+        let mut event = None;
+        while let Some(next) = runtime.take_event().expect("read event") {
+            if next.event_type == crate::protocol::EVENT_PRESS {
+                event = Some(next);
+                break;
+            }
+        }
+        let event = event.expect("Text press event");
+        assert_eq!((event.node_id, event.listener_id), (3, 9));
     }
 
     #[test]

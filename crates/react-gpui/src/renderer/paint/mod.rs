@@ -224,7 +224,7 @@ impl ReactRoot {
         }
         element = accessibility::apply_accessibility(element, node);
 
-        if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
+        if matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
             && node.focusable
             && node.listener_id != 0
         {
@@ -232,7 +232,7 @@ impl ReactRoot {
                 .focus_handles
                 .get(&node.id)
                 .cloned()
-                .expect("focusable View or Pressable focus handle is reconciled before render");
+                .expect("focusable interactive focus handle is reconciled before render");
             let runtime = Arc::clone(&self.runtime);
             let sequence = Arc::clone(&self.next_sequence);
             let surface_id = self.store.surface_id();
@@ -240,27 +240,47 @@ impl ReactRoot {
             let revision = self.store.revision();
             let node_id = node.id;
             let listener_id = node.listener_id;
+            let node_kind = node.kind;
             element = element
                 .focusable()
                 .tab_stop(true)
                 .track_focus(&focus)
-                .on_key_down(move |event, _, _| {
-                    emit_key_event(
-                        runtime.as_ref(),
-                        sequence.as_ref(),
-                        surface_id,
-                        epoch,
-                        revision,
-                        node_id,
-                        listener_id,
-                        &event.keystroke.key,
-                        &event.keystroke.modifiers,
-                        if event.is_held {
-                            KeyAction::Repeat
-                        } else {
-                            KeyAction::Down
-                        },
-                    );
+                .on_key_down(move |event, window, app| {
+                    if node_kind == KIND_TEXT {
+                        if event.keystroke.key == "enter"
+                            && !event.is_held
+                            && event.keystroke.modifiers == gpui::Modifiers::none()
+                            && focus.is_focused(window)
+                        {
+                            let event = Event::press(
+                                surface_id,
+                                epoch,
+                                revision,
+                                sequence.fetch_add(1, Ordering::Relaxed),
+                                node_id,
+                                listener_id,
+                            );
+                            send_event_or_exit(runtime.as_ref(), "text run press event", &event);
+                            app.stop_propagation();
+                        }
+                    } else {
+                        emit_key_event(
+                            runtime.as_ref(),
+                            sequence.as_ref(),
+                            surface_id,
+                            epoch,
+                            revision,
+                            node_id,
+                            listener_id,
+                            &event.keystroke.key,
+                            &event.keystroke.modifiers,
+                            if event.is_held {
+                                KeyAction::Repeat
+                            } else {
+                                KeyAction::Down
+                            },
+                        );
+                    }
                 });
             let runtime = Arc::clone(&self.runtime);
             let sequence = Arc::clone(&self.next_sequence);

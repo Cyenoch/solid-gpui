@@ -723,6 +723,7 @@ pub(super) fn render_rich_text(
         return apply_accessibility(element, node).into_any();
     }
     let targets = parts.clickable_targets;
+    let click_targets = targets.clone();
     let runtime = Arc::clone(&root.runtime);
     let sequence = Arc::clone(&root.next_sequence);
     let surface_id = root.store.surface_id();
@@ -733,7 +734,7 @@ pub(super) fn render_rich_text(
         StyledText::new(SharedString::from(parts.text)).with_runs(parts.runs),
     )
     .on_click(parts.clickable_ranges, move |index, _, _| {
-        let Some((node_id, listener_id)) = targets.get(index).copied() else {
+        let Some((node_id, listener_id)) = click_targets.get(index).copied() else {
             return;
         };
         let event = Event::press(
@@ -746,7 +747,50 @@ pub(super) fn render_rich_text(
         );
         send_event_or_exit(runtime.as_ref(), "text run press event", &event);
     });
-    apply_accessibility(element.child(interactive), node).into_any()
+    element = element.child(interactive);
+    for (run_node_id, run_listener_id) in targets {
+        let Some(focus) = root.focus_handles.get(&run_node_id).cloned() else {
+            continue;
+        };
+        let runtime = Arc::clone(&root.runtime);
+        let sequence = Arc::clone(&root.next_sequence);
+        let focus_for_key = focus.clone();
+        let focus_element = div()
+            .id(ElementId::named_usize(
+                "react-gpui-text-run-focus",
+                run_node_id as usize,
+            ))
+            .absolute()
+            .left(px(0.0))
+            .top(px(0.0))
+            .w(px(0.0))
+            .h(px(0.0))
+            .focusable()
+            .tab_stop(true)
+            .track_focus(&focus)
+            .role(gpui::accesskit::Role::Link)
+            .accessibility_id(format!("react-gpui-text-run-{run_node_id}"))
+            .on_key_down(move |event, window, app| {
+                if event.keystroke.key == "enter"
+                    && !event.is_held
+                    && event.keystroke.modifiers == gpui::Modifiers::none()
+                    && focus_for_key.is_focused(window)
+                {
+                    let event = Event::press(
+                        surface_id,
+                        epoch,
+                        revision,
+                        sequence.fetch_add(1, Ordering::Relaxed),
+                        run_node_id,
+                        run_listener_id,
+                    );
+                    send_event_or_exit(runtime.as_ref(), "text run press event", &event);
+                    app.stop_propagation();
+                }
+            });
+        element = element.child(focus_element);
+    }
+    apply_accessibility(element, node).into_any()
 }
 
 pub(super) fn render_selectable(

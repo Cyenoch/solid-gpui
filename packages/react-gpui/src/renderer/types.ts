@@ -239,6 +239,8 @@ export interface TextProps extends AccessibilityProps {
   readonly style?: StyleProp;
   readonly selectable?: boolean;
   readonly onPress?: PressHandler;
+  readonly onFocus?: FocusHandler;
+  readonly onBlur?: FocusHandler;
   readonly onLayout?: LayoutHandler;
   readonly children?: TextChild | readonly TextChild[];
 }

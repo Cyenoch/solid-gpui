@@ -102,10 +102,16 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             kind: node.kind,
         });
     }
-    if node.focusable && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) {
+    if node.focusable && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT) {
         return Err(TreeError::InvalidProperties {
             node_id: node.id,
-            reason: "only View and Pressable nodes may be focusable",
+            reason: "only View, Pressable, and interactive Text nodes may be focusable",
+        });
+    }
+    if node.focusable && node.kind == KIND_TEXT && node.listener_id == 0 {
+        return Err(TreeError::InvalidProperties {
+            node_id: node.id,
+            reason: "Text nodes may be focusable only when they have an onPress listener",
         });
     }
     if node.selectable && node.kind != KIND_TEXT {

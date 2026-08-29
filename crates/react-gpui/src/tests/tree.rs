@@ -986,13 +986,14 @@ fn focusable_view_and_pressable_listener_combinations_are_validated() {
     assert!(store.get(2).unwrap().focusable);
 
     let mut valid_text_listener = Node::new(2, 1, 0, KIND_TEXT);
+    valid_text_listener.focusable = true;
     valid_text_listener.listener_id = 9;
     NodeStore::default()
         .apply_snapshot(root_snapshot(
             1,
             vec![Node::new(1, 0, 0, KIND_VIEW), valid_text_listener],
         ))
-        .expect("Text listener is valid");
+        .expect("interactive Text focus is valid");
     let mut valid_pressable = Node::new(2, 1, 0, KIND_PRESSABLE);
     valid_pressable.focusable = true;
     valid_pressable.listener_id = 9;
@@ -1004,6 +1005,22 @@ fn focusable_view_and_pressable_listener_combinations_are_validated() {
         ))
         .unwrap();
     assert!(store.get(2).unwrap().focusable);
+}
+
+#[test]
+fn focusable_text_without_press_listener_is_rejected() {
+    let mut text = Node::new(2, 1, 0, KIND_TEXT);
+    text.focusable = true;
+    let error = NodeStore::default()
+        .apply_snapshot(root_snapshot(1, vec![Node::new(1, 0, 0, KIND_VIEW), text]))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        TreeError::InvalidProperties {
+            reason: "Text nodes may be focusable only when they have an onPress listener",
+            ..
+        }
+    ));
 }
 #[test]
 fn pressable_focusable_patch_is_accepted() {

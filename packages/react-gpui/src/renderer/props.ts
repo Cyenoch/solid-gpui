@@ -70,6 +70,8 @@ const ALLOWED_PROPS: Record<HostKind, Record<string, true>> = {
     style: true,
     selectable: true,
     onPress: true,
+    onFocus: true,
+    onBlur: true,
     onLayout: true,
     children: true,
     ref: true,
@@ -380,6 +382,15 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   }
   if (kind === "Text" && props.selectable !== undefined && typeof props.selectable !== "boolean") {
     throw new TypeError("Text selectable must be a boolean");
+  }
+  if (kind === "Text") {
+    if (props.onFocus !== undefined && typeof props.onFocus !== "function")
+      throw new TypeError("Text onFocus must be a function");
+    if (props.onBlur !== undefined && typeof props.onBlur !== "function")
+      throw new TypeError("Text onBlur must be a function");
+    if (props.onFocus !== undefined || props.onBlur !== undefined) {
+      if (props.onPress === undefined) throw new TypeError("Text onFocus/onBlur requires onPress");
+    }
   }
   if ((kind === "View" || kind === "Pressable") && props.tooltip !== undefined) {
     if (

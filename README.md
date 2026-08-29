@@ -63,8 +63,10 @@ Nested runs are flattened into one UTF-8 paragraph for wrapping and
 accessibility, while each run keeps its own color, font, weight, and decoration.
 Selectable rich text is supported: selection and copy operate on the complete
 flattened paragraph across run boundaries. A nested run with `onPress` is a
-clickable link target; keyboard focus remains a known boundary until per-run
-focus support is added.
+clickable link target and receives a native focus handle/tab stop; focus and
+blur use the existing callbacks, and unmodified Enter synthesizes `onPress`.
+Space remains non-activating. A visible per-run focus affordance remains a
+documented boundary.
 
 ## Platform support
 
