@@ -865,16 +865,6 @@ fn rich_text_uses_run_cursor(clickable_ranges: &[Range<usize>]) -> bool {
     !clickable_ranges.is_empty()
 }
 
-#[cfg(test)]
-mod rich_text_cursor_tests {
-    use super::rich_text_uses_run_cursor;
-
-    #[test]
-    fn interactive_runs_disable_parent_cursor() {
-        assert!(rich_text_uses_run_cursor(&[0..4]));
-        assert!(!rich_text_uses_run_cursor(&[]));
-    }
-}
 pub(super) fn render_rich_text(
     root: &ReactRoot,
     node: &StoredNode,
@@ -1064,4 +1054,14 @@ pub(super) fn render_selectable(
         apply_accessibility(selectable, node).into_any(),
         entity,
     )
+}
+#[cfg(test)]
+mod rich_text_cursor_tests {
+    use super::rich_text_uses_run_cursor;
+
+    #[test]
+    fn interactive_runs_disable_parent_cursor() {
+        assert!(rich_text_uses_run_cursor(std::slice::from_ref(&(0..4))));
+        assert!(!rich_text_uses_run_cursor(&[]));
+    }
 }

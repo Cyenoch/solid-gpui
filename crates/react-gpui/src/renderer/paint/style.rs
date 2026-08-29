@@ -183,29 +183,27 @@ fn apply_style_with_cursor<E: Styled>(
     if let Some(opacity) = style.opacity {
         element = element.opacity(opacity);
     }
-    if with_cursor {
-        if let Some(cursor) = style.cursor {
-            element = element.cursor(match cursor {
-                0 => gpui::CursorStyle::Arrow,
-                1 => gpui::CursorStyle::IBeam,
-                2 => gpui::CursorStyle::PointingHand,
-                3 => gpui::CursorStyle::OpenHand,
-                4 | 12 => gpui::CursorStyle::ClosedHand,
-                5 | 11 => gpui::CursorStyle::OperationNotAllowed,
-                6 => gpui::CursorStyle::ContextualMenu,
-                7 => gpui::CursorStyle::Crosshair,
-                8 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
-                9 => gpui::CursorStyle::DragLink,
-                10 => gpui::CursorStyle::DragCopy,
-                13 => gpui::CursorStyle::ResizeLeftRight,
-                14 => gpui::CursorStyle::ResizeUpDown,
-                15 => gpui::CursorStyle::ResizeUpLeftDownRight,
-                16 => gpui::CursorStyle::ResizeUpRightDownLeft,
-                17 => gpui::CursorStyle::ResizeColumn,
-                18 => gpui::CursorStyle::ResizeRow,
-                _ => gpui::CursorStyle::Arrow,
-            });
-        }
+    if with_cursor && let Some(cursor) = style.cursor {
+        element = element.cursor(match cursor {
+            0 => gpui::CursorStyle::Arrow,
+            1 => gpui::CursorStyle::IBeam,
+            2 => gpui::CursorStyle::PointingHand,
+            3 => gpui::CursorStyle::OpenHand,
+            4 | 12 => gpui::CursorStyle::ClosedHand,
+            5 | 11 => gpui::CursorStyle::OperationNotAllowed,
+            6 => gpui::CursorStyle::ContextualMenu,
+            7 => gpui::CursorStyle::Crosshair,
+            8 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
+            9 => gpui::CursorStyle::DragLink,
+            10 => gpui::CursorStyle::DragCopy,
+            13 => gpui::CursorStyle::ResizeLeftRight,
+            14 => gpui::CursorStyle::ResizeUpDown,
+            15 => gpui::CursorStyle::ResizeUpLeftDownRight,
+            16 => gpui::CursorStyle::ResizeUpRightDownLeft,
+            17 => gpui::CursorStyle::ResizeColumn,
+            18 => gpui::CursorStyle::ResizeRow,
+            _ => gpui::CursorStyle::Arrow,
+        });
     }
     element
 }
