@@ -8,6 +8,8 @@ from this work tree.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-30
+
 - Multi-surface lifecycle now retires every closed or explicitly unmounted
   surface ID. `SurfaceHost.createRoot` rejects same-ID recreation with typed
   `SurfaceIdReusedError`, while pending commands on a closed root reject with

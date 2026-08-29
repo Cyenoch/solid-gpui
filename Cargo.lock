@@ -4415,7 +4415,7 @@ dependencies = [
 
 [[package]]
 name = "react-gpui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures",
  "gpui",
@@ -4431,7 +4431,7 @@ dependencies = [
 
 [[package]]
 name = "react-gpui-bun"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "react-gpui",
  "thiserror 2.0.20",
@@ -4439,7 +4439,7 @@ dependencies = [
 
 [[package]]
 name = "react-gpui-host"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures",
  "gpui",
