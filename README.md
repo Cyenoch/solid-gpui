@@ -65,8 +65,10 @@ Selectable rich text is supported: selection and copy operate on the complete
 flattened paragraph across run boundaries. A nested run with `onPress` is a
 clickable link target and receives a native focus handle/tab stop; focus and
 blur use the existing callbacks, and unmodified Enter synthesizes `onPress`.
-Space remains non-activating. A visible per-run focus affordance remains a
-documented boundary.
+Space remains non-activating. Listener-bearing runs own the pointing-hand
+cursor only over their shaped glyph range through GPUI's native InteractiveText
+decision; when a paragraph has such runs, its node-level cursor style is
+intentionally ignored so sibling text keeps the surrounding cursor.
 The complete rich-text showcase is [`packages/react-gpui/examples/rich-text.tsx`](packages/react-gpui/examples/rich-text.tsx), including nested styles, interactive link runs, and native selection/copy across run boundaries.
 
 ## Platform support

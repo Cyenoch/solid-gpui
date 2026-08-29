@@ -45,7 +45,7 @@ function createStyles(theme: Theme) {
     strikeRun: { color: theme.danger, textDecoration: "lineThrough" },
     underlineRun: { color: theme.accentText, textDecoration: "underline" },
     fontRun: { color: theme.text, fontWeight: "medium" },
-    linkParagraph: { fontSize: 15, lineHeight: 23, color: theme.text, cursor: "pointer" },
+    linkParagraph: { fontSize: 15, lineHeight: 23, color: theme.text },
     link: { color: theme.accentText, fontWeight: "semibold", textDecoration: "underline" },
     linkFocused: { color: theme.focusRing, fontWeight: "bold" },
     status: { fontSize: 12, lineHeight: 18, color: theme.textMuted },

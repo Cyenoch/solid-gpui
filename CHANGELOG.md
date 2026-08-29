@@ -572,6 +572,11 @@ from this work tree.
   unrelated patches while rebuilding changed paragraphs and final content
   ancestors, including same-patch create chains and deletes.
 
+- Fixed nested interactive `Text` cursor scope: GPUI's native
+  `InteractiveText` decision now controls the pointing hand for listener-bearing
+  runs, while the paragraph's node-level cursor style is ignored so sibling
+  text does not inherit it.
+
 - Keyboard focus traversal previously failed for all React nodes because GPUI
   focusable elements were not registered as native tab stops; traversal now
   reaches React View, Pressable, TextInput, and selectable Text nodes through

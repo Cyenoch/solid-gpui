@@ -2666,6 +2666,48 @@ mod input_tests {
         let event = event.expect("Text press event");
         assert_eq!((event.node_id, event.listener_id), (3, 9));
     }
+
+    #[gpui::test]
+    fn interactive_text_run_mouse_press_still_dispatches(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(240.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("interactive Text root");
+        let paragraph = Node::new(2, 1, 0, KIND_TEXT);
+        let mut run = Node::new(3, 2, 0, KIND_TEXT);
+        run.listener_id = 9;
+        let mut raw = Node::new(4, 3, 0, KIND_RAW_TEXT);
+        raw.text = Some("link".into());
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), paragraph, run, raw],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&snapshot.encode().unwrap(), cx)
+        })
+        .expect("apply interactive Text snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw interactive Text");
+        cx.run_until_parked();
+        let point = gpui::point(px(2.0), px(8.0));
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_mouse_down(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        let mut event = None;
+        while let Some(next) = runtime.take_event().expect("read event") {
+            if next.event_type == crate::protocol::EVENT_PRESS {
+                event = Some(next);
+                break;
+            }
+        }
+        let event = event.expect("Text press event");
+        assert_eq!((event.node_id, event.listener_id), (3, 9));
+    }
     #[gpui::test]
     fn interactive_text_run_paints_focus_affordance_quads(cx: &mut gpui::TestAppContext) {
         let runtime = InMemoryAdapter::new();

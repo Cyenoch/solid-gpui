@@ -1,19 +1,22 @@
 # 01 — Per-run pointing cursor for interactive Text
 
-Status: needs-triage
+Status: resolved
 Type: task
 
-Interactive nested `Text` runs currently use the parent paragraph's
-`InteractiveText` hitbox for pointing-hand feedback. The link runs retain
-correct listener identity, mouse range activation, keyboard focus, and painted
-focus affordances, but the cursor cannot be scoped to only the link glyph range
-with the pinned GPUI surface. An attempted run-scoped implementation did not
-pass the real headless pointer-dispatch test and was removed rather than
-shipping an unverified cursor state machine.
+Interactive nested `Text` runs now use pinned GPUI `InteractiveText`'s native
+`clickable_ranges` hit testing for pointing-hand feedback. When a paragraph has
+listener-bearing runs, the renderer skips only the paragraph node's cursor style
+so the native range decision owns the cursor; paragraphs without interactive
+runs retain the existing node-level cursor behavior. Listener identity, mouse
+range activation, keyboard focus/Enter activation, and painted focus affordances
+remain unchanged.
 
-Evidence: `.scratch/link-affordance/summary.txt` and
-`.scratch/link-keyboard/spec.md:92-105` (cursor boundary and attempted
-implementation outcome).
+Evidence: `crates/react-gpui/src/renderer/paint/text_input.rs` selects
+`apply_style_without_cursor` only when `clickable_ranges` is non-empty;
+`crates/react-gpui/src/renderer/paint/style.rs` preserves all other style fields.
+Focused tests cover the cursor decision and real headless frame mouse press
+dispatch (`interactive_text_run_mouse_press_still_dispatches`), alongside the
+existing keyboard/focus and affordance regressions.
 
 ## Acceptance
 

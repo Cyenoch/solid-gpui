@@ -198,8 +198,10 @@ Nested Text runs may use `onPress` and `accessibilityRole="link"`; pointer
 activation maps the parent paragraph hit position to the matching run listener.
 Listener-bearing runs are keyboard-focusable, activate on unmodified Enter, and
 paint a one-pixel high-contrast affordance for each wrapped line while focused.
-Space remains non-activating. Pointer cursor feedback remains the existing
-parent `Text` hitbox behavior; sibling-level cursor boundaries are not exposed.
+Space remains non-activating. Listener-bearing runs own the pointing-hand cursor
+only over their shaped glyph range through GPUI's native `InteractiveText`
+decision. When a paragraph has such runs, its node-level cursor style is
+intentionally ignored so sibling text keeps the surrounding cursor.
 
 `accessibilityDisabled` is retained and validated on the wire, but GPUI 0.2.2
 does not expose a public AX disabled-state builder. Pressable interaction and

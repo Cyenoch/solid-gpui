@@ -2,7 +2,19 @@ use gpui::{BoxShadow as GpuiBoxShadow, SharedString, Styled, point, px, rgba};
 
 use crate::protocol::Style;
 
-pub(super) fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
+pub(super) fn apply_style<E: Styled>(element: E, style: Option<&Style>) -> E {
+    apply_style_with_cursor(element, style, true)
+}
+
+pub(super) fn apply_style_without_cursor<E: Styled>(element: E, style: Option<&Style>) -> E {
+    apply_style_with_cursor(element, style, false)
+}
+
+fn apply_style_with_cursor<E: Styled>(
+    mut element: E,
+    style: Option<&Style>,
+    with_cursor: bool,
+) -> E {
     let Some(style) = style else { return element };
     if style.flex_direction.is_some()
         || style.gap.is_some()
@@ -171,27 +183,29 @@ pub(super) fn apply_style<E: Styled>(mut element: E, style: Option<&Style>) -> E
     if let Some(opacity) = style.opacity {
         element = element.opacity(opacity);
     }
-    if let Some(cursor) = style.cursor {
-        element = element.cursor(match cursor {
-            0 => gpui::CursorStyle::Arrow,
-            1 => gpui::CursorStyle::IBeam,
-            2 => gpui::CursorStyle::PointingHand,
-            3 => gpui::CursorStyle::OpenHand,
-            4 | 12 => gpui::CursorStyle::ClosedHand,
-            5 | 11 => gpui::CursorStyle::OperationNotAllowed,
-            6 => gpui::CursorStyle::ContextualMenu,
-            7 => gpui::CursorStyle::Crosshair,
-            8 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
-            9 => gpui::CursorStyle::DragLink,
-            10 => gpui::CursorStyle::DragCopy,
-            13 => gpui::CursorStyle::ResizeLeftRight,
-            14 => gpui::CursorStyle::ResizeUpDown,
-            15 => gpui::CursorStyle::ResizeUpLeftDownRight,
-            16 => gpui::CursorStyle::ResizeUpRightDownLeft,
-            17 => gpui::CursorStyle::ResizeColumn,
-            18 => gpui::CursorStyle::ResizeRow,
-            _ => gpui::CursorStyle::Arrow,
-        });
+    if with_cursor {
+        if let Some(cursor) = style.cursor {
+            element = element.cursor(match cursor {
+                0 => gpui::CursorStyle::Arrow,
+                1 => gpui::CursorStyle::IBeam,
+                2 => gpui::CursorStyle::PointingHand,
+                3 => gpui::CursorStyle::OpenHand,
+                4 | 12 => gpui::CursorStyle::ClosedHand,
+                5 | 11 => gpui::CursorStyle::OperationNotAllowed,
+                6 => gpui::CursorStyle::ContextualMenu,
+                7 => gpui::CursorStyle::Crosshair,
+                8 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
+                9 => gpui::CursorStyle::DragLink,
+                10 => gpui::CursorStyle::DragCopy,
+                13 => gpui::CursorStyle::ResizeLeftRight,
+                14 => gpui::CursorStyle::ResizeUpDown,
+                15 => gpui::CursorStyle::ResizeUpLeftDownRight,
+                16 => gpui::CursorStyle::ResizeUpRightDownLeft,
+                17 => gpui::CursorStyle::ResizeColumn,
+                18 => gpui::CursorStyle::ResizeRow,
+                _ => gpui::CursorStyle::Arrow,
+            });
+        }
     }
     element
 }
@@ -301,4 +315,25 @@ pub(super) fn text_run(
         }
     }
     text_style.to_run(len)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{apply_style, apply_style_without_cursor};
+    use crate::protocol::Style;
+    use gpui::{CursorStyle, Styled};
+
+    #[test]
+    fn interactive_rich_text_omits_parent_cursor_only_when_requested() {
+        let style = Style {
+            cursor: Some(2),
+            ..Style::default()
+        };
+
+        let mut styled = apply_style(gpui::div(), Some(&style));
+        assert_eq!(styled.style().mouse_cursor, Some(CursorStyle::PointingHand));
+
+        let mut styled = apply_style_without_cursor(gpui::div(), Some(&style));
+        assert_eq!(styled.style().mouse_cursor, None);
+    }
 }

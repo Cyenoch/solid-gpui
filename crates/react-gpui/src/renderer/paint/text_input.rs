@@ -18,7 +18,7 @@ use crate::tree::StoredNode;
 use super::super::ReactRoot;
 use super::super::events::emit_key_event;
 use super::accessibility::apply_accessibility;
-use super::style::{apply_style, apply_text_style};
+use super::style::{apply_style, apply_style_without_cursor, apply_text_style};
 pub(crate) struct RichTextParts {
     pub(super) text: String,
     pub(super) runs: Vec<TextRun>,
@@ -861,6 +861,20 @@ pub(super) fn render_text_input(
     apply_accessibility(input_element, node).into_any()
 }
 
+fn rich_text_uses_run_cursor(clickable_ranges: &[Range<usize>]) -> bool {
+    !clickable_ranges.is_empty()
+}
+
+#[cfg(test)]
+mod rich_text_cursor_tests {
+    use super::rich_text_uses_run_cursor;
+
+    #[test]
+    fn interactive_runs_disable_parent_cursor() {
+        assert!(rich_text_uses_run_cursor(&[0..4]));
+        assert!(!rich_text_uses_run_cursor(&[]));
+    }
+}
 pub(super) fn render_rich_text(
     root: &ReactRoot,
     node: &StoredNode,
@@ -871,7 +885,11 @@ pub(super) fn render_rich_text(
     if node.id == 1 {
         element = element.size_full().flex().flex_col();
     }
-    element = apply_style(element, style);
+    element = if rich_text_uses_run_cursor(&parts.clickable_ranges) {
+        apply_style_without_cursor(element, style)
+    } else {
+        apply_style(element, style)
+    };
     element = apply_text_style(element, style);
     if parts.clickable_ranges.is_empty() {
         if !parts.text.is_empty() {
