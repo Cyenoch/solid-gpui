@@ -53,6 +53,10 @@ from this work tree.
   selectable rich text remains intentionally unsupported. The wire keeps the
   existing `Text`/`RawText` node kinds.
 
+- Added a headless rich-text performance guard covering 50- and 200-run
+  paragraphs. Unchanged redraws must reuse assembled content (zero rebuilds
+  across the measured frames); style-only and full-text updates rebuild once.
+
 ### Added
 - Added keyboard-accessible nested `Text` link runs. Listener-bearing runs now
   receive native GPUI focus handles and tab stops, emit the existing focus/blur

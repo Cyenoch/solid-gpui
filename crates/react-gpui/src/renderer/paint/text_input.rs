@@ -19,7 +19,7 @@ use super::super::ReactRoot;
 use super::super::events::emit_key_event;
 use super::accessibility::apply_accessibility;
 use super::style::{apply_style, apply_text_style};
-pub(super) struct RichTextParts {
+pub(crate) struct RichTextParts {
     pub(super) text: String,
     pub(super) runs: Vec<TextRun>,
     pub(super) clickable_ranges: Vec<Range<usize>>,
@@ -30,7 +30,10 @@ pub(super) fn rich_text_parts(
     root: &ReactRoot,
     node: &StoredNode,
     style: Option<&Style>,
-) -> RichTextParts {
+) -> Rc<RichTextParts> {
+    if let Some(parts) = root.rich_text_parts_cache.borrow().get(&node.id) {
+        return Rc::clone(parts);
+    }
     let text_style = gpui::TextStyle::default();
     let mut text = String::new();
     let mut runs = Vec::new();
@@ -70,12 +73,19 @@ pub(super) fn rich_text_parts(
         text.push_str(content);
         runs.push(super::style::text_run(&text_style, style, content.len()));
     }
-    RichTextParts {
+    #[cfg(test)]
+    root.rich_text_assembly_count
+        .set(root.rich_text_assembly_count.get() + 1);
+    let parts = Rc::new(RichTextParts {
         text,
         runs,
         clickable_ranges,
         clickable_targets,
-    }
+    });
+    root.rich_text_parts_cache
+        .borrow_mut()
+        .insert(node.id, Rc::clone(&parts));
+    parts
 }
 pub(super) fn text_style_to_run(text_style: &gpui::TextStyle, len: usize) -> TextRun {
     text_style.to_run(len)
@@ -865,13 +875,15 @@ pub(super) fn render_rich_text(
     element = apply_text_style(element, style);
     if parts.clickable_ranges.is_empty() {
         if !parts.text.is_empty() {
-            element = element
-                .child(StyledText::new(SharedString::from(parts.text)).with_runs(parts.runs));
+            element = element.child(
+                StyledText::new(SharedString::from(parts.text.clone()))
+                    .with_runs(parts.runs.clone()),
+            );
         }
         return apply_accessibility(element, node).into_any();
     }
-    let ranges = parts.clickable_ranges;
-    let targets = parts.clickable_targets;
+    let ranges = parts.clickable_ranges.clone();
+    let targets = parts.clickable_targets.clone();
     let click_targets = targets.clone();
     let runtime = Arc::clone(&root.runtime);
     let sequence = Arc::clone(&root.next_sequence);
@@ -910,8 +922,8 @@ pub(super) fn render_rich_text(
     element = element.child(RichTextElement {
         node_id: node.id,
         interactive,
-        text: parts.text,
-        runs: parts.runs,
+        text: parts.text.clone(),
+        runs: parts.runs.clone(),
         focuses,
         affordance_bounds: Rc::clone(&root.link_affordance_bounds),
     });
@@ -968,8 +980,8 @@ pub(super) fn render_selectable(
 ) -> AnyElement {
     let node_id = node.id;
     let parts = rich_text_parts(root, node, style);
-    let text = parts.text;
-    let runs = parts.runs;
+    let text = parts.text.clone();
+    let runs = parts.runs.clone();
     let focus = root
         .focus_handles
         .get(&node_id)

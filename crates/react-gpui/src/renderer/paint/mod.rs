@@ -47,6 +47,7 @@ mod image;
 mod overlay;
 mod style;
 mod text_input;
+pub(super) use text_input::RichTextParts;
 mod virtual_list;
 
 #[cfg(test)]

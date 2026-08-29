@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -68,6 +70,7 @@ fn virtual_list_ancestor(store: &NodeStore, mut node_id: u32) -> Option<u32> {
         node_id = node.parent_id;
     }
 }
+
 fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppearance {
     match appearance {
         GpuiWindowAppearance::Light | GpuiWindowAppearance::VibrantLight => WindowAppearance::Light,
@@ -83,8 +86,11 @@ pub struct ReactRoot {
     input_states: HashMap<u32, NativeInputState>,
     text_input_layouts: HashMap<u32, TextInputLayout>,
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
+    rich_text_parts_cache: RefCell<HashMap<u32, Rc<paint::RichTextParts>>>,
     selectable_text_selections: HashMap<u32, Range<usize>>,
     link_affordance_bounds: paint::LinkAffordanceBounds,
+    #[cfg(test)]
+    rich_text_assembly_count: Cell<usize>,
     focus_handles: HashMap<u32, FocusHandle>,
     focused_node: Option<(u32, u32)>,
     active_input: Option<u32>,
@@ -118,17 +124,20 @@ impl ReactRoot {
         Self {
             store: NodeStore::empty(),
             runtime,
+            next_sequence: Arc::new(AtomicU32::new(1)),
             input_states: HashMap::new(),
+            rich_text_parts_cache: RefCell::new(HashMap::new()),
             text_input_layouts: HashMap::new(),
             selectable_text_layouts: HashMap::new(),
             selectable_text_selections: HashMap::new(),
             link_affordance_bounds: Rc::new(RefCell::new(HashMap::new())),
+            #[cfg(test)]
+            rich_text_assembly_count: Cell::new(0),
             focus_handles: HashMap::new(),
             focused_node: None,
             active_input: None,
             text_input_drag_anchor: None,
             selectable_text_drag_anchor: None,
-            next_sequence: Arc::new(AtomicU32::new(1)),
             virtual_lists: HashMap::new(),
             virtual_ranges: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
@@ -248,6 +257,7 @@ impl ReactRoot {
                 || snapshot.surface_id != self.store.surface_id()
                 || snapshot.epoch != self.store.epoch();
             self.store.apply_snapshot(snapshot)?;
+            self.rich_text_parts_cache.borrow_mut().clear();
             self.reported_layout_bounds.clear();
             if reset_native_state {
                 self.reset_native_state();
@@ -268,6 +278,10 @@ impl ReactRoot {
                 })
                 .collect();
             self.store.apply_patch(patch)?;
+            // Any patch may alter a rich-text ancestor through a move/delete or
+            // a descendant update. Clearing the cache is conservative and
+            // keeps invalidation correct without a second tree walk.
+            self.rich_text_parts_cache.borrow_mut().clear();
             self.reported_layout_bounds
                 .retain(|id, _| !affected.contains(id));
             self.reconcile_input_states(cx, Some(&affected));
@@ -2753,6 +2767,83 @@ mod input_tests {
             elapsed.as_secs_f64() * 1_000.0,
         );
         assert_eq!(layout_events, MEASURED_NODES);
+    }
+
+    #[gpui::test]
+    fn rich_text_parts_cache_reuses_unchanged_draws_and_invalidates_patches(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(240.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("rich text cache root");
+        let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
+        raw.text = Some("cached text".into());
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![
+                Node::new(1, 0, 0, KIND_VIEW),
+                Node::new(2, 1, 0, KIND_TEXT),
+                raw,
+            ],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(
+                &snapshot.encode().expect("encode rich text cache snapshot"),
+                cx,
+            )
+        })
+        .expect("apply rich text cache snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("warm rich text cache draw");
+        root.update(cx, |root, _| root.rich_text_assembly_count.set(0));
+        for _ in 0..2 {
+            cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+                .expect("unchanged rich text draw");
+        }
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 0)
+        });
+
+        let patch = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 3,
+                mask: UPDATE_TEXT,
+                style: None,
+                text: Some("updated text".into()),
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&patch.encode().expect("encode rich text cache patch"), cx)
+        })
+        .expect("apply rich text cache patch");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("changed rich text draw");
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 1)
+        });
+        root.update(cx, |root, _| root.rich_text_assembly_count.set(0));
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("cached changed rich text draw");
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 0)
+        });
     }
 
     #[test]
