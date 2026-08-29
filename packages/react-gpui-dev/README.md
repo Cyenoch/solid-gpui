@@ -90,13 +90,23 @@ test("filters and selects a todo", () => {
 
 `TestApp` methods still use the real core receive/dispatch path through
 `MemoryTransport`; they are ergonomics over that seam, not a fake event
-system. `node(labelOrPredicate)` and `text(value)` report the query in their
+system. The facade doctrine is: **commands go through `app.root`; events and
+command assertions go through the facade**. Use `app.root` directly for all
+Root commands (including window controls, clipboard/file I/O, notifications,
+menus, close policy, and focus traversal) rather than expecting pass-through
+aliases. `drainCommands()` returns newly emitted decoded command frames so a
+test can assert the command emitted by either a root or node operation, while
+`commandResult()` completes the captured acknowledgement.
+
+`node(labelOrPredicate)` and `text(value)` report the query in their
 not-found errors. The facade also provides `hover`, `key`, `input`, `submit`,
-`scroll`, `pointer`, `dragOver`, `drop`, `pointerDownOutside`, `focus`, `blur`,
-`visibleRange`, and inferred `commandResult` interactions. `pointer` accepts
-non-negative logical window-pixel `x`/`y` coordinates (defaulting to `0` when
-omitted) so renderer tests exercise the same pointer payload shape as the host.
-Keep `dispatchFrame(rawEvent)` for an event not represented by a helper.
+`scroll`, `pointer`, `dragOver`, `drop`, `externalFileDrop`, `pointerDownOutside`,
+`focus`, `blur`, `selection`, `layout`, and `visibleRange` interactions.
+`pointer` accepts non-negative logical window-pixel `x`/`y` coordinates
+(defaulting to `0` when omitted) so renderer tests exercise the same pointer
+payload shape as the host. `dispatchFrame(rawEvent)` remains the escape hatch
+for RootOptions callback notifications and any event not represented by a
+helper.
 
 `TestApp` covers renderer semantics: state transitions, patches, retained-node
 lookup, and event routing. It cannot prove host-owned semantics such as drag
@@ -108,6 +118,13 @@ The facade's `focus`/`blur` helpers inject `EVENT_FOCUS`/`EVENT_BLUR`
 notifications to verify renderer-side listener routing and state updates; they
 do not exercise imperative native focus commands. The host command chain is
 covered by the Rust `command_roundtrip` suite.
+
+Imperative `VirtualListHandle` methods (`scrollToIndex`, `scrollToEnd`,
+`getScrollOffset`, and `scrollToOffset`) remain component refs, not
+`TestNodeHandle` methods: the facade's retained-node handles intentionally
+describe wire nodes and do not pretend to be React refs. Capture the ref in
+the component under test and invoke it directly when that contract is what
+the test needs; use `app.drainCommands()` to assert the resulting command.
 
 Use `node(kind, predicate?)` to locate the latest retained Host Node. Event
 helpers `press`, `key`, `input`, `submit`, and `visibleRange` inject real

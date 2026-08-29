@@ -16,10 +16,11 @@ import type { ReactElement } from "react";
 // and MemoryTransport in testing.test.tsx, and the guard test reuses any
 // constants later exposed by the core package entrypoint.
 const PROTOCOL_VERSION = 3;
-const EVENT_MESSAGE = 2;
 const COMMAND_MESSAGE = 4;
+const EVENT_MESSAGE = 2;
 const EVENT_PRESS = 1;
 const EVENT_CHANGE = 2;
+const EVENT_SELECTION = 3;
 const EVENT_FOCUS = 4;
 const EVENT_BLUR = 5;
 const EVENT_VISIBLE_RANGE = 7;
@@ -28,6 +29,7 @@ const EVENT_POINTER = 10;
 const EVENT_HOVER = 11;
 const EVENT_SCROLL = 12;
 const EVENT_SUBMIT = 13;
+const EVENT_LAYOUT = 19;
 const EVENT_DRAG = 20;
 const EVENT_POINTER_DOWN_OUTSIDE = 22;
 const COMMAND_RESULT_EVENT = 6;
@@ -43,6 +45,7 @@ const SCROLL_PIXELS = 1;
 const SCROLL_LINES = 2;
 const DRAG_OVER = 1;
 const DRAG_DROP = 2;
+const DRAG_EXTERNAL_FILE_DROP = 3;
 const INPUT_PAYLOAD = 1;
 
 const HOST_KIND_BY_CODE: Record<number, HostKind> = {
@@ -124,6 +127,18 @@ type TestAppPointer = {
   readonly x?: number;
   readonly y?: number;
 };
+type TestAppSelection = {
+  readonly start: number;
+  readonly end: number;
+  readonly reversed?: boolean;
+  readonly composing?: { readonly start: number; readonly end: number } | null;
+};
+type TestAppLayout = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+};
 
 /** Consumer-facing behavior test facade over the real headless Root seam. */
 export interface TestApp {
@@ -142,10 +157,14 @@ export interface TestApp {
   pointer(locator: TestAppLocator, options: TestAppPointer): readonly unknown[];
   dragOver(locator: TestAppLocator, dragType: string): readonly unknown[];
   drop(locator: TestAppLocator, dragType: string): readonly unknown[];
+  externalFileDrop(locator: TestAppLocator, paths: readonly string[]): readonly unknown[];
   pointerDownOutside(locator: TestAppLocator, point: { readonly x: number; readonly y: number }): readonly unknown[];
   focus(locator: TestAppLocator): readonly unknown[];
   blur(locator: TestAppLocator): readonly unknown[];
+  selection(locator: TestAppLocator, selection: TestAppSelection): readonly unknown[];
+  layout(locator: TestAppLocator, frame: TestAppLayout): readonly unknown[];
   visibleRange(locator: TestAppLocator, start: number, end: number): readonly unknown[];
+  drainCommands(): readonly unknown[];
   commandResult(options?: CommandResultOptions): readonly unknown[];
   commandResult(requestId: number, options?: CommandResultOptions): readonly unknown[];
   dispatchFrame(rawEvent: Uint8Array | ArrayBuffer): readonly unknown[];
@@ -378,7 +397,7 @@ function pointerButtonCode(button: NonNullable<TestAppPointer["button"]>): numbe
   }
 }
 
-function inputEventPayload(handle: TestNodeHandle): readonly unknown[] {
+function inputEventPayload(handle: TestNodeHandle): unknown[] {
   const properties = handle.hostProperties;
   if (properties === null || Number(properties[0]) !== INPUT_PAYLOAD) {
     return [INPUT_PAYLOAD, "", 0, 0, null, null, 0, false];
@@ -530,11 +549,11 @@ function dispatchFocus(renderResult: InternalRenderResult, handle: TestNodeHandl
   if (!handle.focusable) throw new TypeError(`testing app focus requires a focusable ${handle.kind} node`);
   renderResult.dispatchEvent(handle, eventType, null);
 }
-
 /** Render a component behind a locator- and interaction-oriented test facade. */
 export function renderTestApp(element: ReactElement | null, options: RenderOptions = {}): TestApp {
   const renderResult = render(element, options) as InternalRenderResult;
   const hovered = new Map<number, boolean>();
+  let drainedCommandCount = 0;
   const resolve = (locator: TestAppLocator): TestNodeHandle => locateNode(renderResult.commits(), locator);
   const commit = (): readonly unknown[] => latestCommit(renderResult.commits());
   const app: TestApp = {
@@ -655,6 +674,27 @@ export function renderTestApp(element: ReactElement | null, options: RenderOptio
       renderResult.dispatchEvent(node, EVENT_DRAG, [DRAG_DROP, dragType]);
       return commit();
     },
+    externalFileDrop(locator, paths) {
+      const node = resolve(locator);
+      if (node.kind !== "View" && node.kind !== "Pressable") {
+        throw new TypeError(`testing app externalFileDrop requires View or Pressable; received ${node.kind}`);
+      }
+      requireListener(node);
+      if (
+        !Array.isArray(paths) ||
+        paths.length === 0 ||
+        paths.some(
+          (path) =>
+            typeof path !== "string" || path.length === 0 || path.length > 4096 || /[\u0000-\u001f\u007f]/.test(path),
+        )
+      ) {
+        throw new TypeError(
+          "testing app externalFileDrop paths must be non-empty printable paths of at most 4096 characters",
+        );
+      }
+      renderResult.dispatchEvent(node, EVENT_DRAG, [DRAG_EXTERNAL_FILE_DROP, [...paths]]);
+      return commit();
+    },
     pointerDownOutside(locator, point) {
       const node = resolve(locator);
       requireKind(node, "View");
@@ -672,10 +712,53 @@ export function renderTestApp(element: ReactElement | null, options: RenderOptio
       dispatchFocus(renderResult, resolve(locator), EVENT_BLUR);
       return commit();
     },
+    selection(locator, nextSelection) {
+      const node = resolve(locator);
+      requireKind(node, "TextInput");
+      requireListener(node);
+      u32("selection start", nextSelection.start);
+      u32("selection end", nextSelection.end);
+      if (nextSelection.start > nextSelection.end) throw new RangeError("selection start must not exceed end");
+      const composing = nextSelection.composing;
+      if (composing !== undefined && composing !== null) {
+        u32("composing start", composing.start);
+        u32("composing end", composing.end);
+        if (composing.start > composing.end) throw new RangeError("composing start must not exceed end");
+      }
+      const payload = inputEventPayload(node);
+      payload[2] = nextSelection.start;
+      payload[3] = nextSelection.end;
+      payload[4] = composing === undefined ? payload[4] : (composing?.start ?? null);
+      payload[5] = composing === undefined ? payload[5] : (composing?.end ?? null);
+      payload[7] = nextSelection.reversed ?? false;
+      renderResult.dispatchEvent(node, EVENT_SELECTION, payload);
+      return commit();
+    },
+    layout(locator, nextFrame) {
+      const node = resolve(locator);
+      if (node.kind !== "View" && node.kind !== "Pressable" && node.kind !== "Text" && node.kind !== "Image") {
+        throw new TypeError(`testing app layout does not support ${node.kind}`);
+      }
+      requireListener(node);
+      finiteNumber("layout x", nextFrame.x);
+      finiteNumber("layout y", nextFrame.y);
+      finiteNumber("layout width", nextFrame.width);
+      finiteNumber("layout height", nextFrame.height);
+      renderResult.dispatchEvent(node, EVENT_LAYOUT, [nextFrame.x, nextFrame.y, nextFrame.width, nextFrame.height]);
+      return commit();
+    },
     visibleRange(locator, start, end) {
       const node = resolve(locator);
       renderResult.visibleRange(node, start, end);
       return commit();
+    },
+    drainCommands() {
+      const commands = renderResult
+        .commits()
+        .filter((value): value is readonly unknown[] => Array.isArray(value) && value[1] === COMMAND_MESSAGE);
+      const fresh = commands.slice(drainedCommandCount);
+      drainedCommandCount = commands.length;
+      return fresh;
     },
     commandResult(
       requestIdOrOptions: number | CommandResultOptions | undefined,

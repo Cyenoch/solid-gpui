@@ -58,6 +58,13 @@ from this work tree.
   across the measured frames); style-only and full-text updates rebuild once.
 
 ### Added
+
+- `TestApp` now provides selection, external-file-drop, and layout event
+  injectors plus `drainCommands()` for assertions. Root commands remain
+  available through `app.root`; imperative `VirtualListHandle` operations use
+  component refs, with their emitted commands assertable through the drain
+  helper.
+
 - Added keyboard-accessible nested `Text` link runs. Listener-bearing runs now
   receive native GPUI focus handles and tab stops, emit the existing focus/blur
   events, and synthesize the existing `onPress` event for unmodified Enter
@@ -609,6 +616,7 @@ from this work tree.
   no protocol or GPUI API change is required.
 
 ### Changed
+
 - Domain documentation now refreshes `CONTEXT.md` and records ADR-0009 through
   ADR-0012 for asynchronous close confirmation, opt-in high-frequency event
   streams, the single-form wire-tail doctrine, and host-owned input models.

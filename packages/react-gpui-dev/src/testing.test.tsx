@@ -166,6 +166,48 @@ describe("@react-gpui/dev headless renderer", () => {
     expect(pressed).toEqual(["pressed"]);
     result.unmount();
   });
+  it("selection injects TextInput selection notifications", () => {
+    const received: Array<unknown> = [];
+    const app = renderTestApp(
+      <TextInput
+        accessibilityLabel="selection"
+        onSelectionChange={(selection) => received.push([selection.start, selection.end, selection.reversed])}
+      />,
+    );
+    app.selection("selection", { start: 1, end: 3, reversed: true });
+    expect(received).toEqual([[1, 3, true]]);
+    app.unmount();
+  });
+  it("externalFileDrop injects paths through the drag event", () => {
+    const received: string[][] = [];
+    const app = renderTestApp(<View accessibilityLabel="drop" onExternalFileDrop={(paths) => received.push(paths)} />);
+    app.externalFileDrop("drop", ["/tmp/a.txt", "/tmp/b.txt"]);
+    expect(received).toEqual([["/tmp/a.txt", "/tmp/b.txt"]]);
+    app.unmount();
+  });
+  it("layout injects a measured frame through the layout event", () => {
+    const received: Array<unknown> = [];
+    const app = renderTestApp(
+      <View
+        accessibilityLabel="measured"
+        onLayout={(frame) => received.push([frame.x, frame.y, frame.width, frame.height])}
+      />,
+    );
+    app.layout("measured", { x: 4, y: 8, width: 120, height: 32 });
+    expect(received).toEqual([[4, 8, 120, 32]]);
+    app.unmount();
+  });
+  it("drainCommands returns newly emitted root command frames", async () => {
+    const app = renderTestApp(<View />);
+    const pending = app.root.setTitle("Testing");
+    const commands = app.drainCommands();
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toEqual(expect.arrayContaining([3, 4, 6, "Testing"]));
+    app.commandResult();
+    await pending;
+    expect(app.drainCommands()).toEqual([]);
+    app.unmount();
+  });
   it("pointer injects coordinates through the real dispatch path", () => {
     const received: Array<unknown> = [];
     const app = renderTestApp(
