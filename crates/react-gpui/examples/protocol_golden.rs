@@ -270,7 +270,6 @@ fn nested_text_focusable_patch() -> Patch {
     )
 }
 
-
 fn clipboard_image_command(kind: u32, request_id: u32, image: Option<ClipboardImage>) -> Command {
     Command {
         protocol: PROTOCOL_VERSION,
