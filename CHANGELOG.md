@@ -568,6 +568,9 @@ from this work tree.
   longer listed as an upstream gap.
 
 ### Fixed
+- Targeted rich-text cache invalidation now preserves assembled runs for
+  unrelated patches while rebuilding changed paragraphs and final content
+  ancestors, including same-patch create chains and deletes.
 
 - Keyboard focus traversal previously failed for all React nodes because GPUI
   focusable elements were not registered as native tab stops; traversal now

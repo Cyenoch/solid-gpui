@@ -277,11 +277,52 @@ impl ReactRoot {
                     | PatchOperation::Delete { id } => *id,
                 })
                 .collect();
+            let mut touched = affected.clone();
+            let mut pre_patch_roots = HashSet::new();
+            let mut parent_by_id = HashMap::with_capacity(patch.operations.len());
+            for operation in &patch.operations {
+                match operation {
+                    PatchOperation::Create(node) => {
+                        touched.insert(node.parent_id);
+                        parent_by_id.insert(node.id, node.parent_id);
+                    }
+                    PatchOperation::Update { .. } => {}
+                    PatchOperation::Move { id, parent_id, .. } => {
+                        if let Some(old_parent_id) = parent_by_id
+                            .get(id)
+                            .copied()
+                            .or_else(|| self.store.get(*id).map(|node| node.parent_id))
+                        {
+                            pre_patch_roots.insert(old_parent_id);
+                        }
+                        touched.insert(*parent_id);
+                        parent_by_id.insert(*id, *parent_id);
+                    }
+                    PatchOperation::Delete { id } => {
+                        if let Some(old_parent_id) = parent_by_id
+                            .get(id)
+                            .copied()
+                            .or_else(|| self.store.get(*id).map(|node| node.parent_id))
+                        {
+                            pre_patch_roots.insert(old_parent_id);
+                        }
+                        parent_by_id.remove(id);
+                    }
+                }
+            }
+            let mut pre_patch_ancestors = HashSet::new();
+            for &root_id in &pre_patch_roots {
+                let mut current = root_id;
+                while let Some(node) = self.store.get(current) {
+                    pre_patch_ancestors.insert(node.id);
+                    if node.parent_id == 0 {
+                        break;
+                    }
+                    current = node.parent_id;
+                }
+            }
             self.store.apply_patch(patch)?;
-            // Any patch may alter a rich-text ancestor through a move/delete or
-            // a descendant update. Clearing the cache is conservative and
-            // keeps invalidation correct without a second tree walk.
-            self.rich_text_parts_cache.borrow_mut().clear();
+            self.invalidate_rich_text_cache(&touched, &pre_patch_ancestors);
             self.reported_layout_bounds
                 .retain(|id, _| !affected.contains(id));
             self.reconcile_input_states(cx, Some(&affected));
@@ -293,6 +334,29 @@ impl ReactRoot {
         }
         cx.notify();
         Ok(())
+    }
+
+    /// Drop cached rich assemblies for touched nodes and their final ancestors.
+    /// `pre_patch_ancestors` preserves a rich parent detached by a move/delete.
+    fn invalidate_rich_text_cache(
+        &self,
+        touched: &HashSet<u32>,
+        pre_patch_ancestors: &HashSet<u32>,
+    ) {
+        let mut invalidated = pre_patch_ancestors.clone();
+        for &node_id in touched {
+            let mut current = node_id;
+            while let Some(node) = self.store.get(current) {
+                invalidated.insert(node.id);
+                if node.parent_id == 0 {
+                    break;
+                }
+                current = node.parent_id;
+            }
+        }
+        self.rich_text_parts_cache
+            .borrow_mut()
+            .retain(|id, _| self.store.get(*id).is_some() && !invalidated.contains(id));
     }
     fn reset_native_state(&mut self) {
         self.text_input_layouts.clear();
@@ -2843,6 +2907,159 @@ mod input_tests {
             .expect("cached changed rich text draw");
         root.read_with(cx, |root, _| {
             assert_eq!(root.rich_text_assembly_count.get(), 0)
+        });
+    }
+    #[gpui::test]
+    fn rich_text_cache_invalidates_only_changed_paragraph_and_handles_create_delete(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(320.0), px(120.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("selective rich cache root");
+        let mut first_run = Node::new(3, 2, 0, KIND_TEXT);
+        first_run.style = Some(Style {
+            color_rgba: Some(0xff0000ff),
+            ..Style::default()
+        });
+        let mut first_raw = Node::new(10, 3, 0, KIND_RAW_TEXT);
+        first_raw.text = Some("first".into());
+        let mut second_raw = Node::new(5, 4, 0, KIND_RAW_TEXT);
+        second_raw.text = Some("second".into());
+        let mut input = Node::new(6, 1, 2, KIND_TEXT_INPUT);
+        input.host_properties = Some(HostProperties::TextInput(controlled("initial", 0)));
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![
+                Node::new(1, 0, 0, KIND_VIEW),
+                Node::new(2, 1, 0, KIND_TEXT),
+                first_run,
+                first_raw,
+                Node::new(4, 1, 1, KIND_TEXT),
+                second_raw,
+                input,
+            ],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&snapshot.encode().expect("encode selective snapshot"), cx)
+        })
+        .expect("apply selective rich snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("warm selective rich cache draw");
+        root.update(cx, |root, _| root.rich_text_assembly_count.set(0));
+
+        let unrelated = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 6,
+                mask: UPDATE_PROPERTIES,
+                style: None,
+                text: None,
+                listener_id: 0,
+                host_properties: Some(HostProperties::TextInput(controlled("typed", 1))),
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&unrelated.encode().expect("encode unrelated patch"), cx)
+        })
+        .expect("apply unrelated patch");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw after unrelated patch");
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 0)
+        });
+
+        let nested_update = Patch::new(
+            7,
+            3,
+            2,
+            3,
+            vec![PatchOperation::Update {
+                id: 10,
+                mask: UPDATE_TEXT,
+                style: None,
+                text: Some("changed".into()),
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&nested_update.encode().expect("encode nested update"), cx)
+        })
+        .expect("apply nested text update");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw changed paragraph");
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 1)
+        });
+        root.update(cx, |root, _| root.rich_text_assembly_count.set(0));
+
+        let mut created_run = Node::new(9, 8, 0, KIND_RAW_TEXT);
+        created_run.text = Some("created".into());
+        let create_chain = Patch::new(
+            7,
+            3,
+            3,
+            4,
+            vec![
+                PatchOperation::Create(Node::new(7, 1, 2, KIND_VIEW)),
+                PatchOperation::Create(Node::new(8, 7, 0, KIND_TEXT)),
+                PatchOperation::Create(created_run),
+            ],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&create_chain.encode().expect("encode create chain"), cx)
+        })
+        .expect("apply create chain");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw created paragraph");
+        root.read_with(cx, |root, _| {
+            assert_eq!(root.rich_text_assembly_count.get(), 1);
+            assert!(root.rich_text_parts_cache.borrow().contains_key(&2));
+            assert!(root.rich_text_parts_cache.borrow().contains_key(&4));
+            assert_eq!(
+                root.store
+                    .get(8)
+                    .and_then(|node| node.text_content.as_deref()),
+                Some("created")
+            );
+        });
+        let delete = Patch::new(7, 3, 4, 5, vec![PatchOperation::Delete { id: 8 }]);
+        root.update(cx, |root, cx| {
+            root.apply_payload(&delete.encode().expect("encode rich delete"), cx)
+        })
+        .expect("delete rich paragraph");
+        root.read_with(cx, |root, _| {
+            assert!(!root.rich_text_parts_cache.borrow().contains_key(&8));
+        });
+        let replacement = Snapshot::new(7, 3, 5, 6, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+        root.update(cx, |root, cx| {
+            root.apply_payload(
+                &replacement.encode().expect("encode replacement snapshot"),
+                cx,
+            )
+        })
+        .expect("apply replacement snapshot");
+        root.read_with(cx, |root, _| {
+            assert!(root.rich_text_parts_cache.borrow().is_empty());
         });
     }
 

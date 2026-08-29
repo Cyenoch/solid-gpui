@@ -43,10 +43,11 @@ window-width correctness boundary is deeper and unmeasured.
 
 ## Fix
 
-`ReactRoot` now stores assembled rich parts by Text node ID. Snapshots and
-successful patches clear the entire small cache. Full invalidation is
-conservative: any patch can affect a rich-text ancestor through descendant
-create/update/move/delete operations, including operations whose parents are
-also created in the same patch. The known tradeoff is over-invalidation of
-unrelated rich paragraphs; targeted invalidation is a future issue candidate,
-not part of this correctness-first change.
+`ReactRoot` stores assembled rich parts by Text node ID. Snapshots clear the
+entire cache, while successful patches now invalidate only touched nodes, their
+post-patch content ancestors, and any cached entries for deleted nodes. Move
+and delete operations also invalidate pre-patch ancestors so detached content
+cannot remain stale. The two-pass boundary handles same-patch create chains
+after the store has established final ancestry. This preserves cache hits for
+unrelated updates while retaining the correctness guard for descendant
+create/update/move/delete operations.
