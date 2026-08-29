@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-30T00:36:08+0800
+Generated: 2026-08-30T02:43:06+0800
 Decision owner: human release owner  
-Current HEAD: `00f46a0` (`style: complete paint module boundary conformance`)
+Current HEAD: `7edad1f` (`chore(host): drop unused rmp-serde dev dependency`)
 
 This is an evidence package, not a release approval. It records fresh command
 runs, the current protocol/API surface, documentation consistency, known
@@ -11,28 +11,27 @@ published and no push, rebase, version change, or tag was performed.
 
 ## Executive readout
 
-- The complete five-gate matrix passed at exit code 0 on the final tree at `00f46a0`: `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all passed in the serial refresh below.
+- The complete five-gate matrix passed at exit code 0 on the final tree at `7edad1f`: `make ci`, `make embedded-bun`, `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and `make bun-pack-smoke` all passed in the serial refresh below.
 - The current candidate remains `0.1.0` on macOS ARM. The release scripts prove
   archive consistency and CLI/runtime behavior, not display-backed GUI behavior.
   Both process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The current Unreleased inventory contains **136 sectioned entries**:
-  **114 Added**, **14 Fixed**, and **8 Changed**. This is materially beyond a
-  patch-sized change set and provides stronger evidence for considering
-  `0.2.0`. No option is selected: the human release owner retains the decision.
-- `git log --oneline a5a91f6..HEAD` reports **9 commits** in this refresh
-  delta: bounded rich run reassembly, deferred workstream issue notes, native
-  window-title notes behavior, TestApp event/command facade coverage, targeted
-  rich-text cache invalidation, run-scoped interactive cursor behavior, and
-  three focused module/clippy boundary fixes. The crosswalk below records every
-  commit in this delta.
+- The current Unreleased inventory contains **137 sectioned entries**:
+  **114 Added**, **15 Fixed**, and **8 Changed**. The top-level Unreleased
+  entries are tracked separately by the changelog's historical layout; the
+  prior readiness convention reports the sectioned category counts. This is
+  materially beyond a patch-sized change set and provides stronger evidence for
+  considering `0.2.0`. No option is selected: the human release owner retains
+  the decision.
+- `git log --oneline 00f46a0..HEAD` reports **9 commits** in this refresh
+  delta: the bounded smoke-wait fix, dependency-graph refresh, public-doc/ADR
+  alignment, and the input typing-performance guard (including its formatting
+  and lint follow-ups), plus removal of the dead host `rmp-serde` declaration.
+  The crosswalk below records every commit in this delta.
 - The implementation backlog for the current 0.2.0 contract remains empty.
-  The latest pass adds host-owned undo/redo, precise VirtualList offset
-  persistence, styled and selectable interactive Text runs, keyboard-accessible
-  links with a visible focus affordance, targeted rich-text cache invalidation,
-  run-scoped cursor behavior, the rich-text showcase, the TestApp facade drain
-  and event injectors, native notes titles, and release-tooling rehearsal
-  evidence; display-backed behavior remains a documented acceptance boundary.
+  The latest pass adds a bounded TextInput typing-performance guard and removes
+  an unused host dev dependency while retaining the documented input, rich-text,
+  release, and display-backed acceptance boundaries.
 
 `.scratch/release-productionization/v0.2.0-cut-checklist.md` is the companion
 local checklist. `.scratch/release-productionization/dependency-audit.md` and
@@ -86,10 +85,10 @@ convention. No artifacts were published.
   selectable Text, focusable Text-run, text-file, and clipboard-image vectors.
 
 - Protocol references point at the split wire modules and contain zero bare
-  `wire.rs` paths. `.scratch/release-productionization/upstream-dependencies.md`
-  remains the three-tier tracking note for true upstream gaps, project limits
-  that can be re-reviewed, and test-platform limitations.
-
+  `wire.rs` paths. The refreshed `.scratch/release-productionization/upstream-
+  dependencies.md` records current manifest/lock direct edges, locked versions,
+  and verified dependency purposes; the dead host `rmp-serde` dev edge was then
+  removed by `7edad1f`.
 - Host kinds are View, Text, Pressable, RawText, TextInput, VirtualList, and
   Image. Retained-tree validation covers ownership, contiguous indexes,
   revisions, listeners, host properties, accessibility, focusability, malformed
@@ -125,8 +124,8 @@ convention. No artifacts were published.
   notifications, static menus, keybindings, close policy/resolution, and the
   `onAction`, close, window-observation, and transport-termination callbacks.
 - Styles use a validated **42-slot** positional tuple. The current style domain
-  includes four physical flex directions, physical text alignment, cursor
-  codes, positioning, typography, colors, overflow/truncation, margins, flex
+  includes four physical flex directions, physical text alignment, cursor codes,
+  positioning, typography, colors, overflow/truncation, margins, flex
   constraints, transition masks, `boxShadow` at slot 40, and `fontFamily` at
   slot 41. Explicit container/text base direction and bidi-aware hit/caret/IME
   semantics remain outside this contract; `letterSpacing` remains unsupported.
@@ -136,13 +135,12 @@ convention. No artifacts were published.
   Host-owned Cmd/Ctrl-C/X/V clipboard editing, Cmd/Ctrl-A selection, Option/Alt
   word-wise navigation with Shift extension, and bounded Cmd/Ctrl-Z undo with
   Shift-Cmd-Z/Ctrl-Y redo are supported. Typing coalesces by caret continuity;
-  paste/cut/selection edits and IME commits form history boundaries. Placeholder
-  layout falls back to element bounds, while multiline IME candidate placement
-  remains display-backed.
-- Mouse interaction covers click-to-caret, drag selection, anchor/head/reversed
-  orientation, selection highlighting, Shift navigation, Home/End, Up/Down,
-  platform Arrow key names, UAX #29 double-click word selection, and
-  triple-click logical-line selection without changing the wire contract.
+  paste/cut/selection edits and IME commits form history boundaries. The new
+  typing-performance guard covers 100/1,000/10,000-character single-line and
+  wrapped multiline inputs, records p50/p99 and call counts, and attributes the
+  dominant long-line cost to pinned GPUI whole-line shaping. Placeholder layout
+  falls back to element bounds, while multiline IME candidate placement remains
+  display-backed.
 - Pointer, hover, scroll, keyboard, focus/blur, press, submit, window resize,
   window activation, menu action, layout, drag, pointer-down-outside,
   close-requested, accessibility, and pointer-coordinate dispatch are covered
@@ -208,60 +206,62 @@ convention. No artifacts were published.
   while README Debugging retains the environment quick reference.
 - Makefile gates, fixed-SHA workflows, release archive/checksum validation,
   process and embedded candidate rehearsals, release-prep synchronization,
-  ADR-0008 error ownership, the consumer getting-started guide, and the
-  cross-platform matrix workflow are present. The matrix is scaffolded at
-  `.github/workflows/cross-platform.yml` and remains runner-only until
-  push/PR execution.
-- The release-prep rehearsal passed in detached worktree `/tmp/vue-gpui-release-rehearsal`:
-  `make release-prep VERSION=0.2.0` synchronized Cargo and both Bun package
-  versions, frozen lock checks passed, candidate packs were produced, and the
-  deterministic 0.2.0 host archive check passed. The rehearsal also caught
-  clean-checkout `bun-typecheck` ordering rot; `bun-typecheck: bun-build` is
-  now the committed prerequisite and the fixed CI run passed.
+  ADR-0008 error ownership, ADR-0013 interactive Text runs, the consumer
+  getting-started guide, and the cross-platform matrix workflow are present.
+  The matrix is scaffolded at `.github/workflows/cross-platform.yml` and
+  remains runner-only until push/PR execution.
+- The release-prep rehearsal passed in detached worktree
+  `/tmp/vue-gpui-release-rehearsal`: `make release-prep VERSION=0.2.0`
+  synchronized Cargo and both Bun package versions, frozen lock checks passed,
+  candidate packs were produced, and the deterministic 0.2.0 host archive
+  check passed. The rehearsal also caught clean-checkout `bun-typecheck`
+  ordering rot; `bun-typecheck: bun-build` is now the committed prerequisite
+  and the fixed CI run passed.
 
 ## 2. Fresh five-gate evidence
 
 All times below are fresh wall-clock `real` values from `/usr/bin/time -p` on
-the final tree at HEAD `00f46a0`. The five commands ran serially and exclusively;
-every command exited 0. The initial `make host-embedded-candidate-smoke` run
-exceeded the tool's 300-second foreground limit without producing a result; the
-gate was rerun successfully, and that retry is the recorded passing evidence.
+the final tree at HEAD `7edad1f`. The five commands ran serially and
+exclusively in this order: `make ci`, `make embedded-bun`,
+`make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
+`make bun-pack-smoke`. Every command exited 0. The prior smoke-hang fix
+(`f34ccfb`) bounds build and teardown waits; both candidate timeout lines below
+are expected successful rehearsal behavior.
 
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **67.33 s** | Rust **124 passed / 0 failed** (including module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, glyph-platform 2/2); Core Bun **130 pass / 0 fail / 89,335 expect() calls** across 16 files; dev Bun **24 pass / 0 fail / 56 expect() calls** across 4 files; builds, typechecks, and package consumer smoke passed. |
-| `make embedded-bun` | 0 | **1.98 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
-| `make host-candidate-smoke` | 0 | **36.18 s** | Deterministic archive SHA-256 **`668083b77ff406f46cdc04ec94c77eca490e048f974f55e115694305ced85064`** matched on both archives; snapshot commit **312 bytes**; expected process timeouts **5.008 s** (error) and **5.016 s** (info); version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **5.23 s** (retry) | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.795 s**; version/help passed. Initial run exceeded the tool's 300-second foreground limit; retry passed. |
-| `make bun-pack-smoke` | 0 | **4.44 s** | Frozen installs, both JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **35.89 s** | Rust **126 passed / 0 failed** (module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, glyph-platform 2/2); Core Bun **130 pass / 0 fail / 89,335 expect() calls** across 16 files; dev Bun **24 pass / 0 fail / 56 expect() calls** across 4 files; builds, typechecks, and package consumer smoke passed. Includes TextInput typing-performance guard. |
+| `make embedded-bun` | 0 | **1.72 s** | `embedded_examples` **2 passed** (startup matrix and Fast Refresh lifecycle); `react-gpui-bun` embedded counter **1 passed**. |
+| `make host-candidate-smoke` | 0 | **34.60 s** | Deterministic archive SHA-256 **`fc9a926fb65163d748bd4059e43305857f0e704b3324ca23057814de1890bc58`** matched on both archives; snapshot commit **312 bytes**; expected process timeouts **5.018 s** (error) and **5.022 s** (info); version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **19.95 s** | Release embedded binary passed; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.811 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.22 s** | Frozen installs, both JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
 The measured sequential five-gate wall-time sum for the successful recorded
-runs is **115.16 s**. The initial host-embedded candidate tool timeout is not
-included in that sum. Candidate timeout lines are expected successful rehearsal
+runs is **94.38 s**. Candidate timeout lines are expected successful rehearsal
 behavior. The host archive SHA is the process-candidate check's identical pair
 of SHA-256 values.
 
-### Quality note: regression detection
+### Quality notes
 
-During this refresh, commit `655c71a` temporarily regressed the synchronous
-validation contract by removing eager `validateStyle` from renderer props.
-The renderer suite caught the regression; same-round hotfix `9d17120` restored
-the eager validation, and the post-fix focused renderer suite reported **73/73
-tests in 95 ms**. The passing gates therefore provide evidence that this matrix
-catches real regressions, not only build or packaging failures.
+- Commit `f34ccfb` root-caused the prior smoke harness flake and bounded its
+  build and teardown waits; the final candidate gates above completed with
+  expected timeout exits rather than an unbounded foreground wait.
+- The input typing-performance guard records 100/1,000/10,000-character
+  single-line and wrapped multiline p50/p99 timings and call counts; its
+  attribution identifies pinned GPUI whole-line shaping as the dominant
+  long-line cost.
+
 ## 3. Quality evidence matrix
 
 | Area | Current evidence |
 | --- | --- |
-| Rust workspace | Fresh `make ci` passed with **124 tests / 0 failures** across the workspace (including module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, and glyph-platform 2/2); `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
-| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **89,335 assertions**, 0 failures; the synchronous style-validation regression from `655c71a` was caught and fixed in `9d17120` before this final matrix. |
+| Rust workspace | Fresh `make ci` passed with **126 tests / 0 failures** across the workspace (including module-boundary 6/6, perf 3/3, event-storm 1/1, protocol-fuzz 1/1, protocol-golden 3/3, process-roundtrip 3/3, command-roundtrip 27/27, examples-render 25/25, and glyph-platform 2/2); `make embedded-bun` passed its embedded host startup matrix **2/2** and embedded counter **1/1**. |
+| TypeScript renderer | Fresh `make ci`: **130/130 tests**, **89,335 assertions**, 0 failures; malformed-source diagnostics remained contained and the last-good tree was preserved. |
 | Development package | Fresh `make ci`: **24/24 tests**, **56 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
 | Fuzz / malformed input | Rust deterministic protocol-fuzz and TypeScript malformed-input coverage remained green in fresh `make ci`. |
-| Performance smoke | Fresh Rust perf suites and TypeScript event-storm scenarios remained green in `make ci`. |
+| Performance smoke | Fresh Rust perf suites, the TextInput typing-performance guard, and TypeScript event-storm scenarios remained green in `make ci`. |
 | Golden vectors | Rust golden and TypeScript protocol-golden checks passed in `make ci`; VirtualList offset, selectable rich Text, focusable Text-run, pointer-move, and window-control vectors are covered by current protocol tests. |
-| Order independence | Commit `c7850c5` recorded 10 randomized core Bun runs (128 tests each), randomized dev Bun, parallel/single-thread Rust modes, and repeated host example smoke with **0 failures**; this is retained as suite-order evidence. |
 | API surface locks | Checked-in name/kind fixtures currently lock **core 114 / dev 20** exports. |
-| Protocol tap / crash diagnostics | Typed transport-cause, crash-path, tap, and termination suites passed in `make ci`. |
 | Release packaging | Process and embedded candidate scripts, deterministic archive checks, package tarball consumer smoke, and embedded package gate all passed. Checksums establish reproducibility, not publisher authenticity. |
 
 ## 3.1 Citation audit evidence
@@ -280,37 +280,27 @@ claims above; it does not claim a new citation audit.
 
 ### (a) Current Unreleased inventory
 
-The current section contains **136** aggregate capability entries: **114 Added**,
-**14 Fixed**, and **8 Changed**. These are aggregate statements rather than one
-line per commit. `git log --oneline a5a91f6..HEAD` reports **9 commits** in this
-refresh delta. The crosswalk retains the earlier aggregated-domain style and
-records every commit in this delta below:
+The current section contains **137** aggregate capability entries: **114 Added**,
+**15 Fixed**, and **8 Changed**. These are aggregate statements rather than one
+line per commit. The changelog also has **13 historical top-level Unreleased
+bullets** outside those categories; the category counts are the readiness
+inventory convention. `git log --oneline 00f46a0..HEAD` reports **9 commits** in
+this refresh delta. The crosswalk below records every commit in this delta:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `598448a` | Bounded rich-run reassembly and performance guard evidence. |
-| `348a3d0` | Deferred workstream issue notes for run cursor and rich-text cache work. |
-| `475f6ad` | Native window title in the notes example and protocol documentation corrections. |
-| `f024b5c` | TestApp selection, external-file-drop, layout injectors, and `drainCommands()` facade coverage and doctrine. |
-| `704beff` | Targeted rich-text cache invalidation for changed ancestors, creates, moves, and deletes. |
-| `17a28dc` | Run-scoped pointing cursor for interactive rich-text runs, with README/example/changelog coverage. |
-| `56bd91b` | Clippy cleanups for the run-scoped cursor implementation. |
-| `c9e212a` | Paint module-boundary conformance for the cursor helper. |
-| `00f46a0` | Complete paint module-boundary conformance, including test-only imports. |
-| `346e99b` | VirtualList precise logical-pixel `getScrollOffset()`/`scrollToOffset()` commands and persistence tests. |
-| `c7ee8c6` | Detached-worktree 0.2.0 release-prep rehearsal and Makefile `bun-typecheck` → `bun-build` ordering fix. |
-| `fc46d01` | Mixed raw/styled Text runs with one-level nesting and typography validation. |
-| `655c71a` | Selectable rich-text paragraphs and pointer-activated link runs with `onPress`/link accessibility semantics. |
-| `9d17120` | Renderer hotfix restoring eager synchronous `validateStyle` and the validation-throw contract. |
-| `30f6dd4` | Keyboard-accessible nested Text link runs with native focus handles/tab stops, focus/blur routing, and unmodified Enter activation. |
-| `8ce3246` | Cross-language protocol golden vectors and checks for focusable Text runs. |
-| `54807ce` | Protocol reference correction documenting Text focusability and Enter/Space behavior. |
-| `cf52b68` | High-contrast per-line focus affordance for focused interactive Text runs. |
-| `35e0150` | Rustfmt-only cleanup of the protocol golden example; no behavior or changelog entry. |
-| `9e885e9` | Rich-text showcase example, registration in host example rendering, and README/CHANGELOG coverage; amended landing commit places both new user-facing bullets under Added. |
+| `f34ccfb` | Root-caused and bounded the candidate smoke build/teardown waits after the prior harness flake. |
+| `d885f32` | Shaped-text cache verdict recorded in release evidence. |
+| `018ec62` | ADR-0013 interactive text runs and domain glossary updates. |
+| `30d5ee7` | Public API listings and protocol policy row aligned. |
+| `3d2b851` | Current upstream dependency graph regenerated from manifests and `Cargo.lock`, with verified purposes and locked versions. |
+| `d4dbc91` | Headless TextInput typing-performance guard for 100/1,000/10,000-character and wrapped multiline inputs. |
+| `93ba7fd` | Rustfmt follow-up for the typing-performance guard. |
+| `bf8b3cb` | Clippy/type-complexity follow-up for the typing-performance guard. |
+| `7edad1f` | Removed unused host `rmp-serde` dev dependency and its lock edge after full-repository audit. |
+
 
 ### (b) Protocol directory versus source constants
-
 The current source has exactly **35 command constants** with values `1..35` and
 **23 semantic event constants** with values `1..23` (pointer/key sub-action and
 button constants excluded). The protocol reference has matching event/command
@@ -364,21 +354,25 @@ are explicit acceptance boundaries or human decisions, not hidden TODOs:
   backend, lock graph, SDK, and display matrix workflow is scaffolded at
   `.github/workflows/cross-platform.yml`, but runner validation is not claimed
   until its push/PR jobs execute; local macOS cross-checks are not runner proof.
-- Upstream gaps remain explicit: native TextInput undo/redo, secure/password
-  display, explicit RTL/container text base direction and bidi-aware hit/caret/
-  IME semantics, `letterSpacing`, and JavaScript Image `onError`. `fallbackSource`
-  remains the visual Image degradation path. Targeted rich-text cache invalidation
-  is now implemented and the deferred rich-cache issue is resolved; unrelated
-  patches preserve assembled runs while changed paragraphs and final ancestors
-  rebuild. The run-scoped pointing cursor is likewise implemented for
-  listener-bearing rich-text runs; no full-cache-clear or parent-cursor behavior
-  remains as a known tradeoff.
+- Upstream gaps remain explicit: secure/password display, explicit RTL/container
+  text base direction and bidi-aware hit/caret/IME semantics, `letterSpacing`,
+  and JavaScript Image `onError`. Native TextInput undo/redo is host-owned and
+  implemented, while `fallbackSource` remains the visual Image degradation path.
+  ADR-0013 (`docs/adr/0013-interactive-text-runs.md`) records the interactive
+  Text-run contract and its focus/cursor/activation boundaries. The refreshed
+  dependency graph is commit `3d2b851`; dead host `rmp-serde` removal is commit
+  `7edad1f` and is reflected in the locked graph.
+  Targeted rich-text cache invalidation is now implemented and the deferred
+  rich-cache issue is resolved; unrelated patches preserve assembled runs while
+  changed paragraphs and final ancestors rebuild. The run-scoped pointing cursor
+  is likewise implemented for listener-bearing rich-text runs; no full-cache-clear
+  or parent-cursor behavior remains as a known tradeoff.
 
 ## 6. Version-cut guidance (not a decision)
 
 The workspace remains `0.1.0`; `release-prep` can synchronize a chosen version
-into Cargo and both Bun packages. The current Unreleased inventory is **136
-entries (114/14/8)** across protocol, typed surface lifecycle errors, tooltips
+into Cargo and both Bun packages. The current Unreleased inventory is **137
+entries (114/15/8)** across protocol, typed surface lifecycle errors, tooltips
 and close policy, accessibility semantics, native keyboard focus traversal and
 focused-unmount restoration, text-file persistence, clipboard text/images,
 embedded representative examples, pointer coordinates, selectable and styled
