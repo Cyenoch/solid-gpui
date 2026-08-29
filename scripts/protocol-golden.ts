@@ -106,6 +106,7 @@ const nestedRun = [4, 2, 1, 2, nestedRunStyle, null, 0, null, null, false];
 const nestedRunText = [5, 4, 0, 4, null, "world", 0, null, null, false];
 const nestedTrailing = [6, 2, 2, 4, null, "!", 0, null, null, false];
 const nestedTextSnapshot = [3, 1, 7, 3, 0, 46, [nestedTextRoot, nestedText, nestedPlain, nestedRun, nestedRunText, nestedTrailing]];
+const nestedTextFocusablePatch = [3, 3, 7, 3, 46, 47, [[2, 4, 32, null, null, 17, null, null, true]]];
 const patch = [
   3,
   3,
@@ -120,6 +121,7 @@ const rows = [
   row("ts-snapshot-box-shadow-double", "snapshot", doubleSnapshot),
   row("ts-snapshot-all-kinds", "snapshot", snapshot),
   row("ts-patch-all-operations", "patch", patch),
+  row("ts-patch-nested-text-focusable", "patch", nestedTextFocusablePatch),
   row("ts-snapshot-nested-text-runs", "snapshot", nestedTextSnapshot),
   row("ts-event-press", "event", [3, 2, 7, 3, 42, 1, 4, 7, 1, null]),
   row("ts-event-hover", "event", [3, 2, 7, 3, 42, 10, 4, 7, 11, null]),

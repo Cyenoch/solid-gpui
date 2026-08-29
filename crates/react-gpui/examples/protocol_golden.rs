@@ -248,6 +248,28 @@ fn patch() -> Patch {
         ],
     )
 }
+fn nested_text_focusable_patch() -> Patch {
+    Patch::new(
+        7,
+        3,
+        46,
+        47,
+        vec![PatchOperation::Update {
+            id: 4,
+            mask: UPDATE_FOCUSABLE,
+            style: None,
+            text: None,
+            listener_id: 17,
+            host_properties: None,
+            accessibility: None,
+            focusable: true,
+            selectable: false,
+            tooltip: None,
+            accepts_pointer_move: false,
+        }],
+    )
+}
+
 
 fn clipboard_image_command(kind: u32, request_id: u32, image: Option<ClipboardImage>) -> Command {
     Command {
@@ -492,6 +514,13 @@ fn main() {
         "patch",
         patch().encode().unwrap(),
     );
+    emit(
+        &mut rows,
+        "rust-patch-nested-text-focusable",
+        "patch",
+        nested_text_focusable_patch().encode().unwrap(),
+    );
+
     emit(
         &mut rows,
         "rust-event-press",
