@@ -4,7 +4,7 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 
-[Getting started](../../docs/getting-started.md) · [Protocol](../../docs/protocol.md) · [Contributing](../../CONTRIBUTING.md)
+[Getting started](../../docs/getting-started.md) · [Troubleshooting](../../docs/troubleshooting.md) · [Protocol](../../docs/protocol.md) · [Contributing](../../CONTRIBUTING.md)
 
 ## JSX
 

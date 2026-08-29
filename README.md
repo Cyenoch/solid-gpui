@@ -533,7 +533,7 @@ artifact; it does not publish a GitHub Release or package.
 
 For symptom → diagnosis → repair workflows, start with the
 [Troubleshooting guide](docs/troubleshooting.md). This section keeps the
-environment-variable quick reference:
+environment-variable quick reference; see the guide for failure-mode lookup:
 
 - `REACT_GPUI_LOG=off|error|info|debug` controls host diagnostics (`error` is
   the default; invalid values fall back to `error` with one warning).

@@ -1,467 +1,636 @@
 # Troubleshooting
 
 This guide is the symptom-first entry point for a React GPUI application. It
-sits between the application-level [getting started guide](getting-started.md)
-and the protocol reference. Start with the symptom, run the smallest diagnostic
-that confirms it, then apply the fix or follow the stated platform boundary.
+turns the renderer's typed errors and platform boundaries into a short lookup:
+find the symptom, check the smallest diagnostic, and apply the documented fix.
+For the complete wire contract, see the [protocol reference](protocol.md). For
+a first application, see [getting started](getting-started.md).
 
-## Quick symptom directory
+## Contents
 
-| Symptom | Start here |
+- [Start with the host identity](#start-with-the-host-identity)
+- [Transport terminated](#transport-terminated)
+- [Protocol version mismatch](#protocol-version-mismatch)
+- [Malformed or oversized frames](#malformed-or-oversized-frames)
+- [Surface is closed or an ID cannot be reused](#surface-is-closed-or-an-id-cannot-be-reused)
+- [A custom font is not used](#a-custom-font-is-not-used)
+- [A file or clipboard image is too large](#a-file-or-clipboard-image-is-too-large)
+- [Clipboard image is unsupported on this platform](#clipboard-image-is-unsupported-on-this-platform)
+- [No GUI in headless macOS CI](#no-gui-in-headless-macos-ci)
+- [Close confirmation appears to hang](#close-confirmation-appears-to-hang)
+- [A command Promise rejects or remains pending](#a-command-promise-rejects-or-remains-pending)
+- [The tree cannot render](#the-tree-cannot-render)
+- [An event callback does not fire](#an-event-callback-does-not-fire)
+- [Text input or IME behavior is wrong](#text-input-or-ime-behavior-is-wrong)
+- [The app stutters](#the-app-stutters)
+- [Crash reports](#crash-reports)
+
+## Start with the host identity
+
+### Symptom
+
+The window does not appear, or support logs contain a renderer/host compatibility
+question. Before inspecting a crash or a protocol trace, the host and renderer
+versions need to be known.
+
+### Cause
+
+The host prints the protocol identity on its version path, and its `info`
+startup diagnostic prints the same protocol identity with the runtime mode,
+entry, and process ID. A renderer started directly without the host does not
+create a native Surface.
+
+### Fix
+
+Run the host's early diagnostic (it does not start GPUI):
+
+```sh
+react-gpui-host --version
+```
+
+The output has this shape:
+
+```text
+react-gpui-host <host-package-version> protocol=v3
+```
+
+For a process run, add `REACT_GPUI_LOG=info` and retain the startup line too:
+
+```sh
+REACT_GPUI_LOG=info react-gpui-host --runtime process -- \
+  bun run path/to/app.tsx
+```
+
+Include both lines in a support report. Run the renderer through the host, not
+as a stand-alone `bun run` command.
+
+**Where this is enforced:** `crates/react-gpui-host/src/main.rs`
+(`version_line`, `startup_diagnostic`, and host argument handling), and
+`README.md` (host diagnostics and process-mode quick start).
+
+## Transport terminated
+
+### Symptom
+
+`onTransportTermination` receives a `TransportTerminatedError`; pending root
+commands reject with that same error, and later commands cannot use the failed
+transport. The error has a discriminated `cause` when the termination reason is
+known. `exitCode`, `stderrTail`, and `crashReportPath` may also be available for
+a process transport.
+
+### Cause
+
+`error.cause?.kind` is one of these five observable cases:
+
+| Kind | Meaning and typical trigger | Application response |
+| --- | --- | --- |
+| `shutdown` | The adapter or shared surface host was intentionally disposed or shut down. | Do not restart unless the application intentionally wants a new session. |
+| `eof` | The input or output stream ended or closed. | Treat the root as terminal; if the child was expected to live, inspect its process lifecycle and start a fresh session. |
+| `exit` | A process wrapper reported an integer child exit code. | Record `error.exitCode` and the stderr tail, then decide whether the application should start a fresh child. |
+| `protocol` | A frame decoder or event decoder rejected a frame, including a malformed, oversized, or incompatible frame. `detail` identifies the rejection. | Fix the protocol or version problem. Do not continue reading or retry on the same transport. |
+| `io` | An input/output operation failed, or an untyped termination was normalized to an I/O detail. | Record `detail` and the stderr/process context, then replace the failed transport if recovery is appropriate. |
+
+The variants are diagnostics, not a restart policy. All failed transports and
+roots are terminal; a replacement consists of a new child (when applicable),
+new `StdioTransport`, and new root. An intentional `shutdown` is the exception
+to an automatic restart decision.
+
+### Fix
+
+Branch on the cause kind instead of matching `error.message`:
+
+```tsx
+onTransportTermination: (error) => {
+  switch (error.cause?.kind) {
+    case "shutdown":
+      return;
+    case "exit":
+      console.error("host exit", error.exitCode, error.stderrTail);
+      break;
+    case "protocol":
+    case "io":
+    case "eof":
+    default:
+      console.error("transport terminated", error.cause, error.stderrTail);
+  }
+  // If recovery is desired, create a new child, transport, and root.
+}
+```
+
+`createProcessTerminationHandler()` is suitable for examples that should log
+the error and exit with code `1`; it is not a transport restart mechanism.
+
+**Where this is enforced:** `packages/react-gpui/src/transport.ts`
+(`TransportTerminationCause`, `TransportTerminatedError`, and
+`StdioTransport`), `packages/react-gpui/src/renderer/root-container.ts`
+(termination rejects pending commands), and the package README's
+[transport troubleshooting](../packages/react-gpui/README.md#troubleshooting).
+
+## Protocol version mismatch
+
+### Symptom
+
+A `ProtocolVersionMismatchError` is reported while decoding a host event. Its
+message says that the host speaks one protocol version while the renderer
+package speaks another.
+
+### Cause
+
+The current renderer package speaks protocol v3. When an event contains a
+different integer protocol version, `decodeEvent` raises the typed error rather
+than silently treating the frame as a current event.
+
+### Fix
+
+Update `@react-gpui/core` to a release matching the host's reported version, or
+pin the host binary to a v3 release. The actionable error message is:
+
+```text
+protocol version mismatch: host binary speaks protocol v<N>; this renderer package speaks protocol v3 — update @react-gpui/core to a v<N> release / pin the host binary to a v3 release
+```
+
+Upgrade the host and renderer together. Do not add a decoder fallback or keep
+using the terminated transport.
+
+**Where this is enforced:** `packages/react-gpui/src/protocol.ts`
+(`ProtocolVersionMismatchError` and `decodeEvent`),
+`crates/react-gpui/src/protocol/wire/{event.rs,snapshot_patch.rs,command.rs}`
+(`UnsupportedProtocol`), and `packages/react-gpui/tests/renderer.test.tsx`
+(the actionable mismatch contract).
+
+## Malformed or oversized frames
+
+### Symptom
+
+The host exits after rejecting a renderer commit, or the renderer reports a
+`TransportTerminatedError` with `cause.kind === "protocol"`. Pending commands
+reject and later input is ignored. A panic may additionally produce a crash
+report path on stderr.
+
+### Cause
+
+The two directions fail fast at their own boundary:
+
+- A malformed renderer-to-host Snapshot, Patch, or Command is reported as a
+  rejected renderer commit. The host shuts down the runtime and exits nonzero;
+  it does not skip the frame and continue with a potentially divergent tree.
+- A malformed or oversized host-to-renderer event causes the TypeScript root or
+  shared surface host to terminate with a `protocol` cause. With
+  `createProcessTerminationHandler`, the renderer process logs the termination
+  and exits with code `1`.
+- A panic is a separate host failure path. The panic hook writes a report and
+  prints this exact stderr marker:
+
+  ```text
+  react-gpui-host: crash report: <path>
+  ```
+
+  A malformed commit handled by `fatal_runtime_failure` is not a panic, so it
+  has no crash-report path merely because the protocol was rejected.
+
+### Fix
+
+Preserve the complete stderr tail, the `cause.detail`, and any crash-report
+path. Fix the producer/host mismatch or malformed payload, then start a fresh
+process, transport, and root. Do not retry a command on the failed stream or
+expect a resynchronization frame.
+
+If a crash marker is present, open the path it names. The host uses
+`REACT_GPUI_CRASH_DIR` when set and otherwise the system temporary directory.
+The marker may be absent when the process was killed, exited normally, or the
+host could not write the report; keep the exit code and stderr in those cases.
+
+**Where this is enforced:** `crates/react-gpui/src/renderer/commit_reader.rs`
+and `crates/react-gpui/src/transport.rs` (`fatal_runtime_failure`),
+`crates/react-gpui-host/src/main.rs` (commit-reader fatal path and panic hook),
+`packages/react-gpui/src/renderer/root-container.ts` and
+`packages/react-gpui/src/surface-host.ts` (protocol termination), and
+`packages/react-gpui/src/protocol.ts` (`FrameDecoder` size checks).
+
+## Surface is closed or an ID cannot be reused
+
+### Symptom
+
+A command rejects with `SurfaceClosedError`, or a shared surface host throws
+`SurfaceIdReusedError` when creating a root for an ID that was already closed.
+A close callback may run for one surface while other roots on the same host
+continue working.
+
+### Cause
+
+A native `EVENT_SURFACE_CLOSED` disposes only the matching root. Disposal
+rejects its pending commands with an error whose message is
+`surface <id> is closed`, clears its listeners, and ignores later input. An
+explicit `root.unmount()` has the same closed-root behavior.
+
+`createSurfaceHost` retires an ID after native close or unmount. Reusing that ID
+with a new epoch is deliberately rejected with:
+
+```text
+surface <id> was already closed and cannot be reused
+```
+
+This prevents an old lifecycle generation from being confused with a new
+surface. An active duplicate ID is a separate registration error.
+
+### Fix
+
+Stop issuing commands to the closed root. Handle `onClose` and remove the root
+from application state. For a new window, let `createSurfaceHost` allocate the
+next ID or choose an ID that has never been registered; do not revive a retired
+ID by changing only `epoch`.
+
+**Where this is enforced:** `packages/react-gpui/src/renderer/root-container.ts`
+(`SurfaceClosedError`, `onSurfaceClosed`, and `dispose`),
+`packages/react-gpui/src/surface-host.ts` (`retiredSurfaceIds` and
+`SurfaceIdReusedError`), and `packages/react-gpui/tests/{renderer,surface-host}.test.ts*`.
+
+## A custom font is not used
+
+### Symptom
+
+Text continues to use the fallback family even though `loadFont()` was called,
+or the font Promise rejects with a file/format error.
+
+### Cause
+
+The host reads and validates a TrueType/OpenType file, extracts a usable family
+name, registers it, and returns that metadata family. A missing/unreadable
+file, directory, oversized file, malformed font, or font with no usable family
+rejects the command. GPUI caches both successful and failed family resolution;
+this API does not invalidate that cache. Loading after text has already been
+laid out can therefore leave that text on the fallback family.
+
+### Fix
+
+For deterministic startup typography, await registration before the first
+render and use the returned family:
+
+```tsx
+const family = await root.loadFont(fontPath);
+root.render(<Text style={{ fontFamily: family }}>Custom typography</Text>);
+```
+
+If startup should not wait, deliberately render the first frame with the
+fallback stack and switch state after registration. The examples fire the
+Promise before rendering and set state when it settles:
+
+```tsx
+const fontReady = root.loadFont(FONT_PATH);
+root.render(<TwoInputs fontReady={fontReady} />);
+
+// In the component:
+useEffect(() => {
+  let mounted = true;
+  void fontReady
+    .then((family) => {
+      if (mounted) setFontFamily(family);
+    })
+    .catch((error: unknown) => {
+      if (mounted) setFontStatus(`Font load failed: ${String(error)}`);
+    });
+  return () => {
+    mounted = false;
+  };
+}, [fontReady]);
+```
+
+Do not assume that a late retry will invalidate an earlier failed lookup. Fix
+the path or font and use a fresh, intentional registration/render boundary.
+
+**Where this is enforced:** `packages/react-gpui/src/renderer/root-container.ts`
+(`loadFont` validation), `crates/react-gpui/src/renderer/commands.rs`
+(`spawn_load_font` and `font_family`), `references/zed/crates/gpui/src/text_system.rs`
+(`font_ids_by_font` caches both `Ok` and `Err` resolution results),
+`packages/react-gpui/examples/text-input.tsx` (the fire-Promise-then-setState
+pattern), and the package README's
+[Runtime fonts](../packages/react-gpui/README.md#runtime-fonts) guidance.
+
+## A file or clipboard image is too large
+
+### Symptom
+
+A file or encoded clipboard image command rejects with a size error, or a
+manually framed payload throws a `RangeError`.
+
+### Cause
+
+The complete frame payload is capped at `MAX_FRAME_SIZE` (16 MiB). File and
+clipboard-image payloads reserve 1 KiB for the MessagePack command/frame
+envelope, so each operation's content cap is:
+
+```text
+MAX_FRAME_SIZE - 1 KiB
+```
+
+The affected operations are:
+
+| Operation | Observable error |
 | --- | --- |
-| Window is blank or never appears | [No window / white screen](#no-window-or-white-screen) |
-| `Cannot render` or a render-time `TypeError` | [Cannot render](#cannot-render) |
-| A press, key, pointer, scroll, or layout callback never runs | [Event does not fire](#event-does-not-fire) |
-| A command Promise never settles | [Promise never resolves](#promise-never-resolves) |
-| IME, Chinese input, or caret behavior looks wrong | [IME and text input](#ime-and-text-input) |
-| Frames are slow or the app stutters | [Low frame rate or stutter](#low-frame-rate-or-stutter) |
-| The host crashed or the crash file cannot be found | [Crash reports](#crash-reports) |
-| A renderer/host upgrade changes behavior | [Upgrade and compatibility](#upgrade-and-compatibility) |
+| `readTextFile(path)` | The host rejects an oversized file with `file is too large`; invalid UTF-8 is a separate `file is not valid UTF-8` rejection. |
+| `writeTextFile(path, content)` | The TypeScript guard rejects with `RangeError: file content exceeds the supported size`; the host-side result is `file content is too large`. |
+| `setClipboardImage({ format, bytes })` | The TypeScript guard rejects with `RangeError: clipboard image bytes must be non-empty and within the supported size`; the host validates the same bound. |
+| `getClipboardImage()` | An encoded native image over the bound rejects with `clipboard image is unsupported or too large`. |
+| `framePayload(payload)` or inbound decoding | A frame over 16 MiB throws `frame exceeds maximum size`, or `frame length <N> exceeds maximum <N>` while decoding. |
 
-## No window or white screen
+### Fix
 
-### Symptom
+Keep text/file content below the operation cap. For generated visual assets,
+persist the encoded image to a host-visible file and pass its path to `Image`
+instead of putting image bytes in the retained tree. For clipboard images,
+keep the original supported PNG, JPEG, GIF, or SVG encoding and split or
+externalize application data before crossing this bounded seam. Do not raise
+the limit on only one side of the process boundary.
 
-The host process starts but no native content appears, or a window is present
-but remains blank. The first thing to establish is whether JavaScript submitted
-the initial Snapshot. A renderer entry run directly without a host does not make
-a native Surface.
+**Where this is enforced:** `packages/react-gpui/src/protocol.ts`
+(`MAX_FRAME_SIZE`, `MAX_*_BYTES`, `framePayload`, and `FrameDecoder`),
+`packages/react-gpui/src/renderer/root-container.ts` (client guards),
+`crates/react-gpui/src/protocol.rs` (Rust constants and framed I/O), and
+`crates/react-gpui/src/renderer/commands.rs` (file and image command results).
 
-### Most likely causes
-
-- The renderer command or entry path is wrong, so no renderer starts.
-- The renderer throws before the first Commit Batch (often a validation error).
-- The transport terminates before the host receives the Snapshot.
-- The host is running in process mode but the renderer is being run as a
-  stand-alone Bun script instead of as the host's child process.
-
-### Verify
-
-First verify the host binary's early CLI path without starting GPUI:
-
-```sh
-cargo run -p react-gpui-host -- --version
-```
-
-Then run the known-good counter through the host with diagnostics enabled:
-
-```sh
-REACT_GPUI_LOG=info \
-  cargo run -p react-gpui-host -- --runtime process \
-  bun run packages/react-gpui/examples/counter.tsx
-```
-
-The `info` stream should show host startup and later runtime termination. Do not
-use `bun run packages/react-gpui/examples/counter.tsx` by itself to test native
-rendering: the host owns the pipe and Surface lifecycle.
-
-Record the `--version` output with the reproduction. The `info` startup line
-includes `protocol=v3` beside the runtime mode, entry, and process ID; the
-version line includes the host package version and `protocol=v3`. These values
-let support distinguish a version mismatch from a renderer or transport failure.
-
-For a protocol-level check, give the host and its process renderer separate tap
-files. Both processes read `REACT_GPUI_TAP`; the `env` wrapper overrides it only
-for the child renderer, avoiding two processes truncating one JSONL file:
-
-```sh
-tap_dir="${TMPDIR:-/tmp}/react-gpui-troubleshoot-$$"
-mkdir -p "$tap_dir"
-host_tap="$tap_dir/host.jsonl"
-renderer_tap="$tap_dir/renderer.jsonl"
-REACT_GPUI_LOG=info REACT_GPUI_TAP="$host_tap" \
-  cargo run -p react-gpui-host -- --runtime process \
-  env "REACT_GPUI_TAP=$renderer_tap" bun run packages/react-gpui/examples/counter.tsx
-
-python3 scripts/protocol-tap-report.py "$host_tap" "$renderer_tap"
-```
-
-Stop the running example after the reproduction with Ctrl-C, then run the
-report command. The report records frame metadata, not payload contents. Its
-JSON includes frames by kind, overall and patch byte rates, one-second
-frame/byte timeline buckets, a byte-size histogram, event-type counts, and
-malformed-frame counters. Look for renderer outbound Snapshot/Patch frames,
-host inbound frames, and a termination or error record. No renderer Snapshot in
-the renderer tap points to renderer startup or pre-submit failure; a renderer
-Snapshot with no host progress points to process/host transport or host-side
-rejection. The tap is not a paint/GPU profiler and cannot prove that a display
-compositor painted a frame. It also does not record transport queue depth,
-backpressure, or per-commit timing; `REACT_GPUI_LOG=debug` currently has no
-per-commit timing line.
-
-For the in-process runtime, use the same check without a child override:
-
-```sh
-REACT_GPUI_TAP="${TMPDIR:-/tmp}/react-gpui-embedded.jsonl" \
-  cargo run -p react-gpui-host --features embedded-bun -- \
-  --runtime embedded packages/react-gpui/examples/counter.tsx
-python3 scripts/protocol-tap-report.py "${TMPDIR:-/tmp}/react-gpui-embedded.jsonl"
-```
-
-### Fix or boundary
-
-Correct the host command/entry first. If the renderer throws, continue with
-[Cannot render](#cannot-render). If the transport terminates, continue with
-[Promise never resolves](#promise-never-resolves) and [Crash reports](#crash-reports).
-A successful Snapshot submission is necessary but not sufficient for
-compositor/display-backed behavior; Quartz and other visual checks require a
-real desktop host.
-
-## Cannot render
+## Clipboard image is unsupported on this platform
 
 ### Symptom
 
-`root.render(...)` throws `TypeError`, the application reports `Cannot render`,
-or an Error Boundary displays its fallback instead of the intended tree.
+`setClipboardImage()` or `getClipboardImage()` rejects with an Error whose
+message is exactly `platform-unsupported` on X11 or Wayland.
 
-### Most likely causes
+### Cause
 
-`validateStyle` and host-property validation intentionally fail before an
-invalid Commit Batch is submitted. Common examples are negative dimensions,
-non-finite values, zero `fontSize`, invalid enum strings, malformed colors,
-unsupported transition properties, malformed `boxShadow`, invalid
-`fontFamily`, invalid Image paths, and children under `Image`.
+The host's image clipboard branch is implemented for macOS and Windows. On
+other targets it returns a failed `CommandResult` with the literal
+`platform-unsupported`; the TypeScript command Promise rejects that result. It
+does not silently convert image bytes to text, and no RGBA conversion or format
+transcoding is promised.
 
-### Verify
+### Fix
 
-Run the renderer validation regression group:
+Handle this rejection as an expected capability result. Use clipboard text when
+that is sufficient, or persist/share the asset through a host-visible file and
+let the application decide how to present it. Do not retry the same image
+command expecting a different result on the same X11/Wayland host.
 
-```sh
-cd packages/react-gpui
-bun test tests/renderer.test.tsx --test-name-pattern "validation errors"
+**Where this is enforced:** `crates/react-gpui/src/renderer/commands.rs`
+(`COMMAND_CLIPBOARD_WRITE_IMAGE` and `COMMAND_CLIPBOARD_READ_IMAGE`),
+`packages/react-gpui/src/renderer/root-container.ts`, and the package README's
+[Clipboard images](../packages/react-gpui/README.md#clipboard-images) section.
+
+## No GUI in headless macOS CI
+
+### Symptom
+
+A headless CI job cannot run, or cannot re-test, display-dependent GPUI
+renderer/host smoke paths. This symptom alone does not establish that the GUI
+path is broken.
+
+### Cause
+
+The current Quartz validation environment can have no active display. In that
+environment, display-dependent paths are not re-tested; the repository's
+non-GUI checks remain available. The failure story for a particular compositor
+or window-server setup is environment-specific, so this guide does not invent a
+single error string.
+
+### Fix
+
+Run display-backed renderer/host smoke tests on a macOS environment with an
+active display. In headless CI, use the checks that do not require Quartz,
+including host `--help`/`--version`, process/runtime checks, CLI parsing, and
+package smoke checks. Report the display environment separately from protocol
+or renderer failures.
+
+**Where this is enforced:** `.scratch/release-productionization/issues/04-quartz-no-display.md`
+(the active-display boundary and available non-GUI coverage), and
+`README.md` (display-backed validation status).
+
+## Close confirmation appears to hang
+
+### Symptom
+
+Closing a window does nothing, repeated close attempts do not produce more
+callbacks, or an asynchronous confirmation UI seems stuck.
+
+### Cause
+
+With `require-confirmation`, the host synchronously vetoes the native close,
+stores one pending request ID, and emits one `EVENT_CLOSE_REQUESTED`. While that
+request is pending, repeated native attempts are vetoed without duplicate
+events. The window therefore remains open until JavaScript resolves that exact
+request. A missing `onCloseRequested` handler, a forgotten Promise callback, a
+rejected confirmation Promise with no fallback, or a root/transport that has
+already become unusable can leave the application with no successful resolution
+path. There is no automatic timeout in this contract.
+
+Unknown, stale, or already-resolved IDs are acknowledged or ignored without
+affecting the current request. Changing policy and tearing down the transport
+clear pending close state; application quit and Wayland layer-shell teardown
+are outside this per-window callback contract.
+
+### Fix
+
+Always resolve every request, including the rejection path of the confirmation
+operation. Resolve `false` to keep the window open or `true` to allow the host's
+close path:
+
+```tsx
+onCloseRequested: (requestId) => {
+  void confirmDiscard()
+    .then((allow) => root.resolveCloseRequest(requestId, allow))
+    .catch(() => root.resolveCloseRequest(requestId, false));
+},
 ```
 
-For the complete style validator coverage, run:
+Keep the request ID paired with the root that received it, and do not reuse an
+old ID after the surface closes. If the application does not need a prompt, use
+the default `allow` policy rather than installing a confirmation flow that has
+no resolver.
 
-```sh
-bun test tests/renderer.test.tsx --test-name-pattern "validates, freezes"
-```
+**Where this is enforced:** `crates/react-gpui-host/src/main.rs`
+(`should_close`, `resolve_close_request`, and per-surface pending state),
+`docs/adr/0009-async-close-confirmation.md`, and
+`packages/react-gpui/src/renderer/root-container.ts` (`resolveCloseRequest`).
 
-The source of the TypeError family is
-`packages/react-gpui/src/style.ts:258-437`; host-kind and Image validation are
-in `packages/react-gpui/src/renderer/props.ts`. A stack pointing at
-`validateStyle`, `validateProps`, or `createInstance` confirms a synchronous
-consumer-input failure rather than a native paint failure.
+## A command Promise rejects or remains pending
 
-### Fix or boundary
+### Symptom
+
+A root or node command rejects, or a Promise appears not to settle while a
+native operation is in progress.
+
+### Cause
+
+File pickers are asynchronous: a user cancellation is a successful `null`
+result, while a native failure rejects. A surface close or transport
+termination rejects every pending command. Unsupported command/node pairs are
+rejected before or at the host ownership check. A genuinely pending command
+usually means the host has not produced its matching `CommandResult` yet; a tap
+report can distinguish an unmatched request from a matched `success=false`
+result.
+
+### Fix
+
+Handle both resolve and reject paths for every command, keep the root alive until
+an asynchronous operation completes, and treat `TransportTerminatedError` and
+`SurfaceClosedError` as terminal lifecycle signals. Do not convert a failed
+transport into a fake command success or retry a command on the same stream.
+For a picker, handle `null` as cancellation rather than as a failure.
+
+**Where this is enforced:** `packages/react-gpui/src/renderer/root-container.ts`
+(pending command map and rejection paths), `crates/react-gpui/src/renderer/commands.rs`
+(asynchronous command acknowledgements), and `packages/react-gpui/README.md`
+(command and transport lifecycle guidance).
+
+## The tree cannot render
+
+### Symptom
+
+`root.render(...)` throws a `TypeError`, the application reports `Cannot render`,
+or an Error Boundary shows its fallback instead of the intended tree.
+
+### Cause
+
+The TypeScript renderer validates styles, host properties, and children before
+submitting a Commit Batch. Negative or non-finite values, zero `fontSize`,
+invalid enum values/colors, malformed shadows, invalid font-family values,
+invalid image paths, and children under `Image` are examples of synchronous
+consumer-input failures. An invalid batch is not sent to the host.
+
+### Fix
 
 Fix the named property rather than catching and resubmitting the same tree.
-Use an Error Boundary when the application has useful recovery UI; without one,
-`root.render()` throws synchronously and does not submit an invalid frame.
-The complete field constraints and unsupported fields are in the
-[Style](protocol.md#style-tuple-all-42-slots), [host properties](protocol.md#hostproperties-variants),
-and [error ownership](getting-started.md#error-and-recovery-boundaries) sections.
+Use an Error Boundary when the application has useful recovery UI. Consult the
+[style tuple](protocol.md#style-tuple-all-42-slots) and
+[host properties](protocol.md#hostproperties-variants) sections for field
+constraints.
 
-## Event does not fire
+**Where this is enforced:** `packages/react-gpui/src/style.ts`,
+`packages/react-gpui/src/renderer/props.ts`, and
+`packages/react-gpui/src/renderer.ts` (synchronous render error ownership).
+
+## An event callback does not fire
 
 ### Symptom
 
-A callback never runs even though the component is visible, or it fires on one
+A callback never runs even though its component is visible, or it runs for one
 component kind but not another.
 
-### Most likely causes
+### Cause
 
-1. **The callback is not supported by that kind.** `onPress` belongs to
-   `Pressable`; `View` has key, pointer, hover, scroll, drag, and layout paths
-   but no press callback. `Text` and `Image` expose layout; `TextInput` does
-   not expose layout. `VirtualList` reports `VisibleRange` and has list scroll
-   commands rather than `onScroll`. `onKeyDown` is supported on View,
-   Pressable, and TextInput; pointer/hover/drag handlers are View/Pressable
-   paths.
-2. **The listener is absent or the node is not eligible.** A listener ID is
-   installed only for the declared callback and supported kind. Disabled
-   Pressables lose interaction and focus. A View key listener also requires
-   `focusable` to opt into the native tab/focus path.
-3. **The callback changed across commits.** While a node remains mounted, a
-   function replacement updates the JavaScript callback table without changing
-   the listener ID. Adding or removing the listener (the 0↔nonzero transition)
-   changes the native listener field and is applied by the next commit. Events
-   for an old revision, detached node, or mismatched listener are rejected.
-4. **The event is a semantic notification, not a browser event.** There is no
-   capture/bubble DOM contract or synchronous `preventDefault`; TextInput/IME
-   preference is checked before keymap dispatch.
+Callbacks are supported only on their documented host kinds. For example,
+`onPress` belongs to `Pressable`; View keyboard delivery requires `focusable`;
+disabled Pressables lose interaction and focus; `TextInput` and `VirtualList`
+have their own event/command boundaries. Native events are semantic
+notifications, not bubbling DOM events, and there is no synchronous
+`preventDefault()`.
 
-### Verify
-
-Use the focused headless paths that inject real protocol events:
-
-```sh
-cd packages/react-gpui
-bun test tests/renderer.test.tsx --test-name-pattern "dispatches focused View key"
-bun test tests/renderer.test.tsx --test-name-pattern "dispatches pointer buttons"
-bun test tests/renderer.test.tsx --test-name-pattern "dispatches View scroll"
-bun test tests/renderer.test.tsx --test-name-pattern "dispatches internal drag"
-```
-
-For a source-level listener check, inspect the kind matrix in
-`packages/react-gpui/src/renderer/props.ts` and callback/listener assignment in
-`packages/react-gpui/src/renderer/nodes.ts`. For a live process, use the
-separate-file tap command from [No window or white screen](#no-window-or-white-screen)
-and inspect event subtype counts. A tap event still does not contain callback
-payloads.
-
-### Fix or boundary
+### Fix
 
 Move the callback to a supported host kind, add the required `focusable` opt-in,
-or wait for the commit that installs the listener before expecting a native
-notification. Keep callback identity changes separate from listener presence
-changes when diagnosing revision timing. For unsupported behavior, the support
-matrix in [getting started](getting-started.md#components-and-common-props) and
-the event directory in [protocol.md](protocol.md#3-event-directory) are the
-contract. `pointerEvents` is intentionally not exposed; the boundary is
-explained in the [package README](../packages/react-gpui/README.md#styles).
+or wait for the commit that installs the listener. Check the component matrix in
+[getting started](getting-started.md#components-and-common-props) and the
+[event directory](protocol.md#3-event-directory). For unsupported behavior,
+treat the documented boundary as a contract rather than a callback retry.
 
-## Promise never resolves
+**Where this is enforced:** `packages/react-gpui/src/renderer/props.ts` and
+`packages/react-gpui/src/renderer/nodes.ts` (listener eligibility),
+`packages/react-gpui/src/renderer/dispatch.ts` (event dispatch), and
+`docs/protocol.md` (event ownership).
 
-### Symptom
-
-A root command or node command returns a Promise that appears to remain pending.
-
-### Most likely causes
-
-- The host never received or never processed the command, so no
-  `CommandResult` arrived.
-- A native picker is still open. File dialogs are asynchronous and wait for
-  user completion; cancellation is a successful result with a missing value.
-- The surface closed or the Runtime Adapter terminated while the command was
-  pending. Those paths reject pending Promises; they do not resolve them with a
-  fake success.
-- The command/node pair is unsupported or the node is detached. The TypeScript
-  side rejects these before framing, and the host repeats ownership checks.
-
-### Verify
-
-Run the lifecycle regression paths:
-
-```sh
-cd packages/react-gpui
-bun test tests/renderer.test.tsx --test-name-pattern "rejects pending commands"
-bun test tests/renderer.test.tsx --test-name-pattern "surface close"
-bun test tests/transport.test.ts --test-name-pattern "transport termination"
-```
-
-In a live process, run the tap report and inspect its `command_success` summary.
-An unmatched command request means no matching result was observed; a matched
-`success=false` result means the Promise did settle and the native contract
-rejected the operation. Payload bytes are deliberately absent from the report,
-so use the command ID and application logs to identify the call.
-
-### Fix or boundary
-
-Keep one root/surface alive until asynchronous commands complete, and always
-handle both resolve and reject paths. Do not assume a picker cancellation is an
-error: `null` is the documented cancellation value. Treat
-`TransportTerminatedError` as terminal for that adapter; create a new root and
-adapter rather than retrying onto a failed stream. The lifecycle ownership and
-all root/node command restrictions are in [protocol.md](protocol.md#4-command-directory).
-
-## IME and text input
+## Text input or IME behavior is wrong
 
 ### Symptom
 
-Chinese/Japanese/Korean composition, marked text, candidate placement, caret
-movement, or multiline selection appears wrong.
+Chinese/Japanese/Korean composition, marked text, caret movement, or multiline
+selection appears wrong.
 
-### Most likely causes
+### Cause
 
-The renderer deliberately has a mixed-precision text contract:
+TextInput selection and edit positions use UTF-16 code units, not UTF-8 bytes
+or Unicode scalar counts. `onSelectionChange` also carries the `reversed`
+head-orientation bit. TextInput/IME handling takes precedence before keymaps;
+display-backed candidate placement remains approximate, and this renderer does
+not expose browser composition events or synchronous cancellation.
 
-- TextInput selection and edit positions are UTF-16 code units, not UTF-8 bytes
-  or Unicode scalar counts. `maxLength` uses the same UTF-16 unit contract.
-- `onSelectionChange` carries `start`, `end`, and `reversed`; TextInput event
-  payloads always include the `reversed` boolean.
-- TextInput/IME takes precedence before keymaps; cached GPUI shaped layouts
-  cover single-line and multiline/newline UTF-16 positions and point lookup.
-- IME candidate placement remains approximate and display-backed. Placeholder
-  geometry still falls back to element bounds.
-- There is no browser composition event or synchronous event cancellation
-  surface, and `setSelection(start, end)` sets an ordered range but does not set
-  selection orientation.
+### Fix
 
-### Verify
+Keep selection offsets in UTF-16 units, preserve `reversed` when displaying
+selection direction, and use the native text delivered by `onChangeText` or
+submit. Verify candidate placement and final text geometry on a real desktop
+adapter rather than a headless backend.
 
-Run the UTF-16/selection regression group:
+**Where this is enforced:** `packages/react-gpui/src/renderer/props.ts`,
+`packages/react-gpui/src/protocol.ts` (TextInput event validation),
+`crates/react-gpui/src/renderer/paint/text_input.rs`, and the TextInput sections
+of `docs/protocol.md` and `packages/react-gpui/README.md`.
 
-```sh
-cd packages/react-gpui
-bun test tests/renderer.test.tsx --test-name-pattern "selection"
-cargo test -p react-gpui multiline_utf16_positions_cover_emoji_empty_lines_and_trailing_newline --locked
-```
-
-Read the exact current boundaries in
-[TextInput behavior](../packages/react-gpui/README.md#scroll) and the
-[protocol event directory](protocol.md#3-event-directory). Confirm that
-application state treats selection offsets as UTF-16 units and that marked
-ranges are preserved until native composition changes them.
-
-### Fix or boundary
-
-Do not convert selection offsets using UTF-8 byte positions. Preserve the
-`reversed` bit when displaying a selection direction, and use the native text
-value delivered by `onChangeText`/submit rather than a stale closure. Multiline
-caret and point-to-character mapping use cached wrapped GPUI geometry, including
-empty/trailing-newline lines. IME candidate placement remains a known
-display-backed approximation; verify it on a real desktop adapter.
-
-## Low frame rate or stutter
+## The app stutters
 
 ### Symptom
 
-The application stutters, emits too many commits/events, or appears to spend
-unexpected time in the transport.
+The application emits unexpectedly many commits/events, or the protocol tap
+shows large frames and high event rates.
 
-### Most likely causes
+### Cause
 
-- A component is generating large Snapshot/Patch payloads instead of keeping
-  updates local to the changed subtree.
-- A native event source is producing an event storm (for example repeated
-  pointer, scroll, layout, or key notifications).
-- The observed cost is actually native layout/paint or a display compositor,
-  which the protocol tap does not measure.
-- Tap output is being written to a slow or shared path, or the bounded tap has
-  reached its 64 MiB capacity.
+Large Snapshot/Patch payloads, high-frequency pointer/scroll/layout/key
+notifications, or a slow/shared tap path can be responsible. The protocol tap
+records frame and event metadata; it does not measure GPUI layout, paint, GPU,
+compositor, transport queue depth, or per-commit time.
 
-### Verify
+### Fix
 
-For a bounded leak/transport smoke, run:
+Reduce React commit scope, avoid state updates for notifications the application
+does not need, and use one tap file per process. Compare frame sizes and event
+counts with:
 
 ```sh
-make soak-smoke
+python3 scripts/protocol-tap-report.py /path/to/tap.jsonl
 ```
 
-For a reproduction with protocol metadata, use the separate host/renderer tap
-command from [No window or white screen](#no-window-or-white-screen), then:
+Use a display-backed profiler for native paint or compositor work. The tap is a
+diagnostic aid, not proof of a GUI frame-rate problem.
 
-```sh
-python3 scripts/protocol-tap-report.py /tmp/react-gpui-troubleshoot-*/host.jsonl \
-  /tmp/react-gpui-troubleshoot-*/renderer.jsonl
-```
-
-Read `frame_rate_hz`, `bytes_by_kind`, event subtype counts,
-`command_success`, and frame-interval `p50`/`p95`. Large Patch byte totals point
-to commit breadth; high event counts/rates point to a notification storm;
-unmatched commands point to a missing lifecycle receipt. The report records
-metadata only and cannot attribute time to GPUI layout, paint, or GPU work.
-
-### Fix or boundary
-
-Reduce the React commit scope and avoid sending state updates for every native
-notification unless the application needs them. Keep tap files per process and
-remove or rotate a file after a reproduction. Treat `make soak-smoke` as a
-bounded leak smoke, not multi-hour performance proof; for native paint or
-compositor issues, use a display-backed profiler.
+**Where this is enforced:** `packages/react-gpui/src/protocol-tap.ts`,
+`scripts/protocol-tap-report.py`, and `README.md` (tap limits and reported
+fields).
 
 ## Crash reports
 
 ### Symptom
 
-The host exits, stderr contains a panic or fatal runtime message, or the crash
+The host exits, stderr contains a panic or fatal runtime message, or a crash
 file is not where expected.
 
-### Most likely causes
+### Cause
 
-- A GPUI paint panic or host invariant failure terminated the host.
-- A Snapshot/Patch validation failure or transport termination took the fatal
-  path; these are not recovered by resynchronizing the shared stream.
-- `REACT_GPUI_CRASH_DIR` points to a directory the host cannot create/write.
-- The process ended normally (for example explicit shutdown), so no panic report
-  was expected.
+Host panics use the panic hook described in [Malformed or oversized
+frames](#malformed-or-oversized-frames). Fatal protocol/transport failures call
+the host's fail-fast exit path and are not recovered by resynchronizing the
+stream. A report may be absent when the process ended normally, was killed
+without the panic hook, or could not create/write its report directory.
 
-### Verify
+### Fix
 
-Reproduce with an explicit crash directory and a full Rust backtrace:
+Set an explicit directory and preserve stderr while reproducing:
 
 ```sh
 crash_dir="${TMPDIR:-/tmp}/react-gpui-crashes"
 mkdir -p "$crash_dir"
-RUST_BACKTRACE=full REACT_GPUI_CRASH_DIR="$crash_dir" REACT_GPUI_LOG=info \
-  cargo run -p react-gpui-host -- --runtime process \
-  bun run packages/react-gpui/examples/counter.tsx
-printf '%s\n' "$crash_dir"/react-gpui-host-*.log
+RUST_BACKTRACE=full REACT_GPUI_CRASH_DIR="$crash_dir" \
+  REACT_GPUI_LOG=info react-gpui-host --runtime process -- \
+  bun run path/to/app.tsx
 ```
 
-The host's standard panic hook keeps the original panic on stderr and writes
-`react-gpui-host-<pid>-<timestamp>.log`. The report contains version/platform,
-panic location, and `Backtrace::capture()` output. If it cannot write, stderr
-prints `react-gpui-host: unable to write crash report: ...`.
+Keep the `react-gpui-host: crash report: <path>` line, the report file, exit
+code, and stderr tail together. A shared Runtime Adapter failure closes all
+roots using that adapter; recovery requires a fresh adapter and root.
 
-A process renderer's `TransportTerminatedError` also carries an integer host
-exit code and the last 50 stderr lines when the host supplies them. Handle
-`onTransportTermination` and log `error.exitCode` and `error.stderrTail`; do
-not treat a retained failed transport as a recoverable command result.
+**Where this is enforced:** `crates/react-gpui-host/src/main.rs` (panic hook
+and `REACT_GPUI_CRASH_DIR`), `crates/react-gpui/src/transport.rs`
+(`fatal_runtime_failure`), and `packages/react-gpui/src/transport.ts`
+(stderr-tail and crash-path extraction).
 
-### Fix or boundary
-
-Use `REACT_GPUI_LOG=info` for startup/termination context and `debug` for the
-same diagnostics alongside fatal context. Preserve the crash file and stderr
-tail together when filing a report. A GPUI paint panic has no safe node-level
-resume path; a shared Runtime Adapter failure closes every registered surface.
-Display/compositor behavior still requires a real desktop runner.
-
-## Upgrade and protocol cutover
-
-### Symptom
-
-After upgrading one side of the renderer/host, current frames are rejected, a
-notification action disappears, selection direction changes, or resize callbacks
-receive the wrong arity/value.
-
-### Verify
-
-Regenerate and run both protocol golden directions after an intentional wire
-contract change:
-
-```sh
-make protocol-golden-generate
-cargo test -p react-gpui --test protocol_golden --locked
-cd packages/react-gpui
-bun test tests/protocol-golden.test.ts
-```
-
-The current v3 contract uses one shape for each required positional payload:
-
-- **TextInput:** eight slots, with `reversed` in the final slot.
-- **CommandResult:** seven slots, with a nullable typed-value slot.
-- **Submit:** a string payload, including the empty string.
-- **Notifications:** `[title, body]` and action-extended command forms remain
-  valid because optional action data is intentionally emitted by current
-  encoders; action responses are a separate Event 21 path.
-- **Window resize:** three slots `[width,height,scaleFactor]`; scale-only
-  changes are reported.
-
-Run focused protocol checks when diagnosing one of these cases:
-
-```sh
-cargo test -p react-gpui protocol_v3_host_properties_and_event_payload_tags_round_trip --locked
-cargo test -p react-gpui notification_and_menu_commands_and_action_events_round_trip --locked
-cargo test -p react-gpui window_resize_wire_accepts_scale_factor --locked
-```
-
-### Fix or boundary
-
-Upgrade the renderer and host together after a protocol cutover. Do not add
-decoder fallbacks or default-fill removed fields; update both current
-encoders, decoders, tests, and golden fixtures as one reviewed change. The
-authoritative slot, event, and command rules are in
-[protocol.md](protocol.md).
-
-## Known boundaries worth checking first
-
-- AX disabled state is retained and validated, but the pinned GPUI public
-  builder does not expose a disabled-state mapping. Verify the final AccessKit
-tree on a display-backed host; this is a documented platform/API boundary, not
-  a missing callback retry. See [package accessibility](../packages/react-gpui/README.md#accessibility).
-- `pointerEvents` has no declarative prop. Native normal hitboxes already allow
-  basic pass-through when no listener is installed; partial occlusion semantics
-  are not represented by this protocol.
-- `Root.zoom()` has headless command coverage, but its visual effect remains
-  display-backed because the pinned TestWindow does not implement native zoom.
-- Image `onError` remains a true upstream gap. `fallbackSource` is the visual
-  loading/error degradation path; without it, a failed image remains blank.
-- `VirtualList` requires a bounded viewport and uses native variable-height
-  measurement; `estimatedItemSize` is an initial hint, not a fixed row height.
-
-For a complete field-level contract, use [protocol.md](protocol.md). For
-consumer recipes, use [getting-started.md](getting-started.md). For environment
-variables and opt-in tap/crash diagnostics, this repository's root
-[README](../README.md#debugging) remains the quick reference.
+For field-level constraints and wire ownership, use [protocol.md](protocol.md).
+For application recipes, use [getting-started.md](getting-started.md). For
+environment variables and tap reporting, see the root
+[Debugging section](../README.md#debugging).
