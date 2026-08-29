@@ -331,6 +331,11 @@ impl Element for TextInputElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let root = self.entity.read(cx);
+        #[cfg(test)]
+        let content_started = std::time::Instant::now();
+        #[cfg(test)]
+        root.input_content_assembly_count
+            .set(root.input_content_assembly_count.get() + 1);
         let (content, selection, selection_reversed, marked, current_offset) = root
             .input_states
             .get(&self.node_id)
@@ -352,6 +357,10 @@ impl Element for TextInputElement {
                     Point::default(),
                 )
             });
+        #[cfg(test)]
+        root.input_content_assembly_time.set(
+            root.input_content_assembly_time.get() + content_started.elapsed(),
+        );
         let (display_text, is_placeholder) =
             input_display_text(content.clone(), Some(&self.placeholder));
         let text_style = window.text_style();
@@ -360,9 +369,22 @@ impl Element for TextInputElement {
         } else {
             text_style.color
         };
+        #[cfg(test)]
+        let run_started = std::time::Instant::now();
         let run = text_style_to_run_with_color(&text_style, display_text.len(), text_color);
+        #[cfg(test)]
+        root.input_run_assembly_count
+            .set(root.input_run_assembly_count.get() + 1);
+        #[cfg(test)]
+        root.input_run_assembly_time
+            .set(root.input_run_assembly_time.get() + run_started.elapsed());
         let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
+        #[cfg(test)]
+        let shape_started = std::time::Instant::now();
+        #[cfg(test)]
+        root.input_shape_count
+            .set(root.input_shape_count.get() + 1);
         let text_layout = if self.multiline {
             let line_starts = super::super::input::line_starts(&display_text);
             let lines = window
@@ -394,6 +416,9 @@ impl Element for TextInputElement {
                 line_height,
             }
         };
+        #[cfg(test)]
+        root.input_shape_time
+            .set(root.input_shape_time.get() + shape_started.elapsed());
         let scroll_offset = if is_placeholder {
             Point::default()
         } else {

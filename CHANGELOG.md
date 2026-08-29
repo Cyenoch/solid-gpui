@@ -57,6 +57,11 @@ from this work tree.
   paragraphs. Unchanged redraws must reuse assembled content (zero rebuilds
   across the measured frames); style-only and full-text updates rebuild once.
 
+- Added a headless TextInput typing-performance guard covering 100-, 1,000-, and
+  10,000-character single-line documents plus wrapped multiline input. The guard
+  records p50/p99 timings and content/run/shape call counts; attribution records
+  pinned GPUI whole-line shaping as the dominant cost for long single-line text.
+
 ### Added
 
 - `TestApp` now provides selection, external-file-drop, and layout event

@@ -91,6 +91,18 @@ pub struct ReactRoot {
     link_affordance_bounds: paint::LinkAffordanceBounds,
     #[cfg(test)]
     rich_text_assembly_count: Cell<usize>,
+    #[cfg(test)]
+    input_content_assembly_count: Cell<usize>,
+    #[cfg(test)]
+    input_run_assembly_count: Cell<usize>,
+    #[cfg(test)]
+    input_shape_count: Cell<usize>,
+    #[cfg(test)]
+    input_content_assembly_time: Cell<Duration>,
+    #[cfg(test)]
+    input_run_assembly_time: Cell<Duration>,
+    #[cfg(test)]
+    input_shape_time: Cell<Duration>,
     focus_handles: HashMap<u32, FocusHandle>,
     focused_node: Option<(u32, u32)>,
     active_input: Option<u32>,
@@ -133,6 +145,18 @@ impl ReactRoot {
             link_affordance_bounds: Rc::new(RefCell::new(HashMap::new())),
             #[cfg(test)]
             rich_text_assembly_count: Cell::new(0),
+            #[cfg(test)]
+            input_content_assembly_count: Cell::new(0),
+            #[cfg(test)]
+            input_run_assembly_count: Cell::new(0),
+            #[cfg(test)]
+            input_shape_count: Cell::new(0),
+            #[cfg(test)]
+            input_content_assembly_time: Cell::new(Duration::ZERO),
+            #[cfg(test)]
+            input_run_assembly_time: Cell::new(Duration::ZERO),
+            #[cfg(test)]
+            input_shape_time: Cell::new(Duration::ZERO),
             focus_handles: HashMap::new(),
             focused_node: None,
             active_input: None,
@@ -873,6 +897,111 @@ mod input_tests {
     use crate::transport::InMemoryAdapter;
     use crate::tree::{KIND_RAW_TEXT, KIND_TEXT, KIND_VIEW};
     use gpui::AppContext as _;
+    use crate::tree::KIND_TEXT_INPUT;
+
+    const INPUT_PERF_KEYSTROKES: usize = 32;
+
+    fn percentile_ms(samples: &[Duration], percentile: usize) -> f64 {
+        assert!(!samples.is_empty());
+        let mut sorted = samples.to_vec();
+        sorted.sort_unstable();
+        let index = ((sorted.len() - 1) * percentile / 100).min(sorted.len() - 1);
+        sorted[index].as_secs_f64() * 1_000.0
+    }
+
+    fn input_perf_value(length: usize) -> String {
+        let mut value = "word ".repeat(length.div_ceil(5));
+        value.truncate(length);
+        value
+    }
+
+    fn input_perf_snapshot(value: String, multiline: bool) -> Snapshot {
+        let selection = value.encode_utf16().count() as u32;
+        let mut input = Node::new(2, 1, 0, KIND_TEXT_INPUT);
+        input.listener_id = 1;
+        input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+            value,
+            placeholder: None,
+            multiline,
+            disabled: false,
+            controlled: true,
+            ack_edit_seq: 0,
+            selection_start: selection,
+            selection_end: selection,
+            marked_start: None,
+            marked_end: None,
+            max_length: None,
+            selection_reversed: false,
+        }));
+        Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), input])
+    }
+    fn draw_window(cx: &mut gpui::TestAppContext, window: gpui::AnyWindowHandle) {
+        cx.update_window(window, |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw input perf window");
+        cx.run_until_parked();
+    }
+
+
+    fn measure_input_typing(
+        cx: &mut gpui::TestAppContext,
+        length: usize,
+        multiline: bool,
+    ) -> (Vec<Duration>, (usize, usize, usize), (Duration, Duration, Duration)) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(320.0), px(160.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("input perf root");
+        let snapshot = input_perf_snapshot(input_perf_value(length), multiline);
+        let payload = snapshot.encode().expect("encode input perf snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply input perf snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("warm input perf draw");
+        cx.run_until_parked();
+        let point = root.read_with(cx, |root, _| {
+            let layout = root.text_input_layouts.get(&2).expect("input perf layout");
+            layout.bounds.origin + gpui::point(px(2.0), px(8.0))
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_mouse_down(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        root.update(cx, |root, _| {
+            root.active_input = Some(2);
+            root.input_content_assembly_count.set(0);
+            root.input_run_assembly_count.set(0);
+            root.input_shape_count.set(0);
+            root.input_content_assembly_time.set(Duration::ZERO);
+            root.input_run_assembly_time.set(Duration::ZERO);
+            root.input_shape_time.set(Duration::ZERO);
+        });
+        let mut samples = Vec::with_capacity(INPUT_PERF_KEYSTROKES);
+        for _ in 0..INPUT_PERF_KEYSTROKES {
+            let started = Instant::now();
+            visual.simulate_input("x");
+            samples.push(started.elapsed());
+        }
+        let counters = root.read_with(cx, |root, _| {
+            (
+                root.input_content_assembly_count.get(),
+                root.input_run_assembly_count.get(),
+                root.input_shape_count.get(),
+            )
+        });
+        let times = root.read_with(cx, |root, _| {
+            (
+                root.input_content_assembly_time.get(),
+                root.input_run_assembly_time.get(),
+                root.input_shape_time.get(),
+            )
+        });
+        (samples, counters, times)
+    }
 
     fn controlled(value: &str, ack_edit_seq: u32) -> TextInputProperties {
         TextInputProperties {
@@ -2235,6 +2364,7 @@ mod input_tests {
             first_mouse: false,
         });
         assert_eq!(latest_text_selection(&runtime), (17, 28, false));
+
         visual.simulate_mouse_up(
             second_line_point,
             gpui::MouseButton::Left,
@@ -2246,6 +2376,87 @@ mod input_tests {
             Some("second line".to_owned())
         );
     }
+
+    #[gpui::test]
+    fn text_input_typing_performance_measurement(cx: &mut gpui::TestAppContext) {
+        for (length, multiline) in [(100, false), (1_000, false), (10_000, false), (1_000, true)] {
+            let (samples, counters, times) = measure_input_typing(cx, length, multiline);
+            eprintln!(
+                "perf_input: length={length} multiline={multiline} p50={:.3}ms p99={:.3}ms content_assembly={} run_assembly={} shape={} content_time={:.3}ms run_time={:.3}ms shape_time={:.3}ms",
+                percentile_ms(&samples, 50),
+                percentile_ms(&samples, 99),
+                counters.0,
+                counters.1,
+                counters.2,
+                times.0.as_secs_f64() * 1_000.0,
+                times.1.as_secs_f64() * 1_000.0,
+                times.2.as_secs_f64() * 1_000.0,
+            );
+            assert!(counters.0 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+            assert!(counters.1 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+            assert!(counters.2 <= INPUT_PERF_KEYSTROKES * 2 + 1);
+        }
+    }
+
+    #[gpui::test]
+    fn text_input_unrelated_style_patch_still_reaches_focused_input(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(320.0), px(160.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("input style patch root");
+        let mut snapshot = input_perf_snapshot(input_perf_value(1_000), false);
+        snapshot.nodes[1].index = 1;
+        snapshot.nodes.insert(1, Node::new(3, 1, 0, KIND_VIEW));
+        root.update(cx, |root, cx| {
+            root.apply_payload(&snapshot.encode().expect("encode style patch snapshot"), cx)
+        })
+        .expect("apply style patch snapshot");
+        draw_window(cx, window.into());
+        root.update(cx, |root, _| {
+            root.active_input = Some(2);
+            root.input_content_assembly_count.set(0);
+            root.input_run_assembly_count.set(0);
+            root.input_shape_count.set(0);
+        });
+        let patch = Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 3,
+                mask: UPDATE_STYLE,
+                style: Some(Style::default()),
+                text: None,
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&patch.encode().expect("encode style-only patch"), cx)
+        })
+        .expect("apply style-only patch");
+        draw_window(cx, window.into());
+        let counters = root.read_with(cx, |root, _| {
+            (
+                root.input_content_assembly_count.get(),
+                root.input_run_assembly_count.get(),
+                root.input_shape_count.get(),
+            )
+        });
+        eprintln!("perf_input: unrelated_style_patch counters={counters:?}");
+        assert_eq!(counters, (2, 2, 2));
+    }
+
 
     #[gpui::test]
     fn text_input_triple_click_dispatch_selects_entire_single_line(cx: &mut gpui::TestAppContext) {
