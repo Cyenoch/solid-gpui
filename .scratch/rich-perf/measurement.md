@@ -41,6 +41,25 @@ still runs in `RichTextElement::prepaint` on each draw. A StyledText-level shape
 cache was intentionally not attempted in this change because its layout and
 window-width correctness boundary is deeper and unmeasured.
 
+## Shaping split and verdict
+
+The focused split benchmark rendered a 200-run interactive paragraph for 32
+draws after one warm draw. Test-only timers measured `RichTextElement::prepaint`
+`shape_text` separately from total draw time and timed rich-parts assembly on
+forced cache misses. Two repeat runs produced these results:
+
+| Run | Total unchanged p50 / p99 (ms) | Shape avg (ms) | Shape share | Forced assembly avg (ms) | Forced shape avg (ms) | Shape share of forced total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 0.520 / 0.644 | 0.066 | 12.7% | 0.067 | 0.055 | 11.5% |
+| 2 | 0.276 / 0.314 | 0.036 | 13.0% | 0.046 | 0.035 | 11.1% |
+
+Both runs made 32 shape calls; forced assembly made 32 assemblies. The
+platform-shaped layout was already reused by GPUI's line-layout cache, so the
+residual shape request is only about 11–13% of the frame. This is below the
+issue's 30% savings threshold; outcome B is recorded in
+`issues/02-shaped-text-cache.md` and no application-level shaped-layout cache
+was added.
+
 ## Fix
 
 `ReactRoot` stores assembled rich parts by Text node ID. Snapshots clear the
