@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::ops::Range;
 use std::sync::atomic::Ordering;
 
@@ -27,6 +27,36 @@ pub(crate) enum TextInputSelectionGranularity {
     Line,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum TextInputEditKind {
+    Typing,
+    Delete,
+    Paste,
+    Cut,
+    ImeCommit,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct InputSnapshot {
+    text: String,
+    selection: Range<usize>,
+    selection_reversed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LastEdit {
+    kind: TextInputEditKind,
+    selection: Range<usize>,
+}
+
+#[derive(Debug, Default)]
+pub(super) struct NativeInputHistory {
+    undo: VecDeque<InputSnapshot>,
+    redo: VecDeque<InputSnapshot>,
+    last_edit: Option<LastEdit>,
+    composition_before: Option<InputSnapshot>,
+}
+
 #[derive(Debug, Default)]
 pub(super) struct NativeInputState {
     pub(super) text: String,
@@ -40,6 +70,7 @@ pub(super) struct NativeInputState {
     pub(crate) drag_granularity: TextInputSelectionGranularity,
     pub(crate) drag_origin: usize,
     pub(crate) drag_selection: Range<usize>,
+    pub(super) history: NativeInputHistory,
 }
 
 pub(super) enum TextInputTextLayout {
@@ -438,6 +469,94 @@ fn truncate_utf16(value: &str, max_length: usize) -> Cow<'_, str> {
 }
 
 impl NativeInputState {
+    const MAX_HISTORY: usize = 100;
+
+    fn snapshot(&self) -> InputSnapshot {
+        InputSnapshot {
+            text: self.text.clone(),
+            selection: self.selection.clone(),
+            selection_reversed: self.selection_reversed,
+        }
+    }
+
+    fn push_undo(&mut self, snapshot: InputSnapshot) {
+        if self.history.undo.len() == Self::MAX_HISTORY {
+            self.history.undo.pop_front();
+        }
+        self.history.undo.push_back(snapshot);
+    }
+
+    fn record_edit(&mut self, kind: TextInputEditKind, before: InputSnapshot) {
+        let after = self.snapshot();
+        if before == after {
+            self.history.last_edit = None;
+            return;
+        }
+        let coalesce = kind == TextInputEditKind::Typing
+            && before.selection.start == before.selection.end
+            && after.selection.start == after.selection.end
+            && self.history.last_edit.as_ref().is_some_and(|last| {
+                last.kind == TextInputEditKind::Typing && last.selection == before.selection
+            });
+        if !coalesce {
+            self.push_undo(before);
+        }
+        self.history.redo.clear();
+        self.history.last_edit = Some(LastEdit {
+            kind,
+            selection: after.selection,
+        });
+    }
+
+    pub(super) fn break_typing_coalescing(&mut self) {
+        self.history.last_edit = None;
+    }
+
+    fn restore(&mut self, snapshot: InputSnapshot) {
+        self.text = snapshot.text;
+        self.selection = snapshot.selection;
+        self.selection_reversed = snapshot.selection_reversed;
+        self.marked = None;
+        self.edit_seq = self.edit_seq.wrapping_add(1);
+        self.history.last_edit = None;
+        self.history.composition_before = None;
+    }
+
+    fn finish_composition(&mut self) -> bool {
+        let had_marked = self.marked.take().is_some();
+        let before = self.history.composition_before.take();
+        if !had_marked && before.is_none() {
+            return false;
+        }
+        self.edit_seq = self.edit_seq.wrapping_add(1);
+        if let Some(before) = before {
+            self.record_edit(TextInputEditKind::ImeCommit, before);
+        } else {
+            self.history.last_edit = None;
+        }
+        true
+    }
+
+    pub(super) fn undo(&mut self) -> bool {
+        self.finish_composition();
+        let Some(snapshot) = self.history.undo.pop_back() else {
+            return false;
+        };
+        self.history.redo.push_back(self.snapshot());
+        self.restore(snapshot);
+        true
+    }
+
+    pub(super) fn redo(&mut self) -> bool {
+        self.finish_composition();
+        let Some(snapshot) = self.history.redo.pop_back() else {
+            return false;
+        };
+        self.push_undo(self.snapshot());
+        self.restore(snapshot);
+        true
+    }
+
     pub(super) fn set_max_length(&mut self, max_length: Option<usize>) {
         self.max_length = max_length;
         let Some(max_length) = max_length else {
@@ -453,9 +572,22 @@ impl NativeInputState {
             marked.start = marked.start.min(max_length);
             marked.end = marked.end.min(max_length);
         }
+        self.break_typing_coalescing();
     }
 
     pub(super) fn replace(&mut self, range: Option<Range<usize>>, text: &str) {
+        self.replace_with_kind(range, text, TextInputEditKind::Typing);
+    }
+
+    pub(super) fn replace_with_kind(
+        &mut self,
+        range: Option<Range<usize>>,
+        text: &str,
+        kind: TextInputEditKind,
+    ) {
+        let before = self.snapshot();
+        let composition_before = self.history.composition_before.take();
+        let had_marked = self.marked.is_some();
         let range = range.unwrap_or_else(|| self.selection.clone());
         let available = self.max_length.map(|max_length| {
             max_length.saturating_sub(
@@ -472,6 +604,12 @@ impl NativeInputState {
         self.selection_reversed = false;
         self.marked = None;
         self.edit_seq = self.edit_seq.wrapping_add(1);
+        let kind = if had_marked || composition_before.is_some() {
+            TextInputEditKind::ImeCommit
+        } else {
+            kind
+        };
+        self.record_edit(kind, composition_before.unwrap_or(before));
     }
 
     pub(super) fn replace_marked(
@@ -480,6 +618,10 @@ impl NativeInputState {
         text: &str,
         selected: Option<Range<usize>>,
     ) {
+        if self.history.composition_before.is_none() {
+            self.history.composition_before = Some(self.snapshot());
+            self.break_typing_coalescing();
+        }
         let range = range.unwrap_or_else(|| self.selection.clone());
         let available = self.max_length.map(|max_length| {
             max_length.saturating_sub(
@@ -501,21 +643,18 @@ impl NativeInputState {
     }
 
     pub(super) fn unmark(&mut self) -> bool {
-        if self.marked.take().is_some() {
-            self.edit_seq = self.edit_seq.wrapping_add(1);
-            true
-        } else {
-            false
-        }
+        self.finish_composition()
     }
 
     pub(super) fn set_selection(&mut self, selection: Range<usize>) {
         self.selection = selection;
         self.selection_reversed = false;
+        self.break_typing_coalescing();
     }
 
     pub(super) fn apply_controlled(&mut self, input: &TextInputProperties) {
         if input.controlled && self.edit_seq <= input.ack_edit_seq && self.marked.is_none() {
+            let old = self.snapshot();
             self.text = self
                 .max_length
                 .map(|max_length| truncate_utf16(&input.value, max_length).into_owned())
@@ -527,6 +666,9 @@ impl NativeInputState {
             self.marked = input
                 .marked_start
                 .map(|start| start as usize..input.marked_end.unwrap_or(start) as usize);
+            if self.snapshot() != old {
+                self.break_typing_coalescing();
+            }
         }
     }
 }
@@ -597,6 +739,7 @@ impl ReactRoot {
                         drag_granularity: TextInputSelectionGranularity::Character,
                         drag_origin: 0,
                         drag_selection: 0..0,
+                        history: Default::default(),
                     });
                 let focus_handle = self
                     .focus_handles
@@ -842,16 +985,20 @@ impl ReactRoot {
         };
         self.text_input_drag_anchor = Some((node_id, anchor));
         if let Some(state) = self.input_states.get_mut(&node_id) {
+            let selection_changed =
+                state.selection != selection || state.selection_reversed != reversed;
             state.selection = selection.clone();
             state.selection_reversed = reversed;
             state.drag_granularity = granularity;
             state.drag_origin = index;
             state.drag_selection = selection;
+            if selection_changed {
+                state.break_typing_coalescing();
+            }
         }
         self.emit_input_event(node_id, EVENT_SELECTION);
         cx.notify();
     }
-
     pub(super) fn update_text_input_selection(
         &mut self,
         node_id: u32,
@@ -911,6 +1058,7 @@ impl ReactRoot {
         if let Some(state) = self.input_states.get_mut(&node_id) {
             state.selection = selection;
             state.selection_reversed = reversed;
+            state.break_typing_coalescing();
         }
         self.emit_input_event(node_id, EVENT_SELECTION);
         cx.notify();
@@ -1034,6 +1182,7 @@ impl ReactRoot {
         if let Some(state) = self.input_states.get_mut(&node_id) {
             state.selection = selection;
             state.selection_reversed = reversed;
+            state.break_typing_coalescing();
         }
         self.active_input = Some(node_id);
         self.emit_input_event(node_id, EVENT_SELECTION);
@@ -1266,6 +1415,33 @@ fn replace_utf16(text: &mut String, range: Range<usize>, replacement: &str) -> u
     range.start + replacement.encode_utf16().count()
 }
 
+fn delete_range_for_selection(
+    text: &str,
+    selection: &Range<usize>,
+    backward: bool,
+    wordwise: bool,
+) -> Range<usize> {
+    if !selection.is_empty() {
+        return selection.clone();
+    }
+    let caret = selection.end;
+    if backward {
+        let start = if wordwise {
+            previous_word_boundary(text, caret)
+        } else {
+            previous_utf16_boundary(text, caret)
+        };
+        start..caret
+    } else {
+        let end = if wordwise {
+            next_word_boundary(text, caret)
+        } else {
+            next_utf16_boundary(text, caret)
+        };
+        caret..end
+    }
+}
+
 impl ReactRoot {
     fn active_input_state(&self) -> Option<&NativeInputState> {
         self.active_input.and_then(|id| self.input_states.get(&id))
@@ -1313,11 +1489,40 @@ impl ReactRoot {
             if let Some(state) = self.input_states.get_mut(&node_id) {
                 state.selection = 0..text_length;
                 state.selection_reversed = false;
+                state.break_typing_coalescing();
             }
             self.emit_input_event(node_id, EVENT_SELECTION);
             cx.notify();
         }
         true
+    }
+
+    pub(super) fn undo_text_input(&mut self, node_id: u32, cx: &mut Context<Self>) -> bool {
+        self.active_input = Some(node_id);
+        self.text_input_layouts.remove(&node_id);
+        let changed = self
+            .input_states
+            .get_mut(&node_id)
+            .is_some_and(|state| state.undo());
+        if changed {
+            cx.notify();
+            self.emit_input_change_and_selection_for(node_id);
+        }
+        changed
+    }
+
+    pub(super) fn redo_text_input(&mut self, node_id: u32, cx: &mut Context<Self>) -> bool {
+        self.active_input = Some(node_id);
+        self.text_input_layouts.remove(&node_id);
+        let changed = self
+            .input_states
+            .get_mut(&node_id)
+            .is_some_and(|state| state.redo());
+        if changed {
+            cx.notify();
+            self.emit_input_change_and_selection_for(node_id);
+        }
+        changed
     }
 
     pub(super) fn replace_text_input(
@@ -1330,9 +1535,8 @@ impl ReactRoot {
             return false;
         }
         self.active_input = Some(node_id);
-        self.text_input_layouts.remove(&node_id);
         if let Some(state) = self.input_states.get_mut(&node_id) {
-            state.replace(None, text);
+            state.replace_with_kind(None, text, TextInputEditKind::Paste);
         }
         cx.notify();
         self.emit_input_change_and_selection_for(node_id);
@@ -1345,8 +1549,37 @@ impl ReactRoot {
         cx: &mut Context<Self>,
     ) -> Option<String> {
         let text = self.selected_text_for_copy(node_id)?;
-        self.replace_text_input(node_id, "", cx);
+        self.active_input = Some(node_id);
+        self.text_input_layouts.remove(&node_id);
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.replace_with_kind(None, "", TextInputEditKind::Cut);
+        }
+        cx.notify();
+        self.emit_input_change_and_selection_for(node_id);
         Some(text)
+    }
+    pub(super) fn delete_text_input(
+        &mut self,
+        node_id: u32,
+        backward: bool,
+        wordwise: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(state) = self.input_states.get(&node_id) else {
+            return false;
+        };
+        let range = delete_range_for_selection(&state.text, &state.selection, backward, wordwise);
+        if range.is_empty() {
+            return false;
+        }
+        self.active_input = Some(node_id);
+        self.text_input_layouts.remove(&node_id);
+        if let Some(state) = self.input_states.get_mut(&node_id) {
+            state.replace_with_kind(Some(range), "", TextInputEditKind::Delete);
+        }
+        cx.notify();
+        self.emit_input_change_and_selection_for(node_id);
+        true
     }
 }
 
@@ -1661,5 +1894,76 @@ mod tests {
             size(px(82.0), px(80.0)),
         );
         assert_eq!(reset, Point::default());
+    }
+
+    #[test]
+    fn undo_history_coalesces_typing_and_resets_on_selection_move() {
+        let mut state = NativeInputState::default();
+        state.replace(None, "a");
+        state.replace(None, "b");
+        assert_eq!(state.text, "ab");
+        assert!(state.undo());
+        assert_eq!(state.text, "");
+        assert!(!state.undo());
+
+        state.replace(None, "a");
+        state.set_selection(0..0);
+        state.replace(None, "b");
+        assert!(state.undo());
+        assert_eq!(state.text, "a");
+        assert!(state.undo());
+        assert_eq!(state.text, "");
+    }
+
+    #[test]
+    fn undo_redo_round_trip_and_new_edit_clears_redo() {
+        let mut state = NativeInputState::default();
+        state.replace(None, "a");
+        state.set_selection(1..1);
+        state.replace(None, "b");
+        assert!(state.undo());
+        assert_eq!(state.text, "a");
+        assert!(state.redo());
+        assert_eq!(state.text, "ab");
+        assert!(state.undo());
+        state.set_selection(1..1);
+        state.replace(None, "c");
+        assert!(!state.redo());
+        assert_eq!(state.text, "ac");
+    }
+
+    #[test]
+    fn paste_cut_and_ime_commit_are_single_history_boundaries() {
+        let mut state = NativeInputState::default();
+        state.replace_with_kind(None, "paste", TextInputEditKind::Paste);
+        assert!(state.undo());
+        assert_eq!(state.text, "");
+
+        state.replace(None, "ab");
+        state.set_selection(0..1);
+        state.replace_with_kind(None, "", TextInputEditKind::Cut);
+        assert!(state.undo());
+        assert_eq!(state.text, "ab");
+
+        state.set_selection(2..2);
+        state.replace_marked(None, "你", Some(1..1));
+        state.replace_marked(Some(0..1), "你好", Some(2..2));
+        assert!(state.unmark());
+        assert!(state.undo());
+        assert_eq!(state.text, "ab");
+    }
+
+    #[test]
+    fn undo_history_evicts_oldest_entry_at_one_hundred() {
+        let mut state = NativeInputState::default();
+        for _ in 0..101 {
+            state.break_typing_coalescing();
+            state.replace(None, "x");
+        }
+        for _ in 0..100 {
+            assert!(state.undo());
+        }
+        assert_eq!(state.text, "x");
+        assert!(!state.undo());
     }
 }

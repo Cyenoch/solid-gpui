@@ -510,6 +510,45 @@ pub(super) fn render_text_input(
             app.stop_propagation();
         }
     });
+    let history_entity = entity.clone();
+    input_element = input_element.on_key_down(move |event, _, app| {
+        let modifiers = event.keystroke.modifiers;
+        if event.is_held || modifiers.alt || (!modifiers.platform && !modifiers.control) {
+            return;
+        }
+        let key = event.keystroke.key.as_str();
+        let undo = key.eq_ignore_ascii_case("z") && !modifiers.shift;
+        let redo = (key.eq_ignore_ascii_case("z") && modifiers.shift)
+            || (key.eq_ignore_ascii_case("y") && modifiers.control && !modifiers.platform);
+        let changed = if undo {
+            history_entity.update(app, |root, cx| root.undo_text_input(input_id, cx))
+        } else if redo {
+            history_entity.update(app, |root, cx| root.redo_text_input(input_id, cx))
+        } else {
+            false
+        };
+        if changed {
+            app.stop_propagation();
+        }
+    });
+    let deletion_entity = entity.clone();
+    input_element = input_element.on_key_down(move |event, _, app| {
+        let modifiers = event.keystroke.modifiers;
+        if event.is_held || modifiers.platform || (!modifiers.control && modifiers.shift) {
+            return;
+        }
+        let key = event.keystroke.key.as_str();
+        let backward = key.eq_ignore_ascii_case("backspace");
+        let forward = key.eq_ignore_ascii_case("delete");
+        if backward || forward {
+            let wordwise = modifiers.alt;
+            if deletion_entity.update(app, |root, cx| {
+                root.delete_text_input(input_id, backward, wordwise, cx)
+            }) {
+                app.stop_propagation();
+            }
+        }
+    });
     if node.listener_id != 0 {
         let runtime = Arc::clone(&root.runtime);
         let sequence = Arc::clone(&root.next_sequence);

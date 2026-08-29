@@ -166,3 +166,13 @@ explicitly listed so future work does not silently turn a policy choice into a
 claimed GPUI limitation. RTL rendering is not an upstream gap after the bidi
 re-review; explicit base-direction control and bidi-aware hit/caret geometry
 remain separate true gaps, with geometry the deeper interaction boundary.
+
+## 2026-08-29 correction
+
+The earlier TextInput undo/redo classification in
+`.scratch/text-input-completeness/spec.md` and
+`.scratch/text-input-completeness/issues/02-undo.md` was incorrect. Although
+pinned GPUI has no `InputHandler` undo method and macOS disables its
+NSTextView-dependent `OsAction` path, this renderer owns `NativeInputState` and
+all TextInput edits. Undo/redo is therefore a feasible bounded host-owned
+history, now implemented without a wire change; it is not an upstream gap.

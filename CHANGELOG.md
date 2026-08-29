@@ -104,10 +104,11 @@ from this work tree.
   within the clicked line, and word/line selections extend by their
   granularity while dragging.
 - `TextInput` now handles host-owned Cmd/Ctrl-C/X/V clipboard editing and
-  Cmd/Ctrl-A selection, with Option/Alt word-wise Left/Right navigation and
-  Shift extension; multiline selections copy across paragraph and wrapped-line
-  boundaries without a wire change. Native undo/redo and secure/password
-  display remain documented pinned-GPUI gaps.
+  Cmd/Ctrl-A selection, Option/Alt word-wise Left/Right navigation, and
+  bounded Cmd/Ctrl-Z undo with Shift-Cmd-Z/Ctrl-Y redo. Typing coalesces by
+  caret continuity, paste/cut/selection edits form boundaries, and IME marked
+  text commits as one history entry; the wire remains unchanged. Secure/
+  password display remains unsupported.
 - Crash diagnostics install a host panic hook with
   `REACT_GPUI_CRASH_DIR` crash logs; TypeScript transport termination errors
   carry host exit codes and the last 50 stderr lines. README Troubleshooting
@@ -578,6 +579,10 @@ from this work tree.
 - Pointer dispatch preserves the outer `EVENT_POINTER` kind while encoding
   down/up actions; `TextInput.onBlur` is exposed, and overlay dropdown
   placement uses the corrected anchored path.
+- TextInput undo/redo now uses a bounded host-owned history over the existing
+  native text and selection model. Undo/redo emits ordinary change and
+  selection events, preserving controlled-input acknowledgement behavior;
+  no protocol or GPUI API change is required.
 
 ### Changed
 - Domain documentation now refreshes `CONTEXT.md` and records ADR-0009 through

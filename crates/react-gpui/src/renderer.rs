@@ -2300,6 +2300,70 @@ mod input_tests {
     }
 
     #[gpui::test]
+    fn text_input_undo_redo_real_dispatch_coalesces_and_emits_change(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(300.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("ReactRoot test window");
+        let payload = text_input_snapshot("", false)
+            .encode()
+            .expect("encode undo snapshot");
+        root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+            .expect("apply undo snapshot");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .expect("draw undo input");
+        cx.run_until_parked();
+        let point = root.read_with(cx, |root, _| {
+            let layout = root.text_input_layouts.get(&2).expect("undo input layout");
+            layout.bounds.origin + gpui::point(px(2.0), px(8.0))
+        });
+        let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+        visual.simulate_mouse_down(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_mouse_up(point, gpui::MouseButton::Left, gpui::Modifiers::none());
+        visual.simulate_keystrokes("a b");
+        assert_eq!(
+            root.read_with(cx, |root, _| root.input_states[&2].text.clone()),
+            "ab"
+        );
+        visual.simulate_keystrokes("cmd-z");
+        assert_eq!(
+            root.read_with(cx, |root, _| root.input_states[&2].text.clone()),
+            ""
+        );
+        visual.simulate_keystrokes("shift-cmd-z");
+        assert_eq!(
+            root.read_with(cx, |root, _| root.input_states[&2].text.clone()),
+            "ab"
+        );
+        visual.simulate_keystrokes("cmd-z");
+        visual.simulate_keystrokes("c");
+        visual.simulate_keystrokes("shift-cmd-z");
+        assert_eq!(
+            root.read_with(cx, |root, _| root.input_states[&2].text.clone()),
+            "c"
+        );
+        let mut saw_reverted_change = false;
+        while let Some(event) = runtime.take_event().expect("read undo event") {
+            if event.event_type == crate::protocol::EVENT_CHANGE
+                && let Some(EventPayload::TextInput(input)) = event.payload
+                && input.text.is_empty()
+            {
+                saw_reverted_change = true;
+            }
+        }
+        assert!(
+            saw_reverted_change,
+            "undo must emit the normal change event"
+        );
+    }
+
+    #[gpui::test]
     fn selectable_text_shapes_and_retains_host_selection_geometry(cx: &mut gpui::TestAppContext) {
         let runtime = InMemoryAdapter::new();
         let window = cx.open_window(gpui::size(px(160.0), px(120.0)), {

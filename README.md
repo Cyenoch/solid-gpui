@@ -34,6 +34,18 @@ by following them vertically (and horizontally for long single-line input),
 without adding wire state. Ctrl/Cmd word-boundary movement and double-/triple-click
 selection remain outside this renderer's minimal interaction contract.
 
+TextInput editing also provides a bounded host-owned undo history without a
+wire or GPUI API change. Cmd/Ctrl-Z undoes and Shift-Cmd-Z (or Ctrl-Y) redoes;
+each operation emits the same change and selection events as ordinary edits,
+so controlled inputs receive the reverted value through the normal
+`onChangeText`/acknowledgement pipeline. The history keeps the newest 100
+pre-edit snapshots and drops the oldest when full. Consecutive typing edits
+coalesce only while both edits have a collapsed caret and the second edit
+starts at the first edit's resulting caret; cursor moves, selection changes,
+paste, cut, and word/line selection edits create boundaries without recording
+selection-only changes. While IME marked text is active, undo first commits
+the composition and then treats that committed composition as one undo entry.
+
 ## Platform support
 
 The supported process-mode host targets are intentionally explicit:
