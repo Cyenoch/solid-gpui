@@ -84,6 +84,7 @@ pub struct ReactRoot {
     text_input_layouts: HashMap<u32, TextInputLayout>,
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
     selectable_text_selections: HashMap<u32, Range<usize>>,
+    link_affordance_bounds: paint::LinkAffordanceBounds,
     focus_handles: HashMap<u32, FocusHandle>,
     focused_node: Option<(u32, u32)>,
     active_input: Option<u32>,
@@ -121,6 +122,7 @@ impl ReactRoot {
             text_input_layouts: HashMap::new(),
             selectable_text_layouts: HashMap::new(),
             selectable_text_selections: HashMap::new(),
+            link_affordance_bounds: Rc::new(RefCell::new(HashMap::new())),
             focus_handles: HashMap::new(),
             focused_node: None,
             active_input: None,
@@ -279,14 +281,12 @@ impl ReactRoot {
         Ok(())
     }
     fn reset_native_state(&mut self) {
-        self.input_states.clear();
         self.text_input_layouts.clear();
         self.selectable_text_layouts.clear();
         self.selectable_text_selections.clear();
         self.selectable_text_drag_anchor = None;
         self.focus_handles.clear();
         self.focus_observers.clear();
-        self.focused_node = None;
         self.active_input = None;
         self.text_input_drag_anchor = None;
         self.active_drag_type.borrow_mut().take();
@@ -2584,8 +2584,51 @@ mod input_tests {
                 break;
             }
         }
+
         let event = event.expect("Text press event");
         assert_eq!((event.node_id, event.listener_id), (3, 9));
+    }
+    #[gpui::test]
+    fn interactive_text_run_paints_focus_affordance_quads(cx: &mut gpui::TestAppContext) {
+        let runtime = InMemoryAdapter::new();
+        let window = cx.open_window(gpui::size(px(240.0), px(80.0)), {
+            let runtime = runtime.clone();
+            move |_, _| ReactRoot::new(runtime)
+        });
+        let root = window.root(cx).expect("interactive Text root");
+        let paragraph = Node::new(2, 1, 0, KIND_TEXT);
+        let mut run = Node::new(3, 2, 0, KIND_TEXT);
+        run.listener_id = 9;
+        run.focusable = true;
+        let mut raw = Node::new(4, 3, 0, KIND_RAW_TEXT);
+        raw.text = Some("link".into());
+        let snapshot = Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), paragraph, run, raw],
+        );
+        root.update(cx, |root, cx| {
+            root.apply_payload(&snapshot.encode().unwrap(), cx)
+        })
+        .expect("apply interactive Text snapshot");
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw interactive Text");
+        cx.run_until_parked();
+        cx.update_window(window.into(), |_, window, cx| window.focus_next(cx))
+            .expect("focus next");
+        cx.run_until_parked();
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .expect("draw focused interactive Text");
+        let affordance = root.read_with(cx, |root, _| {
+            root.link_affordance_bounds.borrow().get(&3).cloned()
+        });
+        let affordance = affordance.expect("focused link affordance");
+        assert!(!affordance.is_empty());
+        assert!(affordance.iter().all(|(_, _, width, height)| {
+            width.is_finite() && height.is_finite() && *width > 0.0 && *height == 1.0
+        }));
     }
 
     #[test]

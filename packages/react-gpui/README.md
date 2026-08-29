@@ -196,7 +196,10 @@ label and description independently: labels name the node, while descriptions
 provide supplementary text announced after the name, role, and value.
 Nested Text runs may use `onPress` and `accessibilityRole="link"`; pointer
 activation maps the parent paragraph hit position to the matching run listener.
-Per-run keyboard focus and Enter/Space activation are not yet exposed.
+Listener-bearing runs are keyboard-focusable, activate on unmodified Enter, and
+paint a one-pixel high-contrast affordance for each wrapped line while focused.
+Space remains non-activating. Pointer cursor feedback remains the existing
+parent `Text` hitbox behavior; sibling-level cursor boundaries are not exposed.
 
 `accessibilityDisabled` is retained and validated on the wire, but GPUI 0.2.2
 does not expose a public AX disabled-state builder. Pressable interaction and

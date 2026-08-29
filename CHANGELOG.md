@@ -53,6 +53,12 @@ from this work tree.
   selectable rich text remains intentionally unsupported. The wire keeps the
   existing `Text`/`RawText` node kinds.
 
+- Added keyboard focus affordances for nested `Text` link runs: focused runs
+  paint one high-contrast pixel rule per wrapped line without shifting layout.
+  Listener-bearing runs activate the existing `onPress` event on unmodified
+  Enter; Space remains non-activating. Cursor feedback remains scoped to the
+  parent text hitbox because the pinned GPUI text interaction surface does not
+  expose per-range cursor regions.
 
 ### Added
 - Added keyboard-accessible nested `Text` link runs. Listener-bearing runs now

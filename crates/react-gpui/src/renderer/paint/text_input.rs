@@ -1,4 +1,5 @@
 use std::ops::Range;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
@@ -6,8 +7,8 @@ use gpui::{
     AnyElement, App, Bounds, ClipboardItem, ContentMask, Element, ElementId, ElementInputHandler,
     Entity, GlobalElementId, InspectorElementId, InteractiveElement, InteractiveText, IntoElement,
     LayoutId, MouseButton, PaintQuad, ParentElement, Pixels, Point, SharedString,
-    StatefulInteractiveElement, Styled, StyledText, TextRun, Window, div, fill, hsla, px, relative,
-    rgba, size,
+    StatefulInteractiveElement, Styled, StyledText, TextRun, Window, div, fill, hsla, point, px,
+    relative, rgba, size,
 };
 
 use crate::protocol::{Event, HostProperties, KeyAction, Style};
@@ -88,6 +89,153 @@ pub(super) fn text_style_to_run_with_color(
     let mut run = text_style_to_run(text_style, len);
     run.color = color;
     run
+}
+
+struct RichTextElement {
+    node_id: u32,
+    interactive: InteractiveText,
+    text: String,
+    runs: Vec<TextRun>,
+    focuses: Vec<(u32, Range<usize>, gpui::FocusHandle)>,
+    affordance_bounds: super::LinkAffordanceBounds,
+}
+struct RichTextPrepaint {
+    hitbox: gpui::Hitbox,
+    affordances: Vec<PaintQuad>,
+}
+
+const FOCUS_AFFORDANCE_RGBA: u32 = 0x2d6cdfff;
+
+impl IntoElement for RichTextElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for RichTextElement {
+    type RequestLayoutState = ();
+    type PrepaintState = RichTextPrepaint;
+
+    fn id(&self) -> Option<ElementId> {
+        Some(ElementId::named_usize(
+            "react-gpui-text-affordance",
+            self.node_id as usize,
+        ))
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let (layout_id, _) = self
+            .interactive
+            .request_layout(id, inspector_id, window, cx);
+        (layout_id, ())
+    }
+
+    fn prepaint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        let hitbox =
+            self.interactive
+                .prepaint(id, inspector_id, bounds, request_layout, window, cx);
+        let text_style = window.text_style();
+        let line_height = window.line_height();
+        let font_size = text_style.font_size.to_pixels(window.rem_size());
+        let lines = window
+            .text_system()
+            .shape_text(
+                SharedString::from(self.text.clone()),
+                font_size,
+                &self.runs,
+                Some(bounds.size.width),
+                None,
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+        let layout = super::super::input::TextInputTextLayout::Multiline {
+            lines,
+            line_starts: super::super::input::line_starts(&self.text),
+            line_height,
+        };
+        let mut affordances = Vec::new();
+        for (node_id, range, focus) in &self.focuses {
+            if !focus.is_focused(window) {
+                continue;
+            }
+            let frames = layout
+                .selection_bounds_per_line(range.clone(), bounds)
+                .into_iter()
+                .map(|row| {
+                    let y = row.origin.y + row.size.height - px(1.0);
+                    Bounds::new(point(row.origin.x, y), size(row.size.width, px(1.0)))
+                })
+                .filter(|row| row.size.width > px(0.0))
+                .collect::<Vec<_>>();
+            self.affordance_bounds.borrow_mut().insert(
+                *node_id,
+                frames
+                    .iter()
+                    .map(|row| {
+                        (
+                            f32::from(row.origin.x),
+                            f32::from(row.origin.y),
+                            f32::from(row.size.width),
+                            f32::from(row.size.height),
+                        )
+                    })
+                    .collect(),
+            );
+            affordances.extend(
+                frames
+                    .into_iter()
+                    .map(|row| fill(row, rgba(FOCUS_AFFORDANCE_RGBA))),
+            );
+        }
+        RichTextPrepaint {
+            hitbox,
+            affordances,
+        }
+    }
+    fn paint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.interactive.paint(
+            id,
+            inspector_id,
+            bounds,
+            request_layout,
+            &mut prepaint.hitbox,
+            window,
+            cx,
+        );
+        for affordance in prepaint.affordances.drain(..) {
+            window.paint_quad(affordance);
+        }
+    }
 }
 
 struct TextInputElement {
@@ -722,6 +870,7 @@ pub(super) fn render_rich_text(
         }
         return apply_accessibility(element, node).into_any();
     }
+    let ranges = parts.clickable_ranges;
     let targets = parts.clickable_targets;
     let click_targets = targets.clone();
     let runtime = Arc::clone(&root.runtime);
@@ -731,9 +880,9 @@ pub(super) fn render_rich_text(
     let revision = root.store.revision();
     let interactive = InteractiveText::new(
         ElementId::named_usize("react-gpui-text-runs", node.id as usize),
-        StyledText::new(SharedString::from(parts.text)).with_runs(parts.runs),
+        StyledText::new(SharedString::from(parts.text.clone())).with_runs(parts.runs.clone()),
     )
-    .on_click(parts.clickable_ranges, move |index, _, _| {
+    .on_click(ranges.clone(), move |index, _, _| {
         let Some((node_id, listener_id)) = click_targets.get(index).copied() else {
             return;
         };
@@ -747,7 +896,25 @@ pub(super) fn render_rich_text(
         );
         send_event_or_exit(runtime.as_ref(), "text run press event", &event);
     });
-    element = element.child(interactive);
+    let focuses = targets
+        .clone()
+        .into_iter()
+        .zip(ranges.clone())
+        .filter_map(|((run_node_id, _), range)| {
+            root.focus_handles
+                .get(&run_node_id)
+                .cloned()
+                .map(|focus| (run_node_id, range, focus))
+        })
+        .collect();
+    element = element.child(RichTextElement {
+        node_id: node.id,
+        interactive,
+        text: parts.text,
+        runs: parts.runs,
+        focuses,
+        affordance_bounds: Rc::clone(&root.link_affordance_bounds),
+    });
     for (run_node_id, run_listener_id) in targets {
         let Some(focus) = root.focus_handles.get(&run_node_id).cloned() else {
             continue;

@@ -1,0 +1,6 @@
+Implemented host-painted focused affordances for nested Text link runs.
+
+- Focused listener-bearing runs paint one opaque high-contrast 1px quad for each wrapped line, using the shared multiline selection geometry and no layout mutation.
+- Existing per-run focus handles, tab stops, focus/blur events, and unmodified Enter activation remain intact; Space stays non-activating.
+- Attempted run-scoped cursor feedback did not pass the real headless pointer-dispatch test within the time limit. Removed that branch and retained pinned GPUI InteractiveText's existing parent-hitbox cursor behavior. README and CHANGELOG document this boundary honestly.
+- Focused verification: `cargo test -p react-gpui interactive_text_run -- --nocapture` (2 passed).

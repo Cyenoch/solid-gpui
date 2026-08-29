@@ -22,6 +22,7 @@ use crate::tree::{
 use super::ReactRoot;
 use super::events::{emit_key_event, emit_pointer_event, emit_pointer_move, emit_scroll_event};
 pub(super) type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
+pub(super) type LinkAffordanceBounds = Rc<RefCell<HashMap<u32, Vec<(f32, f32, f32, f32)>>>>;
 struct TooltipView {
     text: SharedString,
 }
