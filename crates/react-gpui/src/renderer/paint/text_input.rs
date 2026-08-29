@@ -358,9 +358,8 @@ impl Element for TextInputElement {
                 )
             });
         #[cfg(test)]
-        root.input_content_assembly_time.set(
-            root.input_content_assembly_time.get() + content_started.elapsed(),
-        );
+        root.input_content_assembly_time
+            .set(root.input_content_assembly_time.get() + content_started.elapsed());
         let (display_text, is_placeholder) =
             input_display_text(content.clone(), Some(&self.placeholder));
         let text_style = window.text_style();
@@ -383,8 +382,7 @@ impl Element for TextInputElement {
         #[cfg(test)]
         let shape_started = std::time::Instant::now();
         #[cfg(test)]
-        root.input_shape_count
-            .set(root.input_shape_count.get() + 1);
+        root.input_shape_count.set(root.input_shape_count.get() + 1);
         let text_layout = if self.multiline {
             let line_starts = super::super::input::line_starts(&display_text);
             let lines = window

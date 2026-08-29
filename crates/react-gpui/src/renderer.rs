@@ -895,9 +895,9 @@ mod input_tests {
         UPDATE_STYLE, UPDATE_TEXT, VirtualListProperties,
     };
     use crate::transport::InMemoryAdapter;
+    use crate::tree::KIND_TEXT_INPUT;
     use crate::tree::{KIND_RAW_TEXT, KIND_TEXT, KIND_VIEW};
     use gpui::AppContext as _;
-    use crate::tree::KIND_TEXT_INPUT;
 
     const INPUT_PERF_KEYSTROKES: usize = 32;
 
@@ -943,12 +943,15 @@ mod input_tests {
         cx.run_until_parked();
     }
 
-
     fn measure_input_typing(
         cx: &mut gpui::TestAppContext,
         length: usize,
         multiline: bool,
-    ) -> (Vec<Duration>, (usize, usize, usize), (Duration, Duration, Duration)) {
+    ) -> (
+        Vec<Duration>,
+        (usize, usize, usize),
+        (Duration, Duration, Duration),
+    ) {
         let runtime = InMemoryAdapter::new();
         let window = cx.open_window(gpui::size(px(320.0), px(160.0)), {
             let runtime = runtime.clone();
@@ -2399,9 +2402,7 @@ mod input_tests {
     }
 
     #[gpui::test]
-    fn text_input_unrelated_style_patch_still_reaches_focused_input(
-        cx: &mut gpui::TestAppContext,
-    ) {
+    fn text_input_unrelated_style_patch_still_reaches_focused_input(cx: &mut gpui::TestAppContext) {
         let runtime = InMemoryAdapter::new();
         let window = cx.open_window(gpui::size(px(320.0), px(160.0)), {
             let runtime = runtime.clone();
@@ -2456,7 +2457,6 @@ mod input_tests {
         eprintln!("perf_input: unrelated_style_patch counters={counters:?}");
         assert_eq!(counters, (2, 2, 2));
     }
-
 
     #[gpui::test]
     fn text_input_triple_click_dispatch_selects_entire_single_line(cx: &mut gpui::TestAppContext) {
