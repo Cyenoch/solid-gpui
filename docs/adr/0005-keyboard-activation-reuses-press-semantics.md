@@ -19,6 +19,9 @@ click/press semantics. The host must not manufacture an independent protocol
 `Press` event from a key handler. Disabled Pressables are not keyboard
 activation targets and must not emit a press; focus traversal continues through
 the native tab-stop graph and `Root.focusNext()`/`Root.focusPrev()` commands.
+## Scope clarification
+
+The no-fabrication rule above is about the pointer surface: pointer handling must not invent an `Event::press` outside GPUI's native click/press dispatch. It does not forbid the separate, bounded keyboard-accessibility path for interactive Text runs. As defined by [ADR-0013](0013-interactive-text-runs.md), a focused nested run may emit the existing `Event::press` for one unmodified, non-held `Enter` keydown. That event is keyboard activation equivalence, not fabricated pointer activation; `Space`, modified or held `Enter`, and unfocused runs remain non-activating.
 
 The resulting JavaScript callback remains the same semantic `onPress` path as
 pointer activation. Key notifications remain available for applications that
@@ -27,10 +30,7 @@ mechanism.
 
 ## Alternatives rejected
 
-- **Have a Rust key handler directly emit `Event::press`:** rejected because a
-  pointer click and a keyboard activation could both reach the callback for
-  one native action, and the two paths would drift in sequence, disabled, or
-  focus semantics.
+- **Have a Rust key handler directly emit `Event::press` for a Pressable:** rejected because a pointer click and a keyboard activation could both reach the callback for one native action, and the two paths would drift in sequence, disabled, or focus semantics. The bounded focused-run exception is defined separately by ADR-0013.
 - **Have JavaScript synthesize `onPress` from `onKeyDown`:** rejected because
   it adds transport latency, duplicates native activation policy, and makes
   every application reimplement Enter/Space and repeat filtering.

@@ -16,6 +16,22 @@ _Avoid_: epoch reuse, reopen
 A React-rendered node in the native host tree, identified independently from React Fiber and carrying a host kind, parent relationship, and optional native-facing data. See `crates/react-gpui/src/tree.rs` and `docs/protocol.md` §2.
 _Avoid_: DOM element, widget object, Fiber
 
+**Rich Text**:
+A Text paragraph composed of raw strings and one level of nested Text runs, with shared paragraph presentation and content that may span run boundaries. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
+_Avoid_: separate inline elements, nested paragraphs
+
+**Text Run**:
+A direct nested Text fragment within Rich Text that contributes a contiguous part of the paragraph and may carry run-level presentation or press behavior. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
+_Avoid_: inline element, nested paragraph
+
+**Clickable Range**:
+A contiguous UTF-8 byte interval in flattened Rich Text associated with a listener-bearing Text Run and eligible for pointer activation and range cursor feedback. The parent InteractiveText hitbox maps pointer positions to this interval. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
+_Avoid_: glyph hitbox, DOM range
+
+**Focus Affordance**:
+A visible cue that identifies the currently focused interactive Text Run across its wrapped-line segments. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
+_Avoid_: selection highlight, hover decoration
+
 **Commit Batch**:
 An atomic versioned exchange produced once per completed React commit; protocol v3 uses a Snapshot for bootstrap and a Patch for later commits, including tagged TextInput and VirtualList host properties, accessibility data, and native animation style metadata. See `docs/protocol.md` §2.
 _Avoid_: Full snapshot, mutation stream, per-field update
