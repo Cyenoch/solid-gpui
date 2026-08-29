@@ -384,6 +384,7 @@ cargo run -p react-gpui-host --features embedded-bun -- \
 - `references/zed/` — checked-in GPUI reference source used by the workspace.
 - `docs/adr/` — architecture decision records for protocol, runtime, and native-boundary choices.
 - `docs/agents/` — contributor conventions for domain vocabulary, issue tracking, and triage.
+- Start with [CONTRIBUTING.md](CONTRIBUTING.md) for contributor order, verification gates, evidence, and architecture wayfinding.
 
 ## V3 protocol and ownership invariants
 
