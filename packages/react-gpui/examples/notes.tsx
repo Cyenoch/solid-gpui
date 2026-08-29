@@ -55,6 +55,10 @@ function Notes({ appearanceStore }: { readonly appearanceStore: AppearanceStore 
   const dirty = content !== saved;
 
   useEffect(() => {
+    const suffix = dirty ? " — ●" : "";
+    const fileName = path?.split(/[\\/]/).pop() || "Untitled note";
+    const title = [...fileName].slice(0, 256 - [...suffix].length).join("");
+    void root.setTitle(`${title}${suffix}`);
     notesCloseRequest = (requestId) => {
       if (!dirty) {
         void root.resolveCloseRequest(requestId, true);
@@ -66,7 +70,7 @@ function Notes({ appearanceStore }: { readonly appearanceStore: AppearanceStore 
     return () => {
       notesCloseRequest = undefined;
     };
-  }, [dirty]);
+  }, [dirty, path]);
 
   const open = async (): Promise<void> => {
     const paths = await root.pickFiles({ title: "Open note" });

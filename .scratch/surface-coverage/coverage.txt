@@ -2,13 +2,13 @@ Protocol surface coverage (HEAD 102fbdd)
 
 Kind range | Rust fuzz seeds | TypeScript fuzz seeds | TS golden rows | Rust golden rows
 -----------|-----------------|----------------------|-----------------|----------------
-Commands 1..33 | 33/33 | 33/33 | 33/33 | 33/33
+Commands 1..35 | 35/35 | 35/35 | 35/35 | 35/35
 Events 1..23 | 23/23 (plus pointer down/up/move variants) | 23/23 (plus pointer down/up/move variants) | 23/23 (event rows include drag variants and close-requested) | 23/23 (event rows include drag variants and close-requested)
 
 Payload-family extras
 - Pointer: down, up, and move payload tags covered by both fuzz suites and both golden generators.
 - Drag: internal drag-over, internal drop, and external file-drop variants covered by both golden generators.
-- Window/control: minimize, get-bounds, get-state, and activate commands (30..33) covered by fuzz and golden generators.
+- Window/control: minimize, get-bounds, get-state, and activate commands (30..33), plus VirtualList get/set scroll offset (34..35), are covered by fuzz and golden generators.
 - Async/special: close-requested, notification response, file commands, clipboard image commands/results, and loadFont are represented.
 
 Verification
