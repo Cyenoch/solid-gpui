@@ -359,6 +359,8 @@ cargo run -p react-gpui-host --features embedded-bun -- \
 - `packages/react-gpui/` — TypeScript package `@react-gpui/core`, custom React renderer, transports, tests, and counter example.
 - `crates/react-gpui/` — Rust protocol, runtime adapter seam, snapshot validation, retained node store, and GPUI rendering entity.
 - `references/zed/` — checked-in GPUI reference source used by the workspace.
+- `docs/adr/` — architecture decision records for protocol, runtime, and native-boundary choices.
+- `docs/agents/` — contributor conventions for domain vocabulary, issue tracking, and triage.
 
 ## V3 protocol and ownership invariants
 
