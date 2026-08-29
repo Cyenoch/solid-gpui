@@ -103,6 +103,19 @@ fn command_seeds() -> Vec<(&'static str, Vec<u8>)> {
         command_with(protocol::COMMAND_SCROLL_TO_END, 6, None, None),
     );
     add(
+        "command-get-scroll-offset",
+        command_with(protocol::COMMAND_GET_SCROLL_OFFSET, 6, None, None),
+    );
+    add(
+        "command-scroll-offset",
+        Command {
+            kind: protocol::COMMAND_SCROLL_TO_OFFSET,
+            node_id: 6,
+            scroll_offset: Some(37.5),
+            ..valid_command()
+        },
+    );
+    add(
         "command-title",
         command_with(protocol::COMMAND_SET_TITLE, 1, None, Some("Golden title")),
     );

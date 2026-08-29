@@ -1,4 +1,4 @@
-Protocol surface coverage (HEAD 102fbdd)
+Protocol surface coverage (HEAD f48f91e)
 
 Kind range | Rust fuzz seeds | TypeScript fuzz seeds | TS golden rows | Rust golden rows
 -----------|-----------------|----------------------|-----------------|----------------
@@ -14,7 +14,7 @@ Payload-family extras
 Verification
 - `make protocol-golden-generate` passed twice (idempotent; 76 rows per fixture).
 - Rust structured protocol fuzz test passed: 1 passed.
-- TypeScript protocol fuzz test passed: 3 passed, 38368 expect() calls.
+- `bun test tests/protocol-fuzz.test.ts` passed: 3 passed, 39566 expect() calls.
 - TypeScript protocol golden test passed: 4 passed, 330 expect() calls.
 - `make api-surface-generate` passed twice (idempotent; core 116 exports, dev 20 exports).
 - `make embedded-bun` passed (embedded examples 2 passed; react-gpui-bun tests passed).

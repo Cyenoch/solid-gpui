@@ -62,6 +62,8 @@ const commandSeeds: readonly (readonly unknown[])[] = [
   [PROTOCOL_VERSION, 4, 7, 3, 1, 103, 5, 3, [2, 4]],
   [PROTOCOL_VERSION, 4, 7, 3, 1, 104, 6, 4, [9, 0]],
   [PROTOCOL_VERSION, 4, 7, 3, 1, 105, 6, 5, null],
+  [PROTOCOL_VERSION, 4, 7, 3, 1, 134, 6, 34, null],
+  [PROTOCOL_VERSION, 4, 7, 3, 1, 135, 6, 35, 37.5],
   [PROTOCOL_VERSION, 4, 7, 3, 1, 106, 1, 6, "Golden title"],
   [PROTOCOL_VERSION, 4, 7, 3, 1, 107, 1, 7, [800, 600]],
   [PROTOCOL_VERSION, 4, 7, 3, 1, 108, 1, 8, null],
