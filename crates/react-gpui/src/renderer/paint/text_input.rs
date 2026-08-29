@@ -1057,7 +1057,7 @@ pub(super) fn render_selectable(
 }
 #[cfg(test)]
 mod rich_text_cursor_tests {
-    use super::rich_text_uses_run_cursor;
+    use super::*;
 
     #[test]
     fn interactive_runs_disable_parent_cursor() {
