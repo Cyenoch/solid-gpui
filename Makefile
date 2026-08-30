@@ -1,6 +1,16 @@
-.PHONY: ci rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun examples-smoke kill-resilience host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
+.PHONY: ci audit rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun examples-smoke kill-resilience host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
 
-ci: rust-format rust-check bun-ci
+ci: rust-format rust-check bun-ci audit
+
+audit:
+	cd packages/react-gpui && bun audit
+	cd packages/react-gpui-dev && bun audit
+	@if command -v cargo-deny >/dev/null 2>&1; then \
+		echo '==> cargo deny check advisories'; \
+		cargo deny check advisories; \
+	else \
+		echo '==> cargo-deny not installed; skipping advisory scan'; \
+	fi
 
 rust-format:
 	cargo fmt --all -- --check

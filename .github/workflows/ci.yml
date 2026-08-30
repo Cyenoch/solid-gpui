@@ -65,6 +65,11 @@ jobs:
       - name: Check Bun packages
         run: make bun-ci
 
+      - name: Install cargo-deny and run advisory audit
+        run: |
+          cargo install cargo-deny --locked --version 0.20.2
+          make audit
+
   host-release:
     name: Host release bundle check
     runs-on: macos-15

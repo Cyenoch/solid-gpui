@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+  # RUSTSEC-2024-0436: tracked in .scratch/supply-chain/issues/01-paste.md; drop when the issue closes.
+  "RUSTSEC-2024-0436",
+  # RUSTSEC-2026-0206: tracked in .scratch/supply-chain/issues/02-rustybuzz.md; drop when the issue closes.
+  "RUSTSEC-2026-0206",
+  # RUSTSEC-2026-0192: tracked in .scratch/supply-chain/issues/03-ttf-parser.md; drop when the issue closes or skrifa migration lands.
+  "RUSTSEC-2026-0192",
+]
