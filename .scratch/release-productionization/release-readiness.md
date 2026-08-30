@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-30T10:17:41+0800
+Generated: 2026-08-30T11:13:19+0800
 Decision owner: human release owner  
-Current HEAD: `a32b53d` (`refactor(api): prune dead alias and document audit follow-ups`)
+Current HEAD: `3a1a9ea` (`test(host): last surface exit semantics`)
 
 This is an evidence package, not a release approval. It records the post-release
 cycle position, fresh command runs, current contract coverage, documentation
@@ -12,7 +12,7 @@ pushed.
 
 ## Executive readout
 
-- All five fresh gates passed at exit code 0 on `a32b53d`, serially and
+- All five fresh gates passed at exit code 0 on candidate `3a1a9ea`, serially and
   exclusively under `/usr/bin/time -p`: `make ci`, `make embedded-bun`,
   `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
   `make bun-pack-smoke`.
@@ -20,30 +20,23 @@ pushed.
   consistency and CLI/runtime behavior, not display-backed GUI behavior. Both
   process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The final `CHANGELOG.md` Unreleased section contains **3 Added capability,
-  4 Testing, 3 Fixed, and 1 Changed entries**. These are exact counts from the
-  file at this HEAD; the four new Testing entries are not misplaced top-level
-  bullets. Counting Added plus Testing as release-facing additions gives
-  **7 additions / 3 fixes / 1 change**.
-- `git log --oneline 794183d..HEAD` reports **5 delta commits**. The crosswalk
-  below records the surface lifecycle property invariants, renderer soak,
-  TypeScript commit-emission property test, export audit, and API cleanup.
+- The final `CHANGELOG.md` Unreleased section contains **5 Added capability,
+  5 Testing, 3 Fixed, and 1 Changed entries**. Counting Added plus Testing as
+  release-facing additions gives **10 additions / 3 fixes / 1 change**.
+- `git log --oneline cf985a4..3a1a9ea` reports **6 delta commits**. The crosswalk
+  below records error-string documentation alignment, examples launch smoke,
+  process kill resilience, and last-surface lifecycle evidence.
 - The implementation backlog for the current 0.2.0 contract remains empty.
-  Current capability evidence includes deterministic protocol fuzz coverage,
-  the verified distribution pair, onboarding dogfood's corrected path,
-  actionable error messages, the contributor guide, documentation index,
-  multi-surface examples, and the new property/soak safety nets.
 
 ## Current position
 
 **v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
 action.** The annotated local tag `v0.2.0` still points to release commit
 `72a520c`; no tag move or publication operation is part of this refresh. The
-current candidate archive was rebuilt by `make host-candidate-smoke` and is
-represented by the identical SHA-256 pair in the gate table below.
+candidate archive was rebuilt by `make host-candidate-smoke` and is represented
+by the identical SHA-256 pair in the gate table below.
 
-`.scratch/release-productionization/v0.2.0-cut-checklist.md` is the companion
-local checklist. `.scratch/` is gitignored by default; this readiness report and
+`.scratch/` is gitignored by default; this readiness report and its companion
 checklist follow the repository's force-add evidence convention. No artifacts
 were published.
 
@@ -51,22 +44,17 @@ were published.
 
 ### Protocol and wire contract
 
-- The command directory is complete for codes `1..35`, and the semantic event
-  directory is complete for `1..23`. Current wire vectors cover TextInput (13),
-  Image (4), Drag (5), Pointer (7), CommandResult (7), string Submit, and
-  WindowResize (3), with one current form and explicit validation.
-- Cross-language golden vectors lock producer bytes and semantic decoding.
-  Deterministic protocol fuzz coverage is complete at **35/35 command seeds and
-  23/23 event seeds** in both Rust and TypeScript records.
+- Command codes `1..35` and semantic event codes `1..23` are complete. Cross-
+  language golden vectors lock producer bytes and semantic decoding.
+- Deterministic protocol fuzz coverage remains **35/35 command seeds and 23/23
+  event seeds** in both Rust and TypeScript records.
 - Retained-tree validation covers ownership, contiguous indexes, revisions,
   listeners, host properties, accessibility, focusability, malformed patches,
   rollback, and one-level rich Text runs. The 42-slot style tuple remains the
   current style contract.
 - Root APIs cover rendering, surfaces, window controls, focus traversal,
   clipboard, file dialogs and text-file I/O, fonts, notifications, menus,
-  keybindings, close policy, and transport termination. VirtualList offset
-  persistence, selectable Text, interactive Text runs, pointer coordinates,
-  drag capabilities, and appearance/layout observations remain documented.
+  keybindings, close policy, and transport termination.
 
 ### Runtime, host, and examples
 
@@ -74,84 +62,55 @@ were published.
   explicit shutdown/EOF/failure states, retained failure reporting, and
   non-sensitive wire identity in fatal diagnostics.
 - `EmbeddedBunAdapter` runs pinned Bun/JSC on a dedicated runtime thread with a
-  bounded callback bridge and serialized Fast Refresh lifecycle. The embedded
-  startup matrix covers representative examples and the refresh probe.
-- Focus traversal reaches View, Pressable, TextInput, and selectable Text nodes
-  through explicit native tab stops. Focused-node unmount emits blur and
-  restores a live focus target; disabled controls are skipped and per-window
-  isolation is preserved.
+  bounded callback bridge and serialized Fast Refresh lifecycle.
+- Focus traversal reaches View, Pressable, TextInput, and selectable Text nodes;
+  focused-node unmount emits blur and restores a live focus target; disabled
+  controls are skipped and per-window isolation is preserved.
 - The flagship gallery includes mixed-style rich text, keyboard-accessible
   links, selectable multi-run text, shared theme state, multiple surfaces, and
   dirty-state close confirmation. The core README indexes fourteen examples.
-- Display-backed Quartz dialogs, menus, clipboard/window behavior, glyph
-  pixels, native drag visuals, tooltip appearance, pointer positioning, and
-  accessibility tree behavior are acceptance boundaries rather than headless
-  claims.
+- `make examples-smoke` launched all **14/14** runnable examples through the
+  real process-mode Bun/stdio path with `protocol=v3` startup diagnostics and
+  clean bounded teardown. It does not touch live gallery processes.
+- Headless host lifecycle coverage proves six close-policy/lifecycle scenarios:
+  clean allow, confirmation request, duplicate pending request, denied
+  resolution, allowed deferred resolution, and two-surface first/final close.
+  The first close keeps the host alive; the final close requests `cx.quit()`
+  after the registry is empty. The verdict is **zero orphan / all clean**.
+  Native user-close process exit timing is display-backed and not claimed.
+- Display-backed Quartz dialogs, menus, clipboard/window behavior, glyph pixels,
+  native drag visuals, tooltip appearance, pointer positioning, and
+  accessibility tree behavior remain acceptance boundaries rather than
+  headless claims.
 
 ### Developer and distribution tooling
 
 - Both Bun packages build ESM and declaration artifacts, expose built package
   exports, carry license text, and pass an external tarball consumer smoke.
-  Final checked-in API locks are **core 115 / dev 20** name-and-kind exports.
-- The troubleshooting guide provides symptom-to-diagnosis-to-repair;
-  onboarding documents both local checkout/Cargo and standalone archive plus
-  packed-package paths, with repository-only example imports called out.
-- The documentation index is linked from the root workspace map and contributor
-  guide. The contributor guide records toolchain, verification ladder,
-  conventions, evidence, and architecture wayfinding.
-- The property safety net checks tree reachability, parent-chain acyclicity,
-  recursive text content, live renderer side maps, and untouched rich-text
-  cache entries after every generated patch. It covers **32 seeds x 64 valid
-  create/update/delete/move operations** and retains seed zero as a named
-  regression.
-
-### New evidence notes
-
-- **Surface property invariants (`be5fe29`):** 16 seeds x 48 operations cover
-  fresh and retired-ID reopen, closure bookkeeping, cross-surface
-  focus/activation, live-root side-map ownership, and surface/epoch mismatch
-  rejection. The seed-zero regression and seeded sequence both passed (2
-  property tests); no epoch/reuse violation was observed.
-- **Renderer soak plateau (`486fb71`):** the CI test performs 2,000
-  deterministic patch/draw iterations over a fixed 500-node rich-text,
-  TextInput, and VirtualList tree. Side maps stayed constant, all IDs remained
-  live, and RSS rose only 608 KiB after allocator/GPUI warm-up. The measured
-  shape is **plateau/flat**, not an unbounded leak; the run took 16.15 s and
-  stayed below its 50 MiB finding threshold.
-- **TypeScript emission property (`60b3ddf`):** 24 seeds x 40 randomized
-  mutations (960 post-bootstrap commits plus 24 snapshots) exercised real
-  `createRoot().render()` commits, frame decode/encode round trips, node graph,
-  rich-text, listener, parent/index, and revision invariants. The targeted run
-  passed with **362,716 assertions in 1.75 s**; no violation or source fix was
-  needed.
-- **Export audit baseline and follow-ups (`f0e725b`, `a32b53d`):** the audit
-  baseline at `486fb71` recorded core 116/dev 20 exports, with Tier 1 strict
-  counts core 41 used/10 docs-only/65 orphan and dev 9/11/0; Tier 2 promoted
-  structural consumers to core 111 used/2 docs-only/3 orphan and dev 16/4/0.
-  API cleanup removed the one true dead `PointerAction` alias, leaving final
-  fixtures core 115/dev 20, and expanded docs for `createStyleSheet`,
-  `Position`, transport termination details, root options, notification
-  responses, and transition payloads. `AnimationCompleteEvent` and
-  `TransportTerminationDetails` remain explicitly retained future-surface
-  follow-ups.
+  Checked-in API locks are **core 115 / dev 20** name-and-kind exports.
+- Troubleshooting provides symptom-to-diagnosis-to-repair; onboarding documents
+  local checkout/Cargo and standalone archive plus packed-package paths, with
+  repository-only example imports called out.
+- The documentation index and contributor guide record toolchain, verification
+  ladder, conventions, evidence, and architecture wayfinding.
 
 ## 2. Fresh five-gate evidence
 
-All times below are fresh wall-clock `real` values from `/usr/bin/time -p` on
-`a32b53d`. The commands ran serially and exclusively in this order:
-`make ci`, `make embedded-bun`, `make host-candidate-smoke`,
-`make host-embedded-candidate-smoke`, and `make bun-pack-smoke`. Every command
-exited 0. Candidate timeout lines are expected successful rehearsal behavior.
+All five commands exited 0 and ran serially and exclusively under
+`/usr/bin/time -p` at candidate HEAD `3a1a9ea`, in this order: `make ci`,
+`make embedded-bun`, `make host-candidate-smoke`,
+`make host-embedded-candidate-smoke`, and `make bun-pack-smoke`. Candidate
+timeout exits are expected successful rehearsal behavior.
 
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **76.89 s** | Rust workspace **216 passed / 0 failed**; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, and performance guards passed. |
-| `make embedded-bun` | 0 | **1.84 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
-| `make host-candidate-smoke` | 0 | **35.48 s** | Identical archive SHA-256 **`6c4a83aea2b6fcdfe8d28ac464f7d681bbff341eee1c6f38cdfbd081425c8b87`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.009 s/5.015 s**; version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **20.56 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.534 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **2.10 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **53.81 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, and performance guards passed. |
+| `make embedded-bun` | 0 | **1.75 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
+| `make host-candidate-smoke` | 0 | **11.80 s** | Identical archive SHA-256 **`3f0a8835c2e946d2bab9ea32bd75ed490c0a502a719104c7870bc3524bd9e9a8`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.011 s/5.014 s**; version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **5.11 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.593 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.38 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-Measured sequential five-gate wall-time sum: **136.87 s**. Candidate timeout
+Measured sequential five-gate wall-time sum: **82.89 s**. Candidate timeout
 exits are expected behavior, not gate failures. The archive SHA is the
 process-candidate check's identical pair of SHA-256 values.
 
@@ -159,13 +118,12 @@ process-candidate check's identical pair of SHA-256 values.
 
 | Area | Current evidence |
 | --- | --- |
-| Rust workspace | Fresh `make ci`: **216 tests / 0 failures** across workspace suites, including surface property **2/2**, tree property **2/2**, and renderer soak **1/1**; `make embedded-bun`: startup matrix **2/2** and embedded counter **1/1**. |
-| TypeScript renderer | Fresh `make ci`: **132/132 tests**, **453,263 assertions**, 0 failures; snapshot encode/wire-size guard and malformed-source diagnostics passed. |
-| Development package | Fresh `make ci`: **24/24 tests**, **56 assertions**, expected malformed-source diagnostics contained and last-good tree preserved. |
-| Fuzz / malformed input | Deterministic protocol fuzz coverage is **35/35 command seeds and 23/23 event seeds** in both Rust and TypeScript records; fresh `make ci` remained green. |
-| Property and soak safety nets | Tree **32 x 64**, surface **16 x 48**, TS emission **24 x 40**, and soak **2,000 iterations** passed with their documented invariants and plateau verdict. |
-| Performance smoke | Fresh Rust perf suites, TextInput typing-performance guard, TypeScript event-storm scenarios, snapshot encode/wire-size guard, and bounded soak passed. |
-| Golden vectors | Rust golden and TypeScript protocol-golden checks passed; current vectors cover VirtualList offset, selectable rich Text, focusable Text-run, pointer-move, and window controls. |
+| Rust workspace | Fresh `make ci` green; surface property **2/2**, tree property **2/2**, renderer soak **1/1**, and host lifecycle `command_roundtrip` **28/28**; `make embedded-bun`: startup matrix **2/2** and embedded counter **1/1**. |
+| TypeScript renderer | Fresh `make ci`: **132/132 tests**, **453,263 assertions**, 0 failures. |
+| Development package | Fresh `make ci`: **24/24 tests**, **56 assertions**, expected malformed-source diagnostics and last-good tree behavior. |
+| Fuzz / malformed input | **35/35 command seeds and 23/23 event seeds** in both Rust and TypeScript records; fresh `make ci` green. |
+| Property and soak safety nets | Tree **32 x 64**, surface **16 x 48**, TypeScript **24 x 40**, renderer soak **2,000 iterations**, and host lifecycle six-scenario matrix passed with clean bounded state. |
+| Examples and process lifecycle | `make examples-smoke` verified **14/14** launches and bounded teardown; kill resilience verified six scenarios with zero orphans; last-surface close test passed headlessly. |
 | API surface locks | Checked-in name/kind fixtures lock **core 115 / dev 20** exports after `PointerAction` removal. |
 | Release packaging | Process and embedded candidate scripts, deterministic archive checks, package tarball consumer smoke, and embedded package gate passed. Checksums establish reproducibility, not publisher authenticity. |
 
@@ -173,70 +131,61 @@ process-candidate check's identical pair of SHA-256 values.
 
 ### (a) Current Unreleased inventory
 
-The current `CHANGELOG.md` Unreleased section contains **3 Added capability,
-4 Testing, 3 Fixed, and 1 Changed entries**. Counting all Added and Testing
-bullets as release-facing additions gives **7 additions / 3 fixes / 1 change**.
-The four Testing entries are placed under `### Testing`: tree patch property,
-renderer soak, surface lifecycle property, and TypeScript commit-emission
-property. The Changed entry is the `PointerAction` removal. No historical
-top-level bullets remain in the freshly cut Unreleased section.
+The current `CHANGELOG.md` Unreleased section contains **5 Added capability,
+5 Testing, 3 Fixed, and 1 Changed entries**. Counting all Added and Testing
+bullets as release-facing additions gives **10 additions / 3 fixes / 1 change**.
+The five Testing entries are tree patch property, renderer soak, surface lifecycle
+property, host last-surface lifecycle, and TypeScript commit-emission property.
+The Added entries include examples launch smoke and process kill resilience. The
+Changed entry is the `PointerAction` removal.
 
-### (b) Refresh-delta commit crosswalk from `794183d`
+### (b) Refresh-delta commit crosswalk from `cf985a4`
 
-`git log --oneline 794183d..HEAD` reports **5 commits**:
+`git log --oneline cf985a4..3a1a9ea` reports **6 commits**:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `be5fe29` | Added deterministic surface lifecycle property invariants: fresh/reused IDs, closure, focus/activation, and mismatch routing. |
-| `486fb71` | Added the CI renderer soak with bounded side maps/history/sequence and RSS sampling; verdict is plateau after warm-up. |
-| `60b3ddf` | Added deterministic TypeScript commit-emission property coverage with wire round trips and node/listener/revision invariants. |
-| `f0e725b` | Added the public TypeScript surface usage audit and corrected the getting-started accessibility wording; audit baseline is `486fb71`. |
-| `a32b53d` | Removed dead `PointerAction`, updated the core API fixture, and documented the remaining export-audit follow-ups; added the Unreleased Changed entry. |
+| `576cdf6` | Aligned README, protocol, troubleshooting, and package README wording with rewritten actionable error strings; no changelog section change. |
+| `fe0af9e` | Added `make examples-smoke`; 14/14 process-mode launch/teardown evidence. |
+| `53a895e` | Completed the package README example table. |
+| `9fd771e` | Added `make kill-resilience`; host/renderer/process-group SIGKILL coverage for counter and gallery. |
+| `370684e` | Recorded the six-scenario kill matrix and zero-orphan verdict. |
+| `3a1a9ea` | Added headless last-surface lifecycle Testing entry and focused two-surface final-close quit coverage. |
 
 ### (c) Documentation and upstream alignment
 
-The verified distribution pair, onboarding dogfood verdict, actionable
-error-message pass, contributor guide, documentation index, export audit, and
-API cleanup follow-ups are linked from the current documentation map. ADR-0008
-remains aligned with Error-Boundary ownership for render failures, fail-fast
-protocol/tree rejection, local image fallback, and host-fatal GPUI paint panic.
-The GPUI drift verdict is **no released unblocks** for per-run typography,
-explicit direction, letter spacing, secure obscuring, live regions, runtime
-position setters, or portable Linux image seams.
+The verified distribution pair, onboarding dogfood verdict, actionable error-string
+alignment, contributor guide, documentation index, export audit, 14/14 examples
+launch smoke, kill-resilience zero-orphan matrix, and last-surface lifecycle test
+are represented in the current evidence set. ADR-0008 remains aligned with
+Error-Boundary ownership for render failures, fail-fast protocol/tree rejection,
+local image fallback, and host-fatal GPUI paint panic. The GPUI drift verdict is
+**no released unblocks** for per-run typography, explicit direction, letter
+spacing, secure obscuring, live regions, runtime position setters, or portable
+Linux image seams.
 
 ## 5. Known limits and human decision items
 
-The implementation backlog for the current 0.2.0 contract remains empty. These
-are explicit acceptance boundaries or human decisions, not hidden TODOs:
-
-- Issue 01 remains `needs-triage`: the candidate is unsigned and not notarized;
-  checksums do not authenticate the publisher.
-- Issue 02 remains `ready-for-human`: `block 0.1.6` emits a future-
-  incompatibility warning and no unreviewed fork should be patched automatically.
-- Issue 03 remains `ready-for-human`: embedded source build is separate,
-  green, expensive, and outside ordinary `make ci`.
-- Issue 04 remains `needs-triage`: display-backed Quartz/native behavior needs
-  a real display/hardware runner; headless evidence cannot replace it.
-- Issue 05 remains `needs-triage`: malformed-input coverage is implemented and
-  green; long-term fuzz maintenance ownership is human-owned.
-- Issue 06 remains `needs-triage`: Linux/Windows workflow is scaffolded at
-  `.github/workflows/cross-platform.yml`, but runner validation is not claimed
-  until push/PR jobs execute.
-- Upstream gaps remain explicit: secure/password display, RTL/container text
-  direction and bidi-aware hit/caret/IME semantics, `letterSpacing`, and
-  JavaScript Image `onError`. Native TextInput undo/redo is host-owned and
-  implemented; `fallbackSource` remains the visual Image degradation path.
+The implementation backlog for the current 0.2.0 contract remains empty. Issue
+01 remains unsigned/not notarized; issue 02 remains future-incompatibility
+review; issue 03 remains a separate embedded source build; issue 04 remains a
+display-backed Quartz/native boundary; issue 05 remains human-owned fuzz
+maintenance; issue 06 remains unvalidated cross-platform CI until runner jobs
+execute. Upstream gaps remain explicit for secure/password display,
+RTL/container direction and bidi-aware hit/caret/IME semantics, `letterSpacing`,
+and JavaScript Image `onError`. Native TextInput undo/redo is host-owned and
+implemented; `fallbackSource` remains the visual Image degradation path.
 
 ## 6. Post-release cycle position
 
 **v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
 action.** Tag `v0.2.0` remains anchored to release commit `72a520c`; no tag move
 or publication operation is part of this refresh. The candidate archive SHA is
-**`6c4a83aea2b6fcdfe8d28ac464f7d681bbff341eee1c6f38cdfbd081425c8b87`**.
+**`3f0a8835c2e946d2bab9ea32bd75ed490c0a502a719104c7870bc3524bd9e9a8`**.
 
-The current cycle contains **3 Added, 4 Testing, 3 Fixed, and 1 Changed**
-entries; its release-facing count is **7 additions / 3 fixes / 1 change**.
-All five fresh gates passed serially under `/usr/bin/time -p` on `a32b53d`, and
+The current cycle contains **5 Added, 5 Testing, 3 Fixed, and 1 Changed**
+entries; its release-facing count is **10 additions / 3 fixes / 1 change**.
+All five fresh gates passed serially under `/usr/bin/time -p` on `3a1a9ea`, and
 the companion checklist records the same gate matrix, archive checksum,
 capability notes, crosswalk, and human publication boundaries.
 
