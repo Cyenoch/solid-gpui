@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-30T12:26:13+0800
+Generated: 2026-08-31T01:01:19+0800
 Decision owner: human release owner  
-Current HEAD: `d74467e` (`build(ci): clarify transitive font advisory`)
+Current HEAD: `2b3f39a` (`chore(meta): publish readiness`)
 
 This is an evidence package, not a release approval. It records the post-release
 cycle position, fresh command runs, current contract coverage, documentation
@@ -12,20 +12,23 @@ pushed.
 
 ## Executive readout
 
-- All five fresh gates passed at exit code 0 on candidate `d74467e`, serially and
+- All five final gates passed at exit code 0 on candidate `2b3f39a`, serially and
   exclusively under `/usr/bin/time -p`: `make ci`, `make embedded-bun`,
   `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
-  `make bun-pack-smoke`.
+  `make bun-pack-smoke`. The first CI attempt was an environment-load flake:
+  its event-storm test timed out after 2,416.86 s; no orphan cargo/Bun/test
+  processes were found, the isolated event-storm rerun passed in 23.61 s, and
+  warm `make ci` passed in 64.36 s.
 - The current candidate is `0.2.0` on macOS ARM. Release scripts prove archive
   consistency and CLI/runtime behavior, not display-backed GUI behavior. Both
   process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
 - The final `CHANGELOG.md` Unreleased section contains **6 Added capability,
-  5 Testing, 3 Fixed, and 2 Changed entries**. Counting Added plus Testing as
-  release-facing additions gives **11 additions / 3 fixes / 2 changes**.
-- `git log --oneline c7cb1a0..d74467e` reports **5 delta commits**. The
-  crosswalk below records the dependency audit sweep, evidence-index refresh,
-  advisory gate, skrifa migration, and deny-policy correction.
+  5 Testing, 5 Fixed, and 2 Changed entries**. Counting Added plus Testing as
+  release-facing additions gives **11 additions / 5 fixes / 2 changes**.
+- `git log --oneline d74467e..2b3f39a` reports **4 delta commits**. The
+  crosswalk below records truthful renderer version wiring, root test scoping,
+  the 0.3.0 rehearsal, and publication metadata readiness.
 - The implementation backlog for the current 0.2.0 contract remains empty.
 
 ## Current position
@@ -92,31 +95,31 @@ were published.
   local checkout/Cargo and standalone archive plus packed-package paths, with
   repository-only example imports called out.
 - The documentation index and contributor guide record toolchain, verification
-  ladder, conventions, evidence, and architecture wayfinding.
-
 ## 2. Fresh five-gate evidence
 
 All five commands exited 0 and ran serially and exclusively under
-`/usr/bin/time -p` at candidate HEAD `d74467e`, in this order: `make ci`,
+`/usr/bin/time -p` at candidate HEAD `2b3f39a`, in this order: `make ci`,
 `make embedded-bun`, `make host-candidate-smoke`,
 `make host-embedded-candidate-smoke`, and `make bun-pack-smoke`. Candidate
 timeout exits are expected successful rehearsal behavior.
 
-The `make ci` output now includes the advisory audit step after the existing
-Bun gates: each package emits Bun's `No vulnerabilities found (checked N
-packages)` result, followed by `==> cargo deny check advisories` and
-`advisories ok`. The run also emitted the known unrelated `block v0.1.6`
-future-incompatibility warning.
+The first `make ci` attempt exited 2 after **2,416.86 s** because
+`perf-event-storm` timed out; `ps`/`pgrep` found no orphan cargo/Bun/test
+processes. The isolated `/usr/bin/time -p bun test
+tests/perf-event-storm.test.tsx` then passed (**1/1**, 78 assertions, **23.61
+s**), and the warm CI rerun passed in **64.36 s**. This is recorded as an
+environment-load flake, not a source regression. The successful CI row below
+is the readiness result.
 
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **94.81 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, performance guards, both Bun audits (**12** and **59** packages, no vulnerabilities), and cargo-deny (`advisories ok`) passed. |
-| `make embedded-bun` | 0 | **4.37 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
-| `make host-candidate-smoke` | 0 | **55.00 s** | Identical archive SHA-256 **`abb0aeb784d99d9761636d128bb104331f934bf1378ae72b31b311d1092ccdef`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.019 s/5.013 s**; version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **20.26 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.820 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **3.57 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` (warm rerun) | 0 | **64.36 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, performance guards, both Bun audits (**12** and **59** packages, no vulnerabilities), and cargo-deny (`advisories ok`) passed. Initial run: exit 2 / 2,416.86 s due to event-storm timeout; isolated rerun: 1/1 / 23.61 s. |
+| `make embedded-bun` | 0 | **7.11 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
+| `make host-candidate-smoke` | 0 | **12.50 s** | Identical archive SHA-256 **`a6086a7f62be4b1604a88925fb186e1df5b6c90a2783f5c67729b4bba7b3076e`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.006 s/5.014 s**; version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **5.22 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.647 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.11 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-Measured sequential five-gate wall-time sum: **178.01 s**. Candidate timeout
+Measured sequential five-gate wall-time sum: **91.20 s**. Candidate timeout
 exits are expected behavior, not gate failures. The archive SHA is the
 process-candidate check's identical pair of SHA-256 values.
 
@@ -138,44 +141,39 @@ process-candidate check's identical pair of SHA-256 values.
 ### (a) Current Unreleased inventory
 
 The current `CHANGELOG.md` Unreleased section contains **6 Added capability,
-5 Testing, 3 Fixed, and 2 Changed entries**. Counting all Added and Testing
-bullets as release-facing additions gives **11 additions / 3 fixes / 2 changes**.
-The six Added entries include the large-tree guard, flagship gallery and
-multi-surface work, examples launch smoke, the advisory audit gate, and process
-kill resilience. The five Testing entries are tree patch property, renderer
-soak, surface lifecycle property, host last-surface lifecycle, and TypeScript
-commit-emission property. The three Fixed entries cover diagnostics and patch
-reconciliation/state cleanup. The two Changed entries are `PointerAction`
-removal and the `ttf-parser` to `skrifa` migration.
+5 Testing, 5 Fixed, and 2 Changed entries**. Counting all Added and Testing
+bullets as release-facing additions gives **11 additions / 5 fixes / 2 changes**.
+The five Fixed entries include truthful renderer-version metadata wiring and
+root Bun test discovery scoping, in addition to diagnostics and patch/state
+cleanup. The two Changed entries are `PointerAction` removal and the
+`ttf-parser` to `skrifa` migration.
 
-The audit sweep commit changed the dev package's Babel dependency and added
-supply-chain evidence, but did **not** add a bullet to the current Unreleased
-section; the dependency-governance Fixed bullet visible in the changelog is
-under the already-cut `0.2.0` section and is not counted here.
+### (b) Refresh-delta commit crosswalk from `d74467e`
 
-### (b) Refresh-delta commit crosswalk from `c7cb1a0`
-
-`git log --oneline c7cb1a0..d74467e` reports **5 commits**:
+`git log --oneline d74467e..2b3f39a` reports **4 commits**:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `0b88b2b` | Security audit sweep: Bun advisory scan, `@babel/core` **7.28.4 -> 7.29.6**, and three tracked Rust advisory issues in `.scratch/supply-chain/`; no current Unreleased changelog bullet. |
-| `c5cc405` | Refreshed `.scratch/EVIDENCE.md` to index **127 tracked files across 51 evidence areas**; navigation-only documentation change. |
-| `f7bc498` | Added strict `make audit` and wired it into `make ci`; current Unreleased **Added** bullet; `deny.toml` acknowledges the three tracked unmaintained advisories. |
-| `8626ec2` | Migrated the application-owned font-family parser to `skrifa`; current Unreleased **Changed** bullet; focused malformed/Tuffy tests and supply-chain issue update. |
-| `d74467e` | Corrected deny-policy wording to state direct `ttf-parser` elimination while transitive pinned-GPUI/fontdb occurrences remain; no changelog section change. |
+| `a1e7683` | Truthful renderer version constant: `rendererVersion` now follows package metadata; `release-prep` synchronizes all four release sources; `.scratch/version-const/notes.md` records the rationale. |
+| `064e4b0` | Root Bun test discovery now ignores generated `target/**`; `.scratch/testing-dx` documents the test entry and boundary (no separate root-buntest notes file). |
+| `003060b` | Detached 0.3.0 cut rehearsal: all four version sources synchronized, archive reproducibility passed, and the known worktree file-dependency hydration difference was resolved by a frozen install refresh. |
+| `2b3f39a` | Publish metadata readiness: npm tarball allowlists, crates SPDX metadata, and unsafe embedded Bun/JSC FFI inventory documented; no publication performed. |
 
 ### (c) Documentation, capability, and upstream alignment
 
-The verified distribution pair, onboarding dogfood verdict, actionable error-string
-alignment, contributor guide, documentation index, export audit, 14/14 examples
-launch smoke, kill-resilience zero-orphan matrix, and last-surface lifecycle test
-are represented in the current evidence set. The supply-chain path is now
-explicitly **scan -> gate -> direct-dependency elimination**: the scan found and
-patched the Babel advisory, `make ci` enforces Bun audit and cargo-deny, and
-`skrifa` removes the application-owned parser edge. Remaining `ttf-parser`
-instances are transitive upstream GPUI/fontdb/rustybuzz paths and remain tracked,
-not silently reclassified as resolved.
+The four-source release synchronization, root-test scoping, 0.3.0 rehearsal,
+publication metadata, supply-chain status, and final five-gate matrix are
+represented in the refreshed evidence set. The rehearsal's known worktree
+hydration difference is explicit: detached worktree CI initially failed to
+resolve the local core declaration package, then passed after a frozen install
+refresh; no release-prep drift was found.
+
+The publication audit records both package tarball allowlists (18 core / 8
+dev files), Cargo SPDX `Apache-2.0` metadata, and the unsafe Bun/JSC FFI
+inventory. Supply-chain status remains layered: Bun audits clean, cargo-deny
+is wired and passes with three documented unmaintained-crate exceptions,
+`skrifa` eliminates direct application-owned parser exposure, and transitive
+GPUI-owned `ttf-parser` remains open.
 
 ADR-0008 remains aligned with Error-Boundary ownership for render failures,
 fail-fast protocol/tree rejection, local image fallback, and host-fatal GPUI
@@ -186,8 +184,8 @@ runtime position setters, or portable Linux image seams.
 ## 5. Known limits and human decision items
 
 The implementation backlog for the current 0.2.0 contract remains empty. Issue
-01 remains unsigned/not notarized; issue 02 remains future-incompatibility
-review; issue 03 remains a separate embedded source build; issue 04 remains a
+01 remains unsigned/notarized; issue 02 remains future-incompatibility review;
+issue 03 remains a separate embedded source build; issue 04 remains a
 display-backed Quartz/native boundary; issue 05 remains human-owned fuzz
 maintenance; issue 06 remains unvalidated cross-platform CI until runner jobs
 execute. Upstream gaps remain explicit for secure/password display,
@@ -204,14 +202,15 @@ implemented; `fallbackSource` remains the visual Image degradation path.
 **v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
 action.** Tag `v0.2.0` remains anchored to release commit `72a520c`; no tag move
 or publication operation is part of this refresh. The candidate archive SHA is
-**`abb0aeb784d99d9761636d128bb104331f934bf1378ae72b31b311d1092ccdef`**.
+**`a6086a7f62be4b1604a88925fb186e1df5b6c90a2783f5c67729b4bba7b3076e`**.
 
-The current cycle contains **6 Added, 5 Testing, 3 Fixed, and 2 Changed**
-entries; its release-facing count is **11 additions / 3 fixes / 2 changes**.
-All five fresh gates passed serially under `/usr/bin/time -p` on `d74467e`, and
-the companion checklist records the same gate matrix, archive checksum,
-capability notes, crosswalk, supply-chain boundary, and human publication
-boundaries.
+The current cycle contains **6 Added, 5 Testing, 5 Fixed, and 2 Changed**
+entries; its release-facing count is **11 additions / 5 fixes / 2 changes**.
+All five final gates passed serially under `/usr/bin/time -p` on `2b3f39a` after
+the isolated event-storm rerun established the initial timeout as an
+environment-load flake. The companion checklist records the same gate matrix,
+archive checksum, capability notes, crosswalk, supply-chain boundary, and
+human publication boundaries.
 
 No publication option is selected by this inventory; human action is required
 for push, npm publication, signing/notarization, and any Rust crate release.

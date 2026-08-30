@@ -1,9 +1,9 @@
 # Scratch evidence index
 
 This index answers “where is the proof?” for the tracked `.scratch` evidence
-set at the `v0.2.0` cut. The prior index covered **109 tracked files** across
-**38 evidence areas**. The current inventory contains **126 evidence files
-plus this index**, for **127 tracked files across 51 evidence areas**.
+set at the `v0.2.0` cut. The prior index covered **127 tracked files** across
+**51 evidence areas**. The current inventory contains **131 evidence files
+plus this index**, for **132 tracked files across 56 evidence areas**.
 The index intentionally does not copy full evidence; each row points to the
 source snapshot and gives the one-line number or verdict worth finding six
 months from now.
@@ -14,7 +14,7 @@ record that remains useful as provenance but is not a live status source.
 updated at a release boundary. All evidence areas in the current tracked
 inventory are landed; no in-flight area is listed.
 
-Refresh date: **2026-08-30**.
+Refresh date: **2026-08-31**.
 
 ## File-count summary
 
@@ -22,6 +22,7 @@ Refresh date: **2026-08-30**.
 | --- | ---: | ---: | ---: |
 | a11y-second-pass | 6 | 0 | 6 |
 | animation-completeness | 3 | 0 | 3 |
+| audit-wiring | 0 | 1 | 1 |
 | caret-follow | 1 | 0 | 1 |
 | dist-verify | 0 | 1 | 1 |
 | docs-dogfood | 0 | 1 | 1 |
@@ -46,16 +47,19 @@ Refresh date: **2026-08-30**.
 | perf-event-storm | 8 | 0 | 8 |
 | pointer-coords | 1 | 0 | 1 |
 | pointer-move | 1 | 0 | 1 |
-| prop-test | 0 | 1 | 1 |
+| prop-test | 1 | 0 | 1 |
+| pub-meta | 0 | 1 | 1 |
 | protocol-compatibility | 4 | 0 | 4 |
 | protocol-cutover | 1 | 0 | 1 |
+| rehearsal-2 | 0 | 1 | 1 |
 | release-productionization | 7 | 0 | 7 |
 | release-rehearsal | 1 | 0 | 1 |
 | rich-perf | 3 | 0 | 3 |
 | showcase | 1 | 0 | 1 |
+| skrifa-spike | 0 | 1 | 1 |
 | snapshot-perf | 0 | 3 | 3 |
-| soak-test | 0 | 1 | 1 |
-| supply-chain | 0 | 4 | 4 |
+| soak-test | 1 | 0 | 1 |
+| supply-chain | 4 | 0 | 4 |
 | surface-coverage | 1 | 0 | 1 |
 | surface-lifecycle | 6 | 0 | 6 |
 | surface-prop | 0 | 1 | 1 |
@@ -67,12 +71,13 @@ Refresh date: **2026-08-30**.
 | ts-prop | 0 | 1 | 1 |
 | undo-redo | 2 | 0 | 2 |
 | upstream-assessment | 0 | 1 | 1 |
+| version-const | 0 | 1 | 1 |
 | virtual-list-completeness | 7 | 0 | 7 |
 | vlist-scroll | 2 | 0 | 2 |
 | window-controls | 4 | 0 | 4 |
 | window-title | 1 | 0 | 1 |
 | top-level `.scratch` | 1 | 0 | 1 |
-| **Total** | **109** | **18** | **127**
+| **Total** | **127** | **5** | **132**
 
 ## a11y-second-pass (6 files)
 
@@ -92,6 +97,12 @@ Refresh date: **2026-08-30**.
 | `.scratch/animation-completeness/spec.md` | Transition property audit and bounded implementation scope | Four supported properties: opacity, backgroundColor, width, height; borderRadius and generic transforms remain unsupported | historical (stale-ok) |
 | `.scratch/animation-completeness/issues/01-transition-lifecycle.md` | Removal, retarget, delay, and completion semantics | Omitted transition metadata is reused; retarget samples presentation value; one completion per generation | historical (stale-ok) |
 | `.scratch/animation-completeness/issues/02-gpui-animation-surface.md` | GPUI animation primitive feasibility | No native border-radius/transform transition path; no wire growth or per-frame style mutation | historical (stale-ok) |
+## audit-wiring (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/audit-wiring/notes.md` | Advisory audit gate wiring | `make audit` runs both Bun audits and cargo-deny; Bun reports 12/59 clean and cargo-deny reports `advisories ok` with three documented unmaintained-crate exceptions | historical (stale-ok) |
+
 
 ## caret-follow (1 file)
 
@@ -276,6 +287,30 @@ Refresh date: **2026-08-30**.
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/protocol-cutover/spec.md` | Clean v3 wire cutover | Current forms are TextInput 13, Image 4, Drag 5, WindowResize 3, CommandResult 7, and string Submit; historical arities are rejected | historical (stale-ok) |
+## pub-meta (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/pub-meta/2026-08-30.md` | npm and crates.io publication metadata audit | Both package manifests are ready with explicit tarball allowlists (18/8 files); Cargo metadata is SPDX `Apache-2.0`; unsafe Bun/JSC FFI inventory is documented; no publish was run | historical (stale-ok) |
+
+## rehearsal-2 (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/rehearsal-2/notes.md` | Detached 0.3.0 release-prep rehearsal | Four sources synchronized to 0.3.0; CI passed after a known local file-dependency hydration refresh; deterministic 0.3.0 archive SHA `7a39f706…a4cd51e944`; worktree removed cleanly | historical (stale-ok) |
+
+## skrifa-spike (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/skrifa-spike/notes.md` | Direct font-parser migration and advisory boundary | `skrifa 0.44.0` replaces the application-owned parser; transitive `ttf-parser` remains in pinned GPUI paths, so its advisory stays open | historical (stale-ok) |
+
+## version-const (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/version-const/notes.md` | React DevTools renderer version source | `rendererVersion` is package metadata and release-prep now synchronizes it with Cargo and both package versions | historical (stale-ok) |
+
 
 ## release-productionization (7 files)
 
@@ -327,10 +362,10 @@ Refresh date: **2026-08-30**.
 
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
-| `.scratch/supply-chain/2026-08-30.md` | Bun and Rust dependency advisory audit | Bun core/dev audits clean after `@babel/core` 7.28.4 → 7.29.6; cargo-deny found three unmaintained crates with no safe upgrade, all needs-triage | historical (stale-ok) |
-| `.scratch/supply-chain/issues/01-paste.md` | `paste` advisory disposition | `paste` 1.0.15 is an upstream Apple/GPUI compile-time dependency; no safe upgrade, needs upstream triage | historical (stale-ok) |
-| `.scratch/supply-chain/issues/02-rustybuzz.md` | `rustybuzz` advisory disposition | `rustybuzz` 0.20.1 is upstream `usvg`/`resvg` shaping dependency; no safe graph-local replacement, needs upstream triage | historical (stale-ok) |
-| `.scratch/supply-chain/issues/03-ttf-parser.md` | Direct font parser advisory disposition | `skrifa 0.44.0` now handles the direct `loadFont` family parse; `ttf-parser 0.25.1` remains only in upstream GPUI/fontdb/rustybuzz transitive paths, so the issue stays open | historical (stale-ok) |
+| `.scratch/supply-chain/2026-08-30.md` | Bun and Rust dependency advisory audit | Bun core/dev audits clean after `@babel/core` 7.28.4 → 7.29.6; cargo-deny found three unmaintained crates; `paste` and `rustybuzz` remain needs-triage, while direct `ttf-parser` exposure is eliminated and its transitive issue stays open | historical (stale-ok) |
+| `.scratch/supply-chain/issues/01-paste.md` | `paste` advisory disposition | `paste` 1.0.15 remains an upstream GPUI/Apple compile-time dependency with no safe upgrade; needs upstream triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/02-rustybuzz.md` | `rustybuzz` advisory disposition | `rustybuzz` 0.20.1 remains an upstream `usvg`/`resvg` shaping dependency with no safe graph-local replacement; needs upstream triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/03-ttf-parser.md` | Direct font parser advisory disposition | Direct `react-gpui` exposure is eliminated by `skrifa 0.44.0`; `ttf-parser` remains in transitive pinned-GPUI paths, so the issue stays open | historical (stale-ok) |
 
 ## surface-coverage (1 file)
 
