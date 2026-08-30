@@ -15,6 +15,8 @@ from this work tree.
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
 - Enhanced `multi-surface.tsx` with a settings surface, shared theme state, cross-surface activation/focus, and dirty-state close confirmation.
 
+- Added `make examples-smoke`, which builds one release host and launches every runnable `.tsx` example through the real process-mode Bun/stdio path, requiring the `protocol=v3` startup diagnostic and clean bounded teardown for each entry.
+
 ### Testing
 
 - Added a deterministic stateful tree patch property test covering 32 seeds × 64 valid create, update, delete, and move operations, with tree, text-content, renderer side-map, and rich-cache invariants checked after every patch; seed zero is retained as a named regression.
