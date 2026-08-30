@@ -216,8 +216,9 @@ examples use host-local assets for `Image`, while this recipe covers encoded
 bytes copied to the native clipboard.
 
 `getClipboardImage()` returns `null` for empty or non-image clipboard contents.
-macOS and Windows use native image clipboard paths; X11 and Wayland return
-`platform-unsupported` instead of silently converting image writes to text. No
+macOS and Windows use native image clipboard paths; X11 and Wayland reject
+image writes/reads with
+`clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows` instead of silently converting image writes to text. No
 RGBA conversion or format transcoding is promised.
 
 ## Accessibility
@@ -733,7 +734,7 @@ operations require a separate permission/Path design.
 15 and 16. Clipboard strings are capped at 1 MiB UTF-8 bytes; oversized writes
 reject locally, while an oversized host clipboard rejects with
 `clipboard text exceeds the supported size`. A clipboard with no text content
-rejects with `clipboard has no text content`; an empty string stored as text is
+rejects with `clipboard read failed: clipboard has no text content; copy text to the clipboard before calling getClipboardText`; an empty string stored as text is
 still a successful read.
 
 The 1 MiB limit is symmetric and measured in UTF-8 bytes at both the JavaScript and host boundaries; it is not a UTF-16 character limit and values are rejected rather than truncated. A value exactly at the byte limit is accepted, while one additional UTF-8 byte is rejected. This distinction follows [ADR-0004](../../docs/adr/0004-dual-length-semantics.md).

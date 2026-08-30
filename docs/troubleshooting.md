@@ -393,15 +393,15 @@ the limit on only one side of the process boundary.
 ### Symptom
 
 `setClipboardImage()` or `getClipboardImage()` rejects with an Error whose
-message is exactly `platform-unsupported` on X11 or Wayland.
+message is exactly `clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows` on X11 or Wayland.
 
 ### Cause
 
 The host's image clipboard branch is implemented for macOS and Windows. On
-other targets it returns a failed `CommandResult` with the literal
-`platform-unsupported`; the TypeScript command Promise rejects that result. It
-does not silently convert image bytes to text, and no RGBA conversion or format
-transcoding is promised.
+other targets it returns a failed `CommandResult` with the actionable message
+`clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows`; the TypeScript command Promise rejects that
+result. It does not silently convert image bytes to text, and no RGBA
+conversion or format transcoding is promised.
 
 ### Fix
 

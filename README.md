@@ -204,8 +204,8 @@ The bounded interchange preserves encoded PNG, JPEG, GIF, or SVG bytes and
 uses a payload cap below the 16 MiB frame limit. `getClipboardImage()` returns
 `null` when the clipboard has no image. Native image clipboard support is
 currently honest about platform capability: macOS and Windows use GPUI's
-native image entries; X11 and Wayland reject image writes/reads as
-`platform-unsupported` rather than silently converting them to text. The
+native image entries; X11 and Wayland reject image writes/reads with
+`clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows` rather than silently converting them to text. The
 protocol does not promise RGBA conversion or format transcoding.
 
 System notifications and static menus are root-scoped integrations:
