@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-30T11:13:19+0800
+Generated: 2026-08-30T12:26:13+0800
 Decision owner: human release owner  
-Current HEAD: `3a1a9ea` (`test(host): last surface exit semantics`)
+Current HEAD: `d74467e` (`build(ci): clarify transitive font advisory`)
 
 This is an evidence package, not a release approval. It records the post-release
 cycle position, fresh command runs, current contract coverage, documentation
@@ -12,7 +12,7 @@ pushed.
 
 ## Executive readout
 
-- All five fresh gates passed at exit code 0 on candidate `3a1a9ea`, serially and
+- All five fresh gates passed at exit code 0 on candidate `d74467e`, serially and
   exclusively under `/usr/bin/time -p`: `make ci`, `make embedded-bun`,
   `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
   `make bun-pack-smoke`.
@@ -20,12 +20,12 @@ pushed.
   consistency and CLI/runtime behavior, not display-backed GUI behavior. Both
   process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The final `CHANGELOG.md` Unreleased section contains **5 Added capability,
-  5 Testing, 3 Fixed, and 1 Changed entries**. Counting Added plus Testing as
-  release-facing additions gives **10 additions / 3 fixes / 1 change**.
-- `git log --oneline cf985a4..3a1a9ea` reports **6 delta commits**. The crosswalk
-  below records error-string documentation alignment, examples launch smoke,
-  process kill resilience, and last-surface lifecycle evidence.
+- The final `CHANGELOG.md` Unreleased section contains **6 Added capability,
+  5 Testing, 3 Fixed, and 2 Changed entries**. Counting Added plus Testing as
+  release-facing additions gives **11 additions / 3 fixes / 2 changes**.
+- `git log --oneline c7cb1a0..d74467e` reports **5 delta commits**. The
+  crosswalk below records the dependency audit sweep, evidence-index refresh,
+  advisory gate, skrifa migration, and deny-policy correction.
 - The implementation backlog for the current 0.2.0 contract remains empty.
 
 ## Current position
@@ -97,20 +97,26 @@ were published.
 ## 2. Fresh five-gate evidence
 
 All five commands exited 0 and ran serially and exclusively under
-`/usr/bin/time -p` at candidate HEAD `3a1a9ea`, in this order: `make ci`,
+`/usr/bin/time -p` at candidate HEAD `d74467e`, in this order: `make ci`,
 `make embedded-bun`, `make host-candidate-smoke`,
 `make host-embedded-candidate-smoke`, and `make bun-pack-smoke`. Candidate
 timeout exits are expected successful rehearsal behavior.
 
+The `make ci` output now includes the advisory audit step after the existing
+Bun gates: each package emits Bun's `No vulnerabilities found (checked N
+packages)` result, followed by `==> cargo deny check advisories` and
+`advisories ok`. The run also emitted the known unrelated `block v0.1.6`
+future-incompatibility warning.
+
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` | 0 | **53.81 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, and performance guards passed. |
-| `make embedded-bun` | 0 | **1.75 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
-| `make host-candidate-smoke` | 0 | **11.80 s** | Identical archive SHA-256 **`3f0a8835c2e946d2bab9ea32bd75ed490c0a502a719104c7870bc3524bd9e9a8`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.011 s/5.014 s**; version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **5.11 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.593 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **2.38 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **94.81 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, performance guards, both Bun audits (**12** and **59** packages, no vulnerabilities), and cargo-deny (`advisories ok`) passed. |
+| `make embedded-bun` | 0 | **4.37 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
+| `make host-candidate-smoke` | 0 | **55.00 s** | Identical archive SHA-256 **`abb0aeb784d99d9761636d128bb104331f934bf1378ae72b31b311d1092ccdef`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.019 s/5.013 s**; version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **20.26 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.820 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **3.57 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-Measured sequential five-gate wall-time sum: **82.89 s**. Candidate timeout
+Measured sequential five-gate wall-time sum: **178.01 s**. Candidate timeout
 exits are expected behavior, not gate failures. The archive SHA is the
 process-candidate check's identical pair of SHA-256 values.
 
@@ -131,38 +137,51 @@ process-candidate check's identical pair of SHA-256 values.
 
 ### (a) Current Unreleased inventory
 
-The current `CHANGELOG.md` Unreleased section contains **5 Added capability,
-5 Testing, 3 Fixed, and 1 Changed entries**. Counting all Added and Testing
-bullets as release-facing additions gives **10 additions / 3 fixes / 1 change**.
-The five Testing entries are tree patch property, renderer soak, surface lifecycle
-property, host last-surface lifecycle, and TypeScript commit-emission property.
-The Added entries include examples launch smoke and process kill resilience. The
-Changed entry is the `PointerAction` removal.
+The current `CHANGELOG.md` Unreleased section contains **6 Added capability,
+5 Testing, 3 Fixed, and 2 Changed entries**. Counting all Added and Testing
+bullets as release-facing additions gives **11 additions / 3 fixes / 2 changes**.
+The six Added entries include the large-tree guard, flagship gallery and
+multi-surface work, examples launch smoke, the advisory audit gate, and process
+kill resilience. The five Testing entries are tree patch property, renderer
+soak, surface lifecycle property, host last-surface lifecycle, and TypeScript
+commit-emission property. The three Fixed entries cover diagnostics and patch
+reconciliation/state cleanup. The two Changed entries are `PointerAction`
+removal and the `ttf-parser` to `skrifa` migration.
 
-### (b) Refresh-delta commit crosswalk from `cf985a4`
+The audit sweep commit changed the dev package's Babel dependency and added
+supply-chain evidence, but did **not** add a bullet to the current Unreleased
+section; the dependency-governance Fixed bullet visible in the changelog is
+under the already-cut `0.2.0` section and is not counted here.
 
-`git log --oneline cf985a4..3a1a9ea` reports **6 commits**:
+### (b) Refresh-delta commit crosswalk from `c7cb1a0`
+
+`git log --oneline c7cb1a0..d74467e` reports **5 commits**:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `576cdf6` | Aligned README, protocol, troubleshooting, and package README wording with rewritten actionable error strings; no changelog section change. |
-| `fe0af9e` | Added `make examples-smoke`; 14/14 process-mode launch/teardown evidence. |
-| `53a895e` | Completed the package README example table. |
-| `9fd771e` | Added `make kill-resilience`; host/renderer/process-group SIGKILL coverage for counter and gallery. |
-| `370684e` | Recorded the six-scenario kill matrix and zero-orphan verdict. |
-| `3a1a9ea` | Added headless last-surface lifecycle Testing entry and focused two-surface final-close quit coverage. |
+| `0b88b2b` | Security audit sweep: Bun advisory scan, `@babel/core` **7.28.4 -> 7.29.6**, and three tracked Rust advisory issues in `.scratch/supply-chain/`; no current Unreleased changelog bullet. |
+| `c5cc405` | Refreshed `.scratch/EVIDENCE.md` to index **127 tracked files across 51 evidence areas**; navigation-only documentation change. |
+| `f7bc498` | Added strict `make audit` and wired it into `make ci`; current Unreleased **Added** bullet; `deny.toml` acknowledges the three tracked unmaintained advisories. |
+| `8626ec2` | Migrated the application-owned font-family parser to `skrifa`; current Unreleased **Changed** bullet; focused malformed/Tuffy tests and supply-chain issue update. |
+| `d74467e` | Corrected deny-policy wording to state direct `ttf-parser` elimination while transitive pinned-GPUI/fontdb occurrences remain; no changelog section change. |
 
-### (c) Documentation and upstream alignment
+### (c) Documentation, capability, and upstream alignment
 
 The verified distribution pair, onboarding dogfood verdict, actionable error-string
 alignment, contributor guide, documentation index, export audit, 14/14 examples
 launch smoke, kill-resilience zero-orphan matrix, and last-surface lifecycle test
-are represented in the current evidence set. ADR-0008 remains aligned with
-Error-Boundary ownership for render failures, fail-fast protocol/tree rejection,
-local image fallback, and host-fatal GPUI paint panic. The GPUI drift verdict is
-**no released unblocks** for per-run typography, explicit direction, letter
-spacing, secure obscuring, live regions, runtime position setters, or portable
-Linux image seams.
+are represented in the current evidence set. The supply-chain path is now
+explicitly **scan -> gate -> direct-dependency elimination**: the scan found and
+patched the Babel advisory, `make ci` enforces Bun audit and cargo-deny, and
+`skrifa` removes the application-owned parser edge. Remaining `ttf-parser`
+instances are transitive upstream GPUI/fontdb/rustybuzz paths and remain tracked,
+not silently reclassified as resolved.
+
+ADR-0008 remains aligned with Error-Boundary ownership for render failures,
+fail-fast protocol/tree rejection, local image fallback, and host-fatal GPUI
+paint panic. The GPUI drift verdict is **no released unblocks** for per-run
+typography, explicit direction, letter spacing, secure obscuring, live regions,
+runtime position setters, or portable Linux image seams.
 
 ## 5. Known limits and human decision items
 
@@ -176,18 +195,23 @@ RTL/container direction and bidi-aware hit/caret/IME semantics, `letterSpacing`,
 and JavaScript Image `onError`. Native TextInput undo/redo is host-owned and
 implemented; `fallbackSource` remains the visual Image degradation path.
 
+- **Recommendation only:** because Unreleased has matured and includes the
+  breaking `PointerAction` removal, the next cut should be **0.3.0**, not
+  **0.2.1**, under pre-1.0 SemVer; no version is selected.
+
 ## 6. Post-release cycle position
 
 **v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
 action.** Tag `v0.2.0` remains anchored to release commit `72a520c`; no tag move
 or publication operation is part of this refresh. The candidate archive SHA is
-**`3f0a8835c2e946d2bab9ea32bd75ed490c0a502a719104c7870bc3524bd9e9a8`**.
+**`abb0aeb784d99d9761636d128bb104331f934bf1378ae72b31b311d1092ccdef`**.
 
-The current cycle contains **5 Added, 5 Testing, 3 Fixed, and 1 Changed**
-entries; its release-facing count is **10 additions / 3 fixes / 1 change**.
-All five fresh gates passed serially under `/usr/bin/time -p` on `3a1a9ea`, and
+The current cycle contains **6 Added, 5 Testing, 3 Fixed, and 2 Changed**
+entries; its release-facing count is **11 additions / 3 fixes / 2 changes**.
+All five fresh gates passed serially under `/usr/bin/time -p` on `d74467e`, and
 the companion checklist records the same gate matrix, archive checksum,
-capability notes, crosswalk, and human publication boundaries.
+capability notes, crosswalk, supply-chain boundary, and human publication
+boundaries.
 
 No publication option is selected by this inventory; human action is required
 for push, npm publication, signing/notarization, and any Rust crate release.
