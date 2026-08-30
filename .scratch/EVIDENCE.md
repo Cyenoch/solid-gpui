@@ -1,27 +1,34 @@
 # Scratch evidence index
 
 This index answers “where is the proof?” for the tracked `.scratch` evidence
-set at the `v0.2.0` cut. It covers **107 pre-existing tracked files**, plus the
-**two new files in this commit** (`release-artifacts.md` and this index), for
-**109 files in the final tracked set**. The index intentionally does not copy
-full evidence; each row points to the source snapshot and gives the one-line
-number or verdict worth finding six months from now.
+set at the `v0.2.0` cut. The prior index covered **109 tracked files** across
+**38 evidence areas**. The current inventory contains **126 evidence files
+plus this index**, for **127 tracked files across 51 evidence areas**.
+The index intentionally does not copy full evidence; each row points to the
+source snapshot and gives the one-line number or verdict worth finding six
+months from now.
 
 `historical (stale-ok)` means a dated measurement, audit, rehearsal, or design
 record that remains useful as provenance but is not a live status source.
 `living` means a release/readiness reference expected to be consulted and
-updated at a release boundary. `in-flight` marks the requested upstream area;
-its directory is not present in the tracked inventory yet and was not touched.
+updated at a release boundary. All evidence areas in the current tracked
+inventory are landed; no in-flight area is listed.
+
+Refresh date: **2026-08-30**.
 
 ## File-count summary
 
-| Area | Pre-existing tracked | New in this commit | Final indexed |
+| Area | Before refresh | Added since prior index | Final indexed |
 | --- | ---: | ---: | ---: |
 | a11y-second-pass | 6 | 0 | 6 |
 | animation-completeness | 3 | 0 | 3 |
 | caret-follow | 1 | 0 | 1 |
+| dist-verify | 0 | 1 | 1 |
+| docs-dogfood | 0 | 1 | 1 |
 | domain-docs | 1 | 0 | 1 |
 | embedded-coverage | 1 | 0 | 1 |
+| examples-smoke | 0 | 1 | 1 |
+| export-audit | 0 | 1 | 1 |
 | file-io | 2 | 0 | 2 |
 | focus-order | 3 | 0 | 3 |
 | font-loading | 2 | 0 | 2 |
@@ -29,6 +36,8 @@ its directory is not present in the tracked inventory yet and was not touched.
 | input-perf | 1 | 0 | 1 |
 | interaction-completeness | 1 | 0 | 1 |
 | interchange | 6 | 0 | 6 |
+| kill-resilience | 0 | 1 | 1 |
+| last-surface | 0 | 1 | 1 |
 | link-affordance | 2 | 0 | 2 |
 | link-keyboard | 1 | 0 | 1 |
 | menu-accelerators | 1 | 0 | 1 |
@@ -37,26 +46,33 @@ its directory is not present in the tracked inventory yet and was not touched.
 | perf-event-storm | 8 | 0 | 8 |
 | pointer-coords | 1 | 0 | 1 |
 | pointer-move | 1 | 0 | 1 |
+| prop-test | 0 | 1 | 1 |
 | protocol-compatibility | 4 | 0 | 4 |
 | protocol-cutover | 1 | 0 | 1 |
-| release-productionization | 6 | 1 | 7 |
+| release-productionization | 7 | 0 | 7 |
 | release-rehearsal | 1 | 0 | 1 |
 | rich-perf | 3 | 0 | 3 |
 | showcase | 1 | 0 | 1 |
+| snapshot-perf | 0 | 3 | 3 |
+| soak-test | 0 | 1 | 1 |
+| supply-chain | 0 | 4 | 4 |
 | surface-coverage | 1 | 0 | 1 |
 | surface-lifecycle | 6 | 0 | 6 |
+| surface-prop | 0 | 1 | 1 |
 | test-determinism | 4 | 0 | 4 |
 | testing-dx | 3 | 0 | 3 |
 | text-input-completeness | 7 | 0 | 7 |
 | theme-consistency | 4 | 0 | 4 |
 | transport-resilience | 4 | 0 | 4 |
+| ts-prop | 0 | 1 | 1 |
 | undo-redo | 2 | 0 | 2 |
+| upstream-assessment | 0 | 1 | 1 |
 | virtual-list-completeness | 7 | 0 | 7 |
 | vlist-scroll | 2 | 0 | 2 |
 | window-controls | 4 | 0 | 4 |
 | window-title | 1 | 0 | 1 |
-| top-level `.scratch` | 0 | 1 | 1 |
-| **Total** | **107** | **2** | **109** |
+| top-level `.scratch` | 1 | 0 | 1 |
+| **Total** | **109** | **18** | **127**
 
 ## a11y-second-pass (6 files)
 
@@ -83,6 +99,18 @@ its directory is not present in the tracked inventory yet and was not touched.
 | --- | --- | --- | --- |
 | `.scratch/caret-follow/reproduction.md` | Multiline TextInput caret visibility regression | Six lines measured 156 px in a 40 px viewport; bounded scroll offset keeps end caret in bounds | historical (stale-ok) |
 
+## dist-verify (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/dist-verify/notes.md` | Standalone release archive and external package verification | **PASS** for archive host + packed core tarball + external app; protocol-v3 startup, snapshot exchange, help/version, and reproducibility checks passed | historical (stale-ok) |
+
+## docs-dogfood (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/docs-dogfood/findings.md` | Fresh-consumer onboarding walkthrough and corrected path | Initial path found five install/host/toolchain/example blockers; corrected tarball + manifest-path flow reached protocol-v3 startup and timed out cleanly | historical (stale-ok) |
+
 ## domain-docs (1 file)
 
 | Path | What it proves | Key number / verdict | Freshness |
@@ -94,6 +122,18 @@ its directory is not present in the tracked inventory yet and was not touched.
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/embedded-coverage/spec.md` | Embedded Bun startup/lifecycle coverage design | Four representative entries run serially; Snapshot, bounded tree, expected text, Fast Refresh, and clean status-0 are required | historical (stale-ok) |
+
+## examples-smoke (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/examples-smoke/notes.md` | Release-host launch coverage for every example entry | **14/14 PASS**; every entry emitted protocol-v3 startup, exited with expected SIGTERM, and left no process-group leaks; warm loop 0.579 s | historical (stale-ok) |
+
+## export-audit (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/export-audit/2026-08-30.md` | Public TypeScript core/dev export consumer audit | Tier 2 leaves **3 true orphans**; `PointerAction` removed, `AnimationCompleteEvent` and `TransportTerminationDetails` kept as future seams; dev surface has zero orphans | historical (stale-ok) |
 
 ## file-io (2 files)
 
@@ -145,6 +185,18 @@ its directory is not present in the tracked inventory yet and was not touched.
 | `.scratch/interchange/issues/03-clipboard-events.md` | Clipboard observer audit | GPUI exposes pull reads, not a public cross-platform change observer; keep `getClipboardText()` pull-only | historical (stale-ok) |
 | `.scratch/interchange/issues/04-text-clipboard-limit.md` | Symmetric clipboard byte-limit proof | Exactly 1 MiB accepted and one UTF-8 byte over rejected, including CJK and emoji | historical (stale-ok) |
 | `.scratch/interchange/issues/05-generated-images.md` | Generated-image ingestion recipe | Persist encoded bytes to an app-owned host-visible temporary/sidecar path; data URLs/base64 remain rejected | historical (stale-ok) |
+
+## kill-resilience (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/kill-resilience/notes.md` | Host, renderer, and process-group force-kill cleanup | **6 scenarios, zero orphans**; host-kill stdin EOF, renderer-kill typed signal 9, and group-kill all passed at 0.008–0.058 s latency | historical (stale-ok) |
+
+## last-surface (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/last-surface/notes.md` | Final native surface close lifecycle | `cx.quit()` is verified at the headless seam: first close keeps host alive, final close empties registry and requests quit; process exit remains display-backed | historical (stale-ok) |
 
 ## link-affordance (2 files)
 
@@ -204,6 +256,12 @@ its directory is not present in the tracked inventory yet and was not touched.
 | --- | --- | --- | --- |
 | `.scratch/pointer-move/spec.md` | Opt-in high-frequency pointer movement performance | 143 registered nodes produced 240 events/commits; p50/p99 0.660/1.040 ms at 240 Hz versus 4.17 ms interval | historical (stale-ok) |
 
+## prop-test (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/prop-test/notes.md` | Tree patch property invariants and side-map cleanup | **3 product bugs found and fixed**; 32 seeds × 64 operations passed in 0.97 s, with a 20,000-node host phase of 0.104 ms | historical (stale-ok) |
+
 ## protocol-compatibility (4 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
@@ -251,6 +309,29 @@ its directory is not present in the tracked inventory yet and was not touched.
 | --- | --- | --- | --- |
 | `.scratch/showcase/coverage.txt` | Example showcase capability coverage | Multi-surface controls, runtime font loading, bundled Tuffy asset, and clipboard-image recipe are represented | historical (stale-ok) |
 
+## snapshot-perf (3 files)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/snapshot-perf/measurement.md` | Initial snapshot, patch, and first-frame performance audit | Targeted reconciliation fix reduced one-operation host apply to 0.131 ms; remaining 20k first draw is GPUI-bound at about 196 ms | historical (stale-ok) |
+| `.scratch/snapshot-perf/issues/01-affected-reconciliation-and-gpui-draw-boundary.md` | Affected-workset fix and honest GPUI draw boundary | 20k snapshot host stages 70.705 ms; one-op patch host stages 0.131 ms; no speculative element-tree cache | historical (stale-ok) |
+| `.scratch/snapshot-perf/ts-encode.md` | TypeScript snapshot encode scaling and wire size | 20k total encode/handoff 3.759 ms p50 / 5.612 ms p99; payload 0.410 MiB, 2.559% of frame limit | historical (stale-ok) |
+
+## soak-test (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/soak-test/notes.md` | Long-running renderer state and memory stability | **2,000 iterations** passed; RSS rose 608 KiB then plateaued after warm-up, with side maps bounded and no leak found | historical (stale-ok) |
+
+## supply-chain (4 files)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/supply-chain/2026-08-30.md` | Bun and Rust dependency advisory audit | Bun core/dev audits clean after `@babel/core` 7.28.4 → 7.29.6; cargo-deny found three unmaintained crates with no safe upgrade, all needs-triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/01-paste.md` | `paste` advisory disposition | `paste` 1.0.15 is an upstream Apple/GPUI compile-time dependency; no safe upgrade, needs upstream triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/02-rustybuzz.md` | `rustybuzz` advisory disposition | `rustybuzz` 0.20.1 is upstream `usvg`/`resvg` shaping dependency; no safe graph-local replacement, needs upstream triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/03-ttf-parser.md` | Direct font parser advisory disposition | `ttf-parser` 0.25.1 is a direct bounded font-loading parser; no safe upgrade, reviewed `skrifa` migration remains needs-triage | historical (stale-ok) |
+
 ## surface-coverage (1 file)
 
 | Path | What it proves | Key number / verdict | Freshness |
@@ -267,6 +348,12 @@ its directory is not present in the tracked inventory yet and was not touched.
 | `.scratch/surface-lifecycle/issues/03-focus-routing.md` | Cross-surface focus/activation routing | Two-window headless dispatch proves surface 1 blur and surface 2 focus retain identity | historical (stale-ok) |
 | `.scratch/surface-lifecycle/issues/04-epoch-validation.md` | Epoch and generation validation | Event/patch/command identity checks reject mismatches; changing epoch does not bypass retired-ID protection | historical (stale-ok) |
 | `.scratch/surface-lifecycle/issues/05-example-coverage.md` | Supported multi-surface example path | Example opens/registers/renders/closes a child surface; it deliberately does not demonstrate same-ID reopen | historical (stale-ok) |
+
+## surface-prop (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/surface-prop/notes.md` | Surface/epoch identity and command-routing property test | No epoch/reuse violation across 16 seeds × 48 operations; 2 focused property tests passed in 0.14 s | historical (stale-ok) |
 
 ## test-determinism (4 files)
 
@@ -315,12 +402,24 @@ its directory is not present in the tracked inventory yet and was not touched.
 | `.scratch/transport-resilience/issues/02-malformed-frame-fate.md` | Malformed-frame termination behavior | Valid/malformed/valid sequence terminates once, rejects pending commands, and ignores later bytes; direct decoder containment remains | historical (stale-ok) |
 | `.scratch/transport-resilience/issues/03-typed-termination-cause.md` | Programmatic termination taxonomy | Causes are shutdown/eof/exit/code/protocol/detail/io/detail; focused tests discriminate without message parsing | historical (stale-ok) |
 
+## ts-prop (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/ts-prop/notes.md` | TypeScript snapshot/patch emission invariants | **362,716 assertions**, zero violations across 24 seeds × 40 mutations; targeted test passed in 1.75 s | historical (stale-ok) |
+
 ## undo-redo (2 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/undo-redo/spec.md` | Host-owned TextInput history contract | Bounded 100 pre-edit snapshots; typing coalesces by caret continuity; Cmd/Ctrl-Z and redo emit ordinary change/selection events | historical (stale-ok) |
 | `.scratch/undo-redo/reclassification.md` | Correction of the earlier undo classification | Renderer ownership makes bounded host history feasible without GPUI primitive or wire change | historical (stale-ok) |
+
+## upstream-assessment (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/upstream-assessment/2026-08-30-gpui-drift.md` | Released GPUI/Zed API drift assessment | No released unblock for requested boundaries; keep current pin/protocol and existing honest upstream/platform gaps | historical (stale-ok) |
 
 ## virtual-list-completeness (7 files)
 
@@ -356,12 +455,6 @@ its directory is not present in the tracked inventory yet and was not touched.
 | --- | --- | --- | --- |
 | `.scratch/window-title/spec.md` | Existing title command and notes example correction | `SetTitle` is command 6; no command 36/badge/subtitle path; notes derives title from basename and dirty state | historical (stale-ok) |
 
-## In-flight area: upstream-assessment
-
-| Path | What it proves | Key number / verdict | Freshness |
-| --- | --- | --- | --- |
-| `.scratch/upstream-assessment/**` | Requested upstream assessment workstream | Directory is listed for handoff but is not present in this tracked inventory yet; no files were read or modified here | in-flight |
-
 ## Living-versus-historical guide
 
 **Living:** `release-readiness.md`, `v0.2.0-cut-checklist.md`,
@@ -376,6 +469,6 @@ current status from a stale measurement without rerunning the named gate.
 
 **Not included:** untracked/ignored scratch material (for example directories
 that may exist locally but do not appear in `git ls-files .scratch`) is outside
-this index's tracked-evidence contract. The requested `upstream-assessment`
-area is explicitly called out above as in-flight rather than silently treated
-as complete.
+this index's tracked-evidence contract. All tracked areas, including `upstream-assessment` and `supply-chain`,
+are indexed as landed evidence.
+
