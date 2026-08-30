@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Validated snapshot protocol and native tree for the React GPUI host"
+repository.workspace = true
+readme.workspace = true
+keywords = ["react", "gpui", "renderer", "native-ui"]
+categories = ["gui"]
 
 [dependencies]
 futures.workspace = true

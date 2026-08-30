@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "In-process Bun and JavaScriptCore adapter for the React GPUI host."
+repository.workspace = true
+readme.workspace = true
+keywords = ["react", "gpui", "bun", "javascriptcore"]
+categories = ["gui"]
 build = "build.rs"
 
 [features]

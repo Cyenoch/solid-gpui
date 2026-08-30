@@ -10,6 +10,12 @@ members = [
 edition = "2024"
 license = "Apache-2.0"
 version = "0.2.0"
+description = "React GPUI renders React trees into one or more native GPUI surfaces."
+keywords = ["react", "gpui", "native-ui"]
+categories = ["gui"]
+
+repository = "https://github.com/Cyenoch/react-gpui"
+readme = "README.md"
 
 [workspace.dependencies]
 futures = "0.3"
