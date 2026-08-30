@@ -1071,11 +1071,12 @@ stderr diagnostics that the process wrapper provides.
 The source tree includes focused entries for the main host surfaces:
 
 - [`counter.tsx`](examples/counter.tsx) — the smallest process-runtime smoke entry.
+- [`notes.tsx`](examples/notes.tsx) — a file-backed multiline note editor with open/save dialogs and asynchronous dirty-close confirmation.
 - [`gallery.tsx`](examples/gallery.tsx) — composed layout, pointer/scroll/drop, drag, appearance, and animation coverage.
 - [`todo.tsx`](examples/todo.tsx) — controlled text input, keyboard, accessibility, and virtual-list integration.
 - [`keyboard.tsx`](examples/keyboard.tsx) — focus/key notifications, keybindings, a native menu, and a fire-and-forget notification request.
 - [`text-input.tsx`](examples/text-input.tsx) — controlled/uncontrolled text input, multi-click word/line selection, native copy, focus handles, and runtime font loading.
-- [`selectable-text.tsx`](examples/selectable-text.tsx) — host-owned text dragging, per-row highlighting, and Cmd/Ctrl-C clipboard copy.
+- [`selectable-text.tsx`](examples/selectable-text.tsx) — a selectable paragraph with a nested link run and native Cmd/Ctrl-C clipboard copy.
 - [`rich-text.tsx`](examples/rich-text.tsx) — nested typography, keyboard-accessible link runs, and selectable rich text in one surface.
 - [`virtual-list.tsx`](examples/virtual-list.tsx) — a large fixed-row list with overscan and imperative scrolling.
 - [`stress.tsx`](examples/stress.tsx) — a manual 10 ms process-runtime soak entry; use `make soak-smoke`.
