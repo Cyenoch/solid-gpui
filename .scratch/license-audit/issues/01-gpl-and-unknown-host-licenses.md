@@ -1,19 +1,39 @@
 # Host distribution license blocker
 
-Status: ready-for-human  
+Status: ready-for-human (Option 3′ EXECUTED; STOP narrowed)
 Type: legal-release blocker  
 Label: `ready-for-human`  
 Severity: blocker  
 
 ## Decision required
 
-**STOP.** A release owner and legal reviewer must decide whether the current
-license set may be distributed before any push, registry publication, signing,
-notarization, or other external distribution. This is a legal decision, not an
-engineering waiver. Do not resolve this ticket by silently allow-listing the
-findings or by changing dependencies without a separate approved plan.
+**STOP (narrowed).** Option 3′ now removes `zlog`, `ztracing`, and
+`ztracing_macro` from the resolved `react-gpui-host` graph. A release owner
+and legal reviewer must still confirm the two missing manifest license fields
+and `self_cell`'s Apache option before any push, registry publication,
+signing, notarization, or other external distribution. This remains a legal
+decision, not an engineering waiver.
+See the execution record in [`../landing-option3.md`](../landing-option3.md).
+
+## Option 3′ execution status (2026-08-31)
+
+**EXECUTED.** The conservative Option 3′ local patch is landed in the main
+tree: an independently authored Apache-2.0 `ztracing` proc-macro stub replaces
+the upstream package for the host graph. It exports the identity `instrument`
+attribute, removes the GPL package records from the lockfile, and preserves
+the upstream documented no-op instrumentation behavior. It distributes no Zed
+tracing implementation code and does not select Option 4.
+
+**STOP (narrowed).** The remaining release blocker covers `gpui_shared_string`
+and `gpui_util` (missing manifest license fields), plus confirmation of the
+Apache option for `self_cell`'s dual expression. The issue remains
+`ready-for-human`; this engineering change is not legal review and does not
+authorize publication. Weak-copyleft, notice, and artifact obligations remain
+review items as documented.
 
 ## Evidence
+
+### Pre-Option 3′ evidence
 
 At repository HEAD `c329b63d38b3c444d37b3dcfb2d37a024b43eca5`, the default
 `react-gpui-host` build graph reaches these pinned Zed crates:
@@ -140,3 +160,4 @@ other weak-copyleft findings remain independent obligations under every option.
 - The proof does not clear `gpui_shared_string`/`gpui_util` missing license fields or make a legal distribution decision; the STOP and release-owner checklist remain active.
 - 2026-08-31: Option 3′ stub patch proof: [`../spike-option3-stub.md`](../spike-option3-stub.md) — local Apache-2.0 identity proc-macro patch removes the three GPL package records from the target host graph; host check/release/version/test gates passed.
 - Engineering verdict: the stub is the smaller Option 3 variant, but the separate `gpui_shared_string`/`gpui_util` findings and legal STOP remain active; the decision is still for the release owner and legal reviewer.
+- 2026-08-31: Option 3′ executed in the main tree; the GPL trio is absent from all three target-qualified host graphs and the STOP is narrowed to the two missing-license crates plus `self_cell` option confirmation.

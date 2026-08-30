@@ -28,6 +28,9 @@ thiserror = "2.0"
 unicode-segmentation = "1.13.3"
 [patch.crates-io]
 gpui = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui", version = "=0.2.2" }
+# License blocker mitigation: see .scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md.
+[patch."https://github.com/zed-industries/zed"]
+ztracing = { path = "third_party/ztracing-stub" }
 
 [profile.dev]
 debug = 1
