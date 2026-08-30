@@ -30,13 +30,17 @@ if match is None:
     raise SystemExit("missing workspace package version")
 core = json.loads((root / "packages/react-gpui/package.json").read_text())["version"]
 dev = json.loads((root / "packages/react-gpui-dev/package.json").read_text())["version"]
-print(f"{match.group(1)}\t{core}\t{dev}")
+host_config = (root / "packages/react-gpui/src/renderer/host-config.ts").read_text()
+renderer_match = re.search(r'(?m)^\s*rendererVersion:\s*"([^"]+)"\s*,?\s*$', host_config)
+if renderer_match is None:
+    raise SystemExit("missing rendererVersion in host config")
+print(f"{match.group(1)}\t{core}\t{dev}\t{renderer_match.group(1)}")
 PY
 }
 
-IFS=$'\t' read -r cargo_version core_version dev_version <<< "$(read_versions)"
-if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$dev_version" == "$version" ]]; then
-  printf 'release-prep: all three manifests already use %s; nothing to do\n' "$version"
+IFS=$'\t' read -r cargo_version core_version dev_version renderer_version <<< "$(read_versions)"
+if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$dev_version" == "$version" && "$renderer_version" == "$version" ]]; then
+  printf 'release-prep: all manifests and renderer metadata already use %s; nothing to do\n' "$version"
   exit 0
 fi
 
@@ -64,6 +68,7 @@ restore_on_failure() {
     cp "$backup_dir/Cargo.toml" "$repo_root/Cargo.toml"
     cp "$backup_dir/core-package.json" "$repo_root/packages/react-gpui/package.json"
     cp "$backup_dir/dev-package.json" "$repo_root/packages/react-gpui-dev/package.json"
+    cp "$backup_dir/host-config.ts" "$repo_root/packages/react-gpui/src/renderer/host-config.ts"
     cp "$backup_dir/Cargo.lock" "$repo_root/Cargo.lock"
     cp "$backup_dir/core-bun.lock" "$repo_root/packages/react-gpui/bun.lock"
     cp "$backup_dir/dev-bun.lock" "$repo_root/packages/react-gpui-dev/bun.lock"
@@ -75,6 +80,7 @@ trap restore_on_failure EXIT
 cp "$repo_root/Cargo.toml" "$backup_dir/Cargo.toml"
 cp "$repo_root/packages/react-gpui/package.json" "$backup_dir/core-package.json"
 cp "$repo_root/packages/react-gpui-dev/package.json" "$backup_dir/dev-package.json"
+cp "$repo_root/packages/react-gpui/src/renderer/host-config.ts" "$backup_dir/host-config.ts"
 cp "$repo_root/Cargo.lock" "$backup_dir/Cargo.lock"
 cp "$repo_root/packages/react-gpui/bun.lock" "$backup_dir/core-bun.lock"
 cp "$repo_root/packages/react-gpui-dev/bun.lock" "$backup_dir/dev-bun.lock"
@@ -116,6 +122,18 @@ for relative in ("packages/react-gpui/package.json", "packages/react-gpui-dev/pa
     if count != 1:
         raise SystemExit(f"{relative} version line is not uniquely anchored")
     path.write_text(updated)
+
+host_config_path = root / "packages/react-gpui/src/renderer/host-config.ts"
+host_config = host_config_path.read_text()
+updated_host_config, count = re.subn(
+    r'(?m)^(\s*rendererVersion:\s*")[^\"]+("\s*,?\s*)$',
+    rf'\g<1>{version}\g<2>',
+    host_config,
+    count=1,
+)
+if count != 1:
+    raise SystemExit("rendererVersion line is not uniquely anchored")
+host_config_path.write_text(updated_host_config)
 PY
 
 (
@@ -134,9 +152,9 @@ PY
   bun install --frozen-lockfile
 )
 
-IFS=$'\t' read -r cargo_version core_version dev_version <<< "$(read_versions)"
-if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$dev_version" != "$version" ]]; then
-  printf 'release-prep: manifest version mismatch after update: %s / %s / %s\n' "$cargo_version" "$core_version" "$dev_version" >&2
+IFS=$'\t' read -r cargo_version core_version dev_version renderer_version <<< "$(read_versions)"
+if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$dev_version" != "$version" || "$renderer_version" != "$version" ]]; then
+  printf 'release-prep: version mismatch after update: %s / %s / %s / %s\n' "$cargo_version" "$core_version" "$dev_version" "$renderer_version" >&2
   exit 1
 fi
 
@@ -144,6 +162,6 @@ printf 'release-prep: synchronized version %s\n' "$version"
 printf 'release-prep diff summary:\n'
 (
   cd "$repo_root"
-  git diff --stat -- Cargo.toml Cargo.lock packages/react-gpui/package.json packages/react-gpui/bun.lock packages/react-gpui-dev/package.json packages/react-gpui-dev/bun.lock
+  git diff --stat -- Cargo.toml Cargo.lock packages/react-gpui/package.json packages/react-gpui/bun.lock packages/react-gpui-dev/package.json packages/react-gpui-dev/bun.lock packages/react-gpui/src/renderer/host-config.ts
 )
 completed=1

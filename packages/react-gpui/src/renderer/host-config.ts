@@ -9,7 +9,7 @@ import { UPDATE_TEXT } from "../protocol";
 let currentUpdatePriority = DefaultEventPriority;
 
 export const hostConfig = {
-  rendererVersion: "0.1.0",
+  rendererVersion: "0.2.0",
   rendererPackageName: "@react-gpui/core",
   isPrimaryRenderer: false,
   supportsMutation: true,

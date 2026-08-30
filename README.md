@@ -515,18 +515,19 @@ archive: embedded package inclusion remains a ready-for-human release-matrix
 decision tracked in `.scratch/release-productionization/issues/03-embedded-build-coverage.md`
 and `.scratch/release-productionization/issues/06-cross-platform-host.md`.
 
-Before a candidate release, synchronize the workspace and package versions
-from one Cargo version with a matching `CHANGELOG.md` section:
+Before a candidate release, synchronize the workspace, package, and renderer
+metadata versions from one Cargo version with a matching `CHANGELOG.md` section:
 
 ```sh
 make release-prep VERSION=0.1.1
 ```
 
-This updates the workspace Cargo/package manifests, refreshes Cargo and Bun
-locks, and verifies frozen installs. It is idempotent when all three manifests
-already use the requested version; it never creates or edits a changelog
-section. The manual `Release Prep` workflow runs this step, then `make ci`,
-and packs tarballs as verification artifacts only. Actual npm/crates.io
+This updates the workspace Cargo/package manifests, the React host config's
+`rendererVersion` DevTools metadata, refreshes Cargo and Bun locks, and verifies
+frozen installs. It is idempotent when all four version sources already use the
+requested version; it never creates or edits a changelog section. The manual
+`Release Prep` workflow runs this step, then `make ci`, and packs tarballs as
+verification artifacts only. Actual npm/crates.io
 publication still requires a human, an approved version/changelog, and real
 registry credentials; this workflow contains no publish step or secrets.
 
