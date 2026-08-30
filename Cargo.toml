@@ -17,8 +17,8 @@ gpui = "0.2.2"
 rmp-serde = "1.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11.19"
+skrifa = { version = "0.44", default-features = false, features = ["std"] }
 thiserror = "2.0"
-ttf-parser = "0.25.1"
 unicode-segmentation = "1.13.3"
 [patch.crates-io]
 gpui = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui", version = "=0.2.2" }

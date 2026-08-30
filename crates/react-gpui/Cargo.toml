@@ -12,7 +12,7 @@ rmp-serde.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true
 thiserror.workspace = true
-ttf-parser.workspace = true
+skrifa.workspace = true
 
 unicode-segmentation.workspace = true
 [dev-dependencies]

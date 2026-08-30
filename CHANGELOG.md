@@ -37,6 +37,7 @@ from this work tree.
 ### Changed
 
 - Removed the unused `PointerAction` type alias; `PointerEvent` retains its literal pointer event types.
+- Swapped the direct `ttf-parser` family-name parser for maintained `skrifa`; the pinned GPUI graph still owns transitive `ttf-parser` occurrences tracked in the supply-chain issue.
 
 ## [0.2.0] - 2026-08-30
 

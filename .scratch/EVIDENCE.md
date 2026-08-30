@@ -330,7 +330,7 @@ Refresh date: **2026-08-30**.
 | `.scratch/supply-chain/2026-08-30.md` | Bun and Rust dependency advisory audit | Bun core/dev audits clean after `@babel/core` 7.28.4 → 7.29.6; cargo-deny found three unmaintained crates with no safe upgrade, all needs-triage | historical (stale-ok) |
 | `.scratch/supply-chain/issues/01-paste.md` | `paste` advisory disposition | `paste` 1.0.15 is an upstream Apple/GPUI compile-time dependency; no safe upgrade, needs upstream triage | historical (stale-ok) |
 | `.scratch/supply-chain/issues/02-rustybuzz.md` | `rustybuzz` advisory disposition | `rustybuzz` 0.20.1 is upstream `usvg`/`resvg` shaping dependency; no safe graph-local replacement, needs upstream triage | historical (stale-ok) |
-| `.scratch/supply-chain/issues/03-ttf-parser.md` | Direct font parser advisory disposition | `ttf-parser` 0.25.1 is a direct bounded font-loading parser; no safe upgrade, reviewed `skrifa` migration remains needs-triage | historical (stale-ok) |
+| `.scratch/supply-chain/issues/03-ttf-parser.md` | Direct font parser advisory disposition | `skrifa 0.44.0` now handles the direct `loadFont` family parse; `ttf-parser 0.25.1` remains only in upstream GPUI/fontdb/rustybuzz transitive paths, so the issue stays open | historical (stale-ok) |
 
 ## surface-coverage (1 file)
 

@@ -7,6 +7,7 @@ use gpui::{
     Menu as GpuiMenu, MenuItem as GpuiMenuItem, PathPromptOptions, Point, SystemNotification,
     SystemNotificationAction, Window, px, size,
 };
+use skrifa::MetadataProvider;
 
 use super::ReactRoot;
 use crate::protocol::{
@@ -42,29 +43,23 @@ fn file_error(error: std::io::Error) -> String {
 }
 
 fn font_family(bytes: &[u8]) -> Result<String, String> {
-    let face = ttf_parser::Face::parse(bytes, 0)
+    let face = skrifa::FontRef::from_index(bytes, 0)
         .map_err(|_| "font is malformed or unsupported".to_owned())?;
-    let mut family = None;
-    for name in face.names() {
-        if name.name_id == ttf_parser::name_id::TYPOGRAPHIC_FAMILY {
-            if let Some(value) = name.to_string()
-                && !value.is_empty()
-                && value.chars().count() <= 64
-                && !value.chars().any(char::is_control)
-            {
-                return Ok(value);
-            }
-        } else if name.name_id == ttf_parser::name_id::FAMILY
-            && family.is_none()
-            && let Some(value) = name.to_string()
-            && !value.is_empty()
-            && value.chars().count() <= 64
-            && !value.chars().any(char::is_control)
+    for name in face.localized_strings(skrifa::string::StringId::TYPOGRAPHIC_FAMILY_NAME) {
+        let value = name.to_string();
+        if !value.is_empty() && value.chars().count() <= 64 && !value.chars().any(char::is_control)
         {
-            family = Some(value);
+            return Ok(value);
         }
     }
-    family.ok_or_else(|| "font has no usable family name".to_owned())
+    for name in face.localized_strings(skrifa::string::StringId::FAMILY_NAME) {
+        let value = name.to_string();
+        if !value.is_empty() && value.chars().count() <= 64 && !value.chars().any(char::is_control)
+        {
+            return Ok(value);
+        }
+    }
+    Err("font has no usable family name".to_owned())
 }
 fn gpui_image_format(format: u32) -> Option<ImageFormat> {
     match format {
@@ -951,5 +946,17 @@ mod tests {
         });
         assert!(!item.is_disabled());
         assert!(!item.is_checked());
+    }
+    #[test]
+    fn font_family_extracts_tuffy_family() {
+        let bytes = include_bytes!("../../../react-gpui-host/tests/fixtures/tuffy.ttf");
+        assert_eq!(font_family(bytes), Ok("Tuffy".to_owned()));
+    }
+    #[test]
+    fn font_family_rejects_malformed_bytes_without_panicking() {
+        assert_eq!(
+            font_family(b"not a font"),
+            Err("font is malformed or unsupported".to_owned())
+        );
     }
 }

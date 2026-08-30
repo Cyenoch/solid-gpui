@@ -4423,9 +4423,9 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_bytes",
+ "skrifa 0.44.0",
  "smallvec",
  "thiserror 2.0.20",
- "ttf-parser",
  "unicode-segmentation",
 ]
 
