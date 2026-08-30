@@ -18,7 +18,7 @@ Could you clarify whether the `gpui` dependency on `ztracing` is intentional as 
 
 At the Zed revision we currently consume (`6805d952f9f3d702f760aa11b1547df8a625fa16`), `gpui` declares `license = "Apache-2.0"` in `crates/gpui/Cargo.toml:1-10`, while its ordinary dependency table includes `ztracing.workspace = true` at `crates/gpui/Cargo.toml:107`. The `ztracing` manifest declares `license = "GPL-3.0-or-later"` at `crates/ztracing/Cargo.toml:1-6`. It also has ordinary dependencies on `zlog` and `ztracing_macro` (`crates/ztracing/Cargo.toml:15-21`), whose manifests likewise declare `GPL-3.0-or-later`.
 
-The same GPUI dependency and tracing attributes were present in the `origin/main` snapshot checked at `1662f5f3f6497c5f80830ccdca1edfd1fc0c6c6a` (2026-08-29). The direct GPUI edge and SVG instrumentation were introduced in commit `00cba838ad4e0be4b6176438551b72b2d512e9f8` (2026-08-05), according to our local history review.
+After `git fetch origin`, `origin/main` remains `1662f5f3f6497c5f80830ccdca1edfd1fc0c6c6a`. Its `crates/gpui/Cargo.toml` still declares `license = "Apache-2.0"` at line 9 and retains ordinary `ztracing.workspace = true` at line 110; `gpui_shared_string.workspace = true` and `gpui_util.workspace = true` are at lines 64 and 99. The `ztracing` edge and GPL manifest facts are therefore unchanged at this fetched revision. The direct GPUI edge and SVG instrumentation were introduced in commit `00cba838ad4e0be4b6176438551b72b2d512e9f8` (2026-08-05), according to our local history review.
 
 ## Where the edge is used
 
@@ -57,11 +57,12 @@ For a narrow, target-specific engineering experiment, we replaced the `ztracing`
 
 ## References
 
-- Pinned GPUI manifest: `crates/gpui/Cargo.toml:1-10,46-107`
+- Pinned GPUI manifest: `crates/gpui/Cargo.toml:1-10,46-107` (`ztracing` line 107)
+- Fetched `origin/main` GPUI manifest: `crates/gpui/Cargo.toml:1-12,56-110` (`ztracing` line 110)
 - Pinned `ztracing` manifest: `crates/ztracing/Cargo.toml:1-21`
 - Pinned `sum_tree` manifest: `crates/sum_tree/Cargo.toml:1-21`
 - Pinned SVG use: `crates/gpui/src/svg_renderer.rs:189-197`
 - Pinned `sum_tree` uses: `crates/sum_tree/src/cursor.rs:1-5,214-216,405-428,462-470`; `crates/sum_tree/src/sum_tree.rs:11-13,396-426,509-512`
-- Downstream audit evidence was recorded against the pinned revision and the checked `origin/main` snapshot; the downstream repository is private and unpublished.
+- Downstream audit evidence and the terms-determinability recheck are recorded in `.scratch/license-audit/recheck-2026-08-31.md`; the downstream repository is private and unpublished.
 
 Thank you for clarifying the intended direction and for maintaining GPUI.
