@@ -138,3 +138,5 @@ other weak-copyleft findings remain independent obligations under every option.
   Makefile, `deny.toml`, or publication command was changed.
 - 2026-08-31: Option 3 fork proof: [`../spike-option3.md`](../spike-option3.md) — proven narrowly; all three GPL package IDs gone in the target no-dev graph, host check/release/smoke passed, but standalone translation and ongoing maintenance are medium/high cost.
 - The proof does not clear `gpui_shared_string`/`gpui_util` missing license fields or make a legal distribution decision; the STOP and release-owner checklist remain active.
+- 2026-08-31: Option 3′ stub patch proof: [`../spike-option3-stub.md`](../spike-option3-stub.md) — local Apache-2.0 identity proc-macro patch removes the three GPL package records from the target host graph; host check/release/version/test gates passed.
+- Engineering verdict: the stub is the smaller Option 3 variant, but the separate `gpui_shared_string`/`gpui_util` findings and legal STOP remain active; the decision is still for the release owner and legal reviewer.
