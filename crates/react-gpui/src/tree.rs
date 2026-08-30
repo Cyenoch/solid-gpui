@@ -500,6 +500,7 @@ impl NodeStore {
             .or_default()
             .insert(node.index as usize, node.id);
         self.reindex_parent(node.parent_id);
+        self.recompute_text_content(node.id)?;
         self.recompute_text_content(node.parent_id)?;
         stats.affected_nodes += 1;
         parents.insert(node.parent_id);
@@ -615,6 +616,7 @@ impl NodeStore {
             && node.kind != KIND_TEXT_INPUT
             && node.kind != KIND_VIRTUAL_LIST
             && node.kind != KIND_VIEW
+            && node.kind != KIND_TEXT
             && resulting_style
                 .and_then(|style| style.transition.as_ref())
                 .is_none()

@@ -210,6 +210,103 @@ impl ReactRoot {
     pub fn store(&self) -> &NodeStore {
         &self.store
     }
+    #[cfg(test)]
+    pub(crate) fn test_side_map_ids(&self) -> Vec<(&'static str, HashSet<u32>)> {
+        let mut ids = Vec::with_capacity(20);
+        ids.push(("input_states", self.input_states.keys().copied().collect()));
+        ids.push((
+            "text_input_layouts",
+            self.text_input_layouts.keys().copied().collect(),
+        ));
+        ids.push((
+            "selectable_text_layouts",
+            self.selectable_text_layouts.keys().copied().collect(),
+        ));
+        ids.push((
+            "selectable_text_selections",
+            self.selectable_text_selections.keys().copied().collect(),
+        ));
+        ids.push((
+            "focus_handles",
+            self.focus_handles.keys().copied().collect(),
+        ));
+        ids.push((
+            "focus_observers",
+            self.focus_observers.keys().copied().collect(),
+        ));
+        ids.push((
+            "virtual_lists",
+            self.virtual_lists.keys().copied().collect(),
+        ));
+        ids.push((
+            "virtual_ranges",
+            self.virtual_ranges.keys().copied().collect(),
+        ));
+        ids.push((
+            "virtual_item_sizes",
+            self.virtual_item_sizes.keys().copied().collect(),
+        ));
+        ids.push((
+            "pending_visible_ranges",
+            self.pending_visible_ranges
+                .borrow()
+                .keys()
+                .copied()
+                .collect(),
+        ));
+        ids.push((
+            "reported_visible_ranges",
+            self.reported_visible_ranges.keys().copied().collect(),
+        ));
+        ids.push((
+            "reported_layout_bounds",
+            self.reported_layout_bounds.keys().copied().collect(),
+        ));
+        ids.push((
+            "rendered_bounds",
+            self.rendered_bounds.borrow().keys().copied().collect(),
+        ));
+        ids.push((
+            "rich_text_parts_cache",
+            self.rich_text_parts_cache
+                .borrow()
+                .keys()
+                .copied()
+                .collect(),
+        ));
+        ids.push((
+            "link_affordance_bounds",
+            self.link_affordance_bounds
+                .borrow()
+                .keys()
+                .copied()
+                .collect(),
+        ));
+        ids.push((
+            "animation_states",
+            self.animation_states.keys().copied().collect(),
+        ));
+        ids.push((
+            "animation_styles",
+            self.animation_styles.keys().copied().collect(),
+        ));
+        ids.push(("frame_styles", self.frame_styles.keys().copied().collect()));
+        let mut singleton_ids = HashSet::new();
+        if let Some((id, _)) = self.focused_node {
+            singleton_ids.insert(id);
+        }
+        if let Some(id) = self.active_input {
+            singleton_ids.insert(id);
+        }
+        if let Some((id, _)) = self.text_input_drag_anchor {
+            singleton_ids.insert(id);
+        }
+        if let Some((id, _)) = self.selectable_text_drag_anchor {
+            singleton_ids.insert(id);
+        }
+        ids.push(("singleton_state", singleton_ids));
+        ids
+    }
 
     /// Emit a command acknowledgement using this surface's event sequence.
     ///
@@ -324,6 +421,7 @@ impl ReactRoot {
                 })
                 .collect();
             let mut touched = affected.clone();
+            let mut deleted_ids = HashSet::new();
             let mut pre_patch_roots = HashSet::new();
             let mut parent_by_id = HashMap::with_capacity(patch.operations.len());
             for operation in &patch.operations {
@@ -346,6 +444,7 @@ impl ReactRoot {
                     }
                     PatchOperation::Delete { id } => {
                         add_store_subtree(&self.store, &mut touched, *id);
+                        add_store_subtree(&self.store, &mut deleted_ids, *id);
                         if let Some(old_parent_id) = parent_by_id
                             .get(id)
                             .copied()
@@ -369,6 +468,7 @@ impl ReactRoot {
                 }
             }
             self.store.apply_patch(patch)?;
+            self.prune_deleted_side_maps(&deleted_ids);
             self.invalidate_rich_text_cache(&touched, &pre_patch_ancestors);
             self.reported_layout_bounds
                 .retain(|id, _| !affected.contains(id));
@@ -388,6 +488,66 @@ impl ReactRoot {
         }
         cx.notify();
         Ok(())
+    }
+
+    fn prune_deleted_side_maps(&mut self, deleted_ids: &HashSet<u32>) {
+        if deleted_ids.is_empty() {
+            return;
+        }
+        self.input_states.retain(|id, _| !deleted_ids.contains(id));
+        self.text_input_layouts
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.selectable_text_layouts
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.selectable_text_selections
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.focus_handles.retain(|id, _| !deleted_ids.contains(id));
+        self.focus_observers
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.virtual_lists.retain(|id, _| !deleted_ids.contains(id));
+        self.virtual_ranges
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.virtual_item_sizes
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.pending_visible_ranges
+            .borrow_mut()
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.reported_visible_ranges
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.reported_layout_bounds
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.rendered_bounds
+            .borrow_mut()
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.rich_text_parts_cache
+            .borrow_mut()
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.link_affordance_bounds
+            .borrow_mut()
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.animation_states
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.animation_styles
+            .retain(|id, _| !deleted_ids.contains(id));
+        self.frame_styles.retain(|id, _| !deleted_ids.contains(id));
+        if self
+            .active_input
+            .is_some_and(|id| deleted_ids.contains(&id))
+        {
+            self.active_input = None;
+        }
+        if self
+            .text_input_drag_anchor
+            .is_some_and(|(id, _)| deleted_ids.contains(&id))
+        {
+            self.text_input_drag_anchor = None;
+        }
+        if self
+            .selectable_text_drag_anchor
+            .is_some_and(|(id, _)| deleted_ids.contains(&id))
+        {
+            self.selectable_text_drag_anchor = None;
+        }
     }
 
     /// Drop cached rich assemblies for touched nodes and their final ancestors.

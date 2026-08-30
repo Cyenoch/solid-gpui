@@ -15,10 +15,16 @@ from this work tree.
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
 - Enhanced `multi-surface.tsx` with a settings surface, shared theme state, cross-surface activation/focus, and dirty-state close confirmation.
 
+### Testing
+
+- Added a deterministic stateful tree patch property test covering 32 seeds × 64 valid create, update, delete, and move operations, with tree, text-content, renderer side-map, and rich-cache invariants checked after every patch; seed zero is retained as a named regression.
+
 ### Fixed
+
 - Validation and command failures now identify the affected node or command and include a corrective action, including clipboard, VirtualList, transport, and native response errors.
 
 - Patch reconciliation now limits input, selectable-text, VirtualList, and animation maintenance to the affected node workset (including relevant ancestors), and animation style history is allocated only for styled nodes.
+- Fixed empty created Text nodes retaining missing `text_content`; fixed listener-bearing Text updates being rejected by validation; fixed deleted subtree renderer state, including animation and selectable-text side-map entries, being retained after patch reconciliation.
 
 ## [0.2.0] - 2026-08-30
 
