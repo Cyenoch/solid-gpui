@@ -1,9 +1,9 @@
 # Scratch evidence index
 
 This index answers “where is the proof?” for the tracked `.scratch` evidence
-set at the `v0.2.0` cut. The prior index covered **127 tracked files** across
-**51 evidence areas**. The current inventory contains **131 evidence files
-plus this index**, for **132 tracked files across 56 evidence areas**.
+set at the `v0.2.0` cut. The prior index covered **132 tracked files** across
+**56 evidence areas**. The current inventory contains **134 evidence files
+plus this index**, for **135 tracked files across 58 evidence areas**.
 The index intentionally does not copy full evidence; each row points to the
 source snapshot and gives the one-line number or verdict worth finding six
 months from now.
@@ -39,6 +39,7 @@ Refresh date: **2026-08-31**.
 | interchange | 6 | 0 | 6 |
 | kill-resilience | 0 | 1 | 1 |
 | last-surface | 0 | 1 | 1 |
+| license-audit | 0 | 2 | 2 |
 | link-affordance | 2 | 0 | 2 |
 | link-keyboard | 1 | 0 | 1 |
 | menu-accelerators | 1 | 0 | 1 |
@@ -48,9 +49,9 @@ Refresh date: **2026-08-31**.
 | pointer-coords | 1 | 0 | 1 |
 | pointer-move | 1 | 0 | 1 |
 | prop-test | 1 | 0 | 1 |
-| pub-meta | 0 | 1 | 1 |
 | protocol-compatibility | 4 | 0 | 4 |
 | protocol-cutover | 1 | 0 | 1 |
+| pub-meta | 0 | 1 | 1 |
 | rehearsal-2 | 0 | 1 | 1 |
 | release-productionization | 7 | 0 | 7 |
 | release-rehearsal | 1 | 0 | 1 |
@@ -59,6 +60,7 @@ Refresh date: **2026-08-31**.
 | skrifa-spike | 0 | 1 | 1 |
 | snapshot-perf | 0 | 3 | 3 |
 | soak-test | 1 | 0 | 1 |
+| storm-trim | 0 | 1 | 1 |
 | supply-chain | 4 | 0 | 4 |
 | surface-coverage | 1 | 0 | 1 |
 | surface-lifecycle | 6 | 0 | 6 |
@@ -77,7 +79,7 @@ Refresh date: **2026-08-31**.
 | window-controls | 4 | 0 | 4 |
 | window-title | 1 | 0 | 1 |
 | top-level `.scratch` | 1 | 0 | 1 |
-| **Total** | **127** | **5** | **132**
+| **Total** | **132** | **3** | **135** |
 
 ## a11y-second-pass (6 files)
 
@@ -208,6 +210,12 @@ Refresh date: **2026-08-31**.
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/last-surface/notes.md` | Final native surface close lifecycle | `cx.quit()` is verified at the headless seam: first close keeps host alive, final close empties registry and requests quit; process exit remains display-backed | historical (stale-ok) |
+## license-audit (2 files)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/license-audit/2026-08-30.md` | Rust/Cargo, host archive, and Bun/npm license compliance audit | **publication blocker**: GPL-3.0 ztracing family links host binary (linker-map evidence); npm clean; manual pre-publish gate on checklist | living |
+| `.scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md` | Host distribution license blocker and release-owner decision | **publication blocker**: GPL-3.0 ztracing family links host binary (linker-map evidence); npm clean; manual pre-publish gate on checklist | living |
 
 ## link-affordance (2 files)
 
@@ -358,6 +366,12 @@ Refresh date: **2026-08-31**.
 | --- | --- | --- | --- |
 | `.scratch/soak-test/notes.md` | Long-running renderer state and memory stability | **2,000 iterations** passed; RSS rose 608 KiB then plateaued after warm-up, with side maps bounded and no leak found | historical (stale-ok) |
 
+## storm-trim (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/storm-trim/notes.md` | Event-storm sample budget verdict | `23.6s = minimum stable sample; quarter fails variance/margin gate; no trim` | historical (stale-ok) |
+
 ## supply-chain (4 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
@@ -493,9 +507,11 @@ Refresh date: **2026-08-31**.
 ## Living-versus-historical guide
 
 **Living:** `release-readiness.md`, `v0.2.0-cut-checklist.md`,
-`release-artifacts.md`, and this `EVIDENCE.md` are the release/push-day
-references. The checklist and manifest carry the current local cut and pending
-human publication decisions; the index is the navigation map.
+`release-artifacts.md`, the license-audit report and blocker issue, and this
+`EVIDENCE.md` are the release/push-day references. The checklist and manifest
+carry the current local cut and pending human publication decisions; the
+license-audit entries carry the active publication blocker; the index is the
+navigation map.
 
 **Historical snapshots:** all other rows are dated audits, measurements,
 rehearsals, issue decisions, and implementation evidence. They remain valuable
@@ -504,6 +520,6 @@ current status from a stale measurement without rerunning the named gate.
 
 **Not included:** untracked/ignored scratch material (for example directories
 that may exist locally but do not appear in `git ls-files .scratch`) is outside
-this index's tracked-evidence contract. All tracked areas, including `upstream-assessment` and `supply-chain`,
-are indexed as landed evidence.
+this index's tracked-evidence contract. All tracked areas, including
+`upstream-assessment` and `supply-chain`, are indexed as landed evidence.
 
