@@ -77,6 +77,61 @@ and unknown-license blocker.
 - [ ] Do not remove the STOP warning until the determination and artifact-level
   evidence are attached to this issue.
 
+## Engineering feasibility (2026-08-31)
+
+The read-only feasibility probe is recorded in
+[`../feasibility.md`](../feasibility.md). Status remains `ready-for-human`;
+this section does not make a legal decision or remove the STOP.
+
+### Probe A: no feature-off path
+
+At pinned Zed revision `6805d952f9f3d702f760aa11b1547df8a625fa16`,
+`crates/gpui/Cargo.toml:61` (`gpui_shared_string.workspace = true`), `:96`
+(`gpui_util.workspace = true`), and `:107` (`ztracing.workspace = true`) are
+ordinary entries in `[dependencies]`, not optional or target-gated entries.
+The host's `default = []` and a target-qualified `--no-default-features`
+feature-tree query still retain `ztracing` through `gpui` and `sum_tree`, plus
+`zlog` and `ztracing_macro` through `ztracing`. The two no-license-field crates
+also remain ordinary GPUI dependencies. `ZTRACING` only selects the crate's
+no-op instrumentation implementation; it does not remove any package from the
+resolved graph. There is therefore no near-zero "feature off today" clearance.
+
+### Probe B: no upstream pin-bump clearance
+
+Vendored `origin/main` at `1662f5f3f6497c5f80830ccdca1edfd1fc0c6c6a` still has
+ordinary `gpui_shared_string`, `gpui_util`, and `ztracing` dependencies in
+GPUI, and still declares GPL-3.0-or-later for `zlog`, `ztracing`, and
+`ztracing_macro`. Both `gpui_shared_string` and `gpui_util` still lack a
+manifest `license` field; the current GPUI SVG attributes remain. The direct
+GPUI edge and `parse_svg`/`render_parsed` instrumentation entered in
+`00cba838ad4e0be4b6176438551b72b2d512e9f8` (2026-08-05), but the GPL chain was
+already reachable through `sum_tree` after the December 2025 tracing commits
+(`b558be7ec60b265837e34d6f9b6f0ef176c20082` and
+`1029a8fbaf5271b6eb3e4e51f9e5cb015c52f760`). A bump to observed main clears
+none of the five findings. Any future fixed upstream release requires the
+full GPUI/platform graph review already scoped by the drift assessment, not a
+version-only edit.
+
+### Decision matrix
+
+| Option | Engineering result | GPL trio | Two no-license crates | Residual work |
+| --- | --- | --- | --- | --- |
+| Feature off today | No Cargo switch; `ZTRACING` no-op still resolves packages | Not cleared | Not cleared | Legal review, `self_cell`, weak-copyleft and notices unchanged |
+| Pin bump clears it | Not available at observed main; future fix needs full graph/API/lock/artifact review | Not cleared now | Not cleared now | Re-audit exact targets and artifacts if upstream later fixes it |
+| Patch-fork ztracing out | Feasible only by forking and editing both GPUI and `sum_tree`; remove their ztracing deps/imports/attributes, patch both packages, and maintain the fork | Conditionally cleared after target-qualified graph/license proof | Not cleared | Fork maintenance, rebasing/security updates, retained upstream notices, and legal treatment of fork modifications |
+| Accept GPL terms for binaries | No engineering change | Remains present; legal acceptance only | Not cleared | Written determination plus required notices/source/corresponding-source or relinkable-object materials |
+
+For the fork option, patching GPUI alone is insufficient because
+`sum_tree -> ztracing -> zlog,ztracing_macro` remains active. The exact source
+changes and conceptual Cargo patch are listed in `feasibility.md`. The
+fork-modification license is legal-adjacent and is not inferred here.
+
+Engineering recommendation: do not bump solely for this blocker. Preserve
+upstream and present the GPL-acceptance route to legal first; if legal rejects
+GPL distribution, evaluate the maintained two-crate fork as the technical last
+resort. The two missing license fields, `self_cell`'s dual expression, and
+other weak-copyleft findings remain independent obligations under every option.
+
 ## Comments
 
 - 2026-08-31: Created from the evidence-backed license audit. No dependency,
