@@ -1,8 +1,8 @@
 # Release-readiness inventory
 
-Generated: 2026-08-31T01:01:19+0800
+Generated: 2026-08-31T05:19:52+0800
 Decision owner: human release owner  
-Current HEAD: `2b3f39a` (`chore(meta): publish readiness`)
+Current HEAD: `dedf7c9` (`docs: option 3 fork proof spike`)
 
 This is an evidence package, not a release approval. It records the post-release
 cycle position, fresh command runs, current contract coverage, documentation
@@ -12,32 +12,62 @@ pushed.
 
 ## Executive readout
 
-- All five final gates passed at exit code 0 on candidate `2b3f39a`, serially and
-  exclusively under `/usr/bin/time -p`: `make ci`, `make embedded-bun`,
+- **STOP — publication is blocked by the license audit.** The default
+  `react-gpui-host` graph reaches three GPL-3.0-or-later Zed crates and two Zed
+  crates with no manifest license field. A release owner and legal reviewer
+  must decide treatment before push, registry publication, signing,
+  notarization, or any other external distribution. This is a legal decision,
+  not an engineering waiver.
+- The engineering options are explicit: **Option 1 (feature off) is
+  evidence-dead** because no Cargo switch removes the ordinary edges; **Option 2
+  (pin bump) is evidence-dead** at observed `origin/main`, which retains all
+  five findings; **Option 3 (patch fork) is proven narrowly and conditionally**
+  by `dedf7c9` for the macOS target no-dev graph, with medium/high ongoing
+  maintenance cost; **Option 4 (accept GPL terms) is legal-only** and leaves
+  the packages in the graph until written legal approval and artifact
+  obligations are resolved. The two missing-license crates remain under every
+  option.
+- All five final gates passed at exit code 0 on candidate `dedf7c9`, serially
+  and exclusively under `/usr/bin/time -p`: `make ci`, `make embedded-bun`,
   `make host-candidate-smoke`, `make host-embedded-candidate-smoke`, and
-  `make bun-pack-smoke`. The first CI attempt was an environment-load flake:
-  its event-storm test timed out after 2,416.86 s; no orphan cargo/Bun/test
-  processes were found, the isolated event-storm rerun passed in 23.61 s, and
-  warm `make ci` passed in 64.36 s.
+  `make bun-pack-smoke`.
 - The current candidate is `0.2.0` on macOS ARM. Release scripts prove archive
   consistency and CLI/runtime behavior, not display-backed GUI behavior. Both
   process and embedded candidate rehearsals passed their expected timeout,
   help, version, and commit/press checks.
-- The final `CHANGELOG.md` Unreleased section contains **6 Added capability,
+- The current `CHANGELOG.md` Unreleased section contains **6 Added capability,
   5 Testing, 5 Fixed, and 2 Changed entries**. Counting Added plus Testing as
   release-facing additions gives **11 additions / 5 fixes / 2 changes**.
-- `git log --oneline d74467e..2b3f39a` reports **4 delta commits**. The
-  crosswalk below records truthful renderer version wiring, root test scoping,
-  the 0.3.0 rehearsal, and publication metadata readiness.
-- The implementation backlog for the current 0.2.0 contract remains empty.
+- `git log --oneline 948282e..dedf7c9` reports **5 delta commits**. The
+  crosswalk below records the event-storm verdict, license audit, feasibility
+  matrix, synchronized evidence index, and Option 3 fork proof.
+- The implementation backlog for the current 0.2.0 contract remains empty;
+  publication is nevertheless stopped by the legal-release blocker.
 
 ## Current position
 
-**v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
-action.** The annotated local tag `v0.2.0` still points to release commit
-`72a520c`; no tag move or publication operation is part of this refresh. The
-candidate archive was rebuilt by `make host-candidate-smoke` and is represented
-by the identical SHA-256 pair in the gate table below.
+> **STOP — LICENSE BLOCKER:** Do not push, publish, sign, notarize, or otherwise
+> distribute this cut until the release owner and a legal reviewer resolve
+> [license audit issue 01](../license-audit/issues/01-gpl-and-unknown-host-licenses.md).
+> The default host graph reaches the GPL-3.0-or-later Zed trio and two Zed
+> crates without manifest license fields. Publication is a legal decision, not
+> an engineering waiver.
+
+The decision evidence is now bounded: **Options 1 and 2 are evidence-dead**
+(feature-off and the observed upstream pin bump do not clear the findings);
+**Option 3 is proven narrowly and conditionally** by the fork spike, removing
+the three GPL package IDs from the target-qualified `--no-dev-dependencies`
+graph while leaving the two unknown-license crates and requiring a
+medium/high-maintenance fork; and **Option 4 is legal-only**, preserving
+upstream code while requiring written treatment of GPL terms, unknown licenses,
+notices, source/corresponding-source or relinkable-object obligations, and an
+exact artifact re-audit. See [the feasibility matrix](../license-audit/feasibility.md)
+and [the Option 3 proof](../license-audit/spike-option3.md).
+
+The `v0.2.0` cut remains local and tagged: annotated tag `v0.2.0` still points
+to release commit `72a520c`; no tag move or publication operation is part of
+this refresh. The candidate archive was rebuilt by `make host-candidate-smoke`
+and is represented by the identical SHA-256 pair in the gate table below.
 
 `.scratch/` is gitignored by default; this readiness report and its companion
 checklist follow the repository's force-add evidence convention. No artifacts
@@ -95,31 +125,25 @@ were published.
   local checkout/Cargo and standalone archive plus packed-package paths, with
   repository-only example imports called out.
 - The documentation index and contributor guide record toolchain, verification
+  procedures, packaging boundaries, and the no-publication status.
+
 ## 2. Fresh five-gate evidence
 
 All five commands exited 0 and ran serially and exclusively under
-`/usr/bin/time -p` at candidate HEAD `2b3f39a`, in this order: `make ci`,
+`/usr/bin/time -p` at candidate HEAD `dedf7c9`, in this order: `make ci`,
 `make embedded-bun`, `make host-candidate-smoke`,
 `make host-embedded-candidate-smoke`, and `make bun-pack-smoke`. Candidate
 timeout exits are expected successful rehearsal behavior.
 
-The first `make ci` attempt exited 2 after **2,416.86 s** because
-`perf-event-storm` timed out; `ps`/`pgrep` found no orphan cargo/Bun/test
-processes. The isolated `/usr/bin/time -p bun test
-tests/perf-event-storm.test.tsx` then passed (**1/1**, 78 assertions, **23.61
-s**), and the warm CI rerun passed in **64.36 s**. This is recorded as an
-environment-load flake, not a source regression. The successful CI row below
-is the readiness result.
-
 | Command | Exit | Real time | Counts / fresh observed evidence |
 | --- | ---: | ---: | --- |
-| `make ci` (warm rerun) | 0 | **64.36 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, performance guards, both Bun audits (**12** and **59** packages, no vulnerabilities), and cargo-deny (`advisories ok`) passed. Initial run: exit 2 / 2,416.86 s due to event-storm timeout; isolated rerun: 1/1 / 23.61 s. |
-| `make embedded-bun` | 0 | **7.11 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
-| `make host-candidate-smoke` | 0 | **12.50 s** | Identical archive SHA-256 **`a6086a7f62be4b1604a88925fb186e1df5b6c90a2783f5c67729b4bba7b3076e`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.006 s/5.014 s**; version/help passed. |
-| `make host-embedded-candidate-smoke` | 0 | **5.22 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.647 s**; version/help passed. |
-| `make bun-pack-smoke` | 0 | **2.11 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
+| `make ci` | 0 | **56.23 s** | Rust workspace green; Core Bun **132 pass / 0 fail / 453,263 expect() calls**; dev Bun **24 pass / 0 fail / 56 expect() calls**; formatting, checks, builds, typechecks, package smoke, property, soak, performance guards, both Bun audits (**12** and **59** packages, no vulnerabilities), and cargo-deny (`advisories ok`) passed. |
+| `make embedded-bun` | 0 | **4.26 s** | `embedded_examples` **2 passed**; embedded counter **1 passed**; locked checks passed. |
+| `make host-candidate-smoke` | 0 | **11.92 s** | Identical archive SHA-256 **`a6086a7f62be4b1604a88925fb186e1df5b6c90a2783f5c67729b4bba7b3076e`** matched on both archives; archive `react-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz`; snapshot commit **312 bytes**; expected process timeouts **5.021 s/5.021 s**; version/help passed. |
+| `make host-embedded-candidate-smoke` | 0 | **5.08 s** | Release embedded binary; `--smoke-press` reported `sent=true, commits=2, status=None`; expected timeout **4.569 s**; version/help passed. |
+| `make bun-pack-smoke` | 0 | **2.03 s** | Frozen installs, both 0.2.0 JS/type builds and tarballs, external consumer install (**59 packages**), and `package tarball consumer smoke passed`. |
 
-Measured sequential five-gate wall-time sum: **91.20 s**. Candidate timeout
+Measured sequential five-gate wall-time sum: **79.52 s**. Candidate timeout
 exits are expected behavior, not gate failures. The archive SHA is the
 process-candidate check's identical pair of SHA-256 values.
 
@@ -148,25 +172,26 @@ root Bun test discovery scoping, in addition to diagnostics and patch/state
 cleanup. The two Changed entries are `PointerAction` removal and the
 `ttf-parser` to `skrifa` migration.
 
-### (b) Refresh-delta commit crosswalk from `d74467e`
+### (b) Refresh-delta commit crosswalk from `948282e`
 
-`git log --oneline d74467e..2b3f39a` reports **4 commits**:
+`git log --oneline 948282e..dedf7c9` reports **5 commits**:
 
 | Commit | Reachable evidence |
 | --- | --- |
-| `a1e7683` | Truthful renderer version constant: `rendererVersion` now follows package metadata; `release-prep` synchronizes all four release sources; `.scratch/version-const/notes.md` records the rationale. |
-| `064e4b0` | Root Bun test discovery now ignores generated `target/**`; `.scratch/testing-dx` documents the test entry and boundary (no separate root-buntest notes file). |
-| `003060b` | Detached 0.3.0 cut rehearsal: all four version sources synchronized, archive reproducibility passed, and the known worktree file-dependency hydration difference was resolved by a frozen install refresh. |
-| `2b3f39a` | Publish metadata readiness: npm tarball allowlists, crates SPDX metadata, and unsafe embedded Bun/JSC FFI inventory documented; no publication performed. |
+| `c329b63` | Event-storm sample-budget verdict retained the 23.6-second sample; `.scratch/storm-trim/notes.md` records why shorter samples fail the variance/margin gate. |
+| `eb9dcb9` | Rust/Cargo, host archive, and Bun/npm license audit added the active publication STOP, GPL reachability, missing license fields, and artifact-level legal checklist in `.scratch/license-audit/`. |
+| `02a640e` | GPL linkage feasibility established that feature-off and the observed pin bump do not clear the findings; the four-option engineering matrix and exact two-crate fork scope are in `.scratch/license-audit/feasibility.md`. |
+| `8e590fd` | Evidence index synchronized with the landed license-audit evidence and current tracked inventory. |
+| `dedf7c9` | Option 3 fork proof spike: target no-dev graph removed all three GPL package IDs; host check, release build, and version smoke passed; standalone translation and ongoing maintenance are medium/high cost. |
 
 ### (c) Documentation, capability, and upstream alignment
 
-The four-source release synchronization, root-test scoping, 0.3.0 rehearsal,
-publication metadata, supply-chain status, and final five-gate matrix are
-represented in the refreshed evidence set. The rehearsal's known worktree
-hydration difference is explicit: detached worktree CI initially failed to
-resolve the local core declaration package, then passed after a frozen install
-refresh; no release-prep drift was found.
+The event-storm sample decision, license blocker, four-option feasibility
+matrix, Option 3 spike result, and fresh five-gate matrix are represented in
+the refreshed evidence set. The license blocker dominates the release
+narrative: options 1 and 2 are evidence-dead, option 3 is a narrow conditional
+technical proof rather than a publication clearance, and option 4 requires a
+written legal decision.
 
 The publication audit records both package tarball allowlists (18 core / 8
 dev files), Cargo SPDX `Apache-2.0` metadata, and the unsafe Bun/JSC FFI
@@ -183,9 +208,24 @@ runtime position setters, or portable Linux image seams.
 
 ## 5. Known limits and human decision items
 
-The implementation backlog for the current 0.2.0 contract remains empty. Issue
-01 remains unsigned/notarized; issue 02 remains future-incompatibility review;
-issue 03 remains a separate embedded source build; issue 04 remains a
+The implementation backlog for the current 0.2.0 contract remains empty, but
+the license blocker is release-critical. The release owner and legal reviewer
+must decide the GPL-3.0-or-later trio, the two missing manifest license fields,
+`self_cell`'s Apache option, weak-copyleft conditions, notices, source offers,
+corresponding-source or relinkable-object materials, and the exact artifact
+inventory before publication. Do not remove the STOP warning until the written
+determination and artifact-level evidence are attached to issue 01.
+
+The current engineering decision evidence is precise: Option 1 (feature off)
+and Option 2 (pin bump to observed `origin/main`) are evidence-dead; Option 3
+is proven narrowly and conditionally only for the target-qualified no-dev graph,
+with all three GPL package IDs absent but the two unknown-license crates still
+present and a medium/high-maintenance fork required; Option 4 is legal-only,
+with no code clearance. The Option 3 proof also retains upstream notices and
+does not infer the license for fork modifications.
+
+Issue 01 remains the active legal blocker; issue 02 remains future-incompatibility
+review; issue 03 remains a separate embedded source build; issue 04 remains a
 display-backed Quartz/native boundary; issue 05 remains human-owned fuzz
 maintenance; issue 06 remains unvalidated cross-platform CI until runner jobs
 execute. Upstream gaps remain explicit for secure/password display,
@@ -199,18 +239,20 @@ implemented; `fallbackSource` remains the visual Image degradation path.
 
 ## 6. Post-release cycle position
 
-**v0.2.0 cut locally + tagged; publication (push/npm/signing) pending human
-action.** Tag `v0.2.0` remains anchored to release commit `72a520c`; no tag move
-or publication operation is part of this refresh. The candidate archive SHA is
+**STOP — v0.2.0 is cut locally and tagged, but publication is blocked by the
+license decision.** Push, npm publication, signing, notarization, and any other
+distribution remain prohibited until legal resolves issue 01. The tag remains
+anchored to release commit `72a520c`; no tag move or publication operation is
+part of this refresh. The candidate archive SHA is
 **`a6086a7f62be4b1604a88925fb186e1df5b6c90a2783f5c67729b4bba7b3076e`**.
 
 The current cycle contains **6 Added, 5 Testing, 5 Fixed, and 2 Changed**
 entries; its release-facing count is **11 additions / 5 fixes / 2 changes**.
-All five final gates passed serially under `/usr/bin/time -p` on `2b3f39a` after
-the isolated event-storm rerun established the initial timeout as an
-environment-load flake. The companion checklist records the same gate matrix,
-archive checksum, capability notes, crosswalk, supply-chain boundary, and
-human publication boundaries.
+All five final gates passed serially under `/usr/bin/time -p` on `dedf7c9`; the
+gate matrix above records the exact 56.23/4.26/11.92/5.08/2.03-second runs.
+The companion checklist records the same gate matrix, archive checksum,
+crosswalk, license-options status, and human publication boundaries.
 
-No publication option is selected by this inventory; human action is required
-for push, npm publication, signing/notarization, and any Rust crate release.
+No publication option is selected by this inventory. Human action is required
+for the legal determination first, then push, npm publication, signing/
+notarization, and any Rust crate release.
