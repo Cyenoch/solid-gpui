@@ -36,6 +36,7 @@ from this work tree.
 - Fixed the stale React reconciler `rendererVersion` DevTools metadata by
   syncing it with the package version and wiring release preparation to keep it
   current.
+- Fixed the root Bun test entry discovering vendored Bun tests under `target/`; root test discovery now ignores that generated tree.
 
 ### Changed
 

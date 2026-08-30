@@ -115,6 +115,8 @@ These are all targets in the root [`Makefile`](Makefile). Use the leaf targets
 for a narrow loop; use `ci`, the embedded gate, and candidate smokes according
 to the ladder above.
 
+The root test entry is `make bun-test`.
+
 | Target | Does / when to use |
 | --- | --- |
 | `ci` | Runs `rust-format`, `rust-check`, and `bun-ci`; ordinary handoff gate. |
