@@ -2160,3 +2160,73 @@ pub fn close_policy_simulate_close_roundtrip(cx: &mut TestAppContext) {
         .collect::<Vec<_>>();
     assert!(sequences.windows(2).all(|window| window[0] < window[1]));
 }
+
+pub fn last_surface_close_requests_application_quit(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| SurfaceRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open initial lifecycle surface");
+    let initial_window = draw_surface(&registry, cx, 1);
+
+    let quit_requested = std::rc::Rc::new(std::cell::Cell::new(false));
+    let quit_requested_for_close = quit_requested.clone();
+    let registry_for_close = registry.downgrade();
+    let close_subscription = cx.update(|cx| {
+        cx.on_window_closed(move |cx, window_id| {
+            if let Some(registry) = registry_for_close.upgrade() {
+                let should_quit =
+                    registry.update(cx, |registry, cx| registry.window_closed(window_id, cx));
+                if should_quit {
+                    quit_requested_for_close.set(true);
+                    cx.quit();
+                }
+            }
+        })
+    });
+    registry.update(cx, |registry, _| {
+        registry.close_subscription = Some(close_subscription);
+    });
+
+    route_command(
+        &registry,
+        cx,
+        command(
+            1,
+            COMMAND_OPEN_SURFACE,
+            1,
+            Some((320, 240)),
+            Some("Lifecycle auxiliary"),
+            None,
+            None,
+        ),
+    );
+    assert_eq!(
+        registry.read_with(cx, |registry, _| registry.surfaces.len()),
+        2
+    );
+    let auxiliary_snapshot = snapshot_for(2)
+        .encode()
+        .expect("encode lifecycle auxiliary snapshot");
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&auxiliary_snapshot, cx)
+        })
+        .expect("route lifecycle auxiliary snapshot");
+    let auxiliary_window = draw_surface(&registry, cx, 2);
+
+    initial_window
+        .update(cx, |_, window, _| window.remove_window())
+        .expect("remove first lifecycle surface");
+    assert!(!quit_requested.get());
+    assert_eq!(
+        registry.read_with(cx, |registry, _| registry.surfaces.len()),
+        1
+    );
+
+    auxiliary_window
+        .update(cx, |_, window, _| window.remove_window())
+        .expect("remove final lifecycle surface");
+    assert!(quit_requested.get());
+    assert!(registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+}

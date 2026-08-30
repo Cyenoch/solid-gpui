@@ -23,6 +23,7 @@ from this work tree.
 - Added a deterministic stateful tree patch property test covering 32 seeds × 64 valid create, update, delete, and move operations, with tree, text-content, renderer side-map, and rich-cache invariants checked after every patch; seed zero is retained as a named regression.
 - Added a CI-run headless renderer soak test covering 2,000 deterministic patch/draw iterations on a fixed 500-node rich-text, input, and VirtualList tree; it samples side-map, sequence, undo/redo, and macOS RSS trends with bounded-state assertions.
 - Added deterministic surface lifecycle property coverage for 16 seeds × 48 operations, exercising fresh and reused IDs, closure bookkeeping, cross-surface focus/activation, and command surface/epoch mismatch rejection; seed zero is retained as a named regression.
+- Added headless host lifecycle coverage proving that closing one of two surfaces keeps the application alive while closing the final surface requests application quit through the native window-close callback.
 - Added deterministic TypeScript renderer commit-emission property coverage for 24 seeds × 40 randomized React tree mutations, with wire decode round-trips, node graph, rich-text kind, listener, and revision invariants checked after every commit.
 
 ### Fixed

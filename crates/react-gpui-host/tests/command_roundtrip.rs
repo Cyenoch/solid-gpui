@@ -86,3 +86,9 @@ fn close_policy_simulate_close_requires_and_resolves_confirmation() {
     let mut cx = gpui::TestAppContext::single();
     host::test_support::close_policy_simulate_close_roundtrip(&mut cx);
 }
+
+#[test]
+fn closing_one_surface_keeps_host_alive_and_last_surface_requests_quit() {
+    let mut cx = gpui::TestAppContext::single();
+    host::test_support::last_surface_close_requests_application_quit(&mut cx);
+}
