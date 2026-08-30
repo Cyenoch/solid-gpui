@@ -674,6 +674,31 @@ impl NativeInputState {
 }
 
 impl ReactRoot {
+    #[cfg(test)]
+    pub(crate) fn test_input_history_lengths(&self) -> (usize, usize, usize) {
+        self.input_states
+            .values()
+            .fold((0, 0, 0), |(states, undo, redo), state| {
+                (
+                    states + 1,
+                    undo + state.history.undo.len(),
+                    redo + state.history.redo.len(),
+                )
+            })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_input_bounds(&self, node_id: u32) -> Option<(f32, f32, f32, f32)> {
+        self.text_input_layouts.get(&node_id).map(|layout| {
+            (
+                f32::from(layout.bounds.origin.x),
+                f32::from(layout.bounds.origin.y),
+                f32::from(layout.bounds.size.width),
+                f32::from(layout.bounds.size.height),
+            )
+        })
+    }
+
     pub(super) fn reconcile_input_states(
         &mut self,
         cx: &mut Context<Self>,

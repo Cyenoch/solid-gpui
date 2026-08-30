@@ -307,6 +307,10 @@ impl ReactRoot {
         ids.push(("singleton_state", singleton_ids));
         ids
     }
+    #[cfg(test)]
+    pub(crate) fn test_sequence(&self) -> u32 {
+        self.next_sequence.load(Ordering::Relaxed)
+    }
 
     /// Emit a command acknowledgement using this surface's event sequence.
     ///
