@@ -18,6 +18,7 @@ from this work tree.
 ### Testing
 
 - Added a deterministic stateful tree patch property test covering 32 seeds × 64 valid create, update, delete, and move operations, with tree, text-content, renderer side-map, and rich-cache invariants checked after every patch; seed zero is retained as a named regression.
+- Added deterministic surface lifecycle property coverage for 16 seeds × 48 operations, exercising fresh and reused IDs, closure bookkeeping, cross-surface focus/activation, and command surface/epoch mismatch rejection; seed zero is retained as a named regression.
 
 ### Fixed
 
@@ -593,6 +594,7 @@ from this work tree.
   longer listed as an upstream gap.
 
 ### Fixed
+
 - Targeted rich-text cache invalidation now preserves assembled runs for
   unrelated patches while rebuilding changed paragraphs and final content
   ancestors, including same-patch create chains and deletes.
