@@ -136,3 +136,5 @@ other weak-copyleft findings remain independent obligations under every option.
 
 - 2026-08-31: Created from the evidence-backed license audit. No dependency,
   Makefile, `deny.toml`, or publication command was changed.
+- 2026-08-31: Option 3 fork proof: [`../spike-option3.md`](../spike-option3.md) — proven narrowly; all three GPL package IDs gone in the target no-dev graph, host check/release/smoke passed, but standalone translation and ongoing maintenance are medium/high cost.
+- The proof does not clear `gpui_shared_string`/`gpui_util` missing license fields or make a legal distribution decision; the STOP and release-owner checklist remain active.
