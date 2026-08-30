@@ -29,6 +29,10 @@ from this work tree.
 - Patch reconciliation now limits input, selectable-text, VirtualList, and animation maintenance to the affected node workset (including relevant ancestors), and animation style history is allocated only for styled nodes.
 - Fixed empty created Text nodes retaining missing `text_content`; fixed listener-bearing Text updates being rejected by validation; fixed deleted subtree renderer state, including animation and selectable-text side-map entries, being retained after patch reconciliation.
 
+### Changed
+
+- Removed the unused `PointerAction` type alias; `PointerEvent` retains its literal pointer event types.
+
 ## [0.2.0] - 2026-08-30
 
 - Multi-surface lifecycle now retires every closed or explicitly unmounted

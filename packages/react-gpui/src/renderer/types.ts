@@ -127,7 +127,6 @@ export interface KeyEvent {
 }
 export type KeyHandler = (event: KeyEvent) => void;
 export type PointerButton = "left" | "right" | "middle" | "back" | "forward";
-export type PointerAction = "down" | "up";
 export interface PointerEvent {
   readonly type: "pointerdown" | "pointerup";
   readonly button: PointerButton;

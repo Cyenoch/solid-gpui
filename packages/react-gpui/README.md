@@ -261,7 +261,7 @@ announcements remain an upstream gap rather than a wire field.
 
 ## Styles
 
-`StyleSheet.create` is a validated, frozen style-recipe helper; styles are not CSS. V3 fields are:
+`createStyleSheet` is the exact named-function alias exposed as `StyleSheet.create`; both are validated, frozen style-recipe helpers, and styles are not CSS. V3 fields are:
 
 - `width`, `height`, `flexGrow`, `padding`, `gap`, `borderRadius`, and `borderWidth` — finite, non-negative numbers.
 - `fontSize` — a finite, positive number in pixels; it applies to `Text` and `RawText`.
@@ -276,7 +276,7 @@ announcements remain an upstream gap rather than a wire field.
 - `fontStyle` — `"normal"` or `"italic"`; `textDecoration` — `"none"`, `"underline"`, or `"lineThrough"`.
 - `lineHeight`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, and `flexShrink` — finite, non-negative pixel/flex values.
 - `alignSelf` — `"start"`, `"end"`, `"flex-start"`, `"flex-end"`, `"center"`, `"baseline"`, or `"stretch"`.
-- `position` — `"relative"` (default post-layout correction), `"absolute"` (anchored to the closest positioned ancestor/origin), or `"overlay"` (a deferred, anchored layer painted above normal siblings and fit within the viewport); `left` and `top` are finite pixel offsets, including negative values, for all positions. `right` and `bottom` are also supported for `"absolute"` but are rejected for `"overlay"`.
+- `Position` / `position` — `"relative"` (default post-layout correction), `"absolute"` (anchored to the closest positioned ancestor/origin), or `"overlay"` (a deferred, anchored layer painted above normal siblings and fit within the viewport); `left` and `top` are finite pixel offsets, including negative values, for all positions. `right` and `bottom` are also supported for `"absolute"` but are rejected for `"overlay"`.
 - `cursor` — `"default"`, `"text"`, `"pointer"`, `"grab"`, `"grabbing"`, `"not-allowed"`, `"context-menu"`, `"crosshair"`, `"vertical-text"`, `"alias"`, `"copy"`, `"no-drop"`, `"move"`, `"ew-resize"`, `"ns-resize"`, `"nesw-resize"`, `"nwse-resize"`, `"col-resize"`, or `"row-resize"`. Windows may fall back to Arrow for unsupported variants; headless backends do not render cursors.
 - `textAlign` — `"left"`, `"center"`, or `"right"` for physical text alignment on `Text` and `RawText`; logical RTL start/end alignment is unsupported.
 - `boxShadow` — one shadow object or a two-element tuple of shadow objects. Each
@@ -287,8 +287,8 @@ announcements remain an upstream gap rather than a wire field.
   GPUI resolves the requested family through its configured fallback stack when
   the primary family is unavailable.
 
-  The exported `BoxShadow` type describes one layer, while `BoxShadowInput`
-  accepts that type or a two-element tuple of layers.
+`BoxShadow` is the exported one-layer object with numeric `offsetX`, `offsetY`, `blurRadius`, and `spreadRadius`, string `color`, and optional boolean `inset`.
+`BoxShadowInput` is the exported union of one `BoxShadow` or a two-element tuple of layers; at most two shadows are accepted.
 
 The transport uses one fixed positional 42-slot style tuple: slots `0..39`
 retain the existing fields, `40=boxShadow`, and `41=fontFamily`; omitted fields
@@ -381,12 +381,19 @@ logs the termination and exits with code `1`, with an injectable exit function
 for tests. `MemoryTransport` remains an in-memory healthy transport.
 
 Advanced custom I/O uses the exported `ByteInput`/`ByteOutput` contracts and
-their `ByteInputListener`, `ByteInputEventListener`, `ByteOutputEventListener`,
-and `DrainListener` types. `StdioTransportOptions` and
-`DEFAULT_MAX_PENDING_BYTES` tune the pending queue; `TransportChunk`,
-`TransportListener`, `TransportTerminationListener`,
-`TransportTerminatedError`, and `createProcessTerminationHandler` cover chunk
-conversion, termination diagnostics, and injected process exits.
+their `ByteInputListener`, `ByteInputEventListener`, and
+`ByteOutputEventListener` types. `DrainListener` is the no-argument callback
+for a `ByteOutput` `"drain"` event.
+`StdioTransportOptions` has optional positive-integer `maxPendingBytes`, which
+defaults to `DEFAULT_MAX_PENDING_BYTES` and bounds queued output.
+`TransportTerminationCause` identifies `shutdown`, `eof`, `exit`, `protocol`,
+or `io` termination and is exposed as `TransportTerminatedError.cause`.
+`TransportTerminationDetails` is the typed optional diagnostic payload
+(`exitCode`, `stderrTail`, `crashReportPath`) passed to `TransportTerminatedError`
+by custom transports. `TransportChunk`, `TransportListener`,
+`TransportTerminationListener`, `TransportTerminatedError`, and
+`createProcessTerminationHandler` cover chunk conversion, termination
+diagnostics, and injected process exits.
 
 Error handling is deliberately split by seam: unhandled React render errors
 are synchronously thrown to the consumer, bad Commit Batches are fatal to the
@@ -491,10 +498,11 @@ await root.showNotification({
 });
 ```
 
-Register `onNotificationResponse` in the root options to receive
-`{ tag, actionId }`; `actionId` is `null` for body activation. The host
-generates tags and drops responses for closed surfaces. Delivery and response
-support are platform best effort; Web/test platforms may be no-ops.
+`NotificationResponse` has the shape `{ tag: string; actionId: string | null }`.
+Register `onNotificationResponse` in the root options to receive this response;
+`actionId` is `null` for body activation. The host generates tags and drops
+responses for closed surfaces. Delivery and response support are platform best
+effort; Web/test platforms may be no-ops.
 
 Static application menus use string action names and optional `disabled` and
 `checked` state:
@@ -558,6 +566,9 @@ return paths (or `null` on cancellation), `loadFont` returns its metadata
 family, `writeTextFile` returns the UTF-8 byte count, and `getClipboardImage`
 returns an encoded image or `null`.
 
+`RootOptions` configures optional surface/epoch/frame-size values and root
+callbacks for transport termination, close requests, resize/activation,
+notifications, actions, and appearance.
 `createSurfaceHost(transport, options?)` provides shared transport routing;
 `host.createRoot(options?)` returns the same `Root` API for each registered
 surface, and `host.dispose()` tears down all roots. The package also exports
@@ -966,6 +977,10 @@ without per-frame JavaScript commits:
   }}
 />
 ```
+`Transition` accepts required `durationMs` plus optional `delayMs`, `easing`,
+`properties`, and `onComplete`. `onComplete` currently receives `generation`;
+`AnimationCompleteEvent` is reserved for a future completion-event payload
+extension.
 
 Width/height transitions rewrite layout dimensions on every native frame, so
 they trigger layout reflow; static width/height without `transition` remains a

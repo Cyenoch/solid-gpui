@@ -33,7 +33,6 @@ export {
   type FocusEvent,
   type FocusHandler,
   type KeyHandler,
-  type PointerAction,
   type PointerButton,
   type PointerEvent,
   type PointerMoveEvent,
