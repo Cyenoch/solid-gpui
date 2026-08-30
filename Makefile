@@ -1,4 +1,4 @@
-.PHONY: ci rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun examples-smoke host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
+.PHONY: ci rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun examples-smoke kill-resilience host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
 
 ci: rust-format rust-check bun-ci
 
@@ -62,6 +62,9 @@ host-embedded-candidate-smoke:
 
 examples-smoke:
 	bash scripts/examples-smoke.sh
+
+kill-resilience:
+	bash scripts/kill-resilience.sh
 
 soak-smoke:
 	bash scripts/soak-smoke.sh

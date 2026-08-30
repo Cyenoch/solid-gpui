@@ -16,6 +16,7 @@ from this work tree.
 - Enhanced `multi-surface.tsx` with a settings surface, shared theme state, cross-surface activation/focus, and dirty-state close confirmation.
 
 - Added `make examples-smoke`, which builds one release host and launches every runnable `.tsx` example through the real process-mode Bun/stdio path, requiring the `protocol=v3` startup diagnostic and clean bounded teardown for each entry.
+- Added `make kill-resilience`, a bounded process-mode verification that SIGKILLs the host PID, renderer PID, and verified process group for counter and gallery; it asserts stdin-EOF renderer exit and typed child-death host diagnostics.
 
 ### Testing
 
