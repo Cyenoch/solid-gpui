@@ -26,6 +26,7 @@ from this work tree.
 - Added deterministic surface lifecycle property coverage for 16 seeds × 48 operations, exercising fresh and reused IDs, closure bookkeeping, cross-surface focus/activation, and command surface/epoch mismatch rejection; seed zero is retained as a named regression.
 - Added headless host lifecycle coverage proving that closing one of two surfaces keeps the application alive while closing the final surface requests application quit through the native window-close callback.
 - Added deterministic TypeScript renderer commit-emission property coverage for 24 seeds × 40 randomized React tree mutations, with wire decode round-trips, node graph, rich-text kind, listener, and revision invariants checked after every commit.
+- The event-storm sample-budget study retained the one-second, 23.6-second test: 500 ms still ran above the approximately 8 s target, while 250 ms widened p99 variance and reduced the relative safety margin; the flake exposure is accepted and documented in `.scratch/storm-trim/notes.md`.
 
 ### Fixed
 
