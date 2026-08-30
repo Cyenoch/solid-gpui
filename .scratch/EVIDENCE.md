@@ -2,8 +2,8 @@
 
 This index answers “where is the proof?” for the tracked `.scratch` evidence
 set at the `v0.2.0` cut. The prior index covered **135 tracked files** across
-**58 evidence areas**. The current inventory contains **144 evidence files
-plus this index**, for **145 tracked files across 58 evidence areas**.
+**58 evidence areas**. The current inventory contains **146 evidence files
+plus this index**, for **147 tracked files across 58 evidence areas**.
 The index intentionally does not copy full evidence; each row points to the
 source snapshot and gives the one-line number or verdict worth finding six
 months from now.
@@ -39,7 +39,7 @@ Refresh date: **2026-08-31**.
 | interchange | 6 | 0 | 6 |
 | kill-resilience | 1 | 0 | 1 |
 | last-surface | 1 | 0 | 1 |
-| license-audit | 2 | 2 | 4 |
+| license-audit | 2 | 4 | 6 |
 | link-affordance | 2 | 0 | 2 |
 | link-keyboard | 1 | 0 | 1 |
 | menu-accelerators | 1 | 0 | 1 |
@@ -79,7 +79,7 @@ Refresh date: **2026-08-31**.
 | window-controls | 4 | 0 | 4 |
 | window-title | 1 | 0 | 1 |
 | top-level `.scratch` | 1 | 0 | 1 |
-| **Total** | **135** | **10** | **145** |
+| **Total** | **135** | **12** | **147** |
 
 ## a11y-second-pass (6 files)
 
@@ -210,14 +210,16 @@ Refresh date: **2026-08-31**.
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/last-surface/notes.md` | Final native surface close lifecycle | `cx.quit()` is verified at the headless seam: first close keeps host alive, final close empties registry and requests quit; process exit remains display-backed | historical (stale-ok) |
-## license-audit (4 files)
+## license-audit (6 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
-| `.scratch/license-audit/2026-08-30.md` | Rust/Cargo, host archive, and Bun/npm license compliance audit | **publication blocker**: GPL-3.0 ztracing family links host binary (linker-map evidence); npm clean; manual pre-publish gate on checklist | living |
-| `.scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md` | Host distribution license blocker and release-owner decision | **publication blocker**: GPL-3.0 ztracing family links host binary (linker-map evidence); npm clean; manual pre-publish gate on checklist | living |
-| `.scratch/license-audit/feasibility.md` | Engineering feasibility of four GPL-remediation options | **Options 1/2 evidence-dead; Option 3 technically feasible only as a maintained two-crate fork; Option 4 legal-only; unknown-license crates remain** | living |
-| `.scratch/license-audit/spike-option3.md` | Narrow Option 3 patch-fork proof | **PROVEN conditionally**: all 3 GPL package IDs absent from target-qualified no-dev graph; host check/release/version smoke passed; 181-line fork diff and medium/high ongoing maintenance cost | living |
+| `.scratch/license-audit/2026-08-30.md` | Rust/Cargo, host archive, and Bun/npm license compliance audit | **Stub landed, STOP narrowed**; initial pre-stub audit retained as provenance, with the remaining two missing license fields, `self_cell` dual-license confirmation, weak-copyleft notices, and artifact-level legal review open | living |
+| `.scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md` | Host distribution license blocker and release-owner decision | **Stub landed, STOP narrowed**: the GPL trio is eliminated from the distributed host graph; `gpui_shared_string`/`gpui_util`, `self_cell`, weak-copyleft notices, and artifact-level legal review remain | living |
+| `.scratch/license-audit/feasibility.md` | Engineering feasibility of four GPL-remediation options | **Stub landed, STOP narrowed**; Option 3′ is executed via a reversible local stub, while missing-license crates and legal/artifact review remain | living |
+| `.scratch/license-audit/spike-option3.md` | Narrow Option 3 patch-fork proof | **Stub landed, STOP narrowed**; prior conditional fork proof retained as superseded provenance, with Option 3′ now executed | living |
+| `.scratch/license-audit/spike-option3-stub.md` | Narrow Option 3′ local stub proof | **Stub landed, STOP narrowed**; independently authored no-op proc-macro stub removes all 3 GPL package IDs from target-qualified no-dev graphs; gates passed; landing is reversible | living |
+| `.scratch/license-audit/landing-option3.md` | Option 3′ execution and distribution-boundary record | **Stub landed, STOP narrowed**; Option 3′ is **EXECUTED**, the GPL trio is eliminated from the distributed host graph, and missing license fields, `self_cell`, weak-copyleft notices, and artifact-level legal review remain | living |
 
 ## link-affordance (2 files)
 
@@ -324,13 +326,13 @@ Refresh date: **2026-08-31**.
 
 ## release-productionization (7 files)
 
-| `.scratch/release-productionization/v0.2.0-cut-checklist.md` | Executed local release cut and human gates | Final five gates exited 0 at gated HEAD `dedf7c9`; host SHA is `a6086a7f…bba7b3076e`; tag is local; license decision, signing, publication, and cross-platform runner evidence remain human/push-day work | living |
+| `.scratch/release-productionization/v0.2.0-cut-checklist.md` | Executed local release cut and human gates | Final five gates exited 0 at gated HEAD `9ac496a`; host SHA is `bf737394…a6b7805f`; tag is local; narrowed license decision, signing, publication, and cross-platform runner evidence remain human/push-day work | living |
 | `.scratch/release-productionization/release-notes-0.2.0.md` | Consumer-facing 0.2.0 scope and boundaries | Protocol v3 has 35 commands/23 events; notes unsigned macOS ARM, incomplete cross-platform runner evidence, and display-backed limits | historical (stale-ok) |
-| `.scratch/release-productionization/release-readiness.md` | Release readiness capability and gate inventory | Gated HEAD `dedf7c9`; five gates 0 at 56.23/4.26/11.92/5.08/2.03 s; core/dev API locks are 115/20; publication STOP is license-led | living |
+| `.scratch/release-productionization/release-readiness.md` | Release readiness capability and gate inventory | Gated HEAD `9ac496a`; five gates 0 at 95.77/4.29/49.20/19.68/2.13 s; core/dev API locks are 115/20; GPL trio eliminated by Option 3′, narrowed STOP remains | living |
 | `.scratch/release-productionization/upstream-dependencies.md` | Pinned dependency and upstream-gap boundaries | GPUI is pinned to Zed revision `6805d952`; true gaps include base-direction, bidi geometry, letter spacing, and secure input; project limits are separated | historical (stale-ok) |
 | `.scratch/release-productionization/style-gap-matrix.md` | GPUI style comparison and scope choice | Current bridge has 42 slots; B1 selects eight native fields while C-class expansions and upstream gaps stay deferred | historical (stale-ok) |
 | `.scratch/release-productionization/issues/03-embedded-build-coverage.md` | Embedded gate ownership and coverage | Separate `make embedded-bun` gate runs four isolated examples plus refresh; 8.68 s is about 4x the 2.16 s baseline and below the 10x budget | historical (stale-ok) |
-| `.scratch/release-productionization/release-artifacts.md` | Local artifact manifest and push-day handoff | Host archive SHA `a6086a7f…bba7b3076e` matches the gated candidate; package tarballs are CI-ephemeral; tag peels to `72a520c`; publication remains blocked by license review | living |
+| `.scratch/release-productionization/release-artifacts.md` | Local artifact manifest and push-day handoff | Host archive SHA `bf737394…a6b7805f` matches the gated candidate; package tarballs are CI-ephemeral; tag peels to `72a520c`; publication remains blocked by narrowed license review | living |
 
 ## release-rehearsal (1 file)
 
@@ -507,10 +509,10 @@ Refresh date: **2026-08-31**.
 ## Living-versus-historical guide
 
 **Living:** `release-readiness.md`, `v0.2.0-cut-checklist.md`,
-`release-artifacts.md`, all four license-audit entries, and this `EVIDENCE.md`
+`release-artifacts.md`, all six license-audit entries, and this `EVIDENCE.md`
 are the release/push-day references. The checklist and manifest carry the
 current local cut and pending human publication decisions; the license-audit
-entries carry the active publication blocker and narrow Option 3 proof; the
+entries carry the active narrowed publication blocker and Option 3′ proof; the
 index is the navigation map.
 
 **Historical snapshots:** all other rows are dated audits, measurements,
