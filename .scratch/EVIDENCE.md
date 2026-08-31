@@ -2,8 +2,8 @@
 
 This index answers “where is the proof?” for the tracked `.scratch` evidence
 set at the `v0.2.0` cut. The prior index covered **135 tracked files** across
-The current inventory contains **149 evidence files
-plus this index**, for **150 tracked files across 58 evidence areas**.
+**58 evidence areas**. The current inventory contains **150 evidence files
+plus this index**, for **151 tracked files across 58 evidence areas**.
 The index intentionally does not copy full evidence; each row points to the
 source snapshot and gives the one-line number or verdict worth finding six
 months from now.
@@ -39,7 +39,7 @@ Refresh date: **2026-08-31**.
 | interchange | 6 | 0 | 6 |
 | kill-resilience | 1 | 0 | 1 |
 | last-surface | 1 | 0 | 1 |
-| license-audit | 2 | 6 | 8 |
+| license-audit | 2 | 7 | 9 |
 | link-affordance | 2 | 0 | 2 |
 | link-keyboard | 1 | 0 | 1 |
 | menu-accelerators | 1 | 0 | 1 |
@@ -79,8 +79,7 @@ Refresh date: **2026-08-31**.
 | window-controls | 4 | 0 | 4 |
 | window-title | 1 | 0 | 1 |
 | top-level `.scratch` | 1 | 0 | 1 |
-| **Total** | **135** | **15** | **150** |
-
+| **Total** | **135** | **16** | **151** |
 ## a11y-second-pass (6 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
@@ -102,8 +101,8 @@ Refresh date: **2026-08-31**.
 ## audit-wiring (1 file)
 
 | Path | What it proves | Key number / verdict | Freshness |
-| --- | --- | --- | --- |
-| `.scratch/audit-wiring/notes.md` | Advisory audit gate wiring | `make audit` runs both Bun audits and cargo-deny; Bun reports 12/59 clean and cargo-deny reports `advisories ok` with three documented unmaintained-crate exceptions | historical (stale-ok) |
+| `.scratch/audit-wiring/notes.md` | Advisory audit gate wiring | `make audit` runs both Bun audits and cargo-deny; Bun reports 12/59 clean, cargo-deny reports `advisories ok` with three documented unmaintained-crate exceptions, and the committed `THIRD-PARTY-NOTICES.md` is regenerated and compared with `cmp` for staleness | historical (stale-ok) |
+
 
 
 ## caret-follow (1 file)
@@ -209,18 +208,18 @@ Refresh date: **2026-08-31**.
 
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
-| `.scratch/last-surface/notes.md` | Final native surface close lifecycle | `cx.quit()` is verified at the headless seam: first close keeps host alive, final close empties registry and requests quit; process exit remains display-backed | historical (stale-ok) |
-## license-audit (8 files)
+## license-audit (9 files)
 
 | Path | What it proves | Key number / verdict | Freshness |
 | --- | --- | --- | --- |
 | `.scratch/license-audit/2026-08-30.md` | Rust/Cargo, host archive, and Bun/npm license compliance audit | **STOP publication**: the default host graph reaches 3 GPL-licensed pinned Zed crates and 2 crates with missing manifest license fields; cargo-deny remains strict/red and no dependency was changed | living |
-| `.scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md` | Host distribution license blocker and release-owner decision | **Stub landed, STOP narrowed**: the GPL trio is eliminated from the distributed host graph; `gpui_shared_string`/`gpui_util`, `self_cell`, weak-copyleft notices, and artifact-level legal review remain | living |
-| `.scratch/license-audit/feasibility.md` | Engineering feasibility of four GPL-remediation options | No feature-off or observed-upstream-pin-bump clearance; only a maintained GPUI/`sum_tree` source fork can remove the GPL chain, while missing-license crates and legal review remain | living |
+| `.scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md` | Host distribution license blocker and release-owner decision | **Stub landed, STOP narrowed**: GPL is eliminated from the distributed host graph; `gpui_shared_string`/`gpui_util` terms are identified as Apache-2.0 by explicit per-crate files, while metadata, `self_cell`, weak-copyleft notices, and artifact review remain | living |
+| `.scratch/license-audit/feasibility.md` | Engineering feasibility of four GPL-remediation options | No feature-off or observed-upstream-pin-bump clearance; only a maintained GPUI/`sum_tree` source fork can remove the GPL chain, while metadata and legal review remain | living |
 | `.scratch/license-audit/spike-option3.md` | Narrow Option 3 patch-fork proof | **Proven conditionally and narrowly**: a two-crate GPUI/`sum_tree` fork clears 3/3 GPL package IDs in the target no-dev graph, but carries medium/high maintenance cost and leaves license/legal obligations open | living |
-| `.scratch/license-audit/spike-option3-stub.md` | Narrow Option 3′ local stub proof | **Proven for the current macOS host graph**: a 17-line independent Apache-2.0 proc-macro stub removes the 3 GPL package records; missing-license crates and the release STOP remain | living |
-| `.scratch/license-audit/landing-option3.md` | Option 3′ execution and distribution-boundary record | **Stub landed, STOP narrowed**; Option 3′ is **EXECUTED**, the GPL trio is eliminated from the distributed host graph, and missing license fields, `self_cell`, weak-copyleft notices, and artifact-level legal review remain | living |
-| `.scratch/license-audit/upstream/01-license-fields.md` | Prepared upstream issue for missing Cargo license metadata | `gpui_shared_string` and `gpui_util` lack `license`/`license-file` fields at the pinned revision and checked `origin/main`; posting checklist preserves holder-neutral wording | historical (stale-ok) |
+| `.scratch/license-audit/spike-option3-stub.md` | Narrow Option 3′ local stub proof | **Proven for the current macOS host graph**: a 17-line independent Apache-2.0 proc-macro stub removes the 3 GPL package records; metadata findings and the release STOP remain | living |
+| `.scratch/license-audit/landing-option3.md` | Option 3′ execution and distribution-boundary record | **Stub landed, STOP narrowed**; Option 3′ is **EXECUTED**, GPL is eliminated from the distributed host graph, and metadata, `self_cell`, weak-copyleft notices, and artifact-level legal review remain | living |
+| `.scratch/license-audit/recheck-2026-08-31.md` | Terms-determinability re-check for the two metadata findings | Terms are identified as Apache-2.0 by explicit per-crate `LICENSE-APACHE` files; missing Cargo metadata and human legal/artifact confirmation still hold publication | living |
+| `.scratch/license-audit/upstream/01-license-fields.md` | Prepared upstream issue for missing Cargo license metadata | `gpui_shared_string` and `gpui_util` lack `license`/`license-file` fields at the pinned revision and checked `origin/main`; posting checklist preserves holder-neutral wording and the drafts are ready to post | historical (stale-ok) |
 | `.scratch/license-audit/upstream/02-apache-gpui-gpl-ztracing.md` | Prepared upstream issue for Apache GPUI and GPL ztracing dependency | Pinned `gpui` depends ordinarily on GPL-3.0-or-later `ztracing` (plus `zlog`/`ztracing_macro`) through direct SVG and `sum_tree` paths; issue asks for licensing/relicensing clarification without legal conclusion | historical (stale-ok) |
 
 ## link-affordance (2 files)
@@ -325,17 +324,16 @@ Refresh date: **2026-08-31**.
 | --- | --- | --- | --- |
 | `.scratch/version-const/notes.md` | React DevTools renderer version source | `rendererVersion` is package metadata and release-prep now synchronizes it with Cargo and both package versions | historical (stale-ok) |
 
-
 ## release-productionization (16 files)
 
-| `.scratch/release-productionization/v0.2.0-cut-checklist.md` | Executed local release cut and human gates | Final five gates exited 0 at gated HEAD `9ac496a`; host SHA is `bf737394…a6b7805f`; tag is local; narrowed license decision, signing, publication, and cross-platform runner evidence remain human/push-day work | living |
+| `.scratch/release-productionization/v0.2.0-cut-checklist.md` | Executed local release cut and human gates | Refresh #15 at `dd32a70`; five gates passed serially/exclusively under `/usr/bin/time -p` in 78.83 s, with archive SHA `9b1760cb…92464b1`; D2 legal/artifact confirmation remains STOP and D1 drafts are ready | living |
 | `.scratch/release-productionization/release-notes-0.2.0.md` | Consumer-facing 0.2.0 scope and boundaries | Protocol v3 has 35 commands/23 events; notes unsigned macOS ARM, incomplete cross-platform runner evidence, and display-backed limits | historical (stale-ok) |
-| `.scratch/release-productionization/release-readiness.md` | Release readiness capability and gate inventory | Gated HEAD `9ac496a`; five gates 0 at 95.77/4.29/49.20/19.68/2.13 s; core/dev API locks are 115/20; GPL trio eliminated by Option 3′, narrowed STOP remains | living |
+| `.scratch/release-productionization/release-readiness.md` | Release readiness capability and gate inventory | Refresh #15 at `dd32a70`; five gates 0 at 58.40/1.73/11.65/5.02/2.03 s; core/dev API locks are 115/20; GPL eliminated, terms identified Apache-2.0 by per-crate evidence, notices shipped, D2 STOP remains | living |
 | `.scratch/release-productionization/upstream-dependencies.md` | Pinned dependency and upstream-gap boundaries | GPUI is pinned to Zed revision `6805d952`; true gaps include base-direction, bidi geometry, letter spacing, and secure input; project limits are separated | historical (stale-ok) |
 | `.scratch/release-productionization/style-gap-matrix.md` | GPUI style comparison and scope choice | Current bridge has 42 slots; B1 selects eight native fields while C-class expansions and upstream gaps stay deferred | historical (stale-ok) |
-| `.scratch/release-productionization/issues/03-embedded-build-coverage.md` | Embedded gate ownership and coverage | Separate `make embedded-bun` gate runs four isolated examples plus refresh; 8.68 s is about 4x the 2.16 s baseline and below the 10x budget | historical (stale-ok) |
-| `.scratch/release-productionization/release-artifacts.md` | Local artifact manifest and push-day handoff | Host archive SHA `d0dfc86e8c5b98d790d99eae0ec2ebb485e3b1a8cc28939cdafbf9a973e25ab` matches the checklist; package tarballs are CI-ephemeral; local tag peels to `72a520c`; no artifact has been published, pushed, signed, or notarized | living |
-| `.scratch/release-productionization/dependency-audit.md` | Dependency and version governance audit | Cargo.lock has **672 packages** and 13 direct dependency declarations; GPUI remains pinned to Zed `6805d952`; `block 0.1.6` warns; cargo-audit is unavailable; latest CI/embedded gates passed | historical (stale-ok) |
+| `.scratch/release-productionization/issues/03-embedded-build-coverage.md` | Embedded gate ownership and coverage | Separate `make embedded-bun` gate runs four isolated examples plus refresh; current gate passed with embedded examples **2/2** and counter **1/1** | historical (stale-ok) |
+| `.scratch/release-productionization/release-artifacts.md` | Local artifact manifest and push-day handoff | Host archive SHA `9b1760cbea118a4c2053c9074b84bd03f0f1efac7c3767f7964d8584192464b1`; archive has `THIRD-PARTY-NOTICES.md` beside `LICENSE` and checksummed; package tarballs are CI-ephemeral; no artifact published/pushed/signed/notarized | living |
+| `.scratch/release-productionization/dependency-audit.md` | Dependency and version governance audit | Cargo.lock has **672 packages** and 13 direct dependency declarations; GPUI remains pinned to `6805d952`; `block 0.1.6` warns; cargo-audit is unavailable; latest CI/embedded gates passed | historical (stale-ok) |
 | `.scratch/release-productionization/final-pre-cut-audit.md` | Final cross-cutting audit before the 0.2.0 cut | **Cut-ready from an engineering perspective**; 91 Unreleased entries (82/4/5), API locks core 101/dev 18, serial final gates passed, while human publication/signing/display/platform decisions remain | historical (stale-ok) |
 | `.scratch/release-productionization/issues/01-unsigned-notarization.md` | Candidate artifact signing and notarization boundary | Candidate archive is unsigned and not notarized; SHA-256 checksums verify file consistency, not publisher identity; workflow stops before release/package publication | historical (stale-ok) |
 | `.scratch/release-productionization/issues/02-block-future-incompat.md` | `block` future-incompatibility disposition | `block 0.1.6` remains the Apple GPUI warning; latest crates.io release is still 0.1.6 and only an unreviewed unsigned fork is available, so status is `ready-for-human` | historical (stale-ok) |
@@ -343,7 +341,9 @@ Refresh date: **2026-08-31**.
 | `.scratch/release-productionization/issues/05-protocol-decode-hardening.md` | Continuous malformed-frame/fuzz coverage boundary | Rust exercises **1,039** and TypeScript **1,034** deterministic mutation cases; scoped tests pass, while long-term maintenance ownership remains `needs-triage` | historical (stale-ok) |
 | `.scratch/release-productionization/issues/06-cross-platform-host.md` | Cross-platform GPUI backend and target validation boundary | Process-mode target matrix now enables Linux Wayland/X11 and adds runner workflows, but macOS probes cannot validate Linux/Windows; display-backed runner smoke and non-macOS embedded-Bun port remain open | historical (stale-ok) |
 | `.scratch/release-productionization/spec.md` | Release productionization scope | Covers the macOS ARM process-runtime host candidate, package artifacts, CI gates, and pre-publication evidence; it does not publish artifacts or treat embedded Bun as standalone | historical (stale-ok) |
-| `.scratch/release-productionization/DECISION-QUEUE.md` | Human release decision queue and push-day handoff | Internal contract is production-ready, but external distribution remains held at the narrowed license boundary; upstream issue, legal review, push/publication/signing decisions, next cut, and optional gallery restart are queued | living |
+| `.scratch/release-productionization/DECISION-QUEUE.md` | Human release decision queue and push-day handoff | User's one-pager: D2 legal/artifact confirmation is critical path; D1 upstream drafts ready; push/publication/signing decisions and optional gallery restart remain queued | living |
+| `THIRD-PARTY-NOTICES.md` | Generated dependency inventory shipped in the host archive | Generated 2026-08-31 from locked Cargo/Bun dependency metadata; inventories **659 Rust third-party packages / 1,152 package-license records** and **76 Bun dependency records**; host archive includes it beside `LICENSE`, and `make audit` guards staleness | living (root artifact; not counted in `.scratch` file totals) |
+
 
 ## release-rehearsal (1 file)
 
@@ -517,10 +517,16 @@ Refresh date: **2026-08-31**.
 | --- | --- | --- | --- |
 | `.scratch/window-title/spec.md` | Existing title command and notes example correction | `SetTitle` is command 6; no command 36/badge/subtitle path; notes derives title from basename and dirty state | historical (stale-ok) |
 
+## top-level `.scratch` (1 file)
+
+| Path | What it proves | Key number / verdict | Freshness |
+| --- | --- | --- | --- |
+| `.scratch/EVIDENCE.md` | Evidence index and drift-correction self-note | Refresh #15 reconciles the prior index drift: **150 evidence files plus this index = 151 tracked `.scratch` paths**; current recheck, upstream drafts, decision queue, notices artifact, and corrected gate rows are indexed | living |
+
 ## Living-versus-historical guide
 
 **Living:** `release-readiness.md`, `v0.2.0-cut-checklist.md`,
-`release-artifacts.md`, the six living license-audit entries, and this `EVIDENCE.md`
+`release-artifacts.md`, the seven living license-audit entries, and this `EVIDENCE.md`
 are the release/push-day references. The checklist and manifest carry the
 current local cut and pending human publication decisions; the license-audit
 entries carry the active narrowed publication blocker and Option 3′ proof; the
