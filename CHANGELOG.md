@@ -11,7 +11,7 @@ from this work tree.
 ### Added
 
 - Added a headless large-tree snapshot/first-frame performance guard covering 1,000, 5,000, and 20,000-node trees plus a one-operation patch on a 20,000-node tree; the guard records p50/p99 scaling and isolates host stages from GPUI frame/layout work.
-
+- Added a generated `THIRD-PARTY-NOTICES.md` inventory to the host release archive, covering resolved Rust and Bun dependencies by name, version, SPDX license, and source while keeping npm tarballs lean.
 - Extended the flagship gallery with mixed-style rich text runs, keyboard-accessible link activation feedback, and native selectable multi-run text.
 - Enhanced `multi-surface.tsx` with a settings surface, shared theme state, cross-surface activation/focus, and dirty-state close confirmation.
 
@@ -244,9 +244,9 @@ from this work tree.
 - The host CLI has an early `--version` path and bounded host-option parsing
   that preserves renderer arguments after the renderer executable or `--`.
 - The host release candidate creates a version-and-target named macOS ARM
-  archive containing the process-runtime host, README, LICENSE, and
-  SHA256SUMS. The release check proves identical SHA-256 values for two
-  archives made from one staged payload.
+  archive containing the process-runtime host, README, LICENSE,
+  `THIRD-PARTY-NOTICES.md`, and SHA256SUMS. The release check proves identical
+  SHA-256 values for two archives made from one staged payload.
 - Renderer `StdioTransport` observes input `end`/`close`/`error` and output
   `close`/`error`, enters an idempotent `TransportTerminatedError` termination
   state, and lets `createRoot` notify via `onTransportTermination`; examples use

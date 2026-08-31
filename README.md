@@ -543,15 +543,18 @@ examining a crash.
 
 The archive is written to `dist/` as
 `react-gpui-host-<cargo-version>-<target>.tar.gz` and contains only the
-release host binary, `README.md`, `LICENSE`, and `SHA256SUMS`. The check
-extracts it into a new temporary directory, validates the allowlist and
-checksums, verifies executable permissions, and runs `--help` and `--version`
-without starting GPUI or requiring a display. The archive includes per-file
-SHA-256 checksums for extracted-file consistency. `host-release-check` creates
-two archives from the same staged payload and requires their SHA-256 values to
-match; this empirically proves deterministic stage-to-archive output for that
-candidate. It does not claim full build reproducibility across fresh compiler
-runs or different archive tool versions. The archive is unsigned.
+release host binary, `README.md`, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and
+`SHA256SUMS`. `THIRD-PARTY-NOTICES.md` is the generated inventory of resolved
+Rust and Bun dependencies (name, version, SPDX license, and source); it keeps
+the npm tarballs lean while giving the host release one reviewable notice
+bundle. The check extracts it into a new temporary directory, validates the
+allowlist and checksums, verifies executable permissions, and runs `--help` and
+`--version` without starting GPUI or requiring a display. The archive includes
+per-file SHA-256 checksums for extracted-file consistency. `host-release-check`
+creates two archives from the same staged payload and requires their SHA-256
+values to match; this empirically proves deterministic stage-to-archive output
+for that candidate. It does not claim full build reproducibility across fresh
+compiler runs or different archive tool versions. The archive is unsigned.
 
 The manual `Host Release Candidate` workflow runs the ordinary `make ci` gate
 before bundling and uploads this unsigned candidate as a short-retention

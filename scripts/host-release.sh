@@ -62,12 +62,14 @@ prepare_stage() {
   cp "$binary" "$stage_dir/$package_name"
   cp "$repo_root/README.md" "$stage_dir/README.md"
   cp "$repo_root/LICENSE" "$stage_dir/LICENSE"
+  [[ -f "$repo_root/THIRD-PARTY-NOTICES.md" ]] || fail "third-party notices inventory is missing"
+  cp "$repo_root/THIRD-PARTY-NOTICES.md" "$stage_dir/THIRD-PARTY-NOTICES.md"
   if command -v xattr >/dev/null 2>&1; then
     xattr -rc "$stage_dir"
   fi
   (
     cd "$stage_dir"
-    shasum -a 256 "$package_name" README.md LICENSE > SHA256SUMS
+    shasum -a 256 "$package_name" README.md LICENSE THIRD-PARTY-NOTICES.md > SHA256SUMS
   )
   python3 - "$stage_dir" "$package_name" <<'PY'
 import os
@@ -75,7 +77,7 @@ import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
-for relative in (sys.argv[2], "README.md", "LICENSE", "SHA256SUMS", "."):
+for relative in (sys.argv[2], "README.md", "LICENSE", "THIRD-PARTY-NOTICES.md", "SHA256SUMS", "."):
     os.utime(root / relative, (0, 0), follow_symlinks=False)
 PY
 }
@@ -97,6 +99,7 @@ make_archive() {
     "$bundle_name/$package_name" \
     "$bundle_name/README.md" \
     "$bundle_name/LICENSE" \
+    "$bundle_name/THIRD-PARTY-NOTICES.md" \
     "$bundle_name/SHA256SUMS"
   gzip -n -c "$raw" > "$destination"
   rm -f -- "$raw"
@@ -146,7 +149,7 @@ check() {
 
   while IFS= read -r entry; do
     case "$entry" in
-      "$bundle_name/"|"$bundle_name/$package_name"|"$bundle_name/README.md"|"$bundle_name/LICENSE"|"$bundle_name/SHA256SUMS")
+      "$bundle_name/"|"$bundle_name/$package_name"|"$bundle_name/README.md"|"$bundle_name/LICENSE"|"$bundle_name/THIRD-PARTY-NOTICES.md"|"$bundle_name/SHA256SUMS")
         ;;
       *)
         fail "unexpected archive entry: $entry"

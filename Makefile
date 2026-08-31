@@ -1,4 +1,4 @@
-.PHONY: ci audit rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate embedded-bun examples-smoke kill-resilience host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
+.PHONY: ci audit rust-format rust-check bun-install bun-format bun-typecheck bun-test bun-build bun-ci bun-pack-smoke protocol-golden-generate api-surface-generate third-party-notices embedded-bun examples-smoke kill-resilience host-release-bundle host-release-check host-candidate-smoke host-embedded-candidate-smoke soak-smoke release-prep
 
 ci: rust-format rust-check bun-ci audit
 
@@ -8,8 +8,17 @@ audit:
 	@if command -v cargo-deny >/dev/null 2>&1; then \
 		echo '==> cargo deny check advisories'; \
 		cargo deny check advisories; \
+		echo '==> verify committed third-party notices'; \
+		tmp_notices="$$(mktemp "$${TMPDIR:-/tmp}/react-gpui-third-party-notices-check.XXXXXX")"; \
+		trap 'rm -f -- "$$tmp_notices"' EXIT; \
+		bash scripts/third-party-notices.sh "$$tmp_notices" >/dev/null; \
+		cmp -s THIRD-PARTY-NOTICES.md "$$tmp_notices" || { \
+			echo 'third-party notices artifact is stale; run make third-party-notices' >&2; \
+			exit 1; \
+		}; \
+		rm -f -- "$$tmp_notices"; \
 	else \
-		echo '==> cargo-deny not installed; skipping advisory scan'; \
+		echo '==> cargo-deny not installed; skipping advisory and notices checks'; \
 	fi
 
 rust-format:
@@ -52,6 +61,9 @@ api-surface-generate: bun-build
 	bun scripts/api-surface.ts
 
 bun-ci: bun-format bun-typecheck bun-test bun-pack-smoke
+
+third-party-notices:
+	bash scripts/third-party-notices.sh
 
 embedded-bun:
 	cargo check -p react-gpui-host --features embedded-bun --locked

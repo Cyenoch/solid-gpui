@@ -27,6 +27,8 @@ run_dir="$smoke_root/user-run"
 mkdir -p "$extract_dir" "$run_dir"
 tar -xzf "$archive" -C "$extract_dir"
 binary="$extract_dir/$bundle_name/react-gpui-host"
+[[ -f "$extract_dir/$bundle_name/THIRD-PARTY-NOTICES.md" ]] || { printf 'third-party notices inventory is missing\n' >&2; exit 1; }
+[[ -f "$extract_dir/$bundle_name/SHA256SUMS" ]] || { printf 'candidate checksums are missing\n' >&2; exit 1; }
 [[ -x "$binary" ]] || { printf 'candidate binary is not executable\n' >&2; exit 1; }
 [[ -f "$user_entry" ]] || { printf 'user renderer entry is missing: %s\n' "$user_entry" >&2; exit 1; }
 
