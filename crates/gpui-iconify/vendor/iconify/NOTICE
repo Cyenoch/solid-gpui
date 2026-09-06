@@ -1,0 +1,8 @@
+Lucide (`vendor/iconify/lucide/`)
+  SPDX: ISC
+  https://github.com/lucide-icons/lucide
+  Packaged as @iconify-json/lucide. Only allowlisted icons are embedded.
+
+swatch (`vendor/iconify/swatch/`)
+  SPDX: CC0-1.0
+  Example-only palette fixture. Compiled only with feature `swatch`.

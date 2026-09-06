@@ -1,0 +1,6 @@
+{
+  "prefix": "bare",
+  "icons": {
+    "mark": { "body": "<path fill=\"currentColor\" d=\"M0 0h8v8H0z\"/>" }
+  }
+}

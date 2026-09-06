@@ -60,13 +60,13 @@ jobs:
 
       # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
       - name: Check Linux workspace
-        run: cargo check --workspace --exclude react-gpui-bun --locked
+        run: cargo check --workspace --exclude solid-gpui-bun-sys --locked
 
       - name: Run Linux Clippy
-        run: cargo clippy --workspace --exclude react-gpui-bun --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --exclude solid-gpui-bun-sys --all-targets --locked -- -D warnings
 
       - name: Test platform-neutral protocol library
-        run: cargo test -p react-gpui --lib --locked
+        run: cargo test -p solid-gpui --lib --locked
 
       # TODO: Add a bounded Xvfb/Wayland display-backed renderer smoke once the runner
       # compositor, GPU, portal, and font prerequisites are pinned and proven stable.
@@ -95,9 +95,9 @@ jobs:
 
       # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
       - name: Check Windows workspace
-        run: cargo check --workspace --exclude react-gpui-bun --locked
+        run: cargo check --workspace --exclude solid-gpui-bun-sys --locked
 
       # The hosted Windows image carries the MSVC toolchain and Windows SDK; the release
       # build also exercises gpui_windows' fxc.exe shader compiler lookup.
       - name: Build process-mode host
-        run: cargo build -p react-gpui-host --locked
+        run: cargo build -p solid-gpui --bin solid-gpui-host --locked

@@ -1,0 +1,29 @@
+$ bun scripts/tasks.ts package-build
+
+$ bun install --frozen-lockfile
+bun install v1.4.2 (744846f84)
+
+Checked 120 installs across 160 packages (no changes) [6.00ms]
+
+$ bun scripts/native-codegen.ts
+Generated native bindings from their hosts
+
+$ bun build ./src/index.ts ./src/runtime.ts ./src/native.ts ./src/components.ts --root ./src --outdir ./dist --target bun --format esm --splitting --conditions=browser --external @solid-gpui/core/native --external bebop --external solid-js --external "solid-js/*"
+Bundled 31 modules in 12ms
+
+  index.js           13.47 KB  (entry point)
+  index-148eardh.js  0.53 MB   (chunk)
+  runtime.js         1.15 KB   (entry point)
+  native.js          10.35 KB  (entry point)
+  components.js      4.39 KB   (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun build ./src/index.ts --root ./src --outdir ./dist --target bun --format esm --external @solid-gpui/core --external "@solid-gpui/core/*" --external @tanstack/router-core --external @tanstack/history --external solid-js --external "solid-js/*"
+Bundled 1 module in 3ms
+
+  index.js  13.78 KB  (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json

@@ -2,12 +2,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-package_name="react-gpui-host"
+package_name="solid-gpui-host"
 
 metadata="$(
   cd "$repo_root"
   cargo metadata --format-version 1 --no-deps |
-    python3 -c 'import json, sys; package = next(p for p in json.load(sys.stdin)["packages"] if p["name"] == "react-gpui-host"); print(package["name"] + "\t" + package["version"])'
+    python3 -c 'import json, sys; package = next(p for p in json.load(sys.stdin)["packages"] if p["name"] == "solid-gpui"); print("solid-gpui-host\t" + package["version"])'
 )"
 IFS=$'\t' read -r metadata_name version <<< "$metadata"
 if [[ "$metadata_name" != "$package_name" ]]; then
@@ -45,13 +45,13 @@ fail() {
 build_release_binary() {
   (
     cd "$repo_root"
-    cargo build -p "$package_name" --release --locked --target "$target"
+    cargo build -p solid-gpui --bin "$package_name" --release --locked --target "$target"
   )
 }
 
 prepare_stage() {
   local binary
-  stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-host-release.XXXXXX")"
+  stage_parent="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-host-release.XXXXXX")"
   stage_dir="$stage_parent/$bundle_name"
   mkdir -p "$stage_dir" "$dist_dir"
 
@@ -142,7 +142,7 @@ check() {
   printf 'host release second archive SHA256: %s\n' "$second_hash"
   [[ "$first_hash" == "$second_hash" ]] || fail "stage-to-archive SHA-256 changed between consecutive archives"
 
-  extract_dir="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-host-check.XXXXXX")"
+  extract_dir="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-host-check.XXXXXX")"
   list="$extract_dir/archive.list"
   tar -xzf "$archive" -C "$extract_dir"
   tar -tzf "$archive" > "$list"
@@ -170,7 +170,7 @@ check() {
     *) fail "extracted host help output is incomplete" ;;
   esac
   version_output="$(cd "$extracted" && ./$package_name --version)"
-  [[ "$version_output" == "$package_name $version protocol=v3" ]] ||
+  [[ "$version_output" == "$package_name $version protocol=v5" ]] ||
     fail "unexpected version output: $version_output"
 
   printf 'host release check passed: %s\n' "$archive"

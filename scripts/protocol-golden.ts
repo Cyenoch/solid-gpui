@@ -1,390 +1,550 @@
-import { encode } from "@msgpack/msgpack";
-import { encodePayload } from "../packages/react-gpui/src/protocol";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { EVENT_ACTION } from "../packages/solid-gpui/src/protocol/constants";
+import { FrameDecoder, decodeEvent, encodePayload } from "../packages/solid-gpui/src/protocol/index";
+import { Envelope } from "../packages/solid-gpui/src/protocol/generated/protocol";
+import type {
+  Command,
+  CommandPayload,
+  Event,
+  EventPayload,
+  HostProperties,
+  MenuDefinition,
+  Patch,
+  Snapshot,
+  SnapshotNode,
+} from "../packages/solid-gpui/src/protocol/types";
 
-const outputDir = process.argv[2] ?? "fixtures/protocol";
-const fullStyle = [
-  1.5,
-  2.25,
-  2,
-  3.5,
-  4.5,
-  5.25,
-  0x11223344,
-  0xaabbccdd,
-  0.75,
-  [250, 15, 3, 15],
-  6,
-  5,
-  7.5,
-  1.25,
-  0x12345678,
-  14.5,
-  700,
-  3,
-  4,
-  2,
-  1.5,
-  2.5,
-  3.5,
-  4.5,
-  1,
-  2,
-  6.5,
-  10.5,
-  20.5,
-  30.5,
-  40.5,
-  0.75,
-  6,
-  1,
-  -8,
-  4,
-  12,
-  6,
-  2,
-  3,
-  [1, [-2, 3, 4, 1, 0x01020380, 1]],
-  "Avenir Next",
-];
-const doubleStyle = fullStyle.map((value, index) =>
-  index === 40
-    ? [
-        2,
-        [
-          [-2, 3, 4, 0, 0x11223344, 0],
-          [0, -1, 8, 2, 0xaabbccdd, 1],
+const outputDir = resolve(process.argv[2] ?? "fixtures/protocol");
+const verify = process.argv.includes("--verify");
+const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString("hex");
+const row = (id: string, kind: string, value: Snapshot | Patch | Command | Event): string =>
+  `${id}\t${kind}\t${hex(encodePayload(value))}`;
+
+function normalizeGenerated(value: unknown): unknown {
+  if (value instanceof Uint8Array) return [...value];
+  if (Array.isArray(value)) return value.map(normalizeGenerated);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value as Record<string, unknown>)
+        .filter((key) => key !== "encode")
+        .sort()
+        .map((key) => [key, normalizeGenerated((value as Record<string, unknown>)[key])]),
+    );
+  }
+  return value;
+}
+
+const fullStyle = {
+  width: 120,
+  height: 48,
+  flexDirection: "column" as const,
+  flexGrow: 1,
+  padding: 4,
+  gap: 2,
+  justifyContent: "space-between" as const,
+  alignItems: "center" as const,
+  borderRadius: 3,
+  borderWidth: 1,
+  borderColor: "#11223344",
+  fontSize: 14,
+  fontWeight: "bold" as const,
+  overflow: "hidden" as const,
+  lineClamp: 2,
+  textOverflow: "ellipsis" as const,
+  marginTop: 1,
+  marginRight: 2,
+  marginBottom: 3,
+  marginLeft: 4,
+  fontStyle: "italic" as const,
+  textDecoration: "underline" as const,
+  lineHeight: 18,
+  minWidth: 10,
+  maxWidth: 200,
+  minHeight: 10,
+  maxHeight: 80,
+  flexShrink: 1,
+  alignSelf: "center" as const,
+  position: "relative" as const,
+  left: -1,
+  top: 2,
+  right: 3,
+  bottom: 4,
+  cursor: "pointer" as const,
+  textAlign: "center" as const,
+  backgroundColor: "#223344",
+  color: "#aabbccdd",
+  opacity: 0.8,
+  transition: { durationMs: 100, delayMs: 20, easing: "easeInOut" as const, properties: ["opacity", "width"] as const },
+  boxShadow: {
+    offsetX: 1,
+    offsetY: -2,
+    blurRadius: 3,
+    spreadRadius: 0,
+    color: "#00000080",
+    inset: true,
+  },
+  fontFamily: "Inter",
+};
+const accessibility = {
+  role: 5,
+  label: "label",
+  description: "description",
+  disabled: false,
+  checked: true,
+  selected: false,
+  value: "42",
+  expanded: true,
+  level: 2,
+};
+const input: HostProperties = {
+  type: "text-input",
+  value: {
+    value: "text",
+    placeholder: "placeholder",
+    multiline: false,
+    disabled: false,
+    controlled: true,
+    ackEditSeq: 4,
+    selectionStart: 1,
+    selectionEnd: 3,
+    markedStart: 1,
+    markedEnd: 2,
+    maxLength: 8,
+    selectionReversed: false,
+  },
+};
+const virtualList: HostProperties = {
+  type: "virtual-list",
+  value: { itemCount: 20, rangeStart: 2, rangeEnd: 9, estimatedItemSize: 24.5, overscan: 3 },
+};
+const image: HostProperties = {
+  type: "image",
+  value: { source: "assets/😀.png", objectFit: 3, fallbackSource: "assets/fallback.png" },
+};
+const drag: HostProperties = {
+  type: "drag",
+  value: { dragType: "card", exportFiles: ["assets/logo.png"], acceptsDragOver: true, acceptsDrop: true },
+};
+const node = (
+  id: number,
+  parentId: number,
+  index: number,
+  kind: SnapshotNode["kind"],
+  extras: Partial<SnapshotNode> = {},
+): SnapshotNode => ({
+  id,
+  parentId,
+  index,
+  kind,
+  style: null,
+  text: null,
+  listenerId: 0,
+  hostProperties: null,
+  accessibility: null,
+  focusable: false,
+  selectable: false,
+  tooltip: null,
+  acceptsPointerMove: false,
+  ...extras,
+});
+const snapshot: Snapshot = {
+  type: "snapshot",
+  surfaceId: 7,
+  epoch: 3,
+  baseRevision: 0,
+  revision: 42,
+  nodes: [
+    node(1, 0, 0, "View", { style: fullStyle, accessibility }),
+    node(2, 1, 0, "Text", { style: fullStyle, selectable: true }),
+    node(3, 2, 0, "RawText", { text: "Hello 😀" }),
+    node(4, 1, 1, "Pressable", { listenerId: 7, tooltip: "Press to open", acceptsPointerMove: true, accessibility }),
+    node(5, 1, 2, "TextInput", { listenerId: 8, hostProperties: input }),
+    node(6, 1, 3, "VirtualList", { hostProperties: virtualList }),
+    node(7, 1, 4, "Image", { hostProperties: image }),
+    node(8, 1, 5, "View", { listenerId: 11, hostProperties: drag }),
+  ],
+};
+const patch: Patch = {
+  type: "patch",
+  surfaceId: 7,
+  epoch: 3,
+  baseRevision: 42,
+  revision: 43,
+  operations: [
+    { type: "create", node: node(9, 1, 6, "Text", { text: null }) },
+    {
+      type: "update",
+      id: 4,
+      mask: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256,
+      style: fullStyle,
+      text: "new",
+      listenerId: 12,
+      hostProperties: drag,
+      accessibility,
+      focusable: true,
+      selectable: true,
+      tooltip: "updated",
+      acceptsPointerMove: true,
+    },
+    {
+      type: "update",
+      id: 4,
+      mask: 1,
+      style: null,
+      text: null,
+      listenerId: 0,
+      hostProperties: null,
+      accessibility: null,
+      focusable: false,
+      selectable: false,
+      tooltip: null,
+      acceptsPointerMove: false,
+    },
+    { type: "move", id: 3, parentId: 1, index: 0 },
+    { type: "delete", id: 8 },
+  ],
+};
+const command = (requestId: number, nodeId: number, kind: number, payload: CommandPayload): Command => ({
+  type: "command",
+  surfaceId: 7,
+  epoch: 3,
+  afterRevision: 43,
+  requestId,
+  nodeId,
+  command: kind as Command["command"],
+  payload,
+});
+const commands: readonly Command[] = [
+  command(101, 4, 1, null),
+  command(102, 4, 2, null),
+  command(103, 5, 3, { type: "selection", start: 2, end: 4 }),
+  command(104, 6, 4, { type: "scroll-index", index: 9, alignment: 0 }),
+  command(105, 6, 5, null),
+  command(106, 1, 6, { type: "text", value: "title" }),
+  command(107, 1, 7, { type: "window-size", width: 800, height: 600 }),
+  command(108, 1, 8, null),
+  command(109, 1, 9, null),
+  command(110, 1, 10, { type: "text", value: "https://example.com/😀" }),
+  command(111, 1, 11, null),
+  command(112, 1, 12, null),
+  command(113, 1, 13, null),
+  command(114, 4, 14, null),
+  command(115, 1, 15, { type: "text", value: "clipboard" }),
+  command(116, 1, 16, null),
+  command(117, 1, 17, {
+    type: "open-surface",
+    title: "Child",
+    width: 640,
+    height: 480,
+    options: { kind: 1, resizable: false, minWidth: 320, minHeight: 240 },
+  }),
+  command(118, 1, 18, { type: "file-dialog-open", title: "Choose", directories: true, multiple: true }),
+  command(119, 1, 19, { type: "text", value: "report.json" }),
+  command(120, 1, 20, {
+    type: "notification",
+    title: "Done",
+    body: "Finished",
+    actions: [{ id: "open", label: "Open" }],
+  }),
+  command(121, 1, 21, {
+    type: "menus",
+    menus: [
+      {
+        title: "File",
+        items: [
+          { type: "action", name: "open", disabled: true, checked: true },
+          { type: "separator" },
+          { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
         ],
-      ]
-    : value,
-);
-const accessibility = [5, "golden label", "golden description", false, true, false, "42", true, 2];
-const textInput = [1, "text", "placeholder", false, false, true, 4, 1, 3, 1, 2, 8, false];
-const virtualList = [2, 20, 2, 9, 24.5, 3];
-const image = [3, "assets/😀.png", 3, "assets/avatar-fallback.png"];
-const drag = [4, "card", ["assets/logo.png"], true, true];
-
-function hex(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("hex");
-}
-function row(id: string, kind: string, value: unknown): string {
-  return `${id}\t${kind}\t${hex(encodePayload(value as never))}`;
-}
-
-const root = [1, 0, 0, 1, fullStyle, null, 0, null, accessibility, false];
-const doubleRoot = [1, 0, 0, 1, doubleStyle, null, 0, null, null, false];
-const doubleSnapshot = [3, 1, 7, 3, 0, 44, [doubleRoot]];
-const invalidShadowStyle = fullStyle.map((value, index) => (index === 40 ? [1, [0, 0, -1, 0, 0, 0]] : value));
-const invalidShadowSnapshot = [3, 1, 7, 3, 0, 45, [[1, 0, 0, 1, invalidShadowStyle, null, 0, null, null, false]]];
-const text = [2, 1, 0, 2, null, "hello", 0, null, null, false, true];
-const input = [5, 1, 2, 5, null, null, 0, textInput, null, false];
-const rawText = [3, 2, 0, 4, null, "raw 😀", 0, null, null, false];
-const pressable = [4, 1, 1, 3, null, null, 7, null, accessibility, false, false, "Press to open"];
-const list = [6, 1, 3, 6, null, null, 0, virtualList, null, false];
-const dragNode = [8, 1, 5, 3, null, null, 11, drag, null, false];
-const imageNode = [7, 1, 4, 7, null, null, 0, image, null, false];
-const tooltipUpdate = [
-  2,
-  4,
-  191,
-  fullStyle,
-  "updated",
-  12,
-  [3, "assets/logo.png", 2, null],
-  accessibility,
-  true,
-  false,
-  "Updated tooltip",
-];
-const snapshot = [3, 1, 7, 3, 0, 42, [root, text, rawText, pressable, input, list, imageNode, dragNode]];
-const nestedTextRoot = [1, 0, 0, 1, fullStyle, null, 0, null, null, false];
-const nestedText = [2, 1, 0, 2, fullStyle, null, 0, null, null, false];
-const nestedPlain = [3, 2, 0, 4, null, "Hello ", 0, null, null, false];
-const nestedRunStyle = fullStyle.map((value, index) =>
-  index === 7 ? 0xff0000ff : index === 16 ? 700 : value,
-);
-const nestedRun = [4, 2, 1, 2, nestedRunStyle, null, 0, null, null, false];
-const nestedRunText = [5, 4, 0, 4, null, "world", 0, null, null, false];
-const nestedTrailing = [6, 2, 2, 4, null, "!", 0, null, null, false];
-const nestedTextSnapshot = [3, 1, 7, 3, 0, 46, [nestedTextRoot, nestedText, nestedPlain, nestedRun, nestedRunText, nestedTrailing]];
-const nestedTextFocusablePatch = [3, 3, 7, 3, 46, 47, [[2, 4, 32, null, null, 17, null, null, true]]];
-const patch = [
-  3,
-  3,
-  7,
-  3,
-  42,
-  43,
-  [[1, 8, 1, 5, 3, null, null, 11, drag, null, false], tooltipUpdate, [3, 4, 1, 0], [4, 6]],
-];
-
-const rows = [
-  row("ts-snapshot-box-shadow-double", "snapshot", doubleSnapshot),
-  row("ts-snapshot-all-kinds", "snapshot", snapshot),
-  row("ts-patch-all-operations", "patch", patch),
-  row("ts-patch-nested-text-focusable", "patch", nestedTextFocusablePatch),
-  row("ts-snapshot-nested-text-runs", "snapshot", nestedTextSnapshot),
-  row("ts-event-press", "event", [3, 2, 7, 3, 42, 1, 4, 7, 1, null]),
-  row("ts-event-hover", "event", [3, 2, 7, 3, 42, 10, 4, 7, 11, null]),
-  row("ts-event-focus", "event", [3, 2, 7, 3, 42, 23, 4, 7, 4, null]),
-  row("ts-event-blur", "event", [3, 2, 7, 3, 42, 24, 4, 7, 5, null]),
-  row("ts-event-pointer-down-outside", "event", [3, 2, 7, 3, 42, 25, 4, 7, 22, [8, 12.5, -3.25]]),
-  row("ts-event-submit-text", "event", [3, 2, 7, 3, 42, 16, 5, 9, 13, "submitted text"]),
-  row("ts-event-surface-closed", "event", [3, 2, 7, 3, 42, 17, 0, 0, 16, null]),
-  row("ts-event-action", "event", [3, 2, 7, 3, 42, 21, 1, 0, 17, "open"]),
-  row("ts-event-notification-response", "event", [3, 2, 7, 3, 42, 22, 1, 0, 21, ["react-gpui:7:120", "open"]]),
-  row("ts-event-command-result-open-surface", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    18,
-    1,
-    0,
-    6,
-    [2, 117, 17, 1, true, null, [1, 41]],
-  ]),
-  row("ts-event-command-result-file-open", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    19,
-    1,
-    0,
-    6,
-    [2, 118, 18, 1, true, null, [5, ["/tmp/a.txt", "/tmp/b.txt"]]],
-  ]),
-  row("ts-event-command-result-file-save", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    20,
-    1,
-    0,
-    6,
-    [2, 119, 19, 1, true, null, [4, "/tmp/report.json"]],
-  ]),
-  row("ts-event-command-result-notification", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    22,
-    1,
-    0,
-    6,
-    [2, 120, 20, 1, true, null, null],
-  ]),
-  row("ts-event-command-result-menus", "event", [3, 2, 7, 3, 42, 23, 1, 0, 6, [2, 121, 21, 1, true, null, null]]),
-  row("ts-event-text-unicode", "event", [3, 2, 7, 3, 42, 2, 5, 9, 2, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
-  row("ts-event-selection", "event", [3, 2, 7, 3, 42, 28, 5, 9, 3, [1, "hé😀", 2, 4, 2, 3, 8, true]]),
-  row("ts-event-key", "event", [3, 2, 7, 3, 42, 3, 4, 7, 9, [5, "Enter", ["ctrl", "shift"], 2]]),
-  row("ts-event-pointer", "event", [3, 2, 7, 3, 42, 4, 4, 7, 10, [6, 5, ["cmd"], 2, 2, 310.5, 220.25]]),
-  row("ts-event-pointer-move", "event", [3, 2, 7, 3, 42, 27, 4, 7, 10, [10, 310.5, 220.25, ["cmd", "shift"]]]),
-  row("ts-event-pointer-up-min-click-count", "event", [3, 2, 7, 3, 42, 26, 4, 7, 10, [6, 5, ["cmd"], 2, 1, 0, 0]]),
-  row("ts-event-scroll", "event", [3, 2, 7, 3, 42, 5, 1, 0, 12, [7, 1, 3.5, -2.25, 10, 20.5, ["alt"]]]),
-  row("ts-event-visible", "event", [3, 2, 7, 3, 42, 6, 6, 13, 7, [3, 2, 9]]),
-  row("ts-event-animation", "event", [3, 2, 7, 3, 42, 7, 1, 0, 8, [4, 4]]),
-  row("ts-event-command-result", "event", [3, 2, 7, 3, 42, 8, 1, 0, 6, [2, 109, 10, 1, false, "rejected", null]]),
-  row("ts-event-window-resize", "event", [3, 2, 7, 3, 42, 11, 1, 0, 14, [800.5, 600.5, 2]]),
-  row("ts-event-window-activation", "event", [3, 2, 7, 3, 42, 12, 1, 0, 15, true]),
-  row("ts-event-window-appearance", "event", [3, 2, 7, 3, 42, 16, 1, 0, 18, "dark"]),
-  row("ts-event-layout", "event", [3, 2, 7, 3, 42, 17, 4, 7, 19, [12.5, -3.25, 100, 48.75]]),
-  row("ts-event-drag-over", "event", [3, 2, 7, 3, 42, 18, 8, 11, 20, [1, "card"]]),
-  row("ts-event-drag-drop", "event", [3, 2, 7, 3, 42, 19, 8, 11, 20, [2, "card"]]),
-  row("ts-event-drag-external", "event", [3, 2, 7, 3, 42, 20, 8, 11, 20, [3, ["/tmp/a.txt", "/tmp/b"]]]),
-  row("ts-event-command-result-size", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    13,
-    1,
-    0,
-    6,
-    [2, 110, 13, 1, true, null, [2, [800.5, 600.5]]],
-  ]),
-  row("ts-event-command-result-focus", "event", [3, 2, 7, 3, 42, 14, 4, 0, 6, [2, 111, 14, 4, true, null, [3, true]]]),
-  row("ts-event-command-result-clipboard", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    15,
-    1,
-    0,
-    6,
-    [2, 112, 16, 1, true, null, [4, "pasted text"]],
-  ]),
-  row("ts-event-command-result-clipboard-image", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    26,
-    1,
-    0,
-    6,
-    [2, 128, 28, 1, true, null, [7, [1, new Uint8Array([0x89, 0x50, 0x4e, 0x47])]]],
-  ]),
-  row("ts-command-focus", "command", [3, 4, 7, 3, 42, 101, 4, 1, null]),
-  row("ts-command-selection", "command", [3, 4, 7, 3, 42, 103, 5, 3, [2, 4]]),
-  row("ts-command-scroll-index", "command", [3, 4, 7, 3, 42, 104, 6, 4, [9, 0]]),
-  row("ts-command-scroll-end", "command", [3, 4, 7, 3, 42, 105, 6, 5, null]),
-  row("ts-command-title", "command", [3, 4, 7, 3, 42, 106, 1, 6, "Golden 😀 title"]),
-  row("ts-command-resize", "command", [3, 4, 7, 3, 42, 107, 1, 7, [800, 600]]),
-  row("ts-command-zoom", "command", [3, 4, 7, 3, 42, 108, 1, 8, null]),
-  row("ts-command-fullscreen", "command", [3, 4, 7, 3, 42, 109, 1, 9, null]),
-  row("ts-command-url", "command", [3, 4, 7, 3, 42, 110, 1, 10, "https://example.com/😀"]),
-  row("ts-command-minimize-window", "command", [3, 4, 7, 3, 42, 130, 1, 30, null]),
-  row("ts-command-get-window-bounds", "command", [3, 4, 7, 3, 42, 131, 1, 31, null]),
-  row("ts-command-get-window-state", "command", [3, 4, 7, 3, 42, 132, 1, 32, null]),
-  row("ts-command-activate-window", "command", [3, 4, 7, 3, 42, 133, 1, 33, null]),
-  row("ts-command-focus-next", "command", [3, 4, 7, 3, 42, 111, 1, 11, null]),
-  row("ts-command-focus-prev", "command", [3, 4, 7, 3, 42, 112, 1, 12, null]),
-  row("ts-command-get-window-size", "command", [3, 4, 7, 3, 42, 113, 1, 13, null]),
-  row("ts-command-clipboard-write", "command", [3, 4, 7, 3, 42, 115, 1, 15, "clipboard text"]),
-  row("ts-command-clipboard-read", "command", [3, 4, 7, 3, 42, 116, 1, 16, null]),
-  row("ts-command-clipboard-write-image", "command", [
-    3,
-    4,
-    7,
-    3,
-    42,
-    127,
-    1,
-    27,
-    [1, new Uint8Array([0x89, 0x50, 0x4e, 0x47])],
-  ]),
-  row("ts-command-clipboard-read-image", "command", [3, 4, 7, 3, 42, 128, 1, 28, null]),
-  row("ts-command-open-surface", "command", [3, 4, 7, 3, 42, 117, 1, 17, ["Child", [640, 480]]]),
-  row("ts-command-open-surface-options", "command", [
-    3,
-    4,
-    7,
-    3,
-    42,
-    123,
-    1,
-    17,
-    ["Inspector", [640, 480], [1, false, 320, 240]],
-  ]),
-  row("ts-command-file-dialog-open", "command", [3, 4, 7, 3, 42, 118, 1, 18, ["Choose", [1, 1]]]),
-  row("ts-command-file-dialog-save", "command", [3, 4, 7, 3, 42, 119, 1, 19, "report.json"]),
-  row("ts-command-load-font", "command", [3, 4, 7, 3, 42, 129, 1, 29, "/tmp/Tuffy.ttf"]),
-  row("ts-command-read-text-file", "command", [3, 4, 7, 3, 42, 125, 1, 25, "/tmp/notes.txt"]),
-  row("ts-command-write-text-file", "command", [3, 4, 7, 3, 42, 126, 1, 26, ["/tmp/notes.txt", "hello π"]]),
-  row("ts-event-command-result-load-font", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    29,
-    1,
-    0,
-    6,
-    [2, 129, 29, 1, true, null, [4, "Tuffy"]],
-  ]),
-  row("ts-event-command-result-read-text-file", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    24,
-    1,
-    0,
-    6,
-    [2, 125, 25, 1, true, null, [6, "hello π"]],
-  ]),
-  row("ts-event-command-result-write-text-file", "event", [
-    3,
-    2,
-    7,
-    3,
-    42,
-    25,
-    1,
-    0,
-    6,
-    [2, 126, 26, 1, true, null, [1, 8]],
-  ]),
-  row("ts-command-notification", "command", [3, 4, 7, 3, 42, 120, 1, 20, ["Done", "Finished", [["open", "Open"]]]]),
-  row("ts-command-set-menus", "command", [
-    3,
-    4,
-    7,
-    3,
-    42,
-    121,
-    1,
-    21,
-    [["File", [[1, "open", [true, true]], [0], [2, ["More", [[1, "other"]]]]]]],
-  ]),
-  row("ts-command-set-keybindings", "command", [
-    3,
-    4,
-    7,
-    3,
-    42,
-    122,
-    1,
-    22,
-    [
-      ["cmd-shift-p", "palette.open"],
-      ["ctrl-k ctrl-1", "menu.other"],
+      },
     ],
-  ]),
-  row("ts-command-set-close-policy", "command", [3, 4, 7, 3, 42, 123, 1, 23, "require-confirmation"]),
-  row("ts-command-resolve-close", "command", [3, 4, 7, 3, 42, 124, 1, 24, [123, 1]]),
-  row("ts-event-close-requested", "event", [3, 2, 7, 3, 42, 28, 1, 0, 23, [9, 123]]),
-  row("ts-command-get-scroll-offset", "command", [3, 4, 7, 3, 42, 134, 6, 34, null]),
-  row("ts-command-scroll-offset", "command", [3, 4, 7, 3, 42, 135, 6, 35, 37.5]),
-  row("ts-event-command-result-scroll-offset", "event", [3, 2, 7, 3, 42, 30, 6, 0, 6, [2, 130, 34, 6, true, null, [10, 37.5]]]),
-  row("ts-command-get-focus", "command", [3, 4, 7, 3, 42, 114, 4, 14, null]),
-  row("ts-command-blur", "command", [3, 4, 7, 3, 42, 102, 4, 2, null]),
+  }),
+  command(122, 1, 22, { type: "keybindings", bindings: [{ keystrokes: "cmd-shift-p", actionName: "palette.open" }] }),
+  command(123, 1, 23, { type: "text", value: "require-confirmation" }),
+  command(124, 1, 24, { type: "close-resolution", requestId: 123, allow: true }),
+  command(125, 1, 25, { type: "text", value: "/tmp/notes.txt" }),
+  command(126, 1, 26, { type: "file-write", path: "/tmp/notes.txt", content: "hello π" }),
+  command(127, 1, 27, {
+    type: "clipboard-image",
+    image: { format: "png", bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]) },
+  }),
+  command(128, 1, 28, null),
+  command(129, 1, 29, { type: "text", value: "/tmp/Tuffy.ttf" }),
+  command(130, 1, 30, null),
+  command(131, 1, 31, null),
+  command(132, 1, 32, null),
+  command(133, 1, 33, null),
+  command(134, 6, 34, null),
+  command(135, 6, 35, { type: "number", value: 37.5 }),
+  command(136, 1, 36, {
+    type: "invoke-native",
+    moduleId: new Uint8Array(16).fill(1),
+    moduleDigest: new Uint8Array(32).fill(2),
+    functionId: 1,
+    args: new Uint8Array([3, 4]),
+  }),
+];
+const event = (sequence: number, nodeId: number, listenerId: number, payload: EventPayload): Event => ({
+  type: "event",
+  surfaceId: 7,
+  epoch: 3,
+  revision: 42,
+  sequence,
+  nodeId,
+  listenerId,
+  payload,
+});
+const textData = {
+  text: "hé😀",
+  selectionStart: 2,
+  selectionEnd: 4,
+  markedStart: 2,
+  markedEnd: 3,
+  editSeq: 8,
+  reversed: true,
+};
+const commandValueEvents: readonly Event[] = [
+  event(29, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 201,
+      command: 13,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "pair", width: 800, height: 600 },
+    },
+  }),
+  event(30, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 202,
+      command: 14,
+      nodeId: 2,
+      success: true,
+      error: null,
+      value: { type: "boolean", value: false },
+    },
+  }),
+  event(31, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 203,
+      command: 16,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "text", value: "clipboard" },
+    },
+  }),
+  event(32, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 204,
+      command: 18,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "paths", paths: ["/tmp/a", "/tmp/b"] },
+    },
+  }),
+  event(33, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 205,
+      command: 25,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "file-text", value: "contents" },
+    },
+  }),
+  event(34, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 206,
+      command: 28,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "image", image: { format: "png", bytes: new Uint8Array([1, 2, 3]) } },
+    },
+  }),
+  event(35, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 207,
+      command: 31,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "bounds", x: 1, y: 2, width: 3, height: 4 },
+    },
+  }),
+  event(36, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 208,
+      command: 32,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "window-state", fullscreen: true, maximized: false },
+    },
+  }),
+  event(37, 6, 0, {
+    type: "command-result",
+    result: {
+      requestId: 209,
+      command: 34,
+      nodeId: 6,
+      success: true,
+      error: null,
+      value: { type: "scroll-offset", value: 37.5 },
+    },
+  }),
+  event(38, 1, 0, {
+    type: "command-result",
+    result: {
+      requestId: 210,
+      command: 36,
+      nodeId: 1,
+      success: true,
+      error: null,
+      value: { type: "bytes", value: new Uint8Array([5, 6]) },
+    },
+  }),
+];
+const events: readonly Event[] = [
+  event(1, 4, 7, { type: "press" }),
+  event(2, 5, 8, { type: "change", data: textData }),
+  event(3, 5, 8, { type: "selection", data: textData }),
+  event(4, 5, 8, { type: "focus" }),
+  event(5, 5, 8, { type: "focus", data: textData }),
+  event(6, 5, 8, { type: "blur" }),
+  event(7, 5, 8, { type: "blur", data: textData }),
+  event(8, 1, 0, {
+    type: "command-result",
+    result: { requestId: 117, command: 17, nodeId: 1, success: true, error: null, value: { type: "number", value: 9 } },
+  }),
+  event(9, 6, 10, { type: "visible-range", start: 2, end: 9 }),
+  event(10, 4, 7, { type: "animation-complete", generation: 4 }),
+  event(11, 4, 7, { type: "key", key: "Enter", modifiers: ["ctrl", "shift"], action: 2 }),
+  event(12, 4, 7, { type: "pointer", button: 1, modifiers: ["cmd"], action: 1, clickCount: 2, x: 310.5, y: 220.25 }),
+  event(13, 4, 7, { type: "pointer-move", x: 310.5, y: 220.25, modifiers: ["cmd", "shift"] }),
+  event(14, 4, 7, { type: "hover" }),
+  event(15, 4, 7, { type: "scroll", deltaKind: 1, dx: 3.5, dy: -2.25, x: 10, y: 20.5, modifiers: ["alt"] }),
+  event(16, 4, 7, { type: "submit", text: "submitted text" }),
+  event(17, 1, 0, { type: "window-resize", width: 800.5, height: 600.5, scaleFactor: 2 }),
+  event(18, 1, 0, { type: "window-activation", active: true }),
+  event(19, 0, 0, { type: "surface-closed" }),
+  event(20, 1, 0, { type: "action", action: "open" }),
+  event(21, 1, 0, { type: "window-appearance", appearance: "dark" }),
+  event(22, 4, 7, { type: "layout", x: 12.5, y: -3.25, width: 100, height: 48.75 }),
+  event(23, 4, 7, { type: "drag-over", dragType: "card" }),
+  event(24, 4, 7, { type: "drag-drop", dragType: "card" }),
+  event(25, 4, 7, { type: "external-file-drop", paths: ["/tmp/a.txt"] }),
+  event(26, 1, 0, { type: "notification-response", tag: "solid-gpui:7:120", actionId: "open" }),
+  event(27, 4, 7, { type: "pointer-down-outside", x: 12.5, y: -3.25 }),
+  event(28, 1, 0, { type: "close-requested", requestId: 123 }),
+  ...commandValueEvents,
+];
+const rows = [
+  row("ts-snapshot-full", "snapshot", snapshot),
+  row("ts-patch-all-operations", "patch", patch),
+  ...commands.map((value) => row(`ts-command-${value.command}`, "command", value)),
+  ...events.map((value) => row(`ts-event-${value.sequence}`, "event", value)),
 ].sort();
+await mkdir(outputDir, { recursive: true });
+await writeFile(
+  resolve(outputDir, "ts_to_rust.hex"),
+  `# protocol-golden-v5\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
+);
 
-await Bun.write(
-  `${outputDir}/ts_to_rust.hex`,
-  `# protocol-golden-v1\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
+const invalidEvent = encodePayload(
+  event(99, 4, 7, { type: "pointer", button: 1, modifiers: [], action: 1, clickCount: 1, x: 0, y: 0 }),
 );
-const invalid = [
-  `ts-invalid-file-dialog-empty-paths\tevent\t${hex(
-    encode([3, 2, 7, 3, 42, 21, 1, 0, 6, [2, 120, 18, 1, true, null, [5, []]]]),
-  )}\terror\tevent-null`,
-  `ts-invalid-keybinding-count\tcommand\t${hex(
-    encode([3, 4, 7, 3, 42, 123, 1, 22, Array.from({ length: 65 }, () => ["ctrl-a", "action"])]),
-  )}\terror\traw`,
-  `ts-invalid-event-type\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 99, null]))}\terror\tevent-null`,
-  `ts-invalid-surface-close-node\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 16, null]))}\terror\tevent-null`,
-  `ts-invalid-appearance-bool\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 18, true]))}\terror\tevent-null`,
-  `ts-invalid-appearance-value\tevent\t${hex(encode([3, 2, 7, 3, 42, 2, 1, 0, 18, "system"]))}\terror\tevent-null`,
-  `ts-invalid-event-payload-tag\tevent\t${hex(encode([3, 2, 7, 3, 42, 1, 1, 0, 12, [99]]))}\terror\tevent-null`,
-  `ts-invalid-host-kind\tsnapshot\t${hex(encode([3, 1, 7, 3, 0, 1, [[2, 1, 0, 99, null, null, 0, null, null, false]]]))}\tok\traw`,
-  "ts-invalid-messagepack\tevent\tc1\terror\tdecode-null",
+invalidEvent[5] = 3;
+const unknownField = encodePayload(events[0]!);
+const unknownFieldResult = new Uint8Array(unknownField.length + 1);
+unknownFieldResult.set(unknownField.subarray(0, -1));
+unknownFieldResult[unknownFieldResult.length - 2] = 99;
+unknownFieldResult[unknownFieldResult.length - 1] = 0;
+new DataView(unknownFieldResult.buffer).setUint32(0, new DataView(unknownField.buffer).getUint32(0, true) + 1, true);
+const invalidEventType = encodePayload(event(100, 1, 0, { type: "action", action: "wrong" }));
+for (let index = 0; index + 1 < invalidEventType.length; index += 1) {
+  if (invalidEventType[index] === 7 && invalidEventType[index + 1] === EVENT_ACTION) {
+    invalidEventType[index + 1] = 99;
+    break;
+  }
+}
+const invalidRows = [
+  `ts-invalid-version\tevent\t${hex(invalidEvent)}\terror\terror`,
+  `ts-invalid-event-type\tevent\t${hex(invalidEventType)}\terror\terror`,
+  `ts-invalid-unknown-field\tevent\t${hex(unknownFieldResult)}\terror\terror`,
 ];
-await Bun.write(
-  `${outputDir}/invalid.hex`,
-  `# protocol-golden-v1\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalid.join("\n")}\n`,
+await writeFile(
+  resolve(outputDir, "invalid.hex"),
+  `# protocol-golden-v5\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalidRows.join("\n")}\n`,
 );
-const frames = [
-  "empty\t00000000\t\tok\tok",
-  "truncated-header\t00\t\ttruncated\tpending",
-  "truncated-payload\t04000000\t01\ttruncated\tpending",
-  "maximum-plus-one\t01000001\t\toversize\toversize",
-  "maximum-exact\t00000001\t\ttruncated\tpending",
-];
-await Bun.write(
-  `${outputDir}/frames.hex`,
-  `# protocol-golden-v1\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\n${frames.join("\n")}\n`,
+await writeFile(
+  resolve(outputDir, "frames.hex"),
+  `# protocol-golden-v5\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\nempty\t00000000\t\tok\tok\ntruncated-header\t00\t\ttruncated\tpending\ntruncated-payload\t04000000\t01\ttruncated\tpending\nmaximum-plus-one\t01000001\t\toversize\toversize\nmaximum-exact\t00000001\t\ttruncated\tpending\n`,
 );
+
+if (verify) {
+  const rustText = await readFile(resolve(outputDir, "rust_to_ts.hex"), "utf8");
+  const rustRows = rustText.split("\n").filter((line) => line.length > 0 && !line.startsWith("#"));
+  if (rustRows.length !== rows.length)
+    throw new Error(`Rust golden row count ${rustRows.length} does not match TS ${rows.length}`);
+  const expectedRows = new Map(rows.map((line) => [line.split("\t")[0], line]));
+  const bodyTags = { snapshot: 1, event: 2, patch: 3, command: 4 } as const;
+  for (const line of rustRows) {
+    const [id, kind, encoded] = line.split("\t");
+    const expected = expectedRows.get(id!);
+    if (expected === undefined || expected.split("\t")[1] !== kind)
+      throw new Error(`Rust golden row ${id} is missing or has the wrong message kind`);
+    const payload = Uint8Array.from(Buffer.from(encoded!, "hex"));
+    const decoded = Envelope.decode(payload);
+    if (decoded.body?.tag !== bodyTags[kind as keyof typeof bodyTags])
+      throw new Error(`Rust golden row ${id} has the wrong envelope body`);
+    if (kind === "event" && decodeEvent(payload) === null)
+      throw new Error(`Rust golden event ${id} failed TypeScript semantic decoding`);
+    const expectedPayload = Uint8Array.from(Buffer.from(expected.split("\t")[2]!, "hex"));
+    const expectedDecoded = Envelope.decode(expectedPayload);
+    if (JSON.stringify(normalizeGenerated(decoded)) !== JSON.stringify(normalizeGenerated(expectedDecoded)))
+      throw new Error(`Rust golden row ${id} failed TypeScript semantic verification`);
+    if (expected.split("\t")[2] !== encoded)
+      throw new Error(`Rust golden row ${id} does not match the canonical TypeScript bytes`);
+  }
+  const invalidText = await readFile(resolve(outputDir, "invalid.hex"), "utf8");
+  const invalidRows = invalidText.split("\n").filter((line) => line.length > 0 && !line.startsWith("#"));
+  for (const line of invalidRows) {
+    const [id, kind, encoded, _rustExpected, tsExpected] = line.split("\t");
+    const bytes = Uint8Array.from(Buffer.from(encoded!, "hex"));
+    let actual = "ok";
+    try {
+      const decoded = Envelope.decode(bytes);
+      if (kind === "event" && decodeEvent(bytes) === null) actual = "error";
+      if (decoded.body === undefined) actual = "error";
+    } catch {
+      actual = "error";
+    }
+    if (actual !== tsExpected) throw new Error(`TypeScript invalid vector ${id} expected ${tsExpected}, got ${actual}`);
+  }
+  const frameText = await readFile(resolve(outputDir, "frames.hex"), "utf8");
+  const frameRows = frameText.split("\n").filter((line) => line.length > 0 && !line.startsWith("#"));
+  for (const line of frameRows) {
+    const [id, headerHex, payloadHex, _rustExpected, tsExpected] = line.split("\t");
+    const frame = Uint8Array.from(Buffer.from(`${headerHex}${payloadHex}`, "hex"));
+    let actual: string;
+    try {
+      actual = new FrameDecoder().push(frame).length > 0 ? "ok" : "pending";
+    } catch {
+      actual = "oversize";
+    }
+    if (actual !== tsExpected) throw new Error(`TypeScript frame vector ${id} expected ${tsExpected}, got ${actual}`);
+  }
+}
+console.log(`wrote ${rows.length} Bebop v5 golden rows to ${outputDir}`);

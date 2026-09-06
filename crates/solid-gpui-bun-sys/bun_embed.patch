@@ -1,0 +1,916 @@
+diff --git a/src/bun_alloc/lib.rs b/src/bun_alloc/lib.rs
+index fa01c50..cadafc2 100644
+--- a/src/bun_alloc/lib.rs
++++ b/src/bun_alloc/lib.rs
+@@ -2526,7 +2526,8 @@ impl<const COUNT: usize, const ITEM_LENGTH: usize> BSSStringList<COUNT, ITEM_LEN
+ // ──────────────────────────────────────────────────────────────────────────
+ 
+ pub struct BSSMapInner<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool> {
+-    pub(crate) index: IndexMap,
++    index: HashMap<HashKeyType, (IndexType, u64), IndexMapHasher>,
++    cache_epoch: u64,
+     pub overflow_list: OverflowList<ValueType, BSS_OVERFLOW_BLOCK_SIZE>,
+     pub(crate) mutex: Mutex,
+     // Only `[0..backing_buf_used]` is initialized.
+@@ -2552,7 +2553,8 @@ impl<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool>
+         // intentionally left uninitialized.
+         unsafe {
+             addr_of_mut!((*slot).mutex).write(Mutex::new());
+-            addr_of_mut!((*slot).index).write(IndexMap::default());
++            addr_of_mut!((*slot).index).write(HashMap::default());
++            addr_of_mut!((*slot).cache_epoch).write(0);
+             addr_of_mut!((*slot).backing_buf_used).write(0);
+             OverflowList::init_counters_at(addr_of_mut!((*slot).overflow_list));
+         }
+@@ -2589,11 +2591,12 @@ impl<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool>
+         let _guard = self.mutex.lock();
+         match self.index.entry(_key) {
+             std::collections::hash_map::Entry::Occupied(e) => {
+-                let v = *e.get();
++                let (v, epoch) = *e.get();
+                 Ok(Result {
+                     hash: _key,
+                     index: v,
+                     status: match v.index() {
++                        _ if epoch != self.cache_epoch => ItemStatus::Unknown,
+                         i if i == NOT_FOUND.index() => ItemStatus::NotFound,
+                         i if i == UNASSIGNED.index() => ItemStatus::Unknown,
+                         _ => ItemStatus::Exists,
+@@ -2601,7 +2604,7 @@ impl<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool>
+                 })
+             }
+             std::collections::hash_map::Entry::Vacant(e) => {
+-                e.insert(UNASSIGNED);
++                e.insert((UNASSIGNED, self.cache_epoch));
+                 Ok(Result {
+                     hash: _key,
+                     index: UNASSIGNED,
+@@ -2618,13 +2621,17 @@ impl<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool>
+         // we dereference `index`. `MutexGuard` holds a raw pointer (see [`Mutex`] docs),
+         // so it does not conflict with the `&mut self` borrow in `at_index`.
+         let _guard = self.mutex.lock();
+-        let index = self.index.get(&_key).copied()?;
++        let (index, epoch) = self.index.get(&_key).copied()?;
++        if epoch != self.cache_epoch {
++            return None;
++        }
+         self.at_index(index)
+     }
+ 
+     pub fn mark_not_found(&mut self, result: Result) {
+         let _guard = self.mutex.lock();
+-        self.index.insert(result.hash, NOT_FOUND);
++        self.index
++            .insert(result.hash, (NOT_FOUND, self.cache_epoch));
+     }
+ 
+     pub fn at_index(&mut self, index: IndexType) -> Option<&mut ValueType> {
+@@ -2677,10 +2684,37 @@ impl<ValueType, const COUNT: usize, const REMOVE_TRAILING_SLASHES: bool>
+             // SAFETY: just initialized on the line above.
+             unsafe { self.backing_buf[idx].assume_init_mut() }
+         };
+-        self.index.insert(result.hash, result.index);
++        self.index
++            .insert(result.hash, (result.index, self.cache_epoch));
+         Ok(ret)
+     }
+ 
++    /// Invalidate lookups while retaining each key's arena slot for reuse.
++    /// Negative entries are invalidated too. The next `get_or_put` reports
++    /// `Unknown` with the old index, so `put` replaces that slot instead of
++    /// appending another copy of every cache value on each host session.
++    ///
++    /// # Safety
++    /// All users of the previous values and outstanding `Result`s must have
++    /// finished. Re-population may overwrite the same stable slot in place.
++    pub unsafe fn invalidate_all(&mut self, mut invalidate: impl FnMut(&mut ValueType)) {
++        let _guard = self.mutex.lock();
++        for slot in &mut self.backing_buf[..usize::from(self.backing_buf_used)] {
++            // SAFETY: the initialized prefix is tracked by backing_buf_used.
++            invalidate(unsafe { slot.assume_init_mut() });
++        }
++        for position in 0..self.overflow_list.len() {
++            let mut index = IndexType::default();
++            index.set_is_overflow(true);
++            index.set_index(position);
++            invalidate(self.overflow_list.at_index_mut(index));
++        }
++        self.cache_epoch = self
++            .cache_epoch
++            .checked_add(1)
++            .expect("cache epoch exhausted");
++    }
++
+     /// Returns true if the entry was removed.
+     pub fn remove(&mut self, denormalized_key: &[u8]) -> bool {
+         let _guard = self.mutex.lock();
+diff --git a/src/bun_bin/Cargo.toml b/src/bun_bin/Cargo.toml
+index 94839e8..8a0efae 100644
+--- a/src/bun_bin/Cargo.toml
++++ b/src/bun_bin/Cargo.toml
+@@ -13,6 +13,9 @@ name = "bun_rust"
+ path = "lib.rs"
+ crate-type = ["staticlib"]
+ 
++[features]
++solid-gpui-embed = []
++
+ [lints]
+ workspace = true
+ 
+diff --git a/src/bun_bin/lib.rs b/src/bun_bin/lib.rs
+index 20d6495..3330acf 100644
+--- a/src/bun_bin/lib.rs
++++ b/src/bun_bin/lib.rs
+@@ -33,6 +33,7 @@
+ 
+ #![warn(unused_must_use)]
+ 
++#[cfg(not(feature = "solid-gpui-embed"))]
+ use core::ffi::{c_char, c_int};
+ 
+ mod c_abi_exports;
+@@ -40,7 +41,12 @@ mod c_abi_exports;
+ // Force-link `bun_platform` so its `#[no_mangle]` C exports
+ // (`sys_epoll_pwait2`, …) reach the linker.
+ use bun_platform as _;
++// CLI main normally creates this dependency edge. Embedding exports live in
++// bun_runtime, so retain the crate even when the CLI entrypoint is excluded;
++// staticlib must include its C ABI exports and transitive JSC bindings.
++use bun_runtime as _;
+ 
++#[cfg(not(feature = "solid-gpui-embed"))]
+ use bun_core::Global;
+ use bun_core::StackCheck;
+ use bun_core::output;
+@@ -149,6 +155,7 @@ pub(crate) extern "C" fn __lsan_default_suppressions() -> *const core::ffi::c_ch
+ /// # Safety
+ /// `argv` must point to `argc` valid NUL-terminated C strings that live for
+ /// the entire process — guaranteed by the C runtime that calls this symbol.
++#[cfg(not(feature = "solid-gpui-embed"))]
+ #[unsafe(no_mangle)]
+ pub(crate) unsafe extern "C" fn main(argc: c_int, argv: *const *const c_char) -> c_int {
+     // 0. Capture argv FIRST — before the crash handler, whose panic path
+@@ -236,3 +243,21 @@ fn use_mimalloc_in_dependencies() {
+         );
+     }
+ }
++
++
++/// Initialize process-wide Bun facilities once, on the persistent embedded owner
++/// thread. VM sessions call this again only to configure their thread stack.
++#[unsafe(no_mangle)]
++pub extern "C" fn bun_embedded_initialize_process() {
++    static INITIALIZE: std::sync::Once = std::sync::Once::new();
++    INITIALIZE.call_once(|| {
++        // The argv slice is empty and its storage is therefore never read.
++        unsafe { bun_core::init_argv(0, core::ptr::null()) };
++        bun_crash_handler::init();
++        use_mimalloc_in_dependencies();
++        #[cfg(windows)]
++        bun_core::handle_oom(bun_sys::windows::env::convert_env_to_wtf8());
++        output::stdio::init();
++    });
++    StackCheck::configure_thread();
++}
+diff --git a/src/jsc/PosixSignalHandle.rs b/src/jsc/PosixSignalHandle.rs
+index 436ca7b..0151926 100644
+--- a/src/jsc/PosixSignalHandle.rs
++++ b/src/jsc/PosixSignalHandle.rs
+@@ -62,10 +62,10 @@ impl PosixSignalHandle {
+         // Publish the new tail (Release so that the consumer sees the updated tail).
+         self.tail.store(old_tail.wrapping_add(1), Ordering::Release);
+ 
+-        if let Some(vm) = VirtualMachine::get_main_thread_vm() {
+-            // SAFETY: `event_loop()` returns the VM-owned EventLoop; live for VM lifetime.
++        VirtualMachine::with_main_thread_vm(|vm| {
++            // SAFETY: the signal-safe weak gate keeps VM and loop alive.
+             unsafe { (*(*vm).event_loop()).wakeup() };
+-        }
++        });
+ 
+         true
+     }
+@@ -125,19 +125,14 @@ extern "C" fn Bun__onPosixSignal(number: i32) {
+             // SAFETY: `_exit(2)` is async-signal-safe and takes no pointers.
+             unsafe { libc::_exit(0) };
+         }
+-        let Some(vm) = VirtualMachine::get_main_thread_vm() else {
+-            return;
+-        };
+-        // SAFETY: `vm` and its event loop are process-lifetime; raw place
+-        // projection reads only the `signal_handler` slot (no `&EventLoop`
+-        // formed — the main thread may hold `&mut EventLoop` concurrently).
+-        let handler = unsafe { (*(*vm).event_loop()).signal_handler };
+-        if let Some(handler) = handler {
+-            // `BackRef::deref` is the centralised set-once-NonNull proof; the
+-            // pointee is all-atomic (`Sync`), so a `&PosixSignalHandle` from
+-            // async-signal context is sound.
+-            let _ = handler.enqueue(u8::try_from(number).expect("int cast"));
+-        }
++        VirtualMachine::with_main_thread_vm(|vm| {
++            // SAFETY: the signal-safe weak gate keeps VM and handler alive;
++            // raw field reads do not borrow the concurrently running loop.
++            let handler = unsafe { (*(*vm).event_loop()).signal_handler };
++            if let Some(handler) = handler {
++                let _ = handler.enqueue(u8::try_from(number).expect("int cast"));
++            }
++        });
+     }
+     #[cfg(not(unix))]
+     let _ = number;
+@@ -271,14 +266,14 @@ impl PosixSignalTask {
+ extern "C" fn Bun__ensureSignalHandler() {
+     #[cfg(unix)]
+     {
+-        if let Some(vm) = VirtualMachine::get_main_thread_vm() {
+-            // SAFETY: `vm` and its event loop are process-lifetime.
++        VirtualMachine::with_main_thread_vm(|vm| {
++            // SAFETY: called on the VM thread, within the weak lifetime gate.
+             let this = unsafe { &mut *(*vm).event_loop() };
+             if this.signal_handler.is_none() {
+                 let boxed = PosixSignalHandle::new(PosixSignalHandle::default());
+                 this.signal_handler =
+                     Some(bun_ptr::BackRef::from(bun_core::heap::into_raw_nn(boxed)));
+             }
+-        }
++        });
+     }
+ }
+diff --git a/src/jsc/VirtualMachine.rs b/src/jsc/VirtualMachine.rs
+index 3a0e43b..1691468 100644
+--- a/src/jsc/VirtualMachine.rs
++++ b/src/jsc/VirtualMachine.rs
+@@ -225,6 +225,8 @@ pub struct VirtualMachine {
+     pub(crate) has_run_cleanup_hooks: bool,
+     pub plugin_runner: Option<crate::plugin_runner::PluginRunner>,
+     pub is_main_thread: bool,
++    /// The host owns this VM lifetime; process.exit stops this VM only.
++    pub is_embedded: bool,
+     pub exit_handler: ExitHandler,
+ 
+     pub(crate) default_tls_reject_unauthorized: Option<bool>,
+@@ -451,6 +453,10 @@ pub(crate) struct VMHolder;
+ 
+ static MAIN_THREAD_VM: core::sync::atomic::AtomicPtr<VirtualMachine> =
+     core::sync::atomic::AtomicPtr::new(core::ptr::null_mut());
++// Signal-safe weak accesses: retirement unpublishes the pointer, then waits for
++// callers that entered before it. SeqCst pairs both store/load orderings.
++static MAIN_THREAD_VM_ACCESS: core::sync::atomic::AtomicUsize =
++    core::sync::atomic::AtomicUsize::new(0);
+ 
+ // `#[thread_local]` (bare `__thread` slot) instead of `thread_local!` macro:
+ // `LocalKey::__getit` adds a lazy-init check + on some targets a
+@@ -798,9 +804,17 @@ impl VirtualMachine {
+         VM.get()
+     }
+ 
+-    pub(crate) fn get_main_thread_vm() -> Option<*mut VirtualMachine> {
+-        let p = MAIN_THREAD_VM.load(core::sync::atomic::Ordering::Acquire);
+-        if p.is_null() { None } else { Some(p) }
++    pub(crate) fn with_main_thread_vm<R>(f: impl FnOnce(*mut VirtualMachine) -> R) -> Option<R> {
++        struct Access;
++        impl Drop for Access {
++            fn drop(&mut self) {
++                MAIN_THREAD_VM_ACCESS.fetch_sub(1, core::sync::atomic::Ordering::SeqCst);
++            }
++        }
++        MAIN_THREAD_VM_ACCESS.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
++        let _access = Access;
++        let p = MAIN_THREAD_VM.load(core::sync::atomic::Ordering::SeqCst);
++        if p.is_null() { None } else { Some(f(p)) }
+     }
+ 
+     #[inline]
+@@ -1537,6 +1551,12 @@ impl VirtualMachine {
+ 
+         let hooks = runtime_hooks().expect("RuntimeHooks not installed");
+         if self.is_handling_uncaught_exception {
++            if self.is_embedded {
++                self.run_error_handler(err, None);
++                self.exit_handler.exit_code = 7;
++                self.handle_ref().request_termination();
++                return false;
++            }
+             if !self.is_main_thread() {
+                 // node parity: a throw inside the uncaughtException handler in a
+                 // worker exits the worker with code 1 (not the main-thread fatal
+@@ -1573,12 +1593,18 @@ impl VirtualMachine {
+                 self.is_handling_uncaught_exception = false;
+                 // SAFETY: see above.
+                 unsafe { (hooks.process_exit)(global_object.as_ptr(), 1) };
++                if self.is_embedded {
++                    return false;
++                }
+                 panic!("made it past process.exit()");
+             }
+             // TODO maybe we want a separate code path for uncaught exceptions
+             self.unhandled_error_counter += 1;
+             self.exit_handler.exit_code = 1;
+             (self.on_unhandled_rejection)(self, global_object, err);
++            if self.is_embedded {
++                self.handle_ref().request_termination();
++            }
+         }
+         // Note: this reset must cover BOTH the FFI call and the
+         // `onUnhandledRejection` callback above. The flag must stay raised
+@@ -1745,6 +1771,46 @@ impl VirtualMachine {
+         bun_core::Global::exit(u32::from(self.exit_handler.exit_code))
+     }
+ 
++    /// Consume an embedded VM on its owner thread, outside every JS frame.
++    /// Exit handlers have already run and all host-owned Strong handles are gone.
++    /// The caller must never dereference `this` after this function returns.
++    pub unsafe fn teardown_embedded(this: *mut Self) -> u8 {
++        // No signal handler may retain the retiring VM while it is destroyed.
++        let _ = MAIN_THREAD_VM.compare_exchange(
++            this, core::ptr::null_mut(),
++            core::sync::atomic::Ordering::SeqCst,
++            core::sync::atomic::Ordering::SeqCst,
++        );
++        while MAIN_THREAD_VM_ACCESS.load(core::sync::atomic::Ordering::SeqCst) != 0 {
++            std::thread::yield_now();
++        }
++        // SAFETY: caller owns the live VM on this thread. Signal accesses have
++        // left; every remaining cross-thread access is gated by VmHandle.
++        let code = unsafe { (*this).exit_handler.exit_code };
++        unsafe { Self::teardown(this, Teardown::Embedded) };
++        // `destroy` dropped fields; the raw allocation is deliberately not a
++        // Box<VirtualMachine>, because dropping its fields again would be UB.
++        unsafe {
++            let console = core::mem::replace(&mut (*this).console, core::ptr::null_mut());
++            if !console.is_null() {
++                bun_core::heap::destroy(console);
++            }
++            if let Some(log) = (*this).log.take() {
++                bun_core::heap::destroy(log.as_ptr());
++            }
++            #[cfg(unix)]
++            if let Some(signal) = (*this).regular_event_loop.signal_handler.take() {
++                let pointer: core::ptr::NonNull<crate::posix_signal_handle::PosixSignalHandle> = signal.into();
++                drop(bun_core::heap::take(pointer.as_ptr()));
++            }
++            VMHolder::set_vm(None);
++            VMHolder::set_cached_global_object(None);
++            IS_MAIN_THREAD_VM.set(false);
++            std::alloc::dealloc(this.cast(), core::alloc::Layout::new::<Self>());
++        }
++        code
++    }
++
+     /// Checkpoint + close the sqlite connections *this* VM opened, while it is
+     /// alive and no user script will touch them again. Never another VM's: a
+     /// worker still running when the main thread exits without joining it owns
+@@ -1817,7 +1883,7 @@ impl VirtualMachine {
+         // The exiting main thread neither closes its loop nor may nest uv_run
+         // here: process.exit() can be running inside a libuv completion callback.
+         #[cfg(windows)]
+-        if matches!(kind, Teardown::Worker) {
++        if matches!(kind, Teardown::Worker | Teardown::Embedded) {
+             while bun_sys::windows::libuv::Loop::drain_requests() {
+                 sweep();
+             }
+@@ -1873,6 +1939,16 @@ impl VirtualMachine {
+             (*this).release_queued_work();
+             let _ = Self::stop_phase_sweep(this, kind);
+         });
++        // These VM-owned collections contain JSC Strong handles. Once every
++        // off-thread completion has returned they can be released, while the
++        // heap still exists, before the final collection.
++        unsafe {
++            drop(core::mem::take(&mut (*this).commonjs_custom_extensions));
++            drop(core::mem::take(&mut (*this).modules));
++            drop(core::mem::take(&mut (*this).macros));
++            (*this).main_resolved_path.deref();
++            (*this).main_resolved_path = bun_core::String::empty();
++        }
+         // The exiting main thread now parks the process-wide HTTP thread —
+         // after the children it also served are joined and this VM's own
+         // requests are back — so it cannot touch what process exit frees. If
+@@ -1891,7 +1967,7 @@ impl VirtualMachine {
+ 
+         // ---- C. JSC VM -------------------------------------------------------
+         match kind {
+-            Teardown::Worker => WebWorker__teardownJSCVM(vm.global()),
++            Teardown::Worker | Teardown::Embedded => WebWorker__teardownJSCVM(vm.global()),
+             Teardown::MainThreadExit => Zig__GlobalObject__destructOnExit(vm.global()),
+         }
+         // Finalizers just closed the sockets only they owned; `us_socket_close`
+@@ -1906,7 +1982,7 @@ impl VirtualMachine {
+         teardown_log!("teardown: JSC VM destroyed");
+ 
+         // ---- D. loops (worker; main exits the process instead) ----------------
+-        if matches!(kind, Teardown::Worker) {
++        if matches!(kind, Teardown::Worker | Teardown::Embedded) {
+             // Whatever B/C unref'd through the concurrent counter, folded now:
+             // on Windows it shares `active_handles` with libuv and a residue
+             // would keep the loop close below spinning.
+@@ -1957,7 +2033,7 @@ impl VirtualMachine {
+         // main thread keeps its loop (the OS reclaims the handles); sweeping
+         // them there only re-enters stream owners under still-running script.
+         #[cfg(windows)]
+-        if matches!(kind, Teardown::Worker) {
++        if matches!(kind, Teardown::Worker | Teardown::Embedded) {
+             bun_sys::windows::libuv::open_handles::stop_all_for_vm_teardown();
+         }
+         let _ = kind;
+@@ -1991,6 +2067,8 @@ impl VirtualMachine {
+ #[derive(Clone, Copy, PartialEq, Eq)]
+ pub(crate) enum Teardown {
+     Worker,
++    /// Full VM/loop cleanup while the process and owner thread remain alive.
++    Embedded,
+     MainThreadExit,
+ }
+ 
+@@ -2346,6 +2424,7 @@ unsafe extern "C" {
+     // safe: `console`/`worker_ptr` are opaque round-trip pointers C++ stores
+     // into the new ZigGlobalObject (never dereferenced as Rust data); remaining
+     // args are by-value scalars.
++    safe fn Bun__reserveMainContextIdentifier() -> u32;
+     safe fn Zig__GlobalObject__create(
+         console: *mut c_void,
+         context_id: i32,
+@@ -2426,9 +2505,9 @@ impl VirtualMachine {
+             p.cast()
+         };
+         VM.set(Some(vm));
+-        if opts.is_main_thread {
+-            MAIN_THREAD_VM.store(vm, core::sync::atomic::Ordering::Release);
+-        }
++        // Publish to process signal handlers only once every field and loop
++        // is initialized, so a signal from a previous session cannot observe
++        // partially initialized storage.
+ 
+         // ConsoleObject is self-referential (buffers + adapters) — allocate
+         // stable storage and init in place.
+@@ -2445,9 +2524,16 @@ impl VirtualMachine {
+         let console =
+             bun_core::heap::into_raw(console_box).cast::<crate::console_object::ConsoleObject>();
+ 
+-        let context_id = opts
+-            .context_id
+-            .unwrap_or(if opts.is_main_thread { 1 } else { i32::MAX });
++        let context_id = opts.context_id.unwrap_or_else(|| {
++            if opts.is_main_thread {
++                // Shared allocator with Workers: only the first main VM uses
++                // the unique initial-context constructor. Later sessions get
++                // new routing identities while retaining their main role.
++                Bun__reserveMainContextIdentifier() as i32
++            } else {
++                i32::MAX
++            }
++        });
+ 
+         // SAFETY: `vm` is a fresh unique zeroed allocation on this thread. All
+         // writes go through `addr_of_mut!` so no `&mut VirtualMachine` is
+@@ -2553,7 +2639,40 @@ impl VirtualMachine {
+             // so abort `init` here — `vm.transpiler` was never written, and
+             // bailing out before the CLI reads it turns the old segfault into a
+             // clean error + non-zero exit.
+-            unsafe { (*vm).runtime_state = (hooks.init_runtime_state)(vm, &mut opts)? };
++            match unsafe { (hooks.init_runtime_state)(vm, &mut opts) } {
++                Ok(state) => unsafe { (*vm).runtime_state = state },
++                Err(error) => {
++                    // The hook unwound its runtime state; no JSC heap exists.
++                    // Only initialized fields may drop (transpiler is still
++                    // uninitialized). No handle was published to another thread.
++                    unsafe {
++                        (*vm).handle.close_and_wait(|| {});
++                        core::mem::ManuallyDrop::drop(&mut (*vm).handle);
++                        macro_rules! drop_initialized {
++                            ($($field:ident),* $(,)?) => {$(
++                                core::ptr::drop_in_place(core::ptr::addr_of_mut!((*vm).$field));
++                            )*};
++                        }
++                        drop_initialized!(
++                            preload, child_workers, argv, resolved_path_dups,
++                            macros, macro_entry_points, auto_killer,
++                            commonjs_custom_extensions, entry_point, origin,
++                            ref_strings, modules, macro_event_loop, proxy_env_storage,
++                            gc_controller, channel_ref, remap_stack_frames_mutex,
++                            ref_strings_mutex, transpiler_store, regular_event_loop,
++                            source_mappings,
++                        );
++                        bun_core::heap::destroy(console);
++                        if opts.log.is_none() {
++                            bun_core::heap::destroy(log);
++                        }
++                        VMHolder::set_vm(None);
++                        VMHolder::set_cached_global_object(None);
++                        std::alloc::dealloc(vm.cast(), layout);
++                    }
++                    return Err(error);
++                }
++            }
+         }
+ 
+         // JSGlobalObject creation. `ensure_waker()` must run before the FFI.
+@@ -2612,6 +2731,9 @@ impl VirtualMachine {
+             IS_SMOL_MODE.store(true, core::sync::atomic::Ordering::Relaxed);
+         }
+ 
++        if opts.is_main_thread {
++            MAIN_THREAD_VM.store(vm, core::sync::atomic::Ordering::SeqCst);
++        }
+         Ok(vm)
+     }
+ 
+@@ -4791,6 +4913,12 @@ impl VirtualMachine {
+             // once on the same thread; `self` is the live per-thread VM.
+             unsafe { (hooks.deinit_runtime_state)(std::ptr::from_mut(self), state) };
+         }
++        // The owner raw-deallocates the VM. Reclaim the remaining owned
++        // container storage explicitly; their elements no longer own JS roots.
++        drop(core::mem::take(&mut self.argv));
++        drop(core::mem::take(&mut self.child_workers));
++        drop(core::mem::take(&mut self.ref_strings));
++        drop(core::mem::take(&mut self.macro_entry_points));
+         self.has_terminated = true;
+     }
+     /// Note: takes the concrete
+diff --git a/src/jsc/bindings/ScriptExecutionContext.cpp b/src/jsc/bindings/ScriptExecutionContext.cpp
+index a6fa3fc..5bc03c3 100644
+--- a/src/jsc/bindings/ScriptExecutionContext.cpp
++++ b/src/jsc/bindings/ScriptExecutionContext.cpp
+@@ -19,6 +19,11 @@ namespace WebCore {
+ static constexpr ScriptExecutionContextIdentifier INITIAL_IDENTIFIER_INTERNAL = 1;
+ 
+ static std::atomic<unsigned> lastUniqueIdentifier = INITIAL_IDENTIFIER_INTERNAL;
++// Main is a role, not an ID reused by every embedded VM. Retired session IDs
++// remain retired so delayed Worker/timer/context tasks cannot reach a new VM.
++static std::atomic<ScriptExecutionContextIdentifier> mainContextIdentifier { INITIAL_IDENTIFIER_INTERNAL };
++static bool hasReservedMainContextIdentifier = false; // contexts map lock
++
+ 
+ #if ASSERT_ENABLED
+ static ScriptExecutionContextIdentifier initialIdentifier()
+@@ -71,6 +76,25 @@ static HashMap<ScriptExecutionContextIdentifier, ScriptExecutionContext*>& allSc
+     return contexts;
+ }
+ 
++// Called by VM initialization before JSC creates GC timers or its global, so
++// Rust's timer metadata and the C++ context agree on the same reserved ID.
++extern "C" uint32_t Bun__reserveMainContextIdentifier()
++{
++    Locker locker { allScriptExecutionContextsMapLock };
++    RELEASE_ASSERT_WITH_MESSAGE(!allScriptExecutionContextsMap().contains(mainContextIdentifier.load()), "a main VM context is already active");
++    auto identifier = hasReservedMainContextIdentifier
++        ? ScriptExecutionContext::generateIdentifier()
++        : INITIAL_IDENTIFIER_INTERNAL;
++    hasReservedMainContextIdentifier = true;
++    mainContextIdentifier.store(identifier, std::memory_order_release);
++    return identifier;
++}
++
++bool ScriptExecutionContext::isMainThread() const
++{
++    return m_identifier == mainContextIdentifier.load(std::memory_order_acquire);
++}
++
+ ScriptExecutionContext* ScriptExecutionContext::getScriptExecutionContext(ScriptExecutionContextIdentifier identifier)
+ {
+     if (identifier == 0) {
+@@ -291,7 +315,7 @@ bool ScriptExecutionContext::ensureOnMainThread(Function<void(ScriptExecutionCon
+ ScriptExecutionContext* ScriptExecutionContext::getMainThreadScriptExecutionContext()
+ {
+     Locker locker { allScriptExecutionContextsMapLock };
+-    return allScriptExecutionContextsMap().get(1);
++    return allScriptExecutionContextsMap().get(mainContextIdentifier.load(std::memory_order_acquire));
+ }
+ 
+ void ScriptExecutionContext::checkConsistency() const
+diff --git a/src/jsc/bindings/ScriptExecutionContext.h b/src/jsc/bindings/ScriptExecutionContext.h
+index 25e3e4f..1e9e54f 100644
+--- a/src/jsc/bindings/ScriptExecutionContext.h
++++ b/src/jsc/bindings/ScriptExecutionContext.h
+@@ -71,7 +71,7 @@ public:
+     {
+         return m_url;
+     }
+-    bool isMainThread() const { return m_identifier == 1; }
++    bool isMainThread() const;
+     bool isContextThread();
+ 
+     // Active objects are not garbage collected even if inaccessible, e.g. because their activity may result in callbacks being invoked.
+diff --git a/src/jsc/event_loop.rs b/src/jsc/event_loop.rs
+index be2b578..40c742f 100644
+--- a/src/jsc/event_loop.rs
++++ b/src/jsc/event_loop.rs
+@@ -844,6 +844,9 @@ impl EventLoop {
+             "pending immediates must be released (release_queued_tasks) while the loop is alive"
+         );
+         self.tasks = Queue::init();
++        self.immediate_tasks = Vec::new();
++        self.next_immediate_tasks = Vec::new();
++        self.yield_tasks = Vec::new();
+         // Free the deferred-task map's storage. The tasks must not be run, and an
+         // entry owns nothing but a `Copy` ctx pointer whose owner released it when
+         // the JSC teardown before this finalized it. A worker's VM box is
+@@ -1041,23 +1044,17 @@ impl EventLoop {
+     }
+ 
+     pub fn wakeup(&self) {
++        // Off-thread callers hold VmHandle's weak gate. Read only the fixed
++        // loop pointer and call the concurrent-safe C wake; never mint an
++        // aliased &mut Loop while the owner is parked inside its poll.
+         #[cfg(windows)]
+-        {
+-            if let Some(loop_) = self.uws_loop {
+-                // SAFETY: uws_loop is a valid live uws::Loop handle
+-                unsafe { (*loop_.as_ptr()).wakeup() };
+-            }
+-            return;
+-        }
++        let pointer = self.uws_loop.map(NonNull::as_ptr);
+         #[cfg(not(windows))]
+-        {
+-            // Route through the single audited `platform_loop_opt()` accessor
+-            // (set-once `Option<*mut>` deref) instead of open-coding the raw
+-            // `(*event_loop_handle).wakeup()` here. Same `&mut Loop` is formed
+-            // either way (autoref), so no soundness change vs the prior code.
+-            if let Some(loop_) = self.vm_ref().platform_loop_opt() {
+-                loop_.wakeup();
+-            }
++        let pointer = self.virtual_machine.and_then(|vm| unsafe {
++            (*vm.as_ptr()).event_loop_handle
++        });
++        if let Some(pointer) = pointer {
++            unsafe { bun_uws::us_wakeup_loop(pointer) };
+         }
+     }
+ 
+diff --git a/src/resolver/lib.rs b/src/resolver/lib.rs
+index 9e5c9c0..df31f69 100644
+--- a/src/resolver/lib.rs
++++ b/src/resolver/lib.rs
+@@ -1236,9 +1236,14 @@ pub mod fs {
+                         // scrutinee directly so no second `&mut *cached_ptr` is materialized
+                         // while the first is on the borrow stack (Stacked Borrows hygiene).
+                         match unsafe { &mut *cached_ptr } {
+-                            EntriesOption::Entries(e) if e.generation < generation => {
++                            EntriesOption::Entries(e)
++                                if cr.status == bun_alloc::ItemStatus::Unknown
++                                    || e.generation < generation =>
++                            {
+                                 in_place = Some(std::ptr::from_mut::<DirEntry>(*e));
+                             }
++                            EntriesOption::Err(_)
++                                if cr.status == bun_alloc::ItemStatus::Unknown => {}
+                             cached => return Ok(cached),
+                         }
+                     } else if cr.status == bun_alloc::ItemStatus::NotFound && generation == 0 {
+@@ -1342,6 +1347,18 @@ pub mod fs {
+             })))
+         }
+ 
++        /// Invalidate listings at a quiescent embedded-session boundary.
++        /// Re-reading a stale listing reuses its DirEntry and same-name Entry
++        /// slots; retained indexes are storage, not valid filesystem results.
++        ///
++        /// # Safety
++        /// No previous VM, resolver, or resolver worker may still use this cache.
++        pub(crate) unsafe fn invalidate_for_embedded_session(&mut self) {
++            let _guard = self.entries_mutex.lock_guard();
++            // SAFETY: caller guarantees all previous cache readers are gone.
++            unsafe { self.entries.inner().invalidate_all(|_| {}) };
++        }
++
+         /// Evicts `file_path` from the directory-entry cache; returns whether
+         /// an entry was removed.
+         pub(crate) fn bust_entries_cache(&mut self, file_path: &[u8]) -> bool {
+diff --git a/src/resolver/resolver.rs b/src/resolver/resolver.rs
+index 1e45ac9..2ef2466 100644
+--- a/src/resolver/resolver.rs
++++ b/src/resolver/resolver.rs
+@@ -279,29 +279,18 @@ use bun_alloc as allocators;
+ // (re-exported from `bun_ast`; see `result.rs`).
+ use bun_ast::SideEffects;
+ 
+-// ── Process-lifetime arenas for DirInfo-cached parses ─────────────────────
+-// The DirInfo cache (`DirInfo::hash_map_instance()`) is a true process-lifetime
+-// singleton; entries hold `&'static PackageJSON` / `&'static TSConfigJSON` and
+-// borrow `&'static [u8]` source bytes. PORTING.md §Forbidden bars `Box::leak`/
+-// `mem::forget` for this — process-lifetime storage must go through
+-// `LazyLock`. These append-only arenas are that storage; the `Box<T>` heap
+-// address is stable across `Vec` growth, so handing out `&'static T` is sound.
+-
+-/// Intern a parsed `PackageJSON` into the process-lifetime DirInfo arena.
+-/// Returns `NonNull` (not `&'static`) so mut-provenance survives to write
+-/// sites — handing out `&T` here and casting back to `*mut T` would be UB
+-/// under Stacked Borrows.
++// ── Ownership for DirInfo-cached parses ──────────────────────────────────
++// Parsed package objects have stable heap addresses while resolver workers
++// share their DirInfo references. A normal CLI run keeps them until exit;
++// an embedding host reclaims them after all users of the old session stop.
++#[expect(clippy::vec_box)]
++static PACKAGE_JSON_ARENA: std::sync::LazyLock<bun_threading::Guarded<Vec<Box<PackageJSON>>>> =
++    std::sync::LazyLock::new(Default::default);
++
++/// Intern a parsed package without losing mutable pointer provenance.
+ fn intern_package_json(pkg: PackageJSON) -> core::ptr::NonNull<PackageJSON> {
+-    // `Box` is load-bearing: returns `NonNull<PackageJSON>` derived from the
+-    // box interior, treated as `'static`; unboxing would dangle on `Vec` realloc.
+-    #[expect(clippy::vec_box)]
+-    static ARENA: std::sync::LazyLock<bun_threading::Guarded<Vec<Box<PackageJSON>>>> =
+-        std::sync::LazyLock::new(Default::default);
+-    let mut guard = ARENA.lock();
++    let mut guard = PACKAGE_JSON_ARENA.lock();
+     guard.push(Box::new(pkg));
+-    // SAFETY: ARENA is `'static` (LazyLock); entries are never removed; the
+-    // `Box<PackageJSON>` heap address is stable across `Vec` reallocation.
+-    // Derive from `&mut **last` so the returned pointer carries mut-provenance.
+     core::ptr::NonNull::from(&mut **guard.last_mut().unwrap())
+ }
+ 
+@@ -902,6 +891,44 @@ impl<'a> Resolver<'a> {
+         self.opts.global_cache.is_enabled()
+     }
+ 
++    /// Start resolution for a new embedded VM after the old session stopped.
++    /// Both metadata/negative lookups and filesystem listings belong to a
++    /// session. Reuse their arena slots, but never reuse their old validity.
++    ///
++    /// # Safety
++    /// The host must have destroyed the previous VM and joined all of its
++    /// resolver workers before calling this, and must not start a new resolver
++    /// until it returns. Old DirInfo/Entry references may no longer be used.
++    pub unsafe fn begin_embedded_session() {
++        let _guard = RESOLVER_MUTEX.lock_guard();
++        // DirInfo owns its local tsconfig allocation; inherited config and
++        // package fields are borrows. Remove every old borrow before freeing
++        // the parse allocations, including unreachable old cache slots.
++        let mut tsconfigs = Vec::new();
++        // SAFETY: the embedding host guarantees quiescence between sessions.
++        unsafe {
++            (*DirInfo::hash_map_instance()).invalidate_all(|info| {
++                if let Some(config) = info.tsconfig_json.take() {
++                    // This is the final merged Box from dir_info_uncached.
++                    tsconfigs.push(bun_core::heap::take(config.as_ptr()));
++                }
++                *info = DirInfo::DirInfo::default();
++            });
++        }
++        for config in tsconfigs {
++            TSConfigJSON::destroy(config);
++        }
++        PACKAGE_JSON_ARENA.lock().clear();
++        if Fs::INSTANCE_LOADED.load(core::sync::atomic::Ordering::Acquire) {
++            // SAFETY: same quiescent session boundary, with resolver lock held.
++            unsafe {
++                Fs::FileSystem::instance()
++                    .fs
++                    .invalidate_for_embedded_session()
++            };
++        }
++    }
++
+     pub fn init1(
+         log: NonNull<bun_ast::Log>,
+         _fs: *mut Fs::FileSystem,
+@@ -3374,7 +3401,9 @@ impl<'a> Resolver<'a> {
+ 
+         if let Some(cached_entry) = rfs!().entries.at_index(cached_dir_entry_result.index) {
+             if let Fs::file_system::real_fs::EntriesOption::Entries(entries) = cached_entry {
+-                if entries.generation >= self.generation {
++                if cached_dir_entry_result.status != allocators::ItemStatus::Unknown
++                    && entries.generation >= self.generation
++                {
+                     dir_entries_option = cached_entry;
+                     needs_iter = false;
+                 } else {
+@@ -4148,9 +4177,7 @@ impl<'a> Resolver<'a> {
+         };
+         let Some(pkg) = pkg else { return Ok(None) };
+ 
+-        // NOTE: the DirInfo cache holds `&'static` refs. PORTING.md
+-        // §Forbidden bars `Box::leak`; intern into the process-lifetime arena
+-        // owned alongside the DirInfo singleton instead.
++        // DirInfo borrows the parse until the next quiescent session boundary.
+         Ok(Some(intern_package_json(pkg)))
+     }
+ 
+@@ -4344,14 +4371,22 @@ impl<'a> Resolver<'a> {
+                 fd: FD::INVALID,
+             });
+ 
+-            if let Some(top_entry) = rfs!().entries.get(top) {
++            // A stale listing still owns its immutable interned directory
++            // name. Reuse that storage across sessions, but not its old fd or
++            // error result, which must be checked against the filesystem.
++            let stored_entry = rfs!().entries.get_or_put(top)?;
++            if let Some(top_entry) = rfs!().entries.at_index(stored_entry.index) {
+                 match top_entry {
+                     Fs::file_system::real_fs::EntriesOption::Entries(entries) => {
+                         // SAFETY: slot was written immediately above.
+                         let slot = unsafe { queue[i].assume_init_mut() };
+                         slot.safe_path = bun_ptr::RawSlice::new(entries.dir);
+-                        slot.fd = entries.fd;
++                        if stored_entry.status != allocators::ItemStatus::Unknown {
++                            slot.fd = entries.fd;
++                        }
+                     }
++                    Fs::file_system::real_fs::EntriesOption::Err(_)
++                        if stored_entry.status == allocators::ItemStatus::Unknown => {}
+                     Fs::file_system::real_fs::EntriesOption::Err(err) => {
+                         debuglog!(
+                             "Failed to load DirEntry {}  {} - {}",
+@@ -4633,7 +4668,9 @@ impl<'a> Resolver<'a> {
+ 
+             if let Some(cached_entry) = rfs!().entries.at_index(cached_dir_entry_result.index) {
+                 if let Fs::file_system::real_fs::EntriesOption::Entries(entries) = cached_entry {
+-                    if entries.generation >= self.generation {
++                    if cached_dir_entry_result.status != allocators::ItemStatus::Unknown
++                        && entries.generation >= self.generation
++                    {
+                         dir_entries_option = cached_entry;
+                         needs_iter = false;
+                     } else {
+@@ -6627,7 +6664,9 @@ impl<'a> Resolver<'a> {
+                         // SAFETY: parent_config_ptr came from TSConfigJSON::new (heap::alloc)
+                         TSConfigJSON::destroy(unsafe { bun_core::heap::take(parent_config_ptr) });
+                     }
+-                    // `merged_config` is a leaked Box (heap::alloc) interned into DirInfo; outlives the resolver.
++                    // DirInfo owns this final merged Box. It outlives all
++                    // resolver workers and is reclaimed at the next quiescent
++                    // embedded-session boundary (a CLI keeps it until exit).
+                     info.tsconfig_json = Some(
+                         core::ptr::NonNull::new(merged_config).expect("heap::alloc is non-null"),
+                     );
+diff --git a/src/runtime/cli/mod.rs b/src/runtime/cli/mod.rs
+--- a/src/runtime/cli/mod.rs
++++ b/src/runtime/cli/mod.rs
+@@ -1093,6 +1093,25 @@
+         Tag::AutoCommand
+     }
+ 
++    /// Publish default runtime options without interpreting the host's argv.
++    /// The context and its log are process-owned: HTTP/HTML services and Worker
++    /// VMs may read them after the session that first initialized Bun retires.
++    pub(crate) fn initialize_embedded_context() {
++        static INITIALIZE: std::sync::Once = std::sync::Once::new();
++        INITIALIZE.call_once(|| {
++            assert!(
++                bun_options_types::context::global_ptr().is_null(),
++                "embedded context initialization must precede CLI publication"
++            );
++            bun_core::set_start_time(bun_core::time::nano_timestamp());
++            // SAFETY: the persistent embedded owner calls this before creating
++            // any VM/Worker. Once performs the only write to the same static
++            // log storage used by CLI startup; it is never dropped per session.
++            let log = unsafe { (*super::cli::LOG_.get()).write(bun_ast::Log::init()) };
++            write_context_no_parse(log);
++        });
++    }
++
+     /// Initialize the process-global `CONTEXT_DATA` and publish it via
+     /// `Context::set_global`. Shared by `create_context_data` and the
+     /// standalone-graph fast path in `start()`.
+diff --git a/src/runtime/jsc_hooks.rs b/src/runtime/jsc_hooks.rs
+index 248e0bf..9bd6616 100644
+--- a/src/runtime/jsc_hooks.rs
++++ b/src/runtime/jsc_hooks.rs
+@@ -664,7 +664,13 @@ unsafe fn configure_debugger(
+ /// # Safety
+ /// `state` must be the exact pointer returned by [`init_runtime_state`] for
+ /// this thread (or null), and must not be used again after this call.
+-unsafe fn deinit_runtime_state(_vm: *mut VirtualMachine, state: OpaqueRuntimeState) {
++unsafe fn deinit_runtime_state(vm: *mut VirtualMachine, state: OpaqueRuntimeState) {
++    // create_node_fs allocates this VM-owned box independently of RuntimeState.
++    // Teardown has waited for every ticket and finalized the JSC heap, so no
++    // native call or JS binding can still borrow it.
++    if let Some(node_fs) = unsafe { (*vm).node_fs.take() } {
++        drop(unsafe { bun_core::heap::take(node_fs.cast::<crate::node::fs::NodeFS>()) });
++    }
+     RUNTIME_STATE.with(|c| c.set(ptr::null_mut()));
+     // Free the per-thread `TRANSPILE_PRINTER`. Workers lazy-init their own
+     // copy in `transpile_file` / `transpile_virtual_module`; without this
+diff --git a/src/runtime/lib.rs b/src/runtime/lib.rs
+index b07914c..b2dddfe 100644
+--- a/src/runtime/lib.rs
++++ b/src/runtime/lib.rs
+@@ -27,6 +27,8 @@ pub mod socket;
+ #[path = "webcore.rs"]
+ pub mod webcore;
+ 
++pub mod embedded;
++
+ pub mod bake;
+ pub mod cli;
+ pub mod shell;
+diff --git a/src/runtime/node/node_process.rs b/src/runtime/node/node_process.rs
+index df6df1b..7026f04 100644
+--- a/src/runtime/node/node_process.rs
++++ b/src/runtime/node/node_process.rs
+@@ -68,7 +68,10 @@ pub(crate) extern "C" fn get_exec_argv(global: &JSGlobalObject) -> JSValue {
+ pub(crate) extern "C" fn exit(global_object: &JSGlobalObject, code: u8) {
+     let vm = global_object.bun_vm().as_mut();
+     vm.exit_handler.exit_code = code;
+-    if let Some(worker) = vm.worker_ref() {
++    if vm.is_embedded {
++        // Unwind live JSC frames before the owner destroys this VM.
++        vm.handle().request_termination();
++    } else if let Some(worker) = vm.worker_ref() {
+         // @190n: we may need to use requestTerminate or throwTerminationException
+         // instead to terminate the worker sooner
+         worker.exit();

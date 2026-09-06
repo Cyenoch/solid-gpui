@@ -1,39 +1,51 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/react-gpui",
-    "crates/react-gpui-host",
-    "crates/react-gpui-bun",
+    "examples/gallery/native",
+    "crates/solid-gpui",
+    "crates/solid-gpui-macros",
+    "crates/solid-gpui-bun-sys",
+    "crates/gpui-iconify",
+    "crates/gpui-performance",
 ]
+exclude = ["references/zed", "references/gpui-component"]
 
 [workspace.package]
 edition = "2024"
 license = "Apache-2.0"
 version = "0.2.0"
-description = "React GPUI renders React trees into one or more native GPUI surfaces."
-keywords = ["react", "gpui", "native-ui"]
+description = "Solid GPUI renders Solid trees into one or more native GPUI surfaces."
+keywords = ["solid", "gpui", "native-ui"]
 categories = ["gui"]
 
-repository = "https://github.com/Cyenoch/react-gpui"
+repository = "https://github.com/Cyenoch/solid-gpui"
 readme = "README.md"
 
 [workspace.dependencies]
+bebop = "3.2.3"
 futures = "0.3"
-gpui = "0.2.2"
-rmp-serde = "1.3"
+gpui = { package = "gpui-pre", version = "0.3.3" }
+gpui-platform = { package = "gpui-pre-platform", version = "0.3.3" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "928c3eb776a3d733d9b771f7dea27a6a79242ced", package = "gpui-component" }
 serde = { version = "1.0", features = ["derive"] }
-serde_bytes = "0.11.19"
-skrifa = { version = "0.44", default-features = false, features = ["std"] }
+skrifa = { version = "0.46.2", default-features = false, features = ["std"] }
 thiserror = "2.0"
 unicode-segmentation = "1.13.3"
-[patch.crates-io]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "6805d952f9f3d702f760aa11b1547df8a625fa16", package = "gpui", version = "=0.2.2" }
-# License blocker mitigation: see .scratch/license-audit/issues/01-gpl-and-unknown-host-licenses.md.
-[patch."https://github.com/zed-industries/zed"]
-ztracing = { path = "third_party/ztracing-stub" }
+serde_json = "1.0"
 
 [profile.dev]
 debug = 1
+
+# Keep native layout and scene construction optimized during iterative app development.
+[profile.dev.package.gpui-pre]
+opt-level = 3
+
+[profile.dev.package.taffy]
+opt-level = 3
+
+# Taffy's node-key conversions otherwise cross into unoptimized slotmap code.
+[profile.dev.package.slotmap]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

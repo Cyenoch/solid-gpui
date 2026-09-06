@@ -7,7 +7,7 @@
 
 Interactive host nodes need one meaning for pointer activation and keyboard
 activation. GPUI already owns focus handles, tab-stop traversal, click
-recognition, and disabled state. React receives a semantic press notification
+recognition, and disabled state. Solid receives a semantic press notification
 rather than a browser DOM event. Creating a second keyboard-only path in the
 host would make focusable Pressables behave differently from pointer-clicked
 Pressables and would make disabled handling easy to get wrong.
@@ -34,7 +34,7 @@ mechanism.
 - **Have JavaScript synthesize `onPress` from `onKeyDown`:** rejected because
   it adds transport latency, duplicates native activation policy, and makes
   every application reimplement Enter/Space and repeat filtering.
-- **Copy GPUI `ButtonLike` behavior wholesale:** rejected because React GPUI
+- **Copy GPUI `ButtonLike` behavior wholesale:** rejected because Solid GPUI
   has a smaller semantic Pressable contract and must preserve its own
   accessibility/disabled validation rather than expose unrelated GPUI widget
   internals.

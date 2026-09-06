@@ -1,7 +1,7 @@
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import * as ts from "../packages/react-gpui/node_modules/typescript/lib/typescript.js";
+import { API, SymbolFlags } from "typescript/unstable/async";
 
 export type SurfaceKind = "value" | "type" | "both";
 export interface SurfaceExport {
@@ -19,47 +19,61 @@ type PackageSpec = {
 const specs: readonly PackageSpec[] = [
   {
     name: "core",
-    dts: "packages/react-gpui/dist/index.d.ts",
-    runtime: "packages/react-gpui/dist/index.js",
+    dts: "packages/solid-gpui/dist/index.d.ts",
+    runtime: "packages/solid-gpui/dist/index.js",
     output: "fixtures/api-surface.core.txt",
   },
   {
-    name: "dev",
-    dts: "packages/react-gpui-dev/dist/index.d.ts",
-    runtime: "packages/react-gpui-dev/dist/index.js",
-    output: "fixtures/api-surface.dev.txt",
+    name: "router",
+    dts: "packages/solid-gpui-router/dist/index.d.ts",
+    runtime: "packages/solid-gpui-router/dist/index.js",
+    output: "fixtures/api-surface.router.txt",
   },
 ];
 
-function compilerOptions(): ts.CompilerOptions {
-  return {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    jsx: ts.JsxEmit.ReactJSX,
-    skipLibCheck: true,
-    noEmit: true,
-  };
-}
-
-export function declarationSurface(dtsPath: string): SurfaceExport[] {
+export async function declarationSurface(dtsPath: string): Promise<SurfaceExport[]> {
   const absolutePath = resolve(dtsPath);
-  const program = ts.createProgram([absolutePath], compilerOptions());
-  const source = program.getSourceFile(absolutePath);
-  if (source === undefined) throw new Error(`missing declaration entry: ${absolutePath}`);
-  const checker = program.getTypeChecker();
-  const moduleSymbol = checker.getSymbolAtLocation(source);
-  if (moduleSymbol === undefined) throw new Error(`declaration entry has no module symbol: ${absolutePath}`);
-  const symbols = checker.getExportsOfModule(moduleSymbol);
-  return symbols
-    .map((symbol) => {
-      const resolved = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-      const hasValue = (resolved.flags & ts.SymbolFlags.Value) !== 0;
-      const hasType = (resolved.flags & ts.SymbolFlags.Type) !== 0;
-      const kind: SurfaceKind = hasValue && hasType ? "both" : hasValue ? "value" : "type";
-      return { name: symbol.name, kind };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));
+  const configPath = join(dirname(absolutePath), ".api-surface.tsconfig.json");
+  const config = JSON.stringify({
+    compilerOptions: {
+      target: "ES2022",
+      module: "ESNext",
+      moduleResolution: "Bundler",
+      jsx: "preserve",
+      skipLibCheck: true,
+      noEmit: true,
+    },
+    files: [absolutePath],
+  });
+  const api = new API({
+    fs: {
+      fileExists: (path) => (path === configPath ? true : undefined),
+      readFile: (path) => (path === configPath ? config : undefined),
+    },
+  });
+  try {
+    const snapshot = await api.updateSnapshot({ openProjects: [configPath] });
+    const project = snapshot.getProject(configPath);
+    if (!project) throw new Error(`missing declaration project: ${absolutePath}`);
+    const source = await project.program.getSourceFile(absolutePath);
+    if (!source) throw new Error(`missing declaration entry: ${absolutePath}`);
+    const checker = project.checker;
+    const moduleSymbol = await checker.getSymbolAtLocation(source);
+    if (!moduleSymbol) throw new Error(`declaration entry has no module symbol: ${absolutePath}`);
+    const symbols = await checker.getExportsOfModule(moduleSymbol);
+    const exports = await Promise.all(
+      symbols.map(async (symbol) => {
+        const resolved = symbol.flags & SymbolFlags.Alias ? await checker.getAliasedSymbol(symbol) : symbol;
+        const hasValue = (resolved.flags & SymbolFlags.Value) !== 0;
+        const hasType = (resolved.flags & SymbolFlags.Type) !== 0;
+        const kind: SurfaceKind = hasValue && hasType ? "both" : hasValue ? "value" : "type";
+        return { name: symbol.name, kind };
+      }),
+    );
+    return exports.sort((left, right) => left.name.localeCompare(right.name));
+  } finally {
+    await api.close();
+  }
 }
 
 async function runtimeNames(path: string): Promise<string[]> {
@@ -72,7 +86,7 @@ export function renderSnapshot(exports: readonly SurfaceExport[]): string {
 }
 
 async function generate(spec: PackageSpec): Promise<void> {
-  const declarations = declarationSurface(spec.dts);
+  const declarations = await declarationSurface(spec.dts);
   const values = await runtimeNames(spec.runtime);
   const declared = new Map(declarations.map((item) => [item.name, item.kind]));
   for (const name of values) {

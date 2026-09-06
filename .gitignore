@@ -1,7 +1,9 @@
-/target/
 node_modules/
-/packages/react-gpui/dist/
-/packages/react-gpui-dev/dist/
-/dist/
+/packages/solid-gpui/dist/
 /build_script_build
-/.scratch/
+dist/
+/examples/gallery-vite/dist/
+target/
+*.frame
+*.frames
+.scratch/protocol-benchmark

@@ -1,0 +1,153 @@
+$ bun scripts/tasks.ts package-test
+
+$ bun install --frozen-lockfile
+bun install v1.4.2 (744846f84)
+
+Checked 120 installs across 160 packages (no changes) [10.00ms]
+
+$ bun scripts/native-codegen.ts
+Generated native bindings from their hosts
+
+$ bun build ./src/index.ts ./src/runtime.ts ./src/native.ts ./src/components.ts --root ./src --outdir ./dist --target bun --format esm --splitting --conditions=browser --external @solid-gpui/core/native --external bebop --external solid-js --external "solid-js/*"
+Bundled 31 modules in 13ms
+
+  index.js           13.47 KB  (entry point)
+  index-148eardh.js  0.53 MB   (chunk)
+  runtime.js         1.15 KB   (entry point)
+  native.js          10.35 KB  (entry point)
+  components.js      4.37 KB   (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun build ./src/index.ts --root ./src --outdir ./dist --target bun --format esm --external @solid-gpui/core --external "@solid-gpui/core/*" --external @tanstack/router-core --external @tanstack/history --external solid-js --external "solid-js/*"
+Bundled 1 module in 4ms
+
+  index.js  13.78 KB  (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun run test
+
+$ bun test --conditions=browser --preload /Users/jgbingzi/workspace/sp/solid-gpui/scripts/solid-jsx.ts
+
+$ bun --conditions=browser test
+
+$ bun test scripts/gallery-entry.test.ts scripts/api-surface.test.ts scripts/hot-reload.test.ts scripts/native-export.test.ts
+bun test v1.4.2 (744846f84)
+bun test v1.4.2 (744846f84)
+bun test v1.4.2 (744846f84)
+$ bun test --conditions=browser --preload ../../scripts/solid-jsx.ts
+
+tests/protocol.test.ts:
+
+tests/router.test.ts:
+bun test v1.4.2 (744846f84)
+
+tests/gallery.test.ts:
+(pass) native router > keeps history and location independent per window [6.74ms]
+(pass) native router > installs native-safe defaults [0.14ms]
+(pass) native router > publishes route matches through Solid stores [1.08ms]
+(pass) native router > shares explicit app state while keeping each window context distinct [0.97ms]
+(pass) native router > preserves the mounted layout and its state across sibling navigation [6.69ms]
+(pass) native router > renders and navigates two native roots without DOM hosts [2.27ms]
+
+ 6 pass
+ 0 fail
+ 33 expect() calls
+Ran 6 tests across 1 file. [41.00ms]
+
+scripts/native-export.test.ts:
+(pass) InvokeNative preserves opaque arguments and accepts the byte budget boundary [4.03ms]
+(pass) native bytes reject missing, oversized, and non-invocation wire results [2.59ms]
+(pass) Bebop v5 encodes semantic commands and classifies the generated envelope [0.26ms]
+(pass) all Event payload forms round-trip through the semantic seam [1.87ms]
+(pass) Extension values, properties, and events round-trip through Bebop v5 [1.13ms]
+(pass) Extension fields and event IDs must be sorted, unique, and bounded [0.31ms]
+(pass) Bebop frames remain fragmented/coalesced at the existing transport seam [0.82ms]
+(pass) schema guard rejects an unknown field before generated decoding [0.12ms]
+(pass) schema guard rejects strict bool/enum/UTF-8 and repeated-count violations [0.31ms]
+(pass) schema guard rejects overlong, surrogate, out-of-range, and truncated UTF-8 [0.11ms]
+(pass) FrameDecoder returns borrowed views for complete input chunks [0.07ms]
+(pass) Bebop preserves border width and defaults transition delay [0.55ms]
+(pass) Bebop encodes an omitted patch style as an explicit clear [0.36ms]
+(pass) Bebop patch booleans are present only for their mask bits [0.06ms]
+(pass) Bebop rejects malformed present command values [0.08ms]
+(pass) Bebop validates command kind and payload together [0.05ms]
+(pass) Bebop rejects values that overflow float32 [0.04ms]
+(pass) protocol classification keeps command result metadata [0.13ms]
+(pass) Bebop command numbers retain the full u32 range [0.17ms]
+(pass) FrameDecoder retains at most one bounded partial frame buffer [0.05ms]
+
+tests/native.test.ts:
+(pass) native JSON rejects lossy values, deep data, cycles and unsafe responses [1.40ms]
+(pass) native components preserve getters and callback generations while subscribing only live handlers [4.18ms]
+(pass) native refs submit after the complete prop transaction and revoke pending calls on cleanup [1.50ms]
+(pass) controlled native echo commits its value and internal acknowledgement together and ignores stale edits [1.22ms]
+(pass) controlled values keep their internal subscription without a handler and unsubscribe in uncontrolled mode [1.01ms]
+(pass) native clients bind their setup root across async work and reject after root retirement [1.12ms]
+(pass) native component contract rejects unknown props and forbidden children before publishing [0.52ms]
+
+tests/application.test.ts:
+solid-gpui: hot reload applied (epoch 1)
+solid-gpui: hot reload applied (epoch 2)
+solid-gpui: hot reload applied (epoch 3)
+solid-gpui: hot reload applied (epoch 4)
+solid-gpui: hot reload applied (epoch 5)
+(pass) application reload stages candidates, preserves explicit state, isolates epochs and releases owners [2.03ms]
+
+tests/renderer.test.ts:
+(pass) invokeNative returns opaque bytes through the surface command lifecycle [0.58ms]
+(pass) invokeNative rejects missing, confused, and out-of-bounds JavaScript arguments without sending [0.26ms]
+(pass) CommandClient rejects mismatched identities and inappropriate byte results [0.27ms]
+(pass) Icon projects its allowlisted host properties [0.30ms]
+(pass) a Solid signal produces an incremental native patch [0.38ms]
+(pass) created siblings are emitted in native child-index order [0.28ms]
+(pass) a root transaction does not suppress updates in another root [0.62ms]
+(pass) conditional nodes stay bound to their Solid owner root [0.31ms]
+(pass) VirtualList mounts after empty data and can remount [0.91ms]
+(pass) VirtualList scrolling retains overlapping rows and disposes rows that leave [2.71ms]
+(pass) VirtualList filtering after scrolling keeps its committed range valid [2.21ms]
+(pass) render errors publish no invalid frame and native surface close disposes the owner [0.50ms]
+(pass) SurfaceHost delivers the decoded semantic event directly to its root [0.49ms]
+(pass) previous-revision listener events invoke the callback that produced that revision [0.43ms]
+(pass) failed host updates roll the private graph back before a later commit [0.45ms]
+(pass) Extension getter props emit host property patches and failed encoding rolls back [1.08ms]
+(pass) Extension events honor subscribed IDs and current/previous listener revisions [0.71ms]
+(pass) accessibility props can be removed from an existing host node [0.44ms]
+(pass) focusable View commands do not require an event listener [0.24ms]
+(pass) host prop runtime validation covers Pressable, TextInput, and accessibility scalars [0.60ms]
+(pass) prop updates finalize atomically across cross-field accessibility validation [0.93ms]
+(pass) a single incoming chunk batches semantic events into one Solid transaction [0.54ms]
+(pass) createRoot tolerates synchronous transport termination registration [0.13ms]
+(pass) SurfaceHost releases a root even when unmount cleanup throws [0.28ms]
+(pass) transport disposal rejects pending commands and notifies termination once [0.44ms]
+(pass) HostTree is the only host-config owner and RootContainer hides tree bookkeeping [0.07ms]
+
+ 54 pass
+ 0 fail
+ 299 expect() calls
+Ran 54 tests across 4 files. [168.00ms]
+(pass) Solid GPUI Gallery Showcase > uses available icons in gallery navigation [0.06ms]
+(pass) Solid GPUI Gallery Showcase > routes every gallery page through the native router [95.64ms]
+
+ 2 pass
+ 0 fail
+ 51 expect() calls
+Ran 2 tests across 1 file. [405.00ms]
+(pass) Vite exports an actual Rust host before resolving #native, preserves stable outputs and rejects stale/failed generation [2981.12ms]
+
+scripts/hot-reload.test.ts:
+(pass) Vite on Bun replaces TSX dependencies, recovers errors, preserves state and binary stdio [941.49ms]
+
+scripts/gallery-entry.test.ts:
+(pass) gallery renderer writes a bounded binary frame before any text [368.38ms]
+
+scripts/api-surface.test.ts:
+(pass) native compiler resolves re-exports and merged type/value declarations [43.48ms]
+
+ 4 pass
+ 0 fail
+ 19 expect() calls
+Ran 4 tests across 4 files. [4.53s]

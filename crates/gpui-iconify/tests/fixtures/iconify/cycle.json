@@ -1,0 +1,10 @@
+{
+  "prefix": "loop",
+  "icons": {
+    "ok": { "body": "<path fill=\"currentColor\" d=\"M0 0h1v1H0z\"/>" }
+  },
+  "aliases": {
+    "loop-a": { "parent": "loop-b" },
+    "loop-b": { "parent": "loop-a" }
+  }
+}

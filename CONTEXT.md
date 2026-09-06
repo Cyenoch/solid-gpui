@@ -1,126 +1,84 @@
-# React GPUI
+# Solid GPUI
 
-React GPUI is a bridge between React-owned behavior and GPUI-owned native rendering. This context defines the vocabulary for the shared surface, tree, commit, event, and runtime boundaries.
+Solid GPUI is the boundary between SolidJS-owned application behavior and GPUI-owned native rendering.
 
 ## Language
 
-**Surface**:
-A native rendering area identified by a surface identity and generation, with one host tree presented to GPUI. See `packages/react-gpui/src/surface-host.ts` and `docs/protocol.md` §2.
-_Avoid_: Window, canvas, DOM root
+**Surface**: A native rendering area identified by a surface ID and protocol epoch, with one validated host tree. A retired surface ID cannot be reused.
 
-**Surface Retirement**:
-A closed or explicitly unmounted surface ID is permanently unavailable; changing its epoch cannot revive or reuse it. See `packages/react-gpui/src/surface-host.ts` and `.scratch/surface-lifecycle/spec.md`.
-_Avoid_: epoch reuse, reopen
+**Solid Owner Tree**: The reactive computation graph that owns component state and effects. It is not sent to Rust and is not a native tree.
 
-**Host Node**:
-A React-rendered node in the native host tree, identified independently from React Fiber and carrying a host kind, parent relationship, and optional native-facing data. See `crates/react-gpui/src/tree.rs` and `docs/protocol.md` §2.
-_Avoid_: DOM element, widget object, Fiber
+**Host Node**: A renderer-created `View`, `Text`, `Pressable`, `TextInput`, `VirtualList`, `Image`, `Icon`, provider-neutral `Extension`, or raw-text node with stable protocol identity. See `packages/solid-gpui/src/renderer/types.ts` and `crates/solid-gpui/src/tree.rs`.
 
-**Rich Text**:
-A Text paragraph composed of raw strings and one level of nested Text runs, with shared paragraph presentation and content that may span run boundaries. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
-_Avoid_: separate inline elements, nested paragraphs
+**Native Module**: An application-owned collection of native components and commands whose declared contract is shared by its host and JavaScript callers.
 
-**Text Run**:
-A direct nested Text fragment within Rich Text that contributes a contiguous part of the paragraph and may carry run-level presentation or press behavior. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
-_Avoid_: inline element, nested paragraph
+**Native Component Instance**: The native state owned by one mounted Host Node. Its identity survives property updates and ends when that node is removed, replaced, or its surface epoch changes.
 
-**Clickable Range**:
-A contiguous UTF-8 byte interval in flattened Rich Text associated with a listener-bearing Text Run and eligible for pointer activation and range cursor feedback. The parent InteractiveText hitbox maps pointer positions to this interval. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
-_Avoid_: glyph hitbox, DOM range
+**Native Contract**: The agreed component properties, event payloads, and callable methods used by JavaScript and its registered native module.
 
-**Focus Affordance**:
-A visible cue that identifies the currently focused interactive Text Run across its wrapped-line segments. See [ADR-0013](docs/adr/0013-interactive-text-runs.md).
-_Avoid_: selection highlight, hover decoration
+**Extension Catalog Identity**: The exact provider-neutral identity tuple `(provider ID, catalog digest, entry ID, entry version)` that names an Extension contract. An identity is valid only when the host can resolve its registered adapter.
 
-**Commit Batch**:
-An atomic versioned exchange produced once per completed React commit; protocol v3 uses a Snapshot for bootstrap and a Patch for later commits, including tagged TextInput and VirtualList host properties, accessibility data, and native animation style metadata. See `docs/protocol.md` §2.
-_Avoid_: Full snapshot, mutation stream, per-field update
+**Extension Adapter Registry**: The host-owned catalog of adapters selected by exact Extension Catalog Identity. It gives the host provider-specific validation and rendering behavior without putting provider implementation details on the wire.
 
-**Wire Tail Slots**:
-A current optional positional suffix, with placeholders where needed for
-unambiguous decoding; historical arities are not part of the current contract.
-See `crates/react-gpui/src/protocol/wire/node.rs`,
-`crates/react-gpui/src/protocol/wire/snapshot_patch.rs`, and [ADR-0011](docs/adr/0011-single-form-wire-optional-tails.md).
-_Avoid_: legacy decode, dual-form protocol, compatibility tail
+**NoExtensions**: The default empty Extension Adapter Registry. It rejects an Extension whose catalog identity has no adapter before the candidate tree is published.
 
-**Native Event**:
-A semantic notification from the native surface to JavaScript, grouped by interaction input, surface lifecycle, list or animation progress, and command acknowledgement. It carries ordered protocol data for a mounted Host Node or native driver rather than representing a browser event lifecycle. See `docs/protocol.md` §3.
-_Avoid_: Browser event, DOM event, cancellable event
+**Commit Batch**: One atomic exchange produced after a completed Solid host update. Protocol v5 encodes the first update for a surface epoch as a complete Snapshot and later updates as a Patch. Host mutations are never exposed as partial wire state.
 
-**Pointer Coordinates**:
-Required finite non-negative logical window pixels on pointer down/up events, clamped to the native viewport before crossing the wire. See `crates/react-gpui/src/renderer/events.rs` and `docs/protocol.md` §3.
-_Avoid_: device pixels, optional click position, hover position
+**Native Event**: A semantic notification from a native surface to the matching Solid root. It is ordered by surface, epoch, revision, and event sequence; it is not a browser event.
 
-**Pointer-Move Capability**:
-An opt-in View or Pressable listener capability that registers the native move stream only while `onPointerMove` exists and emits the tagged pointer-move payload. See `packages/react-gpui/src/renderer/nodes.ts`, `crates/react-gpui/src/renderer/paint/mod.rs`, and [ADR-0010](docs/adr/0010-opt-in-high-frequency-event-streams.md).
-_Avoid_: always-on mouse stream, hover edge event
+**Runtime Adapter**: The byte-only boundary carrying Commit Batches, Native Events, and Surface Commands. ProcessAdapter uses framed Bebop v5 stdio; EmbeddedBunAdapter owns one Bun/JSC VM on a dedicated thread.
 
-**Drag Capability Bits**:
-Independent `acceptsDragOver` and `acceptsDrop` host properties that select target notifications; the draggable source and optional exported files remain separate capabilities. See `packages/react-gpui/src/renderer/props.ts` and `crates/react-gpui/src/renderer/paint/drag.rs`.
-_Avoid_: drag source implies drop target, native can-drop round trip
+**Surface Command**: A bounded asynchronous request from the JavaScript root or a mounted Host Node to native window, focus, clipboard, file, font, menu, notification, or list behavior.
 
-**Overlay Outside-Dismissal Capture**:
-Capture-phase mouse-down detection that emits an outside event only when the point is outside both an overlay and its direct anchor subtree. See `crates/react-gpui/src/renderer/paint/overlay.rs` and `docs/protocol.md` §3.
-_Avoid_: bubble-phase dismissal, invisible scrim, native popup menu
+**Host-Owned Input Model**: Native text, selection, marked text, caret geometry, scrolling, and undo history. SolidJS owns controlled values and callbacks; transient editing state stays native.
 
-**Runtime Adapter**:
-The boundary that carries Commit Batches and Native Events between the
-JavaScript renderer and the native host, independent of how the JavaScript
-runtime is hosted. See `crates/react-gpui/src/transport.rs` and
-`docs/adr/0002-embedded-bun-runtime.md`.
-_Avoid_: Snapshot-only transport, FFI callback, renderer backend, widget bridge
+**Transactional Snapshot**: The host-facing description that is published only after validation succeeds. This follows the same useful ownership principle as GPUI Shell's script snapshot/materialization seam while retaining this project's cross-process protocol.
 
-**JSC Single-VM Isolation**:
-One embedded JavaScriptCore VM is owned by one runtime thread; only bounded
-immutable protocol bytes cross its callback bridge, never GPUI handles,
-JavaScript values, or closures. See `crates/react-gpui-bun/src/lib.rs`,
-`crates/react-gpui-bun/bun_embed.patch`, and [ADR-0002](docs/adr/0002-embedded-bun-runtime.md).
-_Avoid_: shared VM, cross-thread JSC value, GPUI handle in JavaScript
+**Golden Vector**: A checked fixture proving producer bytes and cross-language semantic equivalence for the canonical v5 schema.
 
-**Surface Command**:
-A request from JavaScript to the native surface, addressed either to the root surface for window, focus, clipboard, file, or font operations or to a Host Node, with an optional typed value returned through CommandResult. See `packages/react-gpui/src/renderer/root-container.ts` and `docs/protocol.md` §4.
-_Avoid_: Native Event, RPC method, GPUI callback
+**Canonical Wire Schema**: `packages/solid-gpui/src/protocol/protocol.bop`, the single source for the Bebop v5 Envelope, body tags, command/event kinds, node fields, host properties, styles, menus, and typed command values. Checked TypeScript/Rust bindings and schema metadata are generated from it.
+**Schema Digest Lock**: `packages/solid-gpui/src/protocol/schema-lock.json` pins
+protocol version `5` and the SHA-256 digest of `protocol.bop`; generated
+bindings are checked against that canonical schema.
 
-**Runtime Resource Commands**:
-Root-only bounded asynchronous file, clipboard, and font operations whose I/O and registration are owned by the host rather than the renderer runtime. See `packages/react-gpui/src/renderer/root-container.ts`, `crates/react-gpui/src/renderer/commands.rs`, and `docs/protocol.md` §4.
-_Avoid_: unbounded filesystem bridge, renderer-owned native resource, synchronous I/O
+**Semantic Protocol DTOs**: Rust owns typed `CommandMeta`/`CommandOperation`,
+`EventMeta`/`EventPayload`, `Event::event_kind()`, and closed style enums.
+Generated Bebop records remain behind the protocol adapter seam.
 
-**Close Policy**:
-Per-Surface host-held `allow` or `require-confirmation` state consulted by the native close callback before window retirement. See `crates/react-gpui-host/src/main.rs` and [ADR-0009](docs/adr/0009-async-close-confirmation.md).
-_Avoid_: synchronous JavaScript cancellation, global close policy
+**Host Native State**: `NativeStateRegistry` owns native surfaces, windows,
+focus, input, and host-side retained state. `CommitPump` is the bounded
+foreground handoff from runtime commits to that registry.
 
-**Close Request/Resolve**:
-The one-in-flight root Native Event and root Surface Command pair used when a Close Policy requires JavaScript confirmation across the runtime boundary. See `packages/react-gpui/src/renderer/root-container.ts`, `crates/react-gpui-host/src/main.rs`, and `docs/protocol.md` §§3–4.
-_Avoid_: blocking native callback, duplicate close event, `preventDefault()`
+**Surface Router**: The TypeScript `SurfaceRouter` is the sole frame decode and
+surface-event routing seam. It groups one incoming byte chunk into one ordered
+semantic event batch per surface.
 
-**Tab-stop Graph**:
-The native ordered set and traversal relationships of focusable interactive nodes, including the host's disabled semantics; `Root.focusNext()` and `Root.focusPrev()` traverse this graph. See `crates/react-gpui/src/renderer/input.rs` and `crates/react-gpui/src/renderer/paint/mod.rs`.
-_Avoid_: DOM focus tree, browser tab order, focus callback
+**Host Tree**: The private TypeScript `HostTree` owns the renderer `NodeGraph`,
+transaction journal, dirty-property finalization, and Snapshot/Patch production.
+`CommandClient` owns request IDs, pending command results, and rejection on
+surface termination. `HostKind` facts own allowed properties, child rules,
+projector categories, and runtime value capabilities.
 
-**Tab-stop Capability**:
-The explicit `FocusHandle.tab_stop(true)` capability required for an eligible focus handle to participate in the Tab-stop Graph; `.focusable()` alone is not traversal registration. See `crates/react-gpui/src/renderer/input.rs` and [ADR-0005](docs/adr/0005-keyboard-activation-reuses-press-semantics.md).
-_Avoid_: focusable prop as traversal guarantee, `isFocused` polling
+**Listener Identity**: A listener ID is resolved with the event revision to a
+bounded current or previous callback generation. A prior-frame event may use
+the previous generation, but never the callback currently produced by a later
+revision; detached focus retains the previous identity until release.
 
-**Host-Owned Input Model**:
-A bounded native model for text, UTF-16 selection, marked text, visual selection, and edit transitions used where pinned GPUI has no matching React primitive. See `crates/react-gpui/src/renderer/input.rs`, `crates/react-gpui/src/renderer/paint/text_input.rs`, and [ADR-0012](docs/adr/0012-host-owned-input-models.md).
-_Avoid_: JavaScript shadow editor, fake upstream primitive, wire-owned caret state
+**Bounded Wire Guard**: A schema-derived structural pass that enforces frame/message/repeated-field budgets, strict booleans and enums, UTF-8 validity, field order, known unions, terminators, and consumed lengths before generated decoding can allocate.
 
-**Host-Owned Undo History**:
-The private per-TextInput bounded undo/redo stacks in `NativeInputState`, with typing coalescing and composition boundaries, emitting the normal change/selection contract. See `crates/react-gpui/src/renderer/input.rs`, `crates/react-gpui/src/renderer/paint/text_input.rs`, and [ADR-0012](docs/adr/0012-host-owned-input-models.md).
-_Avoid_: app-global undo, JavaScript-only history, unbounded snapshots
+**Reusable Event Writer**: The process adapter's owned Event queue and writer thread. It reserves a bounded exact frame size, reuses one output buffer, and serializes directly after queueing; it does not retain a second wire protocol.
 
-**Caret Follow/Scroll Offset**:
-A host-computed bounded per-input viewport offset that keeps the caret or IME marked range visible and shifts text, selection, and caret together without wire state. See `crates/react-gpui/src/renderer/input.rs`, `crates/react-gpui/src/renderer/paint/text_input.rs`, and `.scratch/caret-follow/reproduction.md`.
-_Avoid_: JavaScript scroll state, absolute caret painting, new viewport wire field
+**Tap**: An opt-in metadata-only observation channel for framed traffic. Payload contents are never recorded.
 
-**Font Registration Timing Invariant**:
-Runtime font registration must precede the family's first layout/use because GPUI caches successful and failed family resolution; late registration does not invalidate that cache. See `crates/react-gpui/src/renderer/commands.rs`, `.scratch/font-loading/spec.md`, and `docs/protocol.md` §4.
-_Avoid_: late fallback invalidation, WOFF promise, implicit preload
+## Invariants
 
-**Golden Vector**:
-A checked protocol fixture row or collection that asserts producer byte stability, cross-language semantic equivalence, and permitted numeric representations. See `fixtures/protocol/`, `scripts/protocol-golden.ts`, and [ADR-0003](docs/adr/0003-cross-language-golden-vector-contract.md).
-_Avoid_: Screenshot, example payload, visual snapshot
-
-**Tap**:
-An opt-in metadata-only observation channel for framed protocol traffic, recording timing, direction, peer, kind, and size without recording payload contents. See `packages/react-gpui/src/protocol-tap.ts` and `crates/react-gpui/src/protocol_tap.rs`.
-_Avoid_: Transport, payload logger, application event stream
+- Solid components never receive GPUI handles.
+- Rust never receives Solid owners, signals, closures, or JavaScript values.
+- Only bounded immutable bytes cross a runtime thread or process boundary.
+- Host property mutations finalize once per transaction from the coherent
+  private prop set; failed validation leaves the last published tree intact.
+- Native events dispatch only to the callback generation owned by their surface,
+  epoch, listener identity, and revision; current/previous retention preserves
+  valid in-flight and detached-focus events without invoking newer callbacks.
+- Surface event batches preserve input order and run in one Solid transaction.
+- GPUI owns layout, painting, focus, native input, and system integration.

@@ -6,7 +6,7 @@
 ## Context
 
 GPUI asks whether a native window may close through a synchronous
-`Window::on_window_should_close` callback. React confirmation, however, runs
+`Window::on_window_should_close` callback. Solid application confirmation, however, runs
 through a `RuntimeAdapter`: the host must emit a Native Event, wait for a
 renderer callback or Promise, and receive a later Surface Command. A process
 transport cannot block that native callback waiting for JavaScript, and the
@@ -15,11 +15,11 @@ same constraint is useful to preserve for the embedded adapter.
 The close path also has per-Surface lifecycle state. The host must distinguish a
 second native close attempt while a decision is pending from a new request, and
 an eventual allowed close must not re-enter the callback that just vetoed it.
-The relevant seams are `crates/react-gpui-host/src/main.rs`,
-`crates/react-gpui/src/protocol.rs`,
-`crates/react-gpui/src/protocol/wire/event.rs`,
-`crates/react-gpui/src/protocol/wire/command.rs`, and
-`packages/react-gpui/src/renderer/root-container.ts`.
+The relevant seams are `crates/solid-gpui/src/host/mod.rs`,
+`crates/solid-gpui/src/protocol.rs`,
+`crates/solid-gpui/src/protocol/wire/event.rs`,
+`crates/solid-gpui/src/protocol/wire/command.rs`, and
+`packages/solid-gpui/src/renderer/root-container.ts`.
 
 ## Decision
 
@@ -61,14 +61,14 @@ The relevant seams are `crates/react-gpui-host/src/main.rs`,
 
 ## Consequences
 
-- Close confirmation is intentionally asynchronous; React GPUI does not claim
+- Close confirmation is intentionally asynchronous; Solid GPUI does not claim
   a synchronous `preventDefault()` API for native close.
 - The host owns the short-lived policy and request state, while JavaScript owns
   the confirmation UI and decision. The wire gains one event and one command,
   but no blocking or callback transport is required.
 - Consumers must handle a request at most once and treat a closed or retired
   Surface as terminal. The lifecycle and public error behavior remain governed
-  by `packages/react-gpui/src/surface-host.ts` and the existing Surface
+  by `packages/solid-gpui/src/surface-host.ts` and the existing Surface
   retirement contract.
 - Any future confirmation of application-level quit or layer-shell teardown
   needs a separate native callback boundary and a new decision; it is not an

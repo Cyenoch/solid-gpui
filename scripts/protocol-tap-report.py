@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize one or more REACT_GPUI_TAP JSONL files."""
+"""Summarize one or more SOLID_GPUI_TAP JSONL files."""
 
 from __future__ import annotations
 

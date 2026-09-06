@@ -1,0 +1,14 @@
+[package]
+name = "gallery-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }
+
+[dev-dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component", "test-support"] }
+gpui = { workspace = true, features = ["test-support"] }
+gpui-component.workspace = true

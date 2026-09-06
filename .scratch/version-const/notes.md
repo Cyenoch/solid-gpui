@@ -1,1 +1,0 @@
-- `react-reconciler` requires `rendererVersion` in HostConfig and forwards it as the React DevTools renderer version; it is package metadata, so release-prep now synchronizes the host-config value with Cargo/package versions.

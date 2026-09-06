@@ -1,0 +1,14 @@
+{
+  "prefix": "bi",
+  "icons": {
+    "arrow-left": {
+      "body": "<g fill=\"currentColor\"><path d=\"M5 8h10\"/></g>",
+      "width": 16,
+      "height": 16
+    }
+  },
+  "aliases": {
+    "arrow-right": { "parent": "arrow-left", "hFlip": true },
+    "arrow-left-again": { "parent": "arrow-right", "hFlip": true }
+  }
+}

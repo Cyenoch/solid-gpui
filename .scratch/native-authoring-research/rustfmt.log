@@ -1,0 +1,1597 @@
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/bin/solid-gpui-host.rs:1:
+ fn main() {
+-    #[cfg(feature="gpui-component")]
++    #[cfg(feature = "gpui-component")]
+     solid_gpui::components::host::run();
+-    #[cfg(not(feature="gpui-component"))]
++    #[cfg(not(feature = "gpui-component"))]
+     solid_gpui::host::run_default();
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host.rs:1:
++use crate::host::{HostCapabilities, HostProfile};
++use crate::native::{ModuleDefinition, NativeModules};
+ use gpui::{
+     AnyWindowHandle, App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled,
+     Window, WindowOptions, div,
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host.rs:4:
+ };
+ use gpui_component::Root;
+ use solid_gpui::{ExtensionRegistry, RuntimeAdapter, SolidRoot};
+-use crate::native::{ModuleDefinition,NativeModules};
+-use crate::host::{HostCapabilities, HostProfile};
+ use std::cell::RefCell;
+ use std::rc::Rc;
+ use std::sync::Arc;
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host.rs:43:
+ 
+ /// Host profile that renders Solid GPUI through gpui-component's root and overlays.
+ #[derive(Clone)]
+-pub struct ComponentHost { modules: Rc<NativeModules> }
++pub struct ComponentHost {
++    modules: Rc<NativeModules>,
++}
+ impl ComponentHost {
+-    pub fn new(modules: Vec<ModuleDefinition>) -> Self { Self { modules: Rc::new(NativeModules::new(modules)) } }
++    pub fn new(modules: Vec<ModuleDefinition>) -> Self {
++        Self {
++            modules: Rc::new(NativeModules::new(modules)),
++        }
++    }
+ }
+-impl Default for ComponentHost { fn default() -> Self { Self::new(vec![super::native_module()]) } }
++impl Default for ComponentHost {
++    fn default() -> Self {
++        Self::new(vec![super::native_module()])
++    }
++}
+ 
+ impl HostProfile for ComponentHost {
+-    fn native_bindings(&self)->Result<String,String> { self.modules.typescript() }
++    fn native_bindings(&self) -> Result<String, String> {
++        self.modules.typescript()
++    }
+     fn capabilities(&self) -> HostCapabilities {
+         HostCapabilities {
+             // gpui-component owns the global system notification callback. The
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host.rs:60:
+         }
+     }
+ 
+-    fn extension_registry(&self) -> Rc<dyn ExtensionRegistry> { self.modules.clone() }
++    fn extension_registry(&self) -> Rc<dyn ExtensionRegistry> {
++        self.modules.clone()
++    }
+ 
+     fn initialize(&mut self, cx: &mut App) {
+         gpui_component::init(cx);
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host.rs:123:
+ }
+ 
+ #[cfg(test)]
+-#[path="host_tests.rs"]
+-mod tests;
+-#[cfg(test)]
+-#[path="native_call_tests.rs"]
++#[path = "native_call_tests.rs"]
+ mod native_call_tests;
++#[cfg(test)]
++#[path = "host_tests.rs"]
++mod tests;
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/host_tests.rs:1:
+ use super::*;
+-    use gpui::{Bounds, KeyBinding, TestAppContext, WindowBounds, px, size};
+-    use solid_gpui::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
+-    use solid_gpui::{HostProperties, InMemoryAdapter, Node, Snapshot};
+-    use std::sync::Arc;
++use gpui::{Bounds, KeyBinding, TestAppContext, WindowBounds, px, size};
++use solid_gpui::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
++use solid_gpui::{HostProperties, InMemoryAdapter, Node, Snapshot};
++use std::sync::Arc;
+ 
+-    fn provider_button_snapshot() -> Snapshot {
+-        Snapshot::new(
+-            1,
+-            1,
+-            0,
+-            1,
+-            vec![
+-                Node::new(1, 0, 0, solid_gpui::KIND_VIEW),
+-                {
+-                    let mut button = Node::new(2, 1, 0, solid_gpui::KIND_EXTENSION);
+-                    button.host_properties = Some(HostProperties::Extension(ExtensionProperties {
+-                        provider_id: super::super::native_module().id(),
+-                        catalog_digest: super::super::native_module().digest(),
+-                        entry_id: 1,
+-                        entry_version: 1,
+-                        fields: vec![ExtensionField {
+-                            id: 1,
+-                            value: ExtensionValue::Bytes(br#"{"label":"Provider button"}"#.to_vec()),
+-                        }],
+-                        event_ids: Arc::from([]),
+-                    }));
+-                    button
+-                },
+-                Node::new(3, 2, 0, solid_gpui::KIND_TEXT),
+-                {
+-                    let mut text = Node::new(4, 3, 0, solid_gpui::KIND_RAW_TEXT);
+-                    text.text = Some("Child".to_owned());
+-                    text
+-                },
+-            ],
+-        )
+-    }
++fn provider_button_snapshot() -> Snapshot {
++    Snapshot::new(
++        1,
++        1,
++        0,
++        1,
++        vec![
++            Node::new(1, 0, 0, solid_gpui::KIND_VIEW),
++            {
++                let mut button = Node::new(2, 1, 0, solid_gpui::KIND_EXTENSION);
++                button.host_properties = Some(HostProperties::Extension(ExtensionProperties {
++                    provider_id: super::super::native_module().id(),
++                    catalog_digest: super::super::native_module().digest(),
++                    entry_id: 1,
++                    entry_version: 1,
++                    fields: vec![ExtensionField {
++                        id: 1,
++                        value: ExtensionValue::Bytes(br#"{"label":"Provider button"}"#.to_vec()),
++                    }],
++                    event_ids: Arc::from([]),
++                }));
++                button
++            },
++            Node::new(3, 2, 0, solid_gpui::KIND_TEXT),
++            {
++                let mut text = Node::new(4, 3, 0, solid_gpui::KIND_RAW_TEXT);
++                text.text = Some("Child".to_owned());
++                text
++            },
++        ],
++    )
++}
+ 
+-    #[gpui::test]
+-    fn profile_wraps_solid_root_with_provider_root_and_renders_extension(cx: &mut TestAppContext) {
+-        let mut profile = ComponentHost::default();
+-        let runtime = InMemoryAdapter::new();
+-        let extensions = profile.extension_registry();
+-        let (window, solid_root) = cx.update(|app| {
+-            profile.initialize(app);
+-            let options = WindowOptions {
+-                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+-                    None,
+-                    size(px(480.0), px(320.0)),
+-                    app,
+-                ))),
+-                ..Default::default()
+-            };
+-            profile
+-                .open_window(options, runtime.clone(), extensions, app)
+-                .expect("provider window opens")
+-        });
++#[gpui::test]
++fn profile_wraps_solid_root_with_provider_root_and_renders_extension(cx: &mut TestAppContext) {
++    let mut profile = ComponentHost::default();
++    let runtime = InMemoryAdapter::new();
++    let extensions = profile.extension_registry();
++    let (window, solid_root) = cx.update(|app| {
++        profile.initialize(app);
++        let options = WindowOptions {
++            window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
++                None,
++                size(px(480.0), px(320.0)),
++                app,
++            ))),
++            ..Default::default()
++        };
++        profile
++            .open_window(options, runtime.clone(), extensions, app)
++            .expect("provider window opens")
++    });
+ 
+-        assert!(window.downcast::<Root>().is_some());
+-        window.update(cx,|_,window,cx|solid_root.update(cx,|root,cx|{
+-            root.apply_decoded_message_in_window(crate::protocol::decode_message(&provider_button_snapshot().encode().unwrap()).unwrap(),window,cx).unwrap();
+-        })).unwrap();
+-        window
+-            .update(cx, |_, window, cx| window.draw(cx).clear(cx))
+-            .expect("provider Root draws SolidRoot content");
+-        cx.refresh().expect("provider refresh succeeds");
+-        window
+-            .update(cx, |_, window, cx| window.draw(cx).clear(cx))
+-            .expect("provider Root redraws after refresh");
+-        solid_root.read_with(cx, |root, _| {
+-            assert_eq!(root.store().surface_id(), 1);
+-            assert_eq!(root.store().revision(), 1);
+-            assert!(root.store().get(2).is_some());
+-        });
+-    }
++    assert!(window.downcast::<Root>().is_some());
++    window
++        .update(cx, |_, window, cx| {
++            solid_root.update(cx, |root, cx| {
++                root.apply_decoded_message_in_window(
++                    crate::protocol::decode_message(&provider_button_snapshot().encode().unwrap())
++                        .unwrap(),
++                    window,
++                    cx,
++                )
++                .unwrap();
++            })
++        })
++        .unwrap();
++    window
++        .update(cx, |_, window, cx| window.draw(cx).clear(cx))
++        .expect("provider Root draws SolidRoot content");
++    cx.refresh().expect("provider refresh succeeds");
++    window
++        .update(cx, |_, window, cx| window.draw(cx).clear(cx))
++        .expect("provider Root redraws after refresh");
++    solid_root.read_with(cx, |root, _| {
++        assert_eq!(root.store().surface_id(), 1);
++        assert_eq!(root.store().revision(), 1);
++        assert!(root.store().get(2).is_some());
++    });
++}
+ 
+-    #[test]
+-    fn profile_rejects_system_notifications_but_supports_keybindings() {
+-        let profile = ComponentHost::default();
+-        assert!(!profile.capabilities().notification_responses);
+-        assert!(profile.capabilities().set_keybindings);
+-        assert_eq!(
+-            profile.rejected_command_reason(solid_gpui::CommandKind::ShowNotification),
+-            Some(
+-                "ShowNotification is unavailable in the gpui-component host because gpui-component owns the global system notification callback"
+-            )
+-        );
+-        assert_eq!(
+-            profile.rejected_command_reason(solid_gpui::CommandKind::SetKeybindings),
+-            None
+-        );
+-    }
++#[test]
++fn profile_rejects_system_notifications_but_supports_keybindings() {
++    let profile = ComponentHost::default();
++    assert!(!profile.capabilities().notification_responses);
++    assert!(profile.capabilities().set_keybindings);
++    assert_eq!(
++        profile.rejected_command_reason(solid_gpui::CommandKind::ShowNotification),
++        Some(
++            "ShowNotification is unavailable in the gpui-component host because gpui-component owns the global system notification callback"
++        )
++    );
++    assert_eq!(
++        profile.rejected_command_reason(solid_gpui::CommandKind::SetKeybindings),
++        None
++    );
++}
+ 
+-    #[gpui::test]
+-    fn provider_keybindings_restore_baseline_for_replacement_and_close(cx: &mut TestAppContext) {
+-        let profile = ComponentHost::default();
+-        let baseline = [KeyBinding::new(
+-            "cmd-b",
+-            solid_gpui::MenuAction {
+-                name: "base".into(),
+-            },
+-            None,
+-        )];
+-        let first = vec![KeyBinding::new(
+-            "cmd-1",
+-            solid_gpui::MenuAction {
+-                name: "first".into(),
+-            },
+-            None,
+-        )];
+-        let replacement = vec![KeyBinding::new(
+-            "cmd-2",
+-            solid_gpui::MenuAction {
+-                name: "replacement".into(),
+-            },
+-            None,
+-        )];
+-        cx.update(|app| profile.restore_keybindings(&baseline, first, app));
+-        cx.update(|app| {
+-            let key_bindings = app.key_bindings();
+-            let bindings = key_bindings.borrow();
+-            assert_eq!(bindings.bindings().count(), 2);
+-        });
+-        cx.update(|app| profile.restore_keybindings(&baseline, replacement, app));
+-        cx.update(|app| {
+-            let key_bindings = app.key_bindings();
+-            let bindings = key_bindings.borrow();
+-            assert_eq!(bindings.bindings().count(), 2);
+-        });
+-        cx.update(|app| profile.restore_keybindings(&baseline, Vec::new(), app));
+-        cx.update(|app| {
+-            let key_bindings = app.key_bindings();
+-            let bindings = key_bindings.borrow();
+-            assert_eq!(bindings.bindings().count(), 1);
+-        });
+-    }
++#[gpui::test]
++fn provider_keybindings_restore_baseline_for_replacement_and_close(cx: &mut TestAppContext) {
++    let profile = ComponentHost::default();
++    let baseline = [KeyBinding::new(
++        "cmd-b",
++        solid_gpui::MenuAction {
++            name: "base".into(),
++        },
++        None,
++    )];
++    let first = vec![KeyBinding::new(
++        "cmd-1",
++        solid_gpui::MenuAction {
++            name: "first".into(),
++        },
++        None,
++    )];
++    let replacement = vec![KeyBinding::new(
++        "cmd-2",
++        solid_gpui::MenuAction {
++            name: "replacement".into(),
++        },
++        None,
++    )];
++    cx.update(|app| profile.restore_keybindings(&baseline, first, app));
++    cx.update(|app| {
++        let key_bindings = app.key_bindings();
++        let bindings = key_bindings.borrow();
++        assert_eq!(bindings.bindings().count(), 2);
++    });
++    cx.update(|app| profile.restore_keybindings(&baseline, replacement, app));
++    cx.update(|app| {
++        let key_bindings = app.key_bindings();
++        let bindings = key_bindings.borrow();
++        assert_eq!(bindings.bindings().count(), 2);
++    });
++    cx.update(|app| profile.restore_keybindings(&baseline, Vec::new(), app));
++    cx.update(|app| {
++        let key_bindings = app.key_bindings();
++        let bindings = key_bindings.borrow();
++        assert_eq!(bindings.bindings().count(), 1);
++    });
++}
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/mod.rs:1:
+ //! Optional gpui-component integration. The host and TypeScript bindings use this module.
+ pub mod host;
+ mod input;
+-use crate::native::{Serialize,Deserialize,TS};
++use crate::native::{Deserialize, Serialize, TS};
+ 
+ #[crate::native_type]
+-#[derive(Clone,Copy,Debug,Default,PartialEq)]
+-#[serde(rename_all="lowercase")]
+-pub enum ControlSize { Xsmall, Small, #[default] Medium, Large }
++#[derive(Clone, Copy, Debug, Default, PartialEq)]
++#[serde(rename_all = "lowercase")]
++pub enum ControlSize {
++    Xsmall,
++    Small,
++    #[default]
++    Medium,
++    Large,
++}
+ impl From<ControlSize> for gpui_component::Size {
+-    fn from(v:ControlSize)->Self {match v {ControlSize::Xsmall=>Self::XSmall,ControlSize::Small=>Self::Small,ControlSize::Medium=>Self::Medium,ControlSize::Large=>Self::Large}}
++    fn from(v: ControlSize) -> Self {
++        match v {
++            ControlSize::Xsmall => Self::XSmall,
++            ControlSize::Small => Self::Small,
++            ControlSize::Medium => Self::Medium,
++            ControlSize::Large => Self::Large,
++        }
++    }
+ }
+ #[crate::native_type]
+-#[derive(Clone,Copy,Debug,Default,PartialEq)]
+-#[serde(rename_all="lowercase")]
+-pub enum ButtonVariant { #[default] Default, Primary, Secondary, Danger, Info, Success, Warning, Ghost, Link, Text }
++#[derive(Clone, Copy, Debug, Default, PartialEq)]
++#[serde(rename_all = "lowercase")]
++pub enum ButtonVariant {
++    #[default]
++    Default,
++    Primary,
++    Secondary,
++    Danger,
++    Info,
++    Success,
++    Warning,
++    Ghost,
++    Link,
++    Text,
++}
+ impl From<ButtonVariant> for gpui_component::button::ButtonVariant {
+-    fn from(v:ButtonVariant)->Self{match v {
+-        ButtonVariant::Default=>Self::Default,ButtonVariant::Primary=>Self::Primary,ButtonVariant::Secondary=>Self::Secondary,
+-        ButtonVariant::Danger=>Self::Danger,ButtonVariant::Info=>Self::Info,ButtonVariant::Success=>Self::Success,
+-        ButtonVariant::Warning=>Self::Warning,ButtonVariant::Ghost=>Self::Ghost,ButtonVariant::Link=>Self::Link,ButtonVariant::Text=>Self::Text,
+-    }}
++    fn from(v: ButtonVariant) -> Self {
++        match v {
++            ButtonVariant::Default => Self::Default,
++            ButtonVariant::Primary => Self::Primary,
++            ButtonVariant::Secondary => Self::Secondary,
++            ButtonVariant::Danger => Self::Danger,
++            ButtonVariant::Info => Self::Info,
++            ButtonVariant::Success => Self::Success,
++            ButtonVariant::Warning => Self::Warning,
++            ButtonVariant::Ghost => Self::Ghost,
++            ButtonVariant::Link => Self::Link,
++            ButtonVariant::Text => Self::Text,
++        }
++    }
+ }
+ #[crate::native_type]
+-#[derive(Clone,Copy,Debug,Default,PartialEq)]
+-#[serde(rename_all="lowercase")]
+-pub enum Rounded { None, Small, #[default] Medium, Large }
++#[derive(Clone, Copy, Debug, Default, PartialEq)]
++#[serde(rename_all = "lowercase")]
++pub enum Rounded {
++    None,
++    Small,
++    #[default]
++    Medium,
++    Large,
++}
+ impl From<Rounded> for gpui_component::button::ButtonRounded {
+-    fn from(v:Rounded)->Self{match v{Rounded::None=>Self::None,Rounded::Small=>Self::Small,Rounded::Medium=>Self::Medium,Rounded::Large=>Self::Large}}
++    fn from(v: Rounded) -> Self {
++        match v {
++            Rounded::None => Self::None,
++            Rounded::Small => Self::Small,
++            Rounded::Medium => Self::Medium,
++            Rounded::Large => Self::Large,
++        }
++    }
+ }
+ 
+ /// Domain validation belongs in the Rust type and runs before tree publication.
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/mod.rs:33:
+-#[derive(Clone,Copy,Debug,Default,Serialize,TS)]
++#[derive(Clone, Copy, Debug, Default, Serialize, TS)]
+ pub struct Percentage(pub f32);
+ impl<'de> Deserialize<'de> for Percentage {
+-    fn deserialize<D:serde::Deserializer<'de>>(d:D)->Result<Self,D::Error>{
+-        let value=f32::deserialize(d)?;
+-        if value.is_finite()&&(0.0..=100.0).contains(&value){Ok(Self(value))}
+-        else {Err(serde::de::Error::custom("percentage must be between 0 and 100"))}
++    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
++        let value = f32::deserialize(d)?;
++        if value.is_finite() && (0.0..=100.0).contains(&value) {
++            Ok(Self(value))
++        } else {
++            Err(serde::de::Error::custom(
++                "percentage must be between 0 and 100",
++            ))
++        }
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/mod.rs:43:
+-#[crate::native_module(name="gpui-component")]
++#[crate::native_module(name = "gpui-component")]
+ mod controls {
+     use super::*;
+-    use crate::native::{ElementContext,Event};
+-    use gpui::{IntoElement,ParentElement};
+-    use gpui_component::{Disableable,Selectable,Sizable};
++    use crate::native::{ElementContext, Event};
++    use gpui::{IntoElement, ParentElement};
++    use gpui_component::{Disableable, Selectable, Sizable};
+ 
+     #[component]
+     pub fn button(
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/mod.rs:52:
+-        #[prop(default)] label:Option<String>,
+-        #[prop(default)] variant:ButtonVariant,
+-        #[prop(default)] disabled:bool,
+-        #[prop(default)] loading:bool,
+-        #[prop(default)] compact:bool,
+-        #[prop(default)] outline:bool,
+-        #[prop(default)] selected:bool,
+-        #[prop(default)] toggled:Option<bool>,
+-        #[prop(default)] rounded:Rounded,
+-        #[prop(default)] size:ControlSize,
+-        #[prop(default)] tab_index:i32,
+-        #[prop(default=true)] tab_stop:bool,
+-        #[prop(default)] accessibility_label:Option<String>,
+-        #[prop(default)] dropdown_caret:bool,
+-        #[prop(default)] tooltip:Option<String>,
+-        on_press:Event<()>, on_hover_change:Event<bool>,cx:&mut ElementContext,
+-    )->impl IntoElement {
++        #[prop(default)] label: Option<String>,
++        #[prop(default)] variant: ButtonVariant,
++        #[prop(default)] disabled: bool,
++        #[prop(default)] loading: bool,
++        #[prop(default)] compact: bool,
++        #[prop(default)] outline: bool,
++        #[prop(default)] selected: bool,
++        #[prop(default)] toggled: Option<bool>,
++        #[prop(default)] rounded: Rounded,
++        #[prop(default)] size: ControlSize,
++        #[prop(default)] tab_index: i32,
++        #[prop(default = true)] tab_stop: bool,
++        #[prop(default)] accessibility_label: Option<String>,
++        #[prop(default)] dropdown_caret: bool,
++        #[prop(default)] tooltip: Option<String>,
++        on_press: Event<()>,
++        on_hover_change: Event<bool>,
++        cx: &mut ElementContext,
++    ) -> impl IntoElement {
+         use gpui_component::button::ButtonVariants;
+-        let mut button=gpui_component::button::Button::new(cx.id())
+-            .with_variant(variant.into()).disabled(disabled).loading(loading).selected(selected)
+-            .rounded(rounded).with_size(size).tab_index(tab_index as isize).tab_stop(tab_stop).dropdown_caret(dropdown_caret);
+-        if compact {button=button.compact();}if outline {button=button.outline();}
+-        if let Some(v)=toggled{button=button.toggled(v);}if let Some(v)=label{button=button.label(v);}
+-        if let Some(v)=accessibility_label{button=button.accessibility_label(v);}if let Some(v)=tooltip{button=button.tooltip(v);}
+-        if on_press.is_subscribed(){button=button.on_click(move |_,_,_|on_press.emit(()));}
+-        if on_hover_change.is_subscribed(){button=button.on_hover(move |v,_,_|on_hover_change.emit(*v));}
+-        cx.children().fold(button,|button,child|button.child(child))
++        let mut button = gpui_component::button::Button::new(cx.id())
++            .with_variant(variant.into())
++            .disabled(disabled)
++            .loading(loading)
++            .selected(selected)
++            .rounded(rounded)
++            .with_size(size)
++            .tab_index(tab_index as isize)
++            .tab_stop(tab_stop)
++            .dropdown_caret(dropdown_caret);
++        if compact {
++            button = button.compact();
++        }
++        if outline {
++            button = button.outline();
++        }
++        if let Some(v) = toggled {
++            button = button.toggled(v);
++        }
++        if let Some(v) = label {
++            button = button.label(v);
++        }
++        if let Some(v) = accessibility_label {
++            button = button.accessibility_label(v);
++        }
++        if let Some(v) = tooltip {
++            button = button.tooltip(v);
++        }
++        if on_press.is_subscribed() {
++            button = button.on_click(move |_, _, _| on_press.emit(()));
++        }
++        if on_hover_change.is_subscribed() {
++            button = button.on_hover(move |v, _, _| on_hover_change.emit(*v));
++        }
++        cx.children()
++            .fold(button, |button, child| button.child(child))
+     }
+     #[component]
+-    pub fn checkbox(#[prop(default)] checked:bool,#[prop(default)] disabled:bool,
+-        #[prop(default)] label:Option<String>,#[prop(default)] accessibility_label:Option<String>,
+-        #[prop(default)] size:ControlSize,#[prop(default=true)] tab_stop:bool,#[prop(default)] tab_index:i32,
+-        #[prop(default)] tooltip:Option<String>,on_change:Event<bool>,cx:&mut ElementContext)->impl IntoElement {
+-        let mut control=gpui_component::checkbox::Checkbox::new(cx.id()).checked(checked).disabled(disabled).with_size(size).tab_stop(tab_stop).tab_index(tab_index as isize);
+-        if let Some(v)=label{control=control.label(v);}if let Some(v)=accessibility_label{control=control.accessibility_label(v);}if let Some(v)=tooltip{control=control.tooltip(v);}
+-        if on_change.is_subscribed(){control=control.on_click(move |v,_,_|on_change.emit(*v));}
+-        cx.children().fold(control,|control,child|control.child(child))
++    pub fn checkbox(
++        #[prop(default)] checked: bool,
++        #[prop(default)] disabled: bool,
++        #[prop(default)] label: Option<String>,
++        #[prop(default)] accessibility_label: Option<String>,
++        #[prop(default)] size: ControlSize,
++        #[prop(default = true)] tab_stop: bool,
++        #[prop(default)] tab_index: i32,
++        #[prop(default)] tooltip: Option<String>,
++        on_change: Event<bool>,
++        cx: &mut ElementContext,
++    ) -> impl IntoElement {
++        let mut control = gpui_component::checkbox::Checkbox::new(cx.id())
++            .checked(checked)
++            .disabled(disabled)
++            .with_size(size)
++            .tab_stop(tab_stop)
++            .tab_index(tab_index as isize);
++        if let Some(v) = label {
++            control = control.label(v);
++        }
++        if let Some(v) = accessibility_label {
++            control = control.accessibility_label(v);
++        }
++        if let Some(v) = tooltip {
++            control = control.tooltip(v);
++        }
++        if on_change.is_subscribed() {
++            control = control.on_click(move |v, _, _| on_change.emit(*v));
++        }
++        cx.children()
++            .fold(control, |control, child| control.child(child))
+     }
+-    #[component(children=false)]
+-    pub fn switch(#[prop(default)] checked:bool,#[prop(default)] disabled:bool,
+-        #[prop(default)] label:Option<String>,#[prop(default)] accessibility_label:Option<String>,
+-        #[prop(default)] size:ControlSize,#[prop(default)] tooltip:Option<String>,on_change:Event<bool>,cx:&mut ElementContext)->impl IntoElement {
+-        let mut control=gpui_component::switch::Switch::new(cx.id()).checked(checked).disabled(disabled).with_size(size);
+-        if let Some(v)=label{control=control.label(v);}if let Some(v)=accessibility_label{control=control.accessibility_label(v);}if let Some(v)=tooltip{control=control.tooltip(v);}
+-        if on_change.is_subscribed(){control=control.on_click(move |v,_,_|on_change.emit(*v));}
++    #[component(children = false)]
++    pub fn switch(
++        #[prop(default)] checked: bool,
++        #[prop(default)] disabled: bool,
++        #[prop(default)] label: Option<String>,
++        #[prop(default)] accessibility_label: Option<String>,
++        #[prop(default)] size: ControlSize,
++        #[prop(default)] tooltip: Option<String>,
++        on_change: Event<bool>,
++        cx: &mut ElementContext,
++    ) -> impl IntoElement {
++        let mut control = gpui_component::switch::Switch::new(cx.id())
++            .checked(checked)
++            .disabled(disabled)
++            .with_size(size);
++        if let Some(v) = label {
++            control = control.label(v);
++        }
++        if let Some(v) = accessibility_label {
++            control = control.accessibility_label(v);
++        }
++        if let Some(v) = tooltip {
++            control = control.tooltip(v);
++        }
++        if on_change.is_subscribed() {
++            control = control.on_click(move |v, _, _| on_change.emit(*v));
++        }
+         control
+     }
+-    #[component(children=false)]
+-    pub fn progress(#[prop(default)] value:Percentage,cx:&mut ElementContext)->impl IntoElement {
++    #[component(children = false)]
++    pub fn progress(
++        #[prop(default)] value: Percentage,
++        cx: &mut ElementContext,
++    ) -> impl IntoElement {
+         gpui_component::progress::Progress::new(cx.id()).value(value.0)
+     }
+ }
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/mod.rs:104:
+ pub fn native_module() -> crate::native::ModuleDefinition {
+     controls::native_module().with_component(input::definition())
+ }
+-
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/native_call_tests.rs:8:
+ #[gpui::test]
+ fn provider_dispatches_native_calls_and_correlates_errors(cx: &mut TestAppContext) {
+     let runtime = InMemoryAdapter::new();
+-    let module=fixture::native_module();
+-    let id=module.id();let digest=module.digest();
++    let module = fixture::native_module();
++    let id = module.id();
++    let digest = module.digest();
+     let mut profile = ComponentHost::new(vec![module]);
+     let extensions = profile.extension_registry();
+     let (window, root) = cx.update(|app| {
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/native_call_tests.rs:89:
+     }
+ }
+ 
+-#[crate::native_module(name="host-call-test")]
++#[crate::native_module(name = "host-call-test")]
+ mod fixture {
+     #[command]
+-    async fn analyze_workspace(name:String, readiness:bool, builds:u32)->Result<String,String> {
+-        if name.trim().is_empty(){return Err("name must not be blank".into());}
+-        Ok(format!("{}:{readiness}:{builds}",name.to_lowercase().replace(' ',"-")))
++    async fn analyze_workspace(
++        name: String,
++        readiness: bool,
++        builds: u32,
++    ) -> Result<String, String> {
++        if name.trim().is_empty() {
++            return Err("name must not be blank".into());
++        }
++        Ok(format!(
++            "{}:{readiness}:{builds}",
++            name.to_lowercase().replace(' ', "-")
++        ))
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:1:
+-#[cfg(any(test,feature="test-support"))]
+-use gpui::WindowHandle;
+ #[cfg(feature = "embedded-bun")]
+ use crate::runtime::embedded::EmbeddedBunAdapter;
+ use crate::{
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:10:
+ };
+ #[cfg(feature = "embedded-bun")]
+ use crate::{Event, send_event_or_exit};
++#[cfg(any(test, feature = "test-support"))]
++use gpui::WindowHandle;
+ use gpui::{
+     AnyWindowHandle, App, AppContext, Bounds, Context, Entity, KeyBinding, Keystroke, Subscription,
+-    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowId, WindowKind,
+-    WindowOptions, px, size,
++    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowId, WindowKind, WindowOptions,
++    px, size,
+ };
+ use std::backtrace::Backtrace;
+ use std::collections::{HashMap, HashSet};
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:50:
+ /// The reusable host seam. Profiles provide only the provider-specific pieces;
+ /// protocol admission, surface ownership, and runtime lifecycle stay here.
+ pub trait HostProfile: 'static {
+-    fn native_bindings(&self) -> Result<String, String> { Ok(String::new()) }
++    fn native_bindings(&self) -> Result<String, String> {
++        Ok(String::new())
++    }
+     fn capabilities(&self) -> HostCapabilities;
+     fn extension_registry(&self) -> Rc<dyn ExtensionRegistry>;
+     fn initialize(&mut self, cx: &mut App);
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:94:
+         cx: &mut App,
+     ) -> Result<(AnyWindowHandle, Entity<SolidRoot>), String> {
+         let window = cx
+-            .open_window(options, move |_, cx| cx.new(|_| SolidRoot::with_extensions(runtime, extensions)))
++            .open_window(options, move |_, cx| {
++                cx.new(|_| SolidRoot::with_extensions(runtime, extensions))
++            })
+             .map_err(|error| format!("failed to open GPUI window: {error}"))?;
+         let root = window
+             .entity(cx)
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:266:
+ }
+ 
+ impl NativeStateRegistry {
+-    #[cfg(any(test,feature="test-support"))]
++    #[cfg(any(test, feature = "test-support"))]
+     fn new(runtime: Arc<dyn RuntimeAdapter>) -> Self {
+         Self::with_profile(runtime, DefaultHostProfile, Vec::new())
+     }
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:808:
+ 
+ /// Run the host with a provider profile.
+ pub fn run_with_profile<P: HostProfile>(mut profile: P) {
+-    if env::args_os().skip(1).eq([OsString::from("--export-native")]) {
++    if env::args_os()
++        .skip(1)
++        .eq([OsString::from("--export-native")])
++    {
+         match profile.native_bindings() {
+-            Ok(source) => { print!("{source}"); return; },
+-            Err(error) => { eprintln!("native bindings: {error}"); std::process::exit(2); },
++            Ok(source) => {
++                print!("{source}");
++                return;
++            }
++            Err(error) => {
++                eprintln!("native bindings: {error}");
++                std::process::exit(2);
++            }
+         }
+     }
+     install_panic_hook();
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:1314:
+ /// Run an application's Rust module, exporting the exact linked contract with --export-native.
+ pub fn run(module: crate::native::ModuleDefinition) {
+     #[cfg(feature = "gpui-component")]
+-    run_with_profile(crate::components::host::ComponentHost::new(vec![crate::components::native_module(), module]));
++    run_with_profile(crate::components::host::ComponentHost::new(vec![
++        crate::components::native_module(),
++        module,
++    ]));
+     #[cfg(not(feature = "gpui-component"))]
+-    run_with_profile(NativeHostProfile(Rc::new(crate::native::NativeModules::new(vec![module]))));
++    run_with_profile(NativeHostProfile(Rc::new(
++        crate::native::NativeModules::new(vec![module]),
++    )));
+ }
+ 
+ #[cfg(not(feature = "gpui-component"))]
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/host/mod.rs:1323:
+ struct NativeHostProfile(Rc<crate::native::NativeModules>);
+ #[cfg(not(feature = "gpui-component"))]
+ impl HostProfile for NativeHostProfile {
+-    fn native_bindings(&self)->Result<String,String>{self.0.typescript()}
+-    fn capabilities(&self)->HostCapabilities{DefaultHostProfile.capabilities()}
+-    fn extension_registry(&self)->Rc<dyn ExtensionRegistry>{self.0.clone()}
+-    fn initialize(&mut self,cx:&mut App){DefaultHostProfile.initialize(cx);}
+-    fn open_window(&self, options:WindowOptions,runtime:Arc<dyn RuntimeAdapter>,extensions:Rc<dyn ExtensionRegistry>,cx:&mut App)->Result<(AnyWindowHandle,Entity<SolidRoot>),String>{
+-        DefaultHostProfile.open_window(options,runtime,extensions,cx)
++    fn native_bindings(&self) -> Result<String, String> {
++        self.0.typescript()
+     }
+-    fn restore_keybindings(&self,baseline:&[KeyBinding],dynamic:Vec<KeyBinding>,cx:&mut App){DefaultHostProfile.restore_keybindings(baseline,dynamic,cx);}
++    fn capabilities(&self) -> HostCapabilities {
++        DefaultHostProfile.capabilities()
++    }
++    fn extension_registry(&self) -> Rc<dyn ExtensionRegistry> {
++        self.0.clone()
++    }
++    fn initialize(&mut self, cx: &mut App) {
++        DefaultHostProfile.initialize(cx);
++    }
++    fn open_window(
++        &self,
++        options: WindowOptions,
++        runtime: Arc<dyn RuntimeAdapter>,
++        extensions: Rc<dyn ExtensionRegistry>,
++        cx: &mut App,
++    ) -> Result<(AnyWindowHandle, Entity<SolidRoot>), String> {
++        DefaultHostProfile.open_window(options, runtime, extensions, cx)
++    }
++    fn restore_keybindings(&self, baseline: &[KeyBinding], dynamic: Vec<KeyBinding>, cx: &mut App) {
++        DefaultHostProfile.restore_keybindings(baseline, dynamic, cx);
++    }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/lib.rs:1:
+ extern crate self as solid_gpui;
+ pub use gpui;
+-pub mod native;
+-#[cfg(feature = "host")]
+-pub mod host;
+ #[cfg(feature = "gpui-component")]
+ pub mod components;
++#[cfg(feature = "host")]
++pub mod host;
++pub mod native;
+ pub mod runtime;
+ pub use solid_gpui_macros::{component, native_module, native_type};
+ pub mod protocol;
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/lib.rs:48:
+     read_frame, write_frame,
+ };
+ pub use renderer::{
+-    ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink, ExtensionInstance, ExtensionRegistry,
+-    ExtensionRenderContext, NoExtensions, RenderError, SolidRoot,
++    ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink, ExtensionInstance,
++    ExtensionRegistry, ExtensionRenderContext, NoExtensions, RenderError, SolidRoot,
+ };
+ pub use transport::{
+     InMemoryAdapter, ProcessAdapter, RuntimeAdapter, RuntimeStatus, fatal_runtime_failure,
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/lib.rs:62:
+ #[cfg(test)]
+ mod tests;
+ 
+-#[cfg(feature="host")]
++#[cfg(feature = "host")]
+ pub use host::run;
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:1:
+-use super::{Types, decode_json, encode_json, Serialize, TS};
+-use crate::{ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink, ExtensionRenderContext};
+-use crate::renderer::ExtensionInstance;
++use super::{Serialize, TS, Types, decode_json, encode_json};
+ use crate::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
++use crate::renderer::ExtensionInstance;
++use crate::{
++    ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink,
++    ExtensionRenderContext,
++};
+ use gpui::{AnyElement, App, AppContext, Context, Entity, IntoElement, Render, Window};
+ use serde::de::DeserializeOwned;
+ use std::{any::Any, collections::BTreeMap, marker::PhantomData};
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:8:
+ 
+-pub struct Event<T> { sink: ExtensionEventSink, id: u32, marker: PhantomData<fn(T)> }
++pub struct Event<T> {
++    sink: ExtensionEventSink,
++    id: u32,
++    marker: PhantomData<fn(T)>,
++}
+ impl<T> Event<T> {
+-    pub fn is_subscribed(&self) -> bool { self.sink.is_subscribed(self.id) }
++    pub fn is_subscribed(&self) -> bool {
++        self.sink.is_subscribed(self.id)
++    }
+     pub(crate) fn new(sink: ExtensionEventSink, id: u32) -> Self {
+-        Self { sink, id, marker: PhantomData }
++        Self {
++            sink,
++            id,
++            marker: PhantomData,
++        }
+     }
+ }
+-impl<T> Clone for Event<T> { fn clone(&self) -> Self { Self { sink: self.sink.clone(), id: self.id, marker: PhantomData } } }
++impl<T> Clone for Event<T> {
++    fn clone(&self) -> Self {
++        Self {
++            sink: self.sink.clone(),
++            id: self.id,
++            marker: PhantomData,
++        }
++    }
++}
+ impl<T: Serialize> Event<T> {
+     pub fn emit(&self, value: T) {
+-        if !self.is_subscribed() { return; }
+-        let bytes = encode_json(&value).expect("native event must satisfy its declared DTO contract");
++        if !self.is_subscribed() {
++            return;
++        }
++        let bytes =
++            encode_json(&value).expect("native event must satisfy its declared DTO contract");
+         // A revoked/unsubscribed endpoint has no consumer. The sink enforces lifetime and ordering.
+-        match self.sink.emit(self.id, vec![ExtensionField { id: 1, value: ExtensionValue::Bytes(bytes) }]) {
+-            Ok(()) | Err(ExtensionError::EventRouteRetired { .. } | ExtensionError::EventNotSubscribed { .. }) => {},
++        match self.sink.emit(
++            self.id,
++            vec![ExtensionField {
++                id: 1,
++                value: ExtensionValue::Bytes(bytes),
++            }],
++        ) {
++            Ok(())
++            | Err(
++                ExtensionError::EventRouteRetired { .. }
++                | ExtensionError::EventNotSubscribed { .. },
++            ) => {}
+             Err(error) => panic!("native event violated its contract: {error}"),
+         }
+     }
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:28:
+ pub struct ElementContext<'a> {
+     node_id: u32,
+     sink: &'a ExtensionEventSink,
+-    event_ids: &'a BTreeMap<String,u32>,
+-    children: &'a mut dyn Iterator<Item=AnyElement>,
++    event_ids: &'a BTreeMap<String, u32>,
++    children: &'a mut dyn Iterator<Item = AnyElement>,
+ }
+ impl ElementContext<'_> {
+-    pub fn id(&self) -> gpui::ElementId { gpui::ElementId::Integer(self.node_id as u64) }
+-    pub fn children(&mut self) -> &mut dyn Iterator<Item=AnyElement> { self.children }
++    pub fn id(&self) -> gpui::ElementId {
++        gpui::ElementId::Integer(self.node_id as u64)
++    }
++    pub fn children(&mut self) -> &mut dyn Iterator<Item = AnyElement> {
++        self.children
++    }
+     pub fn event<T>(&self, name: &str) -> Event<T> {
+-        Event::new(self.sink.clone(), *self.event_ids.get(name).expect("declared native event"))
++        Event::new(
++            self.sink.clone(),
++            *self.event_ids.get(name).expect("declared native event"),
++        )
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:42:
+-pub struct EventDefinition { pub(crate) name: &'static str, pub(crate) describe: fn(&mut Types)->String }
++pub struct EventDefinition {
++    pub(crate) name: &'static str,
++    pub(crate) describe: fn(&mut Types) -> String,
++}
+ impl EventDefinition {
+-    pub fn new<T: Serialize+TS+'static>(name: &'static str) -> Self { Self { name, describe: Types::collect::<T> } }
++    pub fn new<T: Serialize + TS + 'static>(name: &'static str) -> Self {
++        Self {
++            name,
++            describe: Types::collect::<T>,
++        }
++    }
+ }
+ 
+ /// A retained native view owns its GPUI state. Props synchronization is explicit.
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:48:
+ pub trait NativeView: Render + Sized + 'static {
+-    type Props: DeserializeOwned+TS+'static;
+-    type Event: Serialize+TS+'static;
+-    fn mount(props: Self::Props, event: Event<Self::Event>, window: &mut Window, cx: &mut Context<Self>) -> Self;
++    type Props: DeserializeOwned + TS + 'static;
++    type Event: Serialize + TS + 'static;
++    fn mount(
++        props: Self::Props,
++        event: Event<Self::Event>,
++        window: &mut Window,
++        cx: &mut Context<Self>,
++    ) -> Self;
+     fn update(&mut self, props: Self::Props, window: &mut Window, cx: &mut Context<Self>);
+-    fn commands() -> Vec<ViewCommand<Self>> { Vec::new() }
+-    fn event_name() -> &'static str { "event" }
+-    fn controlled() -> Option<ControlledBinding> { None }
++    fn commands() -> Vec<ViewCommand<Self>> {
++        Vec::new()
++    }
++    fn event_name() -> &'static str {
++        "event"
++    }
++    fn controlled() -> Option<ControlledBinding> {
++        None
++    }
+ }
+ 
+-#[derive(Clone,Copy,Serialize)]
+-#[serde(rename_all="camelCase")]
+-pub struct ControlledBinding { pub value_prop: &'static str, pub event_id:u32, pub sequence_field:&'static str, pub ack_prop:&'static str }
++#[derive(Clone, Copy, Serialize)]
++#[serde(rename_all = "camelCase")]
++pub struct ControlledBinding {
++    pub value_prop: &'static str,
++    pub event_id: u32,
++    pub sequence_field: &'static str,
++    pub ack_prop: &'static str,
++}
+ 
+-type ViewHandler<V> = dyn Fn(&mut V, &[u8], &mut Window, &mut Context<V>)->Result<Vec<u8>,String>;
++type ViewHandler<V> =
++    dyn Fn(&mut V, &[u8], &mut Window, &mut Context<V>) -> Result<Vec<u8>, String>;
+ pub struct ViewCommand<V: 'static> {
+     pub(crate) name: &'static str,
+-    pub(crate) describe: fn(&mut Types)->(String,String),
++    pub(crate) describe: fn(&mut Types) -> (String, String),
+     handler: Box<ViewHandler<V>>,
+ }
+ impl<V: 'static> ViewCommand<V> {
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:69:
+-    pub fn new<I: DeserializeOwned+TS+'static, O: Serialize+TS+'static>(name: &'static str,
+-        handler: fn(&mut V,I,&mut Window,&mut Context<V>)->Result<O,String>) -> Self {
+-        Self { name, describe: |types| (types.collect::<I>(),types.collect::<O>()),
+-            handler: Box::new(move |view, bytes, window, cx| encode_json(&handler(view,decode_json(bytes)?,window,cx)?)) }
++    pub fn new<I: DeserializeOwned + TS + 'static, O: Serialize + TS + 'static>(
++        name: &'static str,
++        handler: fn(&mut V, I, &mut Window, &mut Context<V>) -> Result<O, String>,
++    ) -> Self {
++        Self {
++            name,
++            describe: |types| (types.collect::<I>(), types.collect::<O>()),
++            handler: Box::new(move |view, bytes, window, cx| {
++                encode_json(&handler(view, decode_json(bytes)?, window, cx)?)
++            }),
++        }
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:76:
+-type Decoder = fn(&[u8])->Result<Box<dyn Any>,String>;
+-type Mount = dyn Fn(u32,Box<dyn Any>,ExtensionEventSink,&mut Window,&mut App)->Box<dyn ExtensionInstance>;
++type Decoder = fn(&[u8]) -> Result<Box<dyn Any>, String>;
++type Mount = dyn Fn(
++    u32,
++    Box<dyn Any>,
++    ExtensionEventSink,
++    &mut Window,
++    &mut App,
++) -> Box<dyn ExtensionInstance>;
+ pub struct ComponentDefinition {
+     pub(crate) name: &'static str,
+-    pub(crate) props: fn(&mut Types)->String,
++    pub(crate) props: fn(&mut Types) -> String,
+     pub(crate) events: Vec<EventDefinition>,
+-    pub(crate) commands: Vec<(&'static str,fn(&mut Types)->(String,String))>,
++    pub(crate) commands: Vec<(&'static str, fn(&mut Types) -> (String, String))>,
+     pub(crate) source: &'static str,
+     pub(crate) children: bool,
+     pub(crate) prop_names: Option<&'static [&'static str]>,
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:87:
+     decode: Decoder,
+     mount: Box<Mount>,
+ }
+-fn decode<P: DeserializeOwned+'static>(bytes:&[u8])->Result<Box<dyn Any>,String> { Ok(Box::new(decode_json::<P>(bytes)?)) }
+-pub(crate) fn property_bytes(props:&ExtensionProperties)->Result<&[u8],String> {
++fn decode<P: DeserializeOwned + 'static>(bytes: &[u8]) -> Result<Box<dyn Any>, String> {
++    Ok(Box::new(decode_json::<P>(bytes)?))
++}
++pub(crate) fn property_bytes(props: &ExtensionProperties) -> Result<&[u8], String> {
+     match props.fields.as_slice() {
+-        [ExtensionField{id:1,value:ExtensionValue::Bytes(bytes)}] => Ok(bytes),
++        [
++            ExtensionField {
++                id: 1,
++                value: ExtensionValue::Bytes(bytes),
++            },
++        ] => Ok(bytes),
+         _ => Err("native props require one typed JSON byte field".into()),
+     }
+ }
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:97:
+ impl ComponentDefinition {
+-    pub fn with_contract(mut self, source:&'static str)->Self { self.source=source;self }
+-    pub fn with_children(mut self, children:bool)->Self {self.children=children;self}
+-    pub fn with_props(mut self, names:&'static [&'static str])->Self { self.prop_names=Some(names);self }
+-    pub fn element<P: DeserializeOwned+TS+'static>(name:&'static str, mut events:Vec<EventDefinition>,
+-        render:fn(&P,&mut ElementContext<'_>)->AnyElement)->Self {
++    pub fn with_contract(mut self, source: &'static str) -> Self {
++        self.source = source;
++        self
++    }
++    pub fn with_children(mut self, children: bool) -> Self {
++        self.children = children;
++        self
++    }
++    pub fn with_props(mut self, names: &'static [&'static str]) -> Self {
++        self.prop_names = Some(names);
++        self
++    }
++    pub fn element<P: DeserializeOwned + TS + 'static>(
++        name: &'static str,
++        mut events: Vec<EventDefinition>,
++        render: fn(&P, &mut ElementContext<'_>) -> AnyElement,
++    ) -> Self {
+         events.sort_by_key(|event| event.name);
+-        let event_ids: BTreeMap<String,u32> = events.iter().enumerate().map(|(i,e)|(e.name.into(),i as u32+1)).collect();
+-        assert_eq!(event_ids.len(),events.len(),"duplicate native event");
+-        Self { name, props:Types::collect::<P>,events,commands:Vec::new(),source:"",children:true,prop_names:None,controlled:None,decode:decode::<P>,
+-            mount:Box::new(move |node_id, props, sink,_,_| Box::new(ElementInstance::<P> {
+-                node_id, props:*props.downcast::<P>().unwrap(), sink, event_ids:event_ids.clone(), render
+-            })) }
++        let event_ids: BTreeMap<String, u32> = events
++            .iter()
++            .enumerate()
++            .map(|(i, e)| (e.name.into(), i as u32 + 1))
++            .collect();
++        assert_eq!(event_ids.len(), events.len(), "duplicate native event");
++        Self {
++            name,
++            props: Types::collect::<P>,
++            events,
++            commands: Vec::new(),
++            source: "",
++            children: true,
++            prop_names: None,
++            controlled: None,
++            decode: decode::<P>,
++            mount: Box::new(move |node_id, props, sink, _, _| {
++                Box::new(ElementInstance::<P> {
++                    node_id,
++                    props: *props.downcast::<P>().unwrap(),
++                    sink,
++                    event_ids: event_ids.clone(),
++                    render,
++                })
++            }),
++        }
+     }
+-    pub fn view<V:NativeView>(name:&'static str)->Self {
+-        let mut methods=V::commands();methods.sort_by_key(|m| m.name);
+-        let commands=methods.iter().map(|m|(m.name,m.describe)).collect();
+-        Self { name,props:Types::collect::<V::Props>,events:vec![EventDefinition::new::<V::Event>(V::event_name())],commands,source:"",children:false,prop_names:None,controlled:V::controlled(),decode:decode::<V::Props>,
+-            mount:Box::new(|_,props,sink,window,cx| {
+-                let props=*props.downcast::<V::Props>().unwrap();
+-                let entity=cx.new(|cx| V::mount(props,Event::new(sink, 1),window,cx));
+-                let mut commands=V::commands();commands.sort_by_key(|m|m.name);
+-                Box::new(ViewInstance::<V>{entity,commands})
+-            }) }
++    pub fn view<V: NativeView>(name: &'static str) -> Self {
++        let mut methods = V::commands();
++        methods.sort_by_key(|m| m.name);
++        let commands = methods.iter().map(|m| (m.name, m.describe)).collect();
++        Self {
++            name,
++            props: Types::collect::<V::Props>,
++            events: vec![EventDefinition::new::<V::Event>(V::event_name())],
++            commands,
++            source: "",
++            children: false,
++            prop_names: None,
++            controlled: V::controlled(),
++            decode: decode::<V::Props>,
++            mount: Box::new(|_, props, sink, window, cx| {
++                let props = *props.downcast::<V::Props>().unwrap();
++                let entity = cx.new(|cx| V::mount(props, Event::new(sink, 1), window, cx));
++                let mut commands = V::commands();
++                commands.sort_by_key(|m| m.name);
++                Box::new(ViewInstance::<V> { entity, commands })
++            }),
++        }
+     }
+ }
+ impl ExtensionAdapter for ComponentDefinition {
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:124:
+-    fn validate(&self,node_id:u32,props:&ExtensionProperties,children:ExtensionChildSummary)->Result<(),ExtensionError> {
+-        if !self.children && children.count!=0 { return Err(ExtensionError::InvalidChildren{node_id,reason:"retained native view does not accept JS children".into()}); }
+-        property_bytes(props).and_then(|bytes|(self.decode)(bytes)).map_err(|reason|ExtensionError::InvalidProperties{node_id,reason})?;
+-        if props.event_ids.iter().any(|id|*id==0||*id as usize>self.events.len()) {return Err(ExtensionError::InvalidProperties{node_id,reason:"unknown native event".into()});}
++    fn validate(
++        &self,
++        node_id: u32,
++        props: &ExtensionProperties,
++        children: ExtensionChildSummary,
++    ) -> Result<(), ExtensionError> {
++        if !self.children && children.count != 0 {
++            return Err(ExtensionError::InvalidChildren {
++                node_id,
++                reason: "retained native view does not accept JS children".into(),
++            });
++        }
++        property_bytes(props)
++            .and_then(|bytes| (self.decode)(bytes))
++            .map_err(|reason| ExtensionError::InvalidProperties { node_id, reason })?;
++        if props
++            .event_ids
++            .iter()
++            .any(|id| *id == 0 || *id as usize > self.events.len())
++        {
++            return Err(ExtensionError::InvalidProperties {
++                node_id,
++                reason: "unknown native event".into(),
++            });
++        }
+         Ok(())
+     }
+-    fn render(&self,_:ExtensionRenderContext<'_>)->AnyElement { panic!("native component must be mounted by the window commit entry") }
+-    fn mount(&self,node_id:u32,props:&ExtensionProperties,sink:ExtensionEventSink,window:&mut Window,cx:&mut App)->Option<Box<dyn ExtensionInstance>> {
+-        let props=(self.decode)(property_bytes(props).expect("validated props")).expect("validated native props");
+-        Some((self.mount)(node_id,props,sink,window,cx))
++    fn render(&self, _: ExtensionRenderContext<'_>) -> AnyElement {
++        panic!("native component must be mounted by the window commit entry")
+     }
++    fn mount(
++        &self,
++        node_id: u32,
++        props: &ExtensionProperties,
++        sink: ExtensionEventSink,
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Option<Box<dyn ExtensionInstance>> {
++        let props = (self.decode)(property_bytes(props).expect("validated props"))
++            .expect("validated native props");
++        Some((self.mount)(node_id, props, sink, window, cx))
++    }
+ }
+-struct ElementInstance<P>{node_id:u32,props:P,sink:ExtensionEventSink,event_ids:BTreeMap<String,u32>,render:fn(&P,&mut ElementContext<'_>)->AnyElement}
+-impl<P:DeserializeOwned+'static> ExtensionInstance for ElementInstance<P> {
+-    fn update(&mut self,props:&ExtensionProperties,sink:ExtensionEventSink,_:&mut Window,_:&mut App) {
+-        self.props=decode_json(property_bytes(props).unwrap()).expect("validated native props");self.sink=sink;
++struct ElementInstance<P> {
++    node_id: u32,
++    props: P,
++    sink: ExtensionEventSink,
++    event_ids: BTreeMap<String, u32>,
++    render: fn(&P, &mut ElementContext<'_>) -> AnyElement,
++}
++impl<P: DeserializeOwned + 'static> ExtensionInstance for ElementInstance<P> {
++    fn update(
++        &mut self,
++        props: &ExtensionProperties,
++        sink: ExtensionEventSink,
++        _: &mut Window,
++        _: &mut App,
++    ) {
++        self.props = decode_json(property_bytes(props).unwrap()).expect("validated native props");
++        self.sink = sink;
+     }
+-    fn render(&self,children:&mut dyn Iterator<Item=AnyElement>)->AnyElement {
+-        (self.render)(&self.props,&mut ElementContext{node_id:self.node_id,sink:&self.sink,event_ids:&self.event_ids,children})
++    fn render(&self, children: &mut dyn Iterator<Item = AnyElement>) -> AnyElement {
++        (self.render)(
++            &self.props,
++            &mut ElementContext {
++                node_id: self.node_id,
++                sink: &self.sink,
++                event_ids: &self.event_ids,
++                children,
++            },
++        )
+     }
+ }
+-struct ViewInstance<V:NativeView>{entity:Entity<V>,commands:Vec<ViewCommand<V>>}
+-impl<V:NativeView> ExtensionInstance for ViewInstance<V> {
+-    fn update(&mut self,props:&ExtensionProperties,_:ExtensionEventSink,window:&mut Window,cx:&mut App) {
+-        let props=decode_json(property_bytes(props).unwrap()).expect("validated native props");
+-        self.entity.update(cx,|view,cx|{view.update(props,window,cx);cx.notify();});
++struct ViewInstance<V: NativeView> {
++    entity: Entity<V>,
++    commands: Vec<ViewCommand<V>>,
++}
++impl<V: NativeView> ExtensionInstance for ViewInstance<V> {
++    fn update(
++        &mut self,
++        props: &ExtensionProperties,
++        _: ExtensionEventSink,
++        window: &mut Window,
++        cx: &mut App,
++    ) {
++        let props = decode_json(property_bytes(props).unwrap()).expect("validated native props");
++        self.entity.update(cx, |view, cx| {
++            view.update(props, window, cx);
++            cx.notify();
++        });
+     }
+-    fn render(&self,_:&mut dyn Iterator<Item=AnyElement>)->AnyElement {self.entity.clone().into_any_element()}
+-    fn invoke(&mut self,id:u32,args:&[u8],window:&mut Window,cx:&mut App)->Result<Vec<u8>,String>{
+-        let command=self.commands.get(id.wrapping_sub(1) as usize).ok_or("unknown native view command")?;
+-        self.entity.update(cx,|view,cx|(command.handler)(view,args,window,cx))
++    fn render(&self, _: &mut dyn Iterator<Item = AnyElement>) -> AnyElement {
++        self.entity.clone().into_any_element()
++    }
++    fn invoke(
++        &mut self,
++        id: u32,
++        args: &[u8],
++        window: &mut Window,
++        cx: &mut App,
++    ) -> Result<Vec<u8>, String> {
++        let command = self
++            .commands
++            .get(id.wrapping_sub(1) as usize)
++            .ok_or("unknown native view command")?;
++        self.entity
++            .update(cx, |view, cx| (command.handler)(view, args, window, cx))
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/json_guard.rs:58:
+         if v.is_finite() && (v.fract() != 0.0 || v.abs() <= 9_007_199_254_740_991.0) {
+             Ok(())
+         } else {
+-            Err(invalid("non-finite or unsafe integer numbers are not native JSON values"))
++            Err(invalid(
++                "non-finite or unsafe integer numbers are not native JSON values",
++            ))
+         }
+     }
+     fn serialize_none(self) -> Result<(), Error> {
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/renderer.rs:30:
+ mod events;
+ mod extensions;
+ mod input;
+-mod native_calls;
+ #[cfg(test)]
+ mod native_call_lifecycle_tests;
++mod native_calls;
+ mod paint;
+ 
+ pub use extensions::{
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/runtime/embedded.rs:9:
+ use std::ffi::c_void;
+ use std::path::{Path, PathBuf};
+ use std::sync::atomic::{AtomicBool, Ordering};
++use std::sync::mpsc::TrySendError;
+ #[cfg(feature = "embedded-bun")]
+ use std::sync::mpsc::{self, TryRecvError};
+-use std::sync::mpsc::TrySendError;
+ use std::sync::mpsc::{Receiver, SyncSender};
+ use std::sync::{Arc, Mutex};
+ #[cfg(feature = "embedded-bun")]
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/runtime/embedded.rs:303:
+         let tap_frame = self.tap.is_enabled().then(|| frame.clone());
+         let result = sender.try_send(frame).map_err(|error| {
+             let (kind, message) = match error {
+-                TrySendError::Full(_) => (std::io::ErrorKind::WouldBlock, "embedded event queue capacity exceeded"),
+-                TrySendError::Disconnected(_) => (std::io::ErrorKind::BrokenPipe, "embedded event queue closed"),
++                TrySendError::Full(_) => (
++                    std::io::ErrorKind::WouldBlock,
++                    "embedded event queue capacity exceeded",
++                ),
++                TrySendError::Disconnected(_) => (
++                    std::io::ErrorKind::BrokenPipe,
++                    "embedded event queue closed",
++                ),
+             };
+             ProtocolError::Io(std::io::Error::new(kind, message))
+         });
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/runtime/embedded.rs:421:
+             tap: ProtocolTap::from_env(),
+         };
+         adapter.send_event(Event::press(1, 1, 1, 1, 2, 2)).unwrap();
+-        let error=adapter.send_event(Event::press(1, 1, 1, 2, 2, 2)).unwrap_err();
+-        assert!(matches!(error,ProtocolError::Io(error) if error.kind()==std::io::ErrorKind::WouldBlock));
++        let error = adapter
++            .send_event(Event::press(1, 1, 1, 2, 2, 2))
++            .unwrap_err();
++        assert!(
++            matches!(error,ProtocolError::Io(error) if error.kind()==std::io::ErrorKind::WouldBlock)
++        );
+     }
+     #[test]
+     fn embedded_runtime_rejects_malformed_outbound_event() {
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/tests/host_embedded_counter.rs:3:
+ use std::path::PathBuf;
+ use std::sync::Arc;
+ 
+-use solid_gpui::{Event, RuntimeAdapter, Snapshot};
+ use solid_gpui::runtime::embedded::{CommitPoll, EmbeddedBunAdapter};
++use solid_gpui::{Event, RuntimeAdapter, Snapshot};
+ 
+ fn counter_entry() -> PathBuf {
+     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/press-roundtrip.ts")
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native/src/lib.rs:1:
+-use solid_gpui::{native_type, native_module};
++use solid_gpui::{native_module, native_type};
+ 
+ #[native_type]
+ #[serde(rename_all = "camelCase")]
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native/src/lib.rs:27:
+     pub next_milestone: Option<u32>,
+ }
+ 
+-#[native_module(name="gallery")]
++#[native_module(name = "gallery")]
+ mod app {
+-use super::*;
+-#[component(children=false)]
+-pub fn build_badge(builds:u32, cx:&mut solid_gpui::native::ElementContext)->impl solid_gpui::gpui::IntoElement {
+-    use solid_gpui::gpui::{div,px,rgb,ParentElement,Styled,InteractiveElement};
+-    div().id(cx.id()).px(px(10.)).py(px(6.)).rounded_md().bg(rgb(0x1e3a5f)).text_color(rgb(0xdbeafe)).child(format!("Rust component · {builds} builds"))
+-}
+-#[command]
+-pub fn analyze_workspace(name: String, readiness: bool, builds: u32) -> Result<WorkspaceReport, String> {
+-    let normalized_name = name
+-        .split_whitespace()
+-        .collect::<Vec<_>>()
+-        .join(" ");
+-    if normalized_name.is_empty() {
+-        return Err("Workspace name must not be blank".into());
++    use super::*;
++    #[component(children = false)]
++    pub fn build_badge(
++        builds: u32,
++        cx: &mut solid_gpui::native::ElementContext,
++    ) -> impl solid_gpui::gpui::IntoElement {
++        use solid_gpui::gpui::{InteractiveElement, ParentElement, Styled, div, px, rgb};
++        div()
++            .id(cx.id())
++            .px(px(10.))
++            .py(px(6.))
++            .rounded_md()
++            .bg(rgb(0x1e3a5f))
++            .text_color(rgb(0xdbeafe))
++            .child(format!("Rust component · {builds} builds"))
+     }
+-    if normalized_name.chars().count() > 80 {
+-        return Err("Workspace name must contain at most 80 characters".into());
+-    }
+-    if normalized_name.chars().any(char::is_control) {
+-        return Err("Workspace name must not contain control characters".into());
+-    }
+-    let mut slug = String::with_capacity(normalized_name.len());
+-    for character in normalized_name.chars().flat_map(char::to_lowercase) {
+-        if character.is_alphanumeric() {
+-            slug.push(character);
+-        } else if !slug.is_empty() && !slug.ends_with('-') {
+-            slug.push('-');
++    #[command]
++    pub fn analyze_workspace(
++        name: String,
++        readiness: bool,
++        builds: u32,
++    ) -> Result<WorkspaceReport, String> {
++        let normalized_name = name.split_whitespace().collect::<Vec<_>>().join(" ");
++        if normalized_name.is_empty() {
++            return Err("Workspace name must not be blank".into());
+         }
++        if normalized_name.chars().count() > 80 {
++            return Err("Workspace name must contain at most 80 characters".into());
++        }
++        if normalized_name.chars().any(char::is_control) {
++            return Err("Workspace name must not contain control characters".into());
++        }
++        let mut slug = String::with_capacity(normalized_name.len());
++        for character in normalized_name.chars().flat_map(char::to_lowercase) {
++            if character.is_alphanumeric() {
++                slug.push(character);
++            } else if !slug.is_empty() && !slug.ends_with('-') {
++                slug.push('-');
++            }
++        }
++        if slug.ends_with('-') {
++            slug.pop();
++        }
++        if slug.is_empty() {
++            return Err("Workspace name must contain a letter or number".into());
++        }
++        let completed = builds.min(5);
++        let status = if !readiness {
++            WorkspaceStatus::Blocked
++        } else if completed == 5 {
++            WorkspaceStatus::Established
++        } else {
++            WorkspaceStatus::Ready
++        };
++        let recommendations = if !readiness {
++            vec!["Complete the readiness checklist before building.".into()]
++        } else if builds == 0 {
++            vec![format!("Run the first build for {normalized_name}.")]
++        } else if completed < 5 {
++            vec![format!(
++                "Complete {} more builds to establish this workspace.",
++                5 - completed
++            )]
++        } else {
++            vec!["All build milestones are complete; review the release checklist.".into()]
++        };
++        Ok(WorkspaceReport {
++            normalized_name,
++            slug,
++            status,
++            progress: BuildProgress {
++                completed,
++                target: 5,
++                percent: completed * 20,
++            },
++            recommendations,
++            next_milestone: (completed < 5).then_some(completed + 1),
++        })
+     }
+-    if slug.ends_with('-') {
+-        slug.pop();
+-    }
+-    if slug.is_empty() {
+-        return Err("Workspace name must contain a letter or number".into());
+-    }
+-    let completed = builds.min(5);
+-    let status = if !readiness {
+-        WorkspaceStatus::Blocked
+-    } else if completed == 5 {
+-        WorkspaceStatus::Established
+-    } else {
+-        WorkspaceStatus::Ready
+-    };
+-    let recommendations = if !readiness {
+-        vec!["Complete the readiness checklist before building.".into()]
+-    } else if builds == 0 {
+-        vec![format!("Run the first build for {normalized_name}.")]
+-    } else if completed < 5 {
+-        vec![format!(
+-            "Complete {} more builds to establish this workspace.",
+-            5 - completed
+-        )]
+-    } else {
+-        vec!["All build milestones are complete; review the release checklist.".into()]
+-    };
+-    Ok(WorkspaceReport {
+-        normalized_name,
+-        slug,
+-        status,
+-        progress: BuildProgress {
+-            completed,
+-            target: 5,
+-            percent: completed * 20,
+-        },
+-        recommendations,
+-        next_milestone: (completed < 5).then_some(completed + 1),
+-    })
+ }
+ 
++pub fn native_module() -> solid_gpui::native::ModuleDefinition {
++    app::native_module()
+ }
+ 
+-pub fn native_module() -> solid_gpui::native::ModuleDefinition { app::native_module() }
+-
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native/src/lib.rs:108:
+     #[test]
+     fn normalizes_workspace_and_tracks_milestones() {
+-        let report=app::analyze_workspace("  Rust   Studio  ".into(),true,3).unwrap();
+-        assert_eq!(report.normalized_name,"Rust Studio");assert_eq!(report.slug,"rust-studio");
+-        assert!(matches!(report.status,WorkspaceStatus::Ready));assert_eq!(report.progress.percent,60);assert_eq!(report.next_milestone,Some(4));
+-        let blocked=app::analyze_workspace("demo".into(),false,u32::MAX).unwrap();
+-        assert!(matches!(blocked.status,WorkspaceStatus::Blocked));assert_eq!(blocked.progress.percent,100);assert_eq!(blocked.next_milestone,None);
+-        assert!(app::analyze_workspace("  ".into(),true,0).is_err());
++        let report = app::analyze_workspace("  Rust   Studio  ".into(), true, 3).unwrap();
++        assert_eq!(report.normalized_name, "Rust Studio");
++        assert_eq!(report.slug, "rust-studio");
++        assert!(matches!(report.status, WorkspaceStatus::Ready));
++        assert_eq!(report.progress.percent, 60);
++        assert_eq!(report.next_milestone, Some(4));
++        let blocked = app::analyze_workspace("demo".into(), false, u32::MAX).unwrap();
++        assert!(matches!(blocked.status, WorkspaceStatus::Blocked));
++        assert_eq!(blocked.progress.percent, 100);
++        assert_eq!(blocked.next_milestone, None);
++        assert!(app::analyze_workspace("  ".into(), true, 0).is_err());
+     }
+ }
+ 
+Diff in /Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native/src/main.rs:1:
+-fn main() { solid_gpui::run(gallery_host::native_module()); }
++fn main() {
++    solid_gpui::run(gallery_host::native_module());
++}
+ 

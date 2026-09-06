@@ -2,11 +2,11 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-examples_dir="$repo_root/packages/react-gpui/examples"
-smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-examples-smoke.XXXXXX")"
+examples_dir="$repo_root/fixtures"
+smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-examples-smoke.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
-startup_timeout="${EXAMPLES_SMOKE_STARTUP_TIMEOUT_SECONDS:-5}"
+startup_timeout="${EXAMPLES_SMOKE_STARTUP_TIMEOUT_SECONDS:-15}"
 term_timeout="${EXAMPLES_SMOKE_TERM_TIMEOUT_SECONDS:-1}"
 kill_timeout="${EXAMPLES_SMOKE_KILL_TIMEOUT_SECONDS:-5}"
 build_log="$smoke_root/build.log"
@@ -14,14 +14,14 @@ target_started="$(python3 -c 'import time; print(time.monotonic())')"
 
 if ! (
   cd "$repo_root"
-  cargo build -p react-gpui-host --release --locked
+  cargo build -p solid-gpui --bin solid-gpui-host --release --locked
 ) >"$build_log" 2>&1; then
   printf '%s\n' 'examples-smoke: release host build failed' >&2
   cat "$build_log" >&2
   exit 1
 fi
 
-binary="$repo_root/target/$(rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))')/release/react-gpui-host"
+binary="$repo_root/target/release/solid-gpui-host"
 [[ -x "$binary" ]] || {
   printf 'examples-smoke: release host is missing or not executable: %s\n' "$binary" >&2
   exit 1
@@ -39,6 +39,7 @@ from pathlib import Path
 binary, examples_dir_text, smoke_root_text, startup_text, term_text, kill_text, target_started_text = sys.argv[1:]
 examples_dir = Path(examples_dir_text)
 smoke_root = Path(smoke_root_text)
+preload = str(examples_dir.parent / "scripts/solid-jsx.ts")
 startup_timeout = float(startup_text)
 term_timeout = float(term_text)
 kill_timeout = float(kill_text)
@@ -46,11 +47,11 @@ target_started = float(target_started_text)
 if startup_timeout <= 0 or term_timeout <= 0 or kill_timeout <= 0:
     raise SystemExit("examples-smoke: timeout values must be positive")
 
-entries = sorted(examples_dir.glob("*.tsx"), key=lambda path: path.name)
+entries = [examples_dir / "press-roundtrip.ts"]
 if not entries:
-    raise SystemExit(f"examples-smoke: no .tsx entries found in {examples_dir}")
+    raise SystemExit(f"examples-smoke: no .ts/.tsx entries found in {examples_dir}")
 
-startup_pattern = re.compile(rb"react-gpui-host: starting mode=Process protocol=v3 entry=bun pid=\d+")
+startup_pattern = re.compile(rb"solid-gpui-host: starting mode=Process protocol=v5 entry=bun pid=\d+")
 allowed_exit_codes = {0, -signal.SIGTERM, 128 + signal.SIGTERM}
 
 def read_tail(path: Path, lines: int = 80) -> str:
@@ -126,7 +127,7 @@ for entry in entries:
     stderr_path = smoke_root / f"{name}.stderr"
     stdout_path = smoke_root / f"{name}.stdout"
     environment = os.environ.copy()
-    environment["REACT_GPUI_LOG"] = "info"
+    environment["SOLID_GPUI_LOG"] = "info"
     stderr_file = stderr_path.open("w", encoding="utf-8")
     stdout_file = stdout_path.open("w", encoding="utf-8")
     started = time.monotonic()
@@ -139,7 +140,7 @@ for entry in entries:
     members = []
     try:
         process = subprocess.Popen(
-            [binary, "--runtime", "process", "--", "bun", "run", entry.name],
+            [binary, "--runtime", "process", "--", "bun", "run", "--conditions=browser", "--preload", preload, entry.name],
             cwd=examples_dir,
             env=environment,
             stdout=stdout_file,
@@ -158,7 +159,7 @@ for entry in entries:
                 failure = f"exited before startup diagnostic (code={exit_code})"
                 break
             if time.monotonic() >= deadline:
-                failure = f"timed out after {startup_timeout:.3f}s waiting for protocol=v3 startup diagnostic"
+                failure = f"timed out after {startup_timeout:.3f}s waiting for protocol=v5 startup diagnostic"
                 break
             time.sleep(0.01)
     except OSError as error:

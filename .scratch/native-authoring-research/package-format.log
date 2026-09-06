@@ -1,0 +1,15 @@
+$ bun scripts/tasks.ts package-format
+
+$ bun install --frozen-lockfile
+bun install v1.4.2 (744846f84)
+
+Checked 120 installs across 160 packages (no changes) [4.00ms]
+
+$ bunx prettier --check "scripts/**/*.ts" "packages/solid-gpui/src/*.ts" "packages/solid-gpui/src/renderer/**/*.ts" "packages/solid-gpui/src/protocol/*.ts" "packages/solid-gpui/src/protocol/*.json" "packages/solid-gpui/src/protocol/generated/*.ts" "packages/solid-gpui/tests/**/*.{ts,tsx,js,json}" "examples/**/*.{ts,tsx,json}" "packages/solid-gpui/src/vite/**/*.ts" "packages/solid-gpui-router/src/**/*.ts" "packages/solid-gpui-router/tests/**/*.{ts,js,json}" package.json tsconfig.tools.json "packages/solid-gpui/*.json" "packages/solid-gpui-router/*.json"
+Checking formatting...
+[warn] packages/solid-gpui/src/components.ts
+[warn] examples/gallery-vite/vite.config.ts
+[warn] examples/gallery/src/gallery/generated/native.ts
+[warn] examples/gallery/src/gallery/pages/OverviewPage.tsx
+[warn] Code style issues found in 4 files. Run Prettier with --write to fix.
+error: script "task" exited with code 1

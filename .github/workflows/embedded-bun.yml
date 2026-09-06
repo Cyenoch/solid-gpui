@@ -5,13 +5,15 @@ on:
   pull_request:
     paths:
       - ".bun-version"
+      - "bun.lock"
+      - "package.json"
       - "Cargo.lock"
       - "Cargo.toml"
-      - "crates/react-gpui/**"
-      - "crates/react-gpui-bun/**"
-      - "crates/react-gpui-host/**"
-      - "packages/react-gpui/**"
-      - "packages/react-gpui-dev/**"
+      - "crates/solid-gpui/**"
+      - "crates/solid-gpui-bun-sys/**"
+      - "crates/solid-gpui/src/host/**"
+      - "packages/solid-gpui/**"
+      - "scripts/tasks.ts"
       - "rust-toolchain.toml"
       - ".github/workflows/embedded-bun.yml"
 
@@ -40,6 +42,9 @@ jobs:
         with:
           bun-version-file: .bun-version
 
+      - name: Install Bun workspace
+        run: bun install --frozen-lockfile
+
       - name: Cache embedded Bun build
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
@@ -47,9 +52,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: embedded-bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '.bun-version', 'crates/react-gpui-bun/build.rs', 'crates/react-gpui-bun/bun_embed.patch') }}
+          key: embedded-bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '.bun-version', 'crates/solid-gpui-bun-sys/build.rs', 'crates/solid-gpui-bun-sys/bun_embed.patch', 'crates/solid-gpui-bun-sys/embedded/**/*.rs') }}
           restore-keys: |
             embedded-bun-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Check embedded Bun build
-        run: make embedded-bun
+        run: bun run task embedded-check

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-host-embedded-smoke.XXXXXX")"
+smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-host-embedded-smoke.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
 build_timeout_seconds="${HOST_EMBEDDED_BUILD_TIMEOUT_SECONDS:-240}"
@@ -24,7 +24,9 @@ command = [
     "cargo",
     "build",
     "-p",
-    "react-gpui-host",
+    "solid-gpui",
+    "--bin",
+    "solid-gpui-host",
     "--features",
     "embedded-bun",
     "--release",
@@ -77,14 +79,14 @@ cat "$build_log"
 metadata="$(
   cd "$repo_root"
   cargo metadata --format-version 1 --no-deps |
-    python3 -c 'import json, sys; package = next(p for p in json.load(sys.stdin)["packages"] if p["name"] == "react-gpui-host"); print(package["version"])'
+    python3 -c 'import json, sys; package = next(p for p in json.load(sys.stdin)["packages"] if p["name"] == "solid-gpui"); print(package["version"])'
 )"
 target="$(
   cd "$repo_root"
   rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))'
 )"
-binary="$repo_root/target/$target/release/react-gpui-host"
-user_entry="$repo_root/packages/react-gpui/examples/counter.tsx"
+binary="$repo_root/target/$target/release/solid-gpui-host"
+user_entry="$repo_root/fixtures/press-roundtrip.ts"
 run_dir="$smoke_root/user-run"
 stderr_file="$smoke_root/embedded.stderr"
 stdout_file="$smoke_root/embedded.stdout"
@@ -103,11 +105,11 @@ import time
 
 binary, entry, cwd, stderr_path = sys.argv[1:]
 environment = os.environ.copy()
-environment["REACT_GPUI_LOG"] = "info"
+environment["SOLID_GPUI_LOG"] = "info"
 child_stderr_path = stderr_path + ".child"
 stderr_sink = open(child_stderr_path, "w", encoding="utf-8")
 process = subprocess.Popen(
-    [binary, "--runtime", "embedded", entry, "--smoke-press"],
+    [binary, "--runtime", "embedded", "--smoke-press", entry],
     cwd=cwd,
     env=environment,
     stdout=subprocess.PIPE,
@@ -188,7 +190,7 @@ python3 - "$stderr_file" <<'PY'
 import re
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-if re.search(r"react-gpui-host: starting mode=Embedded protocol=v3 entry=.* pid=\d+", text) is None:
+if re.search(r"solid-gpui-host: starting mode=Embedded protocol=v5 entry=.* pid=\d+", text) is None:
     print(text, file=sys.stderr)
     raise SystemExit("missing embedded info startup diagnostic with entry/pid")
 match = re.search(r"embedded smoke press sent=true, commits=(\d+), status=", text)
@@ -199,7 +201,7 @@ PY
 
 version_output="$($binary --version)"
 help_output="$($binary --help)"
-[[ "$version_output" == "react-gpui-host $metadata protocol=v3" ]] || { printf 'unexpected embedded candidate version: %s\n' "$version_output" >&2; exit 1; }
+[[ "$version_output" == "solid-gpui-host $metadata protocol=v5" ]] || { printf 'unexpected version output: %s\n' "$version_output" >&2; exit 1; }
 case "$help_output" in
   *"--runtime embedded"*"--version"*) ;;
   *) printf 'embedded candidate help output is incomplete\n' >&2; exit 1 ;;

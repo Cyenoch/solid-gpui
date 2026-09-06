@@ -1,7 +1,11 @@
 # ADR-0003: Use a three-layer cross-language golden vector contract
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-08-25
+
+> Historical note: The v3 tuple and golden-vector rules below are retained as
+> historical context; the active wire contract is the accepted Bebop v5
+> decision in ADR-0014.
 
 ## Context
 

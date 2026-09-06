@@ -1,0 +1,11 @@
+{
+  "prefix": "old",
+  "width": 24,
+  "height": 24,
+  "icons": {
+    "gone": {
+      "body": "<path fill=\"currentColor\" d=\"M0 0h24v24H0z\"/>",
+      "hidden": true
+    }
+  }
+}

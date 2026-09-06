@@ -1,0 +1,17 @@
+{
+  "name": "@solid-gpui/gallery-vite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun ../../scripts/tasks.ts gallery-dev",
+    "build": "bun run --bun vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solid-gpui/gallery": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "8.2.2",
+    "@solid-gpui/core": "workspace:*"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "include": ["protocol.bop"],
+  "generators": {
+    "ts": { "outFile": "generated/protocol.ts" },
+    "rust": { "outFile": "../../../../crates/solid-gpui/src/protocol/generated/protocol.rs" }
+  }
+}

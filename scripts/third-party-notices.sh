@@ -11,7 +11,7 @@ if [[ "$output_path" != /* ]]; then
   output_path="$repo_root/$output_path"
 fi
 
-work_dir="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-third-party-notices.XXXXXX")"
+work_dir="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-third-party-notices.XXXXXX")"
 trap 'rm -rf -- "$work_dir"' EXIT
 
 (
@@ -20,12 +20,8 @@ trap 'rm -rf -- "$work_dir"' EXIT
   cargo metadata --locked --format-version 1 > "$work_dir/cargo-metadata.json"
 )
 (
-  cd "$repo_root/packages/react-gpui"
-  bun pm licenses --all > "$work_dir/bun-core.txt"
-)
-(
-  cd "$repo_root/packages/react-gpui-dev"
-  bun pm licenses --all > "$work_dir/bun-dev.txt"
+  cd "$repo_root"
+  bun pm licenses --all > "$work_dir/bun-workspace.txt"
 )
 
 rustc_version="$(cd "$repo_root" && rustc -vV)"
@@ -33,12 +29,12 @@ target="$(python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in 
 if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
   generated_date="$(date -u -r "$SOURCE_DATE_EPOCH" +%Y-%m-%d)"
 else
-  generated_date="$(git -C "$repo_root" log -1 --format=%cs -- Cargo.lock Cargo.toml packages/react-gpui/bun.lock packages/react-gpui-dev/bun.lock packages/react-gpui/package.json packages/react-gpui-dev/package.json scripts/third-party-notices.sh)"
+  generated_date="$(git -C "$repo_root" log -1 --format=%cs -- Cargo.lock Cargo.toml bun.lock package.json packages/solid-gpui/package.json packages/solid-gpui-router/package.json scripts/tasks.ts scripts/third-party-notices.sh)"
 fi
 [[ -n "$generated_date" ]] || { printf 'unable to determine a stable generation date\n' >&2; exit 1; }
 
 mkdir -p "$(dirname "$output_path")"
-python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.tsv" "$work_dir/cargo-metadata.json" "$work_dir/bun-core.txt" "$work_dir/bun-dev.txt" "$target" "$generated_date" <<'PY'
+python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.tsv" "$work_dir/cargo-metadata.json" "$work_dir/bun-workspace.txt" "$target" "$generated_date" <<'PY'
 import csv
 import datetime as dt
 import json
@@ -54,8 +50,7 @@ from collections import defaultdict
     output_path,
     cargo_tsv_path,
     cargo_metadata_path,
-    bun_core_path,
-    bun_dev_path,
+    bun_workspace_path,
     target,
     generated_date,
 ) = sys.argv[1:]
@@ -151,7 +146,7 @@ for records in rust_third_party.values():
 rust_project_owned.sort(key=lambda item: (item["name"].casefold(), item["name"], item["version"]))
 
 package_versions = {}
-for relative in ("packages/react-gpui/package.json", "packages/react-gpui-dev/package.json"):
+for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json"):
     package_json = json.loads((root / relative).read_text(encoding="utf-8"))
     package_versions[package_json["name"]] = package_json["version"]
 
@@ -163,7 +158,9 @@ def parse_bun(path, package_label):
     current_license = None
     for raw_line in pathlib.Path(path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
-        if not line:
+        if not line or re.fullmatch(r"bun pm licenses v[^ ]+ \([0-9a-f]+\)", line):
+            continue
+        if re.fullmatch(r"\d+ packages across \d+ licenses \(checked \d+ packages in bun\.lock\) \[[0-9.]+ms\]", line):
             continue
         group_match = bun_group.match(line)
         if group_match:
@@ -202,8 +199,7 @@ def parse_bun(path, package_label):
     return grouped
 
 bun_inventories = {
-    "@react-gpui/core": parse_bun(bun_core_path, "@react-gpui/core"),
-    "@react-gpui/dev": parse_bun(bun_dev_path, "@react-gpui/dev"),
+    "Solid GPUI workspace": parse_bun(bun_workspace_path, "Solid GPUI workspace"),
 }
 
 
@@ -250,10 +246,10 @@ def bun_table(records):
         )
     return lines
 
-host_package = next((p for p in packages if p.get("name") == "react-gpui-host"), None)
+host_package = next((p for p in packages if p.get("name") == "solid-gpui"), None)
 if host_package is None:
-    raise SystemExit("cargo metadata did not contain react-gpui-host")
-host_archive = f"react-gpui-host-{host_package['version']}-{target}.tar.gz"
+    raise SystemExit("cargo metadata did not contain solid-gpui")
+host_archive = f"solid-gpui-host-{host_package['version']}-{target}.tar.gz"
 
 third_party_rust_packages = {
     (record["name"], record["version"])
@@ -271,9 +267,9 @@ lines = [
     "Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a 670-crate license-text bundle.",
     "",
     f"**Generated:** {generated_date}",
-    "**Generation command:** `bash scripts/third-party-notices.sh`",
+    "**Generation command:** `bun run task third-party-notices`",
     "",
-    "The host archive keeps this single inventory next to `LICENSE`. The npm tarballs intentionally remain lean and carry only their own package `LICENSE`; consumers of the dev package receive the JavaScript dependency inventory through the repository or release archive rather than duplicating it in every npm tarball.",
+    "The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.",
     "License groups below repeat a package when its declared expression contains multiple SPDX identifiers. Totals count package records within that group.",
     "",
     "## Rust dependencies",
@@ -298,12 +294,12 @@ lines.extend(
         "",
         "## Bun dependencies",
         "",
-        "The following two inventories are the direct outputs of `bun pm licenses --all` for the core and dev package workspaces. Entries marked `dev` are development-only in that workspace.",
+        "This inventory is the direct output of `bun pm licenses --all` for the root Bun workspace. Entries marked `dev` are development-only.",
         "",
     ]
 )
 
-for package_label in ("@react-gpui/core", "@react-gpui/dev"):
+for package_label in ("Solid GPUI workspace",):
     grouped = bun_inventories[package_label]
     lines.extend([f"### `{package_label}`", ""])
     for license_id in sorted(grouped, key=lambda value: (value.casefold(), value)):

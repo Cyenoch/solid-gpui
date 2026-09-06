@@ -1,0 +1,25 @@
+[package]
+name = "gpui-iconify"
+description = "On-demand Iconify subset for GPUI."
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["lucide"]
+lucide = []
+swatch = []
+
+[dependencies]
+gpui.workspace = true
+tracing = "0.1"
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+toml = "1.1.5"
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+toml = "1.1.5"

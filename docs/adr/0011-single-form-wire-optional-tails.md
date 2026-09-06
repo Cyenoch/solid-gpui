@@ -1,7 +1,11 @@
 # ADR-0011: Single-form wire with optional node tails
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-08-29
+
+> Historical note: The v3 positional tuple and optional-tail rules below are
+> retained as historical context; the active wire contract is the accepted
+> Bebop v5 decision in ADR-0014.
 
 ## Context
 
@@ -14,11 +18,11 @@ to confuse with an old renderer or host. The protocol cutover recorded in
 retaining optional fields that current encoders intentionally omit.
 
 The current positional schemas are implemented by
-`packages/react-gpui/src/protocol.ts`,
-`crates/react-gpui/src/protocol/wire/node.rs`,
-`crates/react-gpui/src/protocol/wire/snapshot_patch.rs`,
-`crates/react-gpui/src/protocol/wire/event.rs`, and
-`crates/react-gpui/src/protocol/wire/command.rs`; the implemented contract is
+`packages/solid-gpui/src/protocol.ts`,
+`crates/solid-gpui/src/protocol/wire/node.rs`,
+`crates/solid-gpui/src/protocol/wire/snapshot_patch.rs`,
+`crates/solid-gpui/src/protocol/wire/event.rs`, and
+`crates/solid-gpui/src/protocol/wire/command.rs`; the implemented contract is
 indexed in `docs/protocol.md` §§2–4 and locked by `fixtures/protocol/`.
 
 ## Decision

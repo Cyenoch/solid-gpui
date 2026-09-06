@@ -13,20 +13,20 @@ build_log="$run_root/build.log"
 
 if ! (
   cd "$repo_root"
-  cargo build -p react-gpui-host --release --locked
+  cargo build -p solid-gpui --bin solid-gpui-host --release --locked
 ) >"$build_log" 2>&1; then
   printf '%s\n' 'kill-resilience: release host build failed' >&2
   cat "$build_log" >&2
   exit 1
 fi
 
-binary="$repo_root/target/$(rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))')/release/react-gpui-host"
+binary="$repo_root/target/release/solid-gpui-host"
 [[ -x "$binary" ]] || {
   printf 'kill-resilience: release host is missing or not executable: %s\n' "$binary" >&2
   exit 1
 }
 
-entries="${KILL_RESILIENCE_ENTRIES:-counter.tsx,gallery.tsx}"
+entries="${KILL_RESILIENCE_ENTRIES:-press-roundtrip.ts}"
 python3 - "$binary" "$repo_root" "$run_root" "$startup_timeout" "$kill_timeout" "$entries" <<'PY'
 import os
 import re
@@ -41,7 +41,7 @@ binary_text, repo_root_text, run_root_text, startup_text, kill_text, entries_tex
 binary = Path(binary_text).resolve()
 repo_root = Path(repo_root_text).resolve()
 run_root = Path(run_root_text).resolve()
-examples_dir = repo_root / "packages" / "react-gpui" / "examples"
+examples_dir = repo_root / "fixtures"
 startup_timeout = float(startup_text)
 kill_timeout = float(kill_text)
 if startup_timeout <= 0 or kill_timeout <= 0:
@@ -57,13 +57,13 @@ for entry_text in entries_text.split(","):
     if not name:
         continue
     entry = (examples_dir / name).resolve()
-    if entry.parent != examples_dir or entry.suffix != ".tsx" or not entry.is_file():
+    if entry.parent != examples_dir or entry.suffix != ".ts" or not entry.is_file():
         raise SystemExit(f"kill-resilience: invalid example entry: {name}")
     entry_paths.append(entry)
 if not entry_paths:
     raise SystemExit("kill-resilience: no example entries selected")
 
-startup_pattern = re.compile(rb"react-gpui-host: starting mode=Process protocol=v3 entry=bun pid=(\d+)")
+startup_pattern = re.compile(rb"solid-gpui-host: starting mode=Process protocol=v5 entry=bun pid=(\d+)")
 
 
 def read_tail(path: Path, lines: int = 80) -> str:
@@ -277,7 +277,7 @@ def run_case(entry: Path, scenario: str, case_number: int):
     stdout_file = stdout_path.open("w", encoding="utf-8")
     stderr_file = stderr_path.open("w", encoding="utf-8")
     environment = os.environ.copy()
-    environment["REACT_GPUI_LOG"] = "info"
+    environment["SOLID_GPUI_LOG"] = "info"
     host = None
     renderer_pid = None
     pgid = None

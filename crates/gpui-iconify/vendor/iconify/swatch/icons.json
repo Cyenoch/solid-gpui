@@ -1,0 +1,10 @@
+{
+  "prefix": "swatch",
+  "width": 24,
+  "height": 24,
+  "icons": {
+    "grid": {
+      "body": "<rect x=\"2\" y=\"2\" width=\"10\" height=\"10\" fill=\"#3b82f6\"/><rect x=\"12\" y=\"2\" width=\"10\" height=\"10\" fill=\"#ef4444\"/><rect x=\"2\" y=\"12\" width=\"10\" height=\"10\" fill=\"#22c55e\"/><rect x=\"12\" y=\"12\" width=\"10\" height=\"10\" fill=\"#eab308\"/>"
+    }
+  }
+}

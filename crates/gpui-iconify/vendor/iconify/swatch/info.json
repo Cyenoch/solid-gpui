@@ -1,0 +1,8 @@
+{
+  "prefix": "swatch",
+  "name": "example swatch",
+  "total": 1,
+  "license": { "title": "CC0", "spdx": "CC0-1.0" },
+  "palette": true,
+  "height": 24
+}

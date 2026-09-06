@@ -4,6 +4,8 @@ Avoid excessive fallback.
 
 When encountering design problems, actively refactor rather than compromise and settle.
 
+During development, there's no need to maintain compatibility with old designs or data structures—don't keep any historical wrappers.
+
 ## Agent skills
 
 ### Issue tracker
@@ -17,3 +19,7 @@ Use the canonical labels `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 ### Domain docs
 
 This is a single-context repo with root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
+### Native UI development and performance
+
+For GPUI layout, rendering, lists, tasks, caching, or performance diagnosis, use `.agents/skills/gpui-performance/SKILL.md`. For solid-gpui application development, use `.agents/skills/solid-gpui/SKILL.md`. The repeatable measurement workflow is in `docs/performance-analysis.md`.

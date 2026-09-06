@@ -1,0 +1,64 @@
+[package]
+name = "solid-gpui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Validated snapshot protocol and native tree for the Solid GPUI host"
+repository.workspace = true
+readme.workspace = true
+keywords = ["solid", "gpui", "renderer", "native-ui"]
+categories = ["gui"]
+
+[dependencies]
+bebop.workspace = true
+futures.workspace = true
+gpui.workspace = true
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+skrifa.workspace = true
+unicode-segmentation.workspace = true
+serde_json.workspace = true
+gpui-iconify = { path = "../gpui-iconify" }
+solid-gpui-macros = { path = "../solid-gpui-macros" }
+serde_ignored = "0.1"
+sha2 = "0.11"
+ts-rs = "12.0.1"
+tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }
+gpui-component = { workspace = true, optional = true }
+gpui-platform = { workspace = true, features = ["font-kit"], optional = true }
+gpui-performance = { path = "../gpui-performance", optional = true }
+solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
+
+[features]
+default = ["host"]
+host = ["dep:gpui-platform"]
+gpui-component = ["host", "dep:gpui-component", "dep:gpui-performance"]
+frame-profile = ["gpui-component", "gpui/profiler"]
+embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
+test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gpui-platform = { workspace = true, features = ["font-kit", "wayland", "x11"], optional = true }
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+
+image = "0.25.10"
+smallvec = "1.16.0"
+gpui = { workspace = true, features = ["test-support"] }
+
+[[test]]
+name = "host_command_roundtrip"
+required-features = ["test-support"]
+
+[[test]]
+name = "host_glyph_platform"
+harness = false
+required-features = ["host"]
+
+[[test]]
+name = "host_embedded_counter"
+required-features = ["embedded-bun"]
+
+[[bin]]
+name = "solid-gpui-host"
+required-features = ["host"]

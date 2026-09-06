@@ -1,0 +1,78 @@
+{
+  "name": "@solid-gpui/core",
+  "version": "0.2.0",
+  "description": "SolidJS renderer for native GPUI surfaces.",
+  "keywords": [
+    "solidjs",
+    "gpui",
+    "native-ui",
+    "bun"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cyenoch/solid-gpui.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "src/vite"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts"
+    },
+    "./vite": "./src/vite/index.ts",
+    "./vite/dev": "./src/vite/dev.ts",
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "import": "./dist/native.js",
+      "default": "./dist/native.js"
+    },
+    "./components": {
+      "types": "./dist/components.d.ts",
+      "import": "./dist/components.js",
+      "default": "./dist/components.js"
+    }
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "dependencies": {
+    "bebop": "3.2.3",
+    "@babel/core": "8.0.1",
+    "@babel/preset-typescript": "8.0.1",
+    "babel-preset-solid": "1.9.15",
+    "@types/babel__core": "7.20.5",
+    "prettier": "3.9.6"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.10",
+    "vite": "^8.2.2"
+  },
+  "devDependencies": {
+    "@solid-gpui/router": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "bin": {
+    "solid-gpui-dev": "./src/vite/dev.ts"
+  }
+}

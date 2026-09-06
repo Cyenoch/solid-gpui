@@ -1,636 +1,169 @@
-# React GPUI
+# Solid GPUI
 
-> [!WARNING]
-> **Early-stage WIP.** React GPUI is under active development. APIs, protocol
-> details, and implementation behavior may change without notice; it is not
-> production-ready.
+Solid GPUI renders SolidJS owner trees into native GPUI surfaces. SolidJS owns reactive application state and composition; Rust and GPUI own the validated retained tree, native interaction state, layout, and painting.
 
-React GPUI renders React trees into one or more native GPUI surfaces. React and
-Bun own Fiber, hooks, context, fragments, and JavaScript closures; Rust and GPUI
-own validated native tree state and drawing.
-
-![React GPUI Gallery](docs/images/gallery.png)
-
-_The gallery example exercises native controls, scrolling, overlays, drag
-reordering, and text rendering._
-
-## Status
-
-The V3 path is working end to end: the React custom renderer emits an immutable Snapshot bootstrap followed by incremental Patches, the Rust host validates and applies them, native press/TextInput/VirtualList/keyboard/animation events return to JavaScript listener callbacks, and the host can select either `ProcessAdapter` or the in-process `EmbeddedBunAdapter`. Embedded Bun builds the pinned Bun/JSC graph from `crates/react-gpui-bun/bun_embed.patch`; Fast Refresh lives in `packages/react-gpui-dev`.
-
-TextInput supports muted visual-only `placeholder` guidance when native text is
-empty; selection notifications carry UTF-16 ranges plus a `reversed` head
-orientation bit, while ordered `setSelection(start, end)` remains an explicit
-range command.
-
-Single-line TextInput supports click-to-place, drag selection, UTF-16-safe
-Shift+arrow/Home/End extension, and a visible selection highlight. The caret
-remains always visible rather than blinking so keyboard focus and the insertion
-point stay available to users who benefit from reduced visual timing demands.
-Multiline TextInput now uses GPUI wrapped-line shaping for painting,
-point-to-character mapping, and IME candidate bounds, including empty and
-trailing-newline lines. The host keeps the caret and active marked range visible
-by following them vertically (and horizontally for long single-line input),
-without adding wire state. Ctrl/Cmd word-boundary movement and double-/triple-click
-selection remain outside this renderer's minimal interaction contract.
-
-TextInput editing also provides a bounded host-owned undo history without a
-wire or GPUI API change. Cmd/Ctrl-Z undoes and Shift-Cmd-Z (or Ctrl-Y) redoes;
-each operation emits the same change and selection events as ordinary edits,
-so controlled inputs receive the reverted value through the normal
-`onChangeText`/acknowledgement pipeline. The history keeps the newest 100
-pre-edit snapshots and drops the oldest when full. Consecutive typing edits
-coalesce only while both edits have a collapsed caret and the second edit
-starts at the first edit's resulting caret; cursor moves, selection changes,
-paste, cut, and word/line selection edits create boundaries without recording
-selection-only changes. While IME marked text is active, undo first commits
-the composition and then treats that committed composition as one undo entry.
-
-`Text` owns one paragraph and may mix raw strings with one level of nested
-`Text` runs:
-
-```tsx
-<Text style={{ color: "#334155", fontSize: 16 }}>
-  Hello <Text style={{ color: "#2563eb", fontWeight: "bold" }}>world</Text>!
-</Text>
-```
-
-Raw strings use the parent style. A nested run may override only
-`color`, `fontWeight`, `fontStyle`, `textDecoration`, and `fontFamily`; its
-`fontSize` and `lineHeight` (and layout or other non-typography fields) are
-rejected because GPUI shapes one paragraph with one size and line height.
-Nested runs are flattened into one UTF-8 paragraph for wrapping and
-accessibility, while each run keeps its own color, font, weight, and decoration.
-Selectable rich text is supported: selection and copy operate on the complete
-flattened paragraph across run boundaries. A nested run with `onPress` is a
-clickable link target and receives a native focus handle/tab stop; focus and
-blur use the existing callbacks, and unmodified Enter synthesizes `onPress`.
-Space remains non-activating. Listener-bearing runs own the pointing-hand
-cursor only over their shaped glyph range through GPUI's native InteractiveText
-decision; when a paragraph has such runs, its node-level cursor style is
-intentionally ignored so sibling text keeps the surrounding cursor.
-The complete rich-text showcase is [`packages/react-gpui/examples/rich-text.tsx`](packages/react-gpui/examples/rich-text.tsx), including nested styles, interactive link runs, and native selection/copy across run boundaries.
-
-## Platform support
-
-The supported process-mode host targets are intentionally explicit:
-
-| Target            | Process-mode status          | Validation and remaining scope                                                                                                                                                                                      |
-| ----------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| macOS ARM         | Validated candidate          | The Cocoa/AppKit + Metal host is covered by the current macOS gates; process mode uses an external renderer command.                                                                                                |
-| Linux Wayland/X11 | Feature-enabled build target | The host enables both GPUI backends. Ubuntu CI runs locked checks, Clippy, and platform-neutral protocol tests; display-backed WGPU smoke and compositor/portal/font/GPU validation remain pending on real runners. |
-| Windows           | Build target                 | Windows CI runs a locked workspace check and process-host build with the hosted Windows SDK/FXC toolchain; display-backed D3D11, text, input, accessibility, and swap-chain smoke remains pending.                  |
-| Embedded Bun      | macOS-only by design         | The current Bun/JavaScriptCore build rejects non-macOS targets. Linux and Windows process mode still require an externally supplied renderer; no embedded-Bun support is claimed there.                             |
-
-Linux and Windows entries describe build coverage, not release artifacts or
-display-backed runtime support.
+> Early-stage work. Public APIs and protocol details may change without compatibility wrappers.
 
 ## Architecture
 
 ```text
-React components and hooks
+Solid signals and components
           │
           ▼
-@react-gpui/core (Bun/TypeScript)
-  Fiber commit → one framed MessagePack Commit Batch per surface
-          │ stdout commits / stdin events
-RuntimeAdapter (`ProcessAdapter` or `EmbeddedBunAdapter`)
+@solid-gpui/core
+  universal renderer → transactional host mutations
           │
           ▼
-Surface registry + one commit reader
-  ├── surface 1 → ReactRoot → GPUI window
-  ├── surface N → ReactRoot → GPUI window
-  └── events/CommandResults demultiplexed by surfaceId
+Snapshot bootstrap / incremental Patch frames
           │
-          └── native events → framed events → matching JS root callback
+          ▼
+solid-gpui-host
+  validated NodeStore → native GPUI windows
 ```
 
-A host starts with surface `1`. For multiple native windows, construct a
-shared `createSurfaceHost(transport)`, render from one registered root, then
-call that root's `openSurface({ title?, width?, height?, kind?, resizable?, minSize? })`.
-Await the returned surface ID, register it with `host.createRoot({ surfaceId, onClose })`,
-and render the new tree:
+The TypeScript renderer is built with `solid-js`'s client reactive runtime and a custom universal host. A root update is atomic at the wire boundary: the first update emits a Snapshot and later updates emit deterministic Patches. Native events run inside the matching Solid owner transaction; signal-driven mutations outside an event are coalesced into one microtask commit.
 
-```tsx
-const host = createSurfaceHost(transport);
-const root = host.createRoot({ surfaceId: 1 });
-root.render(<Main />);
-const surfaceId = await root.openSurface({
-  title: "Inspector",
-  width: 640,
-  height: 480,
-  kind: "floating",
-  resizable: false,
-  minSize: [320, 240],
+The host model follows the useful boundary demonstrated by `references/gpui-component/crates/shell`: script code owns composition and business state, while the Rust host owns rendering, layout, native input, and system capabilities. Solid GPUI uses a lockstep framed Bebop v5 protocol for the external Bun process and embedded adapter.
+
+## Packages
+
+- `packages/solid-gpui` — `@solid-gpui/core`, the Solid universal renderer, protocol encoder, transports, and native component functions.
+- `packages/solid-gpui-router` — `@solid-gpui/router`, the DOM-free TanStack Router Core adapter, native links, and per-surface memory history.
+- `crates/solid-gpui` — Rust SDK, host, native components and optional embedded runtime; `gpui-component` is an opt-in feature.
+- `crates/solid-gpui-macros` — internal Rust authoring macros, re-exported by the SDK.
+- `crates/solid-gpui-bun-sys` — optional internal Bun FFI/build integration.
+- `examples/gallery/native` — an application's own Rust module, exporting its components and commands through its actual host.
+
+- `references/gpui-component/` — checked-in GPUI Component reference source, including GPUI Shell.
+
+## Component model
+
+Components are ordinary functions returning host nodes. Use the renderer's `createComponent` so component execution remains attached to the correct Solid owner:
+
+```ts
+import { Pressable, Text, View, createRoot, StdioTransport } from "@solid-gpui/core";
+import { createComponent, createSignal } from "@solid-gpui/core/runtime";
+
+function Counter() {
+  const [count, setCount] = createSignal(0);
+  return createComponent(View, {
+    get children() {
+      return [
+        createComponent(Text, { children: () => `Count: ${count()}` }),
+        createComponent(Pressable, {
+          accessibilityRole: "button",
+          onPress: () => setCount((value) => value + 1),
+          children: createComponent(Text, { children: "Increment" }),
+        }),
+      ];
+    },
+  });
+}
+
+const root = createRoot(new StdioTransport());
+root.render(() => createComponent(Counter, {}));
+```
+
+For JSX, compile with the Solid Babel transform in universal mode and set `moduleName` to `@solid-gpui/core/runtime`. `jsxImportSource: "@solid-gpui/core"` selects host element types only; it is not an automatic JSX runtime. The non-JSX form above has no compiler dependency and is the repository's executable example.
+Direct Bun entrypoints must use `bun --conditions=browser run app.ts` so
+`solid-js` resolves its client reactive runtime. The repository task commands
+already apply this condition.
+
+## Routing and shared application state
+
+Create one router per native surface. Each router owns its location, history,
+params, search state, and route lifecycle. Routers may reuse the same finalized
+route tree; do not mutate route options or children after creating the first
+router.
+
+Application-global data is separate from routing. Create stores, query clients,
+and services once in the Bun/JSC application runtime, then pass the same object
+references through each router context. Add per-window dependencies such as
+`windowId` beside that shared object:
+
+```ts
+import { Outlet, createRootRouteWithContext, createRoute, createRouter } from "@solid-gpui/router";
+
+interface RouterContext {
+  app: {
+    session: { userId: string | undefined };
+  };
+  windowId: string;
+}
+
+const app: RouterContext["app"] = {
+  session: { userId: undefined },
+};
+const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet });
+const homeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
 });
-const inspector = host.createRoot({ surfaceId, onClose: () => console.log("closed") });
-inspector.render(<Inspector />);
+const routeTree = rootRoute.addChildren([homeRoute]);
+
+export function createWindowRouter(windowId: string) {
+  return createRouter({
+    routeTree,
+    context: { app, windowId },
+  });
+}
 ```
 
-Creation options map to GPUI's `WindowKind`, creation-time resizable flag, and
-minimum size. `"floating"` is above-parent where supported, not a portable
-global always-on-top guarantee; popup, max-size, runtime option setters, and a
-center toggle remain unsupported. The host's initial window is a centered
-`800×600` surface created before JavaScript starts.
-Root window controls are root-scoped and asynchronous:
+Solid contexts belong to one owner root and therefore do not cross windows.
+The shared `app` reference above is the explicit application scope; each
+router context remains a distinct window scope. TanStack Query, if used, stays
+a separate data-cache concern and can be placed in `app` rather than coupled to
+navigation.
 
-```tsx
-await root.minimizeWindow();
-const bounds = await root.getWindowBounds();
-const state = await root.getWindowState();
-await root.activateWindow();
-```
+## Rust exports
 
-`getWindowBounds()` returns finite logical/global `[x, y, width, height]`
-coordinates; on macOS the origin is screen-relative global top-left. The
-state read returns `{ fullscreen, maximized }`, while `EVENT_WINDOW_ACTIVATION`
-remains the activation observation channel. For persistence, save bounds and
-restore the saved size with `openSurface({ width, height })`; creation remains
-centered because the pinned GPUI public API has no runtime or creation-position
-setter, so exact position restoration is an upstream boundary. Minimize and
-activation have visible effects only on a display-backed host; the pinned
-headless TestWindow leaves minimize unimplemented and reports inactive state.
+Write ordinary logic in Rust with `native_module!` and call it through generated typed Promise clients. Native component providers use the reusable schema macros for properties and events; gpui-component is one provider. See [Rust authoring](docs/rust-bridge.md).
 
-`OpenSurface` is always a command from its requesting, already registered root
-(`nodeId=1`); the host rejects unknown surface IDs and never implicitly opens a
-window. A native close emits `EVENT_SURFACE_CLOSED` before teardown, routes only
-to that root, and invokes its `onClose`. Closing the last native window shuts
-down the runtime and process. Real Quartz multi-window display behavior is
-validated separately on a macOS display-backed host; headless tests cover the
-shared-reader/demultiplexing contract.
+## Development
 
-File dialogs are root-scoped asynchronous commands:
-
-```tsx
-const paths = await root.pickFiles({ title: "Choose files", multiple: true });
-const savePath = await root.pickSavePath({ defaultName: "report.json" });
-```
-
-`pickFiles` chooses files or directories exclusively (`directories` selects
-directories; `multiple` controls multiplicity) and resolves to a non-empty
-path list or `null` on cancellation. `pickSavePath` returns a selected path or
-`null`; an empty default name leaves the native suggestion unset. Save dialog
-titles are not exposed because GPUI's raw save picker has no title/prompt
-parameter. Picker failures reject the JavaScript promise. The file dialog
-commands remain asynchronous so the GPUI event loop and other root commands
-continue while the native modal is open.
-Headless tests cover command validation, asynchronous completion, cancellation,
-and value routing. Actual NSOpenPanel/NSSavePanel interaction requires a
-display-backed macOS Quartz host run and is not exercised in headless CI.
-Text-file persistence is also root-scoped and asynchronous:
-
-```tsx
-const text = await root.readTextFile(path);
-const bytesWritten = await root.writeTextFile(path, text);
-```
-
-Both methods require a non-empty absolute path with no control characters and
-at most 1024 UTF-8 bytes. File content is UTF-8 and bounded to the frame-safe
-`MAX_FRAME_SIZE - 1024` bytes; reads reject directories, oversized files, and
-invalid UTF-8, while writes return the number of UTF-8 bytes written. Native
-filesystem failures reject the Promise. Applications commonly obtain paths
-from the file dialogs above; symlink handling follows ordinary host filesystem
-semantics rather than an additional sandbox policy. See
-`packages/react-gpui/examples/notes.tsx` for an end-to-end editor.
-
-Clipboard images are available through the root-scoped asynchronous API:
-
-```tsx
-await root.setClipboardImage({ format: "png", bytes: pngBytes });
-const image = await root.getClipboardImage();
-```
-
-The bounded interchange preserves encoded PNG, JPEG, GIF, or SVG bytes and
-uses a payload cap below the 16 MiB frame limit. `getClipboardImage()` returns
-`null` when the clipboard has no image. Native image clipboard support is
-currently honest about platform capability: macOS and Windows use GPUI's
-native image entries; X11 and Wayland reject image writes/reads with
-`clipboard image command is unsupported on this platform; use text clipboard commands or run on macOS/Windows` rather than silently converting them to text. The
-protocol does not promise RGBA conversion or format transcoding.
-
-System notifications and static menus are root-scoped integrations:
-
-```tsx
-await root.showNotification({ title: "Build finished", body: "Artifacts are ready." });
-await root.setMenus([
-  {
-    title: "File",
-    items: [
-      { type: "action", name: "open", disabled: !canOpen, checked: isOpen },
-      { type: "separator" },
-      { type: "submenu", title: "More", items: [{ type: "action", name: "other" }] },
-    ],
-  },
-]);
-```
-
-Optional notification actions use bounded `{ id, label }` pairs (at most three).
-Register `onNotificationResponse: ({ tag, actionId }) => ...` in root options;
-`actionId` is `null` for body activation, and responses for closed surfaces are
-dropped. Notification delivery and response support are platform best effort.
-
-Pass `onAction: (action) => ...` in `createRoot` options to receive the
-selected string action. Menu state is static and state-driven: changing
-`disabled` or `checked` re-sends the complete `setMenus` definition; omitted
-flags default to `false`, and there is no incremental menu-state command.
-`root.setKeybindings` uses full-replacement bindings such as
-`{ keystrokes: "cmd-shift-p", actionName: "palette.open" }`; multiple chords
-are separated by ASCII whitespace (for example, `"ctrl-k ctrl-1"`). The host
-retains each surface's set, installs their union in the process-global GPUI
-keymap, and routes a match to the active surface through the same `onAction`
-callback. Context predicates and menu shortcut fields are not part of this
-first API; invalid chords reject without replacing the previous set.
-Disabled actions are unavailable to native activation, while checked actions
-use GPUI's toggled indicator. Notifications are fire-and-forget platform
-submissions: delivery and authorization are not guaranteed, Web/test menu
-implementations may be no-ops, and Windows AppUserModel identity remains a
-host packaging concern.
-
-## Public API
-
-The `Root` returned by `createRoot` or `host.createRoot` exposes 29 methods:
-
-| Area               | Methods                                                                                                                                                                                        |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rendering          | `render(element)`, `unmount()`                                                                                                                                                                 |
-| Window             | `setTitle(title)`, `resize(width, height)`, `getWindowSize()`, `minimizeWindow()`, `getWindowBounds()`, `getWindowState()`, `activateWindow()`, `zoom()`, `toggleFullscreen()`, `openUrl(url)` |
-| Surfaces and focus | `openSurface(options?)`, `focusNext()`, `focusPrev()`                                                                                                                                          |
-| Close policy       | `setClosePolicy(policy)`, `resolveCloseRequest(requestId, allow)`                                                                                                                              |
-| Clipboard          | `setClipboardText(text)`, `getClipboardText()`, `setClipboardImage(image)`, `getClipboardImage()`                                                                                              |
-| Files and fonts    | `pickFiles(options?)`, `pickSavePath(options?)`, `readTextFile(path)`, `loadFont(path)`, `writeTextFile(path, content)`                                                                        |
-| OS integrations    | `showNotification(options)`, `setMenus(menus)`, `setKeybindings(bindings)`                                                                                                                     |
-
-Command methods return promises. `getWindowSize()` returns `[width, height]`,
-`getWindowBounds()` returns `{ x, y, width, height }`, `getWindowState()` returns
-`{ fullscreen, maximized }`, `openSurface()` returns a surface ID, file pickers
-return paths or `null`, `loadFont()` returns the metadata family,
-`writeTextFile()` returns the UTF-8 byte count, and `getClipboardImage()`
-returns encoded image bytes or `null`. `createSurfaceHost(transport, options?)`
-adds `host.createRoot(options?)` and `host.dispose()` for shared transport
-routing. See the package [Root API inventory](packages/react-gpui/README.md#root-api-inventory)
-for return values, constraints, and component ref handles.
-
-A commit reader performs blocking process I/O away from the GPUI foreground executor, then applies each complete Commit Batch on the GPUI side. GPUI rebuilds ephemeral elements from the retained `NodeStore`; native callbacks send events through the same adapter. ProcessAdapter outbound events are drained by a named writer thread with an ordered queue bounded to 32 payloads and 16 MiB of queued payload bytes; full bounds fail immediately, while writer I/O failures are retained, request child stop, and on confirmed child death wake the commit reader for the host fatal path. Shutdown joins the writer only after child exit is confirmed; kill/wait errors return without blocking. StdioTransport input/output end, close, and error signals notify createRoot termination callbacks, and process examples exit nonzero through the injectable termination handler. Unexpected runtime EOF, framing, commit-validation, or outbound Native Event/CommandResult send errors are logged with context, stop the runtime, close the application, and return a nonzero CLI status; explicit application shutdown remains clean.
-
-## VirtualList scroll persistence
-
-`VirtualList` exposes a ref handle for preserving the native logical-pixel
-scroll position across a remount or data refresh. Read the current offset and
-restore it after the list has mounted:
-
-```tsx
-const listRef = useRef<VirtualListHandle>(null);
-const savedOffset = await listRef.current?.getScrollOffset();
-await listRef.current?.scrollToOffset(savedOffset ?? 0);
-
-<VirtualList
-  ref={listRef}
-  data={rows}
-  itemKey={(row) => row.id}
-  renderItem={(row) => <Text>{row.title}</Text>}
-  estimatedItemSize={32}
-/>;
-```
-
-Offsets are logical layout pixels (not item indexes or device pixels).
-`scrollToOffset` accepts finite, non-negative values; the native list clamps a
-value beyond the content range, so a subsequent `getScrollOffset()` returns
-the effective clamped position. A write before the first native layout is
-accepted but has no effect; restore after the list has rendered once.
-
-## Pointer movement
-
-`View` and `Pressable` can opt into native pointer-coordinate streaming with
-`onPointerMove`. The callback receives finite logical window pixels and the
-currently active modifiers:
-
-```tsx
-<View
-  onPointerMove={({ x, y, modifiers }) => {
-    setCursor({ x, y, modifiers });
-  }}
-/>
-```
-
-Moves are registered only for nodes that provide the handler, so ordinary
-nodes do not pay for native move listeners or event frames. Coordinates are
-clamped to the viewport by the host; the event does not expose button state.
-`onHoverChange` remains a null-payload edge notification, and drag-over
-notifications remain a separate drag path rather than pointer-move events.
-
-## Quick start
-
-From the repository root, the gallery is the recommended first run. For a new
-consumer application, follow [getting started](docs/getting-started.md), which
-covers the pinned Bun/Rust versions, local package install, host command, and a
-small TextInput/VirtualList app.
-
-Until `@react-gpui/core` is published to npm, a consumer must build and pack
-the package from a repository checkout, then install the resulting tarball:
+Install the root Bun workspace once:
 
 ```sh
-cd packages/react-gpui
 bun install --frozen-lockfile
-bun run build
-bun pm pack --destination /tmp/react-gpui-package --quiet
 ```
 
-Run `bun add react file:/tmp/react-gpui-package/react-gpui-core-0.2.0.tgz`
-from the consumer app directory. After publication, `bun add react
-@react-gpui/core` is sufficient. The package export points at generated
-`dist/` files, so the build must precede packing. See the
-[installation troubleshooting entry](docs/troubleshooting.md#package-installation-returns-404)
-if the registry command fails before publication.
+The Commander CLI in `scripts/tasks.ts` is the single task entrypoint:
 
-### Gallery (embedded Bun/JSC)
+| Command                    | Purpose                                                |
+| -------------------------- | ------------------------------------------------------ |
+| `bun run build`            | Build JavaScript and declaration artifacts.            |
+| `bun run format`           | Check Rust, TypeScript, and JSON formatting.           |
+| `bun run check`            | Build, typecheck, and lint the workspace.              |
+| `bun run test`             | Run the Rust and Solid renderer tests.                 |
+| `bun run ci`               | Run formatting, checks, tests, pack smoke, and audits. |
+| `bun run audit`            | Audit dependencies and verify third-party notices.     |
+| `bun run gallery`         | Launch the native component workbench and Rust API demo. |
 
-```sh
-cargo run -p react-gpui-host --features embedded-bun -- \
-  --runtime embedded \
-  packages/react-gpui/examples/gallery.tsx
-```
+The runtime uses the unified `gpui-pre`/platform 0.3.3 family and gpui-component 0.6.0. Zed in `references/` is implementation reference source, not a patched runtime dependency. Native layout dependencies are optimized in development; see [scroll diagnosis and regression](docs/scroll-performance.md).
 
-The first embedded build compiles the pinned Bun/JSC source graph under
-`target/`.
+Run `bun run task --help` for protocol generation, API surface, release,
+embedded-adapter, and host-candidate commands. Core task dispatch uses
+Bun-native process APIs and argument arrays. Embedded Bun/JSC remains macOS-only;
+release and stress helpers may additionally require Bash and platform tools.
 
-### Counter (process runtime)
+## Protocol and ownership
 
-```sh
-cargo run -p react-gpui-host -- \
-  --runtime process -- \
-  bun run packages/react-gpui/examples/counter.tsx
-```
+Every frame is a four-byte little-endian payload length followed by a bounded
+Bebop v5 Envelope. The canonical schema lives in
+`packages/solid-gpui/src/protocol/protocol.bop`; checked TypeScript and Rust
+bindings plus schema metadata are generated from it. Both sides apply a
+schema-derived guard before generated decoding, while the Rust process adapter
+uses an owned Event queue and reusable writer buffer for native events. Surface
+identity, generation, revision, node identity, command results, and event
+sequence checks remain framework-independent. See [`docs/protocol.md`](docs/protocol.md)
+for the wire contract and [`CONTEXT.md`](CONTEXT.md) for domain vocabulary.
 
-The `--` before `bun` passes the renderer command to the host unchanged. A
-renderer script run by itself does not create a native surface.
+## License
 
-For opt-in Fast Refresh while developing an embedded entry, add `--watch`
-before the entry path:
+Apache-2.0. Dependency attribution is in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
-```sh
-cargo run -p react-gpui-host --features embedded-bun -- \
-  --runtime embedded \
-  --watch \
-  packages/react-gpui/examples/gallery.tsx
-```
+## Native hot reload
 
-## Workspace map
-
-- `crates/react-gpui-bun/` — bounded in-process Bun/JSC adapter and pinned source patch/build.
-- `packages/react-gpui-dev/` — Babel React Refresh transform, runtime globals, family refresh, and last-good failure handling.
-- `crates/react-gpui-host/` — executable host with explicit ProcessAdapter/EmbeddedBunAdapter selection.
-- `packages/react-gpui/` — TypeScript package `@react-gpui/core`, custom React renderer, transports, tests, and counter example.
-- `crates/react-gpui/` — Rust protocol, runtime adapter seam, snapshot validation, retained node store, and GPUI rendering entity.
-- `references/zed/` — checked-in GPUI reference source used by the workspace.
-- `docs/README.md` — reading-order index for product, reference, architecture, contribution, and evidence docs.
-- `docs/adr/` — architecture decision records for protocol, runtime, and native-boundary choices.
-- `docs/agents/` — contributor conventions for domain vocabulary, issue tracking, and triage.
-- Start with [CONTRIBUTING.md](CONTRIBUTING.md) for contributor order, verification gates, evidence, and architecture wayfinding.
-
-## V3 protocol and ownership invariants
-
-- The authoritative wire reference is [`docs/protocol.md`](docs/protocol.md). It defines framing, Snapshot/Patch/Event/Command tuples, node and style slots, validation, fixtures, and evolution rules.
-- Every message is a four-byte little-endian payload length followed by MessagePack bytes; payloads are bounded at 16 MiB. A completed React commit is one atomic Commit Batch: Snapshot bootstrap, then Patch revisions.
-- React/Bun own Fiber, hooks, closures, and callback state. Rust/GPUI owns validation, the retained tree, native input/focus/window state, and native rendering. Runtime adapters carry only the versioned wire exchanges.
-- Native events and surface commands are semantic boundaries; their complete code directories, ownership, payloads, and CommandResult value tags are maintained in `docs/protocol.md` rather than duplicated here.
-- Protocol fixtures and golden tests lock producer bytes and cross-language meaning; use `make protocol-golden-generate` when changing the contract.
-
-## Development commands
-
-The local one-shot verification entry point is the same command used by the
-ordinary CI jobs:
-
-```sh
-make ci
-```
-
-`make ci` runs Rust formatting, a locked Rust workspace check, strict Clippy
-with warnings denied, and tests, then formatting, typechecking, tests, clean
-package builds, tarball content checks, and an external tarball consumer smoke
-test for both Bun packages. Each package uses its checked-in `bun.lock` with
-`bun install --frozen-lockfile`; the formatter is the pinned Prettier `3.6.2`
-dependency and the Bun runtime is pinned to `1.4.0` by `.bun-version`. The Rust
-toolchain is pinned in `rust-toolchain.toml`.
-The ordinary CI workflow also runs `make host-release-check` as an independent
-macOS ARM release-bundle job, so CLI parsing and archive checks run on pull
-requests rather than only in the manual candidate workflow.
-
-The individual local gates are also available when iterating:
-
-```sh
-make rust-format
-make rust-check
-make bun-build
-make bun-pack-smoke
-make bun-ci
-```
-
-The core and development package public export names are locked by
-`fixtures/api-surface.core.txt` and `fixtures/api-surface.dev.txt`; the locks
-cover value/type names, not internal type structure. If an API surface test
-fails, review the change and explicitly regenerate both snapshots with:
-
-```sh
-make api-surface-generate
-```
-
-The embedded Bun build is intentionally not part of `make ci` because it
-clones and compiles the pinned Bun/JSC source graph. Run its locked host
-feature check, representative example startup matrix, Fast Refresh lifecycle
-probe, and embedded adapter tests explicitly with:
-
-```sh
-make embedded-bun
-```
-
-The gate loads the gallery, text-input, virtual-list, and notes entries through
-`EmbeddedBunAdapter`, checks protocol-v3 Snapshot startup contracts and known
-signals, and verifies that a queued refresh keeps the runtime alive. It is a
-bounded transport/lifecycle check rather than a duplicate of process-mode
-display and interaction coverage; native painting, IME, file pickers, and
-actual asynchronous file command completion remain display-backed boundaries.
-
-The ordinary CI workflow runs on the GitHub-hosted `macos-15` ARM runner.
-The independent embedded-Bun workflow is manually dispatchable and only
-automatically considered for pull requests touching its inputs; it uses the
-`macos-26` ARM runner because the pinned Bun/JSC build requires the macOS 26
-SDK/toolchain.
-
-For direct package work, the equivalent commands are:
-
-```sh
-cd packages/react-gpui
-bun install --frozen-lockfile
-bun run format
-bun run typecheck
-bun run test
-bun run build
-bun pm pack --dry-run
-
-cd ../react-gpui-dev
-bun install --frozen-lockfile
-bun run format
-bun run typecheck
-bun run test
-bun run build
-bun pm pack --dry-run
-```
-
-### Host release candidate
-
-The release candidate is the default process-runtime host for macOS ARM. It
-does not bundle Bun or a renderer entry: users still need Bun and a renderer
-command/entry such as `bun run packages/react-gpui/examples/counter.tsx`.
-
-Build and verify the staged candidate locally:
-
-```sh
-make host-release-bundle
-make host-release-check
-```
-
-To rehearse a real user consuming the extracted binary, run:
-
-```sh
-make host-candidate-smoke
-```
-
-This extracts the archive, launches the extracted host against the repository
-counter as a user-supplied renderer entry from a fresh working directory, and
-requires a Snapshot frame, the 5-second timeout exit `124`, startup info
-diagnostics, `--help`, and `--version`. It does not claim to validate window
-pixels on a display-less environment.
-
-The embedded runtime has a separate, non-publishing rehearsal:
-
-```sh
-make host-embedded-candidate-smoke
-```
-
-It builds the embedded host release binary on the macOS 26 SDK/toolchain,
-runs the extracted-style binary from a fresh directory with the counter entry,
-and checks the in-process Snapshot commit count, info diagnostic, timeout
-`124`, `--help`, and `--version`. It is an exercise rather than a release
-archive: embedded package inclusion remains a ready-for-human release-matrix
-decision tracked in `.scratch/release-productionization/issues/03-embedded-build-coverage.md`
-and `.scratch/release-productionization/issues/06-cross-platform-host.md`.
-
-Before a candidate release, synchronize the workspace, package, and renderer
-metadata versions from one Cargo version with a matching `CHANGELOG.md` section:
-
-```sh
-make release-prep VERSION=0.1.1
-```
-
-This updates the workspace Cargo/package manifests, the React host config's
-`rendererVersion` DevTools metadata, refreshes Cargo and Bun locks, and verifies
-frozen installs. It is idempotent when all four version sources already use the
-requested version; it never creates or edits a changelog section. The manual
-`Release Prep` workflow runs this step, then `make ci`, and packs tarballs as
-verification artifacts only. Actual npm/crates.io
-publication still requires a human, an approved version/changelog, and real
-registry credentials; this workflow contains no publish step or secrets.
-
-Host diagnostics are controlled by `REACT_GPUI_LOG=off|error|info|debug`;
-the default is `error`, and invalid values fall back to `error` with one
-warning. `info` adds startup and runtime-termination status lines, while
-`debug` preserves those diagnostics alongside existing fatal context.
-
-The `info` startup diagnostic includes `protocol=v3`, and `--version` reports
-the host package version together with the same protocol version. Include that
-line in support reports so host and renderer compatibility can be checked before
-examining a crash.
-
-The archive is written to `dist/` as
-`react-gpui-host-<cargo-version>-<target>.tar.gz` and contains only the
-release host binary, `README.md`, `LICENSE`, `THIRD-PARTY-NOTICES.md`, and
-`SHA256SUMS`. `THIRD-PARTY-NOTICES.md` is the generated inventory of resolved
-Rust and Bun dependencies (name, version, SPDX license, and source); it keeps
-the npm tarballs lean while giving the host release one reviewable notice
-bundle. The check extracts it into a new temporary directory, validates the
-allowlist and checksums, verifies executable permissions, and runs `--help` and
-`--version` without starting GPUI or requiring a display. The archive includes
-per-file SHA-256 checksums for extracted-file consistency. `host-release-check`
-creates two archives from the same staged payload and requires their SHA-256
-values to match; this empirically proves deterministic stage-to-archive output
-for that candidate. It does not claim full build reproducibility across fresh
-compiler runs or different archive tool versions. The archive is unsigned.
-
-The manual `Host Release Candidate` workflow runs the ordinary `make ci` gate
-before bundling and uploads this unsigned candidate as a short-retention
-artifact; it does not publish a GitHub Release or package.
-
-## Debugging
-
-For symptom → diagnosis → repair workflows, start with the
-[Troubleshooting guide](docs/troubleshooting.md). This section keeps the
-environment-variable quick reference; see the guide for failure-mode lookup:
-
-- `REACT_GPUI_LOG=off|error|info|debug` controls host diagnostics (`error` is
-  the default; invalid values fall back to `error` with one warning).
-- `REACT_GPUI_TAP=/path/to/file.jsonl` enables process-local protocol metadata;
-  use a distinct path for each process and summarize it with
-  `python3 scripts/protocol-tap-report.py`. The JSON report includes
-  `frames_by_kind`, overall and patch byte rates, a one-second frame/byte
-  `timeline`, a byte-size histogram, event-type counts, and malformed-frame
-  counters.
-- `REACT_GPUI_CRASH_DIR=/path/to/directory` chooses where the host panic hook
-  writes `react-gpui-host-<pid>-<timestamp>.log`; it defaults to the system
-  temporary directory.
-
-The tap records frame metadata rather than payload contents and is not a
-GPU/layout profiler. `malformed_frames` counts records classified as unknown by
-the metadata classifier; `malformed_records` counts invalid JSON/object/timestamp
-lines skipped by the report. The report cannot observe transport queue depth or
-backpressure, and `REACT_GPUI_LOG=debug` does not currently emit per-commit
-timings. Those are future instrumentation seams, not claims made by the tap.
-
-Rates use the elapsed time between the first and last actual frame; the
-synthetic `tap_stopped` capacity marker is excluded from frame rates and
-timeline buckets.
-
-The guide explains the separate host/renderer tap setup, the bounded
-`make soak-smoke` leak smoke, crash/stderr correlation, and known platform
-boundaries.
-
-The tap overhead claim is a one-time 10,000 seven-byte snapshot microbench:
-tap-off 18.03 ms versus tap-on 33.65 ms, or about 1.56 μs of incremental wall
-time per frame. The later event-storm audit measured renderer commit cost with
-the tap disabled; it did not re-measure tap-on overhead, so this figure is
-informational rather than a current performance guarantee.
-
-## Crash diagnostics reference
-
-The host installs a standard-library panic hook before CLI/runtime startup.
-Crash reports are written to
-`${REACT_GPUI_CRASH_DIR:-the system temporary directory}` as
-`react-gpui-host-<pid>-<timestamp>.log`; the original panic remains on stderr.
-The report includes the host version/platform, panic location, and a
-`Backtrace::capture()` result. Reproduce with:
-
-```sh
-RUST_BACKTRACE=full REACT_GPUI_CRASH_DIR=/tmp/react-gpui-crashes \
-  cargo run -p react-gpui-host -- --runtime process bun run path/to/entry.tsx
-```
-
-For an optional APM integration, initialize the provider before the host's
-standard hook and preserve the existing hook when adding the provider. This
-illustrative snippet uses the optional Sentry Rust SDK but adds no dependency
-to this repository:
-
-```rust
-let _sentry = sentry::init(("https://example.invalid/project", sentry::ClientOptions::default()));
-let previous = std::panic::take_hook();
-std::panic::set_hook(Box::new(move |info| {
-    sentry::capture_message(&info.to_string(), sentry::Level::Error);
-    previous(info);
-}));
-```
-
-Use a distinct `REACT_GPUI_TAP` path for each process and run
-`scripts/protocol-tap-report.py` beside the crash report. The tap records frame
-metadata only, while the crash file records panic context; their timestamps,
-direction, and message/subtype sequence provide the non-payload correlation
-needed to localize a failure without persisting payload contents.
-
-V3 supports the documented native host kinds, protocol-v3 press/TextInput/VirtualList/keyboard/pointer/hover/scroll/animation notifications, transitions, and accessibility fields. It does not provide synchronous native cancellation, arbitrary native widgets, or a browser/DOM compatibility layer. `ProcessAdapter` remains the default for fast iteration; `EmbeddedBunAdapter` is available with `--features embedded-bun` and is built from the pinned Bun source graph. Fast Refresh failures keep the last-good native tree visible and print an actionable stderr diagnostic.
+The independent projects are `examples/gallery` (Bun) and `examples/gallery-vite` (Vite + Bun).
+Run `bun run gallery` or `bun run gallery:vite` from the workspace root. The Vite project imports the shared application from the Bun project.
+See [Vite + Bun guide](docs/hot-reload.md) for application integration and explicit state preservation.

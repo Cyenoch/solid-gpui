@@ -1,0 +1,15 @@
+    Blocking waiting for file lock on build directory
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+   Compiling gallery-host v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running tests/gallery.rs (target/debug/deps/gallery-23592dbfb60138af)
+
+running 3 tests
+test gallery_button_labels_fit_control_height ... ok
+test gallery_virtual_list_renders_initial_rows ... ok
+test gallery_panes_scroll_independently ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.74s
+

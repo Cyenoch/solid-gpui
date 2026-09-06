@@ -1,0 +1,55 @@
+$ bun scripts/tasks.ts embedded-check
+
+$ bun install --frozen-lockfile
+bun install v1.4.2 (744846f84)
+
+Checked 120 installs across 160 packages (no changes) [4.00ms]
+
+$ bun scripts/native-codegen.ts
+Generated native bindings from their hosts
+
+$ bun build ./src/index.ts ./src/runtime.ts ./src/native.ts ./src/components.ts --root ./src --outdir ./dist --target bun --format esm --splitting --conditions=browser --external @solid-gpui/core/native --external bebop --external solid-js --external "solid-js/*"
+Bundled 31 modules in 7ms
+
+  index.js           13.47 KB  (entry point)
+  index-148eardh.js  0.53 MB   (chunk)
+  runtime.js         1.15 KB   (entry point)
+  native.js          10.35 KB  (entry point)
+  components.js      4.39 KB   (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun build ./src/index.ts --root ./src --outdir ./dist --target bun --format esm --external @solid-gpui/core --external "@solid-gpui/core/*" --external @tanstack/router-core --external @tanstack/history --external solid-js --external "solid-js/*"
+Bundled 1 module in 3ms
+
+  index.js  13.78 KB  (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ cargo test --locked -p solid-gpui --features embedded-bun --test host_embedded_counter
+   Compiling solid-gpui-bun-sys v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui-bun-sys)
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 44.90s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running tests/host_embedded_counter.rs (target/debug/deps/host_embedded_counter-515fb023b211d921)
+
+running 1 test
+1 | await new Promise(resolve => setTimeout(resolve, 5)); throw new Error('entry rejected');
+                                                                    ^
+error: entry rejected
+      at /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-90694/rejected-entry.mjs:1:65
+test embedded_vm_roundtrip_pressure_termination_and_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.96s
+
+
+$ cargo clippy --locked -p solid-gpui --all-targets --features embedded-bun -- -D warnings
+   Compiling gpui-iconify v0.0.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/gpui-iconify)
+   Compiling solid-gpui-macros v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui-macros)
+    Checking solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.34s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`

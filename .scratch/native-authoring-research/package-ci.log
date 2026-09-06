@@ -1,0 +1,219 @@
+$ bun scripts/tasks.ts package-ci
+
+$ bun install --frozen-lockfile
+bun install v1.4.2 (744846f84)
+
+Checked 120 installs across 160 packages (no changes) [16.00ms]
+
+$ bun scripts/native-codegen.ts
+Generated native bindings from their hosts
+
+$ bun build ./src/index.ts ./src/runtime.ts ./src/native.ts ./src/components.ts --root ./src --outdir ./dist --target bun --format esm --splitting --conditions=browser --external @solid-gpui/core/native --external bebop --external solid-js --external "solid-js/*"
+Bundled 31 modules in 12ms
+
+  index.js           13.47 KB  (entry point)
+  index-148eardh.js  0.53 MB   (chunk)
+  runtime.js         1.15 KB   (entry point)
+  native.js          10.35 KB  (entry point)
+  components.js      4.39 KB   (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun build ./src/index.ts --root ./src --outdir ./dist --target bun --format esm --external @solid-gpui/core --external "@solid-gpui/core/*" --external @tanstack/router-core --external @tanstack/history --external solid-js --external "solid-js/*"
+Bundled 1 module in 3ms
+
+  index.js  13.78 KB  (entry point)
+
+
+$ bunx tsc --project tsconfig.build.json
+
+$ bun scripts/native-codegen.ts --check
+
+$ bunx prettier --check "scripts/**/*.ts" "packages/solid-gpui/src/*.ts" "packages/solid-gpui/src/renderer/**/*.ts" "packages/solid-gpui/src/protocol/*.ts" "packages/solid-gpui/src/protocol/*.json" "packages/solid-gpui/src/protocol/generated/*.ts" "packages/solid-gpui/tests/**/*.{ts,tsx,js,json}" "examples/**/*.{ts,tsx,json}" "packages/solid-gpui/src/vite/**/*.ts" "packages/solid-gpui-router/src/**/*.ts" "packages/solid-gpui-router/tests/**/*.{ts,js,json}" package.json tsconfig.tools.json "packages/solid-gpui/*.json" "packages/solid-gpui-router/*.json"
+
+$ bunx tsc --noEmit
+
+$ bunx tsc --noEmit
+
+$ bunx tsc --project tsconfig.tools.json
+
+$ bunx tsc --noEmit
+
+$ bunx tsc --noEmit
+
+$ bun run test
+
+$ bun test --conditions=browser --preload /Users/jgbingzi/workspace/sp/solid-gpui/scripts/solid-jsx.ts
+
+$ bun --conditions=browser test
+
+$ bun test scripts/gallery-entry.test.ts scripts/api-surface.test.ts scripts/hot-reload.test.ts scripts/native-export.test.ts
+
+$ bun scripts/package-pack-smoke.ts
+$ bun test --conditions=browser --preload ../../scripts/solid-jsx.ts
+bun test v1.4.2 (744846f84)
+bun test v1.4.2 (744846f84)
+bun test v1.4.2 (744846f84)
+
+tests/router.test.ts:
+
+tests/protocol.test.ts:
+bun test v1.4.2 (744846f84)
+
+tests/gallery.test.ts:
+(pass) native router > keeps history and location independent per window [6.64ms]
+(pass) native router > installs native-safe defaults [0.16ms]
+(pass) native router > publishes route matches through Solid stores [1.51ms]
+(pass) native router > shares explicit app state while keeping each window context distinct [1.11ms]
+(pass) native router > preserves the mounted layout and its state across sibling navigation [4.94ms]
+(pass) native router > renders and navigates two native roots without DOM hosts [2.87ms]
+
+ 6 pass
+ 0 fail
+ 33 expect() calls
+Ran 6 tests across 1 file. [40.00ms]
+Checking formatting...
+
+scripts/native-export.test.ts:
+(pass) InvokeNative preserves opaque arguments and accepts the byte budget boundary [9.56ms]
+
+$ bun pm pack --dry-run --quiet
+(pass) native bytes reject missing, oversized, and non-invocation wire results [3.46ms]
+(pass) Bebop v5 encodes semantic commands and classifies the generated envelope [0.17ms]
+(pass) all Event payload forms round-trip through the semantic seam [1.64ms]
+(pass) Extension values, properties, and events round-trip through Bebop v5 [1.79ms]
+(pass) Extension fields and event IDs must be sorted, unique, and bounded [0.47ms]
+(pass) Bebop frames remain fragmented/coalesced at the existing transport seam [0.82ms]
+(pass) schema guard rejects an unknown field before generated decoding [0.10ms]
+(pass) schema guard rejects strict bool/enum/UTF-8 and repeated-count violations [0.27ms]
+(pass) schema guard rejects overlong, surrogate, out-of-range, and truncated UTF-8 [0.10ms]
+(pass) FrameDecoder returns borrowed views for complete input chunks [0.04ms]
+(pass) Bebop preserves border width and defaults transition delay [0.35ms]
+(pass) Bebop encodes an omitted patch style as an explicit clear [0.54ms]
+(pass) Bebop patch booleans are present only for their mask bits [0.08ms]
+(pass) Bebop rejects malformed present command values [0.07ms]
+(pass) Bebop validates command kind and payload together [0.04ms]
+(pass) Bebop rejects values that overflow float32 [0.03ms]
+(pass) protocol classification keeps command result metadata [0.06ms]
+(pass) Bebop command numbers retain the full u32 range [0.04ms]
+(pass) FrameDecoder retains at most one bounded partial frame buffer [0.03ms]
+
+tests/native.test.ts:
+solid-gpui-core-0.2.0.tgz
+(pass) native JSON rejects lossy values, deep data, cycles and unsafe responses [1.83ms]
+(pass) native components preserve getters and callback generations while subscribing only live handlers [3.93ms]
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-core.tgz --quiet
+(pass) native refs submit after the complete prop transaction and revoke pending calls on cleanup [3.83ms]
+(pass) controlled native echo commits its value and internal acknowledgement together and ignores stale edits [0.65ms]
+(pass) controlled values keep their internal subscription without a handler and unsubscribe in uncontrolled mode [0.62ms]
+(pass) native clients bind their setup root across async work and reject after root retirement [0.89ms]
+(pass) native component contract rejects unknown props and forbidden children before publishing [0.49ms]
+
+tests/application.test.ts:
+solid-gpui: hot reload applied (epoch 1)
+solid-gpui: hot reload applied (epoch 2)
+solid-gpui: hot reload applied (epoch 3)
+solid-gpui: hot reload applied (epoch 4)
+solid-gpui: hot reload applied (epoch 5)
+(pass) application reload stages candidates, preserves explicit state, isolates epochs and releases owners [3.66ms]
+
+tests/renderer.test.ts:
+(pass) invokeNative returns opaque bytes through the surface command lifecycle [0.50ms]
+(pass) invokeNative rejects missing, confused, and out-of-bounds JavaScript arguments without sending [0.31ms]
+(pass) CommandClient rejects mismatched identities and inappropriate byte results [0.25ms]
+(pass) Icon projects its allowlisted host properties [0.32ms]
+(pass) a Solid signal produces an incremental native patch [0.39ms]
+(pass) created siblings are emitted in native child-index order [0.29ms]
+(pass) a root transaction does not suppress updates in another root [0.32ms]
+(pass) conditional nodes stay bound to their Solid owner root [0.25ms]
+(pass) VirtualList mounts after empty data and can remount [0.87ms]
+(pass) VirtualList scrolling retains overlapping rows and disposes rows that leave [0.82ms]
+(pass) VirtualList filtering after scrolling keeps its committed range valid [1.03ms]
+(pass) render errors publish no invalid frame and native surface close disposes the owner [0.21ms]
+(pass) SurfaceHost delivers the decoded semantic event directly to its root [0.23ms]
+(pass) previous-revision listener events invoke the callback that produced that revision [0.30ms]
+(pass) failed host updates roll the private graph back before a later commit [0.18ms]
+(pass) Extension getter props emit host property patches and failed encoding rolls back [0.38ms]
+(pass) Extension events honor subscribed IDs and current/previous listener revisions [0.28ms]
+(pass) accessibility props can be removed from an existing host node [0.19ms]
+(pass) focusable View commands do not require an event listener [0.13ms]
+(pass) host prop runtime validation covers Pressable, TextInput, and accessibility scalars [0.56ms]
+(pass) prop updates finalize atomically across cross-field accessibility validation [0.74ms]
+(pass) a single incoming chunk batches semantic events into one Solid transaction [0.34ms]
+(pass) createRoot tolerates synchronous transport termination registration [0.05ms]
+(pass) SurfaceHost releases a root even when unmount cleanup throws [0.12ms]
+(pass) transport disposal rejects pending commands and notifies termination once [0.13ms]
+(pass) HostTree is the only host-config owner and RootContainer hides tree bookkeeping [0.04ms]
+
+ 54 pass
+ 0 fail
+ 299 expect() calls
+Ran 54 tests across 4 files. [211.00ms]
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-core.tgz
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-router-0.2.0.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-router.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-router.tgz
+
+$ bun install --no-progress
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+(pass) Solid GPUI Gallery Showcase > uses available icons in gallery navigation [0.11ms]
+(pass) Solid GPUI Gallery Showcase > routes every gallery page through the native router [77.00ms]
+
+ 2 pass
+ 0 fail
+ 51 expect() calls
+Ran 2 tests across 1 file. [470.00ms]
+All matched files use Prettier code style!
+Resolved, downloaded and extracted [75]
+warn: incorrect peer dependency "@babel/core@8.0.1"
+
+warn: incorrect peer dependency "@babel/core@8.0.1"
+
+warn: incorrect peer dependency "@babel/core@8.0.1"
+Saved lockfile
+
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-core.tgz
++ @solid-gpui/router@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-tiAo2J/solid-gpui-router.tgz
++ solid-js@1.9.15
+
+100 packages installed [2.92s]
+
+$ bun --conditions=browser run core-runtime.ts
+
+$ bun --conditions=browser run router.ts
+
+$ bun --conditions=browser run native.ts
+Native bindings match their hosts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types core-runtime.ts
+(pass) Vite exports an actual Rust host before resolving #native, preserves stable outputs and rejects stale/failed generation [7207.87ms]
+
+scripts/hot-reload.test.ts:
+(pass) Vite on Bun replaces TSX dependencies, recovers errors, preserves state and binary stdio [682.24ms]
+
+scripts/gallery-entry.test.ts:
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types router.ts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types native.ts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types --jsx preserve core-runtime.ts view.tsx
+(pass) gallery renderer writes a bounded binary frame before any text [262.01ms]
+
+scripts/api-surface.test.ts:
+core and router package tarball consumer smoke passed
+(pass) native compiler resolves re-exports and merged type/value declarations [32.26ms]
+
+ 4 pass
+ 0 fail
+ 19 expect() calls
+Ran 4 tests across 4 files. [8.49s]

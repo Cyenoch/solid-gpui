@@ -4,24 +4,24 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 duration_seconds="${SOAK_DURATION_SECONDS:-60}"
 sample_seconds="${SOAK_SAMPLE_SECONDS:-5}"
-smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/react-gpui-soak.XXXXXX")"
+smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-soak.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
-binary="$repo_root/target/$(rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))')/release/react-gpui-host"
-entry="$repo_root/packages/react-gpui/examples/stress.tsx"
+binary="$repo_root/target/release/solid-gpui-host"
+entry="$repo_root/fixtures/press-roundtrip.ts"
 host_tap="$smoke_root/host.tap.jsonl"
 renderer_tap="$smoke_root/renderer.tap.jsonl"
 rss_samples="$smoke_root/rss.tsv"
 stdout_file="$smoke_root/host.stdout"
 stderr_file="$smoke_root/host.stderr"
 
+cargo build -p solid-gpui --bin solid-gpui-host --release --locked
+
 [[ -x "$binary" ]] || {
-  printf 'soak-smoke: release host is missing; build it first with cargo build --release --locked -p react-gpui-host\n' >&2
+  printf 'soak-smoke: release build did not produce an executable host: %s\n' "$binary" >&2
   exit 1
 }
 [[ -f "$entry" ]] || { printf 'soak-smoke: renderer entry is missing: %s\n' "$entry" >&2; exit 1; }
-
-cargo build -p react-gpui-host --release --locked
 
 set +e
 python3 - "$binary" "$entry" "$duration_seconds" "$sample_seconds" "$host_tap" "$renderer_tap" "$rss_samples" >"$stdout_file" 2>"$stderr_file" <<'PY'
@@ -39,8 +39,8 @@ if duration <= 0 or sample_interval <= 0:
     raise SystemExit("soak-smoke: duration and sample interval must be positive")
 
 environment = os.environ.copy()
-environment["REACT_GPUI_TAP"] = host_tap
-renderer_command = 'REACT_GPUI_TAP="$1" exec bun run "$2"'
+environment["SOLID_GPUI_TAP"] = host_tap
+renderer_command = 'SOLID_GPUI_TAP="$1" exec bun run "$2"'
 process = subprocess.Popen(
     [binary, "--runtime", "process", "sh", "-c", renderer_command, "soak-renderer", renderer_tap, entry],
     cwd=os.path.dirname(entry),

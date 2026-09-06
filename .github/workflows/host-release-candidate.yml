@@ -23,19 +23,27 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Run full CI gate before bundling
-        run: make ci
+      - name: Set up pinned Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version-file: .bun-version
 
-      - name: Build and verify release bundle
-        run: make host-release-check
+      - name: Install Bun workspace
+        run: bun install --frozen-lockfile
+
+      - name: Install pinned cargo-deny
+        run: cargo install cargo-deny --locked --version 0.20.2
+
+      - name: Run full CI gate before bundling
+        run: bun run ci
 
       - name: Smoke extracted candidate with user renderer
-        run: make host-candidate-smoke
+        run: bun run task host-candidate-smoke
 
       - name: Upload candidate bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: react-gpui-host-candidate-${{ github.sha }}
+          name: solid-gpui-host-candidate-${{ github.sha }}
           path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 7

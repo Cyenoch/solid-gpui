@@ -1,0 +1,41 @@
+{
+  "name": "@solid-gpui/router",
+  "version": "0.2.0",
+  "description": "TanStack Router integration for native Solid GPUI surfaces.",
+  "keywords": [
+    "solidjs",
+    "gpui",
+    "native-ui",
+    "router",
+    "tanstack"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cyenoch/solid-gpui.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "dependencies": {
+    "@tanstack/history": "1.162.1",
+    "@tanstack/router-core": "1.171.27"
+  },
+  "peerDependencies": {
+    "@solid-gpui/core": "^0.2.0",
+    "solid-js": "^1.9.10"
+  }
+}

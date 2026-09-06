@@ -1,0 +1,33 @@
+   Compiling solid-gpui-macros v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui-macros)
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.17s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running tests/host_embedded_counter.rs (target/debug/deps/host_embedded_counter-515fb023b211d921)
+
+running 1 test
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/bootstrap.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/bootstrap.mjs
+embedded case: counter roundtrip
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/input-eof.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/early-input.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/handled-input-error.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/pressure.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/network.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/network.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/network.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/busy-input-callback.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/busy-loop.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/busy-microtasks.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/exit.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/network.mjs
+embedded case: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/rejected-entry.mjs
+1 | await new Promise(resolve => setTimeout(resolve, 5)); throw new Error('entry rejected');
+                                                                    ^
+error: entry rejected
+      at /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-bun-tests-86070/rejected-entry.mjs:1:65
+embedded case: counter roundtrip
+test embedded_vm_roundtrip_pressure_termination_and_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+

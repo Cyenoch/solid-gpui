@@ -1,0 +1,564 @@
+enum NodeKind : uint8 {
+    Unspecified = 0;
+    View = 1;
+    Text = 2;
+    Pressable = 3;
+    RawText = 4;
+    TextInput = 5;
+    VirtualList = 6;
+    Image = 7;
+    Extension = 8;
+    Icon = 9;
+}
+
+enum WindowAppearance : uint8 {
+    Unspecified = 0;
+    Light = 1;
+    Dark = 2;
+}
+
+enum EventKind : uint8 {
+    Unknown = 0;
+    Press = 1;
+    Change = 2;
+    Selection = 3;
+    Focus = 4;
+    Blur = 5;
+    CommandResult = 6;
+    VisibleRange = 7;
+    AnimationComplete = 8;
+    Key = 9;
+    Pointer = 10;
+    Hover = 11;
+    Scroll = 12;
+    Submit = 13;
+    WindowResize = 14;
+    WindowActivation = 15;
+    SurfaceClosed = 16;
+    Action = 17;
+    WindowAppearance = 18;
+    Layout = 19;
+    Drag = 20;
+    NotificationResponse = 21;
+    PointerDownOutside = 22;
+    CloseRequested = 23;
+    Extension = 24;
+}
+
+enum CommandKind : uint8 {
+    Unknown = 0;
+    Focus = 1;
+    Blur = 2;
+    SetSelection = 3;
+    ScrollToIndex = 4;
+    ScrollToEnd = 5;
+    SetTitle = 6;
+    ResizeWindow = 7;
+    ZoomWindow = 8;
+    ToggleFullscreen = 9;
+    OpenUrl = 10;
+    FocusNext = 11;
+    FocusPrev = 12;
+    GetWindowSize = 13;
+    GetFocus = 14;
+    ClipboardWrite = 15;
+    ClipboardRead = 16;
+    OpenSurface = 17;
+    FileDialogOpen = 18;
+    FileDialogSave = 19;
+    ShowNotification = 20;
+    SetMenus = 21;
+    SetKeybindings = 22;
+    SetClosePolicy = 23;
+    ResolveCloseRequest = 24;
+    ReadTextFile = 25;
+    WriteTextFile = 26;
+    ClipboardWriteImage = 27;
+    ClipboardReadImage = 28;
+    LoadFont = 29;
+    MinimizeWindow = 30;
+    GetWindowBounds = 31;
+    GetWindowState = 32;
+    ActivateWindow = 33;
+    GetScrollOffset = 34;
+    ScrollToOffset = 35;
+    InvokeNative = 36;
+}
+
+union Body {
+    1 -> message Snapshot {
+        1 -> uint32 surfaceId;
+        2 -> uint32 epoch;
+        3 -> uint32 baseRevision;
+        4 -> uint32 revision;
+        5 -> Node[] nodes;
+    }
+    2 -> message Event {
+        1 -> uint32 surfaceId;
+        2 -> uint32 epoch;
+        3 -> uint32 revision;
+        4 -> uint32 sequence;
+        5 -> uint32 nodeId;
+        6 -> uint32 listenerId;
+        7 -> EventKind eventType;
+        8 -> EventPayload payload;
+    }
+    3 -> message Patch {
+        1 -> uint32 surfaceId;
+        2 -> uint32 epoch;
+        3 -> uint32 baseRevision;
+        4 -> uint32 revision;
+        5 -> PatchOperation[] operations;
+    }
+    4 -> message Command {
+        1 -> uint32 surfaceId;
+        2 -> uint32 epoch;
+        3 -> uint32 afterRevision;
+        4 -> uint32 requestId;
+        5 -> uint32 nodeId;
+        6 -> CommandKind kind;
+        7 -> CommandPayload payload;
+    }
+}
+
+union ExtensionValue {
+    1 -> message ExtensionBoolValue {
+        1 -> bool value;
+    }
+    2 -> message ExtensionInt32Value {
+        1 -> int32 value;
+    }
+    3 -> message ExtensionU32Value {
+        1 -> uint32 value;
+    }
+    4 -> message ExtensionF32Value {
+        1 -> float32 value;
+    }
+    5 -> message ExtensionTextValue {
+        1 -> string value;
+    }
+    6 -> message ExtensionBytesValue {
+        1 -> byte[] value;
+    }
+}
+
+message ExtensionField {
+    1 -> uint32 id;
+    2 -> ExtensionValue value;
+}
+
+
+union HostProperties {
+    1 -> message TextInputProperties {
+        1 -> string value;
+        2 -> string placeholder;
+        3 -> bool multiline;
+        4 -> bool disabled;
+        5 -> bool controlled;
+        6 -> uint32 ackEditSeq;
+        7 -> uint32 selectionStart;
+        8 -> uint32 selectionEnd;
+        9 -> uint32 markedStart;
+        10 -> uint32 markedEnd;
+        11 -> uint32 maxLength;
+        12 -> bool selectionReversed;
+    }
+    2 -> message VirtualListProperties {
+        1 -> uint32 itemCount;
+        2 -> uint32 rangeStart;
+        3 -> uint32 rangeEnd;
+        4 -> float32 estimatedItemSize;
+        5 -> uint32 overscan;
+    }
+    3 -> message ImageProperties {
+        1 -> string source;
+        2 -> uint32 objectFit;
+        3 -> string fallbackSource;
+    }
+    4 -> message DragProperties {
+        1 -> string dragType;
+        2 -> string[] exportFiles;
+        3 -> bool acceptsDragOver;
+        4 -> bool acceptsDrop;
+    }
+    5 -> message ExtensionProperties {
+        1 -> byte[] providerId;
+        2 -> byte[] catalogDigest;
+        3 -> uint32 entryId;
+        4 -> uint32 entryVersion;
+        5 -> ExtensionField[] fields;
+        6 -> uint32[] eventIds;
+    }
+    6 -> message IconProperties {
+        1 -> string name;
+        2 -> float32 size;
+        3 -> uint32 color;
+    }
+}
+
+message AccessibilityProperties {
+    1 -> uint32 role;
+    2 -> string label;
+    3 -> string description;
+    4 -> bool disabled;
+    5 -> bool checked;
+    6 -> bool selected;
+    7 -> string value;
+    8 -> bool expanded;
+    9 -> uint32 level;
+}
+
+message Transition {
+    1 -> uint32 durationMs;
+    2 -> uint32 delayMs;
+    3 -> uint32 easing;
+    4 -> uint32 propertyMask;
+}
+
+message BoxShadowValue {
+    1 -> float32 offsetX;
+    2 -> float32 offsetY;
+    3 -> float32 blurRadius;
+    4 -> float32 spreadRadius;
+    5 -> uint32 color;
+    6 -> bool inset;
+}
+
+message BoxShadowSet {
+    1 -> BoxShadowValue[] values;
+}
+
+message Style {
+    1 -> float32 width;
+    2 -> float32 height;
+    3 -> uint32 flexDirection;
+    4 -> float32 flexGrow;
+    5 -> float32 padding;
+    6 -> float32 gap;
+    7 -> uint32 backgroundColor;
+    8 -> uint32 color;
+    9 -> float32 opacity;
+    10 -> Transition transition;
+    11 -> uint32 justifyContent;
+    12 -> uint32 alignItems;
+    13 -> float32 borderRadius;
+    14 -> float32 borderWidth;
+    15 -> uint32 borderColor;
+    16 -> float32 fontSize;
+    17 -> uint32 fontWeight;
+    18 -> uint32 overflow;
+    19 -> uint32 lineClamp;
+    20 -> uint32 textOverflow;
+    21 -> float32 marginTop;
+    22 -> float32 marginRight;
+    23 -> float32 marginBottom;
+    24 -> float32 marginLeft;
+    25 -> uint32 fontStyle;
+    26 -> uint32 textDecoration;
+    27 -> float32 lineHeight;
+    28 -> float32 minWidth;
+    29 -> float32 maxWidth;
+    30 -> float32 minHeight;
+    31 -> float32 maxHeight;
+    32 -> float32 flexShrink;
+    33 -> uint32 alignSelf;
+    34 -> uint32 position;
+    35 -> float32 left;
+    36 -> float32 top;
+    37 -> float32 right;
+    38 -> float32 bottom;
+    39 -> uint32 cursor;
+    40 -> uint32 textAlign;
+    41 -> BoxShadowSet boxShadow;
+    42 -> string fontFamily;
+}
+
+message Node {
+    1 -> uint32 id;
+    2 -> uint32 parentId;
+    3 -> uint32 index;
+    4 -> NodeKind kind;
+    5 -> Style style;
+    6 -> string text;
+    7 -> uint32 listenerId;
+    8 -> HostProperties hostProperties;
+    9 -> AccessibilityProperties accessibility;
+    10 -> bool focusable;
+    11 -> bool selectable;
+    12 -> string tooltip;
+    13 -> bool acceptsPointerMove;
+}
+
+message ClearStyle {}
+
+union PatchOperationValue {
+    1 -> message PatchCreate {
+        1 -> Node node;
+    }
+    2 -> message PatchUpdate {
+        1 -> uint32 id;
+        2 -> uint32 mask;
+        3 -> Style style;
+        4 -> ClearStyle clearStyle;
+        5 -> string text;
+        6 -> uint32 listenerId;
+        7 -> HostProperties hostProperties;
+        8 -> AccessibilityProperties accessibility;
+        9 -> bool focusable;
+        10 -> bool selectable;
+        11 -> string tooltip;
+        12 -> bool acceptsPointerMove;
+    }
+    3 -> message PatchMove {
+        1 -> uint32 id;
+        2 -> uint32 parentId;
+        3 -> uint32 index;
+    }
+    4 -> message PatchDelete {
+        1 -> uint32 id;
+    }
+}
+
+message PatchOperation {
+    1 -> PatchOperationValue operation;
+}
+
+message WindowOpenOptions {
+    1 -> uint32 kind;
+    2 -> bool resizable;
+    3 -> uint32 minWidth;
+    4 -> uint32 minHeight;
+}
+
+message NotificationActionDefinition {
+    1 -> string id;
+    2 -> string label;
+}
+
+message MenuDefinition {
+    1 -> string title;
+    2 -> MenuItem[] items;
+}
+
+union MenuItemValue {
+    1 -> message MenuSeparator {}
+    2 -> message MenuAction {
+        1 -> string name;
+        2 -> bool disabled;
+        3 -> bool checked;
+    }
+    3 -> message MenuSubmenu {
+        1 -> MenuDefinition menu;
+    }
+}
+
+message MenuItem {
+    1 -> MenuItemValue value;
+}
+
+message KeybindingDefinition {
+    1 -> string keystrokes;
+    2 -> string actionName;
+}
+
+union CommandPayload {
+    1 -> message U32PairCommand {
+        1 -> uint32 first;
+        2 -> uint32 second;
+    }
+    2 -> message FloatCommand {
+        1 -> float32 value;
+    }
+    3 -> message TextCommand {
+        1 -> string value;
+    }
+    4 -> message StringPairCommand {
+        1 -> string path;
+        2 -> string content;
+    }
+    5 -> message OpenSurfaceCommand {
+        1 -> string title;
+        2 -> uint32 width;
+        3 -> uint32 height;
+        4 -> WindowOpenOptions options;
+    }
+    6 -> message FileDialogOpenCommand {
+        1 -> string title;
+        2 -> bool directories;
+        3 -> bool multiple;
+    }
+    7 -> message NotificationCommand {
+        1 -> string title;
+        2 -> string body;
+        3 -> NotificationActionDefinition[] actions;
+    }
+    8 -> message MenusCommand {
+        1 -> MenuDefinition[] menus;
+    }
+    9 -> message KeybindingsCommand {
+        1 -> KeybindingDefinition[] bindings;
+    }
+    10 -> message ClipboardImageCommand {
+        1 -> uint32 format;
+        2 -> byte[] bytes;
+    }
+    11 -> message CloseResolutionCommand {
+        1 -> uint32 requestId;
+        2 -> bool allow;
+    }
+    12 -> message InvokeNativeCommand {
+        1 -> byte[] moduleId;
+        2 -> byte[] moduleDigest;
+        3 -> uint32 functionId;
+        4 -> byte[] args;
+    }
+}
+
+union CommandValue {
+    1 -> message NumberValue {
+        1 -> uint32 value;
+    }
+    2 -> message PairValue {
+        1 -> float32 width;
+        2 -> float32 height;
+    }
+    3 -> message BoolValue {
+        1 -> bool value;
+    }
+    4 -> message TextValue {
+        1 -> string value;
+    }
+    5 -> message PathsValue {
+        1 -> string[] paths;
+    }
+    6 -> message FileTextValue {
+        1 -> string value;
+    }
+    7 -> message ImageValue {
+        1 -> uint32 format;
+        2 -> byte[] bytes;
+    }
+    8 -> message BoundsValue {
+        1 -> float32 x;
+        2 -> float32 y;
+        3 -> float32 width;
+        4 -> float32 height;
+    }
+    9 -> message WindowStateValue {
+        1 -> bool fullscreen;
+        2 -> bool maximized;
+    }
+    10 -> message ScrollOffsetValue {
+        1 -> float32 value;
+    }
+    11 -> message BytesValue {
+        1 -> byte[] value;
+    }
+}
+
+
+
+union EventPayload {
+    1 -> message TextInputEventData {
+        1 -> string text;
+        2 -> uint32 selectionStart;
+        3 -> uint32 selectionEnd;
+        4 -> uint32 markedStart;
+        5 -> uint32 markedEnd;
+        6 -> uint32 editSeq;
+        7 -> bool reversed;
+    }
+    2 -> message CommandResult {
+        1 -> uint32 requestId;
+        2 -> uint32 command;
+        3 -> uint32 nodeId;
+        4 -> bool success;
+        5 -> string error;
+        6 -> CommandValue value;
+    }
+    3 -> message VisibleRangeEvent {
+        1 -> uint32 start;
+        2 -> uint32 end;
+    }
+    4 -> message AnimationCompleteEvent {
+        1 -> uint32 generation;
+    }
+    5 -> message KeyEvent {
+        1 -> string key;
+        2 -> string[] modifiers;
+        3 -> uint32 action;
+    }
+    6 -> message PointerEvent {
+        1 -> uint32 button;
+        2 -> string[] modifiers;
+        3 -> uint32 action;
+        4 -> uint32 clickCount;
+        5 -> float32 x;
+        6 -> float32 y;
+    }
+    7 -> message PointerMoveEvent {
+        1 -> string[] modifiers;
+        2 -> float32 x;
+        3 -> float32 y;
+    }
+    8 -> message ScrollEvent {
+        1 -> uint32 deltaKind;
+        2 -> float32 dx;
+        3 -> float32 dy;
+        4 -> float32 x;
+        5 -> float32 y;
+        6 -> string[] modifiers;
+    }
+    9 -> message SubmitEvent {
+        1 -> string text;
+    }
+    10 -> message WindowResizeEvent {
+        1 -> float32 width;
+        2 -> float32 height;
+        3 -> float32 scaleFactor;
+    }
+    11 -> message WindowActivationEvent {
+        1 -> bool active;
+    }
+    12 -> message ActionEvent {
+        1 -> string action;
+    }
+    13 -> message WindowAppearanceEvent {
+        1 -> WindowAppearance appearance;
+    }
+    14 -> message LayoutEvent {
+        1 -> float32 x;
+        2 -> float32 y;
+        3 -> float32 width;
+        4 -> float32 height;
+    }
+    15 -> message DragOverEvent {
+        1 -> string dragType;
+    }
+    16 -> message DragDropEvent {
+        1 -> string dragType;
+    }
+    17 -> message ExternalFileDropEvent {
+        1 -> string[] paths;
+    }
+    18 -> message NotificationResponseEvent {
+        1 -> string tag;
+        2 -> string actionId;
+    }
+    19 -> message PointerDownOutsideEvent {
+        1 -> float32 x;
+        2 -> float32 y;
+    }
+    20 -> message CloseRequestedEvent {
+        1 -> uint32 requestId;
+    }
+    21 -> message ExtensionEvent {
+        1 -> uint32 eventId;
+        2 -> ExtensionField[] fields;
+    }
+}
+
+message Envelope {
+    1 -> uint32 protocolVersion;
+    2 -> Body body;
+}

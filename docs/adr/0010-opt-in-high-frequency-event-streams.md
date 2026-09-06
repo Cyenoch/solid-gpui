@@ -12,17 +12,17 @@ then feed high-rate events through the synchronous renderer and commit path.
 The event-storm audit in `.scratch/pointer-move/spec.md` and
 `.scratch/perf-event-storm/spec.md` found the registered 143-node case within
 its budget, while a 10,000-node stateful tree exceeds the 120 Hz frame interval
-because of the React reconciler/host commit boundary. The audit did not justify
+because of the Solid universal renderer/host commit boundary. The audit did not justify
 implicit coalescing or a second delivery mechanism.
 
 Pointer down/up coordinates, hover edges, and drag notifications have different
 semantics. The implementation seams are
-`packages/react-gpui/src/renderer/nodes.ts`,
-`packages/react-gpui/src/protocol.ts`,
-`crates/react-gpui/src/tree.rs`,
-`crates/react-gpui/src/renderer/paint/mod.rs`,
-`crates/react-gpui/src/renderer/paint/drag.rs`, and
-`crates/react-gpui/src/renderer/events.rs`.
+`packages/solid-gpui/src/renderer/nodes.ts`,
+`packages/solid-gpui/src/protocol.ts`,
+`crates/solid-gpui/src/tree.rs`,
+`crates/solid-gpui/src/renderer/paint/mod.rs`,
+`crates/solid-gpui/src/renderer/paint/drag.rs`, and
+`crates/solid-gpui/src/renderer/events.rs`.
 
 ## Decision
 

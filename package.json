@@ -1,0 +1,39 @@
+{
+  "name": "solid-gpui-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "task": "bun scripts/tasks.ts",
+    "build": "bun run task build",
+    "format": "bun run task format",
+    "check": "bun run task check",
+    "test": "bun run task test",
+    "ci": "bun run task ci",
+    "audit": "bun run task audit",
+    "gallery": "bun run task gallery",
+    "gallery:vite": "bun run --cwd examples/gallery-vite dev"
+  },
+  "devDependencies": {
+    "@babel/core": "8.0.1",
+    "@babel/preset-typescript": "8.0.1",
+    "@types/babel__core": "7.20.5",
+    "babel-preset-solid": "1.9.15",
+    "bebop-tools": "3.2.3",
+    "bun-types": "1.4.2",
+    "commander": "15.0.0",
+    "prettier": "3.9.6",
+    "solid-js": "1.9.15",
+    "typescript": "7.0.2"
+  },
+  "trustedDependencies": [
+    "bebop-tools"
+  ]
+}

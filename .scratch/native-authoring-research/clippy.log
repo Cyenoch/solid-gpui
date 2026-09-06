@@ -1,0 +1,5 @@
+    Checking solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Checking gallery-host v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.10s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`

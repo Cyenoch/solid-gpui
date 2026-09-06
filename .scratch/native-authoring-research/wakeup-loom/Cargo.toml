@@ -1,0 +1,9 @@
+[package]
+name = "embedded-wakeup-ordering-model"
+version = "0.0.0"
+edition = "2024"
+
+[workspace]
+
+[dev-dependencies]
+loom = "=0.7.2"

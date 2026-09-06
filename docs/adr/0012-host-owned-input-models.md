@@ -5,7 +5,7 @@
 
 ## Context
 
-React GPUI needs native text editing and bounded selection behavior, but the
+Solid GPUI needs native text editing and bounded selection behavior, but the
 pinned GPUI input-handler surface is shaped around text replacement, selection,
 marked text, paste, geometry, and text length. It has no undo/redo history
 primitive for this custom element path, and it does not provide a complete
@@ -17,9 +17,9 @@ recorded in `.scratch/text-input-completeness/spec.md` and
 Putting a second editor model in JavaScript would introduce transport latency,
 controlled-value races, and duplicate UTF-16/IME rules. The host already has
 the native event timing, GPUI shaping, geometry, focus, and clipboard seams. The
-model is implemented in `crates/react-gpui/src/renderer/input.rs`,
-`crates/react-gpui/src/renderer/paint/text_input.rs`,
-`crates/react-gpui/src/renderer.rs`, and the existing TextInput event contract
+model is implemented in `crates/solid-gpui/src/renderer/input.rs`,
+`crates/solid-gpui/src/renderer/paint/text_input.rs`,
+`crates/solid-gpui/src/renderer.rs`, and the existing TextInput event contract
 in `docs/protocol.md` §3.
 
 ## Decision
@@ -45,7 +45,7 @@ in `docs/protocol.md` §3.
   the normal text and selection state so the renderer emits the ordinary
   Change/Selection events. History is cleared by the node's lifecycle rather
   than made an application-global editor service.
-- Preserve the public boundary honestly: JavaScript owns React rendering and
+- Preserve the public boundary honestly: JavaScript owns Solid rendering and
   controlled values, while the host owns native transient state. UTF-16 remains
   the external selection unit and UTF-8 remains internal storage. Features with
   no stable host primitive, including secure/password display, remain explicit
@@ -62,7 +62,7 @@ in `docs/protocol.md` §3.
 - **Add a wire event or JS selection store for every host interaction:**
   rejected because the existing TextInput events already carry authoritative
   text and UTF-16 selection, while selectable Text can remain host-owned with
-  no React consumer contract for transient selection.
+  no SolidJS consumer contract for transient selection.
 - **Reuse one application-global undo stack:** rejected because edits are
   per-node native state, cross-surface isolation matters, and a global stack
   would need ownership and focus rules that this renderer does not promise.
@@ -80,8 +80,8 @@ in `docs/protocol.md` §3.
   model, so max-length, marked-text, UTF-16, and event-order invariants stay in
   one place. A future editor feature should first identify its native owner and
   whether it fits this bounded model.
-- Controlled TextInput remains a negotiated host/React state: the host can
-  expose an edit immediately, while React acknowledges the edit through its
+- Controlled TextInput remains a negotiated host/SolidJS state: the host can
+  expose an edit immediately, while SolidJS acknowledges the edit through its
   existing props and sequence fields. The host does not promise browser DOM
   editing semantics.
 - Host ownership is not a license to fill upstream gaps speculatively. A new

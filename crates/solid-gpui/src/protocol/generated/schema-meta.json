@@ -1,0 +1,3175 @@
+{
+  "schema": "protocol.bop",
+  "root": "Envelope",
+  "digest": "fdce168b9d239fefacd4a1f5814bb7d2ea880c9ba446fbe6098927088dab6264",
+  "definitions": {
+    "NodeKind": {
+      "kind": "enum",
+      "base": "uint8",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "names": [
+        "Unspecified",
+        "View",
+        "Text",
+        "Pressable",
+        "RawText",
+        "TextInput",
+        "VirtualList",
+        "Image",
+        "Extension",
+        "Icon"
+      ]
+    },
+    "WindowAppearance": {
+      "kind": "enum",
+      "base": "uint8",
+      "values": [
+        0,
+        1,
+        2
+      ],
+      "names": [
+        "Unspecified",
+        "Light",
+        "Dark"
+      ]
+    },
+    "EventKind": {
+      "kind": "enum",
+      "base": "uint8",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "names": [
+        "Unknown",
+        "Press",
+        "Change",
+        "Selection",
+        "Focus",
+        "Blur",
+        "CommandResult",
+        "VisibleRange",
+        "AnimationComplete",
+        "Key",
+        "Pointer",
+        "Hover",
+        "Scroll",
+        "Submit",
+        "WindowResize",
+        "WindowActivation",
+        "SurfaceClosed",
+        "Action",
+        "WindowAppearance",
+        "Layout",
+        "Drag",
+        "NotificationResponse",
+        "PointerDownOutside",
+        "CloseRequested",
+        "Extension"
+      ]
+    },
+    "CommandKind": {
+      "kind": "enum",
+      "base": "uint8",
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36
+      ],
+      "names": [
+        "Unknown",
+        "Focus",
+        "Blur",
+        "SetSelection",
+        "ScrollToIndex",
+        "ScrollToEnd",
+        "SetTitle",
+        "ResizeWindow",
+        "ZoomWindow",
+        "ToggleFullscreen",
+        "OpenUrl",
+        "FocusNext",
+        "FocusPrev",
+        "GetWindowSize",
+        "GetFocus",
+        "ClipboardWrite",
+        "ClipboardRead",
+        "OpenSurface",
+        "FileDialogOpen",
+        "FileDialogSave",
+        "ShowNotification",
+        "SetMenus",
+        "SetKeybindings",
+        "SetClosePolicy",
+        "ResolveCloseRequest",
+        "ReadTextFile",
+        "WriteTextFile",
+        "ClipboardWriteImage",
+        "ClipboardReadImage",
+        "LoadFont",
+        "MinimizeWindow",
+        "GetWindowBounds",
+        "GetWindowState",
+        "ActivateWindow",
+        "GetScrollOffset",
+        "ScrollToOffset",
+        "InvokeNative"
+      ]
+    },
+    "Body": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "Snapshot"
+        },
+        {
+          "id": 2,
+          "type": "Event"
+        },
+        {
+          "id": 3,
+          "type": "Patch"
+        },
+        {
+          "id": 4,
+          "type": "Command"
+        }
+      ]
+    },
+    "Snapshot": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "surfaceId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "epoch",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "baseRevision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "revision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "nodes",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "Node"
+            }
+          }
+        }
+      ]
+    },
+    "Event": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "surfaceId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "epoch",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "revision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "sequence",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "nodeId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "listenerId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 7,
+          "name": "eventType",
+          "type": {
+            "kind": "def",
+            "name": "EventKind"
+          }
+        },
+        {
+          "id": 8,
+          "name": "payload",
+          "type": {
+            "kind": "def",
+            "name": "EventPayload"
+          }
+        }
+      ]
+    },
+    "Patch": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "surfaceId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "epoch",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "baseRevision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "revision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "operations",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "PatchOperation"
+            }
+          }
+        }
+      ]
+    },
+    "Command": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "surfaceId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "epoch",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "afterRevision",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "requestId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "nodeId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "kind",
+          "type": {
+            "kind": "def",
+            "name": "CommandKind"
+          }
+        },
+        {
+          "id": 7,
+          "name": "payload",
+          "type": {
+            "kind": "def",
+            "name": "CommandPayload"
+          }
+        }
+      ]
+    },
+    "ExtensionValue": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "ExtensionBoolValue"
+        },
+        {
+          "id": 2,
+          "type": "ExtensionInt32Value"
+        },
+        {
+          "id": 3,
+          "type": "ExtensionU32Value"
+        },
+        {
+          "id": 4,
+          "type": "ExtensionF32Value"
+        },
+        {
+          "id": 5,
+          "type": "ExtensionTextValue"
+        },
+        {
+          "id": 6,
+          "type": "ExtensionBytesValue"
+        }
+      ]
+    },
+    "ExtensionBoolValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "ExtensionInt32Value": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "int32"
+          }
+        }
+      ]
+    },
+    "ExtensionU32Value": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "ExtensionF32Value": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "ExtensionTextValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "ExtensionBytesValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        }
+      ]
+    },
+    "ExtensionField": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "value",
+          "type": {
+            "kind": "def",
+            "name": "ExtensionValue"
+          }
+        }
+      ]
+    },
+    "HostProperties": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "TextInputProperties"
+        },
+        {
+          "id": 2,
+          "type": "VirtualListProperties"
+        },
+        {
+          "id": 3,
+          "type": "ImageProperties"
+        },
+        {
+          "id": 4,
+          "type": "DragProperties"
+        },
+        {
+          "id": 5,
+          "type": "ExtensionProperties"
+        },
+        {
+          "id": 6,
+          "type": "IconProperties"
+        }
+      ]
+    },
+    "TextInputProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "placeholder",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 3,
+          "name": "multiline",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 4,
+          "name": "disabled",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 5,
+          "name": "controlled",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 6,
+          "name": "ackEditSeq",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 7,
+          "name": "selectionStart",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 8,
+          "name": "selectionEnd",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 9,
+          "name": "markedStart",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 10,
+          "name": "markedEnd",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 11,
+          "name": "maxLength",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 12,
+          "name": "selectionReversed",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "VirtualListProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "itemCount",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "rangeStart",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "rangeEnd",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "estimatedItemSize",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "overscan",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "ImageProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "source",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "objectFit",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "fallbackSource",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "DragProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "dragType",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "exportFiles",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "name": "acceptsDragOver",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 4,
+          "name": "acceptsDrop",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "ExtensionProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "providerId",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "name": "catalogDigest",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "name": "entryId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "entryVersion",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "fields",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "ExtensionField"
+            }
+          }
+        },
+        {
+          "id": 6,
+          "name": "eventIds",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "uint32"
+            }
+          }
+        }
+      ]
+    },
+    "IconProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "size",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "color",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "AccessibilityProperties": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "role",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "label",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 3,
+          "name": "description",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 4,
+          "name": "disabled",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 5,
+          "name": "checked",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 6,
+          "name": "selected",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 7,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 8,
+          "name": "expanded",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 9,
+          "name": "level",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "Transition": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "durationMs",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "delayMs",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "easing",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "propertyMask",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "BoxShadowValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "offsetX",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "offsetY",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "blurRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "spreadRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "color",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "inset",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "BoxShadowSet": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "values",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "BoxShadowValue"
+            }
+          }
+        }
+      ]
+    },
+    "Style": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "flexDirection",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "flexGrow",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "padding",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "gap",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 7,
+          "name": "backgroundColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 8,
+          "name": "color",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 9,
+          "name": "opacity",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 10,
+          "name": "transition",
+          "type": {
+            "kind": "def",
+            "name": "Transition"
+          }
+        },
+        {
+          "id": 11,
+          "name": "justifyContent",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 12,
+          "name": "alignItems",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 13,
+          "name": "borderRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 14,
+          "name": "borderWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 15,
+          "name": "borderColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 16,
+          "name": "fontSize",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 17,
+          "name": "fontWeight",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 18,
+          "name": "overflow",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 19,
+          "name": "lineClamp",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 20,
+          "name": "textOverflow",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 21,
+          "name": "marginTop",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 22,
+          "name": "marginRight",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 23,
+          "name": "marginBottom",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 24,
+          "name": "marginLeft",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 25,
+          "name": "fontStyle",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 26,
+          "name": "textDecoration",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 27,
+          "name": "lineHeight",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 28,
+          "name": "minWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 29,
+          "name": "maxWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 30,
+          "name": "minHeight",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 31,
+          "name": "maxHeight",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 32,
+          "name": "flexShrink",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 33,
+          "name": "alignSelf",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 34,
+          "name": "position",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 35,
+          "name": "left",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 36,
+          "name": "top",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 37,
+          "name": "right",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 38,
+          "name": "bottom",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 39,
+          "name": "cursor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 40,
+          "name": "textAlign",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 41,
+          "name": "boxShadow",
+          "type": {
+            "kind": "def",
+            "name": "BoxShadowSet"
+          }
+        },
+        {
+          "id": 42,
+          "name": "fontFamily",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "Node": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "parentId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "index",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "kind",
+          "type": {
+            "kind": "def",
+            "name": "NodeKind"
+          }
+        },
+        {
+          "id": 5,
+          "name": "style",
+          "type": {
+            "kind": "def",
+            "name": "Style"
+          }
+        },
+        {
+          "id": 6,
+          "name": "text",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 7,
+          "name": "listenerId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 8,
+          "name": "hostProperties",
+          "type": {
+            "kind": "def",
+            "name": "HostProperties"
+          }
+        },
+        {
+          "id": 9,
+          "name": "accessibility",
+          "type": {
+            "kind": "def",
+            "name": "AccessibilityProperties"
+          }
+        },
+        {
+          "id": 10,
+          "name": "focusable",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 11,
+          "name": "selectable",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 12,
+          "name": "tooltip",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 13,
+          "name": "acceptsPointerMove",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "ClearStyle": {
+      "kind": "message",
+      "fields": []
+    },
+    "PatchOperationValue": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "PatchCreate"
+        },
+        {
+          "id": 2,
+          "type": "PatchUpdate"
+        },
+        {
+          "id": 3,
+          "type": "PatchMove"
+        },
+        {
+          "id": 4,
+          "type": "PatchDelete"
+        }
+      ]
+    },
+    "PatchCreate": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "node",
+          "type": {
+            "kind": "def",
+            "name": "Node"
+          }
+        }
+      ]
+    },
+    "PatchUpdate": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "mask",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "style",
+          "type": {
+            "kind": "def",
+            "name": "Style"
+          }
+        },
+        {
+          "id": 4,
+          "name": "clearStyle",
+          "type": {
+            "kind": "def",
+            "name": "ClearStyle"
+          }
+        },
+        {
+          "id": 5,
+          "name": "text",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 6,
+          "name": "listenerId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 7,
+          "name": "hostProperties",
+          "type": {
+            "kind": "def",
+            "name": "HostProperties"
+          }
+        },
+        {
+          "id": 8,
+          "name": "accessibility",
+          "type": {
+            "kind": "def",
+            "name": "AccessibilityProperties"
+          }
+        },
+        {
+          "id": 9,
+          "name": "focusable",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 10,
+          "name": "selectable",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 11,
+          "name": "tooltip",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 12,
+          "name": "acceptsPointerMove",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "PatchMove": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "parentId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "index",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "PatchDelete": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "PatchOperation": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "operation",
+          "type": {
+            "kind": "def",
+            "name": "PatchOperationValue"
+          }
+        }
+      ]
+    },
+    "WindowOpenOptions": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "kind",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "resizable",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 3,
+          "name": "minWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "minHeight",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "NotificationActionDefinition": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "label",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "MenuDefinition": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "title",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "items",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "MenuItem"
+            }
+          }
+        }
+      ]
+    },
+    "MenuItemValue": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "MenuSeparator"
+        },
+        {
+          "id": 2,
+          "type": "MenuAction"
+        },
+        {
+          "id": 3,
+          "type": "MenuSubmenu"
+        }
+      ]
+    },
+    "MenuSeparator": {
+      "kind": "message",
+      "fields": []
+    },
+    "MenuAction": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "disabled",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 3,
+          "name": "checked",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "MenuSubmenu": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "menu",
+          "type": {
+            "kind": "def",
+            "name": "MenuDefinition"
+          }
+        }
+      ]
+    },
+    "MenuItem": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "def",
+            "name": "MenuItemValue"
+          }
+        }
+      ]
+    },
+    "KeybindingDefinition": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "keystrokes",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "actionName",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "CommandPayload": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "U32PairCommand"
+        },
+        {
+          "id": 2,
+          "type": "FloatCommand"
+        },
+        {
+          "id": 3,
+          "type": "TextCommand"
+        },
+        {
+          "id": 4,
+          "type": "StringPairCommand"
+        },
+        {
+          "id": 5,
+          "type": "OpenSurfaceCommand"
+        },
+        {
+          "id": 6,
+          "type": "FileDialogOpenCommand"
+        },
+        {
+          "id": 7,
+          "type": "NotificationCommand"
+        },
+        {
+          "id": 8,
+          "type": "MenusCommand"
+        },
+        {
+          "id": 9,
+          "type": "KeybindingsCommand"
+        },
+        {
+          "id": 10,
+          "type": "ClipboardImageCommand"
+        },
+        {
+          "id": 11,
+          "type": "CloseResolutionCommand"
+        },
+        {
+          "id": 12,
+          "type": "InvokeNativeCommand"
+        }
+      ]
+    },
+    "U32PairCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "first",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "second",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "FloatCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "TextCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "StringPairCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "path",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "content",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "OpenSurfaceCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "title",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "options",
+          "type": {
+            "kind": "def",
+            "name": "WindowOpenOptions"
+          }
+        }
+      ]
+    },
+    "FileDialogOpenCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "title",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "directories",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 3,
+          "name": "multiple",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "NotificationCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "title",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "body",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 3,
+          "name": "actions",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "NotificationActionDefinition"
+            }
+          }
+        }
+      ]
+    },
+    "MenusCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "menus",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "MenuDefinition"
+            }
+          }
+        }
+      ]
+    },
+    "KeybindingsCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "bindings",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "KeybindingDefinition"
+            }
+          }
+        }
+      ]
+    },
+    "ClipboardImageCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "format",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "bytes",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        }
+      ]
+    },
+    "CloseResolutionCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "requestId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "allow",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "InvokeNativeCommand": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "moduleId",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "name": "moduleDigest",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "name": "functionId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "args",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        }
+      ]
+    },
+    "CommandValue": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "NumberValue"
+        },
+        {
+          "id": 2,
+          "type": "PairValue"
+        },
+        {
+          "id": 3,
+          "type": "BoolValue"
+        },
+        {
+          "id": 4,
+          "type": "TextValue"
+        },
+        {
+          "id": 5,
+          "type": "PathsValue"
+        },
+        {
+          "id": 6,
+          "type": "FileTextValue"
+        },
+        {
+          "id": 7,
+          "type": "ImageValue"
+        },
+        {
+          "id": 8,
+          "type": "BoundsValue"
+        },
+        {
+          "id": 9,
+          "type": "WindowStateValue"
+        },
+        {
+          "id": 10,
+          "type": "ScrollOffsetValue"
+        },
+        {
+          "id": 11,
+          "type": "BytesValue"
+        }
+      ]
+    },
+    "NumberValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "PairValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "BoolValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "TextValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "PathsValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "paths",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        }
+      ]
+    },
+    "FileTextValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "ImageValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "format",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "bytes",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        }
+      ]
+    },
+    "BoundsValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "WindowStateValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "fullscreen",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 2,
+          "name": "maximized",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "ScrollOffsetValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "BytesValue": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "value",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "byte"
+            }
+          }
+        }
+      ]
+    },
+    "EventPayload": {
+      "kind": "union",
+      "branches": [
+        {
+          "id": 1,
+          "type": "TextInputEventData"
+        },
+        {
+          "id": 2,
+          "type": "CommandResult"
+        },
+        {
+          "id": 3,
+          "type": "VisibleRangeEvent"
+        },
+        {
+          "id": 4,
+          "type": "AnimationCompleteEvent"
+        },
+        {
+          "id": 5,
+          "type": "KeyEvent"
+        },
+        {
+          "id": 6,
+          "type": "PointerEvent"
+        },
+        {
+          "id": 7,
+          "type": "PointerMoveEvent"
+        },
+        {
+          "id": 8,
+          "type": "ScrollEvent"
+        },
+        {
+          "id": 9,
+          "type": "SubmitEvent"
+        },
+        {
+          "id": 10,
+          "type": "WindowResizeEvent"
+        },
+        {
+          "id": 11,
+          "type": "WindowActivationEvent"
+        },
+        {
+          "id": 12,
+          "type": "ActionEvent"
+        },
+        {
+          "id": 13,
+          "type": "WindowAppearanceEvent"
+        },
+        {
+          "id": 14,
+          "type": "LayoutEvent"
+        },
+        {
+          "id": 15,
+          "type": "DragOverEvent"
+        },
+        {
+          "id": 16,
+          "type": "DragDropEvent"
+        },
+        {
+          "id": 17,
+          "type": "ExternalFileDropEvent"
+        },
+        {
+          "id": 18,
+          "type": "NotificationResponseEvent"
+        },
+        {
+          "id": 19,
+          "type": "PointerDownOutsideEvent"
+        },
+        {
+          "id": 20,
+          "type": "CloseRequestedEvent"
+        },
+        {
+          "id": 21,
+          "type": "ExtensionEvent"
+        }
+      ]
+    },
+    "TextInputEventData": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "text",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "selectionStart",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "selectionEnd",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "markedStart",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "markedEnd",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "editSeq",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 7,
+          "name": "reversed",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "CommandResult": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "requestId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "command",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "nodeId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "success",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        },
+        {
+          "id": 5,
+          "name": "error",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 6,
+          "name": "value",
+          "type": {
+            "kind": "def",
+            "name": "CommandValue"
+          }
+        }
+      ]
+    },
+    "VisibleRangeEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "start",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "end",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "AnimationCompleteEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "generation",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "KeyEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "key",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "modifiers",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "name": "action",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "PointerEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "button",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "modifiers",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "name": "action",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "clickCount",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "PointerMoveEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "modifiers",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "ScrollEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "deltaKind",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "dx",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "dy",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 6,
+          "name": "modifiers",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        }
+      ]
+    },
+    "SubmitEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "text",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "WindowResizeEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "scaleFactor",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "WindowActivationEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "active",
+          "type": {
+            "kind": "scalar",
+            "name": "bool"
+          }
+        }
+      ]
+    },
+    "ActionEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "action",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "WindowAppearanceEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "appearance",
+          "type": {
+            "kind": "def",
+            "name": "WindowAppearance"
+          }
+        }
+      ]
+    },
+    "LayoutEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "height",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "DragOverEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "dragType",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "DragDropEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "dragType",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "ExternalFileDropEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "paths",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "scalar",
+              "name": "string"
+            }
+          }
+        }
+      ]
+    },
+    "NotificationResponseEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "tag",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "actionId",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        }
+      ]
+    },
+    "PointerDownOutsideEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "x",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "y",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
+    "CloseRequestedEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "requestId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "ExtensionEvent": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "eventId",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "fields",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "ExtensionField"
+            }
+          }
+        }
+      ]
+    },
+    "Envelope": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "protocolVersion",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "body",
+          "type": {
+            "kind": "def",
+            "name": "Body"
+          }
+        }
+      ]
+    }
+  }
+}
