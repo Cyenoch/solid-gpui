@@ -21,6 +21,7 @@ const descriptor: NativeComponentDescriptor = {
   events: [{ id: 1, name: "press", prop: "onPress" }],
   commands: [{ id: 1, name: "focus" }],
   children: false,
+  slots: [],
   controlled: null,
 };
 const clientDescriptor = {
@@ -363,11 +364,65 @@ test("native clients bind their setup root across async work and reject after ro
 
 test("native component contract rejects unknown props and forbidden children before publishing", () => {
   const Component = createNativeComponent<Record<string, unknown>, {}, {}>(descriptor);
-  for (const props of [{ typo: 1 }, { label: "ok", children: "forbidden" }, { label: "ok", onPress: 4 }]) {
+  for (const props of [
+    { typo: 1 },
+    { label: "ok", children: "forbidden" },
+    { label: "ok", onPress: 4 },
+    { label: "ok", slots: { missing: null } },
+  ]) {
     const transport = new MemoryTransport();
     const root = createRoot(transport);
     expect(() => root.render(() => Component(props))).toThrow();
     expect(transport.submitted).toHaveLength(0);
     root.unmount();
   }
+});
+
+test("named native slots stay in the host tree, out of JSON, and keep stable groups across updates", async () => {
+  const Component = createNativeComponent<{ label?: string }, {}, {}, "label">({
+    ...descriptor,
+    children: true,
+    slots: ["label"],
+  });
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  const [header, setHeader] = createSignal("first");
+  let bodyMounts = 0;
+  root.render(() =>
+    Component({
+      label: "panel",
+      slots: {
+        get label() {
+          return Text({ children: header() });
+        },
+      },
+      get children() {
+        bodyMounts++;
+        return Text({ children: "body" });
+      },
+    }),
+  );
+  const snapshot = body(transport.submitted[0]!);
+  if (snapshot.tag !== 1) throw new Error("expected snapshot");
+  const nodes = snapshot.value.nodes!;
+  expect(bodyMounts).toBe(1);
+  const panel = nodes.find((node) => node.hostProperties?.tag === 5)!;
+  const groups = nodes.filter((node) => node.parentId === panel.id);
+  expect(groups).toHaveLength(2);
+  const payload = panel.hostProperties!;
+  if (payload.tag !== 5) throw new Error("expected extension");
+  const bytes = payload.value.fields![0]!.value!;
+  if (bytes.tag !== 6) throw new Error("expected JSON");
+  expect(decodeJson(bytes.value.value!)).toEqual({ label: "panel" });
+  setHeader("updated");
+  await Promise.resolve();
+  const patch = body(transport.submitted.at(-1)!);
+  if (patch.tag !== 3) throw new Error("expected patch");
+  const groupIds = new Set(groups.map((node) => node.id));
+  for (const entry of patch.value.operations ?? []) {
+    const operation = entry.operation!;
+    if (operation.tag === 1) expect(groupIds.has(operation.value.node!.id)).toBe(false);
+    if (operation.tag === 4) expect(groupIds.has(operation.value.id)).toBe(false);
+  }
+  root.unmount();
 });

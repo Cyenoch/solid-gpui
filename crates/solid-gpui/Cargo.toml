@@ -25,6 +25,9 @@ sha2 = "0.11"
 ts-rs = "12.0.1"
 tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }
 gpui-component = { workspace = true, optional = true }
+gpui-base = { workspace = true, optional = true }
+gpui-kit-assets = { workspace = true, optional = true }
+chrono = { version = "0.4", optional = true }
 gpui-platform = { workspace = true, features = ["font-kit"], optional = true }
 gpui-performance = { path = "../gpui-performance", optional = true }
 solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
@@ -32,7 +35,7 @@ solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
 [features]
 default = ["host"]
 host = ["dep:gpui-platform"]
-gpui-component = ["host", "dep:gpui-component", "dep:gpui-performance"]
+gpui-component = ["host", "dep:gpui-component", "dep:gpui-base", "dep:gpui-kit-assets", "dep:chrono", "dep:gpui-performance"]
 frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]

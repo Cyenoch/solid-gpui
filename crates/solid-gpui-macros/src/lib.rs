@@ -23,11 +23,13 @@ pub fn native_type(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     finish((|| {
-        let children = component_options(attr.into())?;
+        let (children, descriptor, validate) = component_options(attr.into())?;
         match syn::parse::<Item>(item)? {
-            Item::Fn(function) => expand_component(function, children.unwrap_or(true)),
+            Item::Fn(function) => {
+                expand_component(function, children.unwrap_or(true), descriptor, validate)
+            }
             Item::Impl(implementation) => {
-                if children == Some(true) {
+                if children == Some(true) || descriptor || validate.is_some() {
                     return Err(syn::Error::new_spanned(
                         implementation,
                         "retained NativeView components cannot accept JS children",
@@ -43,11 +45,29 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     })())
 }
 
-fn component_options(options: Tokens) -> syn::Result<Option<bool>> {
+fn component_options(options: Tokens) -> syn::Result<(Option<bool>, bool, Option<Expr>)> {
     let mut children = None;
+    let mut descriptor = false;
+    let mut validate = None;
     let parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("validate") {
+            if validate.is_some() {
+                return Err(meta.error("duplicate validation option"));
+            }
+            validate = Some(meta.value()?.parse::<Expr>()?);
+            return Ok(());
+        }
+        if meta.path.is_ident("descriptor") {
+            if descriptor {
+                return Err(meta.error("duplicate descriptor option"));
+            }
+            descriptor = true;
+            return Ok(());
+        }
         if !meta.path.is_ident("children") {
-            return Err(meta.error("unknown component option; expected children = true or false"));
+            return Err(meta.error(
+                "unknown component option; expected descriptor, validate, or children = true or false",
+            ));
         }
         if children.is_some() {
             return Err(meta.error("duplicate component children option"));
@@ -56,7 +76,7 @@ fn component_options(options: Tokens) -> syn::Result<Option<bool>> {
         Ok(())
     });
     syn::parse::Parser::parse2(parser, options)?;
-    Ok(children)
+    Ok((children, descriptor, validate))
 }
 
 fn qualify_component_attribute(attr: &mut Attribute) -> syn::Result<()> {
@@ -402,8 +422,28 @@ fn field(
     ))
 }
 
-fn expand_component(mut function: ItemFn, children: bool) -> syn::Result<Tokens> {
-    let contract = quote!(#function).to_string();
+fn expand_component(
+    mut function: ItemFn,
+    children: bool,
+    descriptor: bool,
+    validate: Option<Expr>,
+) -> syn::Result<Tokens> {
+    let contract = quote!(#function #validate).to_string();
+    // Native elements must be owned. Explicit capture avoids accidentally
+    // retaining the borrowed render context in an opaque Rust 2024 return type.
+    if let ReturnType::Type(_, ty) = &mut function.sig.output
+        && let Type::ImplTrait(opaque) = ty.as_mut()
+    {
+        opaque.bounds.push(parse_quote!(use<>));
+    }
+    let output = function.sig.output.clone();
+    let styled = matches!(&output, ReturnType::Type(_, ty) if matches!(ty.as_ref(), Type::ImplTrait(opaque) if opaque.bounds.iter().any(|b| matches!(b, syn::TypeParamBound::Trait(bound) if bound.path.segments.last().is_some_and(|s| s.ident == "Styled")))));
+    let constructor = match (descriptor, styled) {
+        (true, true) => format_ident!("styled_descriptor"),
+        (true, false) => format_ident!("descriptor"),
+        (false, true) => format_ident!("styled_element"),
+        (false, false) => format_ident!("element"),
+    };
     // Parameters declare the generated JSX props/events. Their arity is the
     // public component schema, not a handwritten positional call interface.
     function
@@ -420,6 +460,8 @@ fn expand_component(mut function: ItemFn, children: bool) -> syn::Result<Tokens>
     let mut events = Vec::new();
     let mut event_bindings = Vec::new();
     let mut prop_names = Vec::new();
+    let mut slots = Vec::new();
+    let mut child_type = None;
     let mut context_count = 0;
     for argument in &mut function.sig.inputs {
         let (name, ty, attrs) = parameter(argument)?;
@@ -438,6 +480,47 @@ fn expand_component(mut function: ItemFn, children: bool) -> syn::Result<Tokens>
                 ));
             }
             args.push(quote!(__cx));
+        } else if let Type::Path(path) = &ty
+            && let Some(segment) = path.path.segments.last()
+            && segment.ident == "NativeItems"
+        {
+            if !attrs.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    &attrs[0],
+                    "typed children do not accept prop attributes",
+                ));
+            }
+            if child_type.is_some() {
+                return Err(syn::Error::new_spanned(
+                    ty,
+                    "only one NativeItems parameter may consume children",
+                ));
+            }
+            let PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+                return Err(syn::Error::new_spanned(
+                    ty,
+                    "NativeItems requires an element type",
+                ));
+            };
+            let Some(GenericArgument::Type(item)) = arguments.args.first() else {
+                return Err(syn::Error::new_spanned(
+                    ty,
+                    "NativeItems requires an element type",
+                ));
+            };
+            child_type = Some(item.clone());
+            args.push(quote!(__cx.typed_children::<#item>()));
+        } else if matches!(&ty, Type::Path(path) if path.path.segments.last().is_some_and(|segment| segment.ident == "NativeSlot"))
+        {
+            if !attrs.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    &attrs[0],
+                    "slots do not accept prop attributes",
+                ));
+            }
+            let slot = name.to_string().to_lower_camel_case();
+            slots.push(slot.clone());
+            args.push(quote!(__cx.slot(#slot)));
         } else if let Some(payload) = event_type(&ty)? {
             owned_type(&payload)?;
             if !attrs.is_empty() {
@@ -474,6 +557,8 @@ fn expand_component(mut function: ItemFn, children: bool) -> syn::Result<Tokens>
             args.push(quote!(__props.#name.clone()));
         }
     }
+    let child_contract = child_type.map(|ty| quote!(.with_child_type::<#ty>()));
+    let validation = validate.map(|v| quote!(.with_validation::<#props>(#v)));
     let mut attrs = Vec::new();
     add_derives(&mut attrs, &["Clone", "Deserialize", "TS"])?;
     Ok(quote! {
@@ -484,11 +569,11 @@ fn expand_component(mut function: ItemFn, children: bool) -> syn::Result<Tokens>
         struct #props { #(#fields),* }
         #[allow(non_snake_case)]
         fn #definition() -> ::solid_gpui::native::ComponentDefinition {
-            fn render(__props: &#props, __cx: &mut ::solid_gpui::native::ElementContext<'_>) -> ::solid_gpui::gpui::AnyElement {
+            fn render(__props: &#props, __cx: &mut ::solid_gpui::native::ElementContext<'_>) #output {
                 #(#event_bindings)*
-                ::solid_gpui::gpui::IntoElement::into_any_element(#name(#(#args),*))
+                #name(#(#args),*)
             }
-            ::solid_gpui::native::ComponentDefinition::element::<#props>(#js_name, vec![#(#events),*], render).with_contract(#contract).with_props(&[#(#prop_names),*]).with_children(#children)
+            ::solid_gpui::native::ComponentDefinition::#constructor::<#props, _>(#js_name, vec![#(#events),*], render).with_contract(#contract).with_props(&[#(#prop_names),*]).with_children(#children).with_slots(&[#(#slots),*]) #child_contract #validation
         }
     })
 }
@@ -777,7 +862,9 @@ mod tests {
                 todo!()
             }
         );
-        let output = expand_component(function, true).unwrap().to_string();
+        let output = expand_component(function, true, false, None)
+            .unwrap()
+            .to_string();
         assert!(output.contains("__native_default_greeting_disabled"));
         assert!(output.contains("event :: < () > (\"press\")"));
         let file: syn::File = syn::parse_str(&output).unwrap();
@@ -804,7 +891,7 @@ mod tests {
                 fn bad<T>(x: T) {}
             ),
         ] {
-            assert!(expand_component(function, true).is_err());
+            assert!(expand_component(function, true, false, None).is_err());
         }
     }
 

@@ -39,10 +39,10 @@ pub mod native {
     pub trait NativeView {}
     pub struct ComponentDefinition(pub String, pub bool);
     impl ComponentDefinition {
-        pub fn element<P: Clone + DeserializeOwned + TS>(
+        pub fn element<P: Clone + DeserializeOwned + TS, E: crate::gpui::IntoElement>(
             _: &'static str,
             _: Vec<EventDefinition>,
-            _: fn(&P, &mut ElementContext<'_>) -> crate::gpui::AnyElement,
+            _: fn(&P, &mut ElementContext<'_>) -> E,
         ) -> Self {
             Self(P::decl(&ts_rs::Config::new()), true)
         }
@@ -51,6 +51,9 @@ pub mod native {
             self
         }
         pub fn with_props(self, _: &'static [&'static str]) -> Self {
+            self
+        }
+        pub fn with_slots(self, _: &'static [&'static str]) -> Self {
             self
         }
         pub fn view<T: NativeView>(_: &'static str) -> Self {

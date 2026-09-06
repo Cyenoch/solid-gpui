@@ -144,6 +144,18 @@ impl StoredNode {
             .filter_map(|id| store.nodes.get(id))
     }
 
+    pub(crate) fn child_at<'a>(
+        &self,
+        store: &'a NodeStore,
+        index: usize,
+    ) -> Option<&'a StoredNode> {
+        store
+            .children
+            .get(&self.id)
+            .and_then(|ids| ids.get(index))
+            .and_then(|id| store.nodes.get(id))
+    }
+
     pub fn has_children(&self) -> bool {
         self.child_len != 0
     }

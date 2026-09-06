@@ -33,11 +33,12 @@ mod input;
 #[cfg(test)]
 mod native_call_lifecycle_tests;
 mod native_calls;
-mod paint;
+pub(crate) mod paint;
 
 pub use extensions::{
-    ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink, ExtensionInstance,
-    ExtensionRegistry, ExtensionRenderContext, NoExtensions,
+    ExtensionAdapter, ExtensionChildIterator, ExtensionChildSummary, ExtensionChildren,
+    ExtensionContent, ExtensionError, ExtensionEventSink, ExtensionInstance, ExtensionRegistry,
+    ExtensionRenderContext, NoExtensions,
 };
 
 #[cfg(test)]
@@ -126,10 +127,55 @@ impl SolidRoot {
                     entry_id: properties.entry_id,
                     entry_version: properties.entry_version,
                 })?;
+            if adapter.requires_typed_parent() {
+                let valid_parent = store.get(node.parent_id).is_some_and(|parent| {
+                    let resolve = |candidate: &StoredNode| {
+                        extension_properties(candidate).ok().and_then(|p| {
+                            self.extension_registry.resolve(
+                                p.provider_id,
+                                p.catalog_digest,
+                                p.entry_id,
+                                p.entry_version,
+                            )
+                        })
+                    };
+                    if let Some(owner) = resolve(parent) {
+                        return owner.default_child_group().is_none()
+                            && owner.child_type().is_some()
+                            && owner.child_type() == adapter.element_type();
+                    }
+                    let Some(owner_node) = store.get(parent.parent_id) else {
+                        return false;
+                    };
+                    let Some(owner) = resolve(owner_node) else {
+                        return false;
+                    };
+                    owner
+                        .default_child_group()
+                        .and_then(|group| owner_node.child_at(store, group))
+                        .is_some_and(|group| group.id == parent.id)
+                        && owner.child_type().is_some()
+                        && owner.child_type() == adapter.element_type()
+                });
+                if !valid_parent {
+                    return Err(ExtensionError::InvalidChildren {
+                        node_id: node.id,
+                        reason: format!(
+                            "this native child requires its declared typed parent; parent {} does not accept it",
+                            node.parent_id
+                        ),
+                    });
+                }
+            }
             adapter.validate(
                 node.id,
                 properties,
-                ExtensionChildSummary::from_node(node, store),
+                ExtensionChildSummary::from_node(
+                    node,
+                    store,
+                    self.extension_registry.as_ref(),
+                    adapter.default_child_group(),
+                ),
             )?;
         }
         Ok(())
@@ -187,6 +233,7 @@ pub struct SolidRoot {
     extension_event_state: Rc<extensions::ExtensionEventState>,
     extension_instances: HashMap<u32, extensions::MountedExtension>,
     extension_dirty: HashSet<u32>,
+    extension_content_dirty: HashSet<u32>,
     input_states: HashMap<u32, NativeInputState>,
     text_input_layouts: HashMap<u32, TextInputLayout>,
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
@@ -256,6 +303,7 @@ impl SolidRoot {
             extension_event_state,
             extension_instances: HashMap::new(),
             extension_dirty: HashSet::new(),
+            extension_content_dirty: HashSet::new(),
             input_states: HashMap::new(),
             rich_text_parts_cache: RefCell::new(HashMap::new()),
             text_input_layouts: HashMap::new(),
@@ -539,6 +587,8 @@ impl SolidRoot {
                 if reset_native_state {
                     self.reset_native_state();
                 }
+                self.extension_content_dirty
+                    .extend(self.store.iter().map(|node| node.id));
                 self.extension_dirty
                     .extend(self.store.iter().filter_map(|node| {
                         matches!(node.host_properties, Some(HostProperties::Extension(_)))
@@ -621,6 +671,7 @@ impl SolidRoot {
                 for id in touched_ids {
                     add_store_ancestors(&self.store, &mut touched, id);
                 }
+                self.extension_content_dirty.extend(touched.iter().copied());
                 self.extension_dirty
                     .extend(touched.iter().copied().filter(|id| {
                         self.store.get(*id).is_some_and(|node| {
@@ -687,6 +738,12 @@ impl SolidRoot {
                 node.listener_id,
                 properties.event_ids.clone(),
             );
+            let mut child_nodes = vec![node.children(&self.store).map(|child| child.id).collect()];
+            child_nodes.extend(
+                node.children(&self.store)
+                    .map(|child| child.children(&self.store).map(|child| child.id).collect()),
+            );
+            sink.set_child_nodes(child_nodes, &self.extension_content_dirty);
             if let Some(mounted) = self.extension_instances.get_mut(&node.id) {
                 if self.extension_dirty.contains(&node.id)
                     || mounted.properties != *properties
@@ -708,7 +765,8 @@ impl SolidRoot {
                         properties.entry_version,
                     )
                     .expect("validated component adapter");
-                let instance = adapter.mount(node.id, properties, sink, window, cx);
+                let children = ExtensionChildren::new(cx.entity().downgrade(), sink.clone());
+                let instance = adapter.mount(node.id, properties, sink, children, window, cx);
                 self.extension_instances.insert(
                     node.id,
                     extensions::MountedExtension {
@@ -720,6 +778,7 @@ impl SolidRoot {
             }
         }
         self.extension_dirty.clear();
+        self.extension_content_dirty.clear();
     }
 
     fn prune_deleted_side_maps(&mut self, deleted_ids: &HashSet<u32>) {
@@ -807,6 +866,7 @@ impl SolidRoot {
         extensions::revoke_all_events(&self.extension_event_state);
         self.extension_instances.clear();
         self.extension_dirty.clear();
+        self.extension_content_dirty.clear();
         self.input_states.clear();
         self.text_input_layouts.clear();
         self.selectable_text_layouts.clear();

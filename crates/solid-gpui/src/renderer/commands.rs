@@ -1,3 +1,5 @@
+#[cfg(feature = "gpui-component")]
+use gpui::BorrowAppContext as _;
 use std::borrow::Cow;
 use std::path::Path;
 
@@ -97,6 +99,21 @@ impl SolidRoot {
     }
 
     fn set_menus(&self, menus: Vec<MenuDefinition>, cx: &mut Context<Self>) {
+        #[cfg(feature = "gpui-component")]
+        if cx.has_global::<gpui_component::GlobalState>() {
+            let owned = menus
+                .iter()
+                .cloned()
+                .map(|menu| {
+                    GpuiMenu::new(menu.title)
+                        .items(menu.items.into_iter().map(Self::menu_item))
+                        .owned()
+                })
+                .collect();
+            cx.update_global::<gpui_component::GlobalState, _>(|state, _| {
+                state.set_app_menus(owned)
+            });
+        }
         cx.set_menus(menus.into_iter().map(|menu| {
             GpuiMenu::new(menu.title).items(menu.items.into_iter().map(Self::menu_item))
         }));
@@ -303,6 +320,57 @@ impl SolidRoot {
                 function_id,
                 args,
             } => {
+                if args.len() > crate::native::MAX_NATIVE_CALL_BYTES {
+                    return (
+                        false,
+                        Some("native invocation arguments exceed the byte limit".into()),
+                        None,
+                        false,
+                    );
+                }
+                if let Some(module) = self
+                    .extension_registry
+                    .native_module(module_id, module_digest)
+                {
+                    if module.module_id() != module_id || module.module_digest() != module_digest {
+                        return (
+                            false,
+                            Some("native module registry returned a different contract".into()),
+                            None,
+                            false,
+                        );
+                    }
+                    if self.pending_native_calls.contains_key(&meta.request_id) {
+                        return (
+                            false,
+                            Some("native request ID is already in flight".into()),
+                            None,
+                            false,
+                        );
+                    }
+                    if let Some(result) = module.invoke_foreground(function_id, &args, window, cx) {
+                        return match result {
+                            Ok(bytes) if bytes.len() <= crate::native::MAX_NATIVE_CALL_BYTES => {
+                                (true, None, Some(CommandValue::Bytes(bytes)), false)
+                            }
+                            Ok(_) => (
+                                false,
+                                Some("native reply exceeds the byte limit".into()),
+                                None,
+                                false,
+                            ),
+                            Err(error) if error.len() <= crate::native::MAX_NATIVE_CALL_BYTES => {
+                                (false, Some(error), None, false)
+                            }
+                            Err(_) => (
+                                false,
+                                Some("native error exceeds the byte limit".into()),
+                                None,
+                                false,
+                            ),
+                        };
+                    }
+                }
                 match self.start_native_call(meta, module_id, module_digest, function_id, args, cx)
                 {
                     Ok(()) => (true, None, None, true),

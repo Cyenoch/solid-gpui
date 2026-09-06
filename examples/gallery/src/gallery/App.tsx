@@ -1,12 +1,17 @@
 import { Icon, Text, View, useWindowSize } from "@solid-gpui/core";
-import { createMemo } from "@solid-gpui/core/runtime";
+import { createEffect, createMemo } from "@solid-gpui/core/runtime";
+import { useNative } from "@solid-gpui/core/components";
 import { Outlet } from "@solid-gpui/router";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { useGallery } from "./context";
 
 export function App() {
-  const { theme, statusMessage, windowSizeStore } = useGallery();
+  const { theme, themeMode, showStatus, statusMessage, windowSizeStore } = useGallery();
+  const native = useNative();
+  createEffect(() => {
+    void native.setTheme(themeMode()).catch((error) => showStatus(`Native theme: ${String(error)}`, "warning"));
+  });
   const windowSize = useWindowSize(windowSizeStore);
   const compact = createMemo(() => windowSize().width < 720);
 

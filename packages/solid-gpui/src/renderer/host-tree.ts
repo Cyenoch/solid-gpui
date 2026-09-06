@@ -226,9 +226,7 @@ export class HostTree implements RootOwner {
         acceptsPointerMove: node.acceptsPointerMove,
       });
     }
-    for (const id of [...this.graph.deletedRoots].sort((a, b) => a - b)) {
-      if (!this.graph.createdIds.has(id) && !this.graph.nodesById.has(id)) operations.push({ type: "delete", id });
-    }
+    for (const id of this.graph.deletedNodeIds()) operations.push({ type: "delete", id });
     if (operations.length === 0) return null;
     return {
       type: "patch",

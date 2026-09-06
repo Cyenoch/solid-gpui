@@ -8,11 +8,18 @@ use std::{collections::BTreeSet, future::Future, sync::Arc};
 
 type Handler =
     dyn Fn(Vec<u8>, &NativeExecutor) -> BoxFuture<'static, Result<Vec<u8>, String>> + Send + Sync;
+type UiHandler =
+    dyn Fn(&[u8], &mut gpui::Window, &mut gpui::App) -> Result<Vec<u8>, String> + Send + Sync;
+#[derive(Clone)]
+enum CommandHandler {
+    Worker(Arc<Handler>),
+    Foreground(Arc<UiHandler>),
+}
 #[derive(Clone)]
 pub struct CommandDefinition {
     name: &'static str,
     describe: fn(&mut Types) -> (String, String),
-    handler: Arc<Handler>,
+    handler: CommandHandler,
 }
 impl CommandDefinition {
     /// Run synchronous work on Tokio's blocking pool. Cancelling its request
@@ -25,12 +32,12 @@ impl CommandDefinition {
         Self {
             name,
             describe: |types| (types.collect::<I>(), types.collect::<O>()),
-            handler: Arc::new(move |bytes, executor| {
+            handler: CommandHandler::Worker(Arc::new(move |bytes, executor| {
                 executor.blocking(move || {
                     let request = decode_json(&bytes)?;
                     encode_json(&function(request)?)
                 })
-            }),
+            })),
         }
     }
     /// Run the entire command future inside the shared Tokio runtime, including
@@ -46,13 +53,28 @@ impl CommandDefinition {
         Self {
             name,
             describe: |types| (types.collect::<I>(), types.collect::<O>()),
-            handler: Arc::new(move |bytes, executor| {
+            handler: CommandHandler::Worker(Arc::new(move |bytes, executor| {
                 let function = Arc::clone(&function);
                 executor.asynchronous(async move {
                     let request = decode_json(&bytes)?;
                     encode_json(&function(request).await?)
                 })
-            }),
+            })),
+        }
+    }
+
+    /// A bounded native UI mutation or query. Runs only through a mounted
+    /// window command, with the same typed JSON contract as worker commands.
+    pub fn foreground<I: DeserializeOwned + TS + 'static, O: Serialize + TS + 'static>(
+        name: &'static str,
+        function: fn(I, &mut gpui::Window, &mut gpui::App) -> Result<O, String>,
+    ) -> Self {
+        Self {
+            name,
+            describe: |types| (types.collect::<I>(), types.collect::<O>()),
+            handler: CommandHandler::Foreground(Arc::new(move |bytes, window, cx| {
+                encode_json(&function(decode_json(bytes)?, window, cx)?)
+            })),
         }
     }
 }
@@ -71,6 +93,18 @@ impl NativeModule for Commands {
     fn module_digest(&self) -> [u8; 32] {
         self.digest
     }
+    fn invoke_foreground(
+        &self,
+        id: u32,
+        args: &[u8],
+        window: &mut gpui::Window,
+        cx: &mut gpui::App,
+    ) -> Option<Result<Vec<u8>, String>> {
+        match &self.entries.get(id.wrapping_sub(1) as usize)?.handler {
+            CommandHandler::Foreground(handler) => Some(handler(args, window, cx)),
+            CommandHandler::Worker(_) => None,
+        }
+    }
     fn invoke(&self, id: u32, args: &[u8]) -> Result<Vec<u8>, String> {
         if tokio::runtime::Handle::try_current().is_ok() {
             return Err(
@@ -81,7 +115,12 @@ impl NativeModule for Commands {
     }
     fn invoke_async(&self, id: u32, args: Vec<u8>) -> BoxFuture<'_, Result<Vec<u8>, String>> {
         match self.entries.get(id.wrapping_sub(1) as usize) {
-            Some(command) => (command.handler)(args, &self.executor),
+            Some(command) => match &command.handler {
+                CommandHandler::Worker(handler) => handler(args, &self.executor),
+                CommandHandler::Foreground(_) => Box::pin(async {
+                    Err("native UI command requires a mounted foreground window".into())
+                }),
+            },
             None => Box::pin(async { Err("unknown native function".into()) }),
         }
     }
@@ -146,6 +185,13 @@ impl ModuleDefinition {
         self.refresh_digest();
         self
     }
+    /// Combine Rust source modules into one public JS/native catalog.
+    pub fn include(mut self, other: Self) -> Self {
+        self.components.extend(other.components);
+        let mut commands = self.commands.entries.clone();
+        commands.extend(other.commands.entries.iter().cloned());
+        Self::new(&self.name, self.components, commands).with_contract(self.source)
+    }
     pub fn with_component(mut self, component: ComponentDefinition) -> Self {
         assert!(
             !self
@@ -162,6 +208,12 @@ impl ModuleDefinition {
     pub fn id(&self) -> [u8; 16] {
         self.id
     }
+    pub fn component_id(&self, name: &str) -> Option<u32> {
+        self.components
+            .iter()
+            .position(|c| c.name == name)
+            .map(|i| i as u32 + 1)
+    }
     pub fn digest(&self) -> [u8; 32] {
         self.digest
     }
@@ -171,7 +223,7 @@ impl ModuleDefinition {
             let props=(c.props)(&mut types);
             let events=c.events.iter().enumerate().map(|(i,e)|serde_json::json!({"id":i+1,"name":e.name,"prop":format!("on{}",pascal(e.name)),"type":(e.describe)(&mut types)})).collect::<Vec<_>>();
             let commands=c.commands.iter().enumerate().map(|(i,(name,describe))|{let(input,output)=describe(&mut types);serde_json::json!({"id":i+1,"name":name,"input":input,"output":output})}).collect::<Vec<_>>();
-            serde_json::json!({"entryId":i+1,"entryVersion":1,"name":c.name,"propsType":props,"props":c.prop_names,"events":events,"commands":commands,"children":c.children,"controlled":c.controlled,"source":c.source})
+            serde_json::json!({"entryId":i+1,"entryVersion":1,"name":c.name,"propsType":props,"props":c.prop_names,"events":events,"commands":commands,"children":c.children,"slots":c.slots,"nativeStyle":c.native_style,"requiresTypedParent":c.requires_typed_parent,"childComponents":c.child_type.map(|expected|self.components.iter().filter(|child|child.element_type==Some(expected)).map(|child|child.name).collect::<Vec<_>>()),"controlled":c.controlled,"source":c.source})
         }).collect::<Vec<_>>();
         let commands = self
             .commands
@@ -227,11 +279,26 @@ impl ModuleDefinition {
                     }
                 ));
             }
+            let slots = component["slots"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let slots = if slots.is_empty() { "never" } else { &slots };
             let methods = methods_type(&component["commands"]);
             out.push_str(&format!("export type {name}Ref = {{ {methods} }};\n"));
             let mut descriptor = component.clone();
             let object = descriptor.as_object_mut().unwrap();
-            for key in ["source", "name", "propsType"] {
+            for key in [
+                "source",
+                "name",
+                "propsType",
+                "nativeStyle",
+                "requiresTypedParent",
+                "childComponents",
+            ] {
                 object.remove(key);
             }
             for event in descriptor["events"].as_array_mut().unwrap() {
@@ -244,7 +311,7 @@ impl ModuleDefinition {
             }
             descriptor["providerId"] = serde_json::json!(self.id);
             descriptor["catalogDigest"] = serde_json::json!(self.digest);
-            out.push_str(&format!("export const {name} = createNativeComponent<{props}, {{ {events} }}, {name}Ref>({descriptor});\n"));
+            out.push_str(&format!("export const {name} = createNativeComponent<{props}, {{ {events} }}, {name}Ref, {slots}>({descriptor});\n"));
         }
         let descriptor = serde_json::json!({"moduleId":self.id,"moduleDigest":self.digest,"commands":value["commands"]});
         out.push_str(&format!(

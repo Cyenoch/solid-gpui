@@ -1,4 +1,4 @@
-use gpui::{AnyElement, Element, InteractiveElement, ParentElement};
+use gpui::{AnyElement, IntoElement, ParentElement, RenderOnce};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -15,21 +15,89 @@ use crate::tree::StoredNode;
 
 /// A compact description of the children supplied to an extension adapter.
 /// Children are ordered as they appear in the retained tree.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ExtensionChildSummary {
+#[derive(Clone, Default)]
+pub struct ExtensionChildSummary<'a> {
     pub count: usize,
     pub kinds: Vec<u32>,
+    pub element_types: Vec<Option<std::any::TypeId>>,
+    pub properties: Vec<Option<&'a ExtensionProperties>>,
+    source: Option<(
+        &'a StoredNode,
+        &'a crate::tree::NodeStore,
+        &'a dyn ExtensionRegistry,
+    )>,
+}
+impl std::fmt::Debug for ExtensionChildSummary<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExtensionChildSummary")
+            .field("count", &self.count)
+            .field("kinds", &self.kinds)
+            .field("element_types", &self.element_types)
+            .finish_non_exhaustive()
+    }
 }
 
-impl ExtensionChildSummary {
-    pub(crate) fn from_node(node: &StoredNode, store: &crate::tree::NodeStore) -> Self {
+impl<'a> ExtensionChildSummary<'a> {
+    /// Inspect one child's composition on demand, without materializing its subtree.
+    pub fn child(&self, index: usize) -> Option<Self> {
+        let (content, store, registry) = self.source?;
+        let node = content.child_at(store, index)?;
+        let group = match node.host_properties.as_ref() {
+            Some(crate::protocol::HostProperties::Extension(p)) => registry
+                .resolve(p.provider_id, p.catalog_digest, p.entry_id, p.entry_version)?
+                .default_child_group(),
+            _ => None,
+        };
+        Some(Self::from_node(node, store, registry, group))
+    }
+    /// Count the actual default content, excluding the generated named-slot groups.
+    pub fn content_count(&self) -> usize {
+        self.element_types.len()
+    }
+
+    pub(crate) fn from_node(
+        node: &'a StoredNode,
+        store: &'a crate::tree::NodeStore,
+        registry: &'a dyn ExtensionRegistry,
+        group: Option<usize>,
+    ) -> Self {
         let kinds = node
             .children(store)
             .map(|child| child.kind)
             .collect::<Vec<_>>();
+        let content = group
+            .and_then(|index| node.child_at(store, index))
+            .unwrap_or(node);
+        let element_types = content
+            .children(store)
+            .map(|child| {
+                let crate::protocol::HostProperties::Extension(props) =
+                    child.host_properties.as_ref()?
+                else {
+                    return None;
+                };
+                registry
+                    .resolve(
+                        props.provider_id,
+                        props.catalog_digest,
+                        props.entry_id,
+                        props.entry_version,
+                    )?
+                    .element_type()
+            })
+            .collect();
         Self {
+            source: Some((content, store, registry)),
             count: kinds.len(),
             kinds,
+            element_types,
+            properties: content
+                .children(store)
+                .map(|child| match child.host_properties.as_ref() {
+                    Some(crate::protocol::HostProperties::Extension(props)) => Some(props),
+                    _ => None,
+                })
+                .collect(),
         }
     }
 }
@@ -106,6 +174,22 @@ pub trait ExtensionAdapter {
     ) -> Result<(), ExtensionError>;
 
     fn render(&self, context: ExtensionRenderContext<'_>) -> AnyElement;
+    /// A contract may group named content under direct child containers.
+    fn default_child_group(&self) -> Option<usize> {
+        None
+    }
+    fn element_type(&self) -> Option<std::any::TypeId> {
+        None
+    }
+    fn native_style(&self) -> bool {
+        false
+    }
+    fn child_type(&self) -> Option<std::any::TypeId> {
+        None
+    }
+    fn requires_typed_parent(&self) -> bool {
+        false
+    }
 
     /// Called once after the complete candidate tree has passed validation.
     fn mount(
@@ -113,6 +197,7 @@ pub trait ExtensionAdapter {
         _node_id: u32,
         _properties: &ExtensionProperties,
         _sink: ExtensionEventSink,
+        _children: ExtensionChildren,
         _window: &mut gpui::Window,
         _cx: &mut gpui::App,
     ) -> Option<Box<dyn ExtensionInstance>> {
@@ -130,7 +215,10 @@ pub trait ExtensionInstance {
         window: &mut gpui::Window,
         cx: &mut gpui::App,
     );
-    fn render(&self, children: &mut dyn Iterator<Item = AnyElement>) -> AnyElement;
+    fn render(&self, context: ExtensionRenderContext<'_>) -> AnyElement;
+    fn build_native(&self, _context: ExtensionRenderContext<'_>) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
     fn invoke(
         &mut self,
         _function_id: u32,
@@ -175,6 +263,8 @@ struct EventRoute {
     event_ids: RefCell<Arc<[u32]>>,
     active: Cell<bool>,
     contract: Cell<Option<ExtensionContract>>,
+    child_nodes: RefCell<Vec<Rc<Vec<u32>>>>,
+    changed_children: RefCell<Vec<Rc<Vec<usize>>>>,
 }
 
 pub(crate) struct ExtensionEventState {
@@ -211,6 +301,8 @@ impl ExtensionEventSink {
                     event_ids: RefCell::new(event_ids.clone()),
                     active: Cell::new(true),
                     contract: Cell::new(None),
+                    child_nodes: RefCell::new(Vec::new()),
+                    changed_children: RefCell::new(Vec::new()),
                 })
             });
             route.listener_id.set(listener_id);
@@ -223,6 +315,39 @@ impl ExtensionEventSink {
             state,
             node_id,
             route,
+        }
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.route.active.get()
+            && self.surface_id == self.state.surface_id.get()
+            && self.epoch == self.state.epoch.get()
+    }
+
+    pub(crate) fn set_child_nodes(
+        &self,
+        groups: Vec<Vec<u32>>,
+        dirty: &std::collections::HashSet<u32>,
+    ) {
+        *self.route.changed_children.borrow_mut() = groups
+            .iter()
+            .map(|ids| {
+                Rc::new(
+                    ids.iter()
+                        .enumerate()
+                        .filter_map(|(i, id)| dirty.contains(id).then_some(i))
+                        .collect(),
+                )
+            })
+            .collect();
+        let mut current = self.route.child_nodes.borrow_mut();
+        current.truncate(groups.len());
+        for (index, ids) in groups.into_iter().enumerate() {
+            match current.get_mut(index) {
+                Some(old) if old.as_ref() != &ids => *old = Rc::new(ids),
+                Some(_) => {}
+                None => current.push(Rc::new(ids)),
+            }
         }
     }
 
@@ -283,12 +408,253 @@ impl ExtensionEventSink {
     }
 }
 
+/// A repeatable native projection of committed JS children. The weak owner and
+/// instance route prevent retained overlays from resurrecting retired content.
+#[derive(Clone)]
+pub struct ExtensionChildren {
+    root: gpui::WeakEntity<crate::SolidRoot>,
+    sink: ExtensionEventSink,
+}
+impl ExtensionChildren {
+    pub(crate) fn new(root: gpui::WeakEntity<crate::SolidRoot>, sink: ExtensionEventSink) -> Self {
+        Self { root, sink }
+    }
+    /// All direct children, or one named-slot group selected by its contract index.
+    pub fn content(&self, group: Option<usize>) -> ExtensionContent {
+        ExtensionContent {
+            children: self.clone(),
+            group,
+            item: None,
+        }
+    }
+}
+#[derive(Clone, IntoElement)]
+pub struct ExtensionContent {
+    children: ExtensionChildren,
+    group: Option<usize>,
+    item: Option<usize>,
+}
+impl ExtensionContent {
+    pub fn len(&self) -> usize {
+        let sink = &self.children.sink;
+        if !sink.route.active.get()
+            || sink.epoch != sink.state.epoch.get()
+            || sink.surface_id != sink.state.surface_id.get()
+        {
+            return 0;
+        }
+        let count = sink
+            .route
+            .child_nodes
+            .borrow()
+            .get(self.group.map_or(0, |i| i + 1))
+            .map_or(0, |ids| ids.len());
+        self.item.map_or(count, |i| usize::from(i < count))
+    }
+    /// Stable host identities in committed order. The shared snapshot changes only
+    /// when composition changes; obtaining it does not scan or build the children.
+    pub fn node_ids(&self) -> Rc<Vec<u32>> {
+        if !self.children.sink.is_active() {
+            return Rc::default();
+        }
+        let groups = self.children.sink.route.child_nodes.borrow();
+        let Some(ids) = groups.get(self.group.map_or(0, |i| i + 1)) else {
+            return Rc::default();
+        };
+        self.item.map_or_else(
+            || ids.clone(),
+            |i| Rc::new(ids.get(i).copied().into_iter().collect()),
+        )
+    }
+    /// Indices whose subtree changed in the commit currently being reconciled.
+    /// Retained views consume this during update to invalidate measured rows locally.
+    pub fn changed_indices(&self) -> Rc<Vec<usize>> {
+        if !self.children.sink.is_active() {
+            return Rc::default();
+        }
+        let groups = self.children.sink.route.changed_children.borrow();
+        let Some(indices) = groups.get(self.group.map_or(0, |i| i + 1)) else {
+            return Rc::default();
+        };
+        self.item.map_or_else(
+            || indices.clone(),
+            |i| Rc::new(indices.contains(&i).then_some(0).into_iter().collect()),
+        )
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    pub fn item(&self, index: usize) -> Self {
+        let mut content = self.clone();
+        content.item = Some(index);
+        content
+    }
+    pub(crate) fn native_items<T: 'static>(&self, cx: &gpui::App) -> crate::native::NativeItems<T> {
+        let mut items = Vec::new();
+        let sink = &self.children.sink;
+        if !sink.is_active() {
+            return crate::native::NativeItems(items);
+        }
+        let Some(entity) = self.children.root.upgrade() else {
+            return crate::native::NativeItems(items);
+        };
+        let root = entity.read(cx);
+        let Some(mut parent) = root.store().get(sink.node_id) else {
+            return crate::native::NativeItems(items);
+        };
+        if let Some(group) = self.group {
+            parent = parent
+                .child_at(root.store(), group)
+                .expect("validated content group");
+        }
+        let nodes: Box<dyn Iterator<Item = &StoredNode>> = match self.item {
+            Some(i) => Box::new(parent.child_at(root.store(), i).into_iter()),
+            None => Box::new(parent.children(root.store())),
+        };
+        let mut iterator = ChildIterator {
+            root,
+            entity: &entity,
+            nodes,
+        };
+        while let Some(child) = iterator.next_native() {
+            items.push(
+                child.map_native(|child| {
+                    *child.downcast::<T>().expect("declared retained child type")
+                }),
+            );
+        }
+        crate::native::NativeItems(items)
+    }
+    pub fn elements(&self, cx: &gpui::App) -> Vec<AnyElement> {
+        let sink = &self.children.sink;
+        if !sink.route.active.get()
+            || sink.surface_id != sink.state.surface_id.get()
+            || sink.epoch != sink.state.epoch.get()
+        {
+            return Vec::new();
+        }
+        let Some(entity) = self.children.root.upgrade() else {
+            return Vec::new();
+        };
+        let root = entity.read(cx);
+        let Some(parent) = root.store().get(sink.node_id) else {
+            return Vec::new();
+        };
+        let parent = match self.group {
+            Some(index) => match parent.child_at(root.store(), index) {
+                Some(group) => group,
+                None => return Vec::new(),
+            },
+            None => parent,
+        };
+        match self.item {
+            Some(index) => parent
+                .child_at(root.store(), index)
+                .map(|node| root.render_node_for_extension(node, &entity))
+                .into_iter()
+                .collect(),
+            None => parent
+                .children(root.store())
+                .map(|node| root.render_node_for_extension(node, &entity))
+                .collect(),
+        }
+    }
+}
+impl RenderOnce for ExtensionContent {
+    fn render(self, _: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
+        gpui::div().children(self.elements(cx))
+    }
+}
+
+/// One ordered iterator supports ordinary rendered children and native typed
+/// children. Parents consume either form once; no child is materialized twice.
+pub trait ExtensionChildIterator: Iterator<Item = AnyElement> {
+    fn next_native(&mut self) -> Option<crate::native::NativeChild<Box<dyn std::any::Any>>>;
+}
+struct ChildIterator<'a> {
+    root: &'a crate::SolidRoot,
+    entity: &'a gpui::Entity<crate::SolidRoot>,
+    nodes: Box<dyn Iterator<Item = &'a StoredNode> + 'a>,
+}
+impl Iterator for ChildIterator<'_> {
+    type Item = AnyElement;
+    fn next(&mut self) -> Option<AnyElement> {
+        self.nodes
+            .next()
+            .map(|node| self.root.render_node_for_extension(node, self.entity))
+    }
+}
+impl ExtensionChildIterator for ChildIterator<'_> {
+    fn next_native(&mut self) -> Option<crate::native::NativeChild<Box<dyn std::any::Any>>> {
+        let node = self.nodes.next()?;
+        let crate::protocol::HostProperties::Extension(props) = node
+            .host_properties
+            .as_ref()
+            .expect("validated typed child")
+        else {
+            unreachable!("validated typed child")
+        };
+        let adapter = self
+            .root
+            .extension_registry()
+            .resolve(
+                props.provider_id,
+                props.catalog_digest,
+                props.entry_id,
+                props.entry_version,
+            )
+            .expect("validated typed child adapter");
+        let content = adapter
+            .default_child_group()
+            .map(|index| {
+                node.child_at(self.root.store(), index)
+                    .expect("validated slot group")
+            })
+            .unwrap_or(node);
+        let mut children = ChildIterator {
+            root: self.root,
+            entity: self.entity,
+            nodes: Box::new(content.children(self.root.store())),
+        };
+        let sink = ExtensionEventSink::new(
+            self.root.extension_event_state(),
+            node.id,
+            node.listener_id,
+            props.event_ids.clone(),
+        );
+        let boundary = native_boundary(
+            node.id,
+            node.listener_id,
+            adapter.native_style(),
+            self.root.style_for_node(node),
+            self.entity,
+            sink.clone(),
+        );
+        let context = ExtensionRenderContext::new(
+            node.id,
+            node.listener_id,
+            props,
+            &mut children,
+            self.root.style_for_node(node),
+            sink,
+        );
+        self.root
+            .extension_instances
+            .get(&node.id)
+            .and_then(|m| m.instance.as_ref())
+            .expect("mounted typed child")
+            .build_native(context)
+            .map(|native| crate::native::NativeChild { native, boundary })
+    }
+}
+
 /// Data handed to an adapter's infallible render method.
 pub struct ExtensionRenderContext<'a> {
     pub node_id: u32,
     pub listener_id: u32,
     pub properties: &'a ExtensionProperties,
-    pub children: &'a mut dyn Iterator<Item = AnyElement>,
+    pub children: &'a mut dyn ExtensionChildIterator,
+    pub style: Option<&'a crate::protocol::Style>,
     pub event_sink: ExtensionEventSink,
 }
 
@@ -297,7 +663,8 @@ impl<'a> ExtensionRenderContext<'a> {
         node_id: u32,
         listener_id: u32,
         properties: &'a ExtensionProperties,
-        children: &'a mut dyn Iterator<Item = AnyElement>,
+        children: &'a mut dyn ExtensionChildIterator,
+        style: Option<&'a crate::protocol::Style>,
         event_sink: ExtensionEventSink,
     ) -> Self {
         Self {
@@ -305,6 +672,7 @@ impl<'a> ExtensionRenderContext<'a> {
             listener_id,
             properties,
             children,
+            style,
             event_sink,
         }
     }
@@ -477,14 +845,31 @@ pub(crate) fn render(
             properties.entry_version,
         )
         .unwrap_or_else(|| panic!("validated Extension node has no matching adapter"));
-    let mut children = node
-        .children(root.store())
-        .map(|child| root.render_node_for_extension(child, entity));
+    let content_node = adapter
+        .default_child_group()
+        .map(|index| {
+            node.child_at(root.store(), index)
+                .expect("validated native slot group")
+        })
+        .unwrap_or(node);
+    let mut children = ChildIterator {
+        root,
+        entity,
+        nodes: Box::new(content_node.children(root.store())),
+    };
     let sink = ExtensionEventSink::new(
         root.extension_event_state(),
         node.id,
         node.listener_id,
         properties.event_ids.clone(),
+    );
+    let boundary = native_boundary(
+        node.id,
+        node.listener_id,
+        adapter.native_style(),
+        style,
+        entity,
+        sink.clone(),
     );
     let rendered = match root
         .extension_instances
@@ -496,18 +881,59 @@ pub(crate) fn render(
                 !root.extension_dirty.contains(&node.id),
                 "retained native component requires apply_decoded_message_in_window before rendering"
             );
-            instance.render(&mut children)
+            instance.render(ExtensionRenderContext::new(
+                node.id,
+                node.listener_id,
+                properties,
+                &mut children,
+                style,
+                sink,
+            ))
         }
         None => adapter.render(ExtensionRenderContext::new(
             node.id,
             node.listener_id,
             properties,
             &mut children,
+            style,
             sink,
         )),
     };
-    let wrapper =
-        crate::renderer::paint::apply_style_to_extension(gpui::div().child(rendered), style)
-            .id(gpui::ElementId::Integer(node.id as u64));
-    crate::renderer::paint::measure_node_for_extension(node, wrapper.into_any(), entity)
+    boundary(rendered)
+}
+
+fn native_boundary(
+    node_id: u32,
+    listener_id: u32,
+    native_style: bool,
+    style: Option<&crate::protocol::Style>,
+    entity: &gpui::Entity<crate::SolidRoot>,
+    sink: ExtensionEventSink,
+) -> Rc<dyn Fn(AnyElement) -> AnyElement> {
+    let style = (!native_style).then(|| style.cloned()).flatten();
+    let entity = entity.downgrade();
+    Rc::new(move |element| {
+        let Some(entity) = entity.upgrade() else {
+            return gpui::Empty.into_any_element();
+        };
+        // A scope alone must not insert a layout parent: percentage-sized
+        // native descendants (e.g. a settings page's virtual list) need their
+        // original parent's definite constraints.
+        let element = if native_style || style.is_none() {
+            element
+        } else {
+            crate::renderer::paint::apply_style_to_extension(
+                gpui::div().child(element),
+                style.as_ref(),
+            )
+            .into_any_element()
+        };
+        crate::renderer::paint::scope_native_element(
+            node_id,
+            listener_id != 0,
+            element,
+            &entity,
+            sink.clone(),
+        )
+    })
 }

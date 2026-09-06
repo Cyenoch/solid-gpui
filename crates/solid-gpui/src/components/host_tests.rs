@@ -17,7 +17,9 @@ fn provider_button_snapshot() -> Snapshot {
                 button.host_properties = Some(HostProperties::Extension(ExtensionProperties {
                     provider_id: super::super::native_module().id(),
                     catalog_digest: super::super::native_module().digest(),
-                    entry_id: 1,
+                    entry_id: super::super::native_module()
+                        .component_id("Button")
+                        .unwrap(),
                     entry_version: 1,
                     fields: vec![ExtensionField {
                         id: 1,

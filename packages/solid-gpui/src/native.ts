@@ -32,6 +32,7 @@ export interface NativeComponentDescriptor {
   readonly events: readonly { readonly id: number; readonly name: string; readonly prop: string }[];
   readonly commands: readonly NativeCommandDescriptor[];
   readonly children: boolean;
+  readonly slots: readonly string[];
   readonly controlled: {
     readonly eventId: number;
     readonly sequenceField: string;
@@ -39,8 +40,9 @@ export interface NativeComponentDescriptor {
     readonly valueProp: string;
   } | null;
 }
-export type NativeComponentProps<P, E, R> = P &
-  E & {
+export type NativeComponentProps<P, E, R, S extends string = never> = P & {
+  readonly slots?: { readonly [K in S]?: SolidChild };
+} & E & {
     readonly style?: HostProps["style"];
     readonly children?: SolidChild;
     readonly onLayout?: HostProps["onLayout"];
@@ -144,11 +146,11 @@ export function useNativeClient<T>(descriptor: NativeClientDescriptor): T {
   return createNativeClient<T>(resolveTree(), descriptor);
 }
 
-const HOST_PROPS = new Set(["style", "children", "onLayout", "ref"]);
+const HOST_PROPS = new Set(["style", "children", "slots", "onLayout", "ref"]);
 
-export function createNativeComponent<P extends object, E extends object, R>(
+export function createNativeComponent<P extends object, E extends object, R, S extends string = never>(
   descriptor: NativeComponentDescriptor,
-): (props: NativeComponentProps<P, E, R>) => SolidElement {
+): (props: NativeComponentProps<P, E, R, S>) => SolidElement {
   const providerId = identity(descriptor.providerId, 16, "providerId");
   const catalogDigest = identity(descriptor.catalogDigest, 32, "catalogDigest");
   assertExtensionId(descriptor.entryId, "entryId");
@@ -165,6 +167,9 @@ export function createNativeComponent<P extends object, E extends object, R>(
       return { ...event };
     })
     .sort((a, b) => a.id - b.id);
+  const slots = new Set(descriptor.slots);
+  if (slots.size !== descriptor.slots.length || [...slots].some((name) => !name || name === "children"))
+    throw new TypeError("Native slots must have unique nonempty names separate from default children");
   const allowedProps = descriptor.props === null ? null : new Set(descriptor.props);
   if (allowedProps && [...allowedProps].some((name) => HOST_PROPS.has(name) || eventProps.has(name)))
     throw new TypeError("Native data props conflict with framework props");
@@ -243,6 +248,33 @@ export function createNativeComponent<P extends object, E extends object, R>(
             };
       return { extension, onEvent };
     });
+    const defaultChildren = createMemo(() => {
+      const children = props.children;
+      if (!descriptor.children && children !== undefined && children !== null && children !== false)
+        throw new TypeError("This native component does not accept JS children");
+      return children;
+    });
+    // Stable groups preserve Solid owners when a named slot changes. Native
+    // projects their children where the GPUI component places each slot.
+    const slotValues = createMemo(() => {
+      const value = props.slots;
+      if (value !== undefined && (value === null || typeof value !== "object" || Array.isArray(value)))
+        throw new TypeError("Native slots must be an object");
+      for (const name of Object.keys(value ?? {})) {
+        if (!slots.has(name)) throw new TypeError(`Unknown native slot: ${name}`);
+      }
+      return value;
+    });
+    const slotGroups =
+      descriptor.slots.length === 0
+        ? undefined
+        : ["children", ...descriptor.slots].map((name) =>
+            createHostElement("View", {
+              get children() {
+                return name === "children" ? defaultChildren() : slotValues()?.[name as S];
+              },
+            }),
+          );
     const node = createHostElement("Extension", {
       get __extensionDescriptor() {
         return state().extension;
@@ -257,10 +289,7 @@ export function createNativeComponent<P extends object, E extends object, R>(
         return props.onLayout;
       },
       get children() {
-        const children = props.children;
-        if (!descriptor.children && children !== undefined && children !== null && children !== false)
-          throw new TypeError("This native component does not accept JS children");
-        return children;
+        return slotGroups ?? defaultChildren();
       },
     });
     const tree = resolveTree(node);

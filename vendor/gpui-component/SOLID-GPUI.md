@@ -1,0 +1,23 @@
+# Pinned native component source
+
+Vendored from https://github.com/longbridge/gpui-component at `928c3eb776a3d733d9b771f7dea27a6a79242ced` (0.6.0), under Apache-2.0. This checkout contains the four runtime dependency crates (`base`, `component`, `component-macros`, `assets`); the root workspace resolves GPUI to `gpui-pre 0.3.3` in its lockfile.
+
+Consumers use the `solid-gpui` Rust facade and its generated JavaScript module. This source copy supplies the native state/configuration seams that declarative updates require. It is not a second application framework or a set of JS-painted replacement controls.
+
+## Local changes
+
+- **Theme initialization:** initialize Base before applying the Component theme, so Base initialization cannot erase the configured semantic tokens. The host synchronizes OS appearance and exposes explicit JS theme commands.
+- **Dependency scope:** use the existing `web-time` clock and notify 8.2 instead of unmaintained `instant`; syntect belongs only to upstream showcase dev-dependencies, and WASM asset HTTP does not enable unused native TLS features. These changes remove bincode/instant/rustls-pemfile from the enclosing runtime graph without advisory suppressions.
+- **Typed composition:** `ComponentChild<T>` carries the host render boundary until the native parent lays out its child. Native containers consume their concrete child types without erasing style, focus, events or identity. Deferred field/sidebar builders enter the child scope before constructing native content.
+- **Mutable controls:** input/textarea/editor, OTP, slider, calendar/date picker, choices and rich text can update configuration while retaining their editing/selection entities. Textarea fixed rows can replace auto-grow, determine intrinsic rendered height and survive text/wrap updates; only auto-grow mode derives its rows from content. Asynchronous editor/choice work is invalidated by its current owner/configuration.
+- **Virtualized data:** list, table, tree, command, virtual list and message scroller expose the state operations needed for keyed reconciliation, visible-range changes, native search and explicit load completion. Resize and scroll changes preserve native handles and reading anchors.
+- **Overlays:** Root has owner/session tokens for dialogs, sheets and notifications. Closing or retiring an old owner cannot dismiss a newer overlay. DialogButtonProps exposes its localized native action footer for ordinary dialogs as well as alerts. Popover/tooltip and menu builders retain their live state. Notification replacement preserves native identity and timer ownership.
+- **Menus:** application-menu revisions update AppMenuBar; PopupMenu exposes its weak owner to builders running through a different entity and supports stable submenu adoption/rebuild. NativeMenu exposes combined checked/disabled/icon configuration and disabled submenus.
+- **Settings:** page/group/item keys replace index-based identity. SettingsState exposes selection/search; search and reorder retain the intended page/group. Native input field setters and number options refresh when configuration changes.
+- **Pagination:** ellipsis opens a native page-jump input with range validation, instead of allocating every omitted page. Opening a range remains constant work even for `u32::MAX` total pages. Labels are provided in the existing locale set.
+- **Charts and plot:** point-scale indexed lookup preserves repeated category positions. Area/Radar styles stay aligned with their series. Per-bar optional fills retain theme defaults. Pie automatic/per-slice radii remain visible. Band scales preserve nonzero range origins; Plot labels honor their font weight.
+- **Dock:** DockArea exposes retained tab/tiles entities and refreshes panel metadata without replacing the layout. Programmatic tile geometry uses the native undo history. Closing or moving a pane adopts the source region's measured split sizes before editing, preserving the surviving panes' current proportions. The JS bridge implements the real native Panel traits and restores pane handles through an owner-scoped registry.
+
+The bridge validates serialized data and composition before publication, including numeric/work limits. Native snapshots, render tests and real-window acceptance are separate evidence; passing deterministic GPUI tests alone does not establish GPU/presentation behavior.
+
+`crates/solid-gpui/src/components/` contains the adapters. `docs/gpui-components.md` describes their public JS API, ownership and limits. The pinned upstream inventory and investigation records live under `.scratch/gpui-component-complete/` in the enclosing repository.

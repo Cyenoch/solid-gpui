@@ -1,6 +1,37 @@
 //! Optional gpui-component integration. The host and TypeScript bindings use this module.
+mod charts;
+mod choices;
+mod command_palette;
+mod content;
+mod data_list;
+mod data_table;
+mod dock;
+mod dock_layout;
+mod extra_elements;
+mod groups;
 pub mod host;
 mod input;
+mod menus;
+mod native_menu;
+mod notifications;
+mod overlays;
+mod pickers;
+mod plot;
+mod plot_math;
+mod popups;
+mod primitives;
+mod resizable;
+mod rich_text;
+mod scroll_views;
+mod settings;
+mod sidebar;
+mod table_elements;
+#[cfg(test)]
+mod test_support;
+mod theme;
+mod tree_view;
+mod validation;
+mod value_controls;
 use crate::native::{Deserialize, Serialize, TS};
 
 #[crate::native_type]
@@ -96,7 +127,7 @@ impl<'de> Deserialize<'de> for Percentage {
 mod controls {
     use super::*;
     use crate::native::{ElementContext, Event};
-    use gpui::{IntoElement, ParentElement};
+    use gpui::{IntoElement, ParentElement, Styled};
     use gpui_component::{Disableable, Selectable, Sizable};
 
     #[component]
@@ -119,7 +150,7 @@ mod controls {
         on_press: Event<()>,
         on_hover_change: Event<bool>,
         cx: &mut ElementContext,
-    ) -> impl IntoElement {
+    ) -> impl IntoElement + Styled {
         use gpui_component::button::ButtonVariants;
         let mut button = gpui_component::button::Button::new(cx.id())
             .with_variant(variant.into())
@@ -170,7 +201,7 @@ mod controls {
         #[prop(default)] tooltip: Option<String>,
         on_change: Event<bool>,
         cx: &mut ElementContext,
-    ) -> impl IntoElement {
+    ) -> impl IntoElement + Styled {
         let mut control = gpui_component::checkbox::Checkbox::new(cx.id())
             .checked(checked)
             .disabled(disabled)
@@ -202,7 +233,7 @@ mod controls {
         #[prop(default)] tooltip: Option<String>,
         on_change: Event<bool>,
         cx: &mut ElementContext,
-    ) -> impl IntoElement {
+    ) -> impl IntoElement + Styled {
         let mut control = gpui_component::switch::Switch::new(cx.id())
             .checked(checked)
             .disabled(disabled)
@@ -225,10 +256,43 @@ mod controls {
     pub fn progress(
         #[prop(default)] value: Percentage,
         cx: &mut ElementContext,
-    ) -> impl IntoElement {
+    ) -> impl IntoElement + Styled {
         gpui_component::progress::Progress::new(cx.id()).value(value.0)
     }
 }
 pub fn native_module() -> crate::native::ModuleDefinition {
-    controls::native_module().with_component(input::definition())
+    input::definitions()
+        .into_iter()
+        .chain(value_controls::definitions())
+        .chain(pickers::definitions())
+        .chain(choices::definitions())
+        .chain(scroll_views::definitions())
+        .chain(resizable::definitions())
+        .chain(overlays::definitions())
+        .chain(menus::definitions())
+        .chain(settings::definitions())
+        .chain(charts::definitions())
+        .chain(plot::definitions())
+        .fold(
+            controls::native_module()
+                .include(primitives::native_module())
+                .include(groups::native_module())
+                .include(table_elements::native_module())
+                .include(content::native_module())
+                .include(extra_elements::native_module())
+                .include(sidebar::native_module())
+                .include(overlays::native_module())
+                .include(popups::native_module())
+                .include(plot_math::native_module())
+                .include(theme::native_module())
+                .with_component(rich_text::definition())
+                .with_component(data_list::definition())
+                .with_component(tree_view::definition())
+                .with_component(data_table::definition())
+                .with_component(command_palette::definition())
+                .with_component(dock::definition())
+                .with_component(native_menu::definition())
+                .with_component(notifications::definition()),
+            |module, definition| module.with_component(definition),
+        )
 }

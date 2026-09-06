@@ -37,6 +37,26 @@ mod commit_pump;
 pub mod test_support;
 use commit_pump::CommitPump;
 
+struct HostAssets;
+impl gpui::AssetSource for HostAssets {
+    fn load(&self, path: &str) -> gpui::Result<Option<std::borrow::Cow<'static, [u8]>>> {
+        #[cfg(feature = "gpui-component")]
+        if path.starts_with("icons/") {
+            return gpui_kit_assets::Assets.load(path);
+        }
+        gpui_iconify::IconAssets.load(path)
+    }
+    fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
+        let icons = gpui_iconify::IconAssets.list(path)?;
+        #[cfg(feature = "gpui-component")]
+        let icons = icons
+            .into_iter()
+            .chain(gpui_kit_assets::Assets.list(path)?)
+            .collect();
+        Ok(icons)
+    }
+}
+
 /// Host capabilities describe local policy; they are not negotiated on the
 /// renderer protocol.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -875,7 +895,7 @@ pub fn run_with_profile<P: HostProfile>(mut profile: P) {
     let runtime_for_registry = Arc::clone(&runtime);
     let log_level_for_quit = log_level;
     gpui_platform::application()
-        .with_assets(gpui_iconify::IconAssets)
+        .with_assets(HostAssets)
         .run(move |cx: &mut App| {
             let capabilities = profile.capabilities();
             profile.initialize(cx);
@@ -1315,12 +1335,27 @@ mod icon_asset_tests {
 
     #[test]
     fn icon_assets_resolve_compiled_svg_path() {
-        let assets = gpui_iconify::IconAssets;
+        let assets = super::HostAssets;
         let bytes = assets
             .load("iconify/lucide/play.svg")
             .expect("icon asset lookup should succeed")
             .expect("compiled play icon should resolve");
         assert!(bytes.starts_with(b"<svg"), "icon asset is not SVG data");
+        #[cfg(feature = "gpui-component")]
+        {
+            let native_icons = assets.list("icons/").unwrap();
+            assert!(
+                !native_icons.is_empty(),
+                "native control icons must be installed"
+            );
+            for path in native_icons {
+                let bytes = assets.load(&path).unwrap().expect("native icon bytes");
+                assert!(
+                    std::str::from_utf8(&bytes).unwrap().contains("<svg"),
+                    "invalid icon {path}"
+                );
+            }
+        }
     }
 }
 

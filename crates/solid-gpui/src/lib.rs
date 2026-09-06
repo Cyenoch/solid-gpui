@@ -48,8 +48,9 @@ pub use protocol::{
     read_frame, write_frame,
 };
 pub use renderer::{
-    ExtensionAdapter, ExtensionChildSummary, ExtensionError, ExtensionEventSink, ExtensionInstance,
-    ExtensionRegistry, ExtensionRenderContext, NoExtensions, RenderError, SolidRoot,
+    ExtensionAdapter, ExtensionChildIterator, ExtensionChildSummary, ExtensionChildren,
+    ExtensionContent, ExtensionError, ExtensionEventSink, ExtensionInstance, ExtensionRegistry,
+    ExtensionRenderContext, NoExtensions, RenderError, SolidRoot,
 };
 pub use transport::{
     InMemoryAdapter, ProcessAdapter, RuntimeAdapter, RuntimeStatus, fatal_runtime_failure,

@@ -17,6 +17,7 @@ mod frame_profile;
 use gpui_performance::{MonitorCorner, PerformanceMonitor};
 
 struct ProviderContent {
+    _appearance: gpui::Subscription,
     frame_monitor: Option<Entity<PerformanceMonitor>>,
     solid_root: Entity<SolidRoot>,
     #[cfg(feature = "frame-profile")]
@@ -78,6 +79,7 @@ impl HostProfile for ComponentHost {
 
     fn initialize(&mut self, cx: &mut App) {
         gpui_component::init(cx);
+        super::theme::initialize(cx);
     }
 
     fn open_window(
@@ -96,7 +98,10 @@ impl HostProfile for ComponentHost {
                 let frame_monitor = (std::env::var("SOLID_GPUI_PERF_MONITOR").as_deref()
                     != Ok("0"))
                 .then(|| cx.new(|cx| PerformanceMonitor::new(MonitorCorner::TopRight, cx)));
-                let content = cx.new(|_| ProviderContent {
+                let content = cx.new(|cx| ProviderContent {
+                    _appearance: cx.observe_window_appearance(window, |_, window, cx| {
+                        super::theme::sync_system(window, cx);
+                    }),
                     solid_root: root,
                     frame_monitor,
                     #[cfg(feature = "frame-profile")]

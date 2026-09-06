@@ -117,7 +117,7 @@ navigation.
 
 ## Rust exports
 
-Write ordinary logic in Rust with `native_module!` and call it through generated typed Promise clients. Native component providers use the reusable schema macros for properties and events; gpui-component is one provider. See [Rust authoring](docs/rust-bridge.md).
+Write ordinary logic in Rust with `native_module!` and call it through generated typed Promise clients. Native component providers use the reusable schema macros for properties and events; gpui-component is one provider. See [Rust authoring](docs/rust-bridge.md). The generated [gpui-component API](docs/gpui-components.md) includes native controls, data views, overlays, settings, docking, charts and plot computations.
 
 ## Development
 

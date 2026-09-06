@@ -8,6 +8,13 @@ import { EventsShowcase } from "./pages/EventsShowcase";
 import { FlexboxShowcase } from "./pages/FlexboxShowcase";
 import { FormMiniApp } from "./pages/FormMiniApp";
 import { ImageShowcase } from "./pages/ImageShowcase";
+import {
+  NativeControlsShowcase,
+  NativeOverlaysShowcase,
+  NativeSettingsShowcase,
+  NativeDockShowcase,
+  NativeChartsShowcase,
+} from "./pages/NativeComponentsShowcase";
 import { NativePlatformShowcase } from "./pages/NativePlatformShowcase";
 import { OverviewPage } from "./pages/OverviewPage";
 import { PaletteMiniApp } from "./pages/PaletteMiniApp";
@@ -36,6 +43,12 @@ const PAGE_COMPONENTS: Record<PageId, RouteComponent> = {
   transitions: TransitionsShowcase as RouteComponent,
   cursors: CursorsShowcase as RouteComponent,
   "native-platform": NativePlatformShowcase as RouteComponent,
+  "native-controls": NativeControlsShowcase as RouteComponent,
+  "native-overlays": NativeOverlaysShowcase as RouteComponent,
+  "native-settings": NativeSettingsShowcase as RouteComponent,
+  "native-dock": NativeDockShowcase as RouteComponent,
+  "native-charts": NativeChartsShowcase as RouteComponent,
+
   "todo-app": TodoMiniApp as RouteComponent,
   "form-builder": FormMiniApp as RouteComponent,
   benchmark: BenchmarkMiniApp as RouteComponent,

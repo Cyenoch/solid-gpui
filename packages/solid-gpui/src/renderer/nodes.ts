@@ -728,6 +728,23 @@ export class NodeGraph {
     this.transaction = undefined;
   }
 
+  /** Disjoint removals from the published tree, before any current reparenting. */
+  deletedNodeIds(): number[] {
+    const transaction = this.transaction;
+    if (transaction === undefined) return [];
+    const removed = new Map<number, HostNodeInternal>();
+    for (const [id, previous] of transaction.nodesById) {
+      if (previous !== undefined && !this.nodesById.has(id)) removed.set(id, previous);
+    }
+    const roots: number[] = [];
+    for (const [id, node] of removed) {
+      const previous = transaction.nodeStates.get(node);
+      const parent = previous === undefined ? node.parent : previous.parent;
+      if (parent === null || !removed.has(parent.id)) roots.push(id);
+    }
+    return roots.sort((a, b) => a - b);
+  }
+
   rollbackTransaction(): void {
     const transaction = this.transaction;
     if (transaction === undefined) return;

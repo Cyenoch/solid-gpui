@@ -54,7 +54,7 @@ impl ExtensionInstance for Instance {
             cx.notify();
         });
     }
-    fn render(&self, _: &mut dyn Iterator<Item = AnyElement>) -> AnyElement {
+    fn render(&self, _: ExtensionRenderContext<'_>) -> AnyElement {
         self.entity.clone().into_any_element()
     }
     fn invoke(
@@ -108,6 +108,7 @@ impl ExtensionAdapter for Registry {
         _: u32,
         props: &ExtensionProperties,
         sink: ExtensionEventSink,
+        _: ExtensionChildren,
         _: &mut Window,
         cx: &mut App,
     ) -> Option<Box<dyn ExtensionInstance>> {

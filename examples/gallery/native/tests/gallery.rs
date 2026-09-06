@@ -605,6 +605,66 @@ fn measure_panes(
 }
 
 #[gpui::test]
+fn gallery_native_settings_paints_composed_fields_inside_the_page(cx: &mut TestAppContext) {
+    for width in [800., 1280.] {
+        let (mut snapshot, _) = gallery_snapshot(width, 800., "dark", "/native-settings");
+        let module = solid_gpui::components::native_module();
+        let settings_entry = module.component_id("Settings").unwrap();
+        let input_entry = module.component_id("Input").unwrap();
+        let find = |entry| {
+            snapshot.nodes.iter().find(|n| {
+            matches!(&n.host_properties, Some(solid_gpui::HostProperties::Extension(p)) if p.entry_id == entry && p.provider_id == module.id())
+        }).unwrap().id
+        };
+        let settings = find(settings_entry);
+        let input = find(input_entry);
+        for node in &mut snapshot.nodes {
+            if [settings, input].contains(&node.id) {
+                node.listener_id = node.id;
+            }
+        }
+        let runtime = InMemoryAdapter::new();
+        let mut profile = gallery_host_profile();
+        let (window, root) = cx.update(|app| {
+            profile.initialize(app);
+            profile
+                .open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                            None,
+                            size(px(width), px(800.)),
+                            app,
+                        ))),
+                        ..Default::default()
+                    },
+                    runtime.clone(),
+                    profile.extension_registry(),
+                    app,
+                )
+                .unwrap()
+        });
+        apply_gallery_payload(cx, window, &root, &snapshot.encode().unwrap());
+        let mut frames = HashMap::new();
+        draw(cx, window, &runtime, &mut frames);
+        draw(cx, window, &runtime, &mut frames);
+        let parent = frames[&settings];
+        let field = frames
+            .get(&input)
+            .expect("the active settings page must paint its native input");
+        assert!(
+            field.width > 100.
+                && field.height >= 20.
+                && field.y >= parent.y
+                && field.bottom() <= parent.bottom(),
+            "settings field must be visible: width={width}, field={field:?}, settings={parent:?}"
+        );
+        window
+            .update(cx, |_, window, _| window.remove_window())
+            .unwrap();
+    }
+}
+
+#[gpui::test]
 fn gallery_virtual_list_renders_initial_rows(cx: &mut TestAppContext) {
     let (mut snapshot, _) = gallery_snapshot(1280.0, 1000.0, "dark", "/virtual-list");
     let list = snapshot

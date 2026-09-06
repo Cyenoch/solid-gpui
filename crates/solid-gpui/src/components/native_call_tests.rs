@@ -6,6 +6,98 @@ use solid_gpui::protocol::{
 use solid_gpui::{InMemoryAdapter, Node, Snapshot};
 
 #[gpui::test]
+fn foreground_theme_calls_share_contract_validation_and_update_native_base(
+    cx: &mut TestAppContext,
+) {
+    let runtime = InMemoryAdapter::new();
+    let module = super::super::theme::native_module();
+    let id = module.id();
+    let digest = module.digest();
+    let mut profile = ComponentHost::new(vec![module]);
+    let extensions = profile.extension_registry();
+    let (window, root) = cx.update(|app| {
+        profile.initialize(app);
+        profile
+            .open_window(WindowOptions::default(), runtime.clone(), extensions, app)
+            .unwrap()
+    });
+    let snapshot = Snapshot::new(1, 1, 0, 1, vec![Node::new(1, 0, 0, solid_gpui::KIND_VIEW)]);
+    window
+        .update(cx, |_, window, cx| {
+            root.update(cx, |root, cx| {
+                root.apply_decoded_message_in_window(
+                    crate::protocol::DecodedMessage::Snapshot(snapshot),
+                    window,
+                    cx,
+                )
+            })
+            .unwrap();
+        })
+        .unwrap();
+    for (request_id, input, success, dark) in [
+        (1, "\"dark\"", true, true),
+        (2, "\"unknown\"", false, true),
+        (3, "\"light\"", true, false),
+    ] {
+        let command = Command::new(
+            CommandMeta {
+                surface_id: 1,
+                epoch: 1,
+                after_revision: 1,
+                request_id,
+                node_id: 1,
+            },
+            CommandOperation::InvokeNative {
+                module_id: id,
+                module_digest: digest,
+                function_id: 2,
+                args: input.as_bytes().to_vec(),
+            },
+        );
+        window
+            .update(cx, |_, window, cx| {
+                root.update(cx, |root, cx| {
+                    root.apply_decoded_message_in_window(
+                        crate::protocol::DecodedMessage::Command(command),
+                        window,
+                        cx,
+                    )
+                })
+                .unwrap();
+                window.draw(cx).clear(cx);
+                assert_eq!(gpui_component::Theme::global(cx).is_dark(), dark);
+                assert_eq!(
+                    matches!(
+                        gpui_base::Theme::global(cx).appearance,
+                        gpui_base::ThemeAppearance::Dark
+                    ),
+                    dark
+                );
+            })
+            .unwrap();
+        let mut result = None;
+        while let Some(event) = runtime.take_event().unwrap() {
+            if let EventPayload::CommandResult(reply) = event.payload {
+                assert!(result.replace(reply).is_none());
+            }
+        }
+        let reply = result.expect("foreground command replies without waiting for a worker");
+        assert_eq!(reply.request_id, request_id);
+        assert_eq!(reply.success, success);
+    }
+    let module = profile
+        .extension_registry()
+        .native_module(id, digest)
+        .unwrap();
+    assert!(
+        module
+            .invoke(2, br#""dark""#)
+            .unwrap_err()
+            .contains("foreground")
+    );
+}
+
+#[gpui::test]
 fn provider_dispatches_native_calls_and_correlates_errors(cx: &mut TestAppContext) {
     cx.background_executor.allow_parking();
     let runtime = InMemoryAdapter::new();

@@ -26,6 +26,11 @@ export type PageId =
   | "transitions"
   | "cursors"
   | "native-platform"
+  | "native-controls"
+  | "native-overlays"
+  | "native-settings"
+  | "native-dock"
+  | "native-charts"
   | "todo-app"
   | "form-builder"
   | "benchmark"
@@ -217,6 +222,46 @@ export const PAGES: readonly PageInfo[] = [
     icon: "lucide:monitor",
     badge: "System",
     keywords: ["native", "platform", "window", "clipboard", "dialog", "notification", "menu"],
+  },
+  {
+    id: "native-controls",
+    title: "Native Controls",
+    category: "native",
+    description: "Inputs, pickers and data views",
+    icon: "lucide:puzzle",
+    keywords: ["gpui-component", "native", "controls"],
+  },
+  {
+    id: "native-overlays",
+    title: "Menus & Overlays",
+    category: "native",
+    description: "Native menus, dialogs, sheets and notifications",
+    icon: "lucide:puzzle",
+    keywords: ["gpui-component", "native", "overlays"],
+  },
+  {
+    id: "native-settings",
+    title: "Settings",
+    category: "native",
+    description: "Searchable native application preferences",
+    icon: "lucide:puzzle",
+    keywords: ["gpui-component", "native", "settings"],
+  },
+  {
+    id: "native-dock",
+    title: "Dock & Tiles",
+    category: "native",
+    description: "Tabs, draggable panes and layout persistence",
+    icon: "lucide:puzzle",
+    keywords: ["gpui-component", "native", "dock"],
+  },
+  {
+    id: "native-charts",
+    title: "Charts & Plot",
+    category: "native",
+    description: "Seven native charts and plot geometry",
+    icon: "lucide:puzzle",
+    keywords: ["gpui-component", "native", "charts"],
   },
   {
     id: "todo-app",

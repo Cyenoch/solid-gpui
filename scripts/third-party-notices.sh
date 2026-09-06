@@ -109,8 +109,16 @@ for row in cargo_rows[1:]:
 
     source = package.get("source")
     if source is None:
-        source_kind = "local (project-owned)"
-        source_detail = "local"
+        manifest = pathlib.Path(package["manifest_path"]).resolve()
+        vendored_root = root / "vendor" / "gpui-component"
+        if manifest.is_relative_to(vendored_root):
+            source_kind = "vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches)"
+            source_detail = "vendored"
+        elif manifest.is_relative_to(root / "vendor"):
+            raise SystemExit(f"vendored package requires source provenance: {package_ref}")
+        else:
+            source_kind = "local (project-owned)"
+            source_detail = "local"
     elif source.startswith("registry+"):
         source_kind = "registry (crates.io)"
         source_detail = "registry"

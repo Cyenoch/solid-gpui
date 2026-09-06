@@ -11,6 +11,17 @@ pub use ts_rs::TS;
 pub trait NativeModule: Send + Sync {
     fn module_id(&self) -> [u8; 16];
     fn module_digest(&self) -> [u8; 32];
+    /// Execute a short UI operation on GPUI foreground. `None` selects the
+    /// asynchronous worker path. UI handlers must not perform blocking I/O.
+    fn invoke_foreground(
+        &self,
+        _function_id: u32,
+        _args: &[u8],
+        _window: &mut gpui::Window,
+        _cx: &mut gpui::App,
+    ) -> Option<Result<Vec<u8>, String>> {
+        None
+    }
     /// Blocking convenience for tests and worker threads; never call from GPUI
     /// foreground. Generated dispatchers reject calls from within Tokio.
     fn invoke(&self, function_id: u32, args: &[u8]) -> Result<Vec<u8>, String>;
@@ -126,3 +137,6 @@ impl Types {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod children_tests;

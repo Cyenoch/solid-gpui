@@ -65,6 +65,9 @@ struct MeasuredElement {
     element: AnyElement,
     entity: Entity<SolidRoot>,
     node_id: u32,
+    namespace: bool,
+    observe: bool,
+    route: Option<super::extensions::ExtensionEventSink>,
 }
 
 impl IntoElement for MeasuredElement {
@@ -80,7 +83,8 @@ impl Element for MeasuredElement {
     type PrepaintState = Option<gpui::FocusHandle>;
 
     fn id(&self) -> Option<ElementId> {
-        None
+        self.namespace
+            .then_some(ElementId::Integer(self.node_id as u64))
     }
 
     fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
@@ -112,14 +116,18 @@ impl Element for MeasuredElement {
             f32::from(bounds.size.width),
             f32::from(bounds.size.height),
         );
-        if [frame.0, frame.1, frame.2, frame.3]
-            .into_iter()
-            .all(f32::is_finite)
+        if self.observe
+            && [frame.0, frame.1, frame.2, frame.3]
+                .into_iter()
+                .all(f32::is_finite)
         {
             let entity = self.entity.clone();
             let node_id = self.node_id;
+            let route = self.route.clone();
             window.on_next_frame(move |_, app| {
-                entity.update(app, |root, _| root.emit_layout_bounds(node_id, frame));
+                if route.as_ref().is_none_or(|route| route.is_active()) {
+                    entity.update(app, |root, _| root.emit_layout_bounds(node_id, frame));
+                }
             });
         }
         self.element.prepaint(window, cx)
@@ -156,23 +164,38 @@ pub(crate) fn measure_node(
         element,
         entity: entity.clone(),
         node_id: node.id,
+        namespace: false,
+        observe: true,
+        route: None,
     }
     .into_any()
 }
 
-pub(crate) fn apply_style_to_extension(
-    element: gpui::Div,
-    style: Option<&crate::protocol::Style>,
-) -> gpui::Div {
-    style::apply_style(element, style)
-}
-
-pub(crate) fn measure_node_for_extension(
-    node: &StoredNode,
+/// Native styled elements already own their layout box. Supply node identity
+/// and measurement without introducing a second box around native flex/grid items.
+pub(crate) fn scope_native_element(
+    node_id: u32,
+    observe: bool,
     element: AnyElement,
     entity: &Entity<SolidRoot>,
+    route: super::extensions::ExtensionEventSink,
 ) -> AnyElement {
-    measure_node(node, element, entity)
+    MeasuredElement {
+        element,
+        entity: entity.clone(),
+        node_id,
+        namespace: true,
+        observe,
+        route: Some(route),
+    }
+    .into_any()
+}
+
+pub(crate) fn apply_style_to_extension<E: gpui::Styled>(
+    element: E,
+    style: Option<&crate::protocol::Style>,
+) -> E {
+    style::apply_style(element, style)
 }
 
 impl SolidRoot {

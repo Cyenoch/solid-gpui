@@ -897,3 +897,48 @@ test("HostTree is the only host-config owner and RootContainer hides tree bookke
   expect("transport" in (node.root as object)).toBe(false);
   container.dispose();
 });
+
+test("batched subtree removals use published ancestry, including moves through a temporary parent", async () => {
+  for (const scenario of ["child then parent", "temporary parent", "surviving child"] as const) {
+    const submitted: Uint8Array[] = [];
+    const container = new RootContainer({
+      surfaceId: 81,
+      epoch: 1,
+      scheduleDispatch: (dispatch) => dispatch(),
+      submitFrame(frame) {
+        submitted.push(frame);
+        return true;
+      },
+    });
+    const tree = container.tree;
+    const make = () => withRoot(tree, () => hostConfig.createElement("View"));
+    const parent = make();
+    const child = make();
+    hostConfig.insertNode(parent, child);
+    hostConfig.insertNode(tree.syntheticRoot, parent);
+    await Promise.resolve();
+    if (scenario === "child then parent") {
+      hostConfig.removeNode(parent, child);
+      hostConfig.removeNode(tree.syntheticRoot, parent);
+    } else if (scenario === "temporary parent") {
+      const temporary = make();
+      hostConfig.insertNode(tree.syntheticRoot, temporary);
+      hostConfig.insertNode(temporary, parent);
+      hostConfig.removeNode(tree.syntheticRoot, temporary);
+    } else {
+      hostConfig.insertNode(tree.syntheticRoot, child);
+      hostConfig.removeNode(tree.syntheticRoot, parent);
+    }
+    await Promise.resolve();
+    expect(submitted).toHaveLength(2);
+    const patch = body(submitted[1]!);
+    if (patch.tag !== 3) throw new Error("expected removal patch");
+    const ops = patch.value.operations!.map((item) => item.operation!);
+    expect(ops.filter((op) => op.tag === 4).map((op) => op.value.id)).toEqual([parent.id]);
+    expect(ops.filter((op) => op.tag === 1)).toEqual([]);
+    expect(ops.filter((op) => op.tag === 3).map((op) => op.value.id)).toEqual(
+      scenario === "surviving child" ? [child.id] : [],
+    );
+    container.dispose();
+  }
+});

@@ -8,7 +8,7 @@ members = [
     "crates/gpui-iconify",
     "crates/gpui-performance",
 ]
-exclude = ["references/zed", "references/gpui-component"]
+exclude = ["references/zed", "references/gpui-component", "vendor/gpui-component"]
 
 [workspace.package]
 edition = "2024"
@@ -26,7 +26,9 @@ bebop = "3.2.3"
 futures = "0.3"
 gpui = { package = "gpui-pre", version = "0.3.3" }
 gpui-platform = { package = "gpui-pre-platform", version = "0.3.3" }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "928c3eb776a3d733d9b771f7dea27a6a79242ced", package = "gpui-component" }
+gpui-component = { path = "vendor/gpui-component/crates/component" }
+gpui-base = { path = "vendor/gpui-component/crates/base" }
+gpui-kit-assets = { path = "vendor/gpui-component/crates/assets" }
 serde = { version = "1.0", features = ["derive"] }
 skrifa = { version = "0.46.2", default-features = false, features = ["std"] }
 thiserror = "2.0"
