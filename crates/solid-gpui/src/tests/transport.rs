@@ -60,8 +60,8 @@ fn process_runtime_reports_unexpected_clean_eof_and_exit_status() {
 
 #[test]
 fn process_runtime_marks_explicit_shutdown_without_failure() {
-    let mut command = ProcessCommand::new("sh");
-    command.args(["-c", "sleep 10"]);
+    let mut command = ProcessCommand::new("sleep");
+    command.arg("10");
     let runtime = ProcessAdapter::spawn(command).unwrap();
 
     runtime.shutdown().unwrap();
@@ -118,8 +118,12 @@ fn process_event_writer_keeps_ui_delivery_independent_of_delayed_reader() {
 #[test]
 fn concurrent_process_shutdowns_do_not_deadlock_writer_join() {
     let mut command = ProcessCommand::new("sh");
-    command.args(["-c", "sleep 5"]);
+    // Readiness makes the concurrent shutdown test independent of spawn timing.
+    // Exec keeps stdin in the direct child: a shell-forked sleep can retain the
+    // pipe after its shell is killed, testing descendant lifetime instead of join.
+    command.args(["-c", "printf '\\000\\000\\000\\000'; exec sleep 5"]);
     let runtime = ProcessAdapter::spawn(command).unwrap();
+    assert_eq!(runtime.recv_commit().unwrap(), Some(Vec::new()));
     let event = Event::text_input(
         EVENT_CHANGE,
         7,

@@ -44,7 +44,7 @@ binary, entry, cwd, level, frame_file = sys.argv[1:]
 environment = os.environ.copy()
 environment["SOLID_GPUI_LOG"] = level
 process = subprocess.Popen(
-    [binary, "--runtime", "process", "sh", "-c", 'bun run "$1" | tee "$2"', "candidate-renderer", entry, frame_file],
+    [binary, "--runtime", "process", "sh", "-c", 'bun run --conditions=browser "$1" | tee "$2"', "candidate-renderer", entry, frame_file],
     cwd=cwd,
     env=environment,
     start_new_session=True,
@@ -72,19 +72,13 @@ PY
     cat "$stdout_file" >&2 || true
     exit 1
   fi
-  python3 - "$frame_file" <<'PY'
-import struct
-import sys
-
-data = open(sys.argv[1], "rb").read()
-if len(data) < 7:
-    raise SystemExit("renderer emitted no complete frame")
-length = struct.unpack("<I", data[:4])[0]
-payload = data[4 : 4 + length]
-if len(payload) != length or payload[:3] != bytes((0x97, 0x03, 0x01)):
-    raise SystemExit("renderer first frame was not a Snapshot Commit Batch")
-print(f"snapshot commit observed: {length} bytes")
-PY
+  bun --eval '
+const { FrameDecoder, classifyPayload } = await import(process.argv[1]);
+const frames = new FrameDecoder().push(new Uint8Array(await Bun.file(process.argv[2]).arrayBuffer()));
+if (!frames[0] || classifyPayload(frames[0]).kind !== "snapshot")
+  throw new Error("renderer first frame was not a Snapshot Commit Batch");
+console.log(`snapshot commit observed: ${frames[0].byteLength} bytes`);
+' "$repo_root/packages/solid-gpui/src/protocol/index.ts" "$frame_file"
   printf '\n--- candidate smoke level=%s stderr ---\n' "$level"
   cat "$stderr_file"
   printf '\n--- candidate smoke level=%s stdout ---\n' "$level"

@@ -289,7 +289,7 @@ generated protocol records to Solid components.
 ## 6. Conformance and cutover
 
 `bun run task protocol-golden-check` regenerates representative v5 Snapshot,
-Patch, all 35 Command kinds, all Event payload forms (including both focus/blur
+Patch, all 36 Command kinds, all Event payload forms (including both focus/blur
 forms), malformed cases, and frame boundaries, then fails if committed fixtures
 drift. TypeScript authors `ts_to_rust.hex`; Rust independently constructs the
 same representative semantic families and authors `rust_to_ts.hex`. Rust

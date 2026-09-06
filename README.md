@@ -135,7 +135,7 @@ The Commander CLI in `scripts/tasks.ts` is the single task entrypoint:
 | `bun run format`           | Check Rust, TypeScript, and JSON formatting.           |
 | `bun run check`            | Build, typecheck, and lint the workspace.              |
 | `bun run test`             | Run the Rust and Solid renderer tests.                 |
-| `bun run ci`               | Run formatting, checks, tests, pack smoke, and audits. |
+| `bun run ci`               | Run the macOS CI gates, including protocol goldens and the host release bundle. |
 | `bun run audit`            | Audit dependencies and verify third-party notices.     |
 | `bun run gallery`         | Launch the native component workbench and Rust API demo. |
 
@@ -145,6 +145,13 @@ Run `bun run task --help` for protocol generation, API surface, release,
 embedded-adapter, and host-candidate commands. Core task dispatch uses
 Bun-native process APIs and argument arrays. Embedded Bun/JSC remains macOS-only;
 release and stress helpers may additionally require Bash and platform tools.
+
+`bun run ci` covers the macOS Actions checks locally; Linux and Windows still
+require their own runners. `bun run task host-candidate-smoke` builds and verifies
+the archive before launching its extracted host. Release preparation and package
+packing accept explicit operands: `release-prep <version>`, `package-pack <output>`,
+and `router-package-pack <output>`. Candidate workflows upload artifacts; they do
+not publish a release.
 
 ## Protocol and ownership
 

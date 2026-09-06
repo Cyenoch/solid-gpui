@@ -236,6 +236,36 @@ class Tasks {
     ]);
   }
 
+  async protocolGoldenCheck(): Promise<void> {
+    await this.install();
+    const directory = await mkdtemp(join(tmpdir(), "solid-gpui-goldens-"));
+    try {
+      await run(["bun", "scripts/protocol-golden.ts", directory]);
+      await run([
+        "cargo",
+        "run",
+        "--locked",
+        "-p",
+        "solid-gpui",
+        "--example",
+        "protocol_golden",
+        "--",
+        join(directory, "rust_to_ts.hex"),
+      ]);
+      await run(["bun", "scripts/protocol-golden.ts", directory, "--verify"]);
+      for (const name of ["ts_to_rust.hex", "rust_to_ts.hex", "invalid.hex", "frames.hex"]) {
+        const [committed, generated] = await Promise.all([
+          readFile(join(repoRoot, "fixtures/protocol", name)),
+          readFile(join(directory, name)),
+        ]);
+        if (!committed.equals(generated)) throw new Error(`Protocol golden fixture is stale: ${name}`);
+      }
+      await run(["cargo", "test", "--locked", "-p", "solid-gpui", "--test", "protocol_golden"]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+
   async packageFormat(): Promise<void> {
     await this.install();
     await run([
@@ -285,6 +315,7 @@ class Tasks {
         "scripts/api-surface.test.ts",
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
+        "scripts/task-contract.test.ts",
       ]),
     ]);
   }
@@ -391,8 +422,15 @@ class Tasks {
   }
 
   async ci(): Promise<void> {
+    await this.protocolCodegenCheck();
     await this.packageBuild();
-    await Promise.all([this.rustCompile(), this.packageCI(), this.rustTest(), this.audit()]);
+    await this.rustFormat();
+    await this.protocolGoldenCheck();
+    await this.rustCheck();
+    await this.packageCI();
+    await this.audit();
+    // A cold release build must not compete with bounded Rust fixture tests.
+    await this.hostRelease("check");
   }
 
   async gallery(profile = false): Promise<void> {
@@ -457,18 +495,22 @@ class Tasks {
     }
   }
 
-  async hostCandidateSmoke(archive: string): Promise<void> {
+  async hostCandidateSmoke(): Promise<void> {
     requireMacOS("host-candidate-smoke");
-    await runBash("scripts/host-candidate-smoke.sh", [archive]);
+    await this.packageBuild();
+    await this.hostRelease("check");
+    await runBash("scripts/host-candidate-smoke.sh");
   }
 
-  async hostEmbeddedCandidateSmoke(archive: string): Promise<void> {
+  async hostEmbeddedCandidateSmoke(): Promise<void> {
     requireMacOS("host-embedded-candidate-smoke");
-    await runBash("scripts/host-embedded-candidate-smoke.sh", [archive]);
+    await this.packageBuild();
+    await runBash("scripts/host-embedded-candidate-smoke.sh");
   }
 
-  async hostRelease(target: string, outputDir: string): Promise<void> {
-    await runBash("scripts/host-release.sh", [target, outputDir]);
+  async hostRelease(mode: "bundle" | "check"): Promise<void> {
+    requireMacOS("host-release");
+    await runBash("scripts/host-release.sh", [mode]);
   }
 
   async releasePrep(version: string): Promise<void> {
@@ -499,7 +541,8 @@ function addTask(name: string, description: string, action: (...args: readonly s
     .description(description)
     .action(async (...args: string[]) => {
       try {
-        await action(...args);
+        // Commander appends options and the command object after the declared operands.
+        await action(...args.slice(0, -2));
       } catch (error) {
         if (error instanceof ProcessFailure) {
           process.exit(error.exitCode);
@@ -513,6 +556,7 @@ addTask("install", "Install workspace dependencies", () => tasks.install());
 addTask("package-build", "Build TypeScript packages", () => tasks.packageBuild());
 addTask("protocol-codegen", "Generate TypeScript and Rust protocol bindings", () => tasks.protocolCodegen());
 addTask("protocol-codegen-check", "Verify protocol bindings match schema", () => tasks.protocolCodegenCheck());
+addTask("protocol-golden-check", "Verify cross-language protocol fixtures", () => tasks.protocolGoldenCheck());
 addTask("native-codegen", "Generate bindings from the SDK and Gallery hosts", () => tasks.nativeCodegen());
 addTask("native-codegen-check", "Verify bindings match the actual native hosts", () => tasks.nativeCodegenCheck());
 addTask("embedded-check", "Build and qualify the embedded Bun VM and lifecycle", () => tasks.embeddedCheck());
@@ -521,8 +565,8 @@ addTask("package-typecheck", "Typecheck TypeScript packages", () => tasks.packag
 addTask("api-surface", "Generate public API surface fixtures", () => tasks.apiSurface());
 addTask("package-test", "Run TypeScript package tests", () => tasks.packageTest());
 addTask("package-pack-smoke", "Smoke test packed TypeScript packages", () => tasks.packagePackSmoke());
-addTask("package-pack", "Pack core package", (output) => tasks.packagePack(output));
-addTask("router-package-pack", "Pack router package", (output) => tasks.routerPackagePack(output));
+addTask("package-pack <output>", "Pack core package", (output) => tasks.packagePack(output));
+addTask("router-package-pack <output>", "Pack router package", (output) => tasks.routerPackagePack(output));
 addTask("package-ci", "Run TypeScript package CI suite", () => tasks.packageCI());
 addTask("rust-format", "Check Rust formatting", () => tasks.rustFormat());
 addTask("rust-compile", "Compile Rust workspace", () => tasks.rustCompile());
@@ -541,12 +585,13 @@ addTask("gallery-profile", "Run Gallery with native frame and input latency meas
 addTask("gallery-scroll-audit", "Audit every Gallery route across compact and resized layouts", () =>
   tasks.galleryScrollAudit(),
 );
-addTask("host-candidate-smoke", "Run host candidate smoke suite", (archive) => tasks.hostCandidateSmoke(archive));
-addTask("host-embedded-candidate-smoke", "Run host embedded candidate smoke suite", (archive) =>
-  tasks.hostEmbeddedCandidateSmoke(archive),
+addTask("host-candidate-smoke", "Build and smoke the extracted host candidate", () => tasks.hostCandidateSmoke());
+addTask("host-embedded-candidate-smoke", "Run host embedded candidate smoke suite", () =>
+  tasks.hostEmbeddedCandidateSmoke(),
 );
-addTask("host-release", "Build host release binaries", (target, outputDir) => tasks.hostRelease(target, outputDir));
-addTask("release-prep", "Prepare release manifests", (version) => tasks.releasePrep(version));
+addTask("host-release", "Build the host release bundle", () => tasks.hostRelease("bundle"));
+addTask("host-release-check", "Build and verify the extracted host release bundle", () => tasks.hostRelease("check"));
+addTask("release-prep <version>", "Prepare release manifests", (version) => tasks.releasePrep(version));
 addTask("soak-smoke", "Run soak smoke test", () => tasks.soakSmoke());
 addTask("kill-resilience", "Run kill resilience test", () => tasks.killResilience());
 

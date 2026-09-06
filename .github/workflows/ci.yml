@@ -75,6 +75,18 @@ jobs:
 
       - name: Check generated protocol bindings
         run: bun run task protocol-codegen-check
+
+      - name: Cache Cargo for protocol producers and native bindings
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            rust-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Check protocol goldens
         run: bun run task protocol-golden-check
 
