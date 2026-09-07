@@ -96,18 +96,14 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             kind: node.kind,
         });
     }
-    if node.focusable && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT) {
-        return Err(TreeError::InvalidProperties {
-            node_id: node.id,
-            reason: "only View, Pressable, and interactive Text nodes may be focusable",
-        });
-    }
-    if node.focusable && node.kind == KIND_TEXT && node.listener_id == 0 {
-        return Err(TreeError::InvalidProperties {
-            node_id: node.id,
-            reason: "Text nodes may be focusable only when they have an onPress listener",
-        });
-    }
+    validate_interaction(
+        node.id,
+        node.kind,
+        node.listener_id,
+        node.focusable,
+        node.accepts_pointer_move,
+        node.tooltip.as_deref(),
+    )?;
     if node.selectable && node.kind != KIND_TEXT {
         return Err(TreeError::InvalidProperties {
             node_id: node.id,
@@ -120,14 +116,51 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
             listener_id: node.listener_id,
         });
     }
-    if node.accepts_pointer_move && !matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) {
+    validate_host_properties_shape(node.id, node.kind, node.host_properties.as_ref())?;
+    validate_accessibility_shape(node.id, node.accessibility.as_ref())?;
+    Ok(())
+}
+
+pub(super) fn validate_interaction(
+    node_id: u32,
+    kind: u32,
+    listener_id: u32,
+    focusable: bool,
+    accepts_pointer_move: bool,
+    tooltip: Option<&str>,
+) -> Result<(), TreeError> {
+    if focusable && !matches!(kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT) {
         return Err(TreeError::InvalidProperties {
-            node_id: node.id,
+            node_id,
+            reason: "only View, Pressable, and interactive Text nodes may be focusable",
+        });
+    }
+    if focusable && kind == KIND_TEXT && listener_id == 0 {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "Text nodes may be focusable only when they have an onPress listener",
+        });
+    }
+    if accepts_pointer_move && (!matches!(kind, KIND_VIEW | KIND_PRESSABLE) || listener_id == 0) {
+        return Err(TreeError::InvalidProperties {
+            node_id,
             reason: "pointer move capability requires View or Pressable listener",
         });
     }
-    validate_host_properties_shape(node.id, node.kind, node.host_properties.as_ref())?;
-    validate_accessibility_shape(node.id, node.accessibility.as_ref())?;
+    if tooltip.is_some() && !matches!(kind, KIND_VIEW | KIND_PRESSABLE) {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "tooltips require View or Pressable",
+        });
+    }
+    if tooltip.is_some_and(|value| {
+        value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+    }) {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "invalid tooltip",
+        });
+    }
     Ok(())
 }
 pub(super) fn validate_accessibility_shape(

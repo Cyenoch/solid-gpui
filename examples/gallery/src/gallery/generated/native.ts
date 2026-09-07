@@ -50,7 +50,16 @@ export type BarGradient = { from: Color; to: Color; chartRange?: boolean };
 export type BubbleVariant = "filled" | "secondary" | "muted" | "tinted" | "outline" | "ghost" | "destructive";
 export type BuildProgress = { completed: number; target: number; percent: number };
 export type ButtonVariant =
-  "default" | "primary" | "secondary" | "danger" | "info" | "success" | "warning" | "ghost" | "link" | "text";
+  | "default"
+  | "primary"
+  | "secondary"
+  | "danger"
+  | "info"
+  | "success"
+  | "warning"
+  | "ghost"
+  | "link"
+  | "text";
 export type CalendarProps = {
   value?: DateValue | null;
   defaultValue?: DateValue;
@@ -190,7 +199,8 @@ export type DatePickerProps = {
 };
 export type DatePreset = { label: string; value: DateValue };
 export type DateValue =
-  { kind: "single"; date?: CivilDate | null } | { kind: "range"; start?: CivilDate | null; end?: CivilDate | null };
+  | { kind: "single"; date?: CivilDate | null }
+  | { kind: "range"; start?: CivilDate | null; end?: CivilDate | null };
 export type DescriptionColumns = number;
 export type DialogProps = {
   open?: boolean;
@@ -655,7 +665,14 @@ export type PointScaleRequest = {
   cursor?: number | null;
 };
 export type PopupAnchor =
-  "topLeft" | "topCenter" | "topRight" | "bottomLeft" | "bottomCenter" | "bottomRight" | "leftCenter" | "rightCenter";
+  | "topLeft"
+  | "topCenter"
+  | "topRight"
+  | "bottomLeft"
+  | "bottomCenter"
+  | "bottomRight"
+  | "leftCenter"
+  | "rightCenter";
 export type PopupMenuProps = { menu?: MenuSpec };
 export type PopupMouseButton = "left" | "right" | "middle";
 export type RadarChartProps = {
@@ -829,7 +846,12 @@ export type TableSelection =
 export type TableSelectionChange = { value?: TableSelection | null; editSeq: number; dataRevision: number };
 export type TableSortChange = { columnKey: string; order: SortOrder; dataRevision: number };
 export type TableValue =
-  string | number | boolean | { badge: string } | { icon: string; label: string } | { progress: number };
+  | string
+  | number
+  | boolean
+  | { badge: string }
+  | { icon: string; label: string }
+  | { progress: number };
 export type TagVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info";
 export type TextSelectionFormat = "plain" | "source";
 export type TextViewProps = {

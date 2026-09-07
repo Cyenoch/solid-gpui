@@ -59,7 +59,7 @@ protocol; embedding does not add another watch or refresh protocol.
 
 ## Consequences
 
-- Embedded mode is macOS-only until another platform has a proven Bun/JSC embedding path.
+- Bun embedding is macOS-only until another platform has a proven Bun/JSC embedding path. [ADR-0017](0017-runtime-engines.md) adds a separate QuickJS UI runtime without changing this Bun decision.
 - Runtime shutdown must release JavaScript values before destroying the VM.
 - GPUI handles, Solid owners, signals, and closures never cross runtime channels.
 - Both adapters implement the same Snapshot/Patch/Event/Command contract.

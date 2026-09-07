@@ -1,6 +1,6 @@
 # Complete gpui-component JavaScript integration
 
-Request: 让 gpui-component 所有组件在js这可以用。
+Request: Make every gpui-component component usable from JavaScript.
 
 Baseline: solid-gpui `1bf74901244d8af95d7d547de5a0fb5ce362b2fc`; gpui-component `928c3eb776a3d733d9b771f7dea27a6a79242ced` (0.6.0), gpui-pre 0.3.3.
 

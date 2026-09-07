@@ -216,7 +216,7 @@ bun run task gallery-scroll-audit
 ```
 
 It gets route IDs from `PAGES`, so newly added pages are included automatically.
-It covers all 18 current pages at 560/800/1280/1680 widths, preserving a mounted
+It covers every registered page at 560/800/1280/1680 widths, preserving a mounted
 window through 800 → 1280 → 800 → 1280 → 1680 and testing compact layouts too.
 It verifies independent scrolling, reachable content, fixed chrome and stationary
 content when no overflow exists. Oversized final text only needs its end reachable;
@@ -229,7 +229,6 @@ Keep CPU audit and native acceptance distinct. Do not count idle intervals,
 concurrent builds, discarded experiments, or repeated runs until a threshold
 happens to pass as performance evidence. The all-route audit is a diagnosis and
 correctness tool; it does not prove every page presents at a stable 120 Hz.
-
 
 ## Overview: flowing sections must not accumulate flex measurement
 
@@ -271,9 +270,9 @@ unrelated machine load changes absolute timings.
 
 Final checks for this change: package typecheck, host Clippy with frame-profile,
 format checks, native Button label bounds, and Overview independent scrolling
-through retained resize and at560px passed. The compact paired CPU run also
+through retained resize and at 560 px passed. The compact paired CPU run also
 improved (content p95 11.435 -> 8.355 ms), but remains near an 8.33 ms budget
-under that machine load; do not advertise a universal120Hz guarantee.
+under that machine load; do not advertise a universal 120 Hz guarantee.
 
 ## Native FPS monitor
 
@@ -303,7 +302,7 @@ The ordinary Gallery CPU loop uses real synthetic wheel displacement within
 already committed rows; it does not cover Bun round trips or native vsync.
 Its initial p50/p95 was 3.207/3.506ms; later candidate runs were 4.485/11.166ms and
 5.619/9.815ms. Multiple UnityShaderCompiler processes were subsequently observed
-near90–95% CPU each, so these measurements do not establish a comparable CPU
+near 90–95% CPU each, so these measurements do not establish a comparable CPU
 improvement. No unrelated process was stopped. The deterministic improvements
 are fewer row constructions and one stable range notification.
 
@@ -312,19 +311,30 @@ Artifacts: `/tmp/list-identity-red.log`, `/tmp/list-identity-green.log`,
 `/tmp/list-scroll-baseline.log`, `/tmp/list-scroll-candidate-repeat.log`.
 Native automated wheel still did not visibly move content. The diagnostic app
 was rebuilt and loaded for user trackpad verification. The user then confirmed
-“已经流畅” after being asked to scroll internally and resize. This is user
+smooth scrolling after being asked to scroll internally and resize. This is user
 experience acceptance, separate from the contaminated CPU comparison above.
 Stable rules live in the solid-gpui skill application reference.
 
+## Nested VirtualList wheel boundaries (2026-09-05)
 
-## 嵌套 VirtualList 的滚轮边界（2026-09-05）
+GPUI List does not stop event propagation itself. The solid-gpui outer boundary
+compares the logical scroll offset after List handles the wheel, stopping
+propagation only when the list actually moves. At the top or bottom, an event
+that causes no movement passes to an ancestor scroll container. Update the
+comparison value for every event, including multiple wheel events between
+paints. Unconditional stopping would trap scrolling at the boundary; removing
+all interception would scroll both the list and its ancestor. If an event moves
+the list to its boundary, the list consumes that event and passes the next
+non-moving event to the ancestor.
 
-GPUI List 自己不停止冒泡。solid-gpui 的外层边界在 List 处理滚轮后比较 logical scroll offset，
-只有列表实际移动才停止传播；到顶/到底无位移时交给祖先 scroll container。每次事件更新比较值，
-包括两次 paint 之间的多次滚轮。不能无条件 stop，否则到顶后外层仍然无法滚动；也不能删除全部
-拦截，否则列表和外层同时滚动。到达边界的那次事件若已移动列表，由列表消费，下一次无位移事件交给外层。
-关键原生回归：`virtual_list_at_top_passes_wheel_to_outer_content`（列表到顶后外层继续移动，列表可移动时外层不动）。
+Key native regression: `virtual_list_at_top_passes_wheel_to_outer_content`
+verifies that outer content moves when the list is at the top and stays still
+while the list can move.
 
-当前链接 gpui-pre 0.3.3 的 List 按 `hitbox.should_handle_scroll(window)` 路由事件，未提供直接的
-滚动手势目标锁定 API。页面滚动让列表进入指针下方时仍会转为列表滚动；此次遵照用户要求保留
-原生行为，没有引入定时推测手势或修改 GPUI 依赖。确定性测试通过不等于真实触控板体验已验收。
+The linked gpui-pre 0.3.3 List routes events through
+`hitbox.should_handle_scroll(window)` and provides no direct API for locking
+a scroll gesture's target. If page scrolling moves the list under the pointer,
+subsequent events still scroll the list. At the user's request, this change
+preserved native behavior without timer-based gesture inference or GPUI
+dependency changes. Passing deterministic tests does not establish real
+trackpad acceptance.

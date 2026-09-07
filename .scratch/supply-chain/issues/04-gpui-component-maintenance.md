@@ -18,3 +18,12 @@ Bun audit passed for 108 packages. No new advisory ignores were added.
 Update or refactor the owning upstream dependencies, verify native provider
 behavior and the unified GPUI runtime family, and pass `bun run audit`.
 Do not mark the whole CI/release green while these gates remain open.
+
+## Recheck (2026-09-07)
+
+`bun run audit` now passes for the current dependency graph, including Bun
+advisories, `cargo deny check advisories`, and third-party notice verification.
+The existing `deny.toml` advisory exceptions remain unchanged; passing this
+policy check does not mean all upstream maintenance concerns are resolved.
+The September 5 failure above is historical and is no longer a current audit
+blocker. Keep this issue available for dependency maintenance triage.

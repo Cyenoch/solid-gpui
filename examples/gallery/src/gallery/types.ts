@@ -37,7 +37,13 @@ export type PageId =
   | "palette";
 
 export type CategoryId =
-  "getting-started" | "components" | "layout-styling" | "interaction" | "motion" | "native" | "mini-apps";
+  | "getting-started"
+  | "components"
+  | "layout-styling"
+  | "interaction"
+  | "motion"
+  | "native"
+  | "mini-apps";
 
 export interface CategoryInfo {
   readonly id: CategoryId;

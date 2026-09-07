@@ -147,7 +147,8 @@ export class RootContainer implements DispatchContext {
   readonly onAction: ((action: string) => void) | undefined;
   readonly onAppearance: ((appearance: Appearance) => void) | undefined;
   readonly onNotificationResponse:
-    ((response: { readonly tag: string; readonly actionId: string | null }) => void) | undefined;
+    | ((response: { readonly tag: string; readonly actionId: string | null }) => void)
+    | undefined;
   constructor(options: RootContainerOptions) {
     this.surfaceId = assertU32Option("surfaceId", options.surfaceId);
     this.epoch = assertU32Option("epoch", options.epoch);

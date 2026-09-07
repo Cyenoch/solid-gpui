@@ -1,79 +1,107 @@
-# 应用开发约定
+# Application Development Conventions
 
-## 入口和响应式边界
+## Entry points and reactivity
 
-`@solid-gpui/core/runtime` 提供本项目的 Solid universal runtime。读取该包 README 中
-当前 JSX transform 配置；jsxImportSource 只提供类型，不能替代 universal 编译。
-运行时要用 browser 条件解析 Solid 的客户端响应式实现。入口选择现有示例的
-createRoot/transport 与 router 组合，不在已有 root 之外建立第二个事件接收循环。
+`@solid-gpui/core/runtime` provides this project's Solid universal runtime. Read the
+package README for the current JSX transform configuration: jsxImportSource supplies
+types and does not replace universal compilation. Resolve Solid's client reactive
+implementation with the browser condition. Follow the existing createRoot/transport
+and router combination; an existing root owns the event receive loop.
 
-Solid component 通常只执行初始化一次。把 signal 读取留在 JSX 属性、memo 或 effect
-追踪范围内，避免在初始化时 destructure 响应式 props 后期待它自己更新。昂贵筛选使用
-createMemo；相关 signal 更新通过 runtime 的 batch 合并。把 timer、监听和资源清理
-绑定 Solid owner/Surface。不要把 React useEffect/useMemo 的生命周期套到这里。
+A Solid component normally initializes once. Read signals in JSX properties,
+memos, or tracked effects; destructuring reactive props during initialization loses
+subsequent updates. Use createMemo for expensive filtering and runtime batch for
+related signal changes. Bind timers, listeners, and cleanup to the Solid owner or
+Surface. Follow Solid lifecycle semantics when reasoning about effects and memos.
 
-窗口与绘制、输入光标/选择/IME、滚动瞬态由 native 管理；Solid 拥有应用业务状态。
-同一状态不要在 JS 和 Rust 各自独立推进。参考 root CONTEXT.md 与 ADR-0012。
+Native code owns windows, painting, caret/selection/IME, and transient scrolling.
+Solid owns application business state. Give each state value one authority rather
+than advancing it independently in JS and Rust. See root CONTEXT.md and ADR-0012.
 
-## 页面结构与滚动
+## Page structure and scrolling
 
-参照 Gallery App：稳定 shell 容纳 header、navigation、content pane、footer，Outlet
-只替换内容。导航 pane 的身份与滚动句柄不随 route 选择重建。内容 pane 与导航独立；
-页面切换是否重置内容滚动是 UX 决策，不能连带重置导航。
+Follow the Gallery App: a stable shell contains the header, navigation, content
+pane, and footer; Outlet replaces page content. Navigation pane identity and scroll
+handles survive route selection. Navigation and content scroll independently.
+Decide content scroll reset as a page-transition UX choice while preserving
+navigation position.
 
-Style 是本项目协议类型，不是浏览器 CSS 全集。核对 `renderer/types.ts` 与原生
-`paint/style.rs`。尤其 `gap`、`alignItems`、`justifyContent` 会隐式开启 flex column。
-普通纵向内容流可用 block + margin，需空间分配时才用 flex。滚动视口必须有受约束尺寸；
-分配剩余宽高的 pane 配合 minWidth/minHeight 与 shrink，长内容在 pane 内溢出。
+Style is this project's protocol type, not the full browser CSS model. Inspect
+`renderer/types.ts` and native `paint/style.rs`. In particular, `gap`, `alignItems`,
+and `justifyContent` implicitly enable flex column. Ordinary vertical content flow
+can use block plus margins; use flex when distributing space. Constrain scroll
+viewport dimensions. Panes consuming remaining space need minWidth/minHeight and
+shrink constraints so long content overflows inside them.
 
-窗口尺寸使用 window size store/hook，在响应式分支内计算 breakpoint；不能只读启动
-宽度。单行按钮行高+padding+border 决定高度；说明文字、多行输入与动态卡片保留可增长
-高度。测试宽→窄→宽过程与最终内容可达性。
+Use the window-size store/hook and compute breakpoints reactively. For single-line
+buttons, line height, padding, and borders determine height. Let descriptions,
+multiline inputs, and dynamic cards grow. Test wide → narrow → wide transitions
+and verify that the final content remains reachable.
 
-## 列表
+## Lists
 
-大数据使用 `VirtualList`，itemKey 返回稳定唯一字符串/数字，重排和过滤后仍指向同一
-业务项。仅对已提交范围 renderItem；estimatedItemSize 是估计，不能当成所有内容必定
-等高的承诺。overscan 用于减少边界空白，也增加创建、协议和布局成本，应实测选择。
+Use `VirtualList` for large datasets. itemKey returns a stable unique string or
+number identifying the same business item after filtering/reordering. Only call
+renderItem for the committed range. estimatedItemSize is an estimate, not a promise
+of equal row heights. Overscan reduces edge blanking at the cost of creation,
+protocol, and layout work; choose it from measurements.
 
-滚动窗口前移一行时，重叠项应保留Solid owner与Host Node，仅新进入项创建、离开项清理。
-`key`字段本身不保证复用，需验证renderItem次数与dispose；当前值和绝对index不变才复用，
-同key替换新值或index变化必须更新内容。范围以绘制后的真实viewport为准，overscan只加一次；
-原生overdraw测量范围不是可见范围，滚轮旧offset与paint双路上报会造成范围抖动。
+When the scrolling window advances by one row, overlapping items retain their
+Solid owners and Host Nodes. Only entering items are created and leaving items
+cleaned up. A `key` alone does not guarantee reuse: verify renderItem counts and
+disposal. Reuse requires an unchanged value and absolute index; replacing a value
+or changing its index must update content even with the same key. Derive ranges
+from the actual painted viewport and add overscan once. Native overdraw measurement
+ranges are not visible ranges; reporting from both stale wheel offsets and paint
+can cause range oscillation.
 
-首屏需要一个可见且有高度的 native boundary。Gallery 的320px容器需要 flex column，
-VirtualList public style 应落在 boundary，内部 List 填满它。空数据恢复或末尾过滤后，
-提交范围满足 `0 <= start <= end <= count`，且非空数据有实际行。应用调用公开列表 API，
-不要设置 `__rangeStart` 等实现字段。
+The first frame needs a visible native boundary with height. Gallery's 320px
+container needs flex column; public VirtualList style belongs on the boundary,
+with the inner List filling it. After restoring empty data or filtering from the
+end, the committed range satisfies `0 <= start <= end <= count`, and nonempty data
+produces actual rows. Applications use public list APIs rather than internal
+properties such as `__rangeStart`.
 
-## 输入、事件与耗时操作
+## Input, events, and expensive work
 
-TextInput 使用真实组件和其 change/selection/command API；不要用可点击 Text 假造可
-编辑输入，也不要把受控 value 的回传当作原生光标/IME 状态重置。
+Use the real TextInput component and its change/selection/command APIs. Controlled
+value round trips preserve native caret/IME state. A clickable Text does not provide
+editable input behavior.
 
-onPointerMove、拖拽和滚动监听仅在消费它们时注册。处理器里避免全量排序/重建长树与
-逐事件 console 输出；先测频率和每次工作量。事件批次有顺序语义，参考 ADR-0010。
+Register onPointerMove, drag, and scroll listeners only when consumed. Measure
+frequency and work per event before putting full sorting, long-tree reconstruction,
+or per-event logging in handlers. Event batches have ordering semantics; see
+ADR-0010.
 
-计算放入适当 runtime 的后台工作或异步原生服务，再把有界结果提交给 UI。生成的
-native client 只提供调用通道，不保证实现自动离开 UI 线程；核对实际注册 handler。
-展示 pending/失败状态，重复请求用明确取消或过期结果策略，不静默吞掉旧请求。
+Move computation to the appropriate runtime's background work or an asynchronous
+native service, then commit a bounded result to the UI. A generated native client
+provides the call channel; inspect the registered handler to establish whether
+execution leaves the UI thread. Display pending/error states and define cancellation
+or stale-result handling for repeated requests.
 
-## 主题、扩展和生成代码
+## Themes, extensions, and generated code
 
-颜色从响应式主题取 semantic token；文字、背景、border、placeholder、disabled、
-selected、hover 作为组合检查。嵌套 Text 不一定继承父控件预期颜色，要检查实际绘制。
+Read semantic colors from the reactive theme. Check text, background, border,
+placeholder, disabled, selected, and hover states together. Nested Text may not
+inherit the intended control color; inspect actual painting.
 
-使用包导出的生成组件与函数 client。扩展能力由 HostProfile/registry 决定；某个 host
-没有适配器时不要加假成功 fallback。新增 wire 数据通过 protocol.bop 和生成器；
-native 函数通过 Rust 定义及 native-codegen。生成产物须与源和 checker 一起验证。
+Use generated components and function clients exported by the package. Extension
+capabilities come from HostProfile/registry. Missing host adapters produce explicit
+errors. Add wire data through protocol.bop and its generator; add native functions
+through Rust definitions and native-codegen. Verify generated output alongside its
+source and checker.
 
-## FPS 组件
+## FPS monitor
 
-窗口级性能信息由原生 `gpui-performance::PerformanceMonitor` 提供，可用于任何 GPUI
-host；参见 [组件 README](../../../../crates/gpui-performance/README.md)。它不是 JSX
-组件，也不是 JS timer 推算的 FPS。solid-gpui 的 provider host 已集成；自定义 host 在
-初始化时创建一个实体并放进窗口 overlay。应用层不要另做一套每帧协议回传。
+Native `gpui-performance::PerformanceMonitor` supplies window-level performance
+information for any GPUI host; see the
+[crate README](../../../../crates/gpui-performance/README.md). It is a native entity,
+not a JSX component or JS timer estimate. The solid-gpui provider host integrates
+it; custom hosts create one entity during initialization and put it in the window
+overlay. Applications do not need a second per-frame protocol stream.
 
-原生 Extension 初始 Snapshot 与后续 Patch 必须共用能力规则。分析按钮的 disabled 更新
-曾因 Patch 漏掉 Extension listener 而退出；只测初始挂载或只测 native 函数本身不能
-覆盖这条路径。新增控件要验证有 listener 时属性变化与 listener 替换/移除。
+Native Extension Snapshots and Patches must share capability rules. An analysis
+button's disabled update once terminated the runtime because Patch omitted the
+Extension listener. Initial-mount-only or native-function-only tests miss this
+path. New controls must cover property changes with listeners present and listener
+replacement/removal.

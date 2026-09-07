@@ -3,6 +3,14 @@
 Vite universal JSX plugin and Bun module runner for native Solid GPUI applications.
 Exports `solidGpui({ entry })` and `startDev(entry, configFile?)` (from `@solid-gpui/core/vite/dev`).
 The `solid-gpui-dev` executable runs under Bun with Solid's browser resolution condition.
+The Vite plugin, Bun preload, and `solid-gpui-build` share the official
+Oxc-based Solid universal transform; application execution still uses Solid 1.
+
+For standalone bundles, run
+`solid-gpui-build --runtime <bun|quickjs> <entry.tsx> <output.js>`.
+QuickJS output is one self-contained ESM module; its entry uses
+`EmbeddedTransport` from `@solid-gpui/core/embedded`. Bun entries use
+`StdioTransport` from `@solid-gpui/core/stdio`.
 
 For an application with a Rust host, enable native exports in the same plugin:
 

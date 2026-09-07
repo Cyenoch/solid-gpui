@@ -1,61 +1,81 @@
-# 按设计问题查阅
+# Development Rules by Design Problem
 
-## 布局和绘制
+## Layout and painting
 
-普通文档段落/卡片堆叠优先考虑块布局与 margin；需要对齐、伸缩或分配剩余空间时使用 flex。
-这是选择依据，不是全局替换 flex 的规则。GPUI 的 `gap` 本身与具体容器的 display 语义
-须核对；solid-gpui 的样式适配器会因 gap/alignItems/justifyContent 自动启用 flex。
+Consider block layout and margins for ordinary document paragraphs or stacked
+cards. Use flex for alignment, stretching, or distributing remaining space. This
+is a selection criterion, not a global flex replacement rule. Verify GPUI `gap`
+semantics against the container's display mode; solid-gpui's style adapter enables
+flex automatically for gap/alignItems/justifyContent.
 
-单行按钮明确 lineHeight，再由行高、padding 和 border 推导高度；验证图标与文字边界。
-多行说明、输入框、动态卡片保留内容驱动高度。为滚动 pane 约束可用尺寸与 shrink/min
-尺寸；固定 header/footer 放在滚动容器之外。重新布局应读取新约束，不能反馈取整后的
-旧 bounds 作为下次尺寸来源。
+Give single-line buttons an explicit lineHeight and derive height from line height,
+padding, and borders; verify icon and text bounds. Keep multiline descriptions,
+inputs, and dynamic cards content-sized. Constrain scroll panes' available and
+minimum sizes and shrink behavior; place fixed headers/footers outside them.
+Relayout must read new constraints rather than feed rounded previous bounds back
+as the next size source.
 
-将耗时归属到 render、布局测量、文本塑形、prepaint、scene 构造或 GPU，避免一见阴影
-就去掉视觉效果。拆函数或换成组件不会自动减少原生元素数量或布局次数。
+Attribute costs to rendering, layout measurement, text shaping, prepaint, scene
+construction, or the GPU before changing visual effects. Extracting functions or
+components does not automatically reduce native element counts or layout passes.
 
-## 列表与身份
+## Lists and identity
 
-原生 `uniform_list` 只用于真正等高行，行高变化时使用保留 ListState 的 `list`。
-在持有状态的实体内创建滚动句柄/ListState；在 render 中引用它们。使用稳定 item ID，
-过滤/重排时索引不等于身份。工作量随可见项与有界 overscan 增长，不随整个数据集增长。
+Use native `uniform_list` only for genuinely equal-height rows. Use `list` with a
+retained ListState when heights vary. Create scroll handles/ListState in the entity
+that owns the state and reference them during render. Use stable item IDs: after
+filtering/reordering, index is not identity. Work should grow with visible items
+and bounded overscan rather than the entire dataset.
 
-验证首屏非空、空到有、末尾到过滤、重新插入、resize 与独立内外滚动。检查实际行 bounds
-和可见范围；itemCount 正确但没有可见行仍是失败。不要通过预先测量所有行修复滚动条
-而不评估首次布局开销。等高估算也要接受字体、宽度和内容变化验证。
+Verify nonempty first paint, empty-to-populated updates, filtering from the end,
+reinsertion, resize, and independent inner/outer scrolling. Inspect actual row
+bounds and visible ranges; a correct itemCount with no visible rows still fails.
+Evaluate initial layout cost before measuring every row to fix a scrollbar.
+Validate equal-height estimates against changes to fonts, width, and content.
 
-## 实体与缓存
+## Entities and caches
 
-在初始化阶段创建持久 Entity、输入模型和滚动状态。局部变化通知局部实体；将多个相关
-修改合并后通知一次。`RenderOnce` 是组件构造方式，不是“只画一次”的性能保证。
+Create persistent Entity instances, input models, and scroll state during
+initialization. Notify local entities for local changes and combine related
+updates into one notification. `RenderOnce` describes component construction; it
+does not guarantee a single paint.
 
-GPUI `.cached(style)` 使用 bounds（含 origin）、content mask、text style、dirty 状态
-等条件判断复用。移动中的卡片可能不命中缓存；缓存布局外壳需要正确的尺寸约束。
-使用前确认当前版本实现，并测试依赖变化是否穿透缓存。
+GPUI `.cached(style)` considers bounds including origin, content mask, text style,
+dirty state, and other conditions. Moving cards may miss the cache. A cached layout
+shell needs correct size constraints. Inspect the current implementation before
+using it and test that dependency changes invalidate it.
 
-自建缓存必须覆盖内容、字体/行高、主题、图片就绪、输入原生状态、动画、可用尺寸、缩放
-与裁剪变化中所有相关因素。协议没有 Patch 不意味着 native state 没变。
+Custom caches must cover every relevant change in content, fonts/line height,
+theme, image readiness, native input state, animation, available size, scale, and
+clipping. Native state can change without a protocol Patch.
 
-## 前台任务和事件
+## Foreground tasks and events
 
-`cx.spawn` 保留前台执行语义；CPU 密集准备放进 background executor，返回有界结果再
-在 UI 线程应用。队列消费者即使写了 await，也可能连续取得 ready 数据，长时间占住 UI；
-检查单次 poll 的最大工作量与持续生产时的公平性，保留事件顺序、完成数和背压语义。
+`cx.spawn` preserves foreground execution. Prepare CPU-intensive work on the
+background executor, then apply a bounded result on the UI thread. Even consumers
+that await can monopolize the UI when a queue stays ready. Bound work per poll and
+check fairness under continuous production while preserving event order, completion
+counts, and backpressure.
 
-任务句柄绑定拥有者；可取消工作存储 Task，替换/销毁时释放。跨 await 使用弱实体，关闭
-窗口时正常退出。GPUI 测试使用其 executor timer；不要将另一 runtime 的 timer 示例
-直接搬到没有该 runtime 的 APP。订阅同样需要明确保留与释放。
+Bind task handles to owners. Store cancellable Tasks and drop them on replacement
+or destruction. Use weak entities across awaits and exit normally when a window
+closes. Use GPUI executor timers in GPUI tests; timers from another runtime require
+that runtime. Subscriptions also need explicit retention and release.
 
-高频输入只在消费者需要时注册；日志聚合到区间。采样/合并输入是语义决策，不能作为
-隐藏性能问题的默认优化。真实滚动测试必须看到内容位移，不能只看到事件日志。
+Register high-frequency input only for consumers that need it; aggregate logs over
+intervals. Sampling/coalescing input changes semantics and must be an explicit
+choice. Real scrolling tests must observe content displacement as well as events.
 
-## 动画和监视器
+## Animations and monitors
 
-动画只在运行期间请求下一帧，结束时停止；装饰动画遵守 reduced motion。
-监视器使用固定大小的小图和有界样本；声明它是 draw cadence、present cadence 还是
-CPU duration，声明统计窗口。UI 线程阻塞时同线程监视器也不能及时绘制；恢复后的采样
-必须使用真实经过时间，不能假设 timer 准时到达。
+Request the next frame only while an animation is running; stop when it completes.
+Decorative animation respects reduced motion. Monitors use small fixed-size graphs
+and bounded samples, with explicit cadence/duration definitions and statistical
+windows. A monitor on the UI thread cannot paint while that thread is blocked.
+After recovery, sample actual elapsed time rather than assume an on-time timer.
 
-实时监视器优先被动随绘制采样，空闲保持最近有效读数；主动刷新会制造额外窗口工作。
-活动分段必须公开阈值及长阻塞可能被判为空闲的限制，不能把活跃FPS当作完整卡顿检测。
-开启/关闭使用相同工作负载对照，不通过减常数估算“监视器帧”。
+Prefer passive sampling during paint, retaining the latest valid readings while
+idle. Active refresh creates extra window work. Publish activity-segmentation
+thresholds and the limitation that long stalls may be classified as idle; active
+FPS alone cannot detect every stall. Compare monitor enabled/disabled under the
+same workload rather than subtracting a constant estimate of monitor frames.

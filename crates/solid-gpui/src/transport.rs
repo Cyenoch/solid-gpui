@@ -37,7 +37,7 @@ impl std::fmt::Display for RuntimeStatus {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Running => formatter.write_str("still running after its commit stream closed"),
-            Self::Failed => formatter.write_str("event writer failed"),
+            Self::Failed => formatter.write_str("runtime failed"),
             Self::Shutdown => formatter.write_str("shut down by the host"),
             Self::Exited { code, signal } => match (code, signal) {
                 (Some(code), _) => write!(formatter, "exited with status {code}"),

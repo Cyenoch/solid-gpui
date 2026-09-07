@@ -1,17 +1,17 @@
-# gpui-component 组合组件与 Plot 接入研究
+# gpui-component composition and Plot integration research
 
-研究基线：`gpui-component` checkout `928c3eb776a3d733d9b771f7dea27a6a79242ced`，2026-09-06。本文仅为实现研究，没有修改产品实现，也没有把骨架标为编译通过。以下 `C/`、`B/` 分别指此 checkout 的 `crates/component/src/`、`crates/base/src/`；文末给出可点击的源码入口。`NativeView` 与 renderer 文件在主任务中正在修改，下面先明确需要满足的接口，再给实际上游调用骨架。
+Research baseline: `gpui-component` checkout `928c3eb776a3d733d9b771f7dea27a6a79242ced`, 2026-09-06. This is implementation research, not product changes or compiled skeletons. `C/` and `B/` refer to `crates/component/src/` and `crates/base/src/` in that checkout; linked source entrypoints appear below. `NativeView` and renderer files were changing in the main task. This report first defines required interfaces, then sketches actual upstream calls.
 
-## 1. 必须先落实的原生边界
+## 1. Establish native ownership boundaries first
 
-最初读到的 `NativeView` 只有 `mount(props,event,window,cx)`、`update(props,window,cx)`；`ComponentDefinition::view` 声明 `children:false`，`ViewInstance::render` 直接丢弃 child iterator。`with_children(true)` 只放开 validator，不能让 retained view 获得可复用的子树。这是组合组件接入缺口，不是各组件自己加 `ParentElement` 就能修好。[本仓库 NativeView](../../crates/solid-gpui/src/native/component.rs)
+The initially inspected `NativeView` exposed only `mount(props,event,window,cx)` and `update(props,window,cx)`. `ComponentDefinition::view` declared `children:false` and `ViewInstance::render` discarded its child iterator. `with_children(true)` only relaxed validation, without giving retained views reusable subtrees. This composition gap cannot be fixed by adding `ParentElement` to each component. [Repository `NativeView`](../../crates/solid-gpui/src/native/component.rs)
 
-随后工作树已出现 `ExtensionChildren` / `ExtensionContent`：它们保存 weak SolidRoot 与 event route，读取**当前已提交的 Rust host tree**重新构建 `AnyElement`，并检查 route、surface、epoch。这个方向可以供下列 closure 使用。不能捕获某一帧 `Vec<AnyElement>` 再从 `Fn` 内 `take()`；native callback 可能在以后的许多帧调用。`ExtensionContent` 自身是可 clone 的 render wrapper，适合交给不带 `App` 参数的 chart label closure。[原生子树投影](../../crates/solid-gpui/src/renderer/extensions.rs)
+The working tree subsequently introduced `ExtensionChildren`/`ExtensionContent`. They retain a weak SolidRoot and event route, rebuild AnyElements from the **currently committed Rust Host Tree**, and check route/surface/epoch. That approach serves the closures below. Do not capture a frame's `Vec<AnyElement>` and `take()` it inside `Fn`: native callbacks may run over many later frames. `ExtensionContent` is a cloneable deferred render wrapper suitable for chart-label closures without `App` access. [Native subtree projection](../../crates/solid-gpui/src/renderer/extensions.rs)
 
-本研究骨架约定：
+Skeleton conventions:
 
 ```rust
-// 来自已验证 host 子树。这里不是任意可伪造的 JS 数字句柄。
+// Obtained from a validated Host Tree, not an arbitrary forgeable JavaScript ID.
 type Slot = solid_gpui::ExtensionContent;
 
 #[derive(Clone)]
@@ -23,57 +23,57 @@ struct Slots {
     footer: Option<Slot>,
 }
 
-// 所有 Props/Event/Command DTO 使用 Deserialize/Serialize/TS 生成契约。
-// 所有可选数据必须在 commit validator 中验证类型、范围和引用完整性。
-// 将具名 slot 变为 host group 是生成器的职责；Rust 不接收 JSX/Solid owner/JS closure。
+// Every Props/Event/Command DTO uses the Deserialize/Serialize/TS contract.
+// Commit validation checks optional values, ranges, and reference integrity.
+// The generator maps named slots to host groups; Rust receives no JSX/Solid owners/JS closures.
 ```
 
-Slot 必須与组件实例而非全局 node ID 绑定。主节点移除、类型替换、epoch 退休时 revoke；保留引用的 overlay 不能恢复旧节点。Slot group 索引必须从契约中生成，并验证其结构；不能允许 Dialog 把任意宿主节点作为 content。局部 children commit 后应通知保存该 slot 的原生 owner / 根层，防止 retained `Entity` 在自己的 dirty 标记未改变时复用旧帧。
+Slots belong to component instances, not global node IDs. Revoke them on node removal, type replacement, and epoch retirement so retained overlays cannot revive old nodes. Generate slot-group indices from contracts and validate their structure; Dialog cannot name any arbitrary Host Node as content. Child commits must notify native slot owners/root so retained Entities cannot reuse stale frames because their own dirty flags stayed unchanged.
 
-Native event closure 只 `event.emit(Dto)`；所有同步 getter / bool 决策只读取 Rust DTO/state。比如 Dialog 的 `on_ok -> bool` 不能同步等待 JS：显式 `closeOnOk` 可以直接返回；异步业务校验用 `closeOnOk:false`，先发 `okRequested {requestId}`，然后 JS 异步调用 `resolve({requestId,close})`。过期请求、已关闭层、owner revoke 都要拒绝。
+Native event closures only emit DTOs. Synchronous getters and boolean decisions read Rust DTO/state only. Dialog on_ok→bool cannot wait synchronously for JavaScript: `closeOnOk` can return directly, while async validation uses `closeOnOk:false`, emits `okRequested {requestId}`, and later receives `resolve({requestId,close})`. Reject stale requests, closed layers, and revoked owners.
 
-## 2. 组件分类：哪些能独立包装，哪些不能
+## 2. Which components can be wrapped independently
 
-| 类型 | 928c3eb 的真实形式 | 接入形式 |
-|---|---|---|
-| DialogContent/Header/Title/Description/Footer/Action/Close | `RenderOnce + ParentElement`，`new()` | 可以逐一独立 element wrapper，传当帧 children |
-| Dialog / AlertDialog / Sheet | `RenderOnce`，真实 overlay 由 `Root` 保存 builder/focus/layer | retained owner + slots + **有 owner 的 overlay API**；见下一节 |
-| Popover / HoverCard | `RenderOnce`，`content` 为 native `Fn`，state 由 base keyed element 保存 | stateless render wrapper 加稳定 ID、复用 slot；需要命令时 retained view 保存 focus/state |
-| Tooltip | `Render`，`build(window,cx) -> AnyView`；trigger 使用 `ManagedTooltipExt` | wrapper + tooltip content slot，不能只把 Tooltip 当常规 children |
-| PopupMenuItem / PopupMenu | 特定 enum builder / `Entity<PopupMenu>` | `MenuSpec` DTO 编译为原生 builder；custom element item 引用 slot |
-| ContextMenu | `ContextMenu<E>` 包在 `InteractiveElement + ParentElement + Styled` 上；`.menu` 是私有方法 | 使用 `.context_menu(builder)` 扩展，不能从外部 `ContextMenu::new(...).menu(...)` |
-| DropdownButton | `.button(Button)`，不是 `AnyElement` | `ButtonSpec` typed prop，再 `.dropdown_menu(builder)`；任意 JSX children 不能替代 native Button 类型 |
-| AppMenuBar | `AppMenuBar::new(cx) -> Entity`，读取应用 `OwnedMenu` global，`reload` | retained view + 应用菜单模型；不是局部任意 popup menu children |
-| DockArea | `Entity<DockArea>`，状态/布局来自 `gpui-base`；用 `DockSkin` 装外观 | retained dock owner、typed layout DTO、native `JsPane` entities |
-| TabPanel / Tiles | **这个 revision 没有同名公开组件构造器**；真实公开类型是 `DockLayout::tabs/tiles`、`TabGroup`、`TilesState` | 作为 DockLayout 的变体暴露；不要虚构 `TabPanel::new` 或 `Tiles::new` |
-| Settings / SettingPage / SettingGroup / SettingItem / SettingField | Settings 收 `SettingPage`，Page 收 `SettingGroup`，Group 收 `SettingItem`；后三者不是普通 render elements | 一组 typed DTO；或者专用 typed-child tree 在宿主编译成 builder，不能走 AnyElement |
-| 7 Charts | `IntoPlot` 的泛型结构体，字段 accessor 为 Rust `Fn` | 每种专用 DTO→固定 Rust datum→纯 native accessor |
-| PlotAxis/Grid/PlotLabel/Line/Area/Bar/RadialLine/Arc | 多数只有 `.paint`，不实现普通 IntoElement | 统一 `Plot` renderer 包一层，以 typed primitive DTO 构建；不能直接 `child(PlotAxis)` |
-| Scale/Pie/Stack/Sankey layout | 数学对象；`tick/arcs/series/layout` | typed data computation commands 或 Plot 内部纯函数；不是视觉组件 |
+| Type                                                                     | Actual shape in 928c3eb                                                                                                          | Integration                                                                                 |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| DialogContent/Header/Title/Description/Footer/Action/Close               | `RenderOnce + ParentElement`, `new()`                                                                                            | Independent element wrappers with current-frame children                                    |
+| Dialog / AlertDialog / Sheet                                             | `RenderOnce`; `Root` owns overlay builders/focus/layers                                                                          | Retained owner, slots, and **owner-aware overlay APIs**, described next                     |
+| Popover / HoverCard                                                      | `RenderOnce`; native `Fn` `content` and base keyed element state                                                                 | Stateless wrapper with stable ID/reusable slot; retain focus/state when commands require it |
+| Tooltip                                                                  | `Render`; build(window,cx)→AnyView; trigger uses `ManagedTooltipExt`                                                             | Wrapper plus tooltip-content slot; ordinary children alone are insufficient                 |
+| PopupMenuItem / PopupMenu                                                | Specific enum builder / `Entity<PopupMenu>`                                                                                      | Compile `MenuSpec` DTO into native builders; custom items reference slots                   |
+| ContextMenu                                                              | `ContextMenu<E>` wraps `InteractiveElement + ParentElement + Styled`; menu is private                                            | Use context_menu(builder), not private `ContextMenu::new(...).menu(...)`                    |
+| DropdownButton                                                           | button(Button), not `AnyElement`                                                                                                 | Typed `ButtonSpec` plus dropdown_menu(builder); arbitrary JSX cannot replace native Button  |
+| AppMenuBar                                                               | AppMenuBar::new(cx)→Entity; reads global `OwnedMenu` and reloads                                                                 | Retained view plus application menu model, not arbitrary local popup children               |
+| DockArea                                                                 | `Entity<DockArea>`; `gpui-base` owns layout/state, `DockSkin` supplies appearance                                                | Retained dock owner, typed layout DTO, and native `JsPane` Entities                         |
+| TabPanel / Tiles                                                         | **No public constructors with these names in this revision**; actual APIs are `DockLayout::tabs/tiles`, `TabGroup`, `TilesState` | DockLayout variants, not invented `TabPanel::new`/`Tiles::new`                              |
+| Settings / `SettingPage` / `SettingGroup` / `SettingItem` / SettingField | Settings accepts pages, pages accept groups, groups accept items; descriptors are not ordinary render elements                   | Typed DTOs or a dedicated typed-child tree compiled to native builders, not AnyElement      |
+| Seven Charts                                                             | Generic `IntoPlot` types with Rust `Fn` field accessors                                                                          | Chart-specific DTOs converted to fixed Rust data and native accessors                       |
+| PlotAxis/Grid/PlotLabel/Line/Area/Bar/RadialLine/Arc                     | Mostly paint-only types without ordinary IntoElement                                                                             | One `Plot` renderer constructs typed primitives; `child(PlotAxis)` is invalid               |
+| Scale/Pie/Stack/Sankey layout                                            | Mathematical objects: `tick/arcs/series/layout`                                                                                  | Typed computation commands or internal Plot functions, not visual components                |
 
-来源：[Dialog 模块][dialog]、[PopupMenu][menu]、[Dock 导出][dock]、[Settings][settings]、[Plot trait][plot]。
+Sources: [Dialog module][dialog], [PopupMenu][menu], [Dock exports][dock], [Settings][settings], [Plot trait][plot].
 
-## 3. Dialog / AlertDialog / Sheet：完整 lifecycle 先于外观
+## 3. Dialog, AlertDialog, and Sheet: lifecycle before appearance
 
-### 3.1 当前公开 API 的硬边界
+### 3.1 Public API boundaries in the inspected revision
 
-`Dialog::new(&mut App)`；builder：`trigger(IntoElement)`, `content(Fn(DialogContent,&mut Window,&mut App)->DialogContent)`, `title`, `footer`, `button_props`, `on_ok`, `on_cancel`, `on_close`, `close_button`, `margin_top`, `width`（也有同义 `w`）, `max_w`, `overlay`, `overlay_closable`, `keyboard`，以及 Styled/ParentElement。`header` 是 `pub(crate)`，外部不要调用。[Dialog][dialog]
+`Dialog::new(&mut App)` supports `trigger(IntoElement)`, content(Fn(DialogContent,&mut Window,&mut App)→DialogContent), `title`, `footer`, `button_props`, `on_ok`/`on_cancel`/`on_close`, `close_button`, `margin_top`, `width`/`w`, `max_w`, `overlay`, `overlay_closable`, `keyboard`, Styled, and ParentElement. `header` is `pub(crate)` and unavailable externally. [Dialog][dialog]
 
-`AlertDialog::new(&mut App)`；`confirm`, `trigger`, `content`, `footer`, `icon`, `title`, `description`, `button_props`, `width`, `show_cancel`, `close_button`, `keyboard`, `on_ok/cancel/close`。`icon/title/description/button_props` 在 trigger/content 模式有 `debug_assert_no_trigger`；两种 DTO 模式应互斥。`overlay_closable` 已 deprecated 且不生效：AlertDialog 永不通过 backdrop 关闭。不能暴露一个看似可写但永不生效的 JS prop。[AlertDialog][alert-dialog]
+`AlertDialog::new(&mut App)` supports `confirm`, `trigger`, `content`, `footer`, `icon`, `title`, `description`, `button_props`, `width`, `show_cancel`, `close_button`, `keyboard`, and `on_ok/cancel/close`. Trigger/`content` mode asserts against `icon/title/description/button_props`, so those DTO modes must be exclusive. `overlay_closable` is deprecated and ineffective: AlertDialog never closes from its backdrop. Do not expose a writable JavaScript prop with no effect. [AlertDialog][alert-dialog]
 
-`Sheet::new(&mut Window,&mut App)`；`title`, `footer`, `size(DefiniteLength)`, `resizable`, `overlay`, `overlay_closable`, `on_close`、Styled/ParentElement。placement 本身是 crate-private 字段，必须通过 `WindowExt::open_sheet_at(Placement,...)` 选择。`SheetSettings.margin_top` 是 root 全局配置。[Sheet][sheet]
+`Sheet::new(&mut Window,&mut App)` supports `title`, `footer`, `size(DefiniteLength)`, `resizable`, `overlay`, `overlay_closable`, `on_close`, Styled, and ParentElement. Placement is crate-private and must be selected through `WindowExt::open_sheet_at(Placement,...)`. `SheetSettings.margin_top` is global Root configuration. [Sheet][sheet]
 
-`AlertDialog::on_close` 还有当前源码缺陷：它写 `self.base.button_props.on_close`，但 imperative `build_surface` 又以 `self.button_props` 覆盖 base button props；trigger 分支专门复制了 on_close，imperative 分支没有。实现前应在 `build_surface` 复制该 callback，或让 owned Root 统一报告 close lifecycle；否则 `open_alert_dialog(...on_close(...))` 回调会丢失。[AlertDialog][alert-dialog]
+`AlertDialog::on_close` also has a source defect: it writes `self.base.button_props.on_close`, but imperative `build_surface` overwrites base button props from `self.button_props`. The trigger branch copies on_close separately; the imperative branch does not. Copy that callback in `build_surface` or have owned Root report closure centrally before integration, otherwise `open_alert_dialog(...on_close(...))` loses its callback. [AlertDialog][alert-dialog]
 
-`WindowExt` 只公开 `open_dialog(builder)`、`open_alert_dialog(builder)`、`close_dialog()`（pop 最后一层）、`close_all_dialogs()`，以及单例 `open_sheet_at` / `close_sheet`。没有移除指定 layer 的 owner/token。[WindowExt][window-ext]
+`WindowExt` exposes `open_dialog(builder)`, `open_alert_dialog(builder)`, `close_dialog()` for the top layer, `close_all_dialogs()`, and singleton `open_sheet_at`/`close_sheet`. It has no owner/token for removing a specific layer. [`WindowExt`][window-ext]
 
-不能为了 controlled `open` 直接在 `NativeView::render` 返回 `Dialog::new(cx)`：其 `RenderOnce` 读取 `Root.active_dialogs.len()` 决定 topmost，并通过 root 执行 close；Root 在 open 时保存稳定 focus handle 和 selection scope。脱离 Root 的 dialog 没有等价 focus trap / stack 行为。[Dialog render][dialog-render]、[Root overlay][root]
+Do not implement controlled `open` by returning `Dialog::new(cx)` directly from `NativeView::render`. `RenderOnce` uses `Root.active_dialogs.len()` for topmost status and Root for closing; `open` stores stable focus handles and selection scope in Root. A detached Dialog cannot preserve equivalent focus traps or stacking. [Dialog render][dialog-render], [Root overlays][root]
 
-仅 weak slot 还不够：触发 Dialog 后卸载 JSX owner，Root 保留的 closure 仍可能绘制空 modal/backdrop 并占有 focus。处理嵌套 owner、关闭非顶部层、同时多个 SolidRoot，不能猜当前最后一个就是自己的层。
+Weak slots alone are insufficient: after a Dialog opens and its JSX owner unmounts, Root's retained closure can still draw an empty modal/backdrop and hold focus. Nested owners, non-top layer closure, and multiple SolidRoots cannot assume the last layer belongs to a given owner.
 
-### 3.2 所需 owner API 与 DTO
+### 3.2 Required owner APIs and DTOs
 
-下面 API 是**需要添加到 gpui-component Root 的最小真实生命周期能力**，并非该 revision 已提供：
+These APIs are **minimal lifecycle capabilities to add to gpui-component Root**, not capabilities already present in that revision:
 
 ```rust
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
@@ -82,8 +82,8 @@ struct OverlayOwner { surface: u64, epoch: u64, node: u32, generation: u64 }
 enum ModalKind { Dialog, Alert }
 struct OverlayToken { owner: OverlayOwner, serial: u64 }
 
-// Root 保存 owner/token + builder + focus + selection_scope。
-// open/update/close 都返回明确结果，不用 close_all 来清理单个 JS owner。
+// Root owns owner/token, builder, focus, and selection_scope.
+// open/update/close return explicit results; never close_all for one JS owner.
 fn open_dialog_owned(owner: OverlayOwner, builder: DialogBuilder) -> OverlayToken;
 fn update_dialog_owned(token: &OverlayToken, builder: DialogBuilder) -> Result<(), Retired>;
 fn close_dialog_owned(token: &OverlayToken) -> Result<(), Retired>;
@@ -94,44 +94,67 @@ fn update_sheet_owned(token: &OverlayToken, placement: Placement, builder: Sheet
 fn close_sheet_owned(token: &OverlayToken) -> Result<(), Retired>;
 ```
 
-Root 内删除中间 dialog 时，更新下一层 `previous_focused_handle` 为被删层的 predecessor；只在删除 top layer 时恢复 focus。替换 builder 保留 focus_handle/selection_scope/layer identity。单例 Sheet 被另一 owner 替换时发 `closed {reason:"replaced"}` 给旧 owner，并令旧 token 退休。Surface dispose 清除此 surface 的 token，不影响其他 surface。这个功能应在 Root 实现，不用外部反射或复制其私有 Vec。
+Removing a middle dialog updates the next layer's `previous_focused_handle` to the removed layer's predecessor; restore focus only when removing the top layer. Builder replacement preserves focus_handle, selection_scope, and layer identity. Replacing a singleton Sheet emits `closed {reason:"replaced"}` to its old owner and retires its token. Surface disposal removes only that Surface's tokens. Implement this inside Root without reflecting on or copying private vectors.
 
-JS contract 建议：
+Proposed JavaScript contract:
 
 ```ts
 type DialogProps = {
-  open: boolean; title?: string; width?: number; maxWidth?: number;
-  marginTop?: number; closeButton?: boolean; overlay?: boolean;
-  overlayClosable?: boolean; keyboard?: boolean;
-  okText?: string; cancelText?: string; showCancel?: boolean;
-  okVariant?: ButtonVariant; cancelVariant?: ButtonVariant;
-  closeOnOk: boolean; closeOnCancel: boolean;
+  open: boolean;
+  title?: string;
+  width?: number;
+  maxWidth?: number;
+  marginTop?: number;
+  closeButton?: boolean;
+  overlay?: boolean;
+  overlayClosable?: boolean;
+  keyboard?: boolean;
+  okText?: string;
+  cancelText?: string;
+  showCancel?: boolean;
+  okVariant?: ButtonVariant;
+  cancelVariant?: ButtonVariant;
+  closeOnOk: boolean;
+  closeOnCancel: boolean;
   // JSX slots: trigger?, content, title?, footer?
 };
 type AlertDialogProps = {
-  open: boolean; width?: number; closeButton?: boolean; keyboard?: boolean;
+  open: boolean;
+  width?: number;
+  closeButton?: boolean;
+  keyboard?: boolean;
   contentMode: "standard" | "custom";
-  title?: string; description?: string; icon?: IconSpec;
-  showCancel?: boolean; okText?: string; cancelText?: string;
-  okVariant?: ButtonVariant; cancelVariant?: ButtonVariant;
-  closeOnOk: boolean; closeOnCancel: boolean;
-  // standard 和 custom content slot 不可混用
+  title?: string;
+  description?: string;
+  icon?: IconSpec;
+  showCancel?: boolean;
+  okText?: string;
+  cancelText?: string;
+  okVariant?: ButtonVariant;
+  cancelVariant?: ButtonVariant;
+  closeOnOk: boolean;
+  closeOnCancel: boolean;
+  // Standard content and a custom content slot are mutually exclusive.
 };
 type SheetProps = {
-  open: boolean; placement: "left" | "right" | "top" | "bottom";
-  size: {unit:"px"; value:number} | {unit:"relative"; value:number};
-  title?: string; resizable?: boolean; overlay?: boolean; overlayClosable?: boolean;
+  open: boolean;
+  placement: "left" | "right" | "top" | "bottom";
+  size: { unit: "px"; value: number } | { unit: "relative"; value: number };
+  title?: string;
+  resizable?: boolean;
+  overlay?: boolean;
+  overlayClosable?: boolean;
   // content/title/footer JSX slots
 };
 type ModalEvent =
- | {kind:"openRequested"}
- | {kind:"okRequested" | "cancelRequested"; requestId:number}
- | {kind:"closed"; reason:"ok"|"cancel"|"dismiss"|"programmatic"|"replaced"};
+  | { kind: "openRequested" }
+  | { kind: "okRequested" | "cancelRequested"; requestId: number }
+  | { kind: "closed"; reason: "ok" | "cancel" | "dismiss" | "programmatic" | "replaced" };
 ```
 
-### 3.3 Native builder 骨架
+### 3.3 Native builder skeleton
 
-下面 `p` 是经默认值填充、字段验证后的 Rust props；`event` 由 NativeView 保存。closure 读取最新 `Rc<RefCell<DialogModel>>`，不要只捕获首次 props。
+Here `p` contains validated Rust props with defaults applied, and NativeView owns `event`. Closures read the current `Rc<RefCell<DialogModel>>` rather than capturing only initial props.
 
 ```rust
 #[derive(Clone)]
@@ -204,7 +227,7 @@ fn build_alert(a: AlertDialog, model: &AlertModel) -> AlertDialog {
         }
     }
     if let Some(footer) = &model.slots.footer { a = a.footer(footer.clone()); }
-    // 在 button_props 配置之后设置 callbacks，避免被标准按钮配置覆盖。
+    // Install callbacks after button_props so standard button settings cannot overwrite them.
     a.on_ok(move |_,_,_| { ok.emit(ModalEvent::OkRequested {request_id:ok_ids.next()});close_ok })
         .on_cancel(move |_,_,_| { cancel.emit(ModalEvent::CancelRequested {request_id:cancel_ids.next()});close_cancel })
         .on_close(move |_,_,_| close.emit(ModalEvent::Closed {reason:CloseReason::Dismiss}))
@@ -224,13 +247,13 @@ fn build_sheet(s: Sheet, model: &SheetModel) -> Sheet {
 }
 ```
 
-Dialog/Alert 的 request counter 为每个 native owner 创建一个 `EventSequence`。上面 builder 的通用 on_close 只能表达 dismiss；最终实现应由 owned Root 统一报告精确 `CloseReason`，删除重复 builder close 事件：同步 ok/cancel 返回 true 前记录该原因，resolve 命令记录 programmatic/对应 action 原因，Root 执行关闭后只发一次 closed。这同时绕开当前 imperative AlertDialog 丢 close callback 的上游缺陷。
+Give each native Dialog/Alert owner an `EventSequence` request counter. The sketch's generic on_close can express only dismissal; the final owned Root should report precise `CloseReason` once, removing duplicate builder-close events. Record synchronous ok/cancel before returning true, record resolve's programmatic/action reason, and emit one closed after Root closes. This also avoids the inspected imperative AlertDialog callback defect.
 
-`mount/update`：保存 model、slots、optional token；`open:false→true` 调 owned open，`true→true` 更新 builder，`true→false` close token。`resolve` 只接受当前 pending request。unmount/window close/epoch 退休时 native adapter 显式 dispose token；不能依赖 Rust `Drop` 取得 Window/App。`Render` 只绘制 trigger slot；native trigger click emits `openRequested` 或由明确 uncontrolled 模式立刻 open。生命周期方法的 owner API 尚未实现时，Dialog 全功能接入不能宣称完成。
+`mount/update` retains model, slots, and an optional token. false→true opens through the owned API; `true→true` replaces the builder; `true→false` closes that token. `resolve` accepts only the current pending request. Unmount/window closure/epoch retirement explicitly disposes tokens; Rust `Drop` cannot assume Window/App access. `Render` draws only the trigger slot. Native trigger clicks emit `openRequested` or open immediately in explicit uncontrolled mode. Full Dialog integration requires the lifecycle API to exist first.
 
 ## 4. Popover / HoverCard / Tooltip
 
-`Popover::trigger` 要求 `Selectable + IntoElement`；`Slot` 的 wrapper 并不自动实现 Selectable。可以做一个有意义的 native selectable trigger shim，选中态写入 wrapper 样式或 ARIA，内部保留 JS children，不需要传一个原生 Button DTO 才能使用任意 trigger。[Popover][popover]
+`Popover::trigger` requires `Selectable + IntoElement`; a `Slot` wrapper does not automatically implement Selectable. Provide a native selectable trigger whose selected state affects agreed wrapper style/accessibility while retaining JavaScript children. Arbitrary triggers need not be restricted to Button DTOs. [Popover][popover]
 
 ```rust
 #[derive(IntoElement)]
@@ -241,7 +264,7 @@ impl Selectable for SlotTrigger {
 }
 impl RenderOnce for SlotTrigger {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
-        div().child(self.slot) // 将 selected 映射为宿主约定的选中语义/样式。
+        div().child(self.slot) // Map selected to the host's selection semantics/style.
     }
 }
 
@@ -291,32 +314,53 @@ fn tooltip(p: &TooltipProps, slots: &Slots, id: ElementId) -> impl IntoElement {
 }
 ```
 
-Popover props 覆盖 `anchor`（8 个 Anchor 位置）、`mouseButton`、`defaultOpen`、`open?`、`appearance`、`overlayClosable`、trigger style；focus track 使用 native view 自己保存 `FocusHandle`，不要把 handle 传给 JS。HoverCard 只有 `openDelay/closeDelay/anchor/appearance/onOpenChange`；当前组件无 controlled `.open`，不要生成假 prop。Tooltip `action(&dyn Action, Option<&str>)` 如需暴露，应是预注册 native Action 的字符串/DTO 编译，不是任意 JS函数。[HoverCard][hover-card]、[Tooltip][tooltip]
+Popover props include eight `anchor` positions, `mouseButton`, `defaultOpen`, optional controlled open, `appearance`, `overlayClosable`, and trigger style. Retain `FocusHandle` natively rather than exposing it to JavaScript. HoverCard supports only `openDelay/closeDelay/anchor/appearance/onOpenChange`; it has no controlled open setter. Tooltip `action(&dyn Action, Option<&str>)` would require a registered native Action string/DTO, not an arbitrary JavaScript function. [HoverCard][hover-card], [Tooltip][tooltip]
 
 ## 5. Menu / ContextMenu / DropdownButton / AppMenuBar
 
-### 5.1 完整菜单 DTO 与原生编译器
+### 5.1 Complete menu DTO and native compiler
 
 ```ts
 type MenuSpec = {
-  items: MenuItem[]; minWidth?: number; maxWidth?: number; maxHeight?: number;
-  scrollable: boolean; checkSide: "left"|"right"; externalLinkIcon: boolean;
+  items: MenuItem[];
+  minWidth?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  scrollable: boolean;
+  checkSide: "left" | "right";
+  externalLinkIcon: boolean;
 };
 type MenuItem =
- | {kind:"separator"}
- | {kind:"label"; label:string}
- | {kind:"item"; id:string; label:string; icon?:IconSpec; disabled?:boolean; checked?:boolean; action?:NativeActionSpec}
- | {kind:"link"; label:string; href:string; icon?:IconSpec; disabled?:boolean}
- | {kind:"element"; id:string; slot:number; icon?:IconSpec; disabled?:boolean; checked?:boolean; action?:NativeActionSpec}
- | {kind:"submenu"; label:string; icon?:IconSpec; disabled?:boolean; menu:MenuSpec};
+  | { kind: "separator" }
+  | { kind: "label"; label: string }
+  | {
+      kind: "item";
+      id: string;
+      label: string;
+      icon?: IconSpec;
+      disabled?: boolean;
+      checked?: boolean;
+      action?: NativeActionSpec;
+    }
+  | { kind: "link"; label: string; href: string; icon?: IconSpec; disabled?: boolean }
+  | {
+      kind: "element";
+      id: string;
+      slot: number;
+      icon?: IconSpec;
+      disabled?: boolean;
+      checked?: boolean;
+      action?: NativeActionSpec;
+    }
+  | { kind: "submenu"; label: string; icon?: IconSpec; disabled?: boolean; menu: MenuSpec };
 ```
 
-`scrollable` parent 不支持 submenu，这是源码明确限制，应在 DTO 校验时拒绝这个组合。`PopupMenuItem::submenu` 直接塞 Entity 是可用的公共组合入口：`PopupMenu::render` 1390 起为这种路径补上 parent_menu/priority，因此可以同时支持 disabled submenu，以及只持有 `Context<JsPane>` 的 dock hook。不能只读 `submenu_with_icon` 的 constructor 就误判此入口丢失 parent linking。[PopupMenu][menu]、[submenu render linking][menu-linking]
+A `scrollable` parent cannot contain submenus; reject this explicit upstream restriction during DTO validation. `PopupMenuItem::submenu` directly accepting an Entity is valid: `PopupMenu::render` from line 1390 fills parent_menu/priority for it. This supports disabled submenus and Dock hooks with only `Context<JsPane>`. Reading `submenu_with_icon` alone must not lead to a false claim that this entrypoint lacks parent linkage. [PopupMenu][menu], [submenu render linkage][menu-linking]
 
 ```rust
-// MenuSink 是一个 Rust Rc<dyn Fn(MenuEvent)>，可将相同 builder 的事件提升到
-// Menu NativeView Event<MenuEvent> 或 Dock NativeView Event<DockBridgeEvent>。
-// 两种都只调用 Event::emit，不是 JS callback。
+// MenuSink is Rc<dyn Fn(MenuEvent)> in Rust, forwarding the same builder's events
+// into a Menu NativeView Event<MenuEvent> or Dock Event<DockBridgeEvent>.
+// Both call Event::emit only; neither invokes JavaScript callbacks directly.
 type MenuSink = Rc<dyn Fn(MenuEvent)>;
 fn build_menu(mut menu: PopupMenu, spec: &MenuSpec, slots: &[Slot],
               event: &MenuSink, window: &mut Window,
@@ -354,7 +398,7 @@ fn build_menu(mut menu: PopupMenu, spec: &MenuSpec, slots: &[Slot],
                 if let Some(icon) = item.icon() { native = native.icon(icon.native()); }
                 native = native.disabled(item.disabled()).checked(item.checked());
                 if let Some(action) = item.action() { native = native.action(action.native()); }
-                // link() 已有原生 open_url handler，不覆盖为只发事件。
+                // link() already opens URLs natively; do not replace it with event-only behavior.
                 if let Some(id) = item.event_id() {
                     let id = id.to_owned();
                     let event = event.clone();
@@ -368,14 +412,14 @@ fn build_menu(mut menu: PopupMenu, spec: &MenuSpec, slots: &[Slot],
 }
 ```
 
-`PopupMenu` 本身可以 retained：mount `PopupMenu::build(window,cx,...)`，update `entity.update(cx, |m,cx| m.rebuild(window,cx,...))`；保持 focus/parent/priority identity。订阅 `DismissEvent` 并保留 `Subscription` 在 view 中，drop 自动退订。不要每次 JS props 更新都丢弃当前打开菜单实体。[PopupMenu::rebuild][menu-rebuild]
+`PopupMenu` can be retained: mount with `PopupMenu::build(window,cx,...)`, update through `entity.update(cx, |m,cx| m.rebuild(window,cx,...))`, and preserve focus/parent/priority identity. Retain its `DismissEvent` `Subscription` in the view for automatic unsubscription on drop. Prop updates must not discard an open menu Entity. [`PopupMenu`::rebuild][menu-rebuild]
 
 ```rust
-// ContextMenu::menu 是私有；这是正确公共入口。
+// ContextMenu::menu is private; this is the public entrypoint.
 let context_menu = div().id(native_id).child(content_slot)
     .context_menu(move |m, w, cx| build_menu(m, &spec, &slots, &event, w, cx));
 
-// DropdownButton 必须编译 ButtonSpec，无法把一个 AnyElement 强转成 Button。
+// Compile ButtonSpec for DropdownButton; AnyElement cannot be cast into Button.
 let dropdown = DropdownButton::new(native_id)
     .button(build_button(&p.button))
     .disabled(p.disabled)
@@ -383,25 +427,25 @@ let dropdown = DropdownButton::new(native_id)
         build_menu(m, &spec, &slots, &event, w, cx)
     });
 
-// 普通 Button dropdown 模式可发 open change。
+// Ordinary Button dropdown mode can emit open-state changes.
 let dropdown_menu = build_button(&p.button)
     .dropdown_menu_with_anchor(p.anchor.native(), move |m,w,cx| build_menu(m,&spec,&slots,&event,w,cx))
     .on_open_change(move |open,_,_| open_event.emit(OpenEvent { open:*open }));
 ```
 
-`DropdownButton` 的 variant/size/selected/outline/disabled 通过其 `ButtonVariants/Sizable/Selectable/Disableable` 实现；split button 左侧独立主 action 留在 ButtonSpec，右侧只打开 menu。[DropdownButton][dropdown-button]、[DropdownMenu][dropdown-menu]、[ContextMenu][context-menu]
+`DropdownButton` forwards variant/size/selected/outline/disabled through `ButtonVariants/Sizable/Selectable/Disableable`. Its split-button primary action belongs to ButtonSpec; the right side opens the menu. [`DropdownButton`][dropdown-button], [DropdownMenu][dropdown-menu], [ContextMenu][context-menu]
 
-打开期间更新菜单不能只替换 DropdownMenu builder closure：其内置 `DropdownMenuState.menu` 在打开期间复用，只有 Dismiss 才清空。可在传给 `.dropdown_menu`/`.context_menu` 的 builder 中保存 `cx.weak_entity()` 到 bridge 的 `live_menus`，props update 时沿这些 weak handles 执行 `rebuild`；原生通知后绘制当前项。NativeView 持有菜单 model 的 revision，以免不相关 child/style commit 都重建 menu。对于直接展示的 PopupMenu retained view，本身就有 entity，不需要这层 live handle 注册。[DropdownMenu 缓存][dropdown-menu]
+Updating an open menu requires more than replacing the DropdownMenu builder closure: `DropdownMenuState.menu` is reused until Dismiss. Builders passed to dropdown_menu/context_menu can register `cx.weak_entity()` in bridge `live_menus`; prop updates `rebuild` through those weak handles and native notification redraws current items. Track menu-model revision in NativeView so unrelated child/style commits do not `rebuild` menus. Direct retained PopupMenu already owns its Entity and needs no extra live-handle registry. [DropdownMenu cache][dropdown-menu]
 
-### 5.2 AppMenuBar 是应用菜单镜像
+### 5.2 AppMenuBar mirrors the application menu
 
-`AppMenuBar::new(cx)` 调 `reload`，读取 `GlobalState::global(cx).app_menus()` 的 `OwnedMenu`。更新需要先 `GlobalState::global_mut(cx).set_app_menus(Vec<OwnedMenu>)`，再 `bar.update(cx, |bar,cx| bar.reload(cx))`。菜单为 application scope，不能让多个局部 wrapper 每次 render 无条件争抢全局菜单。[AppMenuBar][app-menu]、[Base GlobalState][global-state]
+`AppMenuBar::new(cx)` calls `reload` and reads `GlobalState::global(cx).app_menus()` as `OwnedMenu`. Update `GlobalState::global_mut(cx).set_app_menus(Vec<OwnedMenu>)` before `bar.update(cx, |bar,cx| bar.reload(cx))`. Menus are application-scoped; local wrappers must not compete to replace globals every render. [AppMenuBar][app-menu], [Base GlobalState][global-state]
 
-用现有应用菜单 command/client 作为唯一 menu owner；每个 item `NativeActionSpec` 编译为注册的 `Action`，action handler 在主 UI root 上把 item ID 发给对应 JS event endpoint。`AppMenuBar` retained adapter：mount 创建 bar；update 检测菜单 revision 后 reload；render 返回 `bar.clone()`；dispose 退订自有 action routes。macOS 原生菜单与 Windows/Linux AppMenuBar 可共享 OwnedMenu 模型，但不是把 PopupMenu custom element slots 传给 OwnedMenu。
+Use the existing application-menu command/client as sole menu owner. Compile `NativeActionSpec` into registered Actions whose main-UI-root handlers forward item IDs to the correct JavaScript event endpoint. The retained adapter creates its bar at mount, reloads on menu revision changes, renders `bar.clone()`, and unsubscribes owned action routes on disposal. macOS native menus and Windows/Linux `AppMenuBar` can share OwnedMenu; PopupMenu custom-element slots are not OwnedMenu entries.
 
-## 6. DockArea、TabGroup、Tiles：真实 Pane trait 与布局 API
+## 6. DockArea, TabGroup, and Tiles: real Pane traits and layout APIs
 
-该 revision 将行为移入 `gpui-base::dock`。`gpui_component::dock::Panel` 是 appearance trait，extends `BasePanel`；只 impl appearance 不够。`BasePanel: EventEmitter<PanelEvent> + Render + Focusable`。唯一无默认值的 `BasePanel` 方法为 `panel_name(&self)->&'static str`；完整适配需要覆盖可见性、关闭/zoom 权限、active/zoomed/added/removed lifecycle 和 dump。[组件 Panel][panel]、[Base Panel][base-panel]
+This revision moves behavior into `gpui-base::dock`. `gpui_component::dock::Panel` is an appearance trait extending `BasePanel`; appearance alone is insufficient. `BasePanel` requires EventEmitter<PanelEvent> + Render + Focusable. Its only method without a default is panel_name(&self)→&'static str, but complete integration also covers visibility, close/zoom permission, active/zoomed/added/removed lifecycle, and dump. [Component Panel][panel], [Base Panel][base-panel]
 
 ```rust
 struct JsPane {
@@ -480,24 +524,38 @@ impl Panel for JsPane {
 }
 ```
 
-通过 `panel_handle(entity)`（返回 base object-safe handle，内部是 `PanelHandle`）接入；如果直接 `.panel(entity)`，`DockSkin` 无法 downcast 回 appearance PanelHandle，标题/toolbar 等失效。这里应使用 `.panel_view(panel_handle(pane),cx)` 与 `.tile_view(...)`。[PanelHandle][panel]、[DockLayout][dock-layout]
+Integrate through `panel_handle(entity)`, which returns a base object-safe handle backed by `PanelHandle`. Passing `.panel(entity)` directly prevents `DockSkin` from downcasting to the appearance `PanelHandle`, losing titles/toolbars. Use `.panel_view(panel_handle(pane),cx)` and `.tile_view(...)`. [`PanelHandle`][panel], [DockLayout][dock-layout]
 
 ```ts
 type DockLayoutSpec =
- | {kind:"split"; axis:"horizontal"|"vertical"; children:{layout:DockLayoutSpec; size?:number}[]}
- | {kind:"tabs"; panes:string[]; activeIndex:number}
- | {kind:"tiles"; panes:{id:string; bounds:{x:number;y:number;width:number;height:number}}[]};
+  | { kind: "split"; axis: "horizontal" | "vertical"; children: { layout: DockLayoutSpec; size?: number }[] }
+  | { kind: "tabs"; panes: string[]; activeIndex: number }
+  | { kind: "tiles"; panes: { id: string; bounds: { x: number; y: number; width: number; height: number } }[] };
 type PaneSpec = {
-  id:string; title:string; tabName?:string; visible:boolean; closable:boolean;
-  zoomable:boolean; zoomControl?:"menu"|"toolbar"|"both"; innerPadding:boolean;
-  contentSlot:number; titleSlot?:number; titleSuffixSlot?:number;
-  toolbar:ButtonSpec[]; chromeMenu:MenuSpec; persistedData:JsonValue;
+  id: string;
+  title: string;
+  tabName?: string;
+  visible: boolean;
+  closable: boolean;
+  zoomable: boolean;
+  zoomControl?: "menu" | "toolbar" | "both";
+  innerPadding: boolean;
+  contentSlot: number;
+  titleSlot?: number;
+  titleSuffixSlot?: number;
+  toolbar: ButtonSpec[];
+  chromeMenu: MenuSpec;
+  persistedData: JsonValue;
 };
 type DockProps = {
-  id:string; version?:number; panes:PaneSpec[];
-  initialLayout:{center:DockLayoutSpec;left?:DockSpec;right?:DockSpec;bottom?:DockSpec};
-  locked:boolean; panelStyle:"auto"|"tabBar"; toggleButtonVisible:boolean;
-  // layout 的日常交互由原生拥有；重置布局走 replaceLayout command。
+  id: string;
+  version?: number;
+  panes: PaneSpec[];
+  initialLayout: { center: DockLayoutSpec; left?: DockSpec; right?: DockSpec; bottom?: DockSpec };
+  locked: boolean;
+  panelStyle: "auto" | "tabBar";
+  toggleButtonVisible: boolean;
+  // Native code owns ordinary layout interaction; reset through replaceLayout.
 };
 ```
 
@@ -522,7 +580,7 @@ fn layout(spec: &DockLayoutSpec, panes: &BTreeMap<String, Entity<JsPane>>, cx: &
     }
 }
 
-// mount，保留 area + skin + panes + Subscription。
+// Mount and retain area, skin, panes, and Subscription.
 let (area, skin) = DockSkin::dock_area(p.id.clone(), p.version, window, cx);
 area.update(cx, |area,cx| {
     area.set_center(layout(&p.initial_layout.center,&panes,cx),window,cx);
@@ -538,47 +596,83 @@ skin.set_panel_style(p.panel_style.native(),cx);
 skin.set_toggle_button_visible(p.toggle_button_visible,cx);
 ```
 
-`set_dock_size` 与 `set_dock_collapsible` 均接受 `(placement,value,window,&mut Context<DockArea>)`。不要通过反复 `set_center` 同步普通 Pane props：它表示 wholesale replace，会给旧 pane 发 `on_removed`，并重建 layout。`update` 按 pane ID diff 更新保留的 Entity，删除的实体用 `area.remove_panel(entity,window,cx)`；仅显式 `replaceLayout/load` 才重置几何。ID 不可重复、所有 layout pane 引用必须存在、单 pane 不得出现在两个节点、split/tabs/tiles 的子类型和尺寸必须验证。[DockArea][dock-area]
+`set_dock_size` and `set_dock_collapsible` accept `(placement,value,window,&mut Context<DockArea>)`. Do not repeatedly call `set_center` for ordinary Pane props: it replaces the layout and sends `on_removed` to old panes. Diff props by pane ID, `update` retained Entities, and remove them through `area.remove_panel(entity,window,cx)`. Only explicit `replaceLayout/load` resets geometry. Validate unique IDs, existing layout references, single placement per pane, split/tabs/tiles child types, and sizes. [DockArea][dock-area]
 
-命令完整面：`dump`, `load`, `replaceLayout`, `addPane`, `removePane`, `movePane`, `splitAt`, `toggleDock`, `resizeDock`, `setDockCollapsible`, `zoomInGroup`, `zoomOut`, `selectTab`。`selectTab` 可经 `JsPane.group` 找 `TabGroup::select_tab`，稳定 pane ID 先解析成当前 group index。不要把 raw `NodeId/PanelId` 裸暴露给长期持久化 JSON；使用 view-scoped opaque token 或通过 pane ID 找当前节点。Tiles 自带 move/resize/bringToFront/zoom 与 `undo/redo`；`TilesState::new` 不公开，若要外部命令调 undo/redo 需要 DockArea 的明确 accessor/forward 方法，不能捏造 Entity。[TilesState][tiles-state]
+Commands: `dump`, `load`, `replaceLayout`, `addPane`, `removePane`, `movePane`, `splitAt`, `toggleDock`, `resizeDock`, `setDockCollapsible`, `zoomInGroup`, `zoomOut`, `selectTab`. `selectTab` resolves stable pane IDs to current group indices through `JsPane.group` and `TabGroup::select_tab`. Do not expose raw `NodeId/PanelId` for persistent JSON; use view-scoped opaque tokens or resolve current nodes by pane IDs. Tiles supports move/resize/bringToFront/zoom/`undo/redo`. `TilesState::new` is private, so external `undo/redo` needs explicit DockArea access/forwarding, not fabricated Entities. [TilesState][tiles-state]
 
-持久化 `DockAreaState` 自带 serde，但不带 TS derive。桥接应定义递归 DTO，映射 `PanelState {panel_name,children,info}` 与 `PanelInfo::{Stack{sizes,axis},Tabs{active_index},Panel(JsonValue),Tiles{metas}}`，不要仅返回 JSON 字符串掩盖结构。注册一个固定名称 `solid-gpui-pane` 的 `register_panel` builder，通过 `PanelBuildContext.dock_area()` 关联所属 native bridge，再通过 `info.id` 找同一 owner 的已提交 slot。不能以任意 JS pane ID `Box::leak` 构造 `&'static str`。加载未知或无 slot ID 应拒绝/异步 `restoreRequested` 后再加载，不能把上游保留 unknown panel 的占位逻辑误当 JS owner 创建能力。[Dock state][dock-state]、[Panel registry][panel-registry]
+`DockAreaState` has serde but no TypeScript derive. Define recursive DTOs mapping `PanelState {panel_name,children,info}` and `PanelInfo::{Stack{sizes,axis},Tabs{active_index},Panel(JsonValue),Tiles{metas}}`, rather than hiding structure in a JSON string. Register one fixed `solid-gpui-pane` builder, associate its bridge through `PanelBuildContext.dock_area()`, and resolve `info.id` to a committed slot of the same owner. Never `Box::leak` arbitrary JavaScript pane IDs into `&'static str`. Reject unknown/missing-slot IDs or request asynchronous restoration before loading; upstream unknown-panel placeholders cannot create JavaScript owners. [Dock state][dock-state], [Panel registry][panel-registry]
 
-`DockEvent::LayoutChanged` 每次 tile drag step 都发；对 JS 可在一 native tick 合并成一次 `layoutChanged {sequence}`，完整 dump 通过异步 command 获取或 debounced snapshot。不要每个 mouse move JSON 序列化整棵 dock tree。若业务要 DragDrop，`AnyDrag` 必须限定为桥接自己创建的 typed payload，映射 `DropTarget` 为 validated enum。[DockEvent][dock-area]
+`DockEvent::LayoutChanged` fires at every tile drag step. JavaScript may receive one coalesced `layoutChanged {sequence}` per native tick, with full dumps via async commands or debounced snapshots. Avoid serializing the whole dock tree on every mouse move. DragDrop payloads must be bridge-created typed `AnyDrag` values, with `DropTarget` converted to a validated enum. [DockEvent][dock-area]
 
-## 7. Settings：typed hierarchy，原生 getter/setter
+## 7. Settings: typed hierarchy and native getters/setters
 
-`Settings::new(id)` 支持 `pages`, `sidebar_width`, `sidebar_size_range`, `with_group_variant`, `sidebar_style`, `header_style`, `default_selected_index(SelectIndex{page_ix,group_ix})`, `Sizable`。Settings 内部 `SettingsState` 非公开，search/selected state 以 window keyed state 持久化，没有公开受控选页/search setter/event。因此现有 API 能完整保留原生 sidebar/search 行为；若要 JS 控制 selection/search，需要上游公开 state interface，不能重复构造 ID 达到“更新”。[Settings][settings]
+`Settings::new(id)` supports `pages`, `sidebar_width`, `sidebar_size_range`, `with_group_variant`, `sidebar_style`, `header_style`, `default_selected_index(SelectIndex{page_ix,group_ix})`, and `Sizable`. Private `SettingsState` retains search/selection through window keyed state without public controlled setters/events. Native sidebar/search behavior can be preserved, but JavaScript selection/search control requires an upstream state API, not changing IDs to simulate updates. [Settings][settings]
 
-`SettingPage::new(title)` 有 title/title_suffix closure、icon、description、default_open、resettable、groups、header_style。Group 有 title/description/items/Styled。Item 分 `new(title, AnySettingField)` 与 `render(Fn(&RenderOptions,&mut Window,&mut App)->E)`，还可 keywords/disabled/description/layout；自定义 render item 的 disabled **只通过 RenderOptions 传递给自定义渲染器**，不会自动禁掉内部任意 JS 控件。[SettingPage][setting-page]、[SettingGroup][setting-group]、[SettingItem][setting-item]
+`SettingPage::new(title)` supports title/title_suffix closures, icon, description, default_open, resettable, groups, and header_style. Group supports title/description/items/Styled. Item offers `new(title, AnySettingField)` or render(Fn(&RenderOptions,&mut Window,&mut App)→E), plus keywords/disabled/description/layout. A custom item's disabled flag is **only passed through RenderOptions**; it does not automatically disable arbitrary inner JavaScript controls. [SettingPage][setting-page], [SettingGroup][setting-group], [SettingItem][setting-item]
 
 ```ts
 type SettingsSpec = {
-  pages: SettingPageSpec[]; sidebarWidth:number; sidebarMinWidth:number; sidebarMaxWidth:number;
-  groupVariant:GroupBoxVariant; size:Size;
-  defaultSelectedIndex:{pageIx:number;groupIx?:number};
+  pages: SettingPageSpec[];
+  sidebarWidth: number;
+  sidebarMinWidth: number;
+  sidebarMaxWidth: number;
+  groupVariant: GroupBoxVariant;
+  size: Size;
+  defaultSelectedIndex: { pageIx: number; groupIx?: number };
 };
-type SettingPageSpec = {id:string; title:string; description?:string; icon?:IconSpec;
-  titleSuffixSlot?:number; defaultOpen:boolean; resettable:boolean; groups:SettingGroupSpec[]};
-type SettingGroupSpec = {id:string; title?:string; description?:string; items:SettingItemSpec[]};
+type SettingPageSpec = {
+  id: string;
+  title: string;
+  description?: string;
+  icon?: IconSpec;
+  titleSuffixSlot?: number;
+  defaultOpen: boolean;
+  resettable: boolean;
+  groups: SettingGroupSpec[];
+};
+type SettingGroupSpec = { id: string; title?: string; description?: string; items: SettingItemSpec[] };
 type SettingItemSpec =
- | {kind:"field";id:string;title:string;description?:string;keywords:string[];disabled:boolean;layout:"horizontal"|"vertical";field:SettingFieldSpec}
- | {kind:"element";id:string;slot:number;keywords:string[];disabled:boolean;dirty:boolean;resettable:boolean};
+  | {
+      kind: "field";
+      id: string;
+      title: string;
+      description?: string;
+      keywords: string[];
+      disabled: boolean;
+      layout: "horizontal" | "vertical";
+      field: SettingFieldSpec;
+    }
+  | {
+      kind: "element";
+      id: string;
+      slot: number;
+      keywords: string[];
+      disabled: boolean;
+      dirty: boolean;
+      resettable: boolean;
+    };
 type SettingFieldSpec =
- | {kind:"switch"|"checkbox";value:boolean;defaultValue?:boolean}
- | {kind:"input";value:string;defaultValue?:string}
- | {kind:"number";value:number;defaultValue?:number;min:number;max:number;step:number}
- | {kind:"dropdown";value:string;defaultValue?:string;scrollable:boolean;options:{value:string;label:string}[]}
- | {kind:"element";slot:number;dirty:boolean;resettable:boolean};
-type SettingsEvent = {kind:"change";id:string;value:boolean|string|number;sequence:number}
- | {kind:"resetRequested";id:string};
+  | { kind: "switch" | "checkbox"; value: boolean; defaultValue?: boolean }
+  | { kind: "input"; value: string; defaultValue?: string }
+  | { kind: "number"; value: number; defaultValue?: number; min: number; max: number; step: number }
+  | {
+      kind: "dropdown";
+      value: string;
+      defaultValue?: string;
+      scrollable: boolean;
+      options: { value: string; label: string }[];
+    }
+  | { kind: "element"; slot: number; dirty: boolean; resettable: boolean };
+type SettingsEvent =
+  | { kind: "change"; id: string; value: boolean | string | number; sequence: number }
+  | { kind: "resetRequested"; id: string };
 ```
 
-使用 retained `SettingsModel` 保存 `BTreeMap<ItemId,Value>`，native getter 读 model，setter 先更新原生模型再 emit。不能 setter 只发 JS event 不本地更新，否则下一帧 getter 仍返回旧值，出现控件回弹。JS controlled 更新需要 sequence/ack 规则，避免迟到 commit 覆盖新 native 编辑。[SettingField][setting-field]
+Retain `BTreeMap<ItemId,Value>` in `SettingsModel`. Native getters read it; setters update it before emitting. Emitting without updating makes the next getter return stale values and controls revert. Controlled JavaScript updates need sequence/ack rules to stop late commits overwriting newer native edits. [SettingField][setting-field]
 
 ```rust
-// value_cell 由单个 Settings NativeView 持有，update 按 item ID 调和，不跨实例共享。
-// NativeNotify 捕获 settings owner 的 WeakEntity，只通知仍然存活的 owner。
+// One Settings NativeView owns value_cell; update reconciles by item ID without cross-instance sharing.
+// NativeNotify retains a WeakEntity and notifies only a live Settings owner.
 type NativeNotify=Rc<dyn Fn(&mut App)>;
 fn bool_field(kind: BoolKind, cell: Rc<Cell<bool>>, event: Event<SettingsEvent>, id: String,
               sequence:EventSequence,notify:NativeNotify)
@@ -635,9 +729,9 @@ fn number_field(spec: &NumberSpec, cell: Rc<Cell<f64>>, event: Event<SettingsEve
 fn custom_field(slot: Slot, dirty: Rc<Cell<bool>>, event: Event<SettingsEvent>,id:String)
     -> SettingField<SharedString>
 {
-    // 与上游 custom render 的责任相同：disabled 必须已传给实际控件。
-    // JS SettingsItem convenience wrapper 可从同一 disabled prop 创建 context，
-    // 在提交前设置 custom child control props；这里不把 opacity 当禁用。
+    // As with upstream custom rendering, pass disabled to the actual control.
+    // A JavaScript SettingsItem helper can provide context from the same disabled prop
+    // and set child-control props before commit; opacity does not disable controls.
     SettingField::render(move |_,_,_| slot.clone()).on_reset(move |_| dirty.get(),move |_,_| event.emit(SettingsEvent::ResetRequested { id:id.clone() }))
 }
 
@@ -661,17 +755,17 @@ fn settings(spec: &SettingsSpec, model: &SettingsModel, id: ElementId) -> Settin
 }
 ```
 
-`model.build_item` 的实际分派为：switch/checkbox→`SettingItem::new(title,bool_field(...).default_value(...))`；input/dropdown→string_field；number→number_field；element field→custom_field；整行 element→`SettingItem::render(...).on_reset(...)`。每一种都附加 keywords/disabled，只有 field item 附加 description/layout。change 事件使用 Settings native owner 的 `EventSequence`，notify closure 使用其 WeakEntity 执行 `entity.update(cx,|_,cx|cx.notify())`；普通 cell 改值本身不会触发 GPUI render。
+`model.build_item` dispatches switch/checkbox to `SettingItem::new(title,bool_field(...).default_value(...))`, input/dropdown to string_field, number to number_field, element fields to custom_field, and full rows to `SettingItem::render(...).on_reset(...)`. Apply keywords/disabled to all, and description/layout only to field items. Changes use the native owner's `EventSequence`; WeakEntity notifications call `entity.update(cx,|_,cx|cx.notify())`. Updating a cell alone does not trigger GPUI rendering.
 
-`SettingFieldElement` 的唯一方法是 `render_field(&self,&RenderOptions,&mut Window,&mut App)->Self::Element`，associated `Element:IntoElement+'static`。普通 `Fn` 已有 blanket impl，无须为每个 custom field 造额外 trait object。[SettingFieldElement][setting-element]
+`SettingFieldElement` has only render_field(&self,&RenderOptions,&mut Window,&mut App)→Self::Element with Element: IntoElement+'static. Ordinary `Fn` already has a blanket implementation; custom fields need no new trait object each. [`SettingFieldElement`][setting-element]
 
-`RenderOptions` 还携带 `page_ix/group_ix/item_ix/size/group_variant/layout/disabled`。custom JSX children 若需要这些值，应把 JS 已知的 size/disabled/index 放在组件 context 中，原生仅处理按实际宽度变化的容器布局；要把运行时 `RenderOptions.layout` 暴露回 JS，则使用明确事件/下一 commit 更新，不可在 native render 同步求 JSX。原生 renderer 不应假装对子树设 opacity 就实现了 disabled。
+`RenderOptions` also carries `page_ix/group_ix/item_ix/size/group_variant/layout/disabled`. Supply JavaScript-known size/disabled/indices through component context; native code handles width-dependent container layout. Exposing runtime `RenderOptions.layout` to JavaScript requires an event and later commit, not synchronous JSX evaluation during native render. Applying opacity cannot stand in for disabled semantics.
 
-结构更新还需注意：内置 input state 的 key 基于 page/group/item **索引**。动态插入/重新排序 SettingsSpec 时，必须确认输入 entity 没把旧 item 的编辑态转给新 item；需要上游 stable item key API 才能无损支持任意重排。不能靠每次换整个 Settings ID 隐藏 identity 问题。[number field state][setting-number]
+Structural changes need care: built-in input state keys use page/group/item **indices**. Inserting/reordering SettingsSpec must not transfer old editing state to another item. Lossless arbitrary reordering requires stable upstream item keys; changing the whole Settings ID would only hide the identity problem. [Number-field state][setting-number]
 
-## 8. 七种 Chart：固定 datum，支持全部 builder 功能
+## 8. Seven charts: fixed data with complete builder coverage
 
-`LineChart/AreaChart/BarChart/CandlestickChart` 的 X/B 是离散标签类型；默认固定为 `String/SharedString`。Y/V 的 `Sealed` 仅允许 `f64` 和可选 rust_decimal Decimal，默认桥接 `f64`。它们不接受 JS 函数；JS 在创建 props 时把想要的业务字段投影成 typed rows。`tick_margin` 在共享 label helper 做 `% tick_margin`，因此 **0 必须在 commit 校验时拒绝**。[Chart exports/helper][chart]、[Scale sealed][scale-sealed]
+`LineChart/AreaChart/BarChart/CandlestickChart` X/B types are discrete labels, defaulting to `String/SharedString`. `Sealed` Y/V permits `f64` and optional rust_decimal Decimal; use `f64` in the bridge. No JavaScript functions cross: project application fields into typed rows when creating props. The shared label helper calculates `% tick_margin`, so **reject zero during commit validation**. [Chart exports/helper][chart], [sealed scale types][scale-sealed]
 
 ```rust
 #[derive(Clone)]
@@ -689,7 +783,7 @@ struct Slice { value:f32, color:Hsla, label:String, leader:Hsla,
 struct FlowNode { label:String,color:Hsla,value_label:Option<String>,labels:Vec<FlowLabel> }
 ```
 
-DTO 不必包含 Rust-only Hsla/Background/Slot；wire 为 ColorSpec/BackgroundSpec、slot index，经 validate/mount 编译成上述 Datum。统一 `BackgroundSpec` 至少覆盖 solid、linear gradient 两个 color stop、angle；bounds-dependent gradient 用一个明确枚举 `barLocal/chartRange`，在 Rust 闭包中用上游 `chart_to_bar` 计算。`unknown JSON field` / `function source` / `eval` 都不需要。
+DTOs need no Rust-only Hsla/Background/Slot: encode ColorSpec/`BackgroundSpec` and slot indices, then validate/compile at mount into native data. `BackgroundSpec` should cover solid and two-stop linear gradients with angle. Bounds-dependent gradients use an explicit `barLocal/chartRange` enum and upstream `chart_to_bar` inside Rust. No unknown JSON fields, `function source`, or `eval` are needed.
 
 ```rust
 fn line_chart(p: &LineProps,id:ElementId) -> AnyElement {
@@ -749,7 +843,7 @@ fn pie_chart(p:&PieProps)->AnyElement {
         .inner_radius(p.inner_radius).outer_radius(p.outer_radius).pad_angle(p.pad_angle)
         .label_color(p.label_color.native()).label_gap(p.label_gap);
     if p.labels { c=c.label(|d:&Slice|d.label.clone().into()).label_line_color(|d:&Slice|d.leader); }
-    // 若启用 per-slice 半径，DTO 校验必须补全全部 slice 的半径值。
+    // Per-slice radius mode requires validated radii for every slice.
     if p.per_slice_radii {
         c=c.inner_radius_fn(|a|a.data.inner_radius.unwrap())
             .outer_radius_fn(|a|a.data.outer_radius.unwrap());
@@ -796,40 +890,96 @@ fn sankey_chart(p:&SankeyProps)->AnyElement {
 }
 ```
 
-每个 renderer 的 p 已包含对应 builder 表示的全部功能，建议 JS DTO 分别与其字段一一对应，不弄一个能接收任意 chart 属性的大字典。Area/Radar series 数组的 `name/stroke/fill/curve` 必须按索引齐全填入，每行 values 长度等于 series 数量。不能把缺失 series 填零，这会改变业务数据。Line/Area/Bar/Radar 只有设稳定 `.id` 才有 native hover tooltip；Candlestick/Pie/Sankey 当前没有公开 interactive ID/tooltip setter，不能宣称原生已有。[Line][line]、[Area][area]、[Bar][bar]、[Candle][candle]、[Pie][pie]、[Radar][radar]、[Sankey][sankey]
+Each renderer's p includes its builder capabilities. Give each chart a corresponding DTO instead of an arbitrary property dictionary. Area/Radar series `name/stroke/fill/curve` values and row lengths must align with the series array. Missing series cannot be filled with zeros without changing domain data. Line/Area/Bar/Radar need stable IDs for native hover tooltips. Candlestick/Pie/Sankey expose no interactive ID/tooltip setter in this revision. [Line][line], [Area][area], [Bar][bar], [Candle][candle], [Pie][pie], [Radar][radar], [Sankey][sankey]
 
-Radar custom label 的 `Fn(&T)->RadarLabel` 没有 Window/App，所以 `Slot.clone().into_any_element()` 是正确延迟入口：后续 native prepaint 再布局 label 子树；不能在 `.label` 中同步调 JS。源文件明确 `Plot::prepaint` 布局标签，`paint` 不允许进行 layout。[Plot trait][plot]
+Radar's Fn(&T)→RadarLabel receives no Window/App, so `Slot.clone().into_any_element()` is the correct deferred entrypoint. Native prepaint later lays out the label subtree; label cannot call JavaScript synchronously. `Plot::prepaint` handles label layout, while `paint` may not perform layout. [Plot trait][plot]
 
-更新：Charts 无长期 Entity state，保留 stable host ID；props 或 native theme 改变时重建相应 lightweight plot，renderer 由 `IntoPlot` 管布局/paint。大型数据可在 mount/update 编译 datum，用 `Rc<Row>` 传递减轻每帧 String clone，但不要在每个 mouse move 重新跨线程传整份数据。Sankey 的布局 topology/relaxation 随数据与 bounds 变化，若需要缓存，key 至少包含 data revision、bounds、nodeWidth/padding/align/iterations/valueScale 与文本样式。
+Charts have no persistent Entity state: retain stable Host Node IDs and rebuild lightweight plots for prop/theme changes through `IntoPlot` layout/paint. Large datasets can compile during mount/update and use `Rc<Row>` to reduce String cloning, without retransmitting all data on mouse moves. Sankey topology/relaxation depends on data and bounds; any cache key must include data revision, bounds, nodeWidth/padding/align/iterations/valueScale, and text styles.
 
-输入检查：所有数值 finite；tickMargin≥1；图表尺寸有界；pie 非负 value/半径且 inner≤outer；OHLC low≤min(open,close)≤max(open,close)≤high；Sankey source/target 有效、nonnegative finite value、graph acyclic（Sankey::topology 返回具体错误）；iterations 有边界，禁止用户 DTO 让 paint 任意多次 relaxation。[Sankey math][sankey-math]
+Validate finite numbers, tickMargin≥1, bounded dimensions, nonnegative pie values/radii with inner≤outer, OHLC low≤min(open,close)≤max(open,close)≤high, valid Sankey source/target, nonnegative finite flow, and acyclic graphs with concrete topology errors. Bound iterations so user DTOs cannot cause arbitrary relaxation work in paint. [Sankey mathematics][sankey-math]
 
-## 9. Plot 原语完整覆盖方式
+## 9. Complete Plot primitive coverage
 
-`Plot` 至少实现 `paint(&mut self,Bounds<Pixels>,&mut Window,&mut App)`；可覆写 `prepaint()->Vec<AnyElement>`, `id()->Option<ElementId>`, `tooltip_state(...)`, `tooltip(...)`。`#[derive(IntoPlot)]` 提供 IntoElement。原语不是传统 JSX children，可暴露 `Plot { primitives: PlotPrimitive[] }`，也可生成 `Plot.Line` 等 typed child declarations，由 wrapper 编译为该 DTO。两种 TS 写法必须汇合为同一原生 painter。[Plot][plot]
+`Plot` requires `paint(&mut self,Bounds<Pixels>,&mut Window,&mut App)` and may override prepaint()→Vec<AnyElement>, id()→Option<ElementId>, tooltip_state, and tooltip. `#[derive(IntoPlot)]` supplies IntoElement. Primitives are not ordinary JSX children. Expose `Plot { primitives: PlotPrimitive[] }` or typed declarations such as `Plot.Line` compiled into that DTO; both syntaxes converge on one native painter. [`Plot`][plot]
 
-完整可表示的 DTO 变体：
+Complete representable DTO variants:
 
 ```ts
 type PlotPrimitive =
- | {kind:"axis";x?:number;y?:number;xAxis:boolean;yAxis:boolean;
-    xLabels:AxisTextSpec[];yLabels:AxisTextSpec[];xLabelSide:"start"|"end";yLabelSide:"start"|"end";stroke:ColorSpec}
- | {kind:"grid";x:number[];y:number[];stroke:ColorSpec;dash:number[]}
- | {kind:"labels";items:TextSpec[]}
- | {kind:"line";points:PointSpec[];stroke:BackgroundSpec;strokeWidth:number;curve:Curve;
-    dots:boolean;dotSize:number;dotFill:ColorSpec;dotStroke?:ColorSpec}
- | {kind:"area";points:PointSpec[];baseline:number;fill:BackgroundSpec;stroke:BackgroundSpec;curve:Curve}
- | {kind:"bar";rows:{cross:number|null;base:number;value:number|null;fill:BackgroundSpec;labels:TextSpec[]}[];
-    alignment:"top"|"bottom"|"left"|"right";bandWidth:number;cornerRadii:CornersSpec}
- | {kind:"radialLine";points:{angle:number|null;radius:number|null}[];closed:boolean;fill:BackgroundSpec;
-    stroke:BackgroundSpec;strokeWidth:number;dots:boolean;dotSize:number;dotFill:ColorSpec;dotStroke?:ColorSpec}
- | {kind:"arc";startAngle:number;endAngle:number;padAngle:number;innerRadius:number;outerRadius:number;fill:ColorSpec};
-type PointSpec={x:number|null;y:number|null};
-type TextSpec={text:string;x:number;y:number;color:ColorSpec;fontSize:number;fontWeight:number;align:"left"|"center"|"right"};
-type AxisTextSpec={text:string;tick:number;color:ColorSpec;fontSize:number;align:"left"|"center"|"right"};
+  | {
+      kind: "axis";
+      x?: number;
+      y?: number;
+      xAxis: boolean;
+      yAxis: boolean;
+      xLabels: AxisTextSpec[];
+      yLabels: AxisTextSpec[];
+      xLabelSide: "start" | "end";
+      yLabelSide: "start" | "end";
+      stroke: ColorSpec;
+    }
+  | { kind: "grid"; x: number[]; y: number[]; stroke: ColorSpec; dash: number[] }
+  | { kind: "labels"; items: TextSpec[] }
+  | {
+      kind: "line";
+      points: PointSpec[];
+      stroke: BackgroundSpec;
+      strokeWidth: number;
+      curve: Curve;
+      dots: boolean;
+      dotSize: number;
+      dotFill: ColorSpec;
+      dotStroke?: ColorSpec;
+    }
+  | { kind: "area"; points: PointSpec[]; baseline: number; fill: BackgroundSpec; stroke: BackgroundSpec; curve: Curve }
+  | {
+      kind: "bar";
+      rows: { cross: number | null; base: number; value: number | null; fill: BackgroundSpec; labels: TextSpec[] }[];
+      alignment: "top" | "bottom" | "left" | "right";
+      bandWidth: number;
+      cornerRadii: CornersSpec;
+    }
+  | {
+      kind: "radialLine";
+      points: { angle: number | null; radius: number | null }[];
+      closed: boolean;
+      fill: BackgroundSpec;
+      stroke: BackgroundSpec;
+      strokeWidth: number;
+      dots: boolean;
+      dotSize: number;
+      dotFill: ColorSpec;
+      dotStroke?: ColorSpec;
+    }
+  | {
+      kind: "arc";
+      startAngle: number;
+      endAngle: number;
+      padAngle: number;
+      innerRadius: number;
+      outerRadius: number;
+      fill: ColorSpec;
+    };
+type PointSpec = { x: number | null; y: number | null };
+type TextSpec = {
+  text: string;
+  x: number;
+  y: number;
+  color: ColorSpec;
+  fontSize: number;
+  fontWeight: number;
+  align: "left" | "center" | "right";
+};
+type AxisTextSpec = {
+  text: string;
+  tick: number;
+  color: ColorSpec;
+  fontSize: number;
+  align: "left" | "center" | "right";
+};
 ```
 
-`Line/Area/RadialLine` 的 accessor 用 `Option<f32>`；DTO 里的 null 明确表示缺失点。不要把 null 变成 0。Axis 的 builder **先 x/y 和 labelSide，再 x/y_label**，后者调用当时就计算文本位置。[Axis][axis]、[Shapes][shapes]
+`Line/Area/RadialLine` accessors use `Option<f32>`; DTO null means a missing point, never zero. Configure Axis x/y and labelSide **before x/y_label**, which computes text position immediately. [Axis][axis], [Shapes][shapes]
 
 ```rust
 #[derive(IntoPlot)]
@@ -864,7 +1014,7 @@ impl Plot for NativePlot {
                     .cross(|d:&NativeBarRow|d.cross).base(|d:&NativeBarRow|d.base)
                     .value(|d:&NativeBarRow|d.value).band_width(p.band_width)
                     .fill(|d:&NativeBarRow,_,_|d.fill).label(|d:&NativeBarRow,origin|{
-                        // label callback 的 origin 是该 bar 的 anchor；DTO 文本坐标是相对此 anchor。
+                        // The label callback origin is the bar anchor; DTO text coordinates are relative to it.
                         d.labels.iter().map(|l|plot_text_at(l,origin)).collect()
                     }).corner_radii(p.corner_radii).paint(&bounds,window,cx),
                 NativePrimitive::RadialLine(p)=>{
@@ -888,12 +1038,12 @@ impl Plot for NativePlot {
 }
 ```
 
-`Plot tooltip` 的独立视觉 DTO 可映射原生 `tooltip::Tooltip::new(cursor,within)`→title/row/gap/cross_line/dots/appearance/children；`CrossLine::new(point)`→band/horizontal/both/height/width/span/h_span；`Dot::new(point)`→size/stroke/fill。这些都实现 RenderOnce，可包普通 element，但需明确坐标为 plot-local、仅在 overlay 中使用。自定义 tooltip 的 native hit-test 用 index/几何 DTO，不可同步调用 JS。[Plot tooltip][plot-tooltip]
+`Plot tooltip` DTOs can map `tooltip::Tooltip::new(cursor,within)` with title/row/gap/cross_line/dots/appearance/children, `CrossLine::new(point)` with band/horizontal/both/height/width/span/h_span, and `Dot::new(point)` with size/stroke/fill. All are RenderOnce and can wrap as elements, with explicitly plot-local coordinates and overlay-only usage. Custom tooltip hit testing uses native index/geometry DTOs, never synchronous JavaScript. [`Plot tooltip`][plot-tooltip]
 
-计算对象可用 typed `ViewCommand` 或 module functions，返回数据并由 JS 重用：
+Expose computation objects as typed ViewCommands or module functions returning reusable data:
 
 ```rust
-// Scale 的 domain/range、tick、nearest 是计算，不应生成一个空屏幕 JSX 组件。
+// Scale domain/range, ticks, and nearest are computation, not empty visual JSX components.
 let linear=ScaleLinear::new(domain_f64,range_f32);
 let ticks:Vec<Option<f32>>=values.iter().map(|v|linear.tick(v)).collect();
 let point=ScalePoint::new(domain_strings,range_f32);
@@ -901,10 +1051,10 @@ let nearest=point.least_index(cursor);
 let band=ScaleBand::new(domain_strings,range_f32).padding_inner(inner).padding_outer(outer);
 let width=band.band_width();
 let ordinal=ScaleOrdinal::new(domain_strings,range_colors);
-let color=ordinal.map(&value); // unknown(...) 可显式配置。
+let color=ordinal.map(&value); // unknown(...) can be configured explicitly.
 
 let pie=Pie::new().value(|d:&f32|*d).start_angle(start).end_angle(end).pad_angle(pad);
-let arcs=pie.arcs(&values); // 返回 DTO index/value/startAngle/endAngle/padAngle，不携带 &'a T。
+let arcs=pie.arcs(&values); // Return index/value/startAngle/endAngle/padAngle DTOs without &'a T.
 
 let stacked=Stack::new().data(rows).keys(keys)
     .value(|row:&BTreeMap<String,f32>,key|row.get(key).copied()).series();
@@ -912,46 +1062,75 @@ let stacked=Stack::new().data(rows).keys(keys)
 
 let sankey=Sankey::new().node_width(width).node_padding(padding).node_align(align)
     .iterations(iterations).value_scale(scale).size(canvas_w,canvas_h);
-let graph=sankey.layout(node_count,&links)?; // typed error，不吞 graph validation failure。
+let graph=sankey.layout(node_count,&links)?; // Preserve typed graph-validation errors.
 ```
 
-`Sankey::topology(node_count,&links)` 可与 `layout_from(graph)` 分离缓存拓扑；`sankey_link_path(&SankeyNodeLayout,&SankeyNodeLayout,&SankeyLinkLayout,min_width:f32,origin:Point<Pixels>)->Option<Path<Pixels>>` 返回 native Path，不跨 wire；wire 只传 graph node/link geometry。`Plot::polygon` 也返回 native Path，只能作为 native painter 的 helper，不是可序列化组件。[Scale][scale]、[Pie/Stack/Arc][shapes]、[Sankey math][sankey-math]
+`Sankey::topology(node_count,&links)` can be cached separately from `layout_from(graph)`. sankey_link_path(&SankeyNodeLayout,&SankeyNodeLayout,&SankeyLinkLayout,min_width:f32,origin:Point<Pixels>)→Option<Path<Pixels>> returns a native Path that does not cross the wire; send graph geometry only. `Plot::polygon` likewise returns a native painter helper, not a serializable component. [Scale][scale], [Pie/Stack/Arc][shapes], [Sankey mathematics][sankey-math]
 
-这些计算命令的返回 DTO 可以完整保留上游公开数据：
+Computation result DTOs can preserve the complete upstream public data:
 
 ```ts
-type ArcDataDto={index:number;value:number;startAngle:number;endAngle:number;padAngle:number};
-type StackDto<T>={key:string;index:number;points:{y0:number;y1:number;data:T}[]}[];
-type SankeyGraphDto={
-  nodes:{index:number;value:number;depth:number;height:number;layer:number;
-    x0:number;x1:number;y0:number;y1:number;sourceLinks:number[];targetLinks:number[]}[];
-  links:{index:number;source:number;target:number;value:number;y0:number;y1:number;
-    width:number;sourceWidth:number;targetWidth:number}[];
+type ArcDataDto = { index: number; value: number; startAngle: number; endAngle: number; padAngle: number };
+type StackDto<T> = { key: string; index: number; points: { y0: number; y1: number; data: T }[] }[];
+type SankeyGraphDto = {
+  nodes: {
+    index: number;
+    value: number;
+    depth: number;
+    height: number;
+    layer: number;
+    x0: number;
+    x1: number;
+    y0: number;
+    y1: number;
+    sourceLinks: number[];
+    targetLinks: number[];
+  }[];
+  links: {
+    index: number;
+    source: number;
+    target: number;
+    value: number;
+    y0: number;
+    y1: number;
+    width: number;
+    sourceWidth: number;
+    targetWidth: number;
+  }[];
 };
-type SankeyErrorDto={kind:"missingNode";index:number}|{kind:"circularLink"};
-type PlotTooltipDto={
-  cursor:{x:number;y:number};within:{width:number;height:number};title?:string;gap:number;appearance:boolean;
-  rows:{color:ColorSpec;label:string;value:string}[];
-  crossLine?:{point:{x:number;y:number};direction:"vertical"|"horizontal"|"both";
-    bandThickness?:number;verticalSpan?:{start:number;length:number};horizontalSpan?:{start:number;length:number}};
-  dots:{point:{x:number;y:number};size:number;stroke:ColorSpec;fill:ColorSpec}[];
+type SankeyErrorDto = { kind: "missingNode"; index: number } | { kind: "circularLink" };
+type PlotTooltipDto = {
+  cursor: { x: number; y: number };
+  within: { width: number; height: number };
+  title?: string;
+  gap: number;
+  appearance: boolean;
+  rows: { color: ColorSpec; label: string; value: string }[];
+  crossLine?: {
+    point: { x: number; y: number };
+    direction: "vertical" | "horizontal" | "both";
+    bandThickness?: number;
+    verticalSpan?: { start: number; length: number };
+    horizontalSpan?: { start: number; length: number };
+  };
+  dots: { point: { x: number; y: number }; size: number; stroke: ColorSpec; fill: ColorSpec }[];
 };
 ```
 
-Sankey graph `value` 是 layout value-space；`valueScale:"sqrt"` 时并非 raw business flow。原始 links 保留原值，图表 `value_label` callback 得到 raw throughput；DTO 应分别命名/说明，不能把 scaled graph.value 显示为业务流量。[Sankey math][sankey-math]
+Sankey graph `value` is in layout `value`-space; with `valueScale:"sqrt"`, it is not raw domain flow. Original links retain raw values, and chart `value_label` receives raw throughput. Name and document these separately instead of displaying scaled graph.`value` as domain flow. [Sankey mathematics][sankey-math]
 
-## 10. 必留验收案例
+## 10. Essential acceptance cases
 
-1. Dialog A→Dialog B；卸载 A 时 B 保留且能正常关闭/恢复 focus；再退休 surface 时没有遮罩/focus trap 残留。异步 ok 的过期 resolve 不得关闭 B。
-2. Popover 正打开时 content 的 JS signal 更新，连续多帧仍可见新文本；关闭后复开；owner 删除后 retained closure 不能绘制旧 child。
-3. Popup submenu keyboard 左右/escape、disabled item、点击 item 回到正确 focus；打开状态 props 更新沿用 PopupMenu identity。
-4. Dock tabs drag 到 split/tiles，pane native Entity 与 JS child 状态保留；dump/load 包含 pane ID/data/tiles bounds；关闭 pane 发 Removed，移动 pane 不发 Removed。
-5. Settings 自定义 disabled、reset、异步值 ack；搜索后编辑，以及索引变化时不会编辑错误 item。
-6. 七种 chart 各一个真实数据/native screenshot；Area/Radar 多 series 索引正确；Radar label JSX；Bar 双坐标 gradient；tickMargin=0 在 commit 前明确拒绝，Sankey cycle/invalid link 有具体错误。
+1. Open Dialog A then B. Unmounting A preserves B and its closure/focus restoration; retiring the Surface leaves no backdrop or focus trap. Stale async resolve from A cannot close B.
+2. Update a Popover's JavaScript content signal while open and verify new text across multiple frames, then close/reopen. Retained closures cannot render old children after owner removal.
+3. Exercise submenu left/right/Escape navigation, disabled items, and correct focus after selection. Open-menu prop updates preserve PopupMenu identity.
+4. Drag Dock tabs into splits/tiles while preserving native Entities and JavaScript child state. dump/load includes pane IDs/data/tile bounds. Closing emits Removed; moving does not.
+5. Exercise custom Settings disabled/reset/async acknowledgement, editing after search, and identity through index changes.
+6. Use real data and native screenshots for all seven charts, correct Area/Radar series alignment, Radar JSX labels, and Bar gradients in both coordinate spaces. Reject tickMargin=0 before commit and return concrete Sankey cycle/invalid-link errors.
 
-这些是桥接新增行为的关键测试。没有为每个 builder setter 单独造镜像测试。UI/焦点/绘制验收需要真实 native surface，本文没有执行它们。
+These are key checks for new bridge behavior, not mirrored tests for every builder setter. UI/focus/painting acceptance requires a real native surface; this report did not execute those checks.
 
-## 源码索引
+## Source index
 
 [dialog]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/dialog/dialog.rs:237
 [dialog-render]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/dialog/dialog.rs:480

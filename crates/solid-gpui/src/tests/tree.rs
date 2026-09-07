@@ -751,6 +751,76 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
 }
 
 #[test]
+fn rejected_patch_restores_created_nodes_and_ancestor_text_caches() {
+    let mut raw = Node::new(4, 3, 0, KIND_RAW_TEXT);
+    raw.text = Some("before".into());
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![
+                Node::new(1, 0, 0, KIND_VIEW),
+                Node::new(2, 1, 0, KIND_TEXT),
+                Node::new(3, 2, 0, KIND_TEXT),
+                raw,
+            ],
+        ))
+        .unwrap();
+    let before = store.clone();
+    let mut created = Node::new(5, 3, 1, KIND_RAW_TEXT);
+    created.text = Some(" appended".into());
+    let mut recreated = Node::new(5, 3, 0, KIND_RAW_TEXT);
+    recreated.text = Some(" recreated".into());
+    let valid_operations = vec![
+        PatchOperation::Update {
+            id: 4,
+            mask: UPDATE_TEXT,
+            style: None,
+            text: Some("after".into()),
+            listener_id: 0,
+            host_properties: None,
+            accessibility: None,
+            focusable: false,
+            selectable: false,
+            tooltip: None,
+            accepts_pointer_move: false,
+        },
+        PatchOperation::Create(created),
+        PatchOperation::Move {
+            id: 4,
+            parent_id: 2,
+            index: 1,
+        },
+        PatchOperation::Delete { id: 3 },
+        PatchOperation::Create(Node::new(3, 2, 1, KIND_TEXT)),
+        PatchOperation::Create(recreated),
+    ];
+    // Each prefix changes a different combination of identities, sibling indexes,
+    // and derived text. Rejection must restore the entire published description.
+    for length in 1..=valid_operations.len() {
+        let mut operations = valid_operations[..length].to_vec();
+        operations.push(PatchOperation::Delete { id: 999 });
+        assert!(
+            store
+                .apply_patch(Patch::new(7, 3, 1, 2, operations))
+                .is_err()
+        );
+        assert_eq!(store, before, "rollback after {length} accepted operations");
+    }
+    store
+        .apply_patch(Patch::new(7, 3, 1, 2, valid_operations))
+        .unwrap();
+    assert_eq!(
+        store.get(2).unwrap().text_content.as_deref(),
+        Some("after recreated")
+    );
+    assert_eq!(
+        store.get(3).unwrap().text_content.as_deref(),
+        Some(" recreated")
+    );
+}
+
+#[test]
 fn patch_stats_scale_with_changed_nodes() {
     let mut nodes = vec![Node::new(1, 0, 0, KIND_VIEW)];
     for id in 2..2002 {
@@ -1177,6 +1247,65 @@ fn pressable_focusable_patch_is_accepted() {
     );
     store.apply_patch(patch).expect("Pressable focusable patch");
     assert!(store.get(2).unwrap().focusable);
+}
+
+#[test]
+fn interaction_patches_validate_retained_capabilities_before_publishing() {
+    let mut text = Node::new(2, 1, 0, KIND_TEXT);
+    text.listener_id = 2;
+    text.focusable = true;
+    let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
+    raw.text = Some("label".into());
+    let mut view = Node::new(4, 1, 1, KIND_VIEW);
+    view.listener_id = 4;
+    view.accepts_pointer_move = true;
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(root_snapshot(
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), text, raw, view],
+        ))
+        .unwrap();
+    let before = store.clone();
+    let update = |id, mask, focusable| PatchOperation::Update {
+        id,
+        mask,
+        style: None,
+        text: None,
+        listener_id: 0,
+        host_properties: None,
+        accessibility: None,
+        focusable,
+        selectable: false,
+        tooltip: None,
+        accepts_pointer_move: false,
+    };
+    for operation in [
+        update(2, UPDATE_LISTENER, false),
+        update(4, UPDATE_LISTENER, false),
+        update(3, UPDATE_FOCUSABLE, true),
+    ] {
+        assert!(
+            store
+                .apply_patch(Patch::new(7, 3, 1, 2, vec![operation]))
+                .is_err()
+        );
+        assert_eq!(store, before);
+    }
+    store
+        .apply_patch(Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![
+                update(2, UPDATE_LISTENER | UPDATE_FOCUSABLE, false),
+                update(4, UPDATE_LISTENER | UPDATE_POINTER_MOVE, false),
+            ],
+        ))
+        .unwrap();
+    assert!(!store.get(2).unwrap().focusable);
+    assert!(!store.get(4).unwrap().accepts_pointer_move);
 }
 
 #[test]

@@ -3,7 +3,8 @@
 SolidJS universal renderer for native GPUI surfaces.
 
 ```ts
-import { Text, View, createRoot, StdioTransport } from "@solid-gpui/core";
+import { Text, View, createRoot } from "@solid-gpui/core";
+import { StdioTransport } from "@solid-gpui/core/stdio";
 import { createComponent, createSignal } from "@solid-gpui/core/runtime";
 
 function App() {
@@ -18,10 +19,43 @@ createRoot(new StdioTransport()).render(() => createComponent(App, {}));
 
 Host rendering is transactional: the first update emits a Snapshot and later signal updates emit incremental Patches. GPUI owns native layout, input, focus, and painting.
 
-For JSX, use the Solid universal transform with `moduleName: "@solid-gpui/core/runtime"`. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
+For JSX, use `@solid-gpui/core/vite` or `solid-gpui-build`. Both use the pinned official Oxc-based Solid universal compiler; Babel is not required. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
 
 Launch direct Bun entrypoints with `bun --conditions=browser run app.ts` so
 `solid-js` resolves the client reactive runtime.
+
+## Runtime selection
+
+Bun supports Rust-led applications and applications whose business logic and host
+services run in Bun. QuickJS provides a lightweight embedded UI runtime for
+Rust-led applications. Rust owns GPUI rendering in every mode.
+
+`mountApplication` requires an explicit `transport` factory and owns its lifetime:
+
+```tsx
+import { mountApplication, Text } from "@solid-gpui/core";
+import { EmbeddedTransport } from "@solid-gpui/core/embedded";
+
+mountApplication({
+  transport: () => new EmbeddedTransport(),
+  setup: () => ({ render: () => <Text>Hello from QuickJS</Text> }),
+});
+```
+
+Use `StdioTransport` from `@solid-gpui/core/stdio` for Bun, including embedded Bun.
+Use `EmbeddedTransport` for the QuickJS host bridge. All surfaces in an application
+share its connection.
+
+```sh
+solid-gpui-build --runtime quickjs app.tsx dist/app.js
+solid-gpui-host --runtime quickjs dist/app.js
+```
+
+The host must be compiled with Cargo feature `quickjs`. The bundle includes the
+Solid client runtime and must be a self-contained ES module. Node/Bun service
+imports and unresolved dynamic imports are rejected; expose Rust services through
+generated native commands. For Bun applications, build with `--runtime bun` and
+launch the result through the Bun host mode.
 
 ## Protocol
 

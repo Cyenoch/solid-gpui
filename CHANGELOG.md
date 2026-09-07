@@ -4,12 +4,18 @@
 
 ### Changed
 
+- Added an optional embedded QuickJS UI runtime for Rust-led applications, with bounded transport queues, cancellable scheduling, and the existing native protocol/command contract. Bun continues to support Rust-led and Bun-led applications.
+- Replaced the Babel JSX pipeline with the pinned official Solid/Oxc universal compiler shared by Bun, Vite, and the new `solid-gpui-build` CLI.
+- Replaced direct Prettier tooling with Oxfmt, preserving the existing formatting style and check commands; removed an unused generated-file formatter.
+- Moved process I/O exports to `@solid-gpui/core/stdio`, added the QuickJS `/embedded` transport, and made application transport ownership explicit.
+- Removed redundant renderer state, corrected callback and route reactivity, made native Patch rollback complete, and bounded foreground commit polling. Frame decoding is iterative and sibling reindexing avoids repeated vector copies.
+- Made maintained documentation and agent guidance English-first while preserving intentional Unicode input cases. Release preparation now enforces gates even for synchronized versions and restores every release file on failure.
 - Updated the runtime to the unified gpui-pre/platform 0.3.3 family and gpui-component 0.6.0, retaining Zed only as reference source.
 - Redesigned the 18-route Gallery with independent responsive navigation/content panes and generated native controls. Fixed the router flex parent and removed expensive content-derived flex sizing from the window-filling work area.
 - Preserved routed layout lifetime and sidebar scroll position across sibling navigation; expanded native scroll regression to live resize patches and Drag & Drop.
 - Corrected light-theme surfaces, icon/label button colors, fixed-color swatch contrast, and input placeholder readability.
 - Added reusable Rust component schema macros and typed ordinary Rust function exports with generated Promise clients, bounded InvokeNative commands, exact contract lookup and background execution.
-- Migrated API-surface inspection to the TypeScript 7 asynchronous compiler API and Babel preset declarations to Babel 8 types.
+- Migrated API-surface inspection to the TypeScript 7 asynchronous compiler API.
 
 - Replaced the previous renderer with a SolidJS universal host renderer backed by the client reactive runtime.
 - Renamed TypeScript packages, Rust crates, binaries, environment variables, scripts, workflows, and release artifacts to `solid-gpui`.
@@ -33,6 +39,7 @@
 
 ### Verification
 
+- The September 7 hardening and runtime work passes 78 Bun tests and 287 Rust tests (one documentation example ignored), strict Clippy, protocol goldens, 23-route native Gallery layout/scroll checks, both application bundle targets, and the host archive check. QuickJS tests execute compiled Solid JSX, routing, cancellation, redirects, and every Gallery page in the real VM. See `.scratch/production-hardening/report.md` for scope and remaining limits.
 - TypeScript package tests, workspace Rust tests, `bun run check`, and `bun run format` were run for the September 5 changes; see `docs/scroll-performance.md` for measured performance and native acceptance limits.
-- `bun run audit` remains blocked by three transitive maintenance advisories tracked in `.scratch/supply-chain/issues/04-gpui-component-maintenance.md`.
-- Full release qualification still includes `bun run ci`, `cargo check -p solid-gpui-host --features embedded-bun`, and `bun run example:smoke`; the focused results above are not a claim that all release gates passed.
+- `bun run audit` passed on September 7, including dependency advisories under the existing `deny.toml` policy and third-party notice verification. The September 5 maintenance-advisory report retains its historical evidence and a current recheck in `.scratch/supply-chain/issues/04-gpui-component-maintenance.md`.
+- Full release qualification includes `bun run ci`, `bun run task embedded-check`, and `bun run task host-candidate-smoke`; the focused results above are not a claim that all release gates passed.

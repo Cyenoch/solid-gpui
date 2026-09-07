@@ -77,7 +77,15 @@ export const ICON_NAMES = [
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 export type NodeKind =
-  "View" | "Text" | "Pressable" | "RawText" | "TextInput" | "VirtualList" | "Image" | "Extension" | "Icon";
+  | "View"
+  | "Text"
+  | "Pressable"
+  | "RawText"
+  | "TextInput"
+  | "VirtualList"
+  | "Image"
+  | "Extension"
+  | "Icon";
 
 export type ExtensionValue =
   | { readonly type: "bool"; readonly value: boolean }

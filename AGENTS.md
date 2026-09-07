@@ -6,6 +6,10 @@ When encountering design problems, actively refactor rather than compromise and 
 
 During development, there's no need to maintain compatibility with old designs or data structures—don't keep any historical wrappers.
 
+Use English for source comments, user-facing text, and maintained documentation.
+Keep optional translated documents in explicitly named copies (for example,
+`README.zh-CN.md`). Preserve intentional multilingual input and Unicode fixtures.
+
 ## Agent skills
 
 ### Issue tracker

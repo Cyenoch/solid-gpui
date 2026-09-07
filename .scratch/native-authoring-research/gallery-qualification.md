@@ -1,21 +1,30 @@
-# Embedded Gallery 原生验收
+# Embedded Gallery native acceptance
 
-2026-09-06，macOS，当前 dev 构建，`gpui-component` + `embedded-bun`。用本次 Vite production bundle 和本次重建的 Bun 动态库运行，临时 .app 仅用于原生自动化识别；不是发布包。
+2026-09-06, macOS, the development build with `gpui-component` + `embedded-bun`.
+The run used that investigation's Vite production bundle and rebuilt Bun dynamic
+library. A temporary .app enabled native automation discovery; it was not a
+release package.
 
-- Host SHA-256：`94a16cd217ad97d6233d021f0e05132631ab2bbf8286bd468945d7de7c4ef582`
-- Gallery bundle SHA-256：`4171c4f759fb6886d04a7b937d1b2f3656e606e6c2d1745efb957ce8f20eb54c`
-- Bun library SHA-256：`9e9831857148c6b013ef46a0534ba00ed49653dfbbd7b3e4cd1666d0dae303c0`
-- 启动入口：`examples/gallery-vite/dist/main.js`，`--runtime embedded`，实际 PID 84149。
-- 初始逻辑窗口 800×633；执行原生 zoom 后继续操作。截图为 CUA 返回的 1304×768 图像，不用截图像素反推逻辑窗口或设备缩放。
+- Host SHA-256: `94a16cd217ad97d6233d021f0e05132631ab2bbf8286bd468945d7de7c4ef582`
+- Gallery bundle SHA-256: `4171c4f759fb6886d04a7b937d1b2f3656e606e6c2d1745efb957ce8f20eb54c`
+- Bun library SHA-256: `9e9831857148c6b013ef46a0534ba00ed49653dfbbd7b3e4cd1666d0dae303c0`
+- Entrypoint: `examples/gallery-vite/dist/main.js`, `--runtime embedded`, actual PID 84149.
+- Initial logical window: 800×633, with further interaction after native zoom. CUA returned a 1304×768 screenshot; its pixels do not establish logical window size or device scale.
 
-实际操作：
+Observed interactions:
 
-1. 原生 Build workspace 按钮使进度从 0 到 20，Rust BuildBadge 显示 `Rust component · 1 builds`。
-2. Analyze in Rust 返回 `Untitled workspace`、`untitled-workspace` 和 20% 进度。
-3. 将原生输入设为空后再次调用，显示 Rust 的 `Workspace name must not be blank` 错误。
-4. 输入带空格的 `  Rust   Studio  ` 后再次调用，Rust 返回规范化名称 `Rust Studio` 和 slug `rust-studio`；错误已消失。
-5. 点击原生关窗按钮；后台清理后日志记录 `runtime terminated status=Shutdown`，应用进程退出，启动器返回 0。
+1. The native Build workspace button advanced progress from 0 to 20. Rust BuildBadge displayed `Rust component · 1 builds`.
+2. Analyze in Rust returned `Untitled workspace`, `untitled-workspace`, and 20% progress.
+3. Calling again with empty native input displayed Rust's `Workspace name must not be blank` error.
+4. Calling with `  Rust   Studio  ` returned the normalized name `Rust Studio` and slug `rust-studio`; the error disappeared.
+5. Clicking the native close button initiated background cleanup. The log recorded `runtime terminated status=Shutdown`, the application exited, and the launcher returned 0.
 
-[成功截图](gallery-embedded.jpg)、[启动与正常退出日志](gallery-embedded.log)、[协议记录](gallery-embedded.tap)。这是交互、业务往返和生命周期证据，不是滚动性能或显示帧率验收。
+[Success screenshot](gallery-embedded.jpg), [startup and normal-exit log](gallery-embedded.log),
+and [protocol recording](gallery-embedded.tap). These establish interaction,
+application round trips, and lifecycle behavior, not scrolling performance or
+display frame-rate acceptance.
 
-验收中还定位了宏把注入的 Clippy 属性计入契约摘要的问题：改为先捕获开发者声明，再添加编译辅助属性。经 canonical native-codegen 重建，SDK 与 Gallery 实际链接 Host 的组件摘要一致。
+The run also identified injected Clippy attributes being included in the macro's
+contract digest. The fix captures developer declarations before adding compiler
+support attributes. Regeneration through canonical native-codegen produced
+matching component digests for the SDK and the host actually linked by Gallery.

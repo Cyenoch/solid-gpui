@@ -40,8 +40,9 @@ The getter and function children are reactive reads. When `count` changes, the S
 ## Mount a root
 
 ```ts
-import { StdioTransport, createRoot } from "@solid-gpui/core";
+import { createRoot } from "@solid-gpui/core";
 import { createComponent } from "@solid-gpui/core/runtime";
+import { StdioTransport } from "@solid-gpui/core/stdio";
 import { Counter } from "./counter";
 
 const root = createRoot(new StdioTransport(), { surfaceId: 1, epoch: 1 });
@@ -52,7 +53,17 @@ Pass a producer to `root.render`. This ensures component creation occurs under t
 
 ## JSX
 
-JSX is optional. To use it, configure the Solid Babel transform for universal output and set its runtime module to `@solid-gpui/core/runtime`. Set TypeScript's `jsx` to `preserve` and `jsxImportSource` to `@solid-gpui/core`; the latter selects host element types and does not provide an automatic JSX runtime. The direct Bun Gallery uses the repository universal JSX preload; the Vite Gallery uses `@solid-gpui/core/vite`.
+JSX is optional. `@solid-gpui/core/vite`, the repository Bun preload, and
+`solid-gpui-build` share the official Oxc-based Solid universal transform with
+`@solid-gpui/core/runtime`. Set TypeScript's `jsx` to `preserve` and
+`jsxImportSource` to `@solid-gpui/core`; the latter selects host element types.
+The compiler is pinned to `@solidjs/compiler` 2.0.0-rc.6 while the application
+runtime remains Solid 1.9.15.
+
+For a Rust-led application using QuickJS, import `EmbeddedTransport` from
+`@solid-gpui/core/embedded` and build a self-contained ESM entry. See the
+[runtime selection](../README.md#runtime-choice) and
+[production bundle examples](hot-reload.md#production-bundles).
 
 ## Run Gallery
 

@@ -38,7 +38,7 @@ each seam:
   panic-hook setup and `crates/solid-gpui/src/renderer/paint/mod.rs`).
 - StdioTransport queues a `write=false` result until `drain`, bounds the queue,
   and terminates on synchronous write errors or stream close/error
-  (`packages/solid-gpui/src/transport.ts`). `SurfaceRouter` owns frame decode,
+  (`packages/solid-gpui/src/stdio.ts`). `SurfaceRouter` owns frame decode,
   event grouping, and route teardown before dispatch reaches a surface root.
 
 ## Decision

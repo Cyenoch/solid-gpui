@@ -12,7 +12,7 @@ const choices: N.ChoiceGroup[] = [
     items: [
       { key: "rust", label: "Rust", description: "Native application" },
       { key: "typescript", label: "TypeScript", description: "Reactive interface" },
-      { key: "chinese", label: "中文", description: "Unicode text" },
+      { key: "chinese", label: "Chinese (中文)", description: "Unicode text" },
     ],
   },
 ];
@@ -23,6 +23,7 @@ function EventLine(props: { value: string }): SolidChild {
 }
 
 export function NativeControlsShowcase(): SolidChild {
+  // Keep non-ASCII sample text to exercise native editing and font fallback.
   const [text, setText] = createSignal("Edit me · 中文");
   const [checked, setChecked] = createSignal(true);
   const [selected, setSelected] = createSignal<string | null>("rust");
@@ -249,7 +250,7 @@ export function NativeSettingsShowcase(): SolidChild {
       <SectionHeader
         title="Native Settings"
         tag="gpui-component"
-        description="Stable page and group keys, native search and composed Solid controls."
+        description="Search preferences, edit your profile and reset changed settings."
       />
       <Card title="Application preferences">
         <N.Settings
@@ -315,7 +316,7 @@ export function NativeDockShowcase(): SolidChild {
       <SectionHeader
         title="Native Dock & Tiles"
         tag="gpui-component"
-        description="Native pane entities own dragging, tabs, tile history and layout persistence."
+        description="Rearrange tabs, resize panes and save or restore your workspace layout."
       />
       <Card title="Workspace layout">
         <DenseRow gap={10}>

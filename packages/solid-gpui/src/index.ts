@@ -105,19 +105,9 @@ export {
 } from "./renderer";
 export { createSurfaceHost, SurfaceIdReusedError, type SurfaceHost, type SurfaceHostOptions } from "./surface-host";
 export {
-  DEFAULT_MAX_PENDING_BYTES,
   MemoryTransport,
-  StdioTransport,
   TransportTerminatedError,
-  createProcessTerminationHandler,
-  type ByteInput,
-  type ByteInputEventListener,
-  type ByteInputListener,
-  type ByteOutput,
-  type ByteOutputEventListener,
-  type DrainListener,
-  type ExitFunction,
-  type StdioTransportOptions,
+  type DisposableTransport,
   type Transport,
   type TransportChunk,
   type TransportListener,

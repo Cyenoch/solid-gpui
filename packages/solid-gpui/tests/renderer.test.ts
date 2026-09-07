@@ -10,11 +10,12 @@ import {
   View,
   VirtualList,
   createExtensionElement,
+  createHostElement,
   createRoot,
   createSurfaceHost,
 } from "../src/index";
 import { Envelope, type Body as WireBody } from "../src/protocol/generated/protocol";
-import { COMMAND_INVOKE_NATIVE, MAX_NATIVE_CALL_BYTES, encodeFrame } from "../src/protocol";
+import { COMMAND_INVOKE_NATIVE, MAX_NATIVE_CALL_BYTES, encodeFrame, type Event } from "../src/protocol";
 import { batch, createComponent, createSignal, onCleanup } from "../src/runtime";
 import { TransportTerminatedError, type Transport } from "../src/transport";
 import { hostConfig, withRoot } from "../src/renderer/host-config";
@@ -550,6 +551,74 @@ test("previous-revision listener events invoke the callback that produced that r
   root.unmount();
 });
 
+test("layout, file-drop, and input callbacks retain the generation that owns each event", async () => {
+  const cases: readonly {
+    kind: "View" | "TextInput";
+    prop: string;
+    payload: Event["payload"];
+  }[] = [
+    { kind: "View", prop: "onLayout", payload: { type: "layout", x: 0, y: 0, width: 20, height: 20 } },
+    { kind: "View", prop: "onExternalFileDrop", payload: { type: "external-file-drop", paths: ["/tmp/item"] } },
+    { kind: "TextInput", prop: "onSubmitEditing", payload: { type: "submit", text: "value" } },
+    {
+      kind: "TextInput",
+      prop: "onChangeText",
+      payload: {
+        type: "change",
+        data: {
+          text: "value",
+          selectionStart: 5,
+          selectionEnd: 5,
+          reversed: false,
+          markedStart: null,
+          markedEnd: null,
+          editSeq: 1,
+        },
+      },
+    },
+  ];
+  for (const { kind, prop, payload } of cases) {
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 66 });
+    const calls: string[] = [];
+    let setCallback!: Setter<() => void>;
+    root.render(() => {
+      const [callback, set] = createSignal<() => void>(() => calls.push("old"));
+      setCallback = set;
+      return createHostElement(kind, {
+        get [prop]() {
+          return callback();
+        },
+      });
+    });
+    try {
+      const snapshot = body(transport.submitted[0]!);
+      if (snapshot.tag !== 1) throw new Error("expected snapshot");
+      const node = snapshot.value.nodes!.find((value) => value.listenerId !== 0)!;
+      setCallback(() => () => calls.push("new"));
+      await Promise.resolve();
+      expect(transport.submitted).toHaveLength(2);
+      for (const revision of [1, 2]) {
+        transport.push(
+          encodeFrame({
+            type: "event",
+            surfaceId: 66,
+            epoch: 1,
+            revision,
+            sequence: revision,
+            nodeId: node.id!,
+            listenerId: node.listenerId!,
+            payload,
+          }),
+        );
+      }
+      expect(calls).toEqual(["old", "new"]);
+    } finally {
+      root.unmount();
+    }
+  }
+});
+
 test("failed host updates roll the private graph back before a later commit", async () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 61 });
@@ -758,6 +827,9 @@ test("host prop runtime validation covers Pressable, TextInput, and accessibilit
   );
   expect(() => root.render(() => createComponent(View, { toString: 1 } as never))).toThrow(
     "Unsupported View prop: toString",
+  );
+  expect(() => root.render(() => createComponent(View, { tooltip: "hidden\u0085control" }))).toThrow(
+    "View tooltip must be a non-empty safe string",
   );
   root.unmount();
 });

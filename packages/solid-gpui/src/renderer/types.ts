@@ -11,7 +11,14 @@ import type { ExtensionDescriptor, ExtensionEvent, ExtensionEventHandler } from 
 import type { StyleProp } from "../style";
 
 export type SolidChild =
-  HostNodeInternal | (() => SolidChild) | string | number | boolean | null | undefined | readonly SolidChild[];
+  | HostNodeInternal
+  | (() => SolidChild)
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly SolidChild[];
 
 export interface RootOwner {
   invalid: boolean;
@@ -31,7 +38,15 @@ export interface RootOwner {
   markDeleted(node: HostNodeInternal): void;
 }
 export type HostKind =
-  "View" | "Text" | "Pressable" | "TextInput" | "RawText" | "VirtualList" | "Image" | "Extension" | "Icon";
+  | "View"
+  | "Text"
+  | "Pressable"
+  | "TextInput"
+  | "RawText"
+  | "VirtualList"
+  | "Image"
+  | "Extension"
+  | "Icon";
 export type ImageObjectFit = "fill" | "contain" | "cover" | "scaleDown" | "none";
 export type PressEventType = "press";
 

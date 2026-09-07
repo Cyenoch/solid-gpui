@@ -31,6 +31,7 @@ chrono = { version = "0.4", optional = true }
 gpui-platform = { workspace = true, features = ["font-kit"], optional = true }
 gpui-performance = { path = "../gpui-performance", optional = true }
 solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
+rquickjs = { version = "=0.12.2", features = ["array-buffer"], optional = true }
 
 [features]
 default = ["host"]
@@ -38,6 +39,7 @@ host = ["dep:gpui-platform"]
 gpui-component = ["host", "dep:gpui-component", "dep:gpui-base", "dep:gpui-kit-assets", "dep:chrono", "dep:gpui-performance"]
 frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
+quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
 
 [target.'cfg(target_os = "linux")'.dependencies]

@@ -1,63 +1,88 @@
 ---
 name: gpui-performance
-description: GPUI 性能开发与诊断。用于设计原生布局、列表、异步任务、缓存或动画，以及排查滚动卡顿、resize 退化、FPS 和输入延迟；solid-gpui 应用同时读取 solid-gpui skill。
+description: Design and diagnose GPUI layout, rendering, lists, tasks, caches, and animations; investigate scrolling, resize regressions, FPS, and input latency. Also read solid-gpui for solid-gpui applications.
 ---
 
-# GPUI 性能
+# GPUI Performance
 
-## 先选分支
+## Choose a branch
 
-- **开发或重构**：执行步骤 1、2、4、5；修改前给出工作量与失效范围的设计。
-- **已有卡顿**：顺序执行全部步骤；用测量确定优化对象。
-- **只解释指标**：执行步骤 1、3、5 的证据解释部分，不改代码。
+- **Development or refactoring**: Follow steps 1, 2, 4, and 5. Describe work bounds
+  and invalidation scope before editing.
+- **Existing jank**: Follow every step in order. Select the optimization target
+  from measurements.
+- **Metric explanation only**: Follow steps 1, 3, and the evidence interpretation
+  part of step 5 without changing code.
 
-## 1. 固定实际环境
+## 1. Identify the actual environment
 
-读取目标的 Cargo.lock、feature 图、构建 profile 和窗口入口。区分项目实际链接的
-GPUI 与参考 Zed；源码建议须在链接版本中找到对应实现。
-读取 [源码与社区建议核对](references/sources.md)，仅跟进当前任务所需的源码入口。
+Read the target's Cargo.lock, feature graph, build profile, and window entry point.
+Distinguish the linked GPUI version from the Zed reference checkout. Verify source
+recommendations against the linked implementation. Read the
+[source and community guidance](references/sources.md), following only the source
+entry points needed for the task.
 
-**完成标准**：记录依赖版本/提交、运行二进制、构建配置、窗口尺寸/缩放、目标刷新率、
-触发动作和监视器开关；明确症状是首帧、持续滚动、resize 后、后台任务饥饿还是 GPU 问题。
+**Completion criterion**: Record dependency versions/commits, executable, build
+configuration, window size/scale, target refresh rate, trigger, and monitor state.
+Identify whether the symptom concerns the first frame, sustained scrolling,
+post-resize behavior, background-task starvation, or the GPU.
 
-## 2. 设计每帧工作与所有权
+## 2. Design per-frame work and ownership
 
-读取 [开发规则](references/development.md) 中相关分支。
+Read the relevant [development rules](references/development.md).
 
-- 标出 request_layout → prepaint → paint 的重复工作，给出内容规模增长时的工作量。
-- 为状态、滚动句柄、输入模型、任务和订阅指定生命周期；可见状态变化才通知对应实体。
-- 列表以可见范围为工作边界；纵向内容流和弹性空间分配分别选布局。
-- 任何缓存写明键、失效条件、依赖和滚动/resize 行为；静态外观不是缓存正确性的证明。
+- Identify repeated work across request_layout → prepaint → paint and describe
+  how it grows with content size.
+- Assign lifetimes to state, scroll handles, input models, tasks, and subscriptions.
+  Notify the corresponding entity only when visible state changes.
+- Bound list work by the visible range. Choose layout separately for vertical
+  content flow and flexible space allocation.
+- Document each cache's key, invalidation conditions, dependencies, and behavior
+  during scrolling/resize. A static appearance does not prove cache correctness.
 
-**完成标准**：每个新增高频路径有工作量边界；每个长期资源有拥有者和释放条件；
-多行内容与单行控件的尺寸约束分开说明。
+**Completion criterion**: Every new high-frequency path has a work bound. Every
+long-lived resource has an owner and release condition. Distinguish size constraints
+for multiline content from those for single-line controls.
 
-## 3. 建立能否定假设的反馈环
+## 3. Establish a feedback loop that can reject the hypothesis
 
-本仓库按 [APP 性能分析指南](../../../docs/performance-analysis.md) 建立复现；
-其他项目使用等价的原生事件到呈现路径。
+Reproduce through this repository's
+[performance analysis guide](../../../docs/performance-analysis.md); use an
+equivalent native event-to-presentation path in other projects.
 
-先验证动作确实改变内容，再计时。分别记录 CPU 帧耗时、实际帧率、输入到呈现延迟；
-确定性 TestAppContext 用于正确性和 CPU 定位，生产 benchmark 须核对无 test-support。
-一次只改变一个因素；对照使用相同窗口、输入、缓存冷热状态和测量代码。
+First verify that the action changes content, then measure. Record CPU frame time,
+actual frame cadence, and input-to-present latency separately. Use deterministic
+TestAppContext tests for correctness and CPU attribution; production benchmarks
+must exclude test-support. Change one factor at a time, keeping window, input,
+cache state, and measurement code identical between comparisons.
 
-**完成标准**：保留复现命令和基线产物，能用内容位移/完成状态证明工作没被丢弃；
-至少一个反例能使当前假设失败。真实触控板无法自动驱动时保留人工复现步骤。
+**Completion criterion**: Retain reproduction commands and baseline artifacts.
+Use content displacement or completion state to prove that work was preserved.
+Include at least one counterexample capable of rejecting the hypothesis. Preserve
+manual steps when actual trackpad input cannot be automated.
 
-## 4. 改动并验证原始场景
+## 4. Change and verify the original scenario
 
-优先减少重复工作、缩小失效范围和优化算法，再考虑分配或微优化。
-将假设不成立的实验撤回；保留单行控件文字、多行内容、事件顺序与全部功能。
-测量串行执行，避免与编译或其他基准并行。每次 profile/benchmark 设置最多五分钟边界。
+Reduce repeated work, narrow invalidation, and improve algorithms before tuning
+allocations or small constants. Revert experiments whose hypotheses fail. Preserve
+single-line text, multiline content, event order, and all functionality.
 
-**完成标准**：原始场景和窄/宽/反复 resize 场景均检查；正确性用关键测试锁定；
-报告退化项和机器负载。不能用删按钮、丢输入或裁掉内容取得性能验收。
+Run measurements serially, separate from compilation and other benchmarks. Bound
+each profile/benchmark to at most five minutes.
 
-## 5. 交付证据与规则
+**Completion criterion**: Check the original scenario and narrow/wide/repeated
+resize cases. Protect correctness with key tests. Report regressions and machine
+load. Performance acceptance preserves buttons, input, and reachable content.
 
-给出基线/候选、触发条件、指标口径、原始产物和验证限制。
-固定耗时预算只用于受控测量，普通单测检查工作量或业务不变量。
-将新发现写回一处权威参考，附成立条件和反例；历史故障日志留在事件记录中。
+## 5. Deliver evidence and rules
 
-**完成标准**：结论区分确定性测试、原生测量与用户体验确认；没有把 CPU 计时、
-空闲 FPS、区间 p95 或无 GPU 的测试解释成显示器丢帧率。
+Report baseline/candidate, trigger conditions, metric definitions, raw artifacts,
+and verification limits. Fixed time budgets belong in controlled measurements;
+ordinary unit tests check work bounds or business invariants.
+
+Record reusable findings in one authoritative reference with conditions and
+counterexamples. Keep historical failure logs in incident records.
+
+**Completion criterion**: Distinguish deterministic tests, native measurements,
+and user-experience confirmation. CPU timings, idle FPS, interval p95 values, and
+GPU-free tests do not establish display dropped-frame rates.

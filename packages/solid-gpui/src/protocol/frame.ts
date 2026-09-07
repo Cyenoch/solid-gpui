@@ -15,14 +15,13 @@ export function framePayload(payload: Uint8Array): Uint8Array {
 }
 
 /**
- * Incremental decoder for the little-endian u32 length-prefixed v4 frame stream.
+ * Incremental decoder for the little-endian u32 length-prefixed frame stream.
  * Complete frames borrow the caller's chunk when possible; consume them before
- * mutating a retained input chunk.
+ * mutating a retained input chunk. Only an incomplete frame is buffered.
  */
 export class FrameDecoder {
   private buffer = new Uint8Array(4);
-  private readOffset = 0;
-  private writeOffset = 0;
+  private bufferedBytes = 0;
 
   constructor(private readonly maxFrameSize = MAX_FRAME_SIZE) {
     if (!Number.isInteger(maxFrameSize) || maxFrameSize < 1) throw new RangeError("maxFrameSize must be positive");
@@ -30,90 +29,63 @@ export class FrameDecoder {
 
   push(chunk: FrameChunk): Uint8Array[] {
     const incoming = bytesFrom(chunk);
-    if (incoming.byteLength === 0) return [];
-    if (this.readOffset !== this.writeOffset) {
-      const unreadLength = this.writeOffset - this.readOffset;
-      let needed = 4 - unreadLength;
-      if (unreadLength >= 4) {
-        const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-        const size = view.getUint32(this.readOffset, true);
-        if (size > this.maxFrameSize) {
-          this.readOffset = 0;
-          this.writeOffset = 0;
-          throw new RangeError(`frame length ${size} exceeds maximum ${this.maxFrameSize}`);
+    const payloads: Uint8Array[] = [];
+    const view = new DataView(incoming.buffer, incoming.byteOffset, incoming.byteLength);
+    let offset = 0;
+    while (offset < incoming.byteLength) {
+      if (this.bufferedBytes > 0) {
+        // Finish the header before accepting body bytes: its length bounds all
+        // retained allocation, even when one chunk contains many more frames.
+        if (this.bufferedBytes < 4) {
+          const count = Math.min(4 - this.bufferedBytes, incoming.byteLength - offset);
+          this.buffer.set(incoming.subarray(offset, offset + count), this.bufferedBytes);
+          this.bufferedBytes += count;
+          offset += count;
+          if (this.bufferedBytes < 4) break;
         }
-        needed = 4 + size - unreadLength;
+        const size = new DataView(this.buffer.buffer).getUint32(0, true);
+        this.checkSize(size);
+        const count = Math.min(4 + size - this.bufferedBytes, incoming.byteLength - offset);
+        this.ensureCapacity(this.bufferedBytes + count);
+        this.buffer.set(incoming.subarray(offset, offset + count), this.bufferedBytes);
+        this.bufferedBytes += count;
+        offset += count;
+        if (this.bufferedBytes < 4 + size) break;
+        // Buffered payloads must own their bytes before the next partial frame
+        // reuses this buffer; complete input frames stay on the zero-copy path.
+        payloads.push(this.buffer.slice(4, 4 + size));
+        this.bufferedBytes = 0;
+        continue;
       }
-      if (incoming.byteLength > needed) {
-        const payloads = this.push(incoming.subarray(0, needed));
-        payloads.push(...this.push(incoming.subarray(needed)));
-        return payloads;
-      }
-    }
-    if (this.readOffset === this.writeOffset) {
-      const payloads: Uint8Array[] = [];
-      const view = new DataView(incoming.buffer, incoming.byteOffset, incoming.byteLength);
-      let offset = 0;
-      while (incoming.byteLength - offset >= 4) {
+      if (incoming.byteLength - offset >= 4) {
         const size = view.getUint32(offset, true);
-        if (size > this.maxFrameSize) throw new RangeError(`frame length ${size} exceeds maximum ${this.maxFrameSize}`);
-        if (incoming.byteLength - offset - 4 < size) break;
-        payloads.push(incoming.subarray(offset + 4, offset + 4 + size));
-        offset += 4 + size;
+        this.checkSize(size);
+        if (incoming.byteLength - offset - 4 >= size) {
+          payloads.push(incoming.subarray(offset + 4, offset + 4 + size));
+          offset += 4 + size;
+          continue;
+        }
       }
-      if (offset === incoming.byteLength) return payloads;
       const remainder = incoming.subarray(offset);
       this.ensureCapacity(remainder.byteLength);
-      this.buffer.set(remainder, this.writeOffset);
-      this.writeOffset += remainder.byteLength;
-      return payloads;
-    }
-    this.ensureCapacity(incoming.byteLength);
-    this.buffer.set(incoming, this.writeOffset);
-    this.writeOffset += incoming.byteLength;
-    const payloads: Uint8Array[] = [];
-    const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-    while (this.writeOffset - this.readOffset >= 4) {
-      const size = view.getUint32(this.readOffset, true);
-      if (size > this.maxFrameSize) {
-        this.readOffset = 0;
-        this.writeOffset = 0;
-        throw new RangeError(`frame length ${size} exceeds maximum ${this.maxFrameSize}`);
-      }
-      if (this.writeOffset - this.readOffset - 4 < size) break;
-      payloads.push(this.buffer.slice(this.readOffset + 4, this.readOffset + 4 + size));
-      this.readOffset += 4 + size;
-    }
-    if (this.readOffset === this.writeOffset) {
-      this.readOffset = 0;
-      this.writeOffset = 0;
+      this.buffer.set(remainder);
+      this.bufferedBytes = remainder.byteLength;
+      break;
     }
     return payloads;
   }
 
-  private ensureCapacity(incomingLength: number): void {
-    let required = this.writeOffset + incomingLength;
+  private checkSize(size: number): void {
+    if (size <= this.maxFrameSize) return;
+    this.bufferedBytes = 0;
+    throw new RangeError(`frame length ${size} exceeds maximum ${this.maxFrameSize}`);
+  }
+
+  private ensureCapacity(required: number): void {
     if (required <= this.buffer.byteLength) return;
-    const unreadLength = this.writeOffset - this.readOffset;
-    if (this.readOffset > 0) {
-      this.buffer.copyWithin(0, this.readOffset, this.writeOffset);
-      this.readOffset = 0;
-      this.writeOffset = unreadLength;
-      required = unreadLength + incomingLength;
-      if (required <= this.buffer.byteLength) return;
-    }
-    const maxCapacity = this.maxFrameSize + 4;
-    let capacity = this.buffer.byteLength;
-    while (capacity < required) {
-      if (capacity === maxCapacity) {
-        throw new RangeError(`partial frame exceeds maximum retained size ${maxCapacity}`);
-      }
-      capacity = Math.min(capacity * 2, maxCapacity);
-    }
+    const capacity = Math.min(Math.max(this.buffer.byteLength * 2, required), this.maxFrameSize + 4);
     const grown = new Uint8Array(capacity);
-    grown.set(this.buffer.subarray(this.readOffset, this.writeOffset));
+    grown.set(this.buffer.subarray(0, this.bufferedBytes));
     this.buffer = grown;
-    this.readOffset = 0;
-    this.writeOffset = unreadLength;
   }
 }

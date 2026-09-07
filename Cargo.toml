@@ -49,6 +49,10 @@ opt-level = 3
 [profile.dev.package.slotmap]
 opt-level = 3
 
+# The interpreter's C stack and execution cost also affect ordinary debug UI runs.
+[profile.dev.package.rquickjs-sys]
+opt-level = 3
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

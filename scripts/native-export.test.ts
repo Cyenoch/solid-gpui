@@ -32,6 +32,9 @@ test("Vite exports an actual Rust host before resolving #native, preserves stabl
     await writeFile(output, "export const stale = true;\n");
     await expect(exportNativeBindings({ manifestPath, output, check: true })).rejects.toThrow("stale or missing");
     expect(await readFile(output, "utf8")).toContain("stale");
+    await writeFile(source, 'fn main() { println!("export const =;"); }');
+    await expect(exportNativeBindings({ manifestPath, output })).rejects.toThrow("Failed to format native bindings");
+    expect(await readFile(output, "utf8")).toBe("export const stale = true;\n");
     await writeFile(source, "fn main() { std::process::exit(7); }");
     await expect(exportNativeBindings({ manifestPath, output })).rejects.toThrow();
     expect(await readFile(output, "utf8")).toContain("stale");

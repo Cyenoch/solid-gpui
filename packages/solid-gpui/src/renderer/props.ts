@@ -282,7 +282,7 @@ export function validateProps(kind: HostKind, props: HostProps): void {
       typeof props.tooltip !== "string" ||
       props.tooltip.length === 0 ||
       utf8ByteLength(props.tooltip) > 256 ||
-      /[\u0000-\u001f\u007f]/.test(props.tooltip)
+      /[\u0000-\u001f\u007f-\u009f]/.test(props.tooltip)
     )
       throw new TypeError(`${kind} tooltip must be a non-empty safe string of at most 256 UTF-8 bytes`);
   }

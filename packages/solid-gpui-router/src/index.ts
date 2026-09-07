@@ -54,6 +54,8 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  mergeProps,
+  splitProps,
   startTransition,
   useContext,
   type Accessor,
@@ -744,32 +746,24 @@ export type LinkProps<
     readonly style?: StyleProp;
   };
 
-const NAVIGATION_KEYS: Record<string, true> = {
-  activeOptions: true,
-  activeStyle: true,
-  children: true,
-  from: true,
-  hash: true,
-  ignoreBlocker: true,
-  inactiveStyle: true,
-  mask: true,
-  onPress: true,
-  params: true,
-  replace: true,
-  search: true,
-  state: true,
-  style: true,
-  to: true,
-  unsafeRelative: true,
-};
-
-function pressableProps(props: Record<string, unknown>): PressableProps {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (!Object.hasOwn(NAVIGATION_KEYS, key)) result[key] = value;
-  }
-  return result as PressableProps;
-}
+const NAVIGATION_KEYS = [
+  "activeOptions",
+  "activeStyle",
+  "children",
+  "from",
+  "hash",
+  "ignoreBlocker",
+  "inactiveStyle",
+  "mask",
+  "onPress",
+  "params",
+  "replace",
+  "search",
+  "state",
+  "style",
+  "to",
+  "unsafeRelative",
+] as const;
 
 export function Link<
   TRouter extends AnyRouter = RegisteredRouter,
@@ -779,61 +773,70 @@ export function Link<
   const TMaskTo extends string = ".",
 >(props: LinkProps<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>): SolidElement {
   const router = useRouter<TRouter>();
-  const navigation = {
-    to: props.to,
-    from: props.from,
-    params: props.params,
-    search: props.search,
-    hash: props.hash,
-    state: props.state,
-    mask: props.mask,
-    replace: props.replace,
-    ignoreBlocker: props.ignoreBlocker,
-    unsafeRelative: props.unsafeRelative,
-    resetScroll: false,
-    hashScrollIntoView: false,
-    viewTransition: false,
-    reloadDocument: false,
-  } as NavigateOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>;
-  const baseProps = pressableProps(props as Record<string, unknown>);
+  // Solid props are live getters; splitting and merging must preserve them.
+  const [, baseProps] = splitProps(
+    props as Omit<PressableProps, "children" | "onPress" | "style"> & Record<(typeof NAVIGATION_KEYS)[number], unknown>,
+    NAVIGATION_KEYS,
+  );
+  const navigation = createMemo(
+    () =>
+      ({
+        to: props.to,
+        from: props.from,
+        params: props.params,
+        search: props.search,
+        hash: props.hash,
+        state: props.state,
+        mask: props.mask,
+        replace: props.replace,
+        ignoreBlocker: props.ignoreBlocker,
+        unsafeRelative: props.unsafeRelative,
+        resetScroll: false,
+        hashScrollIntoView: false,
+        viewTransition: false,
+        reloadDocument: false,
+      }) as NavigateOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>,
+  );
   const isActive = createMemo(() => {
     const current = router.stores.location.get();
     router.stores.resolvedLocation.get();
     router.stores.status.get();
-    const matched = router.matchRoute(navigation as never, {
+    const matched = router.matchRoute(navigation() as never, {
       fuzzy: !(props.activeOptions?.exact ?? false),
       includeSearch: props.activeOptions?.includeSearch ?? true,
     });
     if (!matched) return false;
     if (!props.activeOptions?.includeHash) return true;
-    return current.hash === router.buildLocation(navigation as never).hash;
+    return current.hash === router.buildLocation(navigation() as never).hash;
   });
   const child = createMemo(() => {
     const children = props.children;
     return typeof children === "function" ? children({ isActive: isActive() }) : children;
   });
 
-  return createComponent(Pressable, {
-    ...baseProps,
-    get accessibilityRole() {
-      return props.accessibilityRole ?? "link";
-    },
-    get accessibilitySelected() {
-      return props.accessibilitySelected ?? isActive();
-    },
-    get style() {
-      const stateStyle = isActive() ? props.activeStyle : props.inactiveStyle;
-      if (stateStyle == null) return props.style;
-      return { ...(props.style ?? {}), ...stateStyle };
-    },
-    onPress: (event) => {
-      props.onPress?.(event);
-      if (!props.disabled) void router.navigate(navigation);
-    },
-    get children() {
-      return child();
-    },
-  });
+  return createComponent(
+    Pressable,
+    mergeProps(baseProps, {
+      get accessibilityRole() {
+        return props.accessibilityRole ?? "link";
+      },
+      get accessibilitySelected() {
+        return props.accessibilitySelected ?? isActive();
+      },
+      get style() {
+        const stateStyle = isActive() ? props.activeStyle : props.inactiveStyle;
+        if (stateStyle == null) return props.style;
+        return { ...(props.style ?? {}), ...stateStyle };
+      },
+      onPress: (event) => {
+        props.onPress?.(event);
+        if (!props.disabled) void router.navigate(navigation());
+      },
+      get children() {
+        return child();
+      },
+    } satisfies PressableProps),
+  );
 }
 
 export type BackButtonProps = Omit<PressableProps, "children" | "onPress"> & {
@@ -844,23 +847,25 @@ export type BackButtonProps = Omit<PressableProps, "children" | "onPress"> & {
 export function BackButton(props: BackButtonProps): SolidElement {
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  return createComponent(Pressable, {
-    ...props,
-    get accessibilityRole() {
-      return props.accessibilityRole ?? "button";
-    },
-    get accessibilityLabel() {
-      return props.accessibilityLabel ?? "Back";
-    },
-    get disabled() {
-      return props.disabled || !canGoBack();
-    },
-    onPress: (event) => {
-      props.onPress?.(event);
-      if (!props.disabled && canGoBack()) router.history.back();
-    },
-    get children() {
-      return props.children ?? createComponent(Text, { children: "Back" });
-    },
-  });
+  return createComponent(
+    Pressable,
+    mergeProps(props, {
+      get accessibilityRole() {
+        return props.accessibilityRole ?? "button";
+      },
+      get accessibilityLabel() {
+        return props.accessibilityLabel ?? "Back";
+      },
+      get disabled() {
+        return props.disabled || !canGoBack();
+      },
+      onPress: (event) => {
+        props.onPress?.(event);
+        if (!props.disabled && canGoBack()) router.history.back();
+      },
+      get children() {
+        return props.children ?? createComponent(Text, { children: "Back" });
+      },
+    } satisfies PressableProps),
+  );
 }

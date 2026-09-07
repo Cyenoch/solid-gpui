@@ -1,11 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { MemoryTransport, Text, View, createRoot } from "@solid-gpui/core";
-import { createComponent, createEffect, createRoot as createSolidRoot, onCleanup } from "@solid-gpui/core/runtime";
+import {
+  createComponent,
+  createEffect,
+  createRoot as createSolidRoot,
+  createSignal,
+  onCleanup,
+} from "@solid-gpui/core/runtime";
+import { encodeFrame } from "../../solid-gpui/src/protocol";
+import { Envelope } from "../../solid-gpui/src/protocol/generated/protocol";
 
 import {
   DefaultErrorComponent,
   DefaultNotFoundComponent,
   DefaultPendingComponent,
+  BackButton,
+  Link,
   Outlet,
   RouterProvider,
   createRootRoute,
@@ -40,6 +50,91 @@ function createTestRouteTree(onHomeRender?: () => void, onSettingsRender?: () =>
 }
 
 describe("native router", () => {
+  test("navigation controls preserve reactive destinations and forwarded host props", async () => {
+    const [destination, setDestination] = createSignal("/");
+    const [disabled, setDisabled] = createSignal(false);
+    const [tooltip, setTooltip] = createSignal("before");
+    const activeStates: boolean[] = [];
+    const layout = createRootRoute({
+      component: () =>
+        createComponent(View, {
+          children: [
+            createComponent(Link, {
+              get to() {
+                return destination();
+              },
+              get disabled() {
+                return disabled();
+              },
+              get tooltip() {
+                return tooltip();
+              },
+              children: ({ isActive }: { readonly isActive: boolean }) => {
+                activeStates.push(isActive);
+                return createComponent(Text, { children: "Go" });
+              },
+            }),
+            createComponent(BackButton, {
+              get tooltip() {
+                return tooltip();
+              },
+            }),
+            createComponent(Outlet, {}),
+          ],
+        }),
+    });
+    const home = createRoute({ getParentRoute: () => layout, path: "/", component: () => null });
+    const settings = createRoute({ getParentRoute: () => layout, path: "settings", component: () => null });
+    const router = createRouter({ routeTree: layout.addChildren([home, settings]) });
+    const transport = new MemoryTransport();
+    const root = createRoot(transport, { surfaceId: 100 });
+    try {
+      await router.load();
+      root.render(() => createComponent(RouterProvider, { router }));
+      await router.load();
+      expect(activeStates.at(-1)).toBe(true);
+      setDestination("/settings");
+      await Promise.resolve();
+      expect(activeStates.at(-1)).toBe(false);
+
+      setTooltip("after");
+      setDisabled(true);
+      await Promise.resolve();
+      const changed = Envelope.decode(transport.submitted.at(-1)!.subarray(4)).body;
+      if (changed?.tag !== 3) throw new Error("expected reactive control patch");
+      const updates = changed.value.operations?.flatMap(({ operation }) =>
+        operation?.tag === 2 ? [operation.value] : [],
+      );
+      expect(updates?.filter((update) => update.tooltip === "after")).toHaveLength(2);
+      expect(updates?.some((update) => update.listenerId === 0)).toBe(true);
+
+      setDisabled(false);
+      await Promise.resolve();
+      const enabled = Envelope.decode(transport.submitted.at(-1)!.subarray(4)).body;
+      if (enabled?.tag !== 3) throw new Error("expected enabled control patch");
+      const link = enabled.value.operations?.flatMap(({ operation }) =>
+        operation?.tag === 2 && operation.value.listenerId ? [operation.value] : [],
+      )[0];
+      if (!link) throw new Error("expected active link listener");
+      transport.push(
+        encodeFrame({
+          type: "event",
+          surfaceId: 100,
+          epoch: 1,
+          revision: enabled.value.revision!,
+          sequence: 1,
+          nodeId: link.id!,
+          listenerId: link.listenerId!,
+          payload: { type: "press" },
+        }),
+      );
+      await router.load();
+      expect(router.latestLocation.pathname).toBe("/settings");
+    } finally {
+      root.unmount();
+    }
+  });
+
   test("keeps history and location independent per window", async () => {
     const routeTree = createTestRouteTree();
     const first = createRouter({ routeTree });

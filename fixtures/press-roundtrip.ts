@@ -1,4 +1,5 @@
-import { Pressable, StdioTransport, Text, View, createRoot } from "../packages/solid-gpui/dist/index.js";
+import { Pressable, Text, View, createRoot } from "../packages/solid-gpui/dist/index.js";
+import { StdioTransport } from "../packages/solid-gpui/dist/stdio.js";
 import { createComponent, createSignal } from "../packages/solid-gpui/dist/runtime.js";
 
 function PressRoundtrip() {

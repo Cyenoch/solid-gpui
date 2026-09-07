@@ -40,12 +40,25 @@ The TypeScript package and native host must use the same protocol version. Rebui
 
 A closed or unmounted surface ID is permanently retired. Create a new surface and root instead of reusing the ID with another generation.
 
-## Embedded runtime build fails
+## Embedded Bun build fails
 
 The embedded Bun/JSC adapter is macOS-only. Use `bun run gallery` for process
 mode. An embedded host built with `embedded-bun` accepts an explicit application entry and
 launches the embedded path; if that task fails, verify the pinned Bun source can
 be fetched and that the generated native graph matches the checked-in patch.
+
+## QuickJS cannot resolve a service or transport
+
+Use `EmbeddedTransport` from `@solid-gpui/core/embedded` with the QuickJS host.
+`StdioTransport` belongs to Bun's process or embedded stdio environment and
+requires `process.stdin` and `process.stdout`.
+
+Build with `solid-gpui-build --runtime quickjs <entry.tsx> <output.js>` so
+dependencies are included in one ESM module. Node/Bun imports are rejected;
+ambient `process`, `Bun`, filesystem, and network APIs such as `fetch` are
+unavailable. Move those services into Rust Native Modules and call the
+generated clients. The bundler's browser target selects portable dependencies;
+it does not create a browser environment in QuickJS.
 
 ## Process host exits after renderer failure
 
@@ -68,7 +81,9 @@ Use:
 }
 ```
 
-Compile JSX with the Solid universal transform and `moduleName: "@solid-gpui/core/runtime"`.
+Use the shared Solid/Oxc universal transform through the Vite plugin or
+`solid-gpui-build`. A generic React-style JSX transform cannot generate this
+renderer's reactive host operations.
 
 ## Scrolling is unbounded or slow
 
@@ -83,5 +98,9 @@ TypeScript 7 exposes compiler services under `typescript/unstable/async`. The
 root `typescript` export no longer supplies `createProgram`. Use the async API
 under Bun; the synchronous client's private Node pipe handles are unavailable.
 Await `api.close()` so snapshot disposal finishes before closing its connection.
-Babel presets use `PresetTarget`, not `PluginItem`. Regenerate API fixtures and
-run the semantic re-export test as well as `package-typecheck` after upgrades.
+Regenerate API fixtures and run the semantic re-export test as well as
+`package-typecheck` after upgrades. Keep the official Solid compiler pinned:
+its release-candidate version is separate from the Solid 1 runtime, and the
+shared transform disables Solid 2 built-in auto-imports. Compiler upgrades
+must preserve reactive updates, owner cleanup, import side effects, and source
+maps in both the Bun preload and Vite paths.

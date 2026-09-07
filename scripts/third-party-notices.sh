@@ -16,8 +16,8 @@ trap 'rm -rf -- "$work_dir"' EXIT
 
 (
   cd "$repo_root"
-  cargo deny list --format tsv > "$work_dir/cargo-deny.tsv"
-  cargo metadata --locked --format-version 1 > "$work_dir/cargo-metadata.json"
+  cargo deny --all-features list --format tsv > "$work_dir/cargo-deny.tsv"
+  cargo metadata --locked --all-features --format-version 1 > "$work_dir/cargo-metadata.json"
 )
 (
   cd "$repo_root"
@@ -270,9 +270,9 @@ lines = [
     "",
     f"This inventory accompanies the host release archive `{host_archive}` and the companion Bun packages from this checkout.",
     "It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.",
-    "The inventory is generated from the resolved Cargo graph and `bun pm licenses --all` output; it is not a substitute for the license texts.",
+    "The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.",
     "The archive embeds the project-owned Apache-2.0 text as `LICENSE`; that same text covers the independently authored local `ztracing` stub. Each npm package carries its own `LICENSE` in its tarball.",
-    "Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a 670-crate license-text bundle.",
+    "Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.",
     "",
     f"**Generated:** {generated_date}",
     "**Generation command:** `bun run task third-party-notices`",
@@ -316,6 +316,16 @@ for package_label in ("Solid GPUI workspace",):
 
 lines.extend(
     [
+        "## Vendored JavaScript",
+        "",
+        "`packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).",
+        "Source: https://github.com/vercel/edge-runtime/blob/440c123a37284d6a852ce453af810ad484ecfc01/packages/primitives/src/primitives/abort-controller.js",
+        "The source file retains the complete MIT notice and describes local changes. It is shipped with the core package's build tools and included in QuickJS application bundles.",
+        "",
+        "`packages/solid-gpui/src/vite/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).",
+        "Source: https://github.com/jimmywarting/fetch-headers/blob/66d63ac7a67d3b9c863cd80b872f2ea999cbc7a7/headers.js",
+        "The source retains the complete MIT notice. Local changes correct header validation/normalization, preserve values after rejected mutations, and remove Node inspection support.",
+        "",
         "## Project-owned Bun packages",
         "",
         "These package manifests carry the project's own Apache-2.0 license and are not third-party dependencies. Their npm tarballs include their own `LICENSE`; the shared JavaScript dependency inventory remains in this release artifact.",

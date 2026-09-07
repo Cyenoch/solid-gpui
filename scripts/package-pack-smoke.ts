@@ -61,14 +61,24 @@ export const tree = (
 `;
 
 const nativeSource = `import { createRoot, MemoryTransport } from "@solid-gpui/core";
+import { StdioTransport } from "@solid-gpui/core/stdio";
+import { EmbeddedTransport } from "@solid-gpui/core/embedded";
 import { createSignal } from "@solid-gpui/core/runtime";
 import { Button, Progress } from "@solid-gpui/core/components";
 import { encodeJson, decodeJson } from "@solid-gpui/core/native";
 import { solidGpui } from "@solid-gpui/core/vite";
 import { startDev } from "@solid-gpui/core/vite/dev";
+import { buildApplication } from "@solid-gpui/core/vite/build";
 
-if (solidGpui({ entry: "app.tsx" }).name !== "solid-gpui" || typeof startDev !== "function")
+if (typeof StdioTransport !== "function" || typeof EmbeddedTransport !== "function")
+  throw new Error("packed runtime transports are missing");
+const plugin = solidGpui({ entry: "app.tsx", native: { manifestPath: "native-host/Cargo.toml" } });
+if (plugin.name !== "solid-gpui" || typeof startDev !== "function" || typeof buildApplication !== "function")
   throw new Error("packed Vite entrypoints are missing");
+if (typeof plugin.config !== "function") throw new Error("packed Vite config hook is missing");
+await Reflect.apply(plugin.config, {}, [{ root: process.cwd() }, { command: "build", mode: "production" }]);
+if (await Bun.file(".generated/native.ts").text() !== "export const answer = 42;\\n")
+  throw new Error("packed native binding formatter failed");
 if (decodeJson(encodeJson("native")) !== "native") throw new Error("packed native codec failed");
 const transport = new MemoryTransport();
 const root = createRoot(transport);
@@ -162,6 +172,10 @@ const packageSpecs = [
       "package/dist/index.d.ts",
       "package/dist/runtime.js",
       "package/dist/runtime.d.ts",
+      "package/dist/stdio.js",
+      "package/dist/stdio.d.ts",
+      "package/dist/embedded.js",
+      "package/dist/embedded.d.ts",
       "package/dist/jsx-runtime.d.ts",
       "package/dist/native.js",
       "package/dist/native.d.ts",
@@ -169,7 +183,12 @@ const packageSpecs = [
       "package/dist/components.d.ts",
       "package/src/vite/index.ts",
       "package/src/vite/dev.ts",
-      "package/src/vite/ambient.d.ts",
+      "package/src/vite/transform.ts",
+      "package/src/vite/build.ts",
+      "package/src/vite/quickjs-platform.ts",
+      "package/src/vite/quickjs-platform-types.d.ts",
+      "package/src/vite/quickjs-abort.ts",
+      "package/src/vite/quickjs-headers.js",
       "package/src/vite/native-export.ts",
     ],
   },
@@ -246,12 +265,31 @@ try {
     Bun.write(join(consumerDir, "view.tsx"), viewSource),
     Bun.write(join(consumerDir, "router.ts"), routerSource),
     Bun.write(join(consumerDir, "native.ts"), nativeSource),
+    Bun.write(
+      join(consumerDir, "native-host/Cargo.toml"),
+      '[package]\nname = "packed-native-host"\nversion = "0.0.0"\nedition = "2024"\n[workspace]\n',
+    ),
+    Bun.write(
+      join(consumerDir, "native-host/src/main.rs"),
+      'fn main() { assert_eq!(std::env::args().nth(1).as_deref(), Some("--export-native")); println!("export const answer=42;"); }',
+    ),
   ]);
 
   await run(["bun", "install", "--no-progress"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "core-runtime.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "router.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "native.ts"], consumerDir);
+  for (const runtime of ["bun", "quickjs"]) {
+    await run(
+      ["bun", "node_modules/.bin/solid-gpui-build", "--runtime", runtime, "view.tsx", `${runtime}-app.js`],
+      consumerDir,
+    );
+  }
+  await run(
+    ["bun", "node_modules/.bin/solid-gpui-build", "--runtime", "bun", "router.ts", "bundled-router.js"],
+    consumerDir,
+  );
+  await run(["bun", "bundled-router.js"], consumerDir);
   const typecheck = [
     "bunx",
     "--no-install",

@@ -8,8 +8,11 @@ Use this order:
 4. [`protocol.md`](protocol.md) — authoritative framed Bebop v5 contract, bounded decoding, and generated binding workflow.
 5. [`troubleshooting.md`](troubleshooting.md) — runtime and build failures.
 6. [`rust-bridge.md`](rust-bridge.md) — export ordinary Rust logic and native components with generated types.
-7. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, measurement, regression and lessons.
-8. [`adr/`](adr/) — architectural decisions.
+7. [`hot-reload.md`](hot-reload.md) — Vite and Bun development, explicit state preservation, and reload failure boundaries.
+8. [`gpui-components.md`](gpui-components.md) — generated native controls and application APIs.
+9. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement and acceptance.
+10. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, regressions, and recorded measurements.
+11. [`adr/`](adr/) — architectural decisions.
 
 References:
 

@@ -1,6 +1,9 @@
 # Solid GPUI
 
-Solid GPUI renders SolidJS owner trees into native GPUI surfaces. SolidJS owns reactive application state and composition; Rust and GPUI own the validated retained tree, native interaction state, layout, and painting.
+Solid GPUI renders SolidJS owner trees into native GPUI surfaces. SolidJS owns
+reactive UI state and composition; Rust and GPUI own the validated retained
+tree, native interaction state, layout, and painting. Application logic can
+live primarily in Rust or Bun.
 
 > Early-stage work. Public APIs and protocol details may change without compatibility wrappers.
 
@@ -17,19 +20,43 @@ Solid signals and components
 Snapshot bootstrap / incremental Patch frames
           │
           ▼
-solid-gpui-host
+solid-gpui Rust host
   validated NodeStore → native GPUI windows
 ```
 
 The TypeScript renderer is built with `solid-js`'s client reactive runtime and a custom universal host. A root update is atomic at the wire boundary: the first update emits a Snapshot and later updates emit deterministic Patches. Native events run inside the matching Solid owner transaction; signal-driven mutations outside an event are coalesced into one microtask commit.
 
-The host model follows the useful boundary demonstrated by `references/gpui-component/crates/shell`: script code owns composition and business state, while the Rust host owns rendering, layout, native input, and system capabilities. Solid GPUI uses a lockstep framed Bebop v5 protocol for the external Bun process and embedded adapter.
+The host model follows the useful boundary demonstrated by
+`references/gpui-component/crates/shell`: script code composes the UI while
+the Rust host owns native rendering, input, and system capabilities. Bun and
+QuickJS use the same lockstep framed Bebop v5 protocol and generated native
+command contracts.
+
+## Runtime choice
+
+Use Bun for applications with either Rust-owned or Bun-owned domain logic.
+Use QuickJS as a lightweight embedded UI runtime when Rust owns application
+services. This choice does not move GPUI rendering out of Rust.
+
+| Runtime          | Application role                              | Transport           | Deployment                                            |
+| ---------------- | --------------------------------------------- | ------------------- | ----------------------------------------------------- |
+| Bun process      | Rust-led or Bun-led, with Bun services        | `StdioTransport`    | Default host mode; separate Bun process               |
+| Embedded Bun/JSC | Rust-led or Bun-led, with Bun services        | `StdioTransport`    | Optional `embedded-bun` feature; macOS embedding      |
+| Embedded QuickJS | Rust-led UI; services through native commands | `EmbeddedTransport` | Optional `quickjs` feature; self-contained ESM bundle |
+
+QuickJS supplies UI scheduling and the native bridge. It does not expose
+`process`, `Bun`, Node modules, or browser application APIs such as `fetch`.
+Put file/network/domain operations in Rust Native Modules and call their
+generated Promise clients. The QuickJS integration does not establish release
+qualification on every target platform. See [ADR-0017](docs/adr/0017-runtime-engines.md)
+for the ownership decision and [the build guide](docs/hot-reload.md#production-bundles)
+for runtime-specific entrypoints.
 
 ## Packages
 
 - `packages/solid-gpui` — `@solid-gpui/core`, the Solid universal renderer, protocol encoder, transports, and native component functions.
 - `packages/solid-gpui-router` — `@solid-gpui/router`, the DOM-free TanStack Router Core adapter, native links, and per-surface memory history.
-- `crates/solid-gpui` — Rust SDK, host, native components and optional embedded runtime; `gpui-component` is an opt-in feature.
+- `crates/solid-gpui` — Rust SDK, host, native components, and optional Bun/QuickJS runtimes; `gpui-component` is an opt-in feature.
 - `crates/solid-gpui-macros` — internal Rust authoring macros, re-exported by the SDK.
 - `crates/solid-gpui-bun-sys` — optional internal Bun FFI/build integration.
 - `examples/gallery/native` — an application's own Rust module, exporting its components and commands through its actual host.
@@ -41,8 +68,9 @@ The host model follows the useful boundary demonstrated by `references/gpui-comp
 Components are ordinary functions returning host nodes. Use the renderer's `createComponent` so component execution remains attached to the correct Solid owner:
 
 ```ts
-import { Pressable, Text, View, createRoot, StdioTransport } from "@solid-gpui/core";
+import { Pressable, Text, View, createRoot } from "@solid-gpui/core";
 import { createComponent, createSignal } from "@solid-gpui/core/runtime";
+import { StdioTransport } from "@solid-gpui/core/stdio";
 
 function Counter() {
   const [count, setCount] = createSignal(0);
@@ -64,10 +92,19 @@ const root = createRoot(new StdioTransport());
 root.render(() => createComponent(Counter, {}));
 ```
 
-For JSX, compile with the Solid Babel transform in universal mode and set `moduleName` to `@solid-gpui/core/runtime`. `jsxImportSource: "@solid-gpui/core"` selects host element types only; it is not an automatic JSX runtime. The non-JSX form above has no compiler dependency and is the repository's executable example.
+For JSX, use `@solid-gpui/core/vite` or `solid-gpui-build`. Both use the official
+Oxc-based Solid compiler in universal mode with `@solid-gpui/core/runtime`.
+The compiler is pinned to `@solidjs/compiler` 2.0.0-rc.6; the application runtime
+remains Solid 1.9.15. TypeScript's `jsxImportSource: "@solid-gpui/core"` selects
+host element types only. The non-JSX example above needs no JSX compiler.
 Direct Bun entrypoints must use `bun --conditions=browser run app.ts` so
 `solid-js` resolves its client reactive runtime. The repository task commands
 already apply this condition.
+
+Application entrypoints choose their connection explicitly. Import
+`StdioTransport` from `@solid-gpui/core/stdio` for Bun, or `EmbeddedTransport`
+from `@solid-gpui/core/embedded` for QuickJS. Pass a transport factory to
+`mountApplication`; it owns that connection and retains it during hot reload.
 
 ## Routing and shared application state
 
@@ -77,7 +114,7 @@ route tree; do not mutate route options or children after creating the first
 router.
 
 Application-global data is separate from routing. Create stores, query clients,
-and services once in the Bun/JSC application runtime, then pass the same object
+and services once in the application's JavaScript runtime, then pass the same object
 references through each router context. Add per-window dependencies such as
 `windowId` beside that shared object:
 
@@ -117,7 +154,13 @@ navigation.
 
 ## Rust exports
 
-Write ordinary logic in Rust with `native_module!` and call it through generated typed Promise clients. Native component providers use the reusable schema macros for properties and events; gpui-component is one provider. See [Rust authoring](docs/rust-bridge.md). The generated [gpui-component API](docs/gpui-components.md) includes native controls, data views, overlays, settings, docking, charts and plot computations.
+Declare application logic and native components in Rust with `#[native_module]`
+and export their TypeScript bindings from the application's host. Generated
+components, instance refs, and Promise clients share that Rust contract;
+gpui-component controls are available through the optional integration.
+See [Rust authoring](docs/rust-bridge.md). The generated
+[gpui-component API](docs/gpui-components.md) includes controls, data views,
+overlays, settings, docking, charts, and plot computations.
 
 ## Development
 
@@ -129,15 +172,15 @@ bun install --frozen-lockfile
 
 The Commander CLI in `scripts/tasks.ts` is the single task entrypoint:
 
-| Command                    | Purpose                                                |
-| -------------------------- | ------------------------------------------------------ |
-| `bun run build`            | Build JavaScript and declaration artifacts.            |
-| `bun run format`           | Check Rust, TypeScript, and JSON formatting.           |
-| `bun run check`            | Build, typecheck, and lint the workspace.              |
-| `bun run test`             | Run the Rust and Solid renderer tests.                 |
-| `bun run ci`               | Run the macOS CI gates, including protocol goldens and the host release bundle. |
-| `bun run audit`            | Audit dependencies and verify third-party notices.     |
-| `bun run gallery`         | Launch the native component workbench and Rust API demo. |
+| Command           | Purpose                                                                         |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `bun run build`   | Build JavaScript and declaration artifacts.                                     |
+| `bun run format`  | Check Rust, TypeScript, and JSON formatting.                                    |
+| `bun run check`   | Build, typecheck, and lint the workspace.                                       |
+| `bun run test`    | Run the Rust and Solid renderer tests.                                          |
+| `bun run ci`      | Run the macOS CI gates, including protocol goldens and the host release bundle. |
+| `bun run audit`   | Audit dependencies and verify third-party notices.                              |
+| `bun run gallery` | Launch the native component workbench and Rust API demo.                        |
 
 The runtime uses the unified `gpui-pre`/platform 0.3.3 family and gpui-component 0.6.0. Zed in `references/` is implementation reference source, not a patched runtime dependency. Native layout dependencies are optimized in development; see [scroll diagnosis and regression](docs/scroll-performance.md).
 

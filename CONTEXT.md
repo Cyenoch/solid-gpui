@@ -1,6 +1,6 @@
 # Solid GPUI
 
-Solid GPUI is the boundary between SolidJS-owned application behavior and GPUI-owned native rendering.
+Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned native rendering. Application logic can live in Rust or Bun.
 
 ## Language
 
@@ -26,7 +26,13 @@ Solid GPUI is the boundary between SolidJS-owned application behavior and GPUI-o
 
 **Native Event**: A semantic notification from a native surface to the matching Solid root. It is ordered by surface, epoch, revision, and event sequence; it is not a browser event.
 
-**Runtime Adapter**: The byte-only boundary carrying Commit Batches, Native Events, and Surface Commands. ProcessAdapter uses framed Bebop v5 stdio; EmbeddedBunAdapter owns one Bun/JSC VM on a dedicated thread.
+**Runtime Adapter**: The byte-only connection between an application's JavaScript runtime and its native host, carrying Commit Batches, Native Events, and Surface Commands. Runtime choice does not change native rendering ownership or the Native Contract.
+
+**Rust-led Application**: An application whose domain state and services live primarily in Rust, with SolidJS providing composition and reactive UI state. Its UI can run in Bun or an Embedded UI Runtime.
+
+**Bun-led Application**: An application whose domain state and services live primarily in Bun, with Rust providing GPUI rendering and declared native capabilities. Bun-led and Rust-led describe application ownership, not process topology.
+
+**Embedded UI Runtime**: A JavaScript environment inside a Rust-led application that executes the Solid UI and accesses application services through Native Modules. It supplies the UI's execution needs without promising Bun or Node services.
 
 **Surface Command**: A bounded asynchronous request from the JavaScript root or a mounted Host Node to native window, focus, clipboard, file, font, menu, notification, or list behavior.
 

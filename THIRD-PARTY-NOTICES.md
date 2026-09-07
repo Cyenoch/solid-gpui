@@ -2,9 +2,9 @@
 
 This inventory accompanies the host release archive `solid-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
 It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.
-The inventory is generated from the resolved Cargo graph and `bun pm licenses --all` output; it is not a substitute for the license texts.
+The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.
 The archive embeds the project-owned Apache-2.0 text as `LICENSE`; that same text covers the independently authored local `ztracing` stub. Each npm package carries its own `LICENSE` in its tarball.
-Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a 670-crate license-text bundle.
+Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.
 
 **Generated:** 2026-09-06
 **Generation command:** `bun run task third-party-notices`
@@ -14,7 +14,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 784 third-party packages and 1362 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 788 third-party packages and 1367 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -225,6 +225,7 @@ The current Cargo inventory contains 784 third-party packages and 1362 package-l
 | hashbrown | 0.15.5 | Apache-2.0 | registry (crates.io) |
 | hashbrown | 0.16.1 | Apache-2.0 | registry (crates.io) |
 | hashbrown | 0.17.1 | Apache-2.0 | registry (crates.io) |
+| hdrhistogram | 7.6.0 | Apache-2.0 | registry (crates.io) |
 | heapless | 0.9.3 | Apache-2.0 | registry (crates.io) |
 | heck | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | heck | 0.5.0 | Apache-2.0 | registry (crates.io) |
@@ -594,7 +595,7 @@ The current Cargo inventory contains 784 third-party packages and 1362 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 563 package records.**
+**Total Apache-2.0: 564 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -901,6 +902,7 @@ The current Cargo inventory contains 784 third-party packages and 1362 package-l
 | hashbrown | 0.15.5 | MIT | registry (crates.io) |
 | hashbrown | 0.16.1 | MIT | registry (crates.io) |
 | hashbrown | 0.17.1 | MIT | registry (crates.io) |
+| hdrhistogram | 7.6.0 | MIT | registry (crates.io) |
 | heapless | 0.9.3 | MIT | registry (crates.io) |
 | heck | 0.4.1 | MIT | registry (crates.io) |
 | heck | 0.5.0 | MIT | registry (crates.io) |
@@ -1119,6 +1121,9 @@ The current Cargo inventory contains 784 third-party packages and 1362 package-l
 | ropey | 2.0.0-beta.1 | MIT | registry (crates.io) |
 | roxmltree | 0.20.0 | MIT | registry (crates.io) |
 | roxmltree | 0.21.1 | MIT | registry (crates.io) |
+| rquickjs | 0.12.2 | MIT | registry (crates.io) |
+| rquickjs-core | 0.12.2 | MIT | registry (crates.io) |
+| rquickjs-sys | 0.12.2 | MIT | registry (crates.io) |
 | rust-embed | 8.12.0 | MIT | registry (crates.io) |
 | rust-embed-impl | 8.12.0 | MIT | registry (crates.io) |
 | rust-embed-utils | 8.12.0 | MIT | registry (crates.io) |
@@ -1396,7 +1401,7 @@ The current Cargo inventory contains 784 third-party packages and 1362 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 695 package records.**
+**Total MIT: 699 package records.**
 
 ### MIT-0
 
@@ -1525,34 +1530,25 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 
 ### `Solid GPUI workspace`
 
+#### 0BSD
+
+| Package | Version | License (SPDX) | Source | Scope |
+| --- | --- | --- | --- | --- |
+| tslib | 2.8.1 | 0BSD | registry (npm) | runtime |
+
+**Total 0BSD (Solid GPUI workspace): 1 package records.**
+
 #### Apache-2.0
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 | registry (npm) | dev |
-| baseline-browser-mapping | 2.11.21 | Apache-2.0 | registry (npm) | runtime |
 | bebop | 3.2.3 | Apache-2.0 | registry (npm) | runtime |
 | bebop-tools | 3.2.3 | Apache-2.0 | registry (npm) | dev |
 | detect-libc | 2.1.2 | Apache-2.0 | registry (npm) | runtime |
 | typescript | 7.0.2 | Apache-2.0 | registry (npm) | dev |
 
-**Total Apache-2.0 (Solid GPUI workspace): 6 package records.**
-
-#### BlueOak-1.0.0
-
-| Package | Version | License (SPDX) | Source | Scope |
-| --- | --- | --- | --- | --- |
-| lru-cache | 11.5.2 | BlueOak-1.0.0 | registry (npm) | runtime |
-
-**Total BlueOak-1.0.0 (Solid GPUI workspace): 1 package records.**
-
-#### BSD-2-Clause
-
-| Package | Version | License (SPDX) | Source | Scope |
-| --- | --- | --- | --- | --- |
-| entities | 6.0.1 | BSD-2-Clause | registry (npm) | runtime |
-
-**Total BSD-2-Clause (Solid GPUI workspace): 1 package records.**
+**Total Apache-2.0 (Solid GPUI workspace): 5 package records.**
 
 #### BSD-3-Clause
 
@@ -1562,107 +1558,56 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 
 **Total BSD-3-Clause (Solid GPUI workspace): 1 package records.**
 
-#### CC-BY-4.0
-
-| Package | Version | License (SPDX) | Source | Scope |
-| --- | --- | --- | --- | --- |
-| caniuse-lite | 1.0.30001810 | CC-BY-4.0 | registry (npm) | runtime |
-
-**Total CC-BY-4.0 (Solid GPUI workspace): 1 package records.**
-
 #### ISC
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
-| electron-to-chromium | 1.5.422 | ISC | registry (npm) | runtime |
 | picocolors | 1.1.1 | ISC | registry (npm) | runtime |
-| semver | 7.8.5 | ISC | registry (npm) | runtime |
 
-**Total ISC (Solid GPUI workspace): 3 package records.**
+**Total ISC (Solid GPUI workspace): 1 package records.**
 
 #### MIT
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
-| @babel/code-frame | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/compat-data | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/core | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/generator | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-annotate-as-pure | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-compilation-targets | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-create-class-features-plugin | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/helper-globals | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-member-expression-to-functions | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-module-imports | 7.18.6 | MIT | registry (npm) | runtime |
-| @babel/helper-module-imports | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-module-transforms | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/helper-optimise-call-expression | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-plugin-utils | 7.29.7 | MIT | registry (npm) | runtime |
-| @babel/helper-plugin-utils | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/helper-replace-supers | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/helper-skip-transparent-expression-wrappers | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-string-parser | 7.29.7 | MIT | registry (npm) | runtime |
-| @babel/helper-string-parser | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helper-validator-identifier | 7.29.7 | MIT | registry (npm) | runtime |
-| @babel/helper-validator-identifier | 8.0.4 | MIT | registry (npm) | runtime |
-| @babel/helper-validator-option | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/helpers | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/parser | 7.29.8 | MIT | registry (npm) | runtime |
-| @babel/parser | 8.0.4 | MIT | registry (npm) | runtime |
-| @babel/plugin-syntax-jsx | 7.29.7 | MIT | registry (npm) | runtime |
-| @babel/plugin-syntax-typescript | 8.0.3 | MIT | registry (npm) | runtime |
-| @babel/plugin-transform-modules-commonjs | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/plugin-transform-typescript | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/preset-typescript | 8.0.1 | MIT | registry (npm) | runtime |
-| @babel/template | 8.0.0 | MIT | registry (npm) | runtime |
-| @babel/traverse | 8.0.4 | MIT | registry (npm) | runtime |
-| @babel/types | 7.29.8 | MIT | registry (npm) | runtime |
-| @babel/types | 8.0.4 | MIT | registry (npm) | runtime |
+| @emnapi/core | 1.11.3 | MIT | registry (npm) | runtime |
+| @emnapi/runtime | 1.11.3 | MIT | registry (npm) | runtime |
+| @emnapi/wasi-threads | 1.2.3 | MIT | registry (npm) | runtime |
 | @jridgewell/gen-mapping | 0.3.13 | MIT | registry (npm) | runtime |
+| @jridgewell/remapping | 2.3.5 | MIT | registry (npm) | runtime |
 | @jridgewell/resolve-uri | 3.1.2 | MIT | registry (npm) | runtime |
 | @jridgewell/sourcemap-codec | 1.6.0 | MIT | registry (npm) | runtime |
 | @jridgewell/trace-mapping | 0.3.31 | MIT | registry (npm) | runtime |
+| @napi-rs/wasm-runtime | 1.2.3 | MIT | registry (npm) | runtime |
 | @oxc-project/types | 0.148.0 | MIT | registry (npm) | runtime |
+| @oxc-transform/binding-darwin-arm64 | 0.148.0 | MIT | registry (npm) | runtime |
+| @oxfmt/binding-darwin-arm64 | 0.66.0 | MIT | registry (npm) | runtime |
 | @rolldown/binding-darwin-arm64 | 1.2.7 | MIT | registry (npm) | runtime |
 | @rolldown/pluginutils | 1.0.1 | MIT | registry (npm) | runtime |
+| @solidjs/compiler | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
+| @solidjs/compiler-darwin-arm64 | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
+| @solidjs/compiler-wasm32-wasi | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @tanstack/history | 1.162.1 | MIT | registry (npm) | runtime |
 | @tanstack/router-core | 1.171.27 | MIT | registry (npm) | runtime |
-| @types/babel__core | 7.20.5 | MIT | registry (npm) | runtime |
-| @types/babel__generator | 7.27.0 | MIT | registry (npm) | runtime |
-| @types/babel__template | 7.4.4 | MIT | registry (npm) | runtime |
-| @types/babel__traverse | 7.28.0 | MIT | registry (npm) | runtime |
-| @types/gensync | 1.0.5 | MIT | registry (npm) | runtime |
-| @types/jsesc | 2.5.1 | MIT | registry (npm) | runtime |
+| @tybys/wasm-util | 0.10.3 | MIT | registry (npm) | runtime |
 | @types/node | 26.4.1 | MIT | registry (npm) | runtime |
-| babel-plugin-jsx-dom-expressions | 0.40.10 | MIT | registry (npm) | runtime |
-| babel-preset-solid | 1.9.15 | MIT | registry (npm) | runtime |
-| browserslist | 4.28.9 | MIT | registry (npm) | runtime |
 | bun-types | 1.4.2 | MIT | registry (npm) | dev |
 | commander | 15.0.0 | MIT | registry (npm) | dev |
-| convert-source-map | 2.0.0 | MIT | registry (npm) | runtime |
 | cookie-es | 3.1.1 | MIT | registry (npm) | runtime |
+| core-js-pure | 3.50.0 | MIT | registry (npm) | runtime |
 | csstype | 3.2.3 | MIT | registry (npm) | runtime |
 | debug | 4.4.3 | MIT | registry (npm) | dev |
-| empathic | 2.0.1 | MIT | registry (npm) | runtime |
-| escalade | 3.2.0 | MIT | registry (npm) | runtime |
+| event-target-shim | 6.0.2 | MIT | registry (npm) | runtime |
 | fdir | 6.5.0 | MIT | registry (npm) | runtime |
 | fflate | 0.7.5 | MIT | registry (npm) | dev |
 | fsevents | 2.3.3 | MIT | registry (npm) | runtime |
-| gensync | 1.0.0-beta.2 | MIT | registry (npm) | runtime |
-| html-entities | 2.3.3 | MIT | registry (npm) | runtime |
-| import-meta-resolve | 4.2.0 | MIT | registry (npm) | runtime |
-| js-tokens | 10.0.0 | MIT | registry (npm) | runtime |
-| jsesc | 3.1.0 | MIT | registry (npm) | runtime |
-| json5 | 2.2.3 | MIT | registry (npm) | runtime |
 | ms | 2.1.3 | MIT | registry (npm) | dev |
 | nanoid | 3.3.18 | MIT | registry (npm) | runtime |
-| node-releases | 2.0.54 | MIT | registry (npm) | runtime |
-| obug | 2.1.4 | MIT | registry (npm) | runtime |
-| parse5 | 7.3.0 | MIT | registry (npm) | runtime |
+| oxc-transform | 0.148.0 | MIT | registry (npm) | runtime |
+| oxfmt | 0.66.0 | MIT | registry (npm) | runtime |
 | path-browserify | 1.0.1 | MIT | registry (npm) | dev |
 | picomatch | 4.0.7 | MIT | registry (npm) | runtime |
 | postcss | 8.5.28 | MIT | registry (npm) | runtime |
-| prettier | 3.9.6 | MIT | registry (npm) | runtime |
 | randombytes | 2.1.0 | MIT | registry (npm) | dev |
 | randomfill | 1.0.4 | MIT | registry (npm) | dev |
 | rolldown | 1.2.7 | MIT | registry (npm) | runtime |
@@ -1673,13 +1618,13 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | seroval-plugins | 1.6.4 | MIT | registry (npm) | runtime |
 | solid-js | 1.9.15 | MIT | registry (npm) | runtime |
 | tinyglobby | 0.2.17 | MIT | registry (npm) | runtime |
+| tinypool | 2.1.0 | MIT | registry (npm) | runtime |
 | typedarray-to-buffer | 4.0.0 | MIT | registry (npm) | dev |
 | undici-types | 8.3.0 | MIT | registry (npm) | runtime |
-| update-browserslist-db | 1.3.2 | MIT | registry (npm) | runtime |
 | vite | 8.2.2 | MIT | registry (npm) | runtime |
 | wasi-js | 1.7.3 | MIT | registry (npm) | dev |
 
-**Total MIT (Solid GPUI workspace): 94 package records.**
+**Total MIT (Solid GPUI workspace): 53 package records.**
 
 #### MPL-2.0
 
@@ -1706,6 +1651,16 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | fs-monkey | 1.1.0 | Unlicense | registry (npm) | dev |
 
 **Total Unlicense (Solid GPUI workspace): 2 package records.**
+
+## Vendored JavaScript
+
+`packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).
+Source: https://github.com/vercel/edge-runtime/blob/440c123a37284d6a852ce453af810ad484ecfc01/packages/primitives/src/primitives/abort-controller.js
+The source file retains the complete MIT notice and describes local changes. It is shipped with the core package's build tools and included in QuickJS application bundles.
+
+`packages/solid-gpui/src/vite/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).
+Source: https://github.com/jimmywarting/fetch-headers/blob/66d63ac7a67d3b9c863cd80b872f2ea999cbc7a7/headers.js
+The source retains the complete MIT notice. Local changes correct header validation/normalization, preserve values after rejected mutations, and remove Node inspection support.
 
 ## Project-owned Bun packages
 

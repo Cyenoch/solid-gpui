@@ -98,7 +98,14 @@ class Tasks {
     await this.nativeCodegen();
     await this.buildPackage({
       directory: corePackageDir,
-      entrypoints: ["./src/index.ts", "./src/runtime.ts", "./src/native.ts", "./src/components.ts"],
+      entrypoints: [
+        "./src/index.ts",
+        "./src/runtime.ts",
+        "./src/native.ts",
+        "./src/components.ts",
+        "./src/stdio.ts",
+        "./src/embedded.ts",
+      ],
       target: "bun",
       splitting: true,
       conditions: ["browser"],
@@ -210,7 +217,7 @@ class Tasks {
     ]);
     await run([
       "bunx",
-      "prettier",
+      "oxfmt",
       "--write",
       "packages/solid-gpui/src/protocol/generated/protocol.ts",
       "packages/solid-gpui/src/protocol/generated/schema-meta.ts",
@@ -270,9 +277,11 @@ class Tasks {
     await this.install();
     await run([
       "bunx",
-      "prettier",
+      "oxfmt",
       "--check",
+      ".oxfmtrc.json",
       "scripts/**/*.ts",
+      "fixtures/*.{ts,tsx,json}",
       "packages/solid-gpui/src/*.ts",
       "packages/solid-gpui/src/renderer/**/*.ts",
       "packages/solid-gpui/src/protocol/*.ts",
@@ -280,7 +289,7 @@ class Tasks {
       "packages/solid-gpui/src/protocol/generated/*.ts",
       "packages/solid-gpui/tests/**/*.{ts,tsx,js,json}",
       "examples/**/*.{ts,tsx,json}",
-      "packages/solid-gpui/src/vite/**/*.ts",
+      "packages/solid-gpui/src/vite/**/*.{ts,js}",
       "packages/solid-gpui-router/src/**/*.ts",
       "packages/solid-gpui-router/tests/**/*.{ts,js,json}",
       "package.json",
@@ -296,6 +305,7 @@ class Tasks {
       run(["bunx", "tsc", "--noEmit"], { cwd: corePackageDir }),
       run(["bunx", "tsc", "--noEmit"], { cwd: routerPackageDir }),
       run(["bunx", "tsc", "--project", "tsconfig.tools.json"]),
+      run(["bunx", "tsc", "--project", "fixtures/tsconfig.json"]),
       run(["bunx", "tsc", "--noEmit"], { cwd: join(repoRoot, "examples/gallery") }),
       run(["bunx", "tsc", "--noEmit"], { cwd: viteGalleryDir }),
     ]);
@@ -313,9 +323,11 @@ class Tasks {
         "test",
         "scripts/gallery-entry.test.ts",
         "scripts/api-surface.test.ts",
+        "scripts/application-build.test.ts",
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
         "scripts/task-contract.test.ts",
+        "scripts/release-prep.test.ts",
       ]),
     ]);
   }
@@ -368,12 +380,23 @@ class Tasks {
   async rustCompile(): Promise<void> {
     await this.packageBuild();
     await run(["cargo", "check", "--workspace", "--locked"]);
-    await run(["cargo", "clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"]);
+    await run([
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--features",
+      "solid-gpui/quickjs",
+      "--",
+      "-D",
+      "warnings",
+    ]);
   }
 
   async rustTest(): Promise<void> {
     await this.packageBuild();
-    await run(["cargo", "test", "--workspace", "--locked"]);
+    await run(["cargo", "test", "--workspace", "--locked", "--features", "solid-gpui/quickjs"]);
   }
 
   async rustCheck(): Promise<void> {
@@ -389,7 +412,7 @@ class Tasks {
   async audit(): Promise<void> {
     await this.install();
     requireTool("cargo-deny", "install version 0.20.2");
-    await Promise.all([run(["bun", "audit"]), run(["cargo", "deny", "check", "advisories"])]);
+    await Promise.all([run(["bun", "audit"]), run(["cargo", "deny", "--all-features", "check", "advisories"])]);
 
     const temporaryDir = await mkdtemp(join(tmpdir(), "solid-gpui-notices-check-"));
     const generatedNotices = join(temporaryDir, "THIRD-PARTY-NOTICES.md");

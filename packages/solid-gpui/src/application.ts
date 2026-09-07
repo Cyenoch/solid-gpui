@@ -1,7 +1,7 @@
 import { createRoot as createOwner } from "solid-js";
 import { createRoot, type Root, type RootOptions, type SolidElement } from "./renderer";
 import { MAX_FRAME_SIZE } from "./protocol";
-import { StdioTransport, type Transport, type TransportListener, type TransportTerminationListener } from "./transport";
+import type { DisposableTransport, Transport, TransportListener, TransportTerminationListener } from "./transport";
 
 export interface ApplicationDefinition<State> {
   readonly render: () => SolidElement;
@@ -15,7 +15,8 @@ export interface ApplicationOptions<State> {
   /** Stable entry URL during development HMR. Omit in production. */
   readonly hotKey?: string;
   readonly surfaceId?: number;
-  readonly transport?: () => Transport;
+  /** Creates the connection owned by this application; hot reload retains it. */
+  readonly transport: () => DisposableTransport;
   /** Runs inside a Solid owner: register resource cleanup with onCleanup. */
   readonly setup: (previousState: State | undefined) => ApplicationDefinition<State>;
 }
@@ -28,8 +29,8 @@ export interface MountedApplication {
 // Kept across development module replacement. Only transport bytes and explicit
 // application state cross generations; old renderer/Solid instances are not reused.
 interface Session extends MountedApplication {
-  readonly transport: Transport;
-  readonly closeTransport?: () => void;
+  readonly transport: DisposableTransport;
+  readonly closeTransport: () => void;
   retire(): void;
   readonly epoch: number;
   readonly surfaceId: number;
@@ -103,10 +104,8 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
   if (epoch > 0xffff_ffff) throw new Error("application epoch exhausted; restart the host");
   const saved = previous?.captureState?.();
   const state = saved === undefined ? undefined : (structuredClone(saved) as State);
-  const transport = previous?.transport ?? options.transport?.() ?? new StdioTransport();
-  const closeTransport =
-    previous?.closeTransport ??
-    (options.transport === undefined && !previous ? () => (transport as StdioTransport).dispose() : undefined);
+  const transport = previous?.transport ?? options.transport();
+  const closeTransport = previous?.closeTransport ?? (() => transport.dispose());
   const candidate = new CandidateTransport(transport);
   let root: Root | undefined;
   let disposeOwner: (() => void) | undefined;
@@ -131,7 +130,7 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
     try {
       retire();
     } finally {
-      closeTransport?.();
+      closeTransport();
     }
   };
   try {
@@ -166,7 +165,7 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
     try {
       retire();
     } finally {
-      if (!previous) closeTransport?.();
+      if (!previous) closeTransport();
     }
     throw error; // The previous generation is still live and interactive.
   }

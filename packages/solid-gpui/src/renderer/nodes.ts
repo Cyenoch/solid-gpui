@@ -27,7 +27,6 @@ import type {
   ListenerBinding,
   RootOwner,
   TextInputCallbackSources,
-  TextInputCallbacks,
   TextInputProps,
 } from "./types";
 import { hostKindSpec } from "./facts";
@@ -206,6 +205,8 @@ class ListenerRegistry {
       a.scrollCallback === b.scrollCallback &&
       a.dragCallbacks.over === b.dragCallbacks.over &&
       a.dragCallbacks.drop === b.dragCallbacks.drop &&
+      a.dragCallbacks.externalFileDrop === b.dragCallbacks.externalFileDrop &&
+      a.layoutCallback === b.layoutCallback &&
       a.inputCallbacks === b.inputCallbacks &&
       a.visibleRangeCallback === b.visibleRangeCallback &&
       a.animationCompleteCallback === b.animationCompleteCallback &&
@@ -451,8 +452,6 @@ interface TransactionJournal {
   readonly newNodes: Set<HostNodeInternal>;
   readonly dirtyProps: Map<HostNodeInternal, number | undefined>;
   readonly nodesById: Map<number, HostNodeInternal | undefined>;
-  readonly listeners: Map<number, HostNodeInternal | undefined>;
-  readonly inputListeners: Map<number, TextInputCallbacks | undefined>;
   readonly createdIds: Map<number, boolean | undefined>;
   readonly deletedRoots: Map<number, boolean | undefined>;
   readonly movedIds: Map<number, boolean | undefined>;
@@ -465,11 +464,10 @@ interface TransactionJournal {
 export class NodeGraph {
   readonly children: HostNodeInternal[];
   readonly syntheticRoot: HostNodeInternal;
-  readonly listeners = new Map<number, HostNodeInternal>();
   readonly nodesById = new Map<number, HostNodeInternal>();
-  readonly inputListeners = new Map<number, TextInputCallbacks>();
-  readonly listenerRegistry = new ListenerRegistry();
-  readonly allNodes = new Set<HostNodeInternal>();
+  // Only attached nodes and bounded listener generations retain host state.
+  // An allocation-wide registry would keep every recycled list row alive.
+  private readonly listenerRegistry = new ListenerRegistry();
   readonly createdIds = new Set<number>();
   readonly deletedRoots = new Set<number>();
   readonly movedIds = new Set<number>();
@@ -524,7 +522,6 @@ export class NodeGraph {
       mounted: true,
     };
     this.nodesById.set(1, this.syntheticRoot);
-    this.allNodes.add(this.syntheticRoot);
     this.children = this.syntheticRoot.children;
   }
   allocateNode(kind: HostKind): HostNodeInternal {
@@ -572,7 +569,6 @@ export class NodeGraph {
       mounted: false,
     };
     this.nextNodeId = nextU32(this.nextNodeId, "node id");
-    this.allNodes.add(node);
     this.transaction?.newNodes.add(node);
     if (kind === "TextInput") {
       node.focus = () => this.owner.submitCommand(node, COMMAND_FOCUS, null);
@@ -648,13 +644,6 @@ export class NodeGraph {
     this.dirtyProps.clear();
   }
 
-  private journalListenerMaps(listenerId: number): void {
-    const transaction = this.transaction;
-    if (transaction === undefined) return;
-    if (!transaction.listeners.has(listenerId)) transaction.listeners.set(listenerId, this.listeners.get(listenerId));
-    if (!transaction.inputListeners.has(listenerId))
-      transaction.inputListeners.set(listenerId, this.inputListeners.get(listenerId));
-  }
   private journalMap<K, V>(changes: Map<K, V | undefined> | undefined, map: Map<K, V>, key: K): void {
     if (changes !== undefined && !changes.has(key)) changes.set(key, map.get(key));
   }
@@ -666,20 +655,6 @@ export class NodeGraph {
   private journalRegistry(nodeId: number): void {
     if (this.transaction !== undefined && !this.transaction.registry.has(nodeId)) {
       this.transaction.registry.set(nodeId, this.listenerRegistry.snapshotNode(nodeId));
-    }
-  }
-
-  private syncListenerId(listenerId: number): void {
-    if (listenerId === 0) return;
-    const binding = this.listenerRegistry.lookup(listenerId, 0xffff_ffff);
-    this.journalListenerMaps(listenerId);
-    if (binding !== undefined && (binding.node.attached || binding.node.detachedFocusPending)) {
-      this.listeners.set(listenerId, binding.node);
-      if (binding.inputCallbacks !== null) this.inputListeners.set(listenerId, binding.inputCallbacks);
-      else this.inputListeners.delete(listenerId);
-    } else {
-      this.listeners.delete(listenerId);
-      this.inputListeners.delete(listenerId);
     }
   }
 
@@ -698,8 +673,6 @@ export class NodeGraph {
       newNodes: new Set(),
       dirtyProps: new Map(),
       nodesById: new Map(),
-      listeners: new Map(),
-      inputListeners: new Map(),
       createdIds: new Map(),
       deletedRoots: new Map(),
       movedIds: new Map(),
@@ -713,15 +686,12 @@ export class NodeGraph {
     this.transaction = undefined;
     this.dirtyProps.clear();
     this.nodesById.clear();
-    this.listeners.clear();
-    this.inputListeners.clear();
     this.createdIds.clear();
     this.deletedRoots.clear();
     this.movedIds.clear();
     this.updatedMasks.clear();
     this.listenerRegistry.clear();
     this.children.length = 0;
-    this.allNodes.clear();
   }
 
   completeTransaction(): void {
@@ -750,7 +720,6 @@ export class NodeGraph {
     if (transaction === undefined) return;
     for (const node of transaction.newNodes) {
       this.resetNode(node);
-      this.allNodes.delete(node);
     }
     for (const [node, value] of transaction.dirtyProps) {
       if (value === undefined) this.dirtyProps.delete(node);
@@ -760,14 +729,6 @@ export class NodeGraph {
     for (const [key, value] of transaction.nodesById) {
       if (value === undefined) this.nodesById.delete(key);
       else this.nodesById.set(key, value);
-    }
-    for (const [key, value] of transaction.listeners) {
-      if (value === undefined) this.listeners.delete(key);
-      else this.listeners.set(key, value);
-    }
-    for (const [key, value] of transaction.inputListeners) {
-      if (value === undefined) this.inputListeners.delete(key);
-      else this.inputListeners.set(key, value);
     }
     for (const [key, value] of transaction.createdIds) {
       if (value === undefined) this.createdIds.delete(key);
@@ -925,7 +886,6 @@ export class NodeGraph {
   }
 
   setNodeProps(node: HostNodeInternal, props: HostProps): void {
-    const previousListenerId = node.listenerId;
     this.journalNode(node);
     this.journalRegistry(node.id);
     try {
@@ -1033,11 +993,12 @@ export class NodeGraph {
         sameSources && previousInputCallbacks !== null
           ? previousInputCallbacks
           : {
-              change: input.onChangeText ? (event) => input.onChangeText?.(event.text) : undefined,
-              selection: input.onSelectionChange ? (event) => input.onSelectionChange?.(event.selection) : undefined,
-              focus: input.onFocus ? () => input.onFocus?.() : undefined,
-              blur: input.onBlur ? () => input.onBlur?.() : undefined,
-              submit: input.onSubmitEditing ? (value) => input.onSubmitEditing?.(value) : undefined,
+              // Capture this revision's callbacks, never the mutable host prop bag.
+              change: inputSources.change ? (event) => inputSources.change?.(event.text) : undefined,
+              selection: inputSources.selection ? (event) => inputSources.selection?.(event.selection) : undefined,
+              focus: inputSources.focus,
+              blur: inputSources.blur,
+              submit: inputSources.submit,
             };
     }
     const hasListener =
@@ -1060,8 +1021,6 @@ export class NodeGraph {
     if (hasListener && node.listenerId === 0) node.listenerId = this.allocateListener(node);
     if (!hasListener) node.listenerId = 0;
     this.listenerRegistry.bind(node, node.listenerId, hasListener);
-    this.syncListenerId(previousListenerId);
-    this.syncListenerId(node.listenerId);
   }
 
   updateNodeProps(node: HostNodeInternal, props: HostProps): number {
@@ -1107,10 +1066,8 @@ export class NodeGraph {
       this.journalNode(current);
       current.attached = true;
       current.detachedFocusPending = false;
-      this.allNodes.add(current);
       this.journalMap(this.transaction?.nodesById, this.nodesById, current.id);
       this.nodesById.set(current.id, current);
-      if (current.listenerId !== 0) this.syncListenerId(current.listenerId);
       for (const child of current.children) attach(child);
     };
     attach(node);
@@ -1130,7 +1087,6 @@ export class NodeGraph {
 
   detachSubtree(node: HostNodeInternal): void {
     const retainFocusRouting = node.nativeFocused;
-    const listenerId = node.listenerId;
     this.journalNode(node);
     node.attached = false;
     node.detachedFocusPending = retainFocusRouting;
@@ -1140,18 +1096,15 @@ export class NodeGraph {
       this.journalRegistry(node.id);
       this.listenerRegistry.remove(node.id);
     }
-    this.syncListenerId(listenerId);
     for (const child of node.children) this.detachSubtree(child);
   }
 
   releaseDetachedFocus(node: HostNodeInternal): void {
     if (node.attached || !node.detachedFocusPending) return;
-    const listenerId = node.listenerId;
     this.journalNode(node);
     node.detachedFocusPending = false;
     this.journalRegistry(node.id);
     this.listenerRegistry.remove(node.id);
-    this.syncListenerId(listenerId);
     node.nativeFocused = false;
   }
 

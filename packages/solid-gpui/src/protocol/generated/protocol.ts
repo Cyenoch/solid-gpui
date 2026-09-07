@@ -956,7 +956,10 @@ export const Command = /*#__PURE__*/ Object.freeze(
 );
 
 export type Body =
-  { tag: 1; value: Snapshot } | { tag: 2; value: Event } | { tag: 3; value: Patch } | { tag: 4; value: Command };
+  | { tag: 1; value: Snapshot }
+  | { tag: 2; value: Event }
+  | { tag: 3; value: Patch }
+  | { tag: 4; value: Command };
 
 export const Body = /*#__PURE__*/ Object.freeze(
   /*#__PURE__*/ Object.assign(
@@ -4631,7 +4634,9 @@ export const MenuSubmenu = /*#__PURE__*/ Object.freeze(
 );
 
 export type MenuItemValue =
-  { tag: 1; value: MenuSeparator } | { tag: 2; value: MenuAction } | { tag: 3; value: MenuSubmenu };
+  | { tag: 1; value: MenuSeparator }
+  | { tag: 2; value: MenuAction }
+  | { tag: 3; value: MenuSubmenu };
 
 export const MenuItemValue = /*#__PURE__*/ Object.freeze(
   /*#__PURE__*/ Object.assign(

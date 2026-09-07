@@ -136,6 +136,7 @@ impl HostProfile for DefaultHostProfile {
 enum RuntimeMode {
     Process,
     Embedded,
+    QuickJs,
 }
 
 #[repr(u8)]
@@ -1000,11 +1001,12 @@ fn parse_host_args(args: &[OsString]) -> Result<CliAction, String> {
         } else if arg == "--runtime" {
             index += 1;
             let Some(value) = args.get(index) else {
-                return Err("--runtime requires `process` or `embedded`".to_owned());
+                return Err("--runtime requires `process`, `embedded`, or `quickjs`".to_owned());
             };
             mode = match value.to_string_lossy().as_ref() {
                 "process" => RuntimeMode::Process,
                 "embedded" => RuntimeMode::Embedded,
+                "quickjs" => RuntimeMode::QuickJs,
                 value => return Err(format!("unknown runtime `{value}`")),
             };
         } else if arg == "--embedded" {
@@ -1027,6 +1029,9 @@ fn parse_host_args(args: &[OsString]) -> Result<CliAction, String> {
     if mode == RuntimeMode::Embedded && renderer_args.is_empty() {
         return Err("embedded runtime requires an explicit application entry".to_owned());
     }
+    if mode == RuntimeMode::QuickJs && renderer_args.len() != 1 {
+        return Err("quickjs runtime requires exactly one bundled JavaScript entry".to_owned());
+    }
 
     Ok(CliAction::Run {
         mode,
@@ -1042,7 +1047,7 @@ fn renderer_entry(mode: RuntimeMode, renderer_args: &[OsString]) -> String {
             .map(|arg| arg.to_string_lossy().into_owned())
             .or_else(|| env::var(COMMAND_ENV).ok())
             .unwrap_or_else(|| "bun".to_owned()),
-        RuntimeMode::Embedded => renderer_args
+        RuntimeMode::Embedded | RuntimeMode::QuickJs => renderer_args
             .first()
             .map(|arg| arg.to_string_lossy().into_owned())
             .expect("embedded entry validated by CLI"),
@@ -1059,6 +1064,18 @@ fn start_runtime(
             .map(|runtime| runtime as Arc<dyn RuntimeAdapter>)
             .map_err(|error| format!("failed to spawn process renderer: {error}")),
         RuntimeMode::Embedded => start_embedded(renderer_args, smoke_press),
+        RuntimeMode::QuickJs => {
+            #[cfg(feature = "quickjs")]
+            {
+                crate::runtime::quickjs::QuickJsAdapter::start(&renderer_args[0])
+                    .map(|runtime| runtime as Arc<dyn RuntimeAdapter>)
+                    .map_err(|error| format!("failed to start QuickJS renderer: {error}"))
+            }
+            #[cfg(not(feature = "quickjs"))]
+            {
+                Err("QuickJS runtime is not compiled; use `--features quickjs`".to_owned())
+            }
+        }
     }
 }
 
@@ -1135,7 +1152,7 @@ fn print_version() {
 
 fn print_help() {
     println!(
-        "solid-gpui-host\n\nUsage:\n  solid-gpui-host [host-options] [renderer-command [args...]]\n  solid-gpui-host --runtime embedded entry.ts\n\nHost options:\n  -h, --help           print this help without starting GPUI\n  -V, --version        print the package version without starting GPUI\n  --runtime process    child-process ProcessAdapter (default)\n  --runtime embedded   in-process Bun/JSC adapter (build with --features embedded-bun)\n  --embedded           alias for --runtime embedded\n  --smoke-press        send one embedded pointer press before waiting\n  --                  stop host option parsing and run the renderer command",
+        "solid-gpui-host\n\nUsage:\n  solid-gpui-host [host-options] [renderer-command [args...]]\n  solid-gpui-host --runtime embedded entry.ts\n  solid-gpui-host --runtime quickjs app.js\n\nHost options:\n  -h, --help           print this help without starting GPUI\n  -V, --version        print the package version without starting GPUI\n  --runtime process    child-process ProcessAdapter (default)\n  --runtime embedded   in-process Bun/JSC adapter (build with --features embedded-bun)\n  --runtime quickjs    embedded QuickJS for a bundled JS entry (build with --features quickjs)\n  --embedded           alias for --runtime embedded\n  --smoke-press        send one embedded pointer press before waiting\n  --                  stop host option parsing and run the renderer command",
     );
 }
 
@@ -1184,6 +1201,16 @@ mod tests {
             Ok(CliAction::Run {
                 mode: RuntimeMode::Embedded,
                 renderer_args: args(&["entry.ts"]),
+                smoke_press: false,
+            })
+        );
+        assert!(parse_host_args(&args(&["--runtime", "quickjs"])).is_err());
+        assert!(parse_host_args(&args(&["--runtime", "quickjs", "one.js", "two.js"])).is_err());
+        assert_eq!(
+            parse_host_args(&args(&["--runtime", "quickjs", "app.js"])),
+            Ok(CliAction::Run {
+                mode: RuntimeMode::QuickJs,
+                renderer_args: args(&["app.js"]),
                 smoke_press: false,
             })
         );

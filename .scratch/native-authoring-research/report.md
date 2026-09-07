@@ -1,84 +1,84 @@
-# Rust 原生组件接入：更小的接口、更完整的能力
+# Rust native component integration: a smaller interface with complete capabilities
 
-研究日期：2026-09-05 至 2026-09-06。本文保留最初的设计探索；随后已完成实现并采纳 [ADR-0016](../../docs/adr/0016-rust-owned-native-modules.md)。当前可编译 API 见 [Rust 组件与 JavaScript 调用](../../docs/rust-bridge.md)，运行时实现与真实验收见 [最终核对](runtime-audit.md)。下文草图不作为当前 API 文档。
+Research dates: 2026-09-05 through 2026-09-06. This document preserves the original design exploration. Implementation subsequently completed and [ADR-0016](../../docs/adr/0016-rust-owned-native-modules.md) was adopted. For the current compilable API, see [Rust components and JavaScript calls](../../docs/rust-bridge.md); for runtime implementation and actual acceptance, see the [final audit](runtime-audit.md). The sketches below are not current API documentation.
 
-基线：工作区 HEAD `4698b0e0b188c34b599ad0275717d17a329c79af`，存在大量既有未提交修改；本文依据当前文件内容，而非声称所有结论属于该 commit。实际依赖为 `gpui-pre 0.3.3`、`gpui-component 0.6.0 @ 928c3eb776a3d733d9b771f7dea27a6a79242ced`、`ts-rs 12.0.1`。不以 `references/gpui-component` 的另一套 shell 实现代表当前桥接能力。
+Baseline: HEAD `4698b0e0b188c34b599ad0275717d17a329c79af` with substantial existing uncommitted changes. Findings describe inspected files, not necessarily that commit alone. Actual dependencies were `gpui-pre 0.3.3`, `gpui-component 0.6.0 @ 928c3eb776a3d733d9b771f7dea27a6a79242ced`, and `ts-rs 12.0.1`. The different Shell implementation in `references/gpui-component` does not establish this bridge's capabilities.
 
-## 推荐结论
+## Recommendation
 
-采用 **Rust 源码声明导出 + 同一 Host 导出绑定 + 原生实例生命周期**。
+Use **Rust source declarations, binding export from the same host, and native instance lifecycles**.
 
-用户在一个 Rust 应用模块里写组件和函数；一个开发命令自动编译 Host、生成一个本地 `#native` TS 模块并运行应用。JS 使用生成的 JSX 和 typed client。框架负责属性编解码、身份、注册、事件、命令、Host 配置和生成过程。
+Applications define components and functions in one Rust module. One development command compiles the host, generates a local `#native` TypeScript module, and runs the application. JavaScript uses generated JSX and a typed client; the framework owns property codecs, identity, registration, events, commands, host configuration, and generation.
 
-普通组件用函数，复杂组件用 GPUI 熟悉的 `Entity<T>` / `Render`，二者共享原生组件契约与传输。gpui-component 做内建可选集成，常用控件的适配由框架写一次。
+Ordinary components use functions; complex components use familiar GPUI `Entity<T>`/`Render`. Both share the native component contract and transport. gpui-component becomes an optional built-in integration whose common control adapters are implemented once by the framework.
 
-目标是一个框架 Rust 依赖、一个框架 npm 包；应用自己的 Rust crate 和本地生成文件不是新的发布包。`solid-js`、Vite 和业务库仍按需依赖。框架内部保留 Rust 必需的 proc-macro crate 和可选底层 Bun 构建 crate。
+Target one framework Rust dependency and one framework npm package. The application's Rust crate and locally generated file are not additional published packages. `solid-js`, Vite, and domain libraries remain dependencies as needed. Internally, retain Rust's required proc-macro crate and optional low-level Bun build crate.
 
-这比只合并目录或替换宏语法更有价值：用户不再参与协议装配，Input/editor/list 等组件获得真实的原生状态承载能力。没有发现能直接替换整个 Solid + GPUI 桥接且同时解决这些问题的现成库；成熟方案提供的是可借鉴或复用的部分机制。
+The gain is more than merged directories or different macro syntax: authors no longer assemble protocols, and Input/editor/list gain actual native state ownership. No ready-made library was found that replaces the whole Solid/GPUI bridge while solving these problems. Existing systems offer individual mechanisms to reuse or learn from.
 
-## 1. 当前复杂度具体来自哪里
+## 1. Sources of current complexity
 
-| 当前事实 | 用户负担或能力缺口 | 推荐改变 |
-|---|---|---|
-| `declarations.rs` 每项填写 props/adapter/decode/render/entry 等名称、数值 ID、版本、字段 ID、事件 ID | 应用作者必须理解生成器的内部符号与协议身份 | 从导出的 Rust 项生成内部符号和确定性身份 |
-| schema、provider renderer、Host、TS 包分离 | 修改一个控件需要跨越多个配置和生成入口 | 同一个 app/module 声明参与编译、注册和导出 |
-| 组件使用 `FieldType`，普通函数使用 serde + ts-rs | 两套类型能力、契约和生成流程；组件只支持有限标量/bytes | 统一导出模型，内部区分组件、服务函数和实例命令 |
-| `native-codegen.ts` 固定 Workbench exporter 和 Gallery 输出路径 | 示例结构成为框架机制的一部分 | Host 导出实际能力，生成位置由应用配置一次 |
-| `gpui-component-codegen.ts` 同时承载契约校验、TS 模板和大量通用运行时文本 | 每个生成包带通用 runtime；维护位置分散 | 通用 runtime 在 npm 主包内，生成物仅含应用类型与薄描述 |
-| `ExtensionAdapter` 仅 `validate/render` | 缺少 Entity、订阅和任务的挂载、更新、销毁语义 | 框架拥有按实例隔离的原生状态 |
-| render context 没有 Window/App/Context，commit 入口主要更新 root | 不能仅加一个 TS wrapper 就接入 InputState | 改造窗口 foreground 的实例应用过程 |
-| provider Host 默认注册 WorkbenchApi | Gallery 业务侵入通用 Host | 业务函数回到 Gallery 应用模块 |
+| Inspected design                                                                                                   | Author burden or capability gap                                                                | Proposed change                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `declarations.rs` names props/adapter/decode/render/entry symbols, numeric IDs, versions, field IDs, and event IDs | Authors must understand generator internals and protocol identity                              | Derive internal symbols and deterministic identity from exported Rust items                        |
+| Separate schema, provider renderer, host, and TypeScript package                                                   | One control change crosses several configurations and generators                               | Use the same app/module declaration for compilation, registration, and export                      |
+| Components use `FieldType`; ordinary functions use serde and ts-rs                                                 | Separate type capabilities, contracts, and generators; component data limited to scalars/bytes | Unify exports while distinguishing components, service functions, and instance commands internally |
+| `native-codegen.ts` hard-codes Workbench exporter and Gallery paths                                                | Example structure becomes framework machinery                                                  | Export actual host capabilities; configure the output location once per application                |
+| `gpui-component-codegen.ts` mixes contract validation, TypeScript templates, and extensive shared runtime text     | Runtime copies and maintenance locations multiply                                              | Put shared runtime in the npm package and generate only application types and compact descriptors  |
+| `ExtensionAdapter` offers only `validate/render`                                                                   | No mount/update/disposal contract for Entities, subscriptions, or tasks                        | Let the framework own isolated native instance state                                               |
+| Render context lacks Window/App/Context; commit primarily updates root                                             | A TypeScript wrapper alone cannot integrate InputState                                         | Apply native instances on the window foreground                                                    |
+| Provider host registers WorkbenchApi by default                                                                    | Gallery domain logic enters the generic host                                                   | Move application functions into Gallery's own module                                               |
 
-源码：[组件声明](../../crates/solid-gpui-gpui-component-schema/src/declarations.rs)、[适配宏](../../crates/solid-gpui-bridge-schema/src/adapters.rs)、[原生渲染](../../crates/solid-gpui-gpui-component/src/lib.rs)、[Extension runtime](../../crates/solid-gpui/src/renderer/extensions.rs)、[函数桥接](../../crates/solid-gpui-bridge/src/lib.rs)、[函数生成脚本](../../scripts/native-codegen.ts)、[组件生成脚本](../../scripts/gpui-component-codegen.ts)、[provider Host](../../crates/solid-gpui-gpui-component-host/src/lib.rs)。
+Source: [component declarations](../../crates/solid-gpui-gpui-component-schema/src/declarations.rs), [adapter macros](../../crates/solid-gpui-bridge-schema/src/adapters.rs), [native rendering](../../crates/solid-gpui-gpui-component/src/lib.rs), [Extension runtime](../../crates/solid-gpui/src/renderer/extensions.rs), [function bridge](../../crates/solid-gpui-bridge/src/lib.rs), [function generator](../../scripts/native-codegen.ts), [component generator](../../scripts/gpui-component-codegen.ts), [provider host](../../crates/solid-gpui-gpui-component-host/src/lib.rs).
 
-已有系统的价值也要保留：Solid getter 的响应式属性、Snapshot/Patch 的原子验证、Surface/epoch 隔离、listener generation 和受限字节协议。这些是框架应当隐藏的复杂度，不是应当删除的能力。
+Preserve the existing system's useful properties: reactive Solid getters, atomic Snapshot/Patch validation, Surface/epoch isolation, listener generations, and bounded byte transport. The framework should hide this complexity without removing those capabilities.
 
-### 一个会推翻“自动 setter 就够了”的实例
+### A case that disproves automatic setters as a complete solution
 
-锁定的 gpui-component 中，`Input::new` 需要 `&Entity<InputState>`，`InputState::new` 需要 Window 与实体 Context。更关键的是，`set_value` 会重置 selection、LSP 状态、滚动并清空 undo。
+In the pinned gpui-component, `Input::new` requires `&Entity<InputState>`, and `InputState::new` requires Window and entity Context. Crucially, `set_value` resets selection, LSP state, scrolling, and undo history.
 
-因此，自动生成 `props.value → state.set_value` 并在每次受控回传时执行，会破坏真实输入行为。普通类型反射无法知道这是一次用户输入的确认，还是有意的程序性替换。
+Automatically mapping props.value to state.set_value on every controlled acknowledgement would break native editing. Type reflection alone cannot distinguish acknowledgement of user input from intentional programmatic replacement.
 
-一手源码：[Input 构造](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/input/input.rs#L167)、[set_value](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L834)、[InputState 构造](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L4978)。这些结论已从 Cargo 实际 checkout 读取，不依赖网页摘要推断。
+Primary source: [Input construction](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/input/input.rs#L167), [set_value](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L834), [InputState construction](https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L4978). These findings came from the actual Cargo checkout rather than webpage summaries.
 
-本仓库的 [input.rs](../../crates/solid-gpui/src/renderer/input.rs) 已有 `edit_seq/ack_edit_seq` 和 marked text 保护，应把这种受控同步语义提炼复用。
+The repository's [input.rs](../../crates/solid-gpui/src/renderer/input.rs) already has `edit_seq/ack_edit_seq` and marked-text protection; extract and reuse that controlled synchronization model.
 
-## 2. 外部方案给了哪些答案
+## 2. Lessons from existing systems
 
-详细一手来源和版本注意事项见 [binding-sources.md](binding-sources.md)。
+See [binding-sources.md](binding-sources.md) for primary sources and version caveats.
 
-| 方案 | 值得采用的机制 | 对本项目的判断 |
-|---|---|---|
-| napi-rs | Rust 注解推导调用封装、TS 类型与类接口 | 借鉴作者体验；Node-API/env/异步运行时不负责 GPUI UI 线程、Surface 或原子树提交 |
-| Tauri + Specta/tauri-specta | 一份 Rust 注册描述生成 dispatch 与 typed client，结构化类型图 | 最接近普通命令作者体验；采用模式，不能将 Tauri runtime 当作 GPUI 组件 runtime |
-| UniFFI | Rust 导出描述、对象生命周期、跨语言绑定生成 | 借鉴统一契约；其对象线程约束和主要语言后端不等于 GPUI Entity 的语义 |
-| wasm-bindgen | 从 Rust 类型与注解生成 JS glue、隐藏 ABI | 适用于 Wasm；不直接承载现有原生 GPUI Host |
-| React Native Fabric | native component 的 props、events、commands、持久 Host View | 借鉴能力分层与实例模型；不搬 TS-first specs、多平台胶水或 JSI 指针模型 |
-| flutter_rust_bridge | Rust 对象作为 opaque 能力、自动化绑定 | 借鉴 typed handle 思路；本项目 handle 必须受 Surface/epoch 管理，不能跨进程传裸指针 |
+| System                      | Useful mechanism                                                                           | Applicability                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| napi-rs                     | Rust annotations derive invocation wrappers, TypeScript types, and class interfaces        | Learn from the author experience; Node-API/env/async execution does not own GPUI UI threads, Surfaces, or atomic tree commits |
+| Tauri + Specta/tauri-specta | One Rust registration generates dispatch and typed clients through a structural type graph | Closest to ordinary command authoring; reuse the pattern without treating Tauri runtime as a GPUI component runtime           |
+| UniFFI                      | Rust export metadata, object lifetimes, and cross-language binding generation              | Reuse unified-contract ideas; its thread constraints and language backends do not model GPUI Entity semantics                 |
+| wasm-bindgen                | Rust types/annotations generate JavaScript glue and hide ABI details                       | Designed for Wasm, not the existing native GPUI host                                                                          |
+| React Native Fabric         | Native component props, events, commands, and persistent Host Views                        | Learn from capability separation and instances without adopting TypeScript-first specs, platform glue, or JSI pointers        |
+| flutter_rust_bridge         | Opaque Rust capabilities and automated bindings                                            | Reuse typed-handle ideas; handles here require Surface/epoch ownership and cannot carry raw pointers across processes         |
 
-Fabric 官方将渲染、提交、挂载区分，并保留原生独有状态；这支持“组件绑定必须包含实例管理”的判断，但不是本仓库实现或性能的证明。[Render, Commit, Mount](https://reactnative.dev/architecture/render-pipeline)
+Fabric distinguishes rendering, commit, and mount while retaining native-only state. This supports including instance management in component bindings, but does not prove this repository's implementation or performance. [Render, Commit, Mount](https://reactnative.dev/architecture/render-pipeline)
 
-Fabric 也为具体 native view 提供生成的 commands，说明实例方法应有明确目标对象。[Native Commands](https://reactnative.dev/docs/the-new-architecture/fabric-component-native-commands)
+Fabric generates commands for specific native views, supporting explicit instance command targets. [Native Commands](https://reactnative.dev/docs/the-new-architecture/fabric-component-native-commands)
 
-flutter_rust_bridge 的自动 opaque 类型面向 Dart/Rust 智能指针；它启发的是受控对象代理，不意味着 GPUI 对象可以跨任意线程。[RustAutoOpaque](https://cjycode.com/flutter_rust_bridge/guides/types/arbitrary/rust-auto-opaque/overview)
+flutter_rust_bridge's automatic opaque types address Dart/Rust smart pointers. They suggest controlled object proxies, not arbitrary cross-thread GPUI access. [RustAutoOpaque](https://cjycode.com/flutter_rust_bridge/guides/types/arbitrary/rust-auto-opaque/overview)
 
-## 3. 三个独立设计方向的比较
+## 3. Three independent designs
 
-| 设计 | Interface | Depth / Locality | 取舍 |
-|---|---|---|---|
-| A：应用模块自动导出 | app/module 宏、组件/函数标记、`#native` | 一处 Rust 声明影响实际 Host 和 JS；无需二次登记每个函数 | 多文件/跨 crate 需要显式模块组合，不能假装任意源码自动发现 |
-| B：原生实体接口优先 | typed props + mount/update + GPUI Render + commands | 对 editor/list/输入的能力最完整，状态与行为集中在组件里 | 若强迫每个 Progress 都实现生命周期，会再次繁琐 |
-| C：第三方 builder 自动映射 | 一个受限的组件映射表，生成 setter/event glue | 批量接入普通库控件方便 | 方法签名不能推导 controlled、资源所有权、同步回调与线程语义 |
+| Design                                   | Interface                                                   | Depth / locality                                                                                          | Tradeoff                                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| A: Automatic application-module exports  | app/module macro, component/function annotations, `#native` | One Rust declaration defines actual host and JavaScript behavior without registering every function twice | Multi-file/cross-crate exports need explicit composition, not fictional automatic discovery     |
+| B: Native entities first                 | Typed props, mount/update, GPUI Render, commands            | Complete editor/list/input support with state and behavior together                                       | Requiring lifecycle boilerplate for every Progress would add complexity again                   |
+| C: Automatic third-party builder mapping | Restricted mapping declarations generate setter/event glue  | Convenient for integrating ordinary library controls in bulk                                              | Signatures cannot infer controlled state, ownership, synchronous callbacks, or thread semantics |
 
-推荐以 A 为公开主入口，B 为其有状态实现能力；C 仅用于框架内部已明确语义的机械映射。不要先造一个覆盖 GPUI 所有 builder 的新 DSL，更不要要求用户为每个控件写 descriptor/registry/decoder 三套接口。
+Use A as the public entrypoint and B as its stateful capability. Reserve C for mechanical framework-internal mappings with established semantics. Do not first invent a DSL covering every GPUI builder or require descriptor/registry/decoder interfaces for every control.
 
-来源附录还讨论了 `NativeScope` 的 keyed state 写法。最终不将 render 内 `scope.entity(...)` 作为默认有状态接口：它容易隐藏创建/更新副作用与提交时机。优先采用明确 mount/update + 原生 Render；若以后加入便捷函数式状态接口，也必须落到同一个实例生命周期，而不是新增第二套状态管理。
+The source appendix also explores keyed `NativeScope` state. Do not make render-time `scope.entity(...)` the default stateful interface: it can obscure creation/update side effects and commit timing. Prefer explicit mount/update with native Render. Any later functional convenience API must use the same instance lifecycle instead of introducing another state system.
 
-## 4. 用户最终应该怎样写
+## 4. Intended author experience
 
-以下全部是目标 API 草图，当前仓库不能直接编译运行这些注解或 `#native`。
+All examples below are target API sketches. The annotations and `#native` were not compilable in the investigated repository.
 
-### 普通组件与函数
+### Ordinary components and functions
 
 ```rust
 #[solid_gpui::app(components = "gpui-component")]
@@ -108,184 +108,179 @@ import { Greeting, useNative } from "#native";
 
 export function Page() {
   const native = useNative();
-  return (
-    <Greeting
-      name="Ada"
-      onPress={async () => console.log(await native.greet("Ada"))}
-    />
-  );
+  return <Greeting name="Ada" onPress={async () => console.log(await native.greet("Ada"))} />;
 }
 ```
 
-约定：组件名称默认 PascalCase，属性/函数默认 camelCase；覆盖名称是例外。普通参数成为 props/请求，`Event<T>` 成为 JS callback，context 由框架注入。生成器不序列化 callback 或 context。简单值不需另写 DTO；嵌套 struct/enum 用统一 `NativeType` derive。可选、默认值、范围、只在挂载时应用等仅在确有含义时标注。
+Conventions: component names default to PascalCase, properties/functions to camelCase; overrides are exceptional. Ordinary parameters become props/requests, `Event<T>` becomes a JavaScript callback, and the framework injects context. Callbacks and contexts are not serialized. Simple values need no separate DTO; nested structs/enums use one `NativeType` derive. Annotate optionality, defaults, ranges, and mount-only behavior only when meaningful.
 
-`useNative()` 在 Solid setup 捕获当前 Surface client；之后的异步回调使用这个已绑定 client，不在全局函数里猜“当前窗口”。没有 owner 的地方使用显式 root client。Surface 释放或 epoch 失效后，调用明确失败。
+`useNative()` captures the Surface client during Solid setup; later async callbacks use that bound client instead of guessing a current window globally. Ownerless code uses an explicit root client. Disposed Surfaces and retired epochs reject calls clearly.
 
-同一个模块宏收集自己实际包含的导出项，不靠 proc macro 全局可变状态，也不遍历全部依赖源码。跨文件模块提供生成的模块描述，应用组合一次；跨 crate 库显式安装一次模块。重复导出名在构建时失败。模块注解遵守实际 cfg/feature，未启用的组件不能进入 TS 导出。
+A module macro gathers its actual contained exports without global proc-macro mutation or scanning all dependency source. Cross-file modules provide generated descriptors for one application composition step; cross-crate libraries install a module explicitly once. Duplicate export names fail at build time. Respect actual cfg/features so disabled components never enter TypeScript exports.
 
-### 有状态组件
+### Stateful components
 
-有状态组件保留 GPUI 的原生写法，额外表达初始 props、更新和可调用方法。下面省略业务实现，展示接口职责：
+Stateful components retain ordinary GPUI code while declaring initial props, updates, and methods. This sketch omits application logic to show responsibilities:
 
 ```rust
 #[component]
 impl Editor {
     fn mount(props: &EditorProps, events: Events<EditorEvent>,
              window: &mut Window, cx: &mut Context<Self>) -> Self {
-        // 创建一次输入/文档 Entity，持有 subscriptions 和 tasks
+        // Create input/document Entities once and own their subscriptions/tasks.
     }
 
     fn update(&mut self, props: &EditorProps,
               window: &mut Window, cx: &mut Context<Self>) {
-        // 应用确实变化的业务属性；遵守受控编辑同步语义
+        // Apply changed domain properties using controlled-edit synchronization.
     }
 
     #[command]
     fn focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // 在 foreground 聚焦真实输入实体
+        // Focus the actual input Entity on the foreground.
     }
 }
 
 impl Render for Editor {
-    // 使用持久 Entity 正常 render；不在此处重建 state、订阅或任务
+    // Render persistent Entities without recreating state, subscriptions, or tasks.
 }
 ```
 
-JS 获得 `<Editor ... ref={...} />` 与 `EditorRef`，`await editor.focus()`。Ref 是有生命期的远程能力，不是 GPUI 指针。复杂组件必须自己表达业务更新语义；框架生成序列化、注册、生命周期调度、事件和方法代理。
+JavaScript receives `<Editor ... ref={...} />`, `EditorRef`, and `await editor.focus()`. A ref is a lifetime-bound remote capability, not a GPUI pointer. Complex components define their update semantics; the framework generates serialization, registration, lifecycle scheduling, events, and method proxies.
 
-## 5. 框架内部必须做好的事情
+## 5. Required framework internals
 
-### 同一个导出模型，三种执行目标
+### One export model, three execution targets
 
-内部契约统一描述类型、props/defaults/constraints、events、slots、commands、身份和限制。生成同一模型的 Rust glue 与 TS facades。执行仍区分：
+One internal contract describes types, props/defaults/constraints, events, slots, commands, identity, and limits. Generate Rust glue and TypeScript facades from it while retaining distinct execution rules:
 
-- 组件创建/更新/实例方法：窗口 foreground，可访问 GPUI Context。
-- 普通计算函数：后台执行，不允许捕获窗口实体；JS 返回 Promise。
-- async 服务：显式受支持的执行器与取消策略；`async fn` 不意味着 Tokio reactor 自动存在。需要 Tokio 的业务服务应明确配置运行时，不能给每个命令隐式造一个。
+- Component creation/updates/instance methods run on the window foreground with GPUI Context access.
+- Ordinary computation runs in the background without captured window Entities and returns JavaScript Promises.
+- Async services need an explicitly supported executor and cancellation policy. `async fn` does not provide a Tokio reactor automatically; configure one runtime for services that need it, not one implicit runtime per command.
 
-类型层优先考察 Specta 的结构化类型图复用，具体选择与版本风险见来源附录。不能把 TS 类型字符串当作可逆的 schema，也不能把 Type derive 当作运行时 decoder。无论内部选哪种库，用户只看一个 NativeType 接口。迁移必须验证 serde 的 rename、tagged enum、Option/default、输入/输出差异与实际传输一致。
+Investigate Specta's structural type graph first; the appendix records options and version risks. TypeScript strings are not reversible schemas, and type derives are not runtime decoders. Whatever the internal library, authors see one NativeType interface. Verify serde rename, tagged enums, Option/default, and input/output differences against actual transport.
 
-继续使用当前 Bebop envelope 和 bounded bytes。标量属性可保留紧凑 ExtensionField 路径；更丰富的嵌套 DTO 必须有显式的生成 codec 与深度/大小限制，不能通过不受约束的 JSON/any 偷渡。复杂 DTO 的具体 wire 扩展在原型中确定，不因作者 API 的简化仓促替换已经测量过的整套协议。大文档/大表的原生模型留 Rust，UI 事件传语义变化；不能每次按键传整个模型。
+Retain the Bebop envelope and bounded bytes. Scalars can keep compact ExtensionField encoding; richer nested DTOs need explicit generated codecs and depth/size limits, not unbounded JSON/any. Determine complex DTO wire changes in a prototype without casually replacing an already-measured protocol. Keep large document/table models in Rust and send semantic changes rather than whole models on every keystroke.
 
-### 身份与生成物
+### Identity and generated artifacts
 
-数字 ID 不再手工维护。基于模块命名空间和规范化导出名确定性分配紧凑 ID，完整 digest 覆盖映射、类型、默认值、约束、事件、slots 与命令。自动分配不依赖源码读取顺序或 linker 顺序。不对新旧生成物做宽松兼容；不匹配就拒绝。
+Stop manually maintaining numeric IDs. Deterministically assign compact IDs from module namespaces and canonical export names; include mappings, types, defaults, constraints, events, slots, and commands in a complete digest. Allocation must not depend on source-read or linker ordering. Reject mismatched artifacts without permissive legacy compatibility.
 
-现有手工 tombstones 和 entry version 的维护可撤去，保留机器校验的契约身份。若某些现有 wire 字段暂时保留，值由生成器生成，不进入作者接口。删除 wire 字段需要显式更新协议与 ADR；不能仅删除 JS 字段宣称完成。opaque 自定义校验器的语义无法自动反射，必须作为显式契约策略声明；任意 Rust 函数体 hash 不是稳定的类型契约。
+Remove manual tombstone and entry-version bookkeeping while preserving machine-checked contract identity. Any temporarily retained wire fields are generator-owned, outside author APIs. Removing wire fields requires explicit protocol and ADR updates, not merely deleting JavaScript properties. Opaque custom-validation semantics need explicit contract policy; arbitrary Rust function-body hashes are not stable type contracts.
 
-### 原生实例与原子提交
+### Native instances and atomic commits
 
-Host 用 `(surface, epoch, node, incarnation, component contract)` 标识实例，持有 Entity、订阅、任务和 typed props。
+The host identifies instances by `(surface, epoch, node, incarnation, component contract)` and owns Entities, subscriptions, tasks, and typed props.
 
-1. 对候选 Commit Batch 完成全部 topology、contract、props、slot 校验，生成 typed updates；不修改活实体。
-2. 在窗口 foreground 完成发布和有效更新。只为新增实例 mount，仅对变化应用 update；节点移动和兄弟变化不 remount。
-3. 按 GPUI Render 读取 typed props；避免每帧重新进行 wire 解码和注册表构造。
-4. 节点移除、组件类型变化、epoch 替换、窗口关闭：先撤销 events/refs，再按 RAII 释放实例、订阅和任务。
+1. Validate all candidate Commit Batch topology, contracts, props, and slots into typed updates without changing live Entities.
+2. Publish and apply valid updates on the window foreground. Mount only new instances and update only changed data; moves and sibling changes do not remount.
+3. Render from typed props without repeating wire decoding or registry construction every frame.
+4. On removal, type replacement, epoch replacement, or window closure, revoke events/refs first, then release instances, subscriptions, and tasks through RAII.
 
-当前 Host 的 commit 入口还需要调整为能取得 Window 的 foreground 更新过程；单独扩充 render context 不足以完成这项工作。
+The host commit entrypoint also needs a foreground update path with Window access. Enlarging render context alone does not provide this.
 
-mount/update 约定为验证后的不可失败 UI 转换；外部 I/O 的失败成为组件自身状态或 typed error。框架不承诺回滚任意 Rust panic、文件写入或业务副作用。若未来引入 fallible mount，必须增加候选实例 staging 和清理设计，而不是偷偷破坏整批验证不变量。
+Treat validated mount/update as infallible UI transformations; external I/O errors become component state or typed errors. Do not promise rollback of arbitrary Rust panics, file writes, or application side effects. Future fallible mounting would require candidate-instance staging and cleanup, not silently weakened batch validation.
 
-### 事件与 Ref 的撤销
+### Event and ref revocation
 
-当前 `ExtensionEventSink` 固定 node/listener，但发出时读取共享 Cell 的当前 epoch/revision。它不能原样长期保存在 retained subscription 中：旧实例回调可能被贴上新 epoch。
+`ExtensionEventSink` fixes node/listener identity but reads current epoch/revision from shared Cells at emission. Retaining it unchanged in subscriptions could label old-instance callbacks with a new epoch.
 
-新的 emitter 必须捕获不可变 surface/epoch/incarnation，并可撤销；每次有效提交更新活实例 listener binding。事件发生时冻结 revision/listener generation，入队后不改标。旧事件按已有 current/previous 规则处理；卸载之后发生的回调不能冒充新实例。提交过程中的事件应按提交后的明确次序释放。
+Emitters must capture immutable surface/epoch/incarnation and support revocation. Valid commits update live listener bindings; event creation freezes revision/listener generation so queued events cannot be relabeled. Existing current/previous rules handle older events. Post-unmount callbacks cannot impersonate new instances. Events produced during commit require explicit post-commit ordering.
 
-实例 commands 携带相同生命期身份；未挂载、已卸载、换 epoch、跨 surface 的调用明确 reject。命令不能越过尚未提交的创建/props 更新：默认等待对应 commit revision 生效，再在 foreground 顺序执行。后台结果返回时再次验证目标仍存活。
+Instance commands carry the same lifetime identity and reject before mount, after unmount, across epochs, or across Surfaces. Commands cannot overtake pending creation/prop commits: wait for the relevant revision, then execute in foreground order. Revalidate target lifetime when background results return.
 
-### 输入、children 与列表
+### Input, children, and lists
 
-- 输入：同值回显不重置 selection/IME/undo；序列与确认避免旧 JS 值覆盖新编辑；程序性 reset 是显式命令。
-- slots：保留 Host Node 身份和 Solid Owner Tree；每次 render 构造 fresh AnyElement，不保存上帧 element 或 JS closure。子内容变化能正确使 retained 父失效。
-- 初期普通 children 可以复用已有有序树；具名 slots 是真实的 schema/runtime 工作，不能用 `Vec<AnyElement>` 冒充完成。
-- 列表：原生保留 ListState，JS 行 owner 按已提交可见范围创建；GPUI 的同步 render-item 闭包不能阻塞等待跨进程 JS。
-- 高频事件只在消费者订阅时安装；unsubscribe、listener 替换与 Patch 必须覆盖，不是初次 Snapshot 通过即可。
+- Input: acknowledging the same value preserves selection/IME/undo; sequences and acknowledgements stop old JavaScript values overwriting newer edits. Programmatic reset is explicit.
+- Slots: preserve Host Node identity and Solid Owner Tree. Build fresh AnyElements per render, without retaining previous-frame elements or JavaScript closures. Child changes invalidate retained parents correctly.
+- Ordinary children may initially reuse the ordered tree. Named slots require real schema/runtime work; `Vec<AnyElement>` alone does not implement them.
+- Lists: retain native ListState and create JavaScript row owners for the committed visible range. GPUI's synchronous render-item callback cannot wait for cross-process JavaScript.
+- Install high-frequency handlers only for subscribers. Verify unsubscribe, listener replacement, and Patches, not only initial Snapshots.
 
-## 6. 构建流程如何真正变简单
+## 6. Simplifying the actual build workflow
 
 ```text
-一个 dev/build 命令
-  → 编译包含 app/module 契约的 Host
-  → Host --export-native（尚未初始化 GPUI/Bun/业务）
-  → 原子写入 .generated/native.ts + 类型/manifest
-  → #native 映射到上述文件，进行 JSX transform/typecheck/bundle
-  → 同一 Host 运行 JS
+One dev/build command
+  → compile the host containing the app/module contract
+  → run Host --export-native before GPUI/Bun/application initialization
+  → atomically write .generated/native.ts and types/manifest
+  → resolve #native to that file for JSX transform/typecheck/bundling
+  → run JavaScript with the same host
 ```
 
-用户不写单独 exporter binary，也不手动先跑三个 codegen 命令。TS 编辑器读取真实生成文件；不依赖仅 Vite 能理解、tsc 看不到的动态模块。生成器不变时不重写输出，避免无效 reload。
+Authors write no separate exporter binary and do not manually sequence three codegen commands. TypeScript editors read real generated files rather than modules understood only by Vite. Avoid rewriting unchanged output and triggering unnecessary reloads.
 
-明确不采用：proc macro 直接写 TS 文件；app 自己的 build.rs 里递归 cargo run 自己；根据 d.ts 反向推导 Rust decoder；启动后才发现 JS 与 Host 契约不一致。
+Rejected approaches: proc macros writing TypeScript directly, build.rs recursively running its own crate through Cargo, inferring Rust decoders from d.ts, or discovering host/JavaScript contract mismatches only after startup.
 
-Rust proc macro 必须来自独立 proc-macro crate，操作的是 token stream，并不是能查询所有依赖类型和方法的完整类型反射服务。[Rust Reference](https://doc.rust-lang.org/reference/procedural-macros.html)
+Rust proc macros require a separate proc-macro crate and operate on token streams; they cannot reflect on every dependency type and method. [Rust Reference](https://doc.rust-lang.org/reference/procedural-macros.html)
 
-build.rs 在 package 编译前执行，因此“引用本 crate 编译后的登记表来生成本 crate”不是可用的构建顺序。[Cargo Build Scripts](https://doc.rust-lang.org/cargo/reference/build-scripts.html)
+build.rs runs before its package compiles, so generating a crate from that same crate's compiled registry creates an invalid build order. [Cargo Build Scripts](https://doc.rust-lang.org/cargo/reference/build-scripts.html)
 
-此流程的代价要说清：首次导出需要编译完整 Host，比今天轻量 schema crate 更重；增量编译和绑定缓存改善后续成本，但不能未经测量承诺更快。纯前端开发可使用与 Host 配套的预生成契约产物，CI 仍校验实际 Host。缓存键含实际 target/feature/编译输入与生成器版本。
+State the cost: first export compiles the complete host and is heavier than the lightweight schema crate. Incremental compilation and binding caches can reduce subsequent cost without an unmeasured speed claim. Frontend-only development may use pre-generated contracts matching the host; CI still checks the actual host. Cache keys include target, features, build inputs, and generator version.
 
-交叉编译目标 Host 未必能在构建机执行。默认使用各平台原生 CI 产出绑定/manifest；需要 cross build 的发行流程必须提供 target runner 或可验证的目标契约产物，不把 macOS 导出无条件用于 Windows cfg。这个限制是单 Host 导出的真实成本。
+A cross-compiled host may not run on the build machine. Prefer native CI per platform for bindings/manifests. Cross-build release workflows need a target runner or verifiable target contract artifact; a macOS export cannot automatically represent Windows cfg. This is a real cost of same-host export.
 
-生产 bundle 可作为应用资源；必须内嵌二进制时做显式第二阶段打包。第一阶段 Host 不能依赖尚未由自身绑定生成的 JS bundle，否则循环。第二阶段再次比对契约。
+Production bundles may be application resources. If embedding them in the binary is required, use explicit second-stage packaging. The first-stage host must not depend on the JavaScript bundle generated from its own bindings, which would create a cycle. Recheck the contract in stage two.
 
-TSX-only HMR 沿用现有新 epoch 机制。Rust 修改重编译、重新导出并重启 Host；失败时报告错误，不能把旧 Host 和新绑定混合。digest 不变也不表示 Rust 实现能热替换。
+TSX-only HMR retains the existing new-epoch mechanism. Rust edits rebuild, re-export, and restart the host; failures surface errors rather than mixing an old host with new bindings. An unchanged digest does not make Rust implementation hot replacement possible.
 
-## 7. 包怎么减少
+## 7. Reducing package count
 
-| 当前 crate/package | 推荐落点 |
-|---|---|
-| `solid-gpui` | 唯一公开框架 Rust crate，内部 modules 分工 |
-| `solid-gpui-host` | `solid-gpui::host` 与标准启动入口 |
-| `solid-gpui-bridge` | `solid-gpui::native` |
-| `solid-gpui-bridge-schema` | 契约运行时进 native；语法处理进内部 macros |
-| `solid-gpui-gpui-component-schema` | 删除独立 schema crate，由实际组件导出元数据 |
-| `solid-gpui-gpui-component` | 主 crate 的可选 feature/module |
-| `solid-gpui-gpui-component-host` | 删除独立 Host，配置启用集成 Root/overlays/init |
-| `solid-gpui-workbench-api` | Gallery 自身 Rust 模块 |
-| `solid-gpui-bun` | adapter 移入主 crate；必要底层 FFI/build 独立为内部 bun-sys |
-| 新的 `solid-gpui-macros` | 独立 proc-macro crate，由主 crate re-export |
-| npm core、gpui-component、vite | 一个框架 npm 包；runtime、components、vite/dev 以 subpath 暴露 |
-| `#native` | 应用本地生成文件，无 package.json、无需发布 |
+| Existing crate/package             | Proposed destination                                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `solid-gpui`                       | Sole public framework Rust crate with internal responsibility modules         |
+| `solid-gpui-host`                  | `solid-gpui::host` and standard startup                                       |
+| `solid-gpui-bridge`                | `solid-gpui::native`                                                          |
+| `solid-gpui-bridge-schema`         | Contract runtime in native; syntax handling in internal macros                |
+| `solid-gpui-gpui-component-schema` | Remove separate schema crate; export metadata from actual components          |
+| `solid-gpui-gpui-component`        | Optional main-crate feature/module                                            |
+| `solid-gpui-gpui-component-host`   | Remove separate host; configure integration Root/overlays/init                |
+| `solid-gpui-workbench-api`         | Gallery's own Rust module                                                     |
+| `solid-gpui-bun`                   | Adapter in the main crate; necessary low-level FFI/build in internal bun-sys  |
+| New `solid-gpui-macros`            | Separate proc-macro crate re-exported by the main crate                       |
+| npm core, gpui-component, vite     | One framework npm package exposing runtime, components, and vite/dev subpaths |
+| `#native`                          | Application-generated local file without package.json or publication          |
 
-当前 `solid-gpui-bun → solid-gpui`，直接让主 crate 依赖原 bun crate 会形成循环。必须把低层 FFI 与 RuntimeAdapter 实现拆开后倒置依赖，不是加一个 re-export 就结束。
+The existing solid-gpui-bun→solid-gpui dependency would cycle if the main crate directly depended on it. Separate low-level FFI from RuntimeAdapter before reversing dependency direction; a re-export alone cannot solve this.
 
-不启用 gpui-component 的应用不编译该可选依赖。启用时集成模块必须安装真正的 Root、overlay、主题和 keybindings；多个需要不同 window root 的集成不能假装自动可组合，应有明确唯一 root policy。框架内部配置这一处，普通用户不用实现 HostProfile。
+Applications without gpui-component should not compile that optional dependency. Enabling integration installs the actual Root, overlays, theme, and keybindings. Integrations needing different window roots require an explicit unique root policy, not assumed automatic composition. Configure it once inside the framework without making ordinary authors implement HostProfile.
 
-npm 的 `/vite` 等构建入口不能被 runtime 入口静态引入；Vite 作为构建期可选 peer 管理。多窗口主题/provider scope 仍由实际 Host 支持，不从 npm 导出范围猜测能力。
+Runtime entrypoints must not statically import build tools such as `/vite`. Manage Vite as an optional build-time peer. Multi-window theme/provider scope still depends on actual host support and cannot be inferred from npm exports.
 
-`gpui-iconify`、`gpui-performance` 有独立 GPUI 用途，本轮不为追求数字把它们吞并。减少的是应用接入要管理的框架包，而非把整个 workspace 堆进一个文件。
+`gpui-iconify` and `gpui-performance` have independent GPUI uses and need not be merged merely to reduce a count. Reduce packages applications must manage without putting the entire workspace into one file.
 
-## 8. 应该删除哪些代码，保留哪些代码
+## 8. What to remove and retain
 
-自动化并撤去作者负担：手写数字身份、decode/render/adapter 的命名串、重复类型定义、注册 match、独立 schema 包、单独 exporter、生成 TS 的手工入口、通用运行时模板副本。
+Automate and remove author-managed numeric identities, decode/render/adapter symbol lists, duplicate types, registration matches, separate schemas/exporters, manual TypeScript generation entrypoints, and copied runtime templates.
 
-保留或集中一次：实际 GPUI 渲染、第三方事件语义转换、原生资源所有权、受控输入策略、范围/业务约束、Host root 集成。对于已经实现的第三方控件，用户不再重复这些映射。
+Retain or centralize actual GPUI rendering, third-party event conversion, native ownership, controlled input policy, domain/range constraints, and host-root integration. Authors do not repeat mappings for controls already integrated by the framework.
 
-不推荐直接生成第三方库全部 public 方法：一个 builder 的 `.child`、同步 render callback、输入状态 setter、异步工作、窗口命令有完全不同的执行语义。可以自动化已标明含义的简单字段，不能通过“全自动”把必要规则隐藏成运行时错误。
+Do not generate every third-party public method indiscriminately. Builder children, synchronous render callbacks, input setters, asynchronous work, and window commands have different execution semantics. Automate simple fields with explicit meaning without turning necessary contracts into hidden runtime failures.
 
-## 9. 最小且能否定方案的验证
+## 9. Minimal validation capable of disproving the design
 
-研究不等于新框架已经成立。落地时先做以下纵向样例，不先生成全库控件：
+Research does not establish a working framework. Implement these vertical examples before generating the whole library:
 
-1. **Progress + Button**：只新增组件源文件/声明，无额外 schema/TS/registry 手改；signal 更新、listener 替换与移除都经过 Snapshot/Patch。
-2. **真实 gpui-component Input**：一次 mount；同值回显、连续输入延迟确认、节点移动后 selection/IME/undo 保留；显式 reset 符合定义。真实窗口确认输入和 focus。
-3. **实例销毁竞争**：删除、HMR、重建同 node ID、延迟事件/后台完成/ref command；旧实例不能触发新回调，Promise 确定完成或拒绝，任务/订阅释放。
-4. **原子验证**：同批正常节点 + 非法 props/slot；无部分 publish、mount 或旧状态修改。
-5. **原生列表/子内容**：可见范围、过滤/重排/resize、slot 更新；创建数量受可见范围约束，不同步回调 JS，不重建整个列表。
-6. **干净生成与发行**：没有生成文件时一个命令成功；同一实际 Host 的类型与运行能力一致；Rust cfg/feature、JS HMR、process/embedded、生产二阶段打包都有关键验证。
+1. **Progress + Button:** Add only component declarations/source, without handwritten schema/TypeScript/registry changes. Signal updates and listener replacement/removal exercise Snapshot/Patch.
+2. **Real gpui-component Input:** Mount once; preserve selection/IME/undo across equal-value acknowledgements, delayed acknowledgements during typing, and moves. Verify explicit reset semantics and real-window input/focus.
+3. **Instance disposal races:** Exercise deletion, HMR, node-ID reuse, late events/background results/ref commands. Old instances never invoke new callbacks; Promises settle and tasks/subscriptions release.
+4. **Atomic validation:** Mix valid nodes and invalid props/slots in one batch without partial publication, mounting, or old-state mutation.
+5. **Native lists/child content:** Exercise visible ranges, filtering/reorder/resize, and slot updates. Construction follows visible ranges without synchronous JavaScript callbacks or rebuilding the whole list.
+6. **Clean generation and release:** One command succeeds without generated files; actual host types and capabilities match. Cover cfg/features, JavaScript HMR, process/embedded modes, and two-stage production packaging.
 
-记录作者需修改的独立位置、直接依赖数、干净/增量构建时间、每次 props 更新的 decode/mount 次数，以及输入到呈现路径。只有实际相同场景测量后才能声称性能改善。不要拿宏展开快、codec 单测快代替原生体验。
+Record independent author edit locations, direct dependencies, clean/incremental build time, decode/mount counts per prop update, and input-to-present behavior. Claim performance gains only from matched actual workloads; fast macro expansion or codec unit tests do not establish native experience.
 
-当前仅运行 `bun run task gpui-component-codegen-check`，退出码 0；它证明旧生成物一致，不证明新提案可运行。没有为研究修改产品代码或增加无意义测试。
+Only `bun run task gpui-component-codegen-check` ran during this research, exiting 0. It establishes consistency of the old artifacts, not viability of this proposal. No product code or unnecessary tests were added for the research.
 
-## 10. 迁移顺序与既有决策
+## 10. Migration order and existing decisions
 
-先以应用模块和实际 Host 导出替换两套作者流程，迁移现有四个控件与 Workbench；随后用 Input 打通原生实例生命周期，修正 emitter/ref 撤销；再验证列表/slots 和复杂 DTO；最后删除旧 schema/host/bridge 包与兼容入口，完成 npm 合并。迁移分步是实现顺序，不是长期保留两套用户接口。
+First replace both authoring paths with application modules and actual-host export, migrating the four existing controls and Workbench. Then establish Input instance lifecycles and emitter/ref revocation, verify lists/slots and complex DTOs, and remove old schema/host/bridge packages and compatibility entrypoints while consolidating npm packages. These are implementation stages, not permanent parallel interfaces.
 
-不等待全库控件接入才判断设计。Input 的受控语义、foreground 实例提交、干净构建和实例撤销是决定方案是否成立的先行条件。
+Do not wait for all controls before evaluating the design. Controlled Input semantics, foreground instance commits, clean builds, and instance revocation are prerequisites.
 
-- 与 ADR-0001 的原子 Commit Batch、ADR-0012 的 Host-owned input 一致。
-- 与 ADR-0015 的 Rust 修改需 restart、新 epoch 清理一致；不承诺原生 Entity HMR 保留。
-- ADR-0014 的 Bebop 与严格验证保留；若去掉 entry version、改变 Extension 值形状、增加 slots/instance command，需明确更新 canonical schema、goldens 和该决策，不能隐式绕开。
-- 本文是建议，不修改这些 accepted ADR；实现并通过上述验收后再记录最终决定。
+- Consistent with ADR-0001 atomic Commit Batches and ADR-0012 Host-Owned Input Models.
+- Consistent with ADR-0015 Rust restarts and new-epoch cleanup; native Entity HMR retention is not promised.
+- Retain ADR-0014 Bebop and strict validation. Removing entry versions, changing Extension values, or adding slots/instance commands requires explicit canonical schema, golden-vector, and decision updates.
+- This proposal does not modify accepted ADRs. Record the final decision after implementation and acceptance.
 
-关键源码与已有文档：[CONTEXT](../../CONTEXT.md)、[Rust bridge](../../docs/rust-bridge.md)、[ADR-0001](../../docs/adr/0001-batch-renderer-commits-into-gpui.md)、[ADR-0012](../../docs/adr/0012-host-owned-input-models.md)、[ADR-0014](../../docs/adr/0014-bebop-v5-generated-wire-protocol.md)、[ADR-0015](../../docs/adr/0015-vite-bun-native-hot-reload.md)。
+Key source and existing documentation: [CONTEXT](../../CONTEXT.md), [Rust bridge](../../docs/rust-bridge.md), [ADR-0001](../../docs/adr/0001-batch-renderer-commits-into-gpui.md), [ADR-0012](../../docs/adr/0012-host-owned-input-models.md), [ADR-0014](../../docs/adr/0014-bebop-v5-generated-wire-protocol.md), [ADR-0015](../../docs/adr/0015-vite-bun-native-hot-reload.md).

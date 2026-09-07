@@ -1,31 +1,31 @@
-# `protocol.ts` 序列化方案调查
+# Serialization Options for `protocol.ts`
 
-## 结论
+## Conclusion
 
-**当前不应因为“想换编码器”直接把 v3 改成 SCALE。** 当前真正的问题是 wire schema、语义模型和校验逻辑分散在 TypeScript 与 Rust 两套实现中；MessagePack 不是当前测量出的瓶颈。
+**Do not replace v3 with SCALE merely to switch encoders.** The actual problem is that the wire schema, semantic model, and validation logic are spread across separate TypeScript and Rust implementations; MessagePack is not the bottleneck identified by current measurements.
 
-建议分两层决策：
+Separate the decision into two stages:
 
-1. **短期保留 v3 MessagePack。** 把 `protocol.ts` 收敛为深模块：上层只使用语义化的 `Snapshot`、`Patch`、`Command`、`Event` DTO，不再构造或消费 tuple 下标；把帧、编码、结构校验、领域校验分开。保留现有 positional wire 和 golden-vector 合同，补齐 MessagePack decoder 的容器长度限制。
-2. **下一次有意破坏 wire 的 v4 优先评估 Protobuf。** 用单一 `.proto` 作为跨语言 schema，生成 Rust/TypeScript wire bindings，外面保留手写语义校验器。Protobuf 的 `oneof`、显式 `optional` 和字段号演进规则正好解决当前多态 payload、稀疏 Style 和 tuple 维护风险。
+1. **Keep v3 MessagePack in the short term.** Make `protocol.ts` a deep module: callers use semantic `Snapshot`, `Patch`, `Command`, and `Event` DTOs without constructing or consuming tuple indexes. Separate framing, encoding, structural validation, and domain validation. Preserve the existing positional wire format and golden-vector contract, and add container-length limits to the MessagePack decoder.
+2. **Prioritize Protobuf for the next deliberate wire-breaking v4.** Use one `.proto` as the cross-language schema, generate Rust/TypeScript wire bindings, and retain handwritten semantic validators outside them. Protobuf's `oneof`, explicit `optional`, and field-number evolution rules directly address the current polymorphic payloads, sparse Style properties, and tuple maintenance risks.
 
-SCALE 只在“Rust 是绝对主导端、协议长期严格 lockstep、TypeScript 端愿意维护一套手写/生成 codec、极致字节紧凑性优先于演进性”的前提下成立。这个仓库的 TypeScript/Bun renderer 是一等 peer，因此不推荐它作为默认方案。
+SCALE makes sense only when Rust is the overwhelmingly dominant endpoint, the protocol remains strictly lockstep over the long term, the TypeScript side accepts maintaining a handwritten/generated codec, and minimum byte size takes priority over evolvability. This repository's TypeScript/Bun renderer is a first-class peer, so SCALE is not recommended as the default.
 
 ---
 
-## 1. 当前实现与实际约束
+## 1. Current Implementation and Actual Constraints
 
-### 1.1 Wire 结构
+### 1.1 Wire structure
 
-仓库当前协议是：
+The repository's current protocol is:
 
 ```text
 [u32 little-endian payload length][MessagePack payload]
 ```
 
-`MAX_FRAME_SIZE` / `MAX_FRAME_LENGTH` 均为 16 MiB。四字节 frame 层已经独立处理分片、合并帧、截断和超限；它不依赖 MessagePack 的具体结构。来源：`docs/protocol.md` §1、`packages/solid-gpui/src/protocol.ts`、`crates/solid-gpui/src/protocol.rs`。
+`MAX_FRAME_SIZE` and `MAX_FRAME_LENGTH` are both 16 MiB. The four-byte framing layer already handles fragmentation, coalesced frames, truncation, and oversized frames independently of MessagePack's structure. Sources: `docs/protocol.md` §1, `packages/solid-gpui/src/protocol.ts`, and `crates/solid-gpui/src/protocol.rs`.
 
-v3 的四种消息均为 positional array：
+All four v3 message types are positional arrays:
 
 ```text
 Snapshot [3, 1, surfaceId, epoch, baseRevision, revision, nodes]
@@ -34,43 +34,43 @@ Patch    [3, 3, surfaceId, epoch, baseRevision, revision, operations]
 Command  [3, 4, surfaceId, epoch, afterRevision, requestId, nodeId, kind, payload]
 ```
 
-协议当前是 lockstep：没有协商、双版本解码或 resync。新增 capability 通过当前 tuple 的 optional tail 表达；`ADR-0011` 明确拒绝保留历史 arity、地图化 wire 和默认填充兼容分支。
+The protocol is currently lockstep: there is no negotiation, dual-version decoding, or resynchronization. New capabilities use optional tails on the existing tuples; `ADR-0011` explicitly rejects retaining historical arities, map-based wire formats, and compatibility branches that fill defaults.
 
-### 1.2 复杂度在哪里
+### 1.2 Sources of complexity
 
-`packages/solid-gpui/src/protocol.ts` 为 981 行；Rust semantic protocol 为 1,381 行，`src/protocol/wire/` 另有约 3,169 行。复杂度不是单纯的 MessagePack API 调用，而是：
+`packages/solid-gpui/src/protocol.ts` has 981 lines; the Rust semantic protocol has 1,381 lines, with approximately 3,169 more in `src/protocol/wire/`. The complexity extends beyond MessagePack API calls:
 
-- TypeScript tuple 类型、编码构造和 event validator；
-- Rust `serde` tuple structs、`#[serde(untagged)]` 枚举、双向转换和独立 validator；
-- `RootContainer`、`NodeGraph`、`dispatch.ts` 继续直接依赖 tuple 下标；
-- `docs/protocol.md`、golden vectors、Rust/TS 两组测试同步维护。
+- TypeScript tuple types, encoding construction, and event validators;
+- Rust `serde` tuple structs, `#[serde(untagged)]` enums, bidirectional conversion, and separate validators;
+- direct tuple-index dependencies in `RootContainer`, `NodeGraph`, and `dispatch.ts`;
+- synchronized maintenance of `docs/protocol.md`, golden vectors, and separate Rust/TS test suites.
 
-特别是 `Style` 当前为固定长度的约 42 项数组。`style.ts` 会为未设置属性编码 `null` 或默认码；`wire/node.rs` 需要按位置维护同一字段序列。它保证了紧凑和当前 deterministic shape，但字段重排或插入会影响整个协议。
+In particular, `Style` is currently a fixed-length array of approximately 42 entries. `style.ts` encodes unset properties as `null` or default codes; `wire/node.rs` must maintain the same positional field sequence. This provides compactness and the current deterministic shape, but reordering or inserting fields affects the entire protocol.
 
-多态数据也依赖手工 tag：`HostProperties`、`PatchOperation`、`EventPayload`、`CommandValue` 和菜单项均需要 discriminator；Rust 端大量使用 untagged enum 按 shape 尝试匹配。
+Polymorphic data also relies on manual tags: `HostProperties`, `PatchOperation`, `EventPayload`, `CommandValue`, and menu items all need discriminators. Rust frequently uses untagged enums to try matching by shape.
 
-### 1.3 性能证据
+### 1.3 Performance evidence
 
-旧的 TypeScript snapshot benchmark fixture 已随前端切换和关键测试收敛一起删除，仓库当前没有可复现的 encode 性能基线。因此，换 Protobuf/SCALE 不能仅凭“更快”成立；任何 codec 迁移都必须先针对当前 Solid renderer、Rust materialization 和 GPUI first draw 建立新的端到端 benchmark。
+The old TypeScript snapshot benchmark fixture was removed during the frontend transition and the consolidation of key tests. The repository currently has no reproducible encoding-performance baseline. Switching to Protobuf/SCALE therefore cannot be justified simply as faster; any codec migration must first establish a new end-to-end benchmark covering the current Solid renderer, Rust materialization, and GPUI first draw.
 
-### 1.4 一个应立即处理的 MessagePack 风险
+### 1.4 A MessagePack risk to address immediately
 
-`decodeWire()` 当前只传入 `{ useBigInt64: false }`。`@msgpack/msgpack` v3.1.3 的 Decoder 默认 `maxStrLength`、`maxBinLength`、`maxArrayLength`、`maxMapLength`、`maxExtLength` 为 `UINT32_MAX`；当前外层 16 MiB frame 限制了实际 payload 字节数，但不等同于语义上的数组/映射元素数限制。应在保留 MessagePack 时显式设置与协议一致的容器上限，并继续保留各字段和领域 validator。
+`decodeWire()` currently passes only `{ useBigInt64: false }`. The Decoder in `@msgpack/msgpack` v3.1.3 defaults `maxStrLength`, `maxBinLength`, `maxArrayLength`, `maxMapLength`, and `maxExtLength` to `UINT32_MAX`. The outer 16 MiB frame limit bounds actual payload bytes, but it does not impose semantic limits on array/map element counts. While retaining MessagePack, explicitly configure container limits consistent with the protocol and keep field and domain validators.
 
 ---
 
-## 2. MessagePack：保留并深模块化
+## 2. MessagePack: Retain It Behind a Deep Module
 
-### 2.1 一手资料事实
+### 2.1 Facts from primary sources
 
-- MessagePack 是通用对象格式，原生有 integer、nil、boolean、float、string、binary、array、map、extension 等类型；array 是有长度的序列，map 是 key/value 集合。规范：<https://github.com/msgpack/msgpack/blob/master/spec.md>。
-- MessagePack 的整数与 float32/float64 有不同 wire forms；`@msgpack/msgpack` 的 `forceFloat32` 只影响非整数 number，不能强制整数编码为 float。仓库 `ADR-0003` 因此要求 producer-byte stability、跨语言语义等价和允许的 numeric dual forms，而不是所有字节完全相同。
-- `rmp-serde` 可以将 Rust tuple/struct 映射为 MessagePack；`Vec<u8>` 需要 binary 配置/`serde_bytes`，否则可能落成数组。来源：<https://docs.rs/rmp-serde/latest/rmp_serde/>。
-- 当前 JS runtime 兼容 TypeScript/Bun；其 v3.1.3 README 和 Decoder 实现说明了 `forceFloat32`、单对象 decode、`decodeMultiStream` 与 max 容器选项。来源：<https://raw.githubusercontent.com/msgpack/msgpack-javascript/v3.1.3/README.md>、<https://raw.githubusercontent.com/msgpack/msgpack-javascript/v3.1.3/src/Decoder.ts>。
+- MessagePack is a general-purpose object format with native integer, nil, boolean, float, string, binary, array, map, and extension types. An array is a length-prefixed sequence; a map is a collection of key/value pairs. Specification: <https://github.com/msgpack/msgpack/blob/master/spec.md>.
+- MessagePack integers and float32/float64 have different wire forms. `@msgpack/msgpack`'s `forceFloat32` affects only noninteger numbers and cannot force integers to encode as floats. Accordingly, repository `ADR-0003` requires producer-byte stability, cross-language semantic equivalence, and permitted numeric dual forms, rather than identical bytes everywhere.
+- `rmp-serde` maps Rust tuples/structs to MessagePack. `Vec<u8>` needs binary configuration/`serde_bytes`; otherwise, it may become an array. Source: <https://docs.rs/rmp-serde/latest/rmp_serde/>.
+- The current JS runtime supports TypeScript/Bun. Its v3.1.3 README and Decoder implementation document `forceFloat32`, single-object decoding, `decodeMultiStream`, and maximum-container options. Sources: <https://raw.githubusercontent.com/msgpack/msgpack-javascript/v3.1.3/README.md>, <https://raw.githubusercontent.com/msgpack/msgpack-javascript/v3.1.3/src/Decoder.ts>.
 
-### 2.2 更好的 MessagePack 接口
+### 2.2 A better MessagePack interface
 
-不要让 `RootContainer` 看到 wire tuple。外部 seam 可以收敛为：
+Keep wire tuples out of `RootContainer`. The external boundary can be reduced to:
 
 ```ts
 export interface ProtocolCodec {
@@ -82,48 +82,48 @@ type OutboundMessage = SnapshotMessage | PatchMessage | CommandMessage;
 type InboundMessage = EventMessage;
 ```
 
-`SnapshotMessage`、`PatchMessage`、`CommandMessage`、`EventMessage` 使用带 `kind` 的普通不可变 DTO；`ProtocolCodec` 内部再映射到当前 positional MessagePack。`FrameDecoder` 应是独立的 `FrameCodec`，不与 MessagePack validator 互相知道实现细节。
+`SnapshotMessage`, `PatchMessage`, `CommandMessage`, and `EventMessage` are ordinary immutable DTOs with a `kind` field; `ProtocolCodec` maps them internally to the current positional MessagePack format. `FrameDecoder` should be an independent `FrameCodec`; it and the MessagePack validator should not know each other's implementation details.
 
-建议拆成以下内部模块，而不是继续扩展一个 981 行文件：
+Use the following internal modules instead of continuing to expand a 981-line file:
 
-- `protocol/constants.ts`：版本、消息/事件/命令码、资源上限；
-- `protocol/types.ts`：语义 DTO 和 discriminated union；
-- `protocol/codec-msgpack.ts`：tuple ↔ MessagePack；
-- `protocol/validate.ts`：结构、资源、数值和组合不变量；
-- `protocol/frame.ts`：四字节 LE framing。
+- `protocol/constants.ts`: versions, message/event/command codes, and resource limits;
+- `protocol/types.ts`: semantic DTOs and discriminated unions;
+- `protocol/codec-msgpack.ts`: tuple ↔ MessagePack mapping;
+- `protocol/validate.ts`: structural, resource, numeric, and combination invariants;
+- `protocol/frame.ts`: four-byte LE framing.
 
-这是代码组织上的改进，不改变 v3 wire。调用方只迁移到 DTO constructor / decoder 结果；旧 tuple 不保留 alias 或 wrapper。
+This changes code organization without changing the v3 wire format. Callers migrate only to DTO constructors/decoder results; do not retain aliases or wrappers for the old tuples.
 
-### 2.3 优点与缺点
+### 2.3 Benefits and drawbacks
 
-**优点：** 零新增跨语言 schema 工具链；保留已验证的 Bun/Rust runtime、frame 和 golden vectors；迁移风险小；能立即消除 `dispatch.ts`、`nodes.ts`、`root-container.ts` 的大量下标访问。
+**Benefits:** No new cross-language schema toolchain; preservation of the verified Bun/Rust runtime, framing, and golden vectors; low migration risk; immediate removal of extensive index-based access in `dispatch.ts`, `nodes.ts`, and `root-container.ts`.
 
-**缺点：** 若仍保留 positional tuple，字段位置依旧是 wire 合同；Rust 与 TS 仍各自需要一份 wire mapping。DTO 只改善 seam 和 locality，不自动生成跨语言 schema。若进一步把 tuple 改成 MessagePack map，可获得按 key 的可演进性，但会增加每个节点的 key 开销，且与 `ADR-0011` 的现行 v3 决策冲突，应视为 v4 设计而不是局部重构。
+**Drawbacks:** With positional tuples, field positions remain the wire contract, and Rust and TS still each need a wire mapping. DTOs improve the boundary and locality without automatically generating a cross-language schema. Replacing tuples with MessagePack maps would enable key-based evolution, but adds key overhead to every node and conflicts with the current v3 decision in `ADR-0011`. Treat that as a v4 design, not a local refactor.
 
-**裁决：** 对当前 v3，这是最高杠杆、最低风险的第一步；但它不是长期跨语言 schema 的最终解。
+**Decision:** For current v3, this is the first step with the greatest benefit and lowest risk. It is not the final answer for a long-term cross-language schema.
 
 ---
 
-## 3. Protobuf：v4 的首选 schema-driven 方向
+## 3. Protobuf: The Preferred Schema-Driven Direction for v4
 
-### 3.1 一手资料事实
+### 3.1 Facts from primary sources
 
-- Protobuf wire 是 field number + wire type 的 key/value record；wire type 让旧 parser 跳过不认识的新字段。字符串、bytes、嵌入 message 使用 length-delimited；`float` 使用 fixed32；`uint32` 使用 varint。官方编码指南：<https://protobuf.dev/programming-guides/encoding/>。
-- Proto3 字段号一旦投入使用不能修改；删除字段必须 reserve field number/name，不能重用。显式 `optional` 提供 presence，官方指南推荐其用于兼容性；repeated 标量默认 packed。官方语言指南：<https://protobuf.dev/programming-guides/proto3/>。
-- `oneof` 原生表达互斥多态字段，适合 `EventPayload`、`PatchOperation`、`Command`、`HostProperties` 和 `CommandValue`，不再需要通过 tuple shape 试探。
-- Protobuf binary serialization **不是 canonical**：字段可以以不同顺序出现，unknown fields 和 deterministic serialization 也不等于全球唯一字节表示。官方说明：<https://protobuf.dev/programming-guides/serialization-not-canonical/>。因此迁移后仍应保留“各 producer 自己的 bytes 稳定 + 两端语义等价”的 golden 合同，不应改成盲目要求 TS/Rust 每个字节永远相同。
-- TypeScript 可用 Buf 的 `@bufbuild/protobuf` + `protoc-gen-es`：该项目声明支持纯 TypeScript、Bun、protobuf conformance 和标准 protoc plugin。来源：<https://github.com/bufbuild/protobuf-es>。Google 官方 `google-protobuf` JS runtime 对当前 ESM/Bun 集成不如 protobuf-es 合适；选择 runtime 前仍需做 bundle/build smoke。
-- Rust `prost` 从 proto2/proto3 生成 Rust struct/enum，支持 `encoded_len`，但 `prost-build` 通常需要 `protoc`；它不提供 runtime reflection。来源：<https://docs.rs/prost/latest/prost/>、<https://docs.rs/prost/latest/prost/trait.Message.html>。
+- The Protobuf wire format consists of key/value records identified by field number and wire type. Wire types let older parsers skip unfamiliar new fields. Strings, bytes, and embedded messages are length-delimited; `float` uses fixed32; `uint32` uses varint. Official encoding guide: <https://protobuf.dev/programming-guides/encoding/>.
+- Proto3 field numbers cannot change once used. Deleted field numbers/names must be reserved and never reused. Explicit `optional` provides presence, and the official guide recommends it for compatibility; repeated scalars are packed by default. Official language guide: <https://protobuf.dev/programming-guides/proto3/>.
+- `oneof` natively represents mutually exclusive polymorphic fields, fitting `EventPayload`, `PatchOperation`, `Command`, `HostProperties`, and `CommandValue` without probing tuple shapes.
+- Protobuf binary serialization **is not canonical**: fields may appear in different orders, and unknown fields or deterministic serialization do not establish one globally unique byte representation. Official explanation: <https://protobuf.dev/programming-guides/serialization-not-canonical/>. After migration, preserve the golden contract of stable bytes per producer plus semantic equivalence across both endpoints; do not blindly require every TS/Rust byte to remain identical forever.
+- TypeScript can use Buf's `@bufbuild/protobuf` and `protoc-gen-es`. The project advertises pure TypeScript, Bun support, protobuf conformance, and a standard protoc plugin. Source: <https://github.com/bufbuild/protobuf-es>. Google's official `google-protobuf` JS runtime is less suitable than protobuf-es for the current ESM/Bun integration; bundle/build smoke tests are still required before selecting a runtime.
+- Rust `prost` generates Rust structs/enums from proto2/proto3 and supports `encoded_len`, but `prost-build` normally requires `protoc`. It does not provide runtime reflection. Sources: <https://docs.rs/prost/latest/prost/>, <https://docs.rs/prost/latest/prost/trait.Message.html>.
 
-### 3.2 建议的 v4 schema 形状
+### 3.2 Suggested v4 schema shape
 
-保持现有 outer frame，不使用 Protobuf 的 `encodeDelimited` 再添加第二个长度前缀：
+Preserve the existing outer frame. Do not add a second length prefix with Protobuf's `encodeDelimited`:
 
 ```text
 [u32 little-endian payload length][protobuf Envelope bytes]
 ```
 
-概念 schema：
+Conceptual schema:
 
 ```proto
 syntax = "proto3";
@@ -165,51 +165,51 @@ message PatchOperation {
 }
 ```
 
-`Node` 的 `HostProperties` 使用 oneof；`Event` 的 payload 使用一个 oneof，把当前 `eventType` 与 payload 的重复 discriminator 合并；`Command` 的每个 command kind 使用一个带自身参数的 oneof message。`Style` 使用每个属性一个显式 optional field，而不是固定 42 槽；`bytes` 用于图片；所有 ID、epoch、revision、sequence、index 使用 `uint32`；几何和样式浮点使用 `float`。
+Use oneof for `Node`'s `HostProperties`. Give `Event` a oneof payload, combining the duplicated discriminators currently carried by `eventType` and the payload. Represent each `Command` kind as a oneof message with its own parameters. Give each `Style` property an explicit optional field instead of a fixed 42-slot array. Use `bytes` for images; `uint32` for every ID, epoch, revision, sequence, and index; and `float` for geometry and style floating-point values.
 
-Patch 的 `UpdateNode` 不应机械删除现有 `change_mask`：当前 `mask + null` 表达“清除某字段”，单纯的 protobuf field presence 不能同时表达“未改变”和“明确清除”。第一版可保留 mask，并规定 mask 与 optional 字段/clear 语义严格一致；更彻底的 v5 形状可以为每个可清除字段定义 `oneof { value; clear; }`。
+Do not mechanically remove the existing `change_mask` from Patch's `UpdateNode`. The current `mask + null` combination means clearing a field; protobuf field presence alone cannot distinguish unchanged from explicitly cleared. The first version can retain the mask, requiring strict agreement between it and optional-field/clear semantics. A more thorough v5 shape could define `oneof { value; clear; }` for each clearable field.
 
-### 3.3 不能交给 Protobuf 的验证
+### 3.3 Validation that Protobuf cannot own
 
-Protobuf 只负责 wire 类型/基本结构，不负责当前领域合同。decode 后仍需手写 validator，至少包括：
+Protobuf handles wire types/basic structure, not the current domain contract. Handwritten validators remain necessary after decoding, including at least:
 
-- `protocol_version` 精确匹配当前版本；
-- `revision > base_revision`、Patch base 与 retained tree revision 相等；
-- Surface、epoch、node/listener identity 和 event sequence；
-- Node parent/index 拓扑、RawText/Text 层级和 host property kind 匹配；
-- finite/non-negative geometry、u32 业务范围、Style 取值；
-- tooltip、路径、文本、图片和文件的 UTF-8/字节上限；
-- root event、close request、focus/blur、command result 的 node/listener 约束；
-- 每个 oneof variant 与当前 command/event 语义的组合约束。
+- exact `protocol_version` matching;
+- `revision > base_revision`, and equality between a Patch base and the retained tree revision;
+- Surface, epoch, node/listener identity, and event sequence;
+- Node parent/index topology, RawText/Text hierarchy, and host-property kind matching;
+- finite/non-negative geometry, business ranges within u32, and Style values;
+- UTF-8/byte limits for tooltips, paths, text, images, and files;
+- node/listener constraints for root events, close requests, focus/blur, and command results;
+- combination constraints between each oneof variant and current command/event semantics.
 
-Protobuf parser 的默认长度能力不是业务上限。应先在 frame 层拒绝 >16 MiB，再在 validator/reader 层约束字符串、bytes、repeated 数量和嵌套深度。Protobuf 官方 C++ `CodedInputStream` 文档也将 total bytes、nested push limit 和 recursion limit 作为资源控制点：<https://protobuf.dev/reference/cpp/api-docs/google.protobuf.io.coded_stream/>。
+A Protobuf parser's default length capacity is not a business limit. Reject frames over 16 MiB first, then constrain strings, bytes, repeated counts, and nesting depth in the validator/reader. The official Protobuf C++ `CodedInputStream` documentation likewise treats total bytes, nested push limits, and recursion limits as resource controls: <https://protobuf.dev/reference/cpp/api-docs/google.protobuf.io.coded_stream/>.
 
-### 3.4 优点、成本与风险
+### 3.4 Benefits, costs, and risks
 
-**优点：** 单一 `.proto` 消除 TS tuple type 与 Rust `wire/*` 的重复 schema；`oneof` 消除 untagged shape ambiguity；optional field 只编码出现的 Style 属性；field-number/reserved 规则提供真实的 additive evolution；float 直接是 fixed32，消除当前整数形式的 f32 dual-form 问题。
+**Benefits:** One `.proto` removes duplicated schema definitions in TS tuple types and Rust `wire/*`. `oneof` removes untagged shape ambiguity. Optional fields encode only present Style properties. Field-number/reserved rules support actual additive evolution. Floats are directly fixed32, removing the current integer-form f32 dual-form issue.
 
-**成本：** 引入 `protoc`/Buf、生成文件策略、Rust build.rs、TS package/runtime、依赖许可证和 CI reproducibility；生成 DTO 未必适合直接暴露给 `RootContainer`，仍需 semantic adapter；protobuf decode 后仍然会构造消息对象/字符串/vector，不能承诺零 allocation；需要新的 v4 fixtures 和所有 producer/consumer 迁移。
+**Costs:** Adds `protoc`/Buf, a generated-file policy, Rust build.rs, a TS package/runtime, dependency-license review, and CI reproducibility requirements. Generated DTOs may not suit direct exposure to `RootContainer`, so a semantic adapter is still needed. Protobuf decoding still constructs message objects, strings, and vectors; zero allocation cannot be promised. New v4 fixtures and migration of all producers/consumers are required.
 
-**未知字段策略：** Protobuf wire/schema 支持跳过未知字段，但“解码后再编码是否保留 unknown fields”取决于 runtime。Solid GPUI 两端是终端 consumer，不是 proxy，因此默认可丢弃未知字段；若未来要做透明 proxy，必须显式选择支持 unknown-field preservation 的 runtime，并另写约束。不能把“Protobuf 支持 unknown field”误写成“所有 Rust/TS runtime 都自动保留”。
+**Unknown-field policy:** Protobuf wire/schema supports skipping unknown fields, but retaining them through decode/re-encode depends on the runtime. Both Solid GPUI endpoints are terminal consumers, not proxies, so discarding unknown fields is acceptable by default. A future transparent proxy would require an explicit choice of runtime with unknown-field preservation and a separate contract. Do not equate Protobuf's unknown-field support with automatic preservation in every Rust/TS runtime.
 
-**版本策略：** 当前 v3 是 lockstep，换 Protobuf 必须明确升为 v4；不能让一个 decoder 静默同时接受 MessagePack v3 和 Protobuf v4。若要获得 Protobuf 的演进收益，v4 之后应建立“协议 major + schema additive change + capability gate”的规则，并为删除字段永久 reserve。
+**Version policy:** Current v3 is lockstep, so switching to Protobuf must explicitly advance the version to v4. A decoder must not silently accept both MessagePack v3 and Protobuf v4. To gain Protobuf's evolution benefits, establish protocol-major + additive-schema-change + capability-gate rules after v4, permanently reserving deleted fields.
 
-**裁决：** 如果团队愿意承担一次正式 v4 cutover，Protobuf 是最适合这个仓库的 schema-driven 默认选择。它首先解决维护和演进问题，其次才可能改善 sparse Style 的体积。
+**Decision:** If the team accepts a formal v4 cutover, Protobuf is the best schema-driven default for this repository. It first addresses maintenance and evolution, with smaller sparse Style payloads as a secondary potential benefit.
 
 ---
 
-## 4. SCALE：紧凑，但不是更好的跨语言 schema
+## 4. SCALE: Compact, but Not a Better Cross-Language Schema
 
-### 4.1 一手资料事实
+### 4.1 Facts from primary sources
 
-- `parity-scale-codec` 明确说明 decoder 两端必须分别知道类型上下文，encoded bytes 不含字段名、类型标识或 schema metadata。来源：<https://github.com/paritytech/parity-scale-codec>。
-- SCALE 的 struct/tuple 是字段按声明顺序连续拼接；Vec 先写 compact length；Option 以 `00`/`01 + value` 表达；enum 先写 variant index；整数默认 little-endian。类型顺序和 enum index 就是 wire 合同。Polkadot data encoding reference：<https://docs.polkadot.com/reference/parachains/data-encoding/>。
-- Rust `parity-scale-codec` 提供 `Encode`、`Decode`、`Compact`、`DecodeLimit`/内存限制等能力。来源：<https://docs.rs/parity-scale-codec/latest/parity_scale_codec/>、<https://docs.rs/parity-scale-codec/latest/parity_scale_codec/trait.DecodeLimit.html>。
-- SCALE 没有 Protobuf 式 field tag/unknown-field skip。新增字段、修改 struct 顺序、修改 enum index、改变 compact/fixed 选择都需要显式版本化或两端同步；旧 decoder 不能可靠地按字段跳过未知内容。
+- `parity-scale-codec` explicitly states that both decoder endpoints must independently know the type context. Encoded bytes contain no field names, type identifiers, or schema metadata. Source: <https://github.com/paritytech/parity-scale-codec>.
+- SCALE structs/tuples concatenate fields in declaration order; Vec starts with a compact length; Option uses `00`/`01 + value`; enums start with a variant index; integers are little-endian by default. Type order and enum indexes are the wire contract. Polkadot data encoding reference: <https://docs.polkadot.com/reference/parachains/data-encoding/>.
+- Rust `parity-scale-codec` provides `Encode`, `Decode`, `Compact`, `DecodeLimit`/memory limits, and related capabilities. Sources: <https://docs.rs/parity-scale-codec/latest/parity_scale_codec/>, <https://docs.rs/parity-scale-codec/latest/parity_scale_codec/trait.DecodeLimit.html>.
+- SCALE has no Protobuf-style field tags or unknown-field skipping. Adding fields, reordering structs, changing enum indexes, or changing compact/fixed choices requires explicit versioning or synchronized endpoints. Older decoders cannot reliably skip unfamiliar content field by field.
 
-### 4.2 在本仓库中的接口形状
+### 4.2 Interface shape in this repository
 
-可以把外部 seam 设计成：
+The external boundary could be:
 
 ```ts
 interface ProtocolCodec {
@@ -218,76 +218,76 @@ interface ProtocolCodec {
 }
 ```
 
-内部 Rust 使用 `Encode/Decode`，TypeScript 使用一个 SCALE combinator/generated codec；`RootContainer` 不直接接触 `Compact`, `Option` 或 reader/writer。数值需逐字段决定 fixed/compact：u32 fixed 会比当前小 MessagePack integer 更占空间，compact 可节省小 ID/长度，但每个字段都必须在 TS/Rust 侧完全一致。f32、颜色和几何适合固定宽度；string/bytes/vector 仍需先检查长度上限再分配。
+Internally, Rust would use `Encode/Decode` and TypeScript a SCALE combinator/generated codec. `RootContainer` would not interact directly with `Compact`, `Option`, or readers/writers. Choose fixed/compact encoding per numeric field: fixed u32 uses more space than current small MessagePack integers; compact encoding saves space for small IDs/lengths, but every TS/Rust field choice must match exactly. Fixed width suits f32, colors, and geometry; strings/bytes/vectors still require length checks before allocation.
 
-`scale-info` 可以作为 Rust 类型描述来源，但把它转成可审查、可稳定生成的 TypeScript codec 需要自建 code generator；它不是本项目可以直接依赖的跨语言 IDL/官方 TS 生成链。这会把当前“两套 wire mapping”变成“Rust type + 自建 metadata generator + TS runtime”三套需要验证的东西。
+`scale-info` can describe Rust types, but turning it into a reviewable, reproducibly generated TypeScript codec requires a custom generator. It is not a cross-language IDL/official TS generation pipeline this project can directly adopt. That replaces the current two wire mappings with three independently verifiable pieces: Rust types, a custom metadata generator, and a TS runtime.
 
-### 4.3 优点与缺点
+### 4.3 Benefits and drawbacks
 
-**优点：** Rust 端 derive 简洁；无 field tag 时结构紧凑；LE/fixed/compact 选择可控；在严格 lockstep 的 Rust-first 系统中有很好的字节和 CPU 杠杆。
+**Benefits:** Concise Rust derives, compact structures without field tags, controllable LE/fixed/compact choices, and strong byte-size/CPU benefits in strictly lockstep Rust-first systems.
 
-**缺点：** 不 self-describing；没有未知字段跳过；enum index/字段顺序是高风险隐式契约；TypeScript/Bun 没有一个像 Protobuf `.proto` + protoc 那样统一、广泛采用的跨语言生成路径；稀疏 Style 若直接用 Option 仍需为每个字段写 presence byte，若用 bitmask 又重新引入手工 schema 设计。
+**Drawbacks:** Not self-describing; no unknown-field skipping; enum indexes/field order form a risky implicit contract. TypeScript/Bun lacks a unified, widely adopted cross-language generation path comparable to Protobuf `.proto` + protoc. Sparse Style represented directly with Option still needs one presence byte per field; using a bitmask reintroduces manual schema design.
 
-**裁决：** SCALE 适合作为 Rust/区块链生态内部 codec，不适合作为这个项目想解决“跨语言协议 schema 漂移”的答案。只有把目标明确改成“Rust-first、永远 lockstep、最小 bytes”，才应选择它。
+**Decision:** SCALE fits codecs within Rust/blockchain ecosystems. It does not solve this project's cross-language protocol schema drift. Select it only if the objective explicitly becomes Rust-first, permanently lockstep, and minimum bytes.
 
 ---
 
-## 5. 其他候选
+## 5. Other Candidates
 
 ### FlatBuffers
 
-FlatBuffers 官方文档承诺生成多语言代码、直接从 serialized buffer 访问数据、以及 tables 的向前/向后 schema 演进：<https://flatbuffers.dev/>、<https://flatbuffers.dev/schema/>。这对大型 Snapshot 很有吸引力；Rust/TS 也有官方语言页和生成器：<https://flatbuffers.dev/languages/typescript/>、<https://flatbuffers.dev/languages/rust/>。
+Official FlatBuffers documentation promises multilingual code generation, direct access to serialized buffers, and forward/backward schema evolution for tables: <https://flatbuffers.dev/>, <https://flatbuffers.dev/schema/>. This is attractive for large Snapshots; Rust/TS also have official language pages and generators: <https://flatbuffers.dev/languages/typescript/>, <https://flatbuffers.dev/languages/rust/>.
 
-但它要求 `flatc` schema/build pipeline；Patch operation 需要 union/wrapper table；TS 的 object API 会重新 unpack/allocate；FlatBuffers 自身没有内置 wire format version，且 binary field order 不应被当作 canonical bytes。Snapshot 最终还要进入 Rust retained tree，zero-copy 不会自动消除该 materialization 成本。**只有性能 profile 明确显示 Snapshot decode/materialization 是瓶颈时，才值得做 FlatBuffers spike；不作为当前默认。**
+However, it requires a `flatc` schema/build pipeline; Patch operations need unions/wrapper tables; the TS object API unpacks/allocates again. FlatBuffers has no built-in wire-format version, and binary field order should not be treated as canonical bytes. Snapshots must still enter the Rust retained tree, so zero-copy does not automatically remove materialization costs. **A FlatBuffers spike is worthwhile only when profiles clearly identify Snapshot decoding/materialization as the bottleneck; it is not the current default.**
 
 ### Cap'n Proto
 
-Cap'n Proto 有强类型 ordinal evolution 和 zero-copy，但其 stream framing 是 segment-count/word-size 结构，不是当前四字节 total payload prefix；官方 other-language 列表也没有一个与 Bun TypeScript 一等匹配的成熟路径。来源：<https://capnproto.org/language.html>、<https://capnproto.org/encoding.html>、<https://capnproto.org/otherlang.html>。**不推荐。**
+Cap'n Proto provides strongly typed ordinal evolution and zero-copy, but its stream framing uses segment counts/word sizes rather than the current four-byte total-payload prefix. The official other-language list also lacks a mature path that treats Bun TypeScript as a first-class target. Sources: <https://capnproto.org/language.html>, <https://capnproto.org/encoding.html>, <https://capnproto.org/otherlang.html>. **Not recommended.**
 
-### CBOR / JSON / Rust-only codec
+### CBOR / JSON / Rust-only codecs
 
-CBOR 或 JSON 可以改变表示，但不会自动解决当前 schema duplication、tag/variant 建模和领域验证问题；`bincode`/`rkyv` 等 Rust-centric codec 更不适合 TypeScript/Bun peer。除非出现外部 interoperability 需求，不值得从已工作的 MessagePack 再换一套 generic format。
+CBOR or JSON can change the representation without automatically solving current schema duplication, tag/variant modeling, or domain validation. Rust-centric codecs such as `bincode`/`rkyv` are even less suitable for a TypeScript/Bun peer. Without an external interoperability requirement, replacing working MessagePack with another generic format is not worthwhile.
 
 ---
 
-## 6. 决策矩阵
+## 6. Decision Matrix
 
-| 维度 | 当前 MessagePack v3 | MessagePack DTO seam | Protobuf v4 | SCALE | FlatBuffers |
+| Dimension | Current MessagePack v3 | MessagePack DTO boundary | Protobuf v4 | SCALE | FlatBuffers |
 |---|---|---|---|---|---|
-| 跨语言 schema | TS/Rust 双写 | 仍双写，但集中 wire adapter | 单一 `.proto` + generated bindings | Rust 类型 + 自建 TS 生成/codec | `.fbs` + `flatc` |
-| 多态建模 | 手工 tag/untagged shape | 同 wire，调用方不见 tag | `oneof` | enum index/手工 | union/table |
-| 稀疏 Style | 固定槽位，很多 null/default | 不变 | optional fields，自然省略 | 需 bitmask/Option 设计 | table offsets |
-| 演进 | 当前 lockstep；尾部规则 | 当前 lockstep | field number/reserved/unknown skip | 版本化；无 unknown skip | table additive，但需额外版本标识 |
-| Bun/TS 现成度 | 已验证 | 已验证 | protobuf-es/Buf 可行，需新增工具链 | codec 选择分散，需自建/引入方案 | 官方生成器可行，需更重 builder |
-| Rust 现成度 | 已验证 | 已验证 | prost 可行，需 protoc/build.rs | 一流 | 可行 |
-| frame 复用 | 是 | 是 | 是，保留外层 4-byte LE | 是 | 是，但 schema/version 自管 |
-| 当前必要性 | — | **立即值得** | **v4 长期首选** | 不足 | 仅 profile 驱动 |
+| Cross-language schema | Written separately in TS/Rust | Still separate, but concentrated in wire adapters | One `.proto` + generated bindings | Rust types + custom TS generation/codec | `.fbs` + `flatc` |
+| Polymorphism | Manual tags/untagged shapes | Same wire; callers do not see tags | `oneof` | Enum indexes/manual | Union/table |
+| Sparse Style | Fixed slots, many null/default values | Unchanged | Optional fields, naturally omitted | Requires bitmask/Option design | Table offsets |
+| Evolution | Currently lockstep; tail rules | Currently lockstep | Field numbers/reserved/unknown skipping | Versioned; no unknown skipping | Additive tables, but extra version identification needed |
+| Bun/TS readiness | Verified | Verified | protobuf-es/Buf feasible; new toolchain needed | Fragmented codec choices; requires building/adopting a solution | Official generator feasible; heavier builder needed |
+| Rust readiness | Verified | Verified | prost feasible; protoc/build.rs needed | First-class | Feasible |
+| Frame reuse | Yes | Yes | Yes; retain the outer 4-byte LE frame | Yes | Yes, with schema/version managed separately |
+| Current need | — | **Worth doing immediately** | **Preferred long-term v4 option** | Insufficient | Profile-driven only |
 
 ---
 
-## 7. 推荐落地顺序
+## 7. Recommended Implementation Sequence
 
-### 阶段 A：不改 v3 wire
+### Stage A: Preserve the v3 wire format
 
-1. 定义语义 DTO 和 `ProtocolCodec` seam；`RootContainer`、`SurfaceHost`、`dispatch.ts`、`NodeGraph` 不再读写 tuple 下标。
-2. 把 frame、MessagePack mapping、结构校验、领域校验拆开；保留 `ADR-0003` 的三层 golden contract。
-3. 为 `@msgpack/msgpack` 设置 max string/bin/array/map/ext 选项；若需要嵌套深度限制则在协议 validator/解析策略中单独实现。资源字节上限仍由领域 validator 负责。
-4. 给 `ProtocolCodec` 增加 focused tests：Snapshot/Patch/Command/Event 代表性 DTO、malformed oneof/tag、frame fragmentation/coalescing、资源上限和跨语言 golden vectors。
+1. Define semantic DTOs and a `ProtocolCodec` boundary; stop tuple-index access in `RootContainer`, `SurfaceHost`, `dispatch.ts`, and `NodeGraph`.
+2. Separate framing, MessagePack mapping, structural validation, and domain validation; preserve the three-layer golden contract in `ADR-0003`.
+3. Configure maximum string/bin/array/map/ext options for `@msgpack/msgpack`. If nesting-depth limits are needed, implement them separately in protocol validation/parsing. Domain validators still own resource-byte limits.
+4. Add focused `ProtocolCodec` tests: representative Snapshot/Patch/Command/Event DTOs, malformed oneof/tags, frame fragmentation/coalescing, resource limits, and cross-language golden vectors.
 
-### 阶段 B：为 v4 做 Protobuf spike
+### Stage B: Run a Protobuf spike for v4
 
-1. 新建单一 schema 文件；先只覆盖 Snapshot、Patch、Command、Event，不让 generated types 穿透 renderer/host domain seam。
-2. 以真实 fixtures 测量：20k mixed snapshot、稀疏 Style、style-only patch、pointer/keyboard event storm、图片/文件最大边界；记录 payload size、encode/decode CPU、TS allocations/GC、Rust allocations。
-3. 选择 `@bufbuild/protobuf`/`protoc-gen-es` 与 `prost` 的可复现 codegen 方式，确认 Bun ESM、Cargo build、许可证和 CI 不依赖用户机器上的未声明工具。
-4. 保留外层 4-byte LE frame；Protobuf payload 不再添加 inner length delimiter。
-5. 设计 `UpdateNode` 的 clear semantics、未知字段策略、版本/能力策略，并为删除 field 永久 reserve。
-6. 通过 v4 一次性 cutover：更新 host/package、docs、fixtures、golden tests；不要保留 v3/v4 双 decoder 或历史 wrapper。
+1. Create one schema file, initially covering only Snapshot, Patch, Command, and Event. Keep generated types behind the renderer/host domain boundary.
+2. Measure real fixtures: a 20k mixed snapshot, sparse Style, a style-only patch, pointer/keyboard event storms, and maximum image/file boundaries. Record payload size, encode/decode CPU, TS allocations/GC, and Rust allocations.
+3. Choose reproducible codegen for `@bufbuild/protobuf`/`protoc-gen-es` and `prost`; confirm Bun ESM, Cargo builds, licenses, and CI do not rely on undeclared tools on a user's machine.
+4. Retain the outer 4-byte LE frame; do not add an inner length delimiter to the Protobuf payload.
+5. Design `UpdateNode` clear semantics, unknown-field policy, and version/capability policy; permanently reserve deleted fields.
+6. Perform a single v4 cutover: update host/package, documentation, fixtures, and golden tests. Do not retain dual v3/v4 decoders or historical wrappers.
 
-### 阶段 C：仅在 profile 支持时做 FlatBuffers 对照
+### Stage C: Compare FlatBuffers only when supported by profiles
 
-若 Protobuf spike 证明大 Snapshot decode/materialization 仍是实际瓶颈，再用同一 fixture 做 FlatBuffers 对照；若只是当前 GPUI first draw 主导，则不引入第三种 schema 工具链。
+If the Protobuf spike demonstrates that large-Snapshot decoding/materialization remains an actual bottleneck, compare FlatBuffers with the same fixture. If GPUI first draw dominates instead, do not introduce a third schema toolchain.
 
-## 来源索引
+## Source Index
 
 - MessagePack specification: <https://github.com/msgpack/msgpack/blob/master/spec.md>
 - MessagePack JS v3.1.3: <https://raw.githubusercontent.com/msgpack/msgpack-javascript/v3.1.3/README.md>
@@ -299,131 +299,135 @@ CBOR 或 JSON 可以改变表示，但不会自动解决当前 schema duplicatio
 - prost: <https://docs.rs/prost/latest/prost/>
 - parity-scale-codec: <https://github.com/paritytech/parity-scale-codec>
 - SCALE data encoding: <https://docs.polkadot.com/reference/parachains/data-encoding/>
-- FlatBuffers overview/schema/languages: <https://flatbuffers.dev/>、<https://flatbuffers.dev/schema/>、<https://flatbuffers.dev/languages/typescript/>、<https://flatbuffers.dev/languages/rust/>
-- Cap'n Proto language/encoding/other languages: <https://capnproto.org/language.html>、<https://capnproto.org/encoding.html>、<https://capnproto.org/otherlang.html>
+- FlatBuffers overview/schema/languages: <https://flatbuffers.dev/>, <https://flatbuffers.dev/schema/>, <https://flatbuffers.dev/languages/typescript/>, <https://flatbuffers.dev/languages/rust/>
+- Cap'n Proto language/encoding/other languages: <https://capnproto.org/language.html>, <https://capnproto.org/encoding.html>, <https://capnproto.org/otherlang.html>
 
-## 8. 本地验证记录
+## 8. Local Verification Record
 
-- `cargo test -p solid-gpui --lib tests::protocol`：11 passed，0 failed；覆盖当前 MessagePack round-trip、frame truncation/oversize、version mismatch、host-property mismatch、command result 和 event payload 合同。
-- `bun run task package-test`：6 passed，0 failed；覆盖 signal Patch、跨 root owner、条件挂载、VirtualList 重挂载、render error 恢复和 surface close cleanup。
-- 本调查没有改动生产源码；新增的唯一仓库文件是本报告。
+- `cargo test -p solid-gpui --lib tests::protocol`: 11 passed, 0 failed; covers the current MessagePack round trip, frame truncation/oversize, version mismatch, host-property mismatch, command results, and event payload contracts.
+- `bun run task package-test`: 6 passed, 0 failed; covers signal Patches, cross-root ownership, conditional mounting, VirtualList remounting, render-error recovery, and surface-close cleanup.
+- This investigation changed no production source. This report was the only repository file added.
 
 ---
 
-## 9. 扩展候选面
+## 9. Expanded Candidate Set
 
-本节把候选扩大到“有 schema/codegen 且可能用于 Rust + TypeScript”的格式。评估的是本仓库的实际 hot path：TypeScript 生成 Commit Batch，Rust 解析后 materialize retained Host Node tree；不是只比较裸 codec benchmark。
+This section broadens the candidates to formats with schemas/codegen that might support Rust + TypeScript. It evaluates this repository's actual hot path: TypeScript produces a Commit Batch, then Rust parses it and materializes the retained Host Node tree. It does not merely compare isolated codec benchmarks.
 
-### 9.1 Schema-first 候选
+### 9.1 Schema-first candidates
 
-| 方案 | 单一 schema 生成 Rust + TS | 性能/内存模型 | 主要缺口 |
+| Option | One schema generating Rust + TS | Performance/memory model | Main gaps |
 |---|---|---|---|
-| Protobuf | `prost` + `protobuf-es/protoc-gen-es` | tag/varint/fixed32；稀疏字段省略；解析后通常有对象/字符串分配 | 需要 protoc/Buf/build.rs；仍需 semantic adapter |
-| Bebop | 官方 `bebopc` 生成 Rust 与 TypeScript；`.bop` schema | 固定宽度 LE 数值、长度前缀 message/union、生成式 encode/decode；理论上很适合高频小消息 | 生态明显小于 Protobuf/FlatBuffers；bounded decode API、兼容策略和长期维护需实测确认 |
-| Apache Fory | 官方 Fory IDL/compiler 可生成 Rust 与 JavaScript/TypeScript；`.fdl` schema | xlang、field metadata、union/optional、generated serializers；runtime 有 graph/depth/container limits | compiler/JS runtime 当前 alpha 线；需要 type registration/compatible mode；Bun 与 node-gyp/依赖路径需验证，运行时比 Bebop/Protobuf 更重 |
-| FlatBuffers | 官方 `flatc --rust --ts` | 生成 accessor 可直接从 buffer 读取；适合大型 Snapshot | TS 写入需要 builder；Patch union/wrapper 较重；materialize 后 zero-copy 收益下降 |
-| Apache Thrift | Apache compiler 的 Rust 与 `ts`/`node.ts` targets；Rust/部分 JS targets 支持 Compact，node.ts 官方矩阵主要支持 Binary | 字段 ID；struct/union/optional；可跳过未知字段 | 没有 `uint32`/`float`，只有 signed integer 与 `double`；TypeScript 端不能假定 Compact 可用；运行时带 RPC/Node 取向 |
-| Cap'n Proto | Rust plugin + 社区 TS 实现 | word-aligned zero-copy、ordinal evolution | 官方核心项目没有一等 Bun/TS generator；自有 segment framing；TS 实现成熟度不足 |
-| ASN.1 + RASN | `rasn-compiler` 可生成 Rust；TS backend 主要生成 JER 类型定义 | APER/UPER/OER 可很紧凑 | Rust/TS 不共享同一成熟的 binary binding pipeline；ASN.1 复杂度过高 |
-| Avro | Apache 有 schema resolution 与 Rust SDK | record 按 writer schema 顺序；schema resolution 强 | raw datum 依赖 schema；Apache 主项目没有与 Bun 对应的一等 TS generator/runtime |
-Apache Thrift 的官方类型系统和 IDL 明确提供 struct、union、optional field、binary，协议字段使用 field ID；其 Compact protocol 还定义了 compact varint 和未知字段跳过，但官方 language matrix 的 `node.ts` 行只列 Binary，不列 Compact。Thrift 基础类型没有 unsigned integer 和 32-bit float：<https://thrift.apache.org/docs/types.html>、<https://thrift.apache.org/docs/idl>、<https://raw.githubusercontent.com/apache/thrift/master/doc/specs/thrift-compact-protocol.md>、<https://raw.githubusercontent.com/apache/thrift/master/LANGUAGES.md>。因此 Thrift 仍是可落地的 schema/codegen 备用候选，但不满足本项目对原生 `u32`/`f32`、低 glue 和高性能的综合要求，不进入最终前三。
-Bebop 的官方文档显示 `.bop` schema 可由 `bebopc` 生成 TypeScript 和 Rust，且可以关闭 service 资产，只生成 records；wire 使用 little-endian fixed-width numbers、`uint32` 长度、message field index 和 union discriminator，未知 message field 可跳到 body 末尾。来源：<https://bebop.sh/guide/getting-started-typescript/>、<https://bebop.sh/guide/getting-started-rust/>、<https://bebop.sh/reference/wire-format/>、<https://bebop.sh/reference/union/>。这比 Thrift 更贴合当前的 `u32`/`f32` 与高频消息，但其生态、工具链和 bounded decode 能力必须作为 v4 spike 的硬验收项，不能直接采用文档中的泛化性能宣传。
-Apache Fory 的官方 IDL 文档明确支持一次 schema 生成 Rust 与 JavaScript/TypeScript，并支持 optional、union、跨语言 type registration 和 schema-compatible mode：<https://fory.apache.org/docs/compiler/>、<https://fory.apache.org/docs/compiler/generated-code/javascript/>、<https://fory.apache.org/docs/compiler/generated-code/rust/>、<https://fory.apache.org/docs/object-serialization/javascript/schema-evolution/>。它是比 Thrift 更有力的额外候选，但当前 compiler/JavaScript runtime 的 alpha 状态、运行时注册/metadata 成本和 Bun 兼容性必须先通过 spike。
+| Protobuf | `prost` + `protobuf-es/protoc-gen-es` | Tags/varints/fixed32; omitted sparse fields; parsing usually allocates objects/strings | Requires protoc/Buf/build.rs; still needs a semantic adapter |
+| Bebop | Official `bebopc` generates Rust and TypeScript from a `.bop` schema | Fixed-width LE numbers, length-prefixed messages/unions, generated encode/decode; theoretically well suited to frequent small messages | Much smaller ecosystem than Protobuf/FlatBuffers; bounded decode APIs, compatibility policy, and long-term maintenance need empirical verification |
+| Apache Fory | Official Fory IDL/compiler generates Rust and JavaScript/TypeScript from a `.fdl` schema | xlang, field metadata, unions/optional fields, generated serializers; runtime has graph/depth/container limits | Compiler/JS runtime currently on an alpha line; needs type registration/compatible mode; Bun and node-gyp/dependency paths need verification; heavier runtime than Bebop/Protobuf |
+| FlatBuffers | Official `flatc --rust --ts` | Generated accessors read directly from buffers; suits large Snapshots | TS writes require a builder; heavier Patch unions/wrappers; zero-copy benefits decrease after materialization |
+| Apache Thrift | Apache compiler Rust and `ts`/`node.ts` targets; Rust/some JS targets support Compact, while the official node.ts matrix primarily supports Binary | Field IDs; structs/unions/optional fields; unknown-field skipping | No `uint32`/`float`, only signed integers and `double`; cannot assume Compact support on TypeScript; runtime is oriented toward RPC/Node |
+| Cap'n Proto | Rust plugin + community TS implementation | Word-aligned zero-copy, ordinal evolution | No first-class Bun/TS generator in the official core project; separate segment framing; insufficient TS implementation maturity |
+| ASN.1 + RASN | `rasn-compiler` generates Rust; TS backend primarily generates JER type definitions | APER/UPER/OER can be very compact | Rust/TS do not share one mature binary-binding pipeline; excessive ASN.1 complexity |
+| Avro | Apache provides schema resolution and a Rust SDK | Records follow writer-schema order; strong schema resolution | Raw data depends on schema; Apache's main project has no first-class TS generator/runtime suited to Bun |
 
-ASN.1 的 `rasn-compiler` README 明确区分 Rust bindings 与“for JER-encoded ASN.1 data elements”的 TypeScript definitions：<https://docs.rs/crate/rasn-compiler/latest/source/README.md>。这不能直接满足本项目的两端 binary codec 单源要求。Avro 的官方规格重点是 schema-dependent datum 与 writer/reader schema resolution：<https://avro.apache.org/docs/1.11.0/spec.pdf>；它的字段演进很强，但不是 Bun + Rust 的低胶水首选。
+Apache Thrift's official type system and IDL explicitly provide structs, unions, optional fields, and binary, with field IDs in the protocol. Its Compact protocol also defines compact varints and unknown-field skipping, but the official language matrix lists only Binary, not Compact, for `node.ts`. Thrift's basic types omit unsigned integers and 32-bit floats: <https://thrift.apache.org/docs/types.html>, <https://thrift.apache.org/docs/idl>, <https://raw.githubusercontent.com/apache/thrift/master/doc/specs/thrift-compact-protocol.md>, <https://raw.githubusercontent.com/apache/thrift/master/LANGUAGES.md>. Thrift therefore remains a feasible schema/codegen alternative, but does not meet this project's combined requirements for native `u32`/`f32`, minimal glue, and high performance; it does not enter the final top three.
 
-### 9.2 Binary format + schema/validation 候选
+Bebop's official documentation shows that `bebopc` generates TypeScript and Rust from `.bop` schemas, with service artifacts disabled if only records are needed. Its wire format uses little-endian fixed-width numbers, `uint32` lengths, message field indexes, and union discriminators; an unknown message field can be skipped by advancing to the end of the body. Sources: <https://bebop.sh/guide/getting-started-typescript/>, <https://bebop.sh/guide/getting-started-rust/>, <https://bebop.sh/reference/wire-format/>, <https://bebop.sh/reference/union/>. This fits current `u32`/`f32` and high-frequency messages better than Thrift, but ecosystem, toolchain, and bounded decoding must be hard acceptance criteria for a v4 spike. General performance claims in its documentation are not sufficient evidence.
 
-| 方案 | 事实 | 为什么不进入前三 |
+Apache Fory's official IDL documentation explicitly supports generating Rust and JavaScript/TypeScript from one schema, including optional fields, unions, cross-language type registration, and schema-compatible mode: <https://fory.apache.org/docs/compiler/>, <https://fory.apache.org/docs/compiler/generated-code/javascript/>, <https://fory.apache.org/docs/compiler/generated-code/rust/>, <https://fory.apache.org/docs/object-serialization/javascript/schema-evolution/>. It is a stronger additional candidate than Thrift, but the compiler/JavaScript runtime's current alpha status, runtime registration/metadata cost, and Bun compatibility require a spike first.
+
+The ASN.1 `rasn-compiler` README explicitly distinguishes Rust bindings from TypeScript definitions “for JER-encoded ASN.1 data elements”: <https://docs.rs/crate/rasn-compiler/latest/source/README.md>. This does not directly meet the project's single-source binary-codec requirement for both endpoints. Avro's official specification focuses on schema-dependent data and writer/reader schema resolution: <https://avro.apache.org/docs/1.11.0/spec.pdf>. It has strong field evolution, but is not the preferred low-glue choice for Bun + Rust.
+
+### 9.2 Binary format + schema/validation candidates
+
+| Option | Facts | Why it is outside the top three |
 |---|---|---|
-| CBOR + CDDL | IETF 标准；CBOR extensible、self-describing；CDDL 描述 CBOR/JSON | CDDL 是 schema notation，不是统一跨语言 binding generator；需要分别选择 CBOR runtime、Rust typegen、TS typegen/validator |
-| MessagePack + 自建 schema generator | 当前 runtime 已验证，数组很紧凑 | 自建 generator 变成项目自己的编译器；维护成本和风险超过保留现有 DTO seam 的收益 |
-| SCALE | Rust 端轻量、compact、LE | decoder 需要外部类型上下文；字段顺序/enum index 无 tag 演进；TS 实现和 codegen 分散 |
-| SBE | 适合固定布局、低延迟金融消息；schema-driven | 官方 SBE tool targets 是 Java/C++/C/Golang 等，没有本仓库需要的成熟 TS target |
-| Rust `rkyv` / `postcard` / `bincode` | Rust-to-Rust 可很快或 zero-copy | 没有 TypeScript wire target，直接违反双端单源要求 |
-| WIT / Component Model | 有 Rust 与 JavaScript component bindings | 是 component interface/runtime，不是可直接替换当前 Bun stdio payload 的通用 codec；会改变 Runtime Adapter 和进程模型 |
-| Arrow IPC | 官方列式 IPC、FlatBuffers metadata、可做高吞吐零拷贝 batch | Host Node tree 是异构树，Command/Event/patch semantics 不适合列式；会增加一层数据重排 |
-| Postcard + `postcard-bindgen` | Rust `no_std`/varint，社区 generator 可输出 JS | 生成器不是 Postcard 官方跨语言链，输出非一等 TypeScript API；仍需审查自定义属性和 bounded decode |
+| CBOR + CDDL | IETF standards; CBOR is extensible and self-describing; CDDL describes CBOR/JSON | CDDL is schema notation, not a unified cross-language binding generator; requires separate choices for CBOR runtime, Rust typegen, and TS typegen/validator |
+| MessagePack + custom schema generator | Current runtime is verified; arrays are compact | A custom generator becomes the project's own compiler; maintenance costs and risks exceed the benefit of retaining the existing DTO boundary |
+| SCALE | Lightweight, compact, LE on Rust | Decoder needs external type context; field order/enum indexes lack tag-based evolution; TS implementations and codegen are fragmented |
+| SBE | Suits fixed-layout, low-latency financial messages; schema-driven | Official SBE tool targets include Java/C++/C/Golang and others, but lack the mature TS target this repository needs |
+| Rust `rkyv` / `postcard` / `bincode` | Rust-to-Rust can be fast or zero-copy | No TypeScript wire target; directly violates the single-source requirement for both endpoints |
+| WIT / Component Model | Rust and JavaScript component bindings exist | A component interface/runtime, not a generic codec that directly replaces current Bun stdio payloads; would change the Runtime Adapter and process model |
+| Arrow IPC | Official columnar IPC with FlatBuffers metadata; supports high-throughput zero-copy batches | Host Nodes form a heterogeneous tree; Command/Event/Patch semantics do not fit columns; would add data rearrangement |
+| Postcard + `postcard-bindgen` | Rust `no_std`/varint; community generator can emit JS | Generator is not Postcard's official cross-language pipeline; output is not a first-class TypeScript API; custom attributes and bounded decoding still need review |
 
-CBOR 的目标包含小代码、合理消息大小和扩展性，但 RFC 8949 明确它是 generic data format；CDDL RFC 8610 是描述语言，二者不提供本项目所需的官方 Rust/TypeScript 同源代码生成链：<https://www.rfc-editor.org/rfc/rfc8949>、<https://www.rfc-editor.org/rfc/rfc8610>。SBE 的工具文档列出的 target language 也不含 TypeScript：<https://github.com/aeron-io/simple-binary-encoding/wiki/Sbe-Tool-Guide>。这些方案可以工作，但会重新制造 glue。
-Arrow IPC 的官方格式是列式、带 FlatBuffers metadata 和 body buffers 的数据交换格式：<https://arrow.apache.org/docs/format/Columnar.html>。它适合同构数组 batch，不适合当前异构 Host Node tree。Postcard 官方 README 将其定位为 Rust/Serde/no_std codec；`postcard-bindgen` 是另一个社区 generator，不应视作 Postcard 的官方跨语言契约：<https://github.com/jamesmunns/postcard>、<https://github.com/teamplayer3/postcard-bindgen>。
+CBOR targets small code, reasonable message size, and extensibility, but RFC 8949 explicitly defines it as a generic data format. CDDL RFC 8610 is a description language. Together they do not provide the official single-source Rust/TypeScript generation pipeline needed here: <https://www.rfc-editor.org/rfc/rfc8949>, <https://www.rfc-editor.org/rfc/rfc8610>. The SBE tool documentation likewise omits TypeScript from its target-language list: <https://github.com/aeron-io/simple-binary-encoding/wiki/Sbe-Tool-Guide>. These approaches can work, but recreate glue code.
 
-### 9.3 Cap'n Proto 与 FlatBuffers 的性能边界
+Arrow IPC's official format is columnar data exchange with FlatBuffers metadata and body buffers: <https://arrow.apache.org/docs/format/Columnar.html>. It suits homogeneous array batches, not the current heterogeneous Host Node tree. Postcard's official README positions it as a Rust/Serde/no_std codec; `postcard-bindgen` is a separate community generator and should not be treated as Postcard's official cross-language contract: <https://github.com/jamesmunns/postcard>, <https://github.com/teamplayer3/postcard-bindgen>.
 
-FlatBuffers 官方 TypeScript 文档明确区分两种 API：基础 API 直接在 `ByteBuffer` 上访问，object API 会 unpack/pack 成普通对象并牺牲效率；官方 `flatc` 支持 `--rust`、`--ts`、schema conformance 和 size-prefixed buffers：<https://flatbuffers.dev/languages/typescript/>、<https://flatbuffers.dev/flatc/>。这使它成为 Snapshot 读取性能的强候选，但不代表 TypeScript 的 Commit Batch 构造免费。
+### 9.3 Performance boundaries of Cap'n Proto and FlatBuffers
 
-Cap'n Proto 的编码是 segment tree，语言演进依赖字段 ordinal；它的官方文档与 language list 没有一个与本仓库 Bun/TypeScript 组合相当的 first-party path：<https://capnproto.org/encoding.html>、<https://capnproto.org/language.html>、<https://capnproto.org/otherlang.html>。社区 `capnp-es` 可作为实验对象，但其成熟度和维护风险不符合“代码质量好、少胶水”的硬条件。
+The official FlatBuffers TypeScript documentation explicitly distinguishes two APIs: the basic API accesses `ByteBuffer` directly, while the object API unpacks/packs ordinary objects at an efficiency cost. Official `flatc` supports `--rust`, `--ts`, schema conformance, and size-prefixed buffers: <https://flatbuffers.dev/languages/typescript/>, <https://flatbuffers.dev/flatc/>. This makes it a strong Snapshot-read-performance candidate, but does not make TypeScript Commit Batch construction free.
 
----
-
-## 10. 最终推荐的三个方案
-
-### 方案一：Protobuf v4，全协议统一（首选）
-
-**适用优先级：** 综合代码质量、演进能力、性能和低 glue。
-
-- 单一 `protocol.proto`；
-- Rust：`prost` + `prost-build`；
-- TypeScript：`@bufbuild/protobuf` + `protoc-gen-es`；
-- 保留当前四字节 LE outer frame；
-- `Envelope.oneof { snapshot, patch, command, event }`；
-- `HostProperties`、`PatchOperation`、`EventPayload`、`CommandValue` 使用 `oneof`；
-- `Style` 使用显式 `optional`，避免固定 42 槽的 null；
-- generated bindings 只停留在 protocol seam，不能让 `RootContainer` 依赖 protobuf-specific API；
-- tree topology、revision、surface generation、resource limits 继续由 semantic validator 负责。
-
-**性能判断：** 对小 Event/Command，tag/varint/fixed32 很合适；对稀疏 Style，省略未设置字段可能明显降低 Snapshot/Patch 体积；但 protobuf decode 会 materialize message 对象，不能承诺 FlatBuffers 级别的 zero-copy。
-
-**主要风险：** codegen toolchain、`UpdateNode` 的 clear semantics、unknown field 策略、generated output 是否提交。需要 v4 clean cutover，不能让 v3 MessagePack decoder 同时猜测 protobuf。
-
-### 方案二：FlatBuffers，全协议 schema-first（Snapshot 性能优先）
-
-**适用优先级：** 大 Snapshot/Patch 的 decode、内存占用和读取延迟第一。
-
-- 单一 `protocol.fbs`；
-- `flatc --rust --ts` 生成两端 bindings；
-- 基础 accessor API 读取 Snapshot，避免 `--gen-object-api` 进入 hot path；
-- 使用 tables 表达 Node/Style/Command/Event，使用 explicit union wrapper 表达 PatchOperation/Event payload；
-- 仍保留四字节 LE outer frame、file identifier/version 和 verifier；
-- Rust host 若最终必须 materialize retained tree，应 benchmark “直接读取 + clone 到 NodeStore”的总成本，而不是只测 accessor。
-
-**性能判断：** 在“只读大 buffer”模型中，这是前三者里最有机会拿到最低分配和最低 decode CPU 的方案。当前项目的 Rust renderer 需要拥有 retained tree，所以收益取决于是否能延后或减少 materialization。
-
-**主要风险：** TypeScript builder API 比 protobuf DTO 更笨重；字符串/向量 offset 构造、union wrapper 和生命周期规则会增加 adapter glue。事件/命令这种小消息未必占优。若真实 profile 仍由 GPUI draw 主导，不值得为理论 zero-copy 引入它。
-
-### 方案三：Bebop，全协议 schema-first，高性能 challenger
-
-**适用优先级：** 追求单一 `.bop` schema、生成式 encoder/decoder、固定宽度数值和低运行时抽象；接受生态规模与长期维护风险。
-
-- 单一 `.bop`；
-- `bebopc` 同时生成 Rust 与 TypeScript；
-- 关闭 service/client/server 生成，只保留 records；
-- 用 `message` 表达可演进字段，用 `union` 表达 Event/Command/Patch 多态；
-- 使用当前四字节 LE outer frame；Bebop message 自身已有 body length，但不应替换现有 transport frame；
-- 直接使用 `uint32`、`float32`、`bytes`/string，不需要 Thrift 那种有损的类型折衷；
-- 禁止把 generated record API 泄漏到 Solid domain；只在 protocol seam 做一个方向适配；
-- 对所有 array/map/string/bytes/body 长度、union nesting 和 recursion 做单独上限验证。
-
-**性能判断：** Bebop 的 schema-driven generated path 避免通用 reflection；固定宽度 little-endian 数值与长度前缀适合当前 u32/f32 和高频 Event；message body length 可跳过未知字段。它是 Protobuf 的合理性能 challenger，但目前没有本仓库的实测数据，不能把项目文档的跨格式 benchmark 当成结论。
-
-**主要风险：** 生态和工具链远小于 Protobuf/FlatBuffers；Rust 生成目录会在 build 中自动生成，TypeScript 需要独立 generator 配置；必须确认 Bun ESM、生成器版本 pin、Cargo reproducibility、malformed input 的 bounded decode 和 unknown union branch 行为。若这些检查不过，降级为研究候选，不进入生产前三。
+Cap'n Proto encodes a segment tree, with language evolution based on field ordinals. Its official documentation and language list provide no first-party path comparable to this repository's Bun/TypeScript combination: <https://capnproto.org/encoding.html>, <https://capnproto.org/language.html>, <https://capnproto.org/otherlang.html>. Community `capnp-es` is a possible experiment, but its maturity and maintenance risks do not meet the hard requirements for code quality and minimal glue.
 
 ---
 
-## 排名裁决
+## 10. Three Final Recommendations
 
-| 排名 | 方案 | 强项 | 不能接受的条件 |
+### Option 1: Protobuf v4 for the entire protocol (preferred)
+
+**Priority:** Balance code quality, evolvability, performance, and minimal glue.
+
+- One `protocol.proto`;
+- Rust: `prost` + `prost-build`;
+- TypeScript: `@bufbuild/protobuf` + `protoc-gen-es`;
+- preserve the current four-byte LE outer frame;
+- `Envelope.oneof { snapshot, patch, command, event }`;
+- use `oneof` for `HostProperties`, `PatchOperation`, `EventPayload`, and `CommandValue`;
+- use explicit `optional` for `Style`, avoiding nulls in 42 fixed slots;
+- keep generated bindings at the protocol boundary; `RootContainer` must not depend on protobuf-specific APIs;
+- semantic validators continue to own tree topology, revisions, surface generations, and resource limits.
+
+**Performance assessment:** Tags/varints/fixed32 fit small Events/Commands. Omitting unset sparse Style fields may substantially reduce Snapshot/Patch sizes, but protobuf decoding materializes message objects and cannot promise FlatBuffers-level zero-copy.
+
+**Main risks:** Codegen toolchain, `UpdateNode` clear semantics, unknown-field policy, and whether generated output is committed. A clean v4 cutover is required; the v3 MessagePack decoder must not also guess protobuf.
+
+### Option 2: FlatBuffers, schema-first across the protocol (Snapshot performance priority)
+
+**Priority:** Decoding, memory use, and read latency for large Snapshots/Patches.
+
+- One `protocol.fbs`;
+- generate both endpoints' bindings with `flatc --rust --ts`;
+- read Snapshots through the basic accessor API, keeping `--gen-object-api` out of the hot path;
+- represent Node/Style/Command/Event with tables and PatchOperation/Event payloads with explicit union wrappers;
+- retain the four-byte LE outer frame, file identifier/version, and verifier;
+- if the Rust host must ultimately materialize a retained tree, benchmark the total cost of direct reads plus cloning into NodeStore, not only accessors.
+
+**Performance assessment:** For read-only large buffers, this has the strongest chance among the top three of minimizing allocations and decode CPU. This project's Rust renderer needs to own the retained tree, so benefits depend on delaying or reducing materialization.
+
+**Main risks:** The TypeScript builder API is more cumbersome than protobuf DTOs. String/vector offsets, union wrappers, and lifetime rules add adapter glue. Small events/commands may not benefit. If actual profiles remain dominated by GPUI draw, theoretical zero-copy does not justify introducing it.
+
+### Option 3: Bebop, schema-first across the protocol, as a high-performance challenger
+
+**Priority:** One `.bop` schema, generated encoders/decoders, fixed-width numbers, and minimal runtime abstraction, with acceptance of ecosystem-size and long-term-maintenance risks.
+
+- One `.bop`;
+- generate Rust and TypeScript together with `bebopc`;
+- disable service/client/server generation, retaining only records;
+- use `message` for evolvable fields and `union` for Event/Command/Patch polymorphism;
+- use the current four-byte LE outer frame; Bebop messages already have a body length, but it must not replace the existing transport frame;
+- use `uint32`, `float32`, and `bytes`/string directly, avoiding Thrift's lossy type compromises;
+- keep generated record APIs out of the Solid domain; adapt only at the protocol boundary;
+- independently limit all array/map/string/bytes/body lengths, union nesting, and recursion.
+
+**Performance assessment:** Bebop's schema-driven generated path avoids generic reflection. Fixed-width little-endian numbers and length prefixes suit current u32/f32 and frequent Events; message body lengths allow unknown-field skipping. It is a reasonable performance challenger to Protobuf, but this repository has no measurements yet. The project's cross-format benchmark claims cannot be treated as a conclusion here.
+
+**Main risks:** Ecosystem and toolchain are much smaller than Protobuf/FlatBuffers. Rust's generated directory is produced automatically during builds, while TypeScript needs separate generator configuration. Bun ESM, generator-version pinning, Cargo reproducibility, bounded decoding of malformed input, and unknown-union-branch behavior all require verification. If these checks fail, retain Bebop as a research candidate outside the production top three.
+
+---
+
+## Ranking Decision
+
+| Rank | Option | Strengths | Unacceptable conditions |
 |---:|---|---|---|
-| 1 | Protobuf v4 | 最好的综合平衡；schema/codegen、oneof、optional、演进规则最完整 | 不愿引入 protoc/Buf/codegen pipeline |
-| 2 | FlatBuffers | 大 Snapshot 读取的 CPU/内存上限最高 | 不能接受 builder/union glue，或 profile 证明 materialization/draw 才是瓶颈 |
-| 3 | Bebop | generated Rust/TS、固定宽度数值、message/union 长度边界、低 reflection 开销 | 生态小；bounded decode、Bun ESM 和长期工具链稳定性未验证 |
+| 1 | Protobuf v4 | Best overall balance; most complete schema/codegen, oneof, optional, and evolution rules | Unwillingness to introduce a protoc/Buf/codegen pipeline |
+| 2 | FlatBuffers | Greatest CPU/memory performance potential for large Snapshot reads | Unacceptable builder/union glue, or profiles showing that materialization/draw is the bottleneck |
+| 3 | Bebop | Generated Rust/TS, fixed-width numbers, message/union length boundaries, low reflection overhead | Small ecosystem; bounded decoding, Bun ESM, and long-term toolchain stability unverified |
 
-**对当前仓库的实际选择：** 现在继续使用 MessagePack v3，并先做 DTO/protocol seam 重构；如果决定正式切换，优先做 Protobuf v4 spike。若性能 profile 证明 Snapshot decode/materialization 是主瓶颈，比较 FlatBuffers；若追求更小的 generated codec 与固定宽度高频消息，比较 Bebop。Thrift Binary 作为有外部 Thrift 互操作需求时的备用候选，不进入前三。
+**Practical choice for the current repository:** Continue with MessagePack v3 and first refactor the DTO/protocol boundary. If a formal switch is chosen, prioritize a Protobuf v4 spike. Compare FlatBuffers if profiles identify Snapshot decoding/materialization as the main bottleneck; compare Bebop for a smaller generated codec and fixed-width high-frequency messages. Thrift Binary remains a backup for external Thrift interoperability needs, outside the top three.
 
 ---
 
-## 11. 本地工具链可行性
+## 11. Local Toolchain Feasibility
 
-- 当前工作站能找到 `/opt/homebrew/bin/protoc`，版本为 `libprotoc 36.0`。
-- `foryc`、`bebopc`、`flatc`、`thrift`、`capnp` 当前不在 PATH；Fory、Bebop、FlatBuffers、Thrift、Cap'n Proto 的 spike 需要额外安装并纳入可复现的 build/tooling contract。
-- 仓库现有 manifest 只包含 `@msgpack/msgpack` 与 `rmp-serde`，没有 protobuf、Fory、Bebop、FlatBuffers、Thrift 或 Cap'n Proto runtime。这个事实支持“先做 DTO seam，再单独做 v4 codec spike”，不支持现在直接引入其中一个作为隐式依赖。
+- The current workstation has `/opt/homebrew/bin/protoc`, reporting `libprotoc 36.0`.
+- `foryc`, `bebopc`, `flatc`, `thrift`, and `capnp` are not currently on PATH. Spikes for Fory, Bebop, FlatBuffers, Thrift, and Cap'n Proto require additional installation captured in a reproducible build/tooling contract.
+- The repository's current manifests contain only `@msgpack/msgpack` and `rmp-serde`, with no protobuf, Fory, Bebop, FlatBuffers, Thrift, or Cap'n Proto runtime. This supports refactoring the DTO boundary first and running a separate v4 codec spike; it does not support introducing one of these as an implicit dependency now.

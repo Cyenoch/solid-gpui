@@ -335,14 +335,14 @@ impl NodeStore {
 
     pub fn apply_patch(&mut self, patch: Patch) -> Result<(), TreeError> {
         validate_patch_header(self, &patch)?;
-        let mut undo = Vec::new();
+        let mut undo = PatchUndo::default();
         let mut stats = PatchStats {
             operation_count: patch.operations.len() as u32,
             ..PatchStats::default()
         };
         let result = self.apply_patch_inner(&patch.operations, &mut undo, &mut stats);
         if let Err(error) = result {
-            rollback(self, undo);
+            undo.rollback(self);
             return Err(error);
         }
         self.revision = patch.revision;
@@ -353,7 +353,7 @@ impl NodeStore {
     fn apply_patch_inner(
         &mut self,
         operations: &[PatchOperation],
-        undo: &mut Vec<Undo>,
+        undo: &mut PatchUndo,
         stats: &mut PatchStats,
     ) -> Result<(), TreeError> {
         let mut affected_parents = HashSet::new();
@@ -417,7 +417,7 @@ impl NodeStore {
         &mut self,
         operation: usize,
         node: &Node,
-        undo: &mut Vec<Undo>,
+        undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
     ) -> Result<(), TreeError> {
@@ -434,14 +434,6 @@ impl NodeStore {
                 operation,
                 node_id: node.parent_id,
             })?;
-        if node.accepts_pointer_move
-            && (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE || node.listener_id == 0)
-        {
-            return Err(TreeError::InvalidPatchOperation {
-                operation,
-                reason: "pointer move capability requires View or Pressable listener",
-            });
-        }
         validate_node_shape(node).map_err(|_| TreeError::InvalidPatchOperation {
             operation,
             reason: "invalid created node",
@@ -464,18 +456,14 @@ impl NodeStore {
                 reason: "invalid style",
             }
         })?;
-        let siblings = self
-            .children
-            .get(&node.parent_id)
-            .cloned()
-            .unwrap_or_default();
-        if node.index as usize > siblings.len() {
+        if node.index as usize > self.children.get(&node.parent_id).map_or(0, Vec::len) {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
                 reason: "child index is out of bounds",
             });
         }
-        undo.push(Undo::with_immediate(self, &[node.parent_id]));
+        undo.capture(self, node.id);
+        undo.capture_parent(self, node.parent_id, node.index as usize);
         let stored = StoredNode {
             id: node.id,
             parent_id: node.parent_id,
@@ -500,9 +488,15 @@ impl NodeStore {
             .entry(node.parent_id)
             .or_default()
             .insert(node.index as usize, node.id);
-        self.reindex_parent(node.parent_id);
-        self.recompute_text_content(node.id)?;
-        self.recompute_text_content(node.parent_id)?;
+        self.reindex_parent(node.parent_id, node.index as usize);
+        self.recompute_text_content(
+            if node.kind == KIND_TEXT {
+                node.id
+            } else {
+                node.parent_id
+            },
+            undo,
+        )?;
         stats.affected_nodes += 1;
         parents.insert(node.parent_id);
         Ok(())
@@ -523,7 +517,7 @@ impl NodeStore {
         selectable: bool,
         tooltip: Option<String>,
         accepts_pointer_move: bool,
-        undo: &mut Vec<Undo>,
+        undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
     ) -> Result<(), TreeError> {
@@ -634,38 +628,39 @@ impl NodeStore {
                 }
             })?;
         }
-        if mask & UPDATE_TOOLTIP != 0 && node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE {
-            return Err(TreeError::InvalidPatchOperation {
-                operation,
-                reason: "tooltip updates require View or Pressable",
-            });
-        }
-        if mask & UPDATE_POINTER_MOVE != 0
-            && (node.kind != KIND_VIEW && node.kind != KIND_PRESSABLE
-                || accepts_pointer_move && resulting_listener == 0)
-        {
-            return Err(TreeError::InvalidPatchOperation {
-                operation,
-                reason: "pointer move capability requires View or Pressable listener",
-            });
-        }
-        if mask & UPDATE_TOOLTIP != 0
-            && tooltip.as_ref().is_some_and(|value| {
-                value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
-            })
-        {
-            return Err(TreeError::InvalidPatchOperation {
-                operation,
-                reason: "invalid tooltip",
-            });
-        }
+        // Validate the merged state: changing only a listener must not leave a
+        // focusable Text or pointer-move subscription without its event target.
+        validate_interaction(
+            id,
+            node.kind,
+            resulting_listener,
+            if mask & UPDATE_FOCUSABLE != 0 {
+                focusable
+            } else {
+                node.focusable
+            },
+            if mask & UPDATE_POINTER_MOVE != 0 {
+                accepts_pointer_move
+            } else {
+                node.accepts_pointer_move
+            },
+            if mask & UPDATE_TOOLTIP != 0 {
+                tooltip.as_deref()
+            } else {
+                node.tooltip.as_deref()
+            },
+        )
+        .map_err(|_| TreeError::InvalidPatchOperation {
+            operation,
+            reason: "invalid interaction properties",
+        })?;
         if mask & UPDATE_STYLE != 0 {
             validate_style(id, style.as_ref()).map_err(|_| TreeError::InvalidPatchOperation {
                 operation,
                 reason: "invalid style",
             })?;
         }
-        undo.push(Undo::state(self, &[id, node.parent_id]));
+        undo.capture_node(self, id);
         let target = self.nodes.get_mut(&id).expect("validated node");
         if mask & UPDATE_STYLE != 0 {
             target.style = style;
@@ -695,7 +690,7 @@ impl NodeStore {
             target.text = text.map(Arc::<str>::from);
         }
         if mask & UPDATE_TEXT != 0 {
-            self.recompute_text_content(node.parent_id)?;
+            self.recompute_text_content(node.parent_id, undo)?;
             parents.insert(node.parent_id);
         }
         stats.affected_nodes += 1;
@@ -711,7 +706,7 @@ impl NodeStore {
         id: u32,
         parent_id: u32,
         index: u32,
-        undo: &mut Vec<Undo>,
+        undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
     ) -> Result<(), TreeError> {
@@ -771,7 +766,14 @@ impl NodeStore {
             }
             ancestor = self.nodes.get(&ancestor).map(|n| n.parent_id).unwrap_or(0);
         }
-        undo.push(Undo::with_immediate(self, &[node.parent_id, parent_id]));
+        let old_index = node.index as usize;
+        let target_index = index as usize;
+        if node.parent_id == parent_id {
+            undo.capture_parent(self, parent_id, old_index.min(target_index));
+        } else {
+            undo.capture_parent(self, node.parent_id, old_index);
+            undo.capture_parent(self, parent_id, target_index);
+        }
         let old_parent = node.parent_id;
         let old_siblings =
             self.children
@@ -780,14 +782,7 @@ impl NodeStore {
                     operation,
                     node_id: old_parent,
                 })?;
-        let old_index =
-            old_siblings
-                .iter()
-                .position(|child| *child == id)
-                .ok_or(TreeError::PatchConflict {
-                    operation,
-                    node_id: id,
-                })?;
+        debug_assert_eq!(old_siblings.get(old_index), Some(&id));
         old_siblings.remove(old_index);
         if old_parent == parent_id && index as usize > old_siblings.len() {
             return Err(TreeError::InvalidPatchOperation {
@@ -796,7 +791,6 @@ impl NodeStore {
             });
         }
         let target = self.children.entry(parent_id).or_default();
-        let target_index = index as usize;
         if target_index > target.len() {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
@@ -805,10 +799,16 @@ impl NodeStore {
         }
         target.insert(target_index, id);
         self.nodes.get_mut(&id).expect("validated node").parent_id = parent_id;
-        self.reindex_parent(old_parent);
-        self.reindex_parent(parent_id);
-        self.recompute_text_content(old_parent)?;
-        self.recompute_text_content(parent_id)?;
+        if old_parent == parent_id {
+            self.reindex_parent(parent_id, old_index.min(target_index));
+        } else {
+            self.reindex_parent(old_parent, old_index);
+            self.reindex_parent(parent_id, target_index);
+        }
+        self.recompute_text_content(old_parent, undo)?;
+        if old_parent != parent_id {
+            self.recompute_text_content(parent_id, undo)?;
+        }
         parents.insert(old_parent);
         parents.insert(parent_id);
         stats.affected_nodes += 1;
@@ -819,7 +819,7 @@ impl NodeStore {
         &mut self,
         operation: usize,
         id: u32,
-        undo: &mut Vec<Undo>,
+        undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
     ) -> Result<(), TreeError> {
@@ -841,138 +841,121 @@ impl NodeStore {
         let mut stack = vec![id];
         while let Some(current) = stack.pop() {
             subtree.push(current);
-            stack.extend(self.children.get(&current).cloned().unwrap_or_default());
+            stack.extend(self.children.get(&current).into_iter().flatten().copied());
         }
-        undo.push(Undo::with_subtree(self, &subtree, root.parent_id));
+        undo.capture_parent(self, root.parent_id, root.index as usize);
+        for &child in &subtree {
+            undo.capture(self, child);
+        }
         let siblings = self
             .children
             .get_mut(&root.parent_id)
             .expect("parent exists");
-        let Some(position) = siblings.iter().position(|child| *child == id) else {
-            return Err(TreeError::PatchConflict {
-                operation,
-                node_id: id,
-            });
-        };
-        siblings.remove(position);
-        self.reindex_parent(root.parent_id);
+        debug_assert_eq!(siblings.get(root.index as usize), Some(&id));
+        siblings.remove(root.index as usize);
+        self.reindex_parent(root.parent_id, root.index as usize);
         for child in &subtree {
             self.nodes.remove(child);
             self.children.remove(child);
         }
-        self.recompute_text_content(root.parent_id)?;
+        self.recompute_text_content(root.parent_id, undo)?;
         parents.insert(root.parent_id);
         stats.affected_nodes += subtree.len() as u32;
         Ok(())
     }
 
-    fn reindex_parent(&mut self, parent_id: u32) {
-        let children = self.children.get(&parent_id).cloned().unwrap_or_default();
+    fn reindex_parent(&mut self, parent_id: u32, first_changed: usize) {
+        let children = self
+            .children
+            .get(&parent_id)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
         if let Some(parent) = self.nodes.get_mut(&parent_id) {
             parent.child_len = children.len();
         }
-        for (index, child_id) in children.into_iter().enumerate() {
-            if let Some(child) = self.nodes.get_mut(&child_id) {
+        for (index, child_id) in children.iter().enumerate().skip(first_changed) {
+            if let Some(child) = self.nodes.get_mut(child_id) {
                 child.index = index as u32;
             }
         }
     }
 
-    fn recompute_text_content(&mut self, node_id: u32) -> Result<(), TreeError> {
+    fn recompute_text_content(
+        &mut self,
+        node_id: u32,
+        undo: &mut PatchUndo,
+    ) -> Result<(), TreeError> {
         let mut current = node_id;
-        loop {
-            let Some(node) = self.nodes.get(&current).cloned() else {
-                return Ok(());
-            };
-            if node.kind == KIND_TEXT {
-                let content = collect_text_content(current, &self.nodes, &self.children)?;
-                self.nodes
-                    .get_mut(&current)
-                    .expect("validated text node")
-                    .text_content = Some(Arc::<str>::from(content));
+        while let Some(node) = self.nodes.get(&current) {
+            // Text contains only RawText or one-level Text runs. Once this chain
+            // reaches a non-Text parent, no ancestor can have a derived text cache.
+            if node.kind != KIND_TEXT {
+                break;
             }
-            if node.parent_id == 0 {
-                return Ok(());
-            }
-            current = node.parent_id;
+            let parent_id = node.parent_id;
+            let content = collect_text_content(current, &self.nodes, &self.children)?;
+            undo.capture_node(self, current);
+            self.nodes
+                .get_mut(&current)
+                .expect("validated text node")
+                .text_content = Some(Arc::<str>::from(content));
+            current = parent_id;
         }
+        Ok(())
     }
 }
 
-#[derive(Debug)]
-enum Undo {
-    State {
-        nodes: Vec<(u32, Option<StoredNode>)>,
-        children: Vec<(u32, Option<Vec<u32>>)>,
-    },
+/// Capture pre-transaction values on first mutation, including absent identities.
+/// Repeated edits share one saved value, and derived Text caches participate in
+/// the same journal as structural changes. Rollback never rebuilds the whole tree.
+#[derive(Debug, Default)]
+struct PatchUndo {
+    nodes: HashMap<u32, Option<StoredNode>>,
+    children: HashMap<u32, Option<Vec<u32>>>,
 }
 
-impl Undo {
-    fn state(store: &NodeStore, ids: &[u32]) -> Self {
-        let mut unique = HashSet::new();
-        let mut nodes = Vec::new();
-        let mut children = Vec::new();
-        for id in ids {
-            if unique.insert(*id) {
-                nodes.push((*id, store.nodes.get(id).cloned()));
-                children.push((*id, store.children.get(id).cloned()));
-            }
-        }
-        Self::State { nodes, children }
+impl PatchUndo {
+    fn capture_node(&mut self, store: &NodeStore, id: u32) {
+        self.nodes
+            .entry(id)
+            .or_insert_with(|| store.nodes.get(&id).cloned());
     }
 
-    fn with_immediate(store: &NodeStore, parents: &[u32]) -> Self {
-        let mut ids = parents.to_vec();
-        for parent in parents {
-            ids.extend(store.children.get(parent).cloned().unwrap_or_default());
-        }
-        Self::state(store, &ids)
+    fn capture(&mut self, store: &NodeStore, id: u32) {
+        self.capture_node(store, id);
+        self.children
+            .entry(id)
+            .or_insert_with(|| store.children.get(&id).cloned());
     }
 
-    fn with_subtree(store: &NodeStore, subtree: &[u32], parent: u32) -> Self {
-        let mut ids = subtree.to_vec();
-        ids.push(parent);
-        let mut state = Self::with_immediate(store, &[parent]);
-        let extra = Self::state(store, &ids);
-        let Undo::State { nodes, children } = &mut state;
-        let Undo::State {
-            nodes: extra_nodes,
-            children: extra_children,
-        } = extra;
-        let mut seen: HashSet<u32> = nodes.iter().map(|(id, _)| *id).collect();
-        for entry in extra_nodes {
-            if seen.insert(entry.0) {
-                nodes.push(entry);
-            }
+    fn capture_parent(&mut self, store: &NodeStore, parent: u32, first_changed: usize) {
+        self.capture(store, parent);
+        for &child in store
+            .children
+            .get(&parent)
+            .into_iter()
+            .flatten()
+            .skip(first_changed)
+        {
+            // Only the shifted suffix needs saved indexes. Appending to a wide
+            // parent does not visit or clone its existing sibling nodes.
+            self.capture_node(store, child);
         }
-        let mut seen_children: HashSet<u32> = children.iter().map(|(id, _)| *id).collect();
-        for entry in extra_children {
-            if seen_children.insert(entry.0) {
-                children.push(entry);
-            }
-        }
-        state
     }
-}
 
-fn rollback(store: &mut NodeStore, undo: Vec<Undo>) {
-    for entry in undo.into_iter().rev() {
-        match entry {
-            Undo::State { nodes, children } => {
-                for (id, node) in nodes {
-                    if let Some(node) = node {
-                        store.nodes.insert(id, node);
-                    } else {
-                        store.nodes.remove(&id);
-                    }
-                }
-                for (id, list) in children {
-                    if let Some(list) = list {
-                        store.children.insert(id, list);
-                    } else {
-                        store.children.remove(&id);
-                    }
-                }
+    fn rollback(self, store: &mut NodeStore) {
+        for (id, node) in self.nodes {
+            if let Some(node) = node {
+                store.nodes.insert(id, node);
+            } else {
+                store.nodes.remove(&id);
+            }
+        }
+        for (id, children) in self.children {
+            if let Some(children) = children {
+                store.children.insert(id, children);
+            } else {
+                store.children.remove(&id);
             }
         }
     }

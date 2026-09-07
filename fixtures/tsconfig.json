@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "@solid-gpui/core",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["bun-types"],
+    "paths": {
+      "@solid-gpui/core": ["../packages/solid-gpui/dist/index"],
+      "@solid-gpui/core/runtime": ["../packages/solid-gpui/dist/runtime"],
+      "@solid-gpui/core/embedded": ["../packages/solid-gpui/dist/embedded"],
+      "@solid-gpui/core/components": ["../packages/solid-gpui/dist/components"],
+      "@solid-gpui/core/native": ["../packages/solid-gpui/dist/native"],
+      "@solid-gpui/router": ["../packages/solid-gpui-router/dist/index"],
+      "@solid-gpui/core/jsx-runtime": ["../packages/solid-gpui/dist/jsx-runtime"]
+    }
+  },
+  "include": ["quickjs-*.tsx"]
+}

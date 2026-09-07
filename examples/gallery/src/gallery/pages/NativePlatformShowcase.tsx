@@ -281,7 +281,8 @@ export function NativePlatformShowcase(): SolidChild {
       {/* Code Example */}
       <Card title="Code Example: Root Native APIs">
         <CodeSnippet
-          code={`import { createRoot, StdioTransport } from "@solid-gpui/core";
+          code={`import { createRoot } from "@solid-gpui/core";
+import { StdioTransport } from "@solid-gpui/core/stdio";
 
 const root = createRoot(new StdioTransport());
 

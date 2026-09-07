@@ -941,3 +941,18 @@ test("FrameDecoder retains at most one bounded partial frame buffer", () => {
   decoder.push(new Uint8Array(64));
   expect(retained.buffer.byteLength).toBeLessThanOrEqual(12);
 });
+
+test("FrameDecoder handles a fragmented header followed by a large coalesced chunk", () => {
+  const count = 1_000_000;
+  const stream = new Uint8Array(count * 5);
+  for (let index = 0; index < count; index++) {
+    stream[index * 5] = 1;
+    stream[index * 5 + 4] = index % 256;
+  }
+  const decoder = new FrameDecoder(1);
+  expect(decoder.push(stream.subarray(0, 2))).toEqual([]);
+  const frames = decoder.push(stream.subarray(2));
+  expect(frames).toHaveLength(count);
+  expect(frames.every((frame, index) => frame.length === 1 && frame[0] === index % 256)).toBe(true);
+  expect(frames.at(-1)?.buffer).toBe(stream.buffer);
+});

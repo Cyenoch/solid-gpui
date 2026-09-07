@@ -29,19 +29,20 @@ export async function exportNativeBindings(options: NativeExportOptions, cwd = p
   ];
   const { stdout, stderr } = await promisify(execFile)("cargo", args, { cwd, maxBuffer: 16 * 1024 * 1024 });
   if (stderr) process.stderr.write(stderr);
-  const [{ format }, typescript, estree] = await Promise.all([
-    import("prettier/standalone"),
-    import("prettier/plugins/typescript"),
-    import("prettier/plugins/estree"),
-  ]);
-  const generated = await format(stdout, {
-    parser: "typescript",
-    plugins: [typescript, estree.default],
+  const { format } = await import("oxfmt");
+  // Rust exports TypeScript regardless of the destination's extension.
+  const { code: generated, errors } = await format("native-bindings.ts", stdout, {
     printWidth: 120,
     singleQuote: false,
     semi: true,
     trailingComma: "all",
+    sortImports: false,
   });
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to format native bindings for ${output}:\n${errors.map((error) => error.codeframe ?? error.message).join("\n")}`,
+    );
+  }
   let previous: string | undefined;
   try {
     previous = await readFile(output, "utf8");

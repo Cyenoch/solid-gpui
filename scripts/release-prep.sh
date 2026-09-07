@@ -44,10 +44,11 @@ print("\t".join((match.group(1), *package_versions, router_core_peer)))
 PY
 }
 
-IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$(read_versions)"
+versions="$(read_versions)"
+IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$versions"
+update_versions=1
 if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$router_version" == "$version" && "$router_core_peer" == "^$version" ]]; then
-  printf 'release-prep: all manifests already use %s; nothing to do\n' "$version"
-  exit 0
+  update_versions=0
 fi
 
 if ! python3 - "$repo_root/CHANGELOG.md" "$version" <<'PY'; then
@@ -67,28 +68,39 @@ PY
 fi
 
 backup_dir="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-release-prep.XXXXXX")"
+release_files=(
+  Cargo.toml
+  packages/solid-gpui/package.json
+  packages/solid-gpui-router/package.json
+  Cargo.lock
+  bun.lock
+  THIRD-PARTY-NOTICES.md
+)
+# Finish the backup before arming rollback; a missing input must never cause a
+# partially populated backup to overwrite the workspace.
+for file in "${release_files[@]}"; do
+  mkdir -p "$backup_dir/$(dirname "$file")"
+  if ! cp "$repo_root/$file" "$backup_dir/$file"; then
+    rm -rf -- "$backup_dir"
+    exit 1
+  fi
+done
 completed=0
 restore_on_failure() {
   local status=$?
   if ((completed == 0)); then
-    cp "$backup_dir/Cargo.toml" "$repo_root/Cargo.toml"
-    cp "$backup_dir/core-package.json" "$repo_root/packages/solid-gpui/package.json"
-    cp "$backup_dir/router-package.json" "$repo_root/packages/solid-gpui-router/package.json"
-    cp "$backup_dir/Cargo.lock" "$repo_root/Cargo.lock"
-    cp "$backup_dir/bun.lock" "$repo_root/bun.lock"
-    cp "$backup_dir/THIRD-PARTY-NOTICES.md" "$repo_root/THIRD-PARTY-NOTICES.md"
+    for file in "${release_files[@]}"; do
+      cp "$backup_dir/$file" "$repo_root/$file"
+    done
   fi
   rm -rf -- "$backup_dir"
   return "$status"
 }
 trap restore_on_failure EXIT
-cp "$repo_root/Cargo.toml" "$backup_dir/Cargo.toml"
-cp "$repo_root/packages/solid-gpui/package.json" "$backup_dir/core-package.json"
-cp "$repo_root/packages/solid-gpui-router/package.json" "$backup_dir/router-package.json"
-cp "$repo_root/Cargo.lock" "$backup_dir/Cargo.lock"
-cp "$repo_root/bun.lock" "$backup_dir/bun.lock"
-cp "$repo_root/THIRD-PARTY-NOTICES.md" "$backup_dir/THIRD-PARTY-NOTICES.md"
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
+if ((update_versions)); then
 python3 - "$repo_root" "$version" <<'PY'
 import pathlib
 import re
@@ -137,15 +149,21 @@ for relative, label in (
             raise SystemExit("router @solid-gpui/core peer dependency is not uniquely anchored")
     package_path.write_text(updated_package)
 PY
+fi
 
 (
   cd "$repo_root"
-  cargo update --workspace
+  if ((update_versions)); then
+    cargo update --workspace
+  fi
+  # Re-running an already synchronized version still validates its release gates.
   cargo check --workspace --locked
 )
 (
   cd "$repo_root"
-  bun install
+  if ((update_versions)); then
+    bun install
+  fi
   bun install --frozen-lockfile
 )
 (
@@ -153,7 +171,8 @@ PY
   bash scripts/third-party-notices.sh
 )
 
-IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$(read_versions)"
+versions="$(read_versions)"
+IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$versions"
 if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$router_version" != "$version" || "$router_core_peer" != "^$version" ]]; then
   printf 'release-prep: version mismatch after update: cargo=%s core=%s router=%s router-core-peer=%s\n' "$cargo_version" "$core_version" "$router_version" "$router_core_peer" >&2
   exit 1

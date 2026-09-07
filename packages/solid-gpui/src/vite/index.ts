@@ -1,10 +1,7 @@
-/// <reference path="./ambient.d.ts" />
 import { resolve } from "node:path";
-import { transformSync } from "@babel/core";
-import typescript from "@babel/preset-typescript";
-import solid from "babel-preset-solid";
 import type { Plugin } from "vite";
 import { exportNativeBindings, type NativeExportOptions } from "./native-export";
+import { transformJsx } from "./transform";
 
 export interface SolidGpuiOptions {
   readonly entry: string;
@@ -45,16 +42,9 @@ export function solidGpui(options: SolidGpuiOptions): Plugin {
       const filename = id.split("?")[0]!;
       let map;
       if (/\.[jt]sx$/.test(filename)) {
-        const result = transformSync(code, {
-          filename,
-          babelrc: false,
-          configFile: false,
-          presets: [typescript, [solid, { generate: "universal", moduleName: "@solid-gpui/core/runtime" }]],
-          sourceMaps: true,
-        });
-        if (!result?.code) throw new Error(`solid-gpui: JSX transform failed: ${id}`);
+        const result = transformJsx(code, filename);
         code = result.code;
-        map = result.map ? JSON.stringify(result.map) : undefined;
+        map = result.map;
       } else if (filename !== entry) return;
       if (filename === entry) code += "\nif (import.meta.hot) import.meta.hot.accept();\n";
       return { code, map };
