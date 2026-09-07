@@ -141,7 +141,13 @@ Promises support UI work; this is not a browser or a full Bun environment.
 The build initializes URL/search, event, and cancellation primitives needed by
 the native router. Its `Response` is deliberately bodyless and exists for route
 redirect metadata; non-null bodies are rejected. It does not provide Fetch body
-methods or network `fetch`. `AbortSignal.any` is not provided.
+methods or network `fetch`. `AbortSignal.any` combines local cancellation sources,
+including `AbortSignal.timeout`, and preserves the first cancellation reason.
+Nested combinations settle before source listeners run, so reentrant cancellation
+and stopped event propagation cannot change their result. Pending combinations
+are retained by their sources and unlinked from every source when cancelled;
+abort operation-owned controllers during cleanup instead of accumulating pending
+combinations on an application-wide controller.
 Vite HMR continues to execute under Bun. QuickJS runs the built entry; replacing
 its bundle requires restarting that runtime.
 

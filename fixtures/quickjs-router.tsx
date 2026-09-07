@@ -35,6 +35,36 @@ controller.abort("ignored second reason");
 assert(controller.signal.aborted && controller.signal.reason === null && abortEvents === 1, "abort identity and once");
 assert(controller.signal.onabort === null, "cleared abort handler");
 
+const cancelled = new AbortController();
+const competing = new AbortController();
+const cancellationReason = { operation: "navigation" };
+const combined = AbortSignal.any([cancelled.signal, competing.signal, cancelled.signal]);
+const nested = AbortSignal.any([combined]);
+const cancellationOrder: string[] = [];
+cancelled.signal.addEventListener("abort", (event) => {
+  assert(combined.aborted && nested.aborted, "dependent state is committed before source callbacks");
+  competing.abort("reentrant cancellation must not replace the first reason");
+  event.stopImmediatePropagation();
+  cancellationOrder.push("source");
+});
+combined.addEventListener("abort", () => cancellationOrder.push("combined"));
+nested.addEventListener("abort", () => cancellationOrder.push("nested"));
+cancelled.abort(cancellationReason);
+assert(combined.reason === cancellationReason && nested.reason === cancellationReason, "combined reason identity");
+assert(cancellationOrder.join() === "source,combined,nested", "cancellation order and duplicate source isolation");
+assert(AbortSignal.any([AbortSignal.abort(null), cancelled.signal]).reason === null, "first pre-aborted reason");
+assert(!AbortSignal.any([]).aborted, "empty cancellation group stays active");
+let invalidSignalRejected = false;
+try {
+  Reflect.apply(AbortSignal.any, AbortSignal, [[cancelled.signal, {}]]);
+} catch (error) {
+  invalidSignalRejected = error instanceof TypeError;
+}
+assert(invalidSignalRejected, "validate every source even after a pre-aborted source");
+const timeoutSignal = AbortSignal.any([AbortSignal.timeout(0)]);
+await new Promise<void>((resolve) => timeoutSignal.addEventListener("abort", () => resolve(), { once: true }));
+assert(timeoutSignal.reason.name === "TimeoutError", "timeout cancellation composition");
+
 const redirected = redirect({ to: "/search", search: { q: "redirected" } });
 assert(isRedirect(redirected) && redirected.status === 307, "redirect Response identity");
 assert(!isRedirect(new Error("loader failed")), "ordinary errors are not redirects");
