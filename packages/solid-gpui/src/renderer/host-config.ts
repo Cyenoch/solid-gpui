@@ -170,35 +170,13 @@ function insertNode(parent: HostNodeInternal, node: HostNodeInternal, anchor?: H
   const tree = assertParentAndChild(parent, node);
   prepareMutation(tree);
   configure(node);
-  const wasAttached = node.attached;
-  if (wasAttached) tree.detachFromParent(node);
-  tree.recordNodeMutation(parent);
-  tree.recordNodeMutation(node);
-  node.detachedFocusPending = false;
-  const index = anchor === undefined ? parent.children.length : parent.children.indexOf(anchor);
-  parent.children.splice(index < 0 ? parent.children.length : index, 0, node);
-  node.parent = parent === tree.syntheticRoot ? null : parent;
-  tree.refreshChildIndexes(parent);
-  if (parent.attached) {
-    if (wasAttached) tree.markMoved(node);
-    else tree.attachSubtree(node);
-  } else if (wasAttached) {
-    tree.markDeleted(node);
-    tree.detachSubtree(node);
-  }
+  tree.insertNode(parent, node, anchor);
 }
 
 function removeNode(parent: HostNodeInternal, node: HostNodeInternal): void {
   const tree = assertParentAndChild(parent, node);
   prepareMutation(tree);
-  tree.recordNodeMutation(parent);
-  tree.recordNodeMutation(node);
-  if (node.attached) tree.markDeleted(node);
-  const index = parent.children.indexOf(node);
-  if (index >= 0) parent.children.splice(index, 1);
-  tree.refreshChildIndexes(parent);
-  node.parent = null;
-  if (node.attached) tree.detachSubtree(node);
+  tree.removeNode(parent, node);
 }
 
 function isTextNode(node: HostNodeInternal): boolean {
@@ -217,8 +195,7 @@ function getFirstChild(node: HostNodeInternal): HostNodeInternal | undefined {
 function getNextSibling(node: HostNodeInternal): HostNodeInternal | undefined {
   const parent = getParentNode(node);
   if (parent === undefined) return undefined;
-  const index = parent.children.indexOf(node);
-  return index < 0 ? undefined : parent.children[index + 1];
+  return parent.children[node.index + 1];
 }
 
 export const hostConfig: RendererOptions<HostNodeInternal> = {

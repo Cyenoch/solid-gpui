@@ -11,9 +11,9 @@ use crate::{Event, send_event_or_exit};
 #[cfg(any(test, feature = "test-support"))]
 use gpui::WindowHandle;
 use gpui::{
-    AnyWindowHandle, App, AppContext, Bounds, Context, Entity, KeyBinding, Keystroke, Subscription,
-    SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowId, WindowKind, WindowOptions,
-    px, size,
+    AnyWindowHandle, App, AppContext, Bounds, Context, DummyKeyboardMapper, Entity, KeyBinding,
+    Subscription, SystemNotificationResponse, TitlebarOptions, WindowBounds, WindowId, WindowKind,
+    WindowOptions, px, size,
 };
 use std::backtrace::Backtrace;
 use std::collections::{HashMap, HashSet};
@@ -256,6 +256,7 @@ enum ClosePolicy {
 struct Surface {
     window: AnyWindowHandle,
     root: Entity<SolidRoot>,
+    _activation: Subscription,
     close_policy: ClosePolicy,
     pending_close_request: Option<u32>,
     next_close_request: u32,
@@ -282,7 +283,7 @@ struct NativeStateRegistry {
     profile: Box<dyn HostProfile>,
     surfaces: HashMap<u32, Surface>,
     windows: HashMap<WindowId, u32>,
-    keybindings: HashMap<u32, Vec<KeybindingDefinition>>,
+    keybindings: HashMap<u32, Vec<KeyBinding>>,
     retired_surface_ids: HashSet<u32>,
     next_surface_id: u32,
     transport_terminated: bool,
@@ -376,8 +377,9 @@ impl NativeStateRegistry {
         let extensions = self.profile.extension_registry();
         let (window, root) = self.profile.open_window(options, runtime, extensions, cx)?;
         let registry = cx.weak_entity();
+        let activation_registry = registry.clone();
         let window_id = window.window_id();
-        window
+        let activation = window
             .update(cx, |_, window, cx| {
                 window.on_window_should_close(cx, move |_, app| {
                     registry
@@ -388,11 +390,19 @@ impl NativeStateRegistry {
                         })
                         .unwrap_or(true)
                 });
+                root.update(cx, |_, cx| {
+                    cx.observe_window_activation(window, move |_, _, cx| {
+                        if let Some(registry) = activation_registry.upgrade() {
+                            registry.update(cx, |registry, cx| registry.restore_keybindings(cx));
+                        }
+                    })
+                })
             })
             .map_err(|error| format!("failed to install close policy: {error}"))?;
         Ok(Surface {
             window,
             root,
+            _activation: activation,
             close_policy: ClosePolicy::Allow,
             pending_close_request: None,
             next_close_request: 1,
@@ -599,6 +609,7 @@ impl NativeStateRegistry {
             return Err(format!("unknown surface {surface_id}"));
         };
         let root = surface.root.clone();
+        let previous_epoch = root.read(cx).store().epoch();
         surface
             .window
             .update(cx, |_, window, cx| {
@@ -607,36 +618,54 @@ impl NativeStateRegistry {
                 })
             })
             .map_err(|error| format!("surface {surface_id} window is unavailable: {error}"))?
-            .map_err(|error| format!("surface {surface_id} rejected commit: {error}"))
+            .map_err(|error| format!("surface {surface_id} rejected commit: {error}"))?;
+        if root.read(cx).store().epoch() != previous_epoch
+            && self.keybindings.remove(&surface_id).is_some()
+        {
+            self.restore_keybindings(cx);
+        }
+        Ok(())
     }
     fn compile_keybindings(
-        keybindings: &HashMap<u32, Vec<KeybindingDefinition>>,
+        surface_id: u32,
+        bindings: &[KeybindingDefinition],
     ) -> Result<Vec<KeyBinding>, String> {
-        let mut surface_ids = keybindings.keys().copied().collect::<Vec<_>>();
-        surface_ids.sort_unstable();
-        let mut compiled = Vec::new();
-        for surface_id in surface_ids {
-            for (index, binding) in keybindings[&surface_id].iter().enumerate() {
+        bindings
+            .iter()
+            .enumerate()
+            .map(|(index, binding)| {
                 if binding.keystrokes.split_whitespace().next().is_none() {
                     return Err(format!("keybinding {surface_id}[{index}] has no keystroke"));
                 }
-                for stroke in binding.keystrokes.split_whitespace() {
-                    Keystroke::parse(stroke).map_err(|error| {
-                        format!(
-                            "keybinding {surface_id}[{index}] invalid keystroke `{stroke}`: {error}"
-                        )
-                    })?;
-                }
-                compiled.push(KeyBinding::new(
+                KeyBinding::load(
                     &binding.keystrokes,
-                    MenuAction {
+                    Box::new(MenuAction {
                         name: binding.action_name.clone(),
-                    },
+                    }),
                     None,
-                ));
-            }
-        }
-        Ok(compiled)
+                    false,
+                    None,
+                    &DummyKeyboardMapper,
+                )
+                .map_err(|error| {
+                    format!("keybinding {surface_id}[{index}] invalid keystroke: {error}")
+                })
+            })
+            .collect()
+    }
+
+    fn restore_keybindings(&self, cx: &mut App) {
+        // GPUI's keymap is application-wide. Select the active window's map so
+        // shortcuts also work without focused content and inside native overlays.
+        // Keep compiled bindings: activation must never parse renderer input.
+        let dynamic = cx
+            .active_window()
+            .and_then(|window| self.windows.get(&window.window_id()))
+            .and_then(|id| self.keybindings.get(id))
+            .cloned()
+            .unwrap_or_default();
+        self.profile
+            .restore_keybindings(&self.baseline_keybindings, dynamic, cx);
     }
 
     fn set_keybindings(&mut self, command: Command, cx: &mut Context<Self>) {
@@ -655,13 +684,10 @@ impl NativeStateRegistry {
             );
             return;
         }
-        let mut next = self.keybindings.clone();
-        next.insert(meta.surface_id, bindings);
-        match Self::compile_keybindings(&next) {
+        match Self::compile_keybindings(meta.surface_id, &bindings) {
             Ok(compiled) => {
-                self.keybindings = next;
-                self.profile
-                    .restore_keybindings(&self.baseline_keybindings, compiled, cx);
+                self.keybindings.insert(meta.surface_id, compiled);
+                self.restore_keybindings(cx);
                 self.send_command_result(meta, CommandKind::SetKeybindings, true, None, None, cx);
             }
             Err(error) => {
@@ -800,10 +826,7 @@ impl NativeStateRegistry {
         self.retired_surface_ids.insert(surface_id);
         self.surfaces.remove(&surface_id);
         self.keybindings.remove(&surface_id);
-        if let Ok(compiled) = Self::compile_keybindings(&self.keybindings) {
-            self.profile
-                .restore_keybindings(&self.baseline_keybindings, compiled, cx);
-        }
+        self.restore_keybindings(cx);
         self.surfaces.is_empty()
     }
     fn close_all(&mut self, cx: &mut Context<Self>) {
@@ -832,7 +855,7 @@ pub fn run_default() {
 }
 
 /// Run the host with a provider profile.
-pub fn run_with_profile<P: HostProfile>(mut profile: P) {
+pub fn run_with_profile<P: HostProfile>(profile: P) {
     if env::args_os()
         .skip(1)
         .eq([OsString::from("--export-native")])
@@ -892,6 +915,14 @@ pub fn run_with_profile<P: HostProfile>(mut profile: P) {
         ),
     );
 
+    run_profile(profile, runtime, log_level);
+}
+
+fn run_profile<P: HostProfile>(
+    mut profile: P,
+    runtime: Arc<dyn RuntimeAdapter>,
+    log_level: LogLevel,
+) {
     let runtime_for_quit = Arc::clone(&runtime);
     let runtime_for_registry = Arc::clone(&runtime);
     let log_level_for_quit = log_level;
@@ -1388,15 +1419,31 @@ mod icon_asset_tests {
 
 /// Run an application's Rust module, exporting the exact linked contract with --export-native.
 pub fn run(module: crate::native::ModuleDefinition) {
+    run_with_profile(application_profile(module));
+}
+
+/// Run an application-owned runtime without interpreting host CLI arguments.
+/// The host owns shutdown and joins the runtime when the application quits.
+pub fn run_application(module: crate::native::ModuleDefinition, runtime: Arc<dyn RuntimeAdapter>) {
+    install_panic_hook();
+    let log_level = resolve_log_level(env::var(LOG_ENV).ok().as_deref(), |reason| {
+        eprintln!("solid-gpui-host: invalid {LOG_ENV}: {reason}; defaulting to error");
+    });
+    run_profile(application_profile(module), runtime, log_level);
+}
+
+fn application_profile(module: crate::native::ModuleDefinition) -> impl HostProfile {
     #[cfg(feature = "gpui-component")]
-    run_with_profile(crate::components::host::ComponentHost::new(vec![
-        crate::components::native_module(),
-        module,
-    ]));
+    {
+        crate::components::host::ComponentHost::new(vec![
+            crate::components::native_module(),
+            module,
+        ])
+    }
     #[cfg(not(feature = "gpui-component"))]
-    run_with_profile(NativeHostProfile(Rc::new(
-        crate::native::NativeModules::new(vec![module]),
-    )));
+    {
+        NativeHostProfile(Rc::new(crate::native::NativeModules::new(vec![module])))
+    }
 }
 
 #[cfg(not(feature = "gpui-component"))]

@@ -1,0 +1,79 @@
+bun test v1.4.2 (744846f84)
+
+packages/solid-gpui/tests/protocol.test.ts:
+(pass) InvokeNative preserves opaque arguments and accepts the byte budget boundary [1.70ms]
+(pass) native bytes reject missing, oversized, and non-invocation wire results [2.09ms]
+(pass) Bebop v5 encodes semantic commands and classifies the generated envelope [0.10ms]
+(pass) all Event payload forms round-trip through the semantic seam [2.04ms]
+(pass) Extension values, properties, and events round-trip through Bebop v5 [0.89ms]
+(pass) Extension fields and event IDs must be sorted, unique, and bounded [0.12ms]
+(pass) Bebop frames remain fragmented/coalesced at the existing transport seam [0.25ms]
+(pass) schema guard rejects an unknown field before generated decoding [0.06ms]
+(pass) schema guard rejects strict bool/enum/UTF-8 and repeated-count violations [0.21ms]
+(pass) schema guard rejects overlong, surrogate, out-of-range, and truncated UTF-8 [0.09ms]
+(pass) FrameDecoder returns borrowed views for complete input chunks [0.02ms]
+(pass) Bebop preserves border width and defaults transition delay [0.29ms]
+(pass) Bebop encodes an omitted patch style as an explicit clear [0.19ms]
+(pass) Bebop patch booleans are present only for their mask bits [0.04ms]
+(pass) Bebop rejects malformed present command values [0.05ms]
+(pass) Bebop validates command kind and payload together [0.02ms]
+(pass) Bebop rejects values that overflow float32 [0.03ms]
+(pass) protocol classification keeps command result metadata [0.05ms]
+(pass) Bebop command numbers retain the full u32 range [0.05ms]
+(pass) FrameDecoder retains at most one bounded partial frame buffer [0.02ms]
+(pass) FrameDecoder handles a fragmented header followed by a large coalesced chunk [32.20ms]
+
+packages/solid-gpui/tests/native.test.ts:
+(pass) native JSON rejects lossy values, deep data, cycles and unsafe responses [1.17ms]
+(pass) native components preserve getters and callback generations while subscribing only live handlers [5.02ms]
+(pass) native refs submit after the complete prop transaction and revoke pending calls on cleanup [0.69ms]
+(pass) controlled native echo commits its value and internal acknowledgement together and ignores stale edits [0.32ms]
+(pass) controlled values keep their internal subscription without a handler and unsubscribe in uncontrolled mode [0.34ms]
+(pass) native clients bind their setup root across async work and reject after root retirement [0.46ms]
+(pass) native component contract rejects unknown props and forbidden children before publishing [0.26ms]
+(pass) named native slots stay in the host tree, out of JSON, and keep stable groups across updates [0.48ms]
+
+packages/solid-gpui/tests/application.test.ts:
+solid-gpui: hot reload applied (epoch 1)
+solid-gpui: hot reload applied (epoch 2)
+solid-gpui: hot reload applied (epoch 3)
+solid-gpui: hot reload applied (epoch 4)
+solid-gpui: hot reload applied (epoch 5)
+(pass) application reload stages candidates, preserves explicit state, isolates epochs and releases owners [0.96ms]
+
+packages/solid-gpui/tests/renderer.test.ts:
+(pass) invokeNative returns opaque bytes through the surface command lifecycle [0.32ms]
+(pass) invokeNative rejects missing, confused, and out-of-bounds JavaScript arguments without sending [0.41ms]
+(pass) CommandClient rejects mismatched identities and inappropriate byte results [0.16ms]
+(pass) Icon projects its allowlisted host properties [0.23ms]
+(pass) a Solid signal produces an incremental native patch [0.24ms]
+(pass) created siblings are emitted in native child-index order [0.12ms]
+(pass) wide sibling construction and traversal perform bounded index work [1.64ms]
+(pass) reparenting detached children preserves unique ownership and rollback restores sibling order [0.34ms]
+(pass) a root transaction does not suppress updates in another root [0.33ms]
+(pass) conditional nodes stay bound to their Solid owner root [0.19ms]
+(pass) VirtualList mounts after empty data and can remount [0.80ms]
+(pass) VirtualList scrolling retains overlapping rows and disposes rows that leave [0.68ms]
+(pass) VirtualList filtering after scrolling keeps its committed range valid [0.96ms]
+(pass) render errors publish no invalid frame and native surface close disposes the owner [0.23ms]
+(pass) SurfaceHost delivers the decoded semantic event directly to its root [0.26ms]
+(pass) previous-revision listener events invoke the callback that produced that revision [0.29ms]
+(pass) layout, file-drop, and input callbacks retain the generation that owns each event [1.08ms]
+(pass) failed host updates roll the private graph back before a later commit [0.17ms]
+(pass) Extension getter props emit host property patches and failed encoding rolls back [0.30ms]
+(pass) Extension events honor subscribed IDs and current/previous listener revisions [0.22ms]
+(pass) accessibility props can be removed from an existing host node [0.14ms]
+(pass) focusable View commands do not require an event listener [0.15ms]
+(pass) host prop runtime validation covers Pressable, TextInput, and accessibility scalars [0.48ms]
+(pass) prop updates finalize atomically across cross-field accessibility validation [0.18ms]
+(pass) a single incoming chunk batches semantic events into one Solid transaction [0.17ms]
+(pass) createRoot tolerates synchronous transport termination registration [0.04ms]
+(pass) SurfaceHost releases a root even when unmount cleanup throws [0.09ms]
+(pass) transport disposal rejects pending commands and notifies termination once [0.12ms]
+(pass) HostTree is the only host-config owner and RootContainer hides tree bookkeeping [0.03ms]
+(pass) batched subtree removals use published ancestry, including moves through a temporary parent [0.29ms]
+
+ 60 pass
+ 0 fail
+ 1376 expect() calls
+Ran 60 tests across 4 files. [105.00ms]

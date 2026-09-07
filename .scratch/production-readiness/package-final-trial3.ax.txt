@@ -1,0 +1,68 @@
+Window: "Solid GPUI — Component Workbench", App: Solid GPUI Gallery.
+0 standard window Solid GPUI — Component Workbench, Secondary Actions: Raise
+	1 container
+		2 link solid-gpui-node-14
+		3 button Back, ID: solid-gpui-node-18
+		4 button Toggle color theme, ID: solid-gpui-node-20
+		5 text field solid-gpui-node-29
+		6 link Overview & Features, ID: solid-gpui-node-40
+		7 link View, ID: solid-gpui-node-48
+		8 link Text, ID: solid-gpui-node-53
+		9 link Pressable, ID: solid-gpui-node-58
+		10 link TextInput, ID: solid-gpui-node-63
+		11 link Image, ID: solid-gpui-node-68
+		12 link VirtualList, ID: solid-gpui-node-73
+		13 link Flexbox Layout, ID: solid-gpui-node-81
+		14 link Styles & Shadows, ID: solid-gpui-node-86
+		15 link Event System, ID: solid-gpui-node-94
+		16 link Drag & Drop, ID: solid-gpui-node-99
+		17 link Transitions & Motion, ID: solid-gpui-node-107
+		18 link Native Cursors, ID: solid-gpui-node-112
+		19 link Native Platform APIs, ID: solid-gpui-node-120
+		20 link Native Controls, ID: solid-gpui-node-125
+		21 link Menus & Overlays, ID: solid-gpui-node-130
+		22 link Settings, ID: solid-gpui-node-135
+		23 link Dock & Tiles, ID: solid-gpui-node-140
+		24 link Charts & Plot, ID: solid-gpui-node-145
+		25 link Todo Task Manager, ID: solid-gpui-node-153
+		26 link Form & Validation, ID: solid-gpui-node-158
+		27 link Reactive Benchmark, ID: solid-gpui-node-163
+		28 link Color Palette Studio, ID: solid-gpui-node-168
+		29 text field (settable) Name your workspace, Value: Untitled workspace
+		30 checkbox (settable, boolean) Ready to build, Value: on
+		31 switch (settable, boolean) Show live preview, Value: on
+		32 button Build workspace
+		33 button Reset
+		34 progress indicator (settable, float) 0
+		35 button Analyze in Rust
+		36 link solid-gpui-node-276
+		37 link solid-gpui-node-285
+		38 link solid-gpui-node-294
+		39 link solid-gpui-node-303
+		40 link solid-gpui-node-312
+		41 link solid-gpui-node-321
+		42 link solid-gpui-node-340
+		43 link solid-gpui-node-349
+		44 link solid-gpui-node-368
+		45 link solid-gpui-node-377
+		46 link solid-gpui-node-396
+		47 link solid-gpui-node-405
+		48 link solid-gpui-node-424
+		49 link solid-gpui-node-433
+		50 link solid-gpui-node-442
+		51 link solid-gpui-node-451
+		52 link solid-gpui-node-460
+		53 link solid-gpui-node-469
+		54 link solid-gpui-node-488
+		55 link solid-gpui-node-497
+		56 link solid-gpui-node-506
+		57 link solid-gpui-node-515
+		58 button solid-gpui-node-530
+	59 close button
+	60 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	61 minimize button
+	62 text Solid GPUI — Component Workbench
+63 menu bar
+	64 Solid GPUI Gallery
+
+The focused UI element is 0 standard window Solid GPUI — Component Workbench, Secondary Actions: Raise

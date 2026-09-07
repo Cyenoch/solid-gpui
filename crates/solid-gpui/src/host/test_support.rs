@@ -517,6 +517,57 @@ pub fn nested_overflow_scroll_moves_through_host(cx: &mut TestAppContext) {
     );
 }
 
+pub fn startup_command_order_roundtrip(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .expect("open startup surface");
+    let title = command(
+        1,
+        COMMAND_SET_TITLE,
+        1,
+        None,
+        Some("Startup title"),
+        None,
+        None,
+    );
+    // Bootstrap messages can share one foreground batch before any frame draws.
+    let payloads = [
+        snapshot().encode().unwrap(),
+        title.encode().unwrap(),
+        command(3, COMMAND_FOCUS, 2, None, None, None, None)
+            .encode()
+            .unwrap(),
+        command(4, COMMAND_GET_FOCUS, 2, None, None, None, None)
+            .encode()
+            .unwrap(),
+        Patch::new(1, 1, 1, 2, Vec::new()).encode().unwrap(),
+    ];
+    registry.update(cx, |registry, cx| {
+        for payload in payloads {
+            registry.route_payload(&payload, cx).unwrap();
+        }
+    });
+    draw_surface(&registry, cx, 1);
+    let events = take_events(&runtime);
+    assert!(
+        command_result(&events, 1).success,
+        "a later patch must not overtake an admitted title command: {events:?}"
+    );
+    assert!(command_result(&events, 3).success);
+    assert_eq!(
+        command_result(&events, 4).value,
+        Some(CommandValue::Bool(true))
+    );
+
+    let mut stale_title = title;
+    stale_title.meta.request_id = 2;
+    route_command(&registry, cx, stale_title);
+    let events = take_events(&runtime);
+    assert!(!command_result(&events, 2).success);
+}
+
 pub fn command_roundtrip(cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
     let mut mapped = WindowOptions::default();
@@ -1401,7 +1452,7 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
             1,
             vec![
                 KeybindingDefinition {
-                    keystrokes: "cmd-shift-p".to_owned(),
+                    keystrokes: "secondary-shift-p".to_owned(),
                     action_name: "palette.open".to_owned(),
                 },
                 KeybindingDefinition {
@@ -1412,6 +1463,13 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
         ),
     );
     assert!(command_result(&take_events(&runtime), 1).success);
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("activate chord test surface");
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "ctrl-k ctrl-1");
+    assert!(take_events(&runtime).iter().any(|event| {
+        matches!(&event.payload, EventPayload::EventAction { action } if action == "menu.other")
+    }));
     route_command(
         &registry,
         cx,
@@ -1419,7 +1477,7 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
             1,
             5,
             vec![KeybindingDefinition {
-                keystrokes: "cmd-shift-p".to_owned(),
+                keystrokes: "secondary-shift-p".to_owned(),
                 action_name: "palette.open".to_owned(),
             }],
         ),
@@ -1427,6 +1485,7 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     assert!(command_result(&take_events(&runtime), 5).success);
     cx.update_window(window.into(), |_, window, _| window.activate_window())
         .expect("activate replacement keybinding surface");
+    cx.run_until_parked();
     cx.simulate_keystrokes(window.into(), "ctrl-k ctrl-1");
     assert!(
         !take_events(&runtime).iter().any(|event| {
@@ -1440,7 +1499,8 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     );
     cx.update_window(window.into(), |_, window, _| window.activate_window())
         .expect("activate keybinding test surface");
-    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "secondary-shift-p");
     let events = take_events(&runtime);
     assert!(events.iter().any(|event| {
         u32::from(event.event_kind()) == crate::EVENT_ACTION
@@ -1471,7 +1531,23 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     );
     assert!(command_result(&take_events(&runtime), 2).success);
     let auxiliary_window = window_for(&registry, cx, 2);
-    let auxiliary_snapshot = Snapshot::new(2, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+    let mut input = Node::new(2, 1, 0, KIND_TEXT_INPUT);
+    input.listener_id = 2;
+    input.host_properties = Some(HostProperties::TextInput(TextInputProperties {
+        value: "search".to_owned(),
+        placeholder: None,
+        multiline: false,
+        disabled: false,
+        controlled: false,
+        ack_edit_seq: 0,
+        selection_start: 0,
+        selection_end: 0,
+        marked_start: None,
+        marked_end: None,
+        max_length: None,
+        selection_reversed: false,
+    }));
+    let auxiliary_snapshot = Snapshot::new(2, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), input]);
     registry
         .update(cx, |registry, cx| {
             registry.route_payload(
@@ -1489,17 +1565,28 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
         keybinding_command(
             2,
             3,
-            vec![KeybindingDefinition {
-                keystrokes: "ctrl-alt-p".to_owned(),
-                action_name: "auxiliary.open".to_owned(),
-            }],
+            vec![
+                KeybindingDefinition {
+                    keystrokes: "ctrl-alt-p".to_owned(),
+                    action_name: "auxiliary.open".to_owned(),
+                },
+                KeybindingDefinition {
+                    keystrokes: "secondary-shift-p".to_owned(),
+                    action_name: "auxiliary.palette".to_owned(),
+                },
+            ],
         ),
     );
     assert!(command_result(&take_events(&runtime), 3).success);
+    let mut focus = command(7, COMMAND_FOCUS, 2, None, None, None, None);
+    focus.meta.surface_id = 2;
+    route_command(&registry, cx, focus);
+    assert!(command_result(&take_events(&runtime), 7).success);
     cx.update_window(auxiliary_window.into(), |_, window, _| {
         window.activate_window()
     })
     .expect("activate auxiliary keybinding surface");
+    cx.run_until_parked();
     cx.simulate_keystrokes(auxiliary_window.into(), "ctrl-alt-p");
     let events = take_events(&runtime);
     assert!(events.iter().any(|event| {
@@ -1509,6 +1596,29 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
                 EventPayload::EventAction { action } if action == "auxiliary.open"
             )
     }));
+
+    cx.simulate_keystrokes(auxiliary_window.into(), "secondary-shift-p");
+    let events = take_events(&runtime);
+    assert!(events.iter().any(|event| {
+        event.meta.surface_id == 2
+            && matches!(&event.payload, EventPayload::EventAction { action } if action == "auxiliary.palette")
+    }));
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event.payload, EventPayload::Key(_))),
+        "a consumed shortcut must not leak into the focused text input"
+    );
+    cx.update_window(window.into(), |_, window, _| window.activate_window())
+        .expect("activate original surface for shortcut isolation");
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "ctrl-alt-p");
+    assert!(
+        !take_events(&runtime)
+            .iter()
+            .any(|event| matches!(event.payload, EventPayload::EventAction { .. })),
+        "another surface's shortcut must not consume a key or emit an action here"
+    );
 
     let invalid = keybinding_command(
         1,
@@ -1530,9 +1640,11 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     );
     cx.update_window(window.into(), |_, window, _| window.activate_window())
         .expect("reactivate original keybinding surface");
-    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "secondary-shift-p");
     assert!(take_events(&runtime).iter().any(|event| {
-        u32::from(event.event_kind()) == crate::EVENT_ACTION
+        event.meta.surface_id == 1
+            && u32::from(event.event_kind()) == crate::EVENT_ACTION
             && matches!(
                 &event.payload,
                 EventPayload::EventAction { action } if action == "palette.open"
@@ -1540,12 +1652,33 @@ pub fn keybinding_roundtrip(cx: &mut TestAppContext) {
     }));
     route_command(&registry, cx, keybinding_command(1, 6, Vec::new()));
     assert!(command_result(&take_events(&runtime), 6).success);
-    cx.simulate_keystrokes(window.into(), "cmd-shift-p");
+    cx.simulate_keystrokes(window.into(), "secondary-shift-p");
     assert!(
         !take_events(&runtime)
             .iter()
             .any(|event| u32::from(event.event_kind()) == crate::EVENT_ACTION),
         "empty replacement should clear the surface binding"
+    );
+
+    let replacement = Snapshot::new(2, 2, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&replacement.encode().expect("encode new surface epoch"), cx)
+        })
+        .expect("replace auxiliary surface epoch");
+    draw_surface(&registry, cx, 2);
+    cx.update_window(auxiliary_window.into(), |_, window, _| {
+        window.activate_window()
+    })
+    .expect("activate reloaded surface");
+    cx.run_until_parked();
+    take_events(&runtime);
+    cx.simulate_keystrokes(auxiliary_window.into(), "ctrl-alt-p secondary-shift-p");
+    assert!(
+        !take_events(&runtime)
+            .iter()
+            .any(|event| matches!(event.payload, EventPayload::EventAction { .. })),
+        "a new epoch must register its own shortcuts"
     );
 }
 

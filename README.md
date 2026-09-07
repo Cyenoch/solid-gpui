@@ -7,6 +7,31 @@ live primarily in Rust or Bun.
 
 > Early-stage work. Public APIs and protocol details may change without compatibility wrappers.
 
+![Solid GPUI's native component workbench on macOS, with English navigation, editable workspace controls, and a live Rust-backed preview.](docs/images/gallery.png)
+
+The Gallery is a native GPUI window. It demonstrates reactive controls, text
+editing, layout, virtual lists, routing, and application-owned Rust commands.
+
+## Try the Gallery
+
+Use the Bun version in [`.bun-version`](.bun-version) and the Rust toolchain in
+[`rust-toolchain.toml`](rust-toolchain.toml). Install your platform's native tools
+listed in [Build environment](docs/distribution.md#build-environment), then run
+from the workspace root:
+
+```sh
+bun install --frozen-lockfile
+bun run gallery
+```
+
+Use `bun run gallery:vite` for native hot reload. Start with the
+[getting started guide](docs/getting-started.md), then follow
+[native keyboard shortcuts and menus](docs/keyboard-and-menus.md) and
+[desktop distribution](docs/distribution.md). The [documentation index](docs/README.md)
+also covers native modules, protocol ownership, and performance measurement.
+See the [Gallery guide](examples/gallery/README.md) for screenshot provenance and
+the English-language presentation policy.
+
 ## Architecture
 
 ```text
@@ -164,12 +189,6 @@ overlays, settings, docking, charts, and plot computations.
 
 ## Development
 
-Install the root Bun workspace once:
-
-```sh
-bun install --frozen-lockfile
-```
-
 The Commander CLI in `scripts/tasks.ts` is the single task entrypoint:
 
 | Command           | Purpose                                                                         |
@@ -189,8 +208,10 @@ embedded-adapter, and host-candidate commands. Core task dispatch uses
 Bun-native process APIs and argument arrays. Embedded Bun/JSC remains macOS-only;
 release and stress helpers may additionally require Bash and platform tools.
 
-`bun run ci` covers the macOS Actions checks locally; Linux and Windows still
-require their own runners. `bun run task host-candidate-smoke` builds and verifies
+`bun run ci` covers the macOS Actions checks locally. The separate
+[cross-platform workflow](.github/workflows/cross-platform.yml) runs Linux and
+Windows host checks; native interaction and release qualification require each
+target's own runner and display. `bun run task host-candidate-smoke` builds and verifies
 the archive before launching its extracted host. Release preparation and package
 packing accept explicit operands: `release-prep <version>`, `package-pack <output>`,
 and `router-package-pack <output>`. Candidate workflows upload artifacts; they do

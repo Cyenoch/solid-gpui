@@ -1,5 +1,4 @@
-import { mountApplication, type WindowSize } from "@solid-gpui/core";
-import { StdioTransport } from "@solid-gpui/core/stdio";
+import { mountApplication, type DisposableTransport, type WindowSize } from "@solid-gpui/core";
 import { RouterProvider } from "@solid-gpui/router";
 import { createGalleryState } from "./gallery/context";
 import { createGalleryRouter } from "./gallery/routes";
@@ -12,10 +11,10 @@ interface GalleryReloadState {
   readonly window: WindowSize;
 }
 
-export function mountGallery(hotKey?: string) {
+export function mountGallery(transport: () => DisposableTransport, hotKey?: string) {
   return mountApplication<GalleryReloadState>({
     hotKey,
-    transport: () => new StdioTransport(),
+    transport,
     setup(previous) {
       const gallery = createGalleryState(previous?.theme ?? "dark");
       const router = createGalleryRouter(previous ? [previous.path] : undefined);

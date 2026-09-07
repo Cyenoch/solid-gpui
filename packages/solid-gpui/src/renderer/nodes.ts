@@ -613,7 +613,7 @@ export class NodeGraph {
     return node;
   }
 
-  allocateListener(_node: HostNodeInternal): number {
+  private allocateListener(): number {
     const listenerId = this.nextListenerId;
     this.nextListenerId = nextU32(this.nextListenerId, "listener id");
     return listenerId;
@@ -800,7 +800,10 @@ export class NodeGraph {
   private restoreNode(state: NodeStateSnapshot): void {
     const node = state.node;
     node.parent = state.parent;
-    node.children.splice(0, node.children.length, ...state.children);
+    // Restore in place without spreading a wide sibling set into call arguments;
+    // QuickJS and Bun impose argument-count limits independently of frame size.
+    node.children.length = state.children.length;
+    for (let index = 0; index < state.children.length; index++) node.children[index] = state.children[index]!;
     node.index = state.index;
     node.style = state.style;
     node.text = state.text;
@@ -1018,12 +1021,12 @@ export class NodeGraph {
       node.visibleRangeCallback !== undefined ||
       node.animationCompleteCallback !== undefined ||
       (node.kind === "Extension" && node.extensionEventCallback !== undefined && node.extensionEventIds.length > 0);
-    if (hasListener && node.listenerId === 0) node.listenerId = this.allocateListener(node);
+    if (hasListener && node.listenerId === 0) node.listenerId = this.allocateListener();
     if (!hasListener) node.listenerId = 0;
     this.listenerRegistry.bind(node, node.listenerId, hasListener);
   }
 
-  updateNodeProps(node: HostNodeInternal, props: HostProps): number {
+  private updateNodeProps(node: HostNodeInternal, props: HostProps): number {
     const previousStyle = node.style;
     const previousListenerId = node.listenerId;
     const previousListener = this.listenerRegistry.current(node.id);
@@ -1047,18 +1050,59 @@ export class NodeGraph {
     return mask;
   }
 
-  detachFromParent(node: HostNodeInternal): void {
+  insertNode(
+    parent: HostNodeInternal,
+    node: HostNodeInternal,
+    anchor: HostNodeInternal | undefined,
+    bootstrapped: boolean,
+  ): void {
+    if (anchor !== undefined && parent.children[anchor.index] !== anchor) {
+      this.owner.invalid = true;
+      throw new TypeError("insertion anchor is not a child of the parent");
+    }
+    if (anchor === node) return;
+    const wasAttached = node.attached;
+    // Native attachment and parentage are separate: a subtree under construction
+    // already owns its children, even before any of them enter a Surface.
+    if (node.parent !== null || wasAttached) this.detachFromParent(node);
+    this.journalNode(parent);
+    this.journalNode(node);
+    node.detachedFocusPending = false;
+    const index = anchor === undefined ? parent.children.length : anchor.index;
+    parent.children.splice(index, 0, node);
+    node.parent = parent === this.syntheticRoot ? null : parent;
+    this.refreshChildIndexes(parent, index);
+    if (parent.attached) {
+      if (wasAttached) this.markMoved(node, bootstrapped);
+      else this.attachSubtree(node, bootstrapped);
+    } else if (wasAttached) {
+      this.markDeleted(node, bootstrapped);
+      this.detachSubtree(node);
+    }
+  }
+
+  removeNode(parent: HostNodeInternal, node: HostNodeInternal, bootstrapped: boolean): void {
+    if (parent.children[node.index] !== node) {
+      this.owner.invalid = true;
+      throw new TypeError("removed node is not a child of the parent");
+    }
+    if (node.attached) this.markDeleted(node, bootstrapped);
+    this.detachFromParent(node);
+    if (node.attached) this.detachSubtree(node);
+  }
+
+  private detachFromParent(node: HostNodeInternal): void {
     const parent = node.parent ?? this.syntheticRoot;
     const siblings = parent.children;
     this.journalNode(parent);
     this.journalNode(node);
-    const index = siblings.indexOf(node);
-    if (index >= 0) siblings.splice(index, 1);
+    const index = node.index;
+    siblings.splice(index, 1);
     node.parent = null;
-    this.refreshChildIndexes(parent);
+    this.refreshChildIndexes(parent, index);
   }
 
-  attachSubtree(node: HostNodeInternal, bootstrapped: boolean): void {
+  private attachSubtree(node: HostNodeInternal, bootstrapped: boolean): void {
     const wasCreated = this.createdIds.has(node.id);
     this.journalSet(this.transaction?.deletedRoots, this.deletedRoots, node.id);
     const wasDeleted = this.deletedRoots.delete(node.id);
@@ -1085,7 +1129,7 @@ export class NodeGraph {
     markCreated(node);
   }
 
-  detachSubtree(node: HostNodeInternal): void {
+  private detachSubtree(node: HostNodeInternal): void {
     const retainFocusRouting = node.nativeFocused;
     this.journalNode(node);
     node.attached = false;
@@ -1108,15 +1152,18 @@ export class NodeGraph {
     node.nativeFocused = false;
   }
 
-  refreshChildIndexes(parent: HostNodeInternal): void {
-    this.journalNode(parent);
-    parent.children.forEach((child, index) => {
+  private refreshChildIndexes(parent: HostNodeInternal, start: number): void {
+    // Only the shifted suffix changes identity-to-index mapping. Revisiting the
+    // prefix makes N appends quadratic and journals unrelated sibling state.
+    // Journal before writing so failed commits restore indexes with parentage.
+    for (let index = start; index < parent.children.length; index++) {
+      const child = parent.children[index]!;
       this.journalNode(child);
       child.index = index;
-    });
+    }
   }
 
-  markMoved(node: HostNodeInternal, bootstrapped: boolean): void {
+  private markMoved(node: HostNodeInternal, bootstrapped: boolean): void {
     if (bootstrapped && !this.createdIds.has(node.id)) {
       this.journalSet(this.transaction?.movedIds, this.movedIds, node.id);
       this.movedIds.add(node.id);
@@ -1132,7 +1179,7 @@ export class NodeGraph {
     }
   }
 
-  markDeleted(node: HostNodeInternal, bootstrapped: boolean): void {
+  private markDeleted(node: HostNodeInternal, bootstrapped: boolean): void {
     if (bootstrapped) {
       this.journalSet(this.transaction?.deletedRoots, this.deletedRoots, node.id);
       this.deletedRoots.add(node.id);

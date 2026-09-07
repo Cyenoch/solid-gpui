@@ -1,9 +1,22 @@
 [package]
 name = "gallery-host"
+default-run = "gallery-host"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+
+[features]
+distribution = ["solid-gpui/quickjs"]
+
+[[bin]]
+name = "gallery-host"
+path = "src/main.rs"
+
+[[bin]]
+name = "solid-gpui-gallery"
+path = "src/distribution.rs"
+required-features = ["distribution"]
 
 [dependencies]
 solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }

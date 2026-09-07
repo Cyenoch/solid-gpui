@@ -1,0 +1,10 @@
+{
+  "pid": 12872,
+  "binary": "/Users/jgbingzi/workspace/sp/solid-gpui/dist/gallery/final-extracted/solid-gpui-gallery-0.2.0-aarch64-apple-darwin/Solid GPUI Gallery.app/Contents/MacOS/solid-gpui-gallery",
+  "cwd": "/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T",
+  "environment": {
+    "SOLID_GPUI_PERF_MONITOR": "1",
+    "SOLID_GPUI_LOG": "debug",
+    "SOLID_GPUI_TAP": "/Users/jgbingzi/workspace/sp/solid-gpui/.scratch/production-readiness/package-monitor-on-trial1.jsonl"
+  }
+}

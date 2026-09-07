@@ -1,3 +1,4 @@
 /// <reference types="vite/client" />
 import { mountGallery } from "@solid-gpui/gallery/application";
-mountGallery(import.meta.hot ? import.meta.url : undefined);
+import { StdioTransport } from "@solid-gpui/core/stdio";
+mountGallery(() => new StdioTransport(), import.meta.hot ? import.meta.url : undefined);

@@ -1,5 +1,11 @@
 use solid_gpui::host::test_support;
 #[test]
+fn startup_commands_execute_before_a_later_commit_in_the_same_batch() {
+    let mut cx = gpui::TestAppContext::single();
+    test_support::startup_command_order_roundtrip(&mut cx);
+}
+
+#[test]
 fn first_batch_commands_round_trip_through_headless_surface_registry() {
     let mut cx = gpui::TestAppContext::single();
     test_support::command_roundtrip(&mut cx);

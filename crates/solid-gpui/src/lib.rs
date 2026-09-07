@@ -66,4 +66,4 @@ pub use tree::{
 mod tests;
 
 #[cfg(feature = "host")]
-pub use host::run;
+pub use host::{run, run_application};

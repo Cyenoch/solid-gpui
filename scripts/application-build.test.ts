@@ -36,3 +36,30 @@ test("runtime bundles reject unavailable QuickJS imports without overwriting a w
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("production QuickJS bundles omit source maps and run without their authored modules", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "solid-gpui-production-build-"));
+  const entry = join(directory, "app.ts");
+  const dependency = join(directory, "message.ts");
+  const outfile = join(directory, "app.js");
+  try {
+    await writeFile(dependency, 'export const message = "quickjs:" + process.env.NODE_ENV;');
+    await writeFile(entry, 'import { message } from "./message"; console.log(message);');
+    await buildApplication({ runtime: "quickjs", entry, outfile, sourcemap: "none" });
+    expect(await readFile(outfile, "utf8")).not.toContain("sourceMappingURL");
+    await rm(entry);
+    await rm(dependency);
+    // The native package check exercises this output mode in QuickJS itself;
+    // this test protects bundling and source-map policy without a Rust build.
+    const child = Bun.spawn(["bun", outfile], { stdout: "pipe", stderr: "pipe" });
+    const [status, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status, stderr).toBe(0);
+    expect(stdout.trim()).toBe("quickjs:production");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

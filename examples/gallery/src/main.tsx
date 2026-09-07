@@ -1,2 +1,3 @@
 import { mountGallery } from "./application";
-mountGallery();
+import { StdioTransport } from "@solid-gpui/core/stdio";
+mountGallery(() => new StdioTransport());

@@ -95,9 +95,13 @@ impl HostProfile for ComponentHost {
             .open_window(options, move |window, cx| {
                 let root = cx.new(|_| SolidRoot::with_extensions(runtime, extensions));
                 *solid_root_for_window.borrow_mut() = Some(root.clone());
-                let frame_monitor = (std::env::var("SOLID_GPUI_PERF_MONITOR").as_deref()
-                    != Ok("0"))
-                .then(|| cx.new(|cx| PerformanceMonitor::new(MonitorCorner::TopRight, cx)));
+                let monitor_enabled = match std::env::var("SOLID_GPUI_PERF_MONITOR").as_deref() {
+                    Ok("1") => true,
+                    Ok("0") => false,
+                    _ => cfg!(debug_assertions),
+                };
+                let frame_monitor = monitor_enabled
+                    .then(|| cx.new(|cx| PerformanceMonitor::new(MonitorCorner::TopRight, cx)));
                 let content = cx.new(|cx| ProviderContent {
                     _appearance: cx.observe_window_appearance(window, |_, window, cx| {
                         super::theme::sync_system(window, cx);

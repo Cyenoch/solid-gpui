@@ -9,6 +9,7 @@ export interface ApplicationBuildOptions {
   readonly entry: string;
   readonly outfile: string;
   readonly runtime: "bun" | "quickjs";
+  readonly sourcemap?: "inline" | "none";
 }
 
 /** Bundle the same universal JSX for either runtime, including Solid's client graph. */
@@ -31,7 +32,7 @@ export async function buildApplication(options: ApplicationBuildOptions): Promis
     define: { "process.env.NODE_ENV": '"production"' },
     packages: "bundle",
     splitting: false,
-    sourcemap: "inline",
+    sourcemap: options.sourcemap ?? "inline",
     naming: basename(outfile),
     ...(embedded ? { allowUnresolved: [] } : {}),
     plugins: [

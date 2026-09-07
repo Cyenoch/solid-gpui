@@ -65,11 +65,11 @@ export class HostTree implements RootOwner {
   allocateNode(kind: HostKind): HostNodeInternal {
     return this.graph.allocateNode(kind);
   }
-  allocateListener(node: HostNodeInternal): number {
-    return this.graph.allocateListener(node);
+  insertNode(parent: HostNodeInternal, node: HostNodeInternal, anchor?: HostNodeInternal): void {
+    this.graph.insertNode(parent, node, anchor, this.bootstrapped);
   }
-  attachSubtree(node: HostNodeInternal): void {
-    this.graph.attachSubtree(node, this.bootstrapped);
+  removeNode(parent: HostNodeInternal, node: HostNodeInternal): void {
+    this.graph.removeNode(parent, node, this.bootstrapped);
   }
 
   submitCommand(node: HostNodeInternal, kind: CommandKind, payload: CommandPayload): Promise<void> {
@@ -92,26 +92,8 @@ export class HostTree implements RootOwner {
   setNodeProps(node: HostNodeInternal, props: HostProps): void {
     this.graph.setNodeProps(node, props);
   }
-  updateNodeProps(node: HostNodeInternal, props: HostProps): number {
-    return this.graph.updateNodeProps(node, props);
-  }
-  detachFromParent(node: HostNodeInternal): void {
-    this.graph.detachFromParent(node);
-  }
-  refreshChildIndexes(parent: HostNodeInternal): void {
-    this.graph.refreshChildIndexes(parent);
-  }
-  detachSubtree(node: HostNodeInternal): void {
-    this.graph.detachSubtree(node);
-  }
-  markMoved(node: HostNodeInternal): void {
-    this.graph.markMoved(node, this.bootstrapped);
-  }
   markUpdated(node: HostNodeInternal, mask: number): void {
     this.graph.markUpdated(node, mask, this.bootstrapped);
-  }
-  markDeleted(node: HostNodeInternal): void {
-    this.graph.markDeleted(node, this.bootstrapped);
   }
 
   beginRender(): void {

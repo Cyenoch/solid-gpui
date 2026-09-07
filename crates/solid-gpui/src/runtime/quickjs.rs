@@ -113,6 +113,16 @@ impl QuickJsAdapter {
     pub fn start(entry: impl AsRef<Path>) -> Result<Arc<Self>, QuickJsError> {
         let source = std::fs::read(entry.as_ref()).map_err(QuickJsError::Entry)?;
         let name = entry.as_ref().to_string_lossy().into_owned();
+        Self::from_source(name, source)
+    }
+
+    /// Start an application-owned bundle, including source embedded in its executable.
+    /// The name identifies diagnostics; it is not resolved against the filesystem.
+    pub fn from_source(
+        name: impl Into<String>,
+        source: Vec<u8>,
+    ) -> Result<Arc<Self>, QuickJsError> {
+        let name = name.into();
         let tap = ProtocolTap::from_env();
         let worker_tap = tap.clone();
         let shared = Arc::new(Shared::default());
@@ -573,7 +583,9 @@ mod tests {
     #[test]
     fn real_solid_bundle_round_trips_snapshot_press_and_patch() {
         let entry = Entry::bundle("fixtures/quickjs-counter.tsx");
-        let runtime = entry.start();
+        let source = std::fs::read(&entry.0).unwrap();
+        drop(entry);
+        let runtime = QuickJsAdapter::from_source("embedded-counter.js", source).unwrap();
         let snapshot = Snapshot::decode(&receive(&runtime)).unwrap();
         let button = snapshot
             .nodes

@@ -1,0 +1,38 @@
+bun test v1.4.2 (744846f84)
+
+packages/solid-gpui/tests/renderer.test.ts:
+(pass) invokeNative returns opaque bytes through the surface command lifecycle [3.56ms]
+(pass) invokeNative rejects missing, confused, and out-of-bounds JavaScript arguments without sending [0.28ms]
+(pass) CommandClient rejects mismatched identities and inappropriate byte results [0.24ms]
+(pass) Icon projects its allowlisted host properties [0.37ms]
+(pass) a Solid signal produces an incremental native patch [0.53ms]
+(pass) created siblings are emitted in native child-index order [0.21ms]
+(pass) wide sibling construction and traversal perform bounded index work [2.27ms]
+(pass) reparenting detached children preserves unique ownership and rollback restores sibling order [0.44ms]
+(pass) a root transaction does not suppress updates in another root [0.38ms]
+(pass) conditional nodes stay bound to their Solid owner root [0.28ms]
+(pass) VirtualList mounts after empty data and can remount [0.98ms]
+(pass) VirtualList scrolling retains overlapping rows and disposes rows that leave [0.73ms]
+(pass) VirtualList filtering after scrolling keeps its committed range valid [1.05ms]
+(pass) render errors publish no invalid frame and native surface close disposes the owner [0.30ms]
+(pass) SurfaceHost delivers the decoded semantic event directly to its root [0.23ms]
+(pass) previous-revision listener events invoke the callback that produced that revision [1.53ms]
+(pass) layout, file-drop, and input callbacks retain the generation that owns each event [1.22ms]
+(pass) failed host updates roll the private graph back before a later commit [0.17ms]
+(pass) Extension getter props emit host property patches and failed encoding rolls back [0.62ms]
+(pass) Extension events honor subscribed IDs and current/previous listener revisions [0.29ms]
+(pass) accessibility props can be removed from an existing host node [0.14ms]
+(pass) focusable View commands do not require an event listener [0.10ms]
+(pass) host prop runtime validation covers Pressable, TextInput, and accessibility scalars [0.54ms]
+(pass) prop updates finalize atomically across cross-field accessibility validation [0.16ms]
+(pass) a single incoming chunk batches semantic events into one Solid transaction [0.18ms]
+(pass) createRoot tolerates synchronous transport termination registration [0.05ms]
+(pass) SurfaceHost releases a root even when unmount cleanup throws [0.08ms]
+(pass) transport disposal rejects pending commands and notifies termination once [0.11ms]
+(pass) HostTree is the only host-config owner and RootContainer hides tree bookkeeping [0.03ms]
+(pass) batched subtree removals use published ancestry, including moves through a temporary parent [0.33ms]
+
+ 30 pass
+ 0 fail
+ 1205 expect() calls
+Ran 30 tests across 1 file. [54.00ms]

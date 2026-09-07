@@ -29,13 +29,7 @@ export interface RootOwner {
   markPropsDirty(node: HostNodeInternal, groups: number): void;
   recordNodeMutation(node: HostNodeInternal): void;
   setNodeProps(node: HostNodeInternal, props: HostProps): void;
-  updateNodeProps(node: HostNodeInternal, props: HostProps): number;
-  detachFromParent(node: HostNodeInternal): void;
-  refreshChildIndexes(parent: HostNodeInternal): void;
-  detachSubtree(node: HostNodeInternal): void;
-  markMoved(node: HostNodeInternal): void;
   markUpdated(node: HostNodeInternal, mask: number): void;
-  markDeleted(node: HostNodeInternal): void;
 }
 export type HostKind =
   | "View"

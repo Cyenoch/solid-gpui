@@ -1,0 +1,24 @@
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.57s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running tests/host_command_roundtrip.rs (target/debug/deps/host_command_roundtrip-81a937beb09b5757)
+
+running 1 test
+test startup_commands_execute_before_a_later_commit_in_the_same_batch ... FAILED
+
+failures:
+
+---- startup_commands_execute_before_a_later_commit_in_the_same_batch stdout ----
+
+thread 'startup_commands_execute_before_a_later_commit_in_the_same_batch' (1519806) panicked at crates/solid-gpui/src/host/test_support.rs:548:5:
+a later patch must not overtake an admitted title command: [Event { meta: EventMeta { surface_id: 1, epoch: 1, revision: 2, sequence: 1, node_id: 1, listener_id: 0 }, payload: CommandResult(CommandResult { request_id: 1, command: SetTitle, node_id: 1, success: false, error: Some("command revision is stale"), value: None }) }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup_commands_execute_before_a_later_commit_in_the_same_batch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p solid-gpui --test host_command_roundtrip`

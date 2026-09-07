@@ -219,7 +219,7 @@ export function OverviewPage() {
       <View style={{ marginTop: 24, minWidth: 0, flexShrink: 0 }}>
         <SectionHeader
           title="Explore the library"
-          description="18 working showcases, from layout fundamentals to complete mini apps."
+          description={`${PAGES.filter((page) => page.id !== "overview").length} working showcases, from layout fundamentals to complete mini apps.`}
         />
         {CATEGORIES.filter((category) => category.id !== "getting-started").map((category) => (
           <Card title={category.title} description={category.description} style={{ marginTop: 14 }}>

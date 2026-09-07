@@ -1,0 +1,463 @@
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+   Compiling gallery-host v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/examples/gallery/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.89s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/gallery_host-e36189e93a3abee8)
+
+running 1 test
+test tests::normalizes_workspace_and_tracks_milestones ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/gallery_host-006ba860b05832e5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/gallery.rs (target/debug/deps/gallery-6abc0e390a1bf0b7)
+
+running 4 tests
+test gallery_button_labels_fit_control_height ... ok
+test gallery_virtual_list_renders_initial_rows ... ok
+test gallery_native_settings_paints_composed_fields_inside_the_page ... ok
+test gallery_panes_scroll_independently ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.45s
+
+     Running unittests src/lib.rs (target/debug/deps/gpui_iconify-1bf29e073afa967f)
+
+running 9 tests
+test size::tests::non_positive_is_not_paintable ... ok
+test icon_id::tests::alias_home_keeps_requested_name ... ok
+test icon_id::tests::from_name_accepts_only_iconify_identity ... ok
+test icon_id::tests::from_asset_path_accepts_only_cache_keys ... ok
+test size::tests::from_pixels_keeps_exact_value ... ok
+test icon_view::tests::builder_keeps_identity_and_exact_pixels ... ok
+test palette::tests::raster_error_is_distinct_from_cache_miss ... ok
+test size::tests::named_constants_match_documented_px ... ok
+test icon_id::tests::lucide_play_is_mono ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resolve.rs (target/debug/deps/resolve-2ab66b7011c3bc9a)
+
+running 14 tests
+test ensure_helpers_surface_build_failures ... ok
+test unknown_allowlist_prefix_fails_generation_validation ... ok
+test mixed_body_is_detected_when_collection_is_mono ... ok
+test variant_ident_is_prefix_plus_pascal_name ... ok
+test hidden_icon_is_flagged ... ok
+test implicit_viewbox_is_sixteen ... ok
+test svg_omits_layout_width_height ... ok
+test alias_dimension_overrides_parent ... ok
+test collection_defaults_fill_missing_viewbox ... ok
+test rotate_adds_modulo_four ... ok
+test double_hflip_cancels ... ok
+test missing_and_cycle_are_errors ... ok
+test alias_hflip_merges_onto_parent_body ... ok
+test vendor_allowlist_embeds_lucide_play ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/gpui_performance-f1ec9cfa3e9257c8)
+
+running 1 test
+test tests::active_cadence_excludes_idle_and_keeps_slow_frames ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/solid_gpui-beed8ca0c34e112b)
+
+running 209 tests
+test components::charts::tests::reject_undefined_or_unbounded_chart_work ... ok
+test components::menus::tests::open_menu_reconciles_keyboard_cursor_and_submenus_by_key ... ok
+test components::input::tests::multiline_controls_keep_text_selection_and_entity_across_configuration_changes ... ok
+test components::input::tests::fixed_textarea_rows_set_the_native_drawn_height ... ok
+test components::charts::tests::low_level_plot_draws_native_shapes_and_validates_work ... ok
+test components::command_palette::tests::command_highlight_survives_model_reorder_and_unrelated_redraw ... ok
+test components::input::tests::pending_value_waits_for_ime_cancellation_and_unmark_without_change ... ok
+test components::input::tests::native_commit_and_explicit_replace_cancel_pending_work_and_owner_drop_releases_it ... ok
+test components::native_menu::tests::os_menu_actions_require_a_live_enabled_snapshot_and_are_revoked_on_unmount ... ok
+test components::notifications::tests::updating_toast_content_preserves_native_entity_and_owner_cleanup ... ok
+test components::host::native_call_tests::foreground_theme_calls_share_contract_validation_and_update_native_base ... ok
+test components::choices::tests::replacing_filtered_choice_models_keeps_values_query_and_entities ... ok
+test host::tests::command_admission_centralizes_surface_epoch_and_revision_checks ... ok
+test host::tests::embedded_smoke_press_is_not_a_process_renderer_command ... ok
+test components::input::tests::controlled_echo_preserves_real_selection_and_undo_and_rejects_stale_ack ... ok
+test components::overlays::tests::modal_requests_are_session_scoped_and_unmount_closes_only_its_owner ... ok
+test host::commit_pump::tests::ready_commits_yield_with_bounded_work_and_preserve_terminal_order ... ok
+test components::plot_math::tests::scale_coordinates_preserve_offsets_duplicates_and_reversed_numeric_ranges ... ok
+test host::tests::invalid_log_level_falls_back_to_error_and_warns_once ... ok
+test host::tests::parses_embedded_runtime_entry ... ok
+test host::tests::parses_help_before_renderer_command ... ok
+test host::tests::parses_log_levels_case_insensitively ... ok
+test components::plot_math::tests::geometry_preserves_source_indices_and_rejects_invalid_graphs_and_work ... ok
+test host::tests::parses_version_before_renderer_command ... ok
+test host::tests::renderer_command_stops_host_option_parsing ... ok
+test host::tests::retired_surface_ids_are_never_reallocated ... ok
+test host::tests::separator_preserves_renderer_help_flag ... ok
+test host::tests::surface_id_allocator_rejects_exhaustion ... ok
+test host::tests::surface_ids_are_host_allocated_without_implicit_surface_entries ... ok
+test components::scroll_views::tests::message_append_prepend_and_reorder_keep_native_follow_mode_and_reading_anchor ... ok
+test host::tests::unknown_host_option_is_rejected_before_renderer_command ... ok
+test components::data_list::tests::search_and_reorder_keep_hidden_selection_and_load_request_ownership ... ok
+test host::tests::version_and_startup_diagnostics_include_protocol_version ... ok
+test components::data_table::tests::table_reconciles_width_and_selection_by_key_across_pending_sort_and_data_updates ... ok
+test protocol_tap::tests::classifies_generated_message_and_subtype_metadata ... ok
+test renderer::commands::tests::font_family_extracts_tuffy_family ... ok
+test renderer::commands::tests::font_family_rejects_malformed_bytes_without_panicking ... ok
+test native::executor::tests::cancelled_blocking_work_keeps_its_permit_until_it_exits ... ok
+test renderer::commands::tests::menu_action_states_map_to_gpui_menu_item_flags ... ok
+test native::executor::tests::dropping_owner_shuts_down_pending_async_work_without_waiting ... ok
+test renderer::events::tests::pointer_move_coordinates_are_clamped_before_wire_encoding ... ok
+test renderer::events::tests::pointer_coordinates_are_clamped_before_wire_encoding ... ok
+test renderer::events::tests::zero_click_count_mouse_up_is_normalized_before_wire_encoding ... ok
+test protocol_tap::tests::writes_metadata_with_monotonic_sequence_and_capacity_stop ... ok
+test components::host::native_call_tests::provider_dispatches_native_calls_and_correlates_errors ... ok
+test renderer::extension_instance_tests::root_drop_revokes_a_retained_external_event_sink ... ok
+test components::tree_view::tests::tree_reconciliation_preserves_expansion_selection_and_lazy_requests ... ok
+test native::executor::tests::cancellation_aborts_tasks_and_releases_global_admission ... ok
+test host::tests::panic_hook_writes_crash_report_with_location ... ok
+test renderer::input::tests::max_length_limits_marked_utf16_replacements_without_splitting_surrogates ... ok
+test renderer::input::tests::max_length_limits_utf16_replacements_without_splitting_surrogates ... ok
+test renderer::input::tests::navigation_accepts_platform_arrow_key_names ... ok
+test renderer::input::tests::multiline_utf16_positions_cover_emoji_empty_lines_and_trailing_newline ... ok
+test renderer::image_tests::image_loading_fallback_appears_after_delay_with_stable_id ... ok
+test renderer::input::tests::paste_cut_and_ime_commit_are_single_history_boundaries ... ok
+test renderer::input::tests::double_click_selects_the_uax_word_and_maps_utf16_offsets ... ok
+test renderer::input::tests::selectable_selection_clamps_changed_text_to_utf8_boundaries ... ok
+test renderer::extension_instance_tests::native_node_methods_execute_before_next_commit_and_reject_bad_targets ... ok
+test renderer::input::tests::selection_anchor_normalizes_drag_direction_and_preserves_reversed_head ... ok
+test renderer::extension_instance_tests::rejected_batch_has_no_native_effects_and_replacements_revoke_sinks ... ok
+test renderer::input::tests::shift_navigation_respects_utf16_boundaries_and_home_end_aliases ... ok
+test renderer::input::tests::text_edits_clear_reversed_selection_orientation ... ok
+test renderer::input::tests::text_input_scroll_offset_follows_target_and_clamps_to_content ... ok
+test renderer::input::tests::triple_click_selects_one_logical_line_without_newline ... ok
+test renderer::input::tests::undo_history_coalesces_typing_and_resets_on_selection_move ... ok
+test renderer::input::tests::undo_redo_round_trip_and_new_edit_clears_redo ... ok
+test renderer::input::tests::utf16_and_utf8_offsets_round_trip_at_astral_boundaries ... ok
+test renderer::extension_instance_tests::retained_identity_listener_binding_and_child_updates ... ok
+test renderer::input::tests::undo_history_evicts_oldest_entry_at_one_hundred ... ok
+test renderer::input_tests::ascii_surrogate_marked_and_unmark_transitions_are_ordered ... ok
+test renderer::input_tests::background_add_and_remove_interpolate_through_transparent ... ok
+test renderer::input_tests::affected_reconciliation_workset_is_small_for_single_patch ... ok
+test renderer::input_tests::accessibility_role_mapping_matches_protocol_roles ... ok
+test renderer::input_tests::completion_is_once_reduced_motion_is_immediate_and_deletion_cancels ... ok
+test renderer::input_tests::easing_and_rgba_samples_are_deterministic ... ok
+test renderer::input_tests::delayed_easing_and_reduced_motion_samples_are_stable ... ok
+test renderer::input_tests::easing_curves_apply_to_every_supported_property ... ok
+test renderer::input_tests::layout_events_are_deduplicated_per_node_and_preserve_float_bounds ... ok
+test renderer::image_tests::svg_bytes_render_through_img_loader ... ok
+test renderer::input_tests::focusable_view_without_listener_gets_focus_handle_and_accepts_focus_commands ... ok
+test native::children_tests::typed_children_and_slots_render_updates_without_remount_and_retire_with_owner ... ok
+test renderer::input_tests::placeholder_display_is_visual_only ... ok
+test renderer::input_tests::disabled_text_input_clears_focus_and_rejects_editing_commands ... ok
+test renderer::input_tests::interactive_text_run_paints_focus_affordance_quads ... ok
+test renderer::input_tests::interactive_text_run_gets_tab_stop_and_enter_press ... ok
+test renderer::input_tests::interactive_text_run_mouse_press_still_dispatches ... ok
+test renderer::input_tests::reset_native_state_clears_epoch_bound_input_and_window_state ... ok
+test renderer::input_tests::multiline_text_input_uses_wrapped_layout_and_preserves_empty_lines ... ok
+test renderer::input_tests::retarget_starts_from_the_sampled_midpoint_and_ignores_unrelated_style_changes ... ok
+test renderer::input_tests::stale_controlled_values_are_ignored_until_acknowledged ... ok
+test renderer::input_tests::removed_transition_retargets_supported_properties_from_previous_style ... ok
+test renderer::input_tests::overflowing_multiline_text_input_keeps_caret_inside_element_bounds ... ok
+test renderer::input_tests::rich_text_parts_cache_reuses_unchanged_draws_and_invalidates_patches ... ok
+test renderer::input_tests::selectable_rich_text_runs_share_selection_geometry_and_copy ... ok
+test renderer::input_tests::selectable_text_shapes_and_retains_host_selection_geometry ... ok
+test native::executor::tests::blocking_commands_do_not_occupy_the_async_worker ... ok
+test renderer::input_tests::text_input_triple_click_dispatch_selects_entire_single_line ... ok
+test renderer::input_tests::text_input_keyboard_editing_dispatches_clipboard_selection_and_word_navigation ... ok
+test renderer::input_tests::text_input_unrelated_style_patch_still_reaches_focused_input ... ok
+test renderer::input_tests::variable_height_list_replaces_estimates_with_measured_rows ... ok
+test renderer::input_tests::virtual_list_maps_absolute_indices_only_inside_committed_range ... ok
+test renderer::input_tests::text_input_undo_redo_real_dispatch_coalesces_and_emits_change ... ok
+test renderer::input_tests::rich_text_cache_invalidates_only_changed_paragraph_and_handles_create_delete ... ok
+test renderer::input_tests::virtual_list_state_persists_remeasures_and_cleans_up ... ok
+test renderer::input_tests::visible_range_events_are_deduplicated_per_node ... ok
+test renderer::input_tests::width_and_height_interpolate_and_retarget_from_sampled_values ... ok
+test renderer::input_tests::virtual_list_state_preserves_scroll_across_count_changes ... ok
+test renderer::input_tests::window_observations_emit_initial_values_and_dedupe_changes ... ok
+test renderer::input_tests::virtual_list_estimate_is_replaced_when_an_unmeasured_row_is_committed ... ok
+test renderer::input_tests::text_input_multi_click_dispatch_selects_words_lines_and_copy ... ok
+test renderer::paint::drag::tests::outbound_file_drag_payload_preserves_paths_and_directory_metadata ... ok
+test renderer::native_call_lifecycle_tests::closing_surface_and_dropping_root_cancel_pending_native_futures ... ok
+test renderer::paint::style::tests::cursor_style_respects_without_cursor ... ok
+test renderer::paint::text_input::rich_text_cursor_tests::interactive_runs_disable_parent_cursor ... ok
+test renderer::native_call_lifecycle_tests::epoch_replacement_cancels_old_native_future_without_touching_reused_request_id ... ok
+test renderer::paint::text_input::text_input_style_tests::placeholder_remains_readable_on_light_and_dark_inputs ... ok
+test renderer::input_tests::virtual_list_commands_scroll_estimated_rows_and_reject_end_index ... ok
+test renderer::input_tests::virtual_list_boundary_consumes_wheel_before_outer_view ... ok
+test runtime::embedded::tests::commit_backpressure_accepts_last_frame_and_drains_once ... ok
+test renderer::scroll_tests::overflow_scroll_moves_children_after_wheel ... ok
+test renderer::scroll_tests::vertical_wheel_over_horizontal_strip_reaches_parent_scroll ... ok
+test renderer::scroll_tests::virtual_list_at_top_passes_wheel_to_outer_content ... ok
+test renderer::input_tests::layout_next_frame_callbacks_dedupe_repeated_draws ... ok
+test renderer::scroll_tests::gallery_nested_overflow_views_move_sidebar_and_content_after_wheel ... ok
+test runtime::quickjs::tests::shutdown_interrupts_busy_javascript_and_recursive_microtasks ... ok
+test tests::events::event_domain_validation_rejects_invalid_values ... ok
+test tests::events::every_event_semantic_round_trips_through_bebop ... ok
+test tests::events::focus_and_blur_keep_null_and_text_input_forms_distinct ... ok
+test tests::protocol::command_encoder_rejects_invalid_operation ... ok
+test tests::protocol::command_value_number_preserves_u32_ids ... ok
+test tests::protocol::command_variants_keep_u32_and_optional_values ... ok
+test tests::protocol::decoder_rejects_missing_semantic_node_and_accessibility_fields ... ok
+test tests::protocol::decoder_rejects_unmasked_text_and_missing_masked_boolean ... ok
+test tests::protocol::encoder_rejects_invalid_file_dialog_payload ... ok
+test tests::protocol::frame_reader_and_writer_preserve_bebop_payloads ... ok
+test components::dock::tests::dock_moves_restore_and_metadata_keep_pane_entities_and_tile_history ... ok
+test tests::protocol::malformed_style_codes_are_rejected_before_semantic_tree_validation ... ok
+test tests::protocol::large_text_input_snapshot_round_trips ... ok
+test tests::protocol::native_command_identity_function_node_and_payload_bounds ... ok
+test tests::protocol::patch_update_boolean_presence_follows_mask ... ok
+test tests::protocol::protocol_version_and_structural_limits_are_strict ... ok
+test tests::protocol::semantic_command_errors_include_command_path ... ok
+test tests::protocol::snapshot_and_patch_round_trip_with_presence_and_full_style ... ok
+test tests::protocol::native_result_bytes_require_matching_successful_invocation ... ok
+test tests::protocol::style_wire_values_are_closed_and_invalid_codes_are_rejected ... ok
+test components::charts::tests::charts_draw_and_hover_tracks_each_duplicate_category ... ok
+test tests::surface_property::seed_zero_surface_lifecycle_regression ... ok
+test runtime::quickjs::tests::microtasks_utf8_and_cancellable_timers_use_real_worker ... ok
+test tests::transport::in_memory_runtime_rejects_malformed_outbound_event ... ok
+test tests::transport::in_memory_runtime_round_trips_framed_commit_and_event ... ok
+test tests::transport::outbound_event_failure_during_shutdown_is_not_fatal ... ok
+test tests::transport::outbound_event_metadata_includes_wire_identity_without_payload ... ok
+test runtime::quickjs::tests::malformed_frames_exceptions_and_queue_overflow_fail_explicitly ... ok
+test host::icon_asset_tests::icon_assets_resolve_compiled_svg_path ... ok
+test runtime::quickjs::tests::startup_events_wait_for_subscription_and_outbound_pressure_never_waits ... ok
+test tests::transport::process_runtime_marks_explicit_shutdown_without_failure ... ok
+test tests::tree::accessibility_patch_can_clear_existing_properties ... ok
+test tests::transport::concurrent_process_shutdowns_do_not_deadlock_writer_join ... ok
+test tests::tree::accessibility_patch_updates_a_valid_label ... ok
+test tests::tree::accessibility_patch_updates_validate_role_and_checked_constraints ... ok
+test tests::tree::accessibility_properties_validate_and_keep_stable_ids ... ok
+test tests::tree::duplicate_orphan_and_parent_after_child_trees_are_rejected ... ok
+test tests::tree::extension_host_properties_are_neutral_and_require_nonzero_ids ... ok
+test tests::tree::extension_listener_survives_property_updates_and_can_be_replaced ... ok
+test tests::tree::focusable_view_and_pressable_listener_combinations_are_validated ... ok
+test tests::tree::focusable_text_without_press_listener_is_rejected ... ok
+test tests::tree::image_host_properties_round_trip_and_reject_invalid_sources_or_children ... ok
+test tests::tree::icon_host_properties_round_trip_and_reject_invalid_names_or_children ... ok
+test tests::tree::image_layout_listener_is_valid ... ok
+test tests::tree::interaction_patches_validate_retained_capabilities_before_publishing ... ok
+test tests::tree::invalid_revision_is_rejected_and_last_good_tree_is_retained ... ok
+test tests::tree::malformed_patch_rolls_back_and_delete_removes_subtree ... ok
+test tests::tree::patches_update_text_and_style_without_rebuilding_unrelated_nodes ... ok
+test tests::tree::pointer_move_capability_requires_interactive_listener_and_can_be_cleared ... ok
+test tests::tree::pressable_focusable_patch_is_accepted ... ok
+test tests::tree::rejected_patch_restores_created_nodes_and_ancestor_text_caches ... ok
+test tests::tree::style_code_decoders_reject_zero_values ... ok
+test tests::tree::style_values_must_be_finite_and_non_negative ... ok
+test tests::tree::style_wire_round_trips_layout_border_and_text_fields ... ok
+test tests::tree::synthetic_view_root_is_required_and_empty_unmount_is_valid ... ok
+test tests::tree::text_containment_listener_and_child_indexes_are_validated ... ok
+test tests::tree::tooltip_snapshot_and_patch_apply_for_view_and_pressable ... ok
+test tests::tree::tree_rejects_invalid_virtual_list_property_patch ... ok
+test renderer::input_tests::text_input_typing_performance_measurement ... ok
+test tests::transport::process_runtime_reports_unexpected_clean_eof_and_exit_status ... ok
+test transport::tests::event_frame_size_matches_encoded_frame ... ok
+test tests::transport::process_event_writer_kills_closed_stdin_child_for_reader_eof ... ok
+test transport::tests::event_queue_preserves_order ... ok
+test transport::tests::event_queue_rejects_a_frame_larger_than_the_byte_bound ... ok
+test transport::tests::stop_child_accepts_kill_race_when_status_confirms_exit ... ok
+test transport::tests::stop_child_does_not_join_when_kill_cannot_confirm_exit ... ok
+test transport::tests::event_queue_exhaustion_never_waits_for_the_renderer ... ok
+test transport::tests::stop_child_does_not_join_when_wait_fails ... ok
+test tests::tree::patch_stats_scale_with_changed_nodes ... ok
+test tests::tree_property::seed_zero_property_sequence_regression ... ok
+test renderer::scroll_tests::typescript_overflow_scroll_moves_children_after_wheel ... ok
+test renderer::scroll_tests::zero_listener_gallery_overflow_moves_plain_children_after_wheel ... ok
+test tests::surface_property::seeded_surface_lifecycle_sequences_preserve_epoch_and_routing_invariants ... ok
+test runtime::quickjs::tests::real_solid_bundle_round_trips_snapshot_press_and_patch ... ok
+test tests::transport::process_event_writer_keeps_ui_delivery_independent_of_delayed_reader ... ok
+test renderer::resize_tests::native_resize_feedback_loop ... ok
+test tests::tree_property::seeded_random_valid_patch_sequences_preserve_tree_and_renderer_invariants ... ok
+test runtime::quickjs::tests::native_router_platform_and_gallery_routes_run_in_real_vm ... ok
+test components::host::tests::profile_rejects_system_notifications_but_supports_keybindings ... ok
+test components::validation::tests::amplified_props_and_parent_span_reject_before_publication ... ok
+test components::host::tests::provider_keybindings_restore_baseline_for_replacement_and_close ... ok
+test components::host::tests::profile_wraps_solid_root_with_provider_root_and_renders_extension ... ok
+test renderer::input_tests::snapshot_apply_and_first_draw_scaling_guard ... ok
+test tests::surface_soak::sustained_renderer_load_keeps_state_bounded_and_reports_memory_trend ... ok
+
+test result: ok. 209 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s
+
+     Running unittests src/bin/solid-gpui-frame-peer.rs (target/debug/deps/solid_gpui_frame_peer-41fa9147c40f5c18)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/solid-gpui-host.rs (target/debug/deps/solid_gpui_host-9cba690d458dd7f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/host_command_roundtrip.rs (target/debug/deps/host_command_roundtrip-05e06c17daf45715)
+
+running 18 tests
+test renderer_termination_closes_surfaces_without_reentrant_registry_update ... ok
+test pressable_focusable_updates_are_accepted_and_focusable ... ok
+test load_font_registers_family_and_rasterizes_glyph ... ok
+test disabled_pressable_is_skipped_by_focus_traversal ... ok
+test focused_unmount_blurs_and_restores_focus ... ok
+test conditionally_mounted_focus_node_keeps_tree_order ... ok
+test notification_action_and_body_responses_round_trip_to_the_origin_surface ... ok
+test focus_traversal_follows_tree_order_and_wraps ... ok
+test virtual_list_scroll_offset_round_trips_wheel_and_precise_command ... ok
+test startup_commands_execute_before_a_later_commit_in_the_same_batch ... ok
+test keybinding_commands_register_replace_and_route_actions_headlessly ... ok
+test closing_one_surface_keeps_host_alive_and_last_surface_requests_quit ... ok
+test close_policy_simulate_close_requires_and_resolves_confirmation ... ok
+test text_file_commands_round_trip_real_utf8_files_asynchronously ... ok
+test focus_and_blur_events_remain_routed_to_each_surface ... ok
+test dialog_commands_round_trip_paths_cancellation_and_close_safety ... ok
+test nested_overflow_scroll_moves_through_native_host_surface ... ok
+test first_batch_commands_round_trip_through_headless_surface_registry ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/host_glyph_platform.rs (target/debug/deps/host_glyph_platform-3e1d83020ba976af)
+     Running tests/module_boundaries.rs (target/debug/deps/module_boundaries-f9ccc83218b8c7a6)
+
+running 5 tests
+test event_emitter_has_no_root_state_dependency ... ok
+test renderer_child_edges_are_parent_scoped ... ok
+test protocol_wire_types_stay_private ... ok
+test renderer_and_tree_child_exports_are_internal ... ok
+test renderer_and_tree_parents_keep_children_private ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/native_bridge_contracts.rs (target/debug/deps/native_bridge_contracts-c8040c050a3d175b)
+
+running 5 tests
+test exported_contract_rejects_bigint_and_digest_tracks_the_signature ... ok
+test ambiguous_type_and_command_names_cannot_form_a_contract ... ok
+test nested_dtos_use_strict_dispatch_and_preserve_unknown_field_errors ... ok
+test composed_modules_export_shared_multiline_types_as_valid_typescript ... ok
+test values_reject_json_precision_loss_and_resource_overflow ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/native_executor.rs (target/debug/deps/native_executor-e8c127c45a034c35)
+
+running 2 tests
+test composed_modules_share_one_runtime_and_panics_are_request_errors ... ok
+test ordinary_callers_can_run_tokio_timers_and_network_io ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/perf_budget.rs (target/debug/deps/perf_budget-983c613086401aa8)
+
+running 3 tests
+test layout_report_enqueue_and_dedupe_budget ... ok
+test protocol_and_tree_smoke_budget ... ok
+test style_full_and_null_roundtrip_budget ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/perf_event_storm.rs (target/debug/deps/perf_event_storm-dc941511b6613d3d)
+
+running 1 test
+test native_event_frame_sizes_and_encode_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/process_roundtrip.rs (target/debug/deps/process_roundtrip-152bf2382b96a538)
+
+running 3 tests
+test process_adapter_round_trips_actual_bun_counter ... ok
+test process_adapter_round_trips_snapshot_and_event_frames ... ok
+test process_shutdown_unblocks_a_reader_waiting_for_the_next_frame ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/protocol_fuzz.rs (target/debug/deps/protocol_fuzz-e6fc6ee03868899b)
+
+running 3 tests
+test guard_rejects_strict_bool_enum_utf8_and_field_order_violations ... ok
+test protocol_error_contract_uses_exact_v5 ... ok
+test malformed_bebop_inputs_never_panic_and_are_rejected ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/protocol_golden.rs (target/debug/deps/protocol_golden-a4107e8a7fb5f79b)
+
+running 4 tests
+test frame_vectors_keep_the_little_endian_transport_contract ... ok
+test rust_frame_decoder_matches_declared_expectations ... ok
+test rust_rejects_invalid_bebop_vectors_with_declared_expectations ... ok
+test rust_decodes_each_typescript_vector_and_round_trips_semantics ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/solid_gpui_bun_sys-20b8389bb2da0d27)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/solid_gpui_macros-7199c3e8a73554e2)
+
+running 3 tests
+test tests::wire_contract_rejects_serde_divergence ... ok
+test tests::components_separate_props_events_and_context ... ok
+test tests::module_collects_commands_and_stateful_views ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/authoring.rs (target/debug/deps/authoring-19306b3f8fa9fa77)
+
+running 1 test
+test exports_compile_with_reexports_and_default_wire_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gallery_host
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests gpui_iconify
+
+running 2 tests
+test crates/gpui-iconify/src/assets.rs - assets::IconAssets (line 7) ... ignored
+test crates/gpui-iconify/src/lib.rs - (line 12) ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 1 test
+test crates/gpui-iconify/src/lib.rs - (line 20) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+all doctests ran in 1.03s; merged doctests compilation took 0.48s
+   Doc-tests gpui_performance
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests solid_gpui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests solid_gpui_bun_sys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests solid_gpui_macros
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

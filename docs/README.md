@@ -12,7 +12,9 @@ Use this order:
 8. [`gpui-components.md`](gpui-components.md) — generated native controls and application APIs.
 9. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement and acceptance.
 10. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, regressions, and recorded measurements.
-11. [`adr/`](adr/) — architectural decisions.
+11. [`keyboard-and-menus.md`](keyboard-and-menus.md) — platform shortcuts, window scope, and system menus.
+12. [`distribution.md`](distribution.md) — verified application bundles, native dependencies, and signing for macOS, Windows, and Linux.
+13. [`adr/`](adr/) — architectural decisions.
 
 References:
 

@@ -33,9 +33,10 @@ a sampling Task; do not recreate its entity on every render. It has no click
 listeners and does not change content layout. A 56 px right inset leaves room
 for common window toolbar controls.
 
-The solid-gpui gpui-component host mounts the monitor by default. Launch that
-host with `SOLID_GPUI_PERF_MONITOR=0` to compare performance without it. The
-host interprets this environment variable; the reusable component does not.
+The solid-gpui gpui-component host mounts the monitor by default in debug builds
+and hides it in release builds. Launch the host with `SOLID_GPUI_PERF_MONITOR=1`
+to enable it or `SOLID_GPUI_PERF_MONITOR=0` to disable it in either build. The host
+interprets this environment variable; the reusable component does not.
 
 ## Metric definitions
 

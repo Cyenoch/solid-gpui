@@ -55,12 +55,13 @@ and graph during idle periods. Its README defines the sample window, 500 ms
 activity threshold, and inability to distinguish long stalls from idle time.
 Use external profiling and input latency to investigate severe stalls.
 
-The Gallery displays the monitor by default. Confirm the current task names
-before collecting a comparison:
+Debug builds display the monitor by default; release builds hide it. Set
+`SOLID_GPUI_PERF_MONITOR=1` or `0` to explicitly enable or disable it in either
+build. Confirm the current task names before collecting a comparison:
 
 ```sh
 # Native interval logging and the live overlay.
-bun run task gallery-profile
+SOLID_GPUI_PERF_MONITOR=1 bun run task gallery-profile
 
 # The same workload without the overlay's construction and painting cost.
 SOLID_GPUI_PERF_MONITOR=0 bun run task gallery-profile

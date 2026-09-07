@@ -241,6 +241,92 @@ test("created siblings are emitted in native child-index order", () => {
   container.dispose();
 });
 
+test("wide sibling construction and traversal perform bounded index work", () => {
+  const container = new RootContainer({
+    surfaceId: 82,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: () => true,
+  });
+  try {
+    withRoot(container.tree, () => {
+      const parent = hostConfig.createElement("View");
+      let indexWrites = 0;
+      for (let index = 0; index < 512; index++) {
+        const child = hostConfig.createElement("View");
+        let childIndex = child.index;
+        Object.defineProperty(child, "index", {
+          get: () => childIndex,
+          set(value: number) {
+            indexWrites++;
+            childIndex = value;
+          },
+        });
+        hostConfig.insertNode(parent, child);
+      }
+      hostConfig.insertNode(container.tree.syntheticRoot, parent);
+      container.tree.commit();
+      expect(indexWrites).toBeLessThanOrEqual(512);
+      // Appending must not revisit the unchanged prefix; traversal must follow
+      // the same order that the native Snapshot receives.
+      let node = hostConfig.getFirstChild(parent);
+      for (let index = 0; index < parent.children.length; index++) {
+        expect(node).toBe(parent.children[index]);
+        expect(node?.index).toBe(index);
+        node = hostConfig.getNextSibling(node!);
+      }
+      expect(node).toBeUndefined();
+    });
+  } finally {
+    container.dispose();
+  }
+});
+
+test("reparenting detached children preserves unique ownership and rollback restores sibling order", async () => {
+  const submitted: Uint8Array[] = [];
+  const container = new RootContainer({
+    surfaceId: 83,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const make = () => withRoot(container.tree, () => hostConfig.createElement("View"));
+    const first = make();
+    const second = make();
+    const children = [make(), make(), make()];
+    for (const child of children) hostConfig.insertNode(first, child);
+    hostConfig.insertNode(second, children[1]!);
+    expect(first.children.map((child) => child.id)).toEqual([children[0]!.id, children[2]!.id]);
+    expect(second.children.map((child) => child.id)).toEqual([children[1]!.id]);
+    hostConfig.insertNode(container.tree.syntheticRoot, first);
+    hostConfig.insertNode(container.tree.syntheticRoot, second);
+    await Promise.resolve();
+    expect(submitted).toHaveLength(1);
+    const snapshot = body(submitted[0]!);
+    if (snapshot.tag !== 1) throw new Error("expected snapshot");
+    const ids = snapshot.value.nodes!.map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    hostConfig.insertNode(first, children[2]!, children[0]);
+    hostConfig.insertNode(first, children[1]!, children[0]);
+    hostConfig.removeNode(first, children[0]!);
+    container.tree.invalid = true;
+    await Promise.resolve();
+    expect(submitted).toHaveLength(1);
+    expect(first.children.map((child) => child.id)).toEqual([children[0]!.id, children[2]!.id]);
+    expect(second.children.map((child) => child.id)).toEqual([children[1]!.id]);
+    expect(children.map((child) => child.index)).toEqual([0, 0, 1]);
+    expect(children.map((child) => hostConfig.getParentNode(child)?.id)).toEqual([first.id, second.id, first.id]);
+    expect(hostConfig.getNextSibling(children[0]!)).toBe(children[2]);
+  } finally {
+    container.dispose();
+  }
+});
+
 test("a root transaction does not suppress updates in another root", async () => {
   let actionCalled = false;
   let setOtherCount: Setter<number> | undefined;

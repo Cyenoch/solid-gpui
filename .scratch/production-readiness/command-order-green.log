@@ -1,0 +1,28 @@
+   Compiling solid-gpui v0.2.0 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.87s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running tests/host_command_roundtrip.rs (target/debug/deps/host_command_roundtrip-81a937beb09b5757)
+
+running 18 tests
+test renderer_termination_closes_surfaces_without_reentrant_registry_update ... ok
+test pressable_focusable_updates_are_accepted_and_focusable ... ok
+test load_font_registers_family_and_rasterizes_glyph ... ok
+test disabled_pressable_is_skipped_by_focus_traversal ... ok
+test focused_unmount_blurs_and_restores_focus ... ok
+test conditionally_mounted_focus_node_keeps_tree_order ... ok
+test startup_commands_execute_before_a_later_commit_in_the_same_batch ... ok
+test focus_traversal_follows_tree_order_and_wraps ... ok
+test virtual_list_scroll_offset_round_trips_wheel_and_precise_command ... ok
+test notification_action_and_body_responses_round_trip_to_the_origin_surface ... ok
+test keybinding_commands_register_replace_and_route_actions_headlessly ... ok
+test close_policy_simulate_close_requires_and_resolves_confirmation ... ok
+test closing_one_surface_keeps_host_alive_and_last_surface_requests_quit ... ok
+test text_file_commands_round_trip_real_utf8_files_asynchronously ... ok
+test focus_and_blur_events_remain_routed_to_each_surface ... ok
+test dialog_commands_round_trip_paths_cancellation_and_close_safety ... ok
+test nested_overflow_scroll_moves_through_native_host_surface ... ok
+test first_batch_commands_round_trip_through_headless_surface_registry ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

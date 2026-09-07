@@ -36,6 +36,7 @@ mod app {
         cx: &mut solid_gpui::native::ElementContext,
     ) -> impl solid_gpui::gpui::IntoElement {
         use solid_gpui::gpui::{InteractiveElement, ParentElement, Styled, div, px, rgb};
+        let unit = if builds == 1 { "build" } else { "builds" };
         div()
             .id(cx.id())
             .px(px(10.))
@@ -43,7 +44,7 @@ mod app {
             .rounded_md()
             .bg(rgb(0x1e3a5f))
             .text_color(rgb(0xdbeafe))
-            .child(format!("Rust component · {builds} builds"))
+            .child(format!("Rust component · {builds} {unit}"))
     }
     #[command]
     pub fn analyze_workspace(
@@ -88,9 +89,10 @@ mod app {
         } else if builds == 0 {
             vec![format!("Run the first build for {normalized_name}.")]
         } else if completed < 5 {
+            let remaining = 5 - completed;
+            let unit = if remaining == 1 { "build" } else { "builds" };
             vec![format!(
-                "Complete {} more builds to establish this workspace.",
-                5 - completed
+                "Complete {remaining} more {unit} to establish this workspace."
             )]
         } else {
             vec!["All build milestones are complete; review the release checklist.".into()]

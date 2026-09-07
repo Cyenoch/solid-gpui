@@ -336,6 +336,10 @@ class Tasks {
     await this.packageBuild();
     await run(["bun", "scripts/package-pack-smoke.ts"]);
   }
+  async galleryPackage(outputPath?: string): Promise<void> {
+    await this.packageBuild();
+    await run(["bun", "scripts/gallery-package.ts", ...(outputPath === undefined ? [] : ["--out", outputPath])]);
+  }
   async packagePack(outputPath: string): Promise<void> {
     await this.corePackageBuild();
     await this.packPackage(corePackageDir, outputPath);
@@ -604,6 +608,9 @@ addTask("build", "Build all workspace packages and binaries", () => tasks.build(
 addTask("ci", "Run full CI suite", () => tasks.ci());
 addTask("gallery", "Build and run the Solid GPUI component gallery", () => tasks.gallery());
 addTask("gallery-dev", "Run Gallery with in-window hot reload", () => tasks.galleryDev());
+addTask("gallery-package [output]", "Build and verify a standalone Gallery package for this platform", (output) =>
+  tasks.galleryPackage(output),
+);
 addTask("gallery-profile", "Run Gallery with native frame and input latency measurements", () => tasks.gallery(true));
 addTask("gallery-scroll-audit", "Audit every Gallery route across compact and resized layouts", () =>
   tasks.galleryScrollAudit(),

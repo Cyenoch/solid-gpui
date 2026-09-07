@@ -706,8 +706,8 @@ impl SolidRoot {
     }
 
     /// Apply a validated commit and reconcile native instances on their window's
-    /// foreground. Native node methods execute in message order, before a later
-    /// commit can replace their target or advance the required revision.
+    /// foreground. Commands execute in message order, before a later commit can
+    /// replace their target or advance the required revision.
     pub fn apply_decoded_message_in_window(
         &mut self,
         message: DecodedMessage,
@@ -715,13 +715,23 @@ impl SolidRoot {
         cx: &mut Context<Self>,
     ) -> Result<(), RenderError> {
         let is_commit = !matches!(&message, DecodedMessage::Command(_));
-        let node_invocation = matches!(&message, DecodedMessage::Command(command)
-            if command.meta.node_id != 1 && matches!(command.operation, crate::protocol::CommandOperation::InvokeNative { .. }));
+        let bootstrap = self.store.is_empty() && matches!(&message, DecodedMessage::Snapshot(_));
         self.apply_decoded_message(message, cx)?;
         if is_commit {
             self.reconcile_extension_instances(window, cx);
         }
-        if node_invocation {
+        if bootstrap {
+            // Bootstrap can precede GPUI's entity-to-window dependency tracking.
+            // Wake this window explicitly once; later commits invalidate only
+            // the already mounted SolidRoot through its normal notification.
+            window.refresh();
+        }
+        if !is_commit {
+            // Commit reconciliation already owns focus handles and list state.
+            // Install observers before commands can change native window state.
+            self.reconcile_disabled_input_focus(window, cx);
+            self.ensure_window_observers(window, cx);
+            self.ensure_focus_observers(window, cx);
             self.process_commands(window, cx);
         }
         Ok(())
@@ -1223,7 +1233,8 @@ impl SolidRoot {
             return;
         }
         self.window_observation_scheduled = true;
-        let entity = cx.entity();
+        // A queued frame must not retain a closed surface and its native tasks.
+        let entity = cx.weak_entity();
         window.on_next_frame(move |window, app| {
             let size = window.viewport_size();
             let width = f32::from(size.width);
@@ -1231,7 +1242,7 @@ impl SolidRoot {
             let scale_factor = window.scale_factor();
             let active = window.is_window_active();
             let appearance = protocol_window_appearance(window.appearance());
-            entity.update(app, |root, _| {
+            let _ = entity.update(app, |root, _| {
                 root.emit_window_observation(width, height, scale_factor, active, appearance);
             });
         });

@@ -3,21 +3,19 @@ use super::{menus::MenuSelection, plot::coordinate};
 use crate::native::{ComponentDefinition, Event, NativeChildren, NativeView, ViewCommand};
 use gpui::{
     Action, App, Context, Global, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Render, Window, div, point, px,
+    Render, WeakEntity, Window, div, point, px,
 };
 use gpui_component::native_menu::NativeMenu as OsMenu;
-use std::{
-    collections::{HashMap, HashSet},
-    rc::{Rc, Weak},
-};
+use std::collections::{HashMap, HashSet};
 #[derive(Action, Clone, PartialEq, serde::Deserialize)]
 #[action(namespace=solid_gpui,no_json)]
 struct NativePopupAction {
     owner: u64,
+    generation: u64,
     item: String,
 }
 #[derive(Default)]
-struct NativeMenuRoutes(HashMap<u64, Weak<Event<MenuSelection>>>);
+struct NativeMenuRoutes(HashMap<u64, WeakEntity<NativeMenu>>);
 impl Global for NativeMenuRoutes {}
 fn init(cx: &mut App) {
     if cx.try_global::<NativeMenuRoutes>().is_some() {
@@ -25,13 +23,22 @@ fn init(cx: &mut App) {
     }
     cx.set_global(NativeMenuRoutes::default());
     cx.on_action(|a: &NativePopupAction, cx| {
-        if let Some(event) = cx
+        if let Some(view) = cx
             .global::<NativeMenuRoutes>()
             .0
             .get(&a.owner)
-            .and_then(Weak::upgrade)
+            .and_then(WeakEntity::upgrade)
         {
-            event.emit(MenuSelection { id: a.item.clone() });
+            view.update(cx, |menu, _| {
+                // An OS popup is asynchronous and retains its original actions.
+                // Replacing props revokes that snapshot, even if an ID is reused.
+                if a.generation == menu.generation
+                    && menu.props.enabled
+                    && selectable(&menu.props.items, &a.item)
+                {
+                    menu.event.emit(MenuSelection { id: a.item.clone() });
+                }
+            });
         }
     });
 }
@@ -110,7 +117,21 @@ fn validate(items: &[NativeMenuEntry]) -> Result<(), String> {
     }
     visit(items, 0, &mut 0, &mut HashSet::new())
 }
-fn build(items: &[NativeMenuEntry], owner: u64) -> OsMenu {
+fn selectable(items: &[NativeMenuEntry], id: &str) -> bool {
+    items.iter().any(|item| match item {
+        NativeMenuEntry::Item {
+            id: item_id,
+            disabled,
+            ..
+        } => item_id == id && !disabled,
+        NativeMenuEntry::Submenu {
+            items, disabled, ..
+        } => !disabled && selectable(items, id),
+        _ => false,
+    })
+}
+
+fn build(items: &[NativeMenuEntry], owner: u64, generation: u64) -> OsMenu {
     items.iter().fold(OsMenu::new(), |m, item| match item {
         NativeMenuEntry::Separator => m.separator(),
         NativeMenuEntry::Label { label } => m.menu_with(label.clone(), true, false, None, None),
@@ -128,6 +149,7 @@ fn build(items: &[NativeMenuEntry], owner: u64) -> OsMenu {
                 .map(|v| gpui_component::Icon::default().path(v.clone())),
             Some(Box::new(NativePopupAction {
                 owner,
+                generation,
                 item: id.clone(),
             })),
         ),
@@ -135,14 +157,15 @@ fn build(items: &[NativeMenuEntry], owner: u64) -> OsMenu {
             label,
             items,
             disabled,
-        } => m.submenu_with_disabled(label.clone(), build(items, owner), *disabled),
+        } => m.submenu_with_disabled(label.clone(), build(items, owner, generation), *disabled),
     })
 }
 struct NativeMenu {
     props: NativeMenuProps,
     children: NativeChildren,
     owner: u64,
-    _event: Rc<Event<MenuSelection>>,
+    generation: u64,
+    event: Event<MenuSelection>,
 }
 impl NativeMenu {
     fn show(&self, p: NativeMenuPosition, window: &mut Window, cx: &mut App) -> Result<(), String> {
@@ -151,7 +174,11 @@ impl NativeMenu {
         if !self.props.enabled {
             return Err("native menu is disabled".into());
         }
-        build(&self.props.items, self.owner).show(point(px(p.x), px(p.y)), window, cx);
+        build(&self.props.items, self.owner, self.generation).show(
+            point(px(p.x), px(p.y)),
+            window,
+            cx,
+        );
         Ok(())
     }
 }
@@ -176,18 +203,20 @@ impl NativeView for NativeMenu {
     ) -> Self {
         init(cx);
         let owner = cx.entity_id().as_u64();
-        let event = Rc::new(event);
+        let view = cx.weak_entity();
         let routes = &mut cx.global_mut::<NativeMenuRoutes>().0;
-        routes.retain(|_, v| v.strong_count() > 0);
-        routes.insert(owner, Rc::downgrade(&event));
+        routes.retain(|_, v| v.upgrade().is_some());
+        routes.insert(owner, view);
         Self {
             props,
             children,
             owner,
-            _event: event,
+            generation: 0,
+            event,
         }
     }
     fn update(&mut self, p: Self::Props, _: &mut Window, cx: &mut Context<Self>) {
+        self.generation += 1;
         self.props = p;
         cx.notify();
     }
@@ -239,7 +268,7 @@ mod tests {
     use super::*;
     use crate::{EventPayload, components::test_support::Fixture};
     #[gpui::test]
-    fn os_menu_actions_are_routed_to_the_live_owner_and_revoked_on_unmount(
+    fn os_menu_actions_require_a_live_enabled_snapshot_and_are_revoked_on_unmount(
         cx: &mut gpui::TestAppContext,
     ) {
         let props = NativeMenuProps {
@@ -256,12 +285,13 @@ mod tests {
         let f = Fixture::<NativeMenu>::new(props, cx);
         cx.run_until_parked();
         let owner = f.update(cx, |v, _, _| {
-            assert!(!build(&v.props.items, v.owner).is_empty());
+            assert!(!build(&v.props.items, v.owner, v.generation).is_empty());
             v.owner
         });
         cx.update(|cx| {
             cx.dispatch_action(&NativePopupAction {
                 owner,
+                generation: 0,
                 item: "copy".into(),
             })
         });
@@ -279,10 +309,60 @@ mod tests {
                 .id,
             "copy"
         );
+        f.update(cx, |v, w, cx| {
+            let mut props = v.props.clone();
+            props.items = vec![NativeMenuEntry::Submenu {
+                label: "Editing".into(),
+                disabled: true,
+                items: props.items,
+            }];
+            v.update(props, w, cx);
+        });
+        for (generation, item) in [(0, "copy"), (1, "copy"), (1, "missing")] {
+            cx.update(|cx| {
+                cx.dispatch_action(&NativePopupAction {
+                    owner,
+                    generation,
+                    item: item.into(),
+                })
+            });
+            cx.run_until_parked();
+            assert!(f.runtime.take_event().unwrap().is_none());
+        }
+        f.update(cx, |v, w, cx| {
+            let mut props = v.props.clone();
+            let NativeMenuEntry::Submenu { disabled, .. } = &mut props.items[0] else {
+                panic!("submenu fixture");
+            };
+            *disabled = false;
+            v.update(props, w, cx);
+        });
+        cx.update(|cx| {
+            cx.dispatch_action(&NativePopupAction {
+                owner,
+                generation: 1,
+                item: "copy".into(),
+            })
+        });
+        cx.run_until_parked();
+        assert!(
+            f.runtime.take_event().unwrap().is_none(),
+            "re-enabling an ID must not revive an old popup snapshot"
+        );
+        cx.update(|cx| {
+            cx.dispatch_action(&NativePopupAction {
+                owner,
+                generation: 2,
+                item: "copy".into(),
+            })
+        });
+        cx.run_until_parked();
+        assert!(f.runtime.take_event().unwrap().is_some());
         f.update(cx, |v, w, cx| v.unmount(w, cx));
         cx.update(|cx| {
             cx.dispatch_action(&NativePopupAction {
                 owner,
+                generation: 2,
                 item: "copy".into(),
             })
         });

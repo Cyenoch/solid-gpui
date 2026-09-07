@@ -19,7 +19,8 @@
     "ci": "bun run task ci",
     "audit": "bun run task audit",
     "gallery": "bun run task gallery",
-    "gallery:vite": "bun run --cwd examples/gallery-vite dev"
+    "gallery:vite": "bun run --cwd examples/gallery-vite dev",
+    "gallery:package": "bun run task gallery-package"
   },
   "devDependencies": {
     "@jridgewell/remapping": "2.3.5",

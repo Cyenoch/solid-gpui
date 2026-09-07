@@ -163,8 +163,15 @@ its subtree. Existing tree validation and atomic rollback remain authoritative.
 ## 3. Commands and command values
 
 A Command carries `surfaceId`, `epoch`, `afterRevision`, `requestId`, `nodeId`,
-its numeric `kind`, and a typed `CommandPayload` union. The semantic command
-kind remains the following complete set:
+its numeric `kind`, and a typed `CommandPayload` union. The host admits commands
+only when their surface, epoch, and `afterRevision` match the current tree.
+The window entry executes each command before consuming the next message, so a
+later Patch cannot make an already admitted command stale. Native asynchronous
+services may complete later and return their own request's result. Layout queries
+and focus traversal use GPUI's currently drawn frame; a tree commit alone does
+not imply that a new frame has been painted.
+
+The semantic command kind remains the following complete set:
 
 | Code | Kind                | Payload / ownership                                      |
 | ---: | ------------------- | -------------------------------------------------------- |
