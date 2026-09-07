@@ -72,7 +72,7 @@ detects corruption; publisher authentication requires signing.
 
 `THIRD-PARTY-NOTICES.md` is the existing dependency inventory, not a complete
 collection of third-party license texts. The package includes that inventory and
-the project's Apache-2.0 `LICENSE`; assembling and verifying the complete
+the project's MIT `LICENSE`; assembling and verifying the complete
 redistribution notices remains release work before public distribution.
 
 The `Gallery Packages` workflow builds native candidates on macOS ARM64,

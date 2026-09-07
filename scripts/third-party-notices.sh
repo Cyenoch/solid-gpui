@@ -154,9 +154,11 @@ for records in rust_third_party.values():
 rust_project_owned.sort(key=lambda item: (item["name"].casefold(), item["name"], item["version"]))
 
 package_versions = {}
+package_licenses = {}
 for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json"):
     package_json = json.loads((root / relative).read_text(encoding="utf-8"))
     package_versions[package_json["name"]] = package_json["version"]
+    package_licenses[package_json["name"]] = package_json["license"]
 
 bun_group = re.compile(r"^(?P<license>.+) \(\d+\)$")
 bun_entry = re.compile(r"^[├└]── (?P<package>.+)$")
@@ -258,6 +260,7 @@ host_package = next((p for p in packages if p.get("name") == "solid-gpui"), None
 if host_package is None:
     raise SystemExit("cargo metadata did not contain solid-gpui")
 host_archive = f"solid-gpui-host-{host_package['version']}-{target}.tar.gz"
+project_license = host_package["license"]
 
 third_party_rust_packages = {
     (record["name"], record["version"])
@@ -271,7 +274,7 @@ lines = [
     f"This inventory accompanies the host release archive `{host_archive}` and the companion Bun packages from this checkout.",
     "It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.",
     "The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.",
-    "The archive embeds the project-owned Apache-2.0 text as `LICENSE`; that same text covers the independently authored local `ztracing` stub. Each npm package carries its own `LICENSE` in its tarball.",
+    f"The archive embeds the project-owned {project_license} text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.",
     "Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.",
     "",
     f"**Generated:** {generated_date}",
@@ -294,7 +297,7 @@ lines.extend(
     [
         "## Project-owned Rust crates",
         "",
-        "These local Cargo records are project-owned rather than third-party dependencies. The `ztracing` row is the independently authored Apache-2.0 stub used by the host graph.",
+        "These local Cargo records are project-owned rather than third-party dependencies. The `ztracing` row is the independently authored stub used by the host graph.",
         "",
         *rust_table([dict(record, license=record["licenses"][0]) for record in rust_project_owned]),
         "",
@@ -328,14 +331,14 @@ lines.extend(
         "",
         "## Project-owned Bun packages",
         "",
-        "These package manifests carry the project's own Apache-2.0 license and are not third-party dependencies. Their npm tarballs include their own `LICENSE`; the shared JavaScript dependency inventory remains in this release artifact.",
+        "These package manifests declare their project-owned licenses and are not third-party dependencies. Their npm tarballs include their own `LICENSE`; the shared JavaScript dependency inventory remains in this release artifact.",
         "",
         "| Package | Version | License (SPDX) | Source |",
         "| --- | --- | --- | --- |",
     ]
 )
 for name in sorted(package_versions, key=lambda value: (value.casefold(), value)):
-    lines.append(f"| {name} | {package_versions[name]} | Apache-2.0 | local (project-owned) |")
+    lines.append(f"| {name} | {package_versions[name]} | {package_licenses[name]} | local (project-owned) |")
 lines.extend(["", f"**Total project-owned Bun packages: {len(package_versions)}.**", ""])
 
 content = "\n".join(lines)

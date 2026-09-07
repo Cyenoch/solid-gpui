@@ -3,10 +3,10 @@
 This inventory accompanies the host release archive `solid-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
 It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.
 The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.
-The archive embeds the project-owned Apache-2.0 text as `LICENSE`; that same text covers the independently authored local `ztracing` stub. Each npm package carries its own `LICENSE` in its tarball.
+The archive embeds the project-owned MIT text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.
 Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.
 
-**Generated:** 2026-09-06
+**Generated:** 2026-09-07
 **Generation command:** `bun run task third-party-notices`
 
 The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.
@@ -1511,16 +1511,16 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 
 ## Project-owned Rust crates
 
-These local Cargo records are project-owned rather than third-party dependencies. The `ztracing` row is the independently authored Apache-2.0 stub used by the host graph.
+These local Cargo records are project-owned rather than third-party dependencies. The `ztracing` row is the independently authored stub used by the host graph.
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| gallery-host | 0.2.0 | Apache-2.0 | local (project-owned) |
-| gpui-iconify | 0.0.0 | Apache-2.0 | local (project-owned) |
-| gpui-performance | 0.2.0 | Apache-2.0 | local (project-owned) |
-| solid-gpui | 0.2.0 | Apache-2.0 | local (project-owned) |
-| solid-gpui-bun-sys | 0.2.0 | Apache-2.0 | local (project-owned) |
-| solid-gpui-macros | 0.2.0 | Apache-2.0 | local (project-owned) |
+| gallery-host | 0.2.0 | MIT | local (project-owned) |
+| gpui-iconify | 0.0.0 | MIT | local (project-owned) |
+| gpui-performance | 0.2.0 | MIT | local (project-owned) |
+| solid-gpui | 0.2.0 | MIT | local (project-owned) |
+| solid-gpui-bun-sys | 0.2.0 | MIT | local (project-owned) |
+| solid-gpui-macros | 0.2.0 | MIT | local (project-owned) |
 
 **Total project-owned Rust crates: 6.**
 
@@ -1664,11 +1664,11 @@ The source retains the complete MIT notice. Local changes correct header validat
 
 ## Project-owned Bun packages
 
-These package manifests carry the project's own Apache-2.0 license and are not third-party dependencies. Their npm tarballs include their own `LICENSE`; the shared JavaScript dependency inventory remains in this release artifact.
+These package manifests declare their project-owned licenses and are not third-party dependencies. Their npm tarballs include their own `LICENSE`; the shared JavaScript dependency inventory remains in this release artifact.
 
 | Package | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| @solid-gpui/core | 0.2.0 | Apache-2.0 | local (project-owned) |
-| @solid-gpui/router | 0.2.0 | Apache-2.0 | local (project-owned) |
+| @solid-gpui/core | 0.2.0 | MIT | local (project-owned) |
+| @solid-gpui/router | 0.2.0 | MIT | local (project-owned) |
 
 **Total project-owned Bun packages: 2.**

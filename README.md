@@ -231,7 +231,9 @@ for the wire contract and [`CONTEXT.md`](CONTEXT.md) for domain vocabulary.
 
 ## License
 
-Apache-2.0. Dependency attribution is in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+Project-owned code is licensed under [MIT](LICENSE). Third-party dependencies,
+vendored code, fonts, and icons retain their own licenses and notices; see
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ## Native hot reload
 

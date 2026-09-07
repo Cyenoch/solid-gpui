@@ -12,7 +12,7 @@ exclude = ["references/zed", "references/gpui-component", "vendor/gpui-component
 
 [workspace.package]
 edition = "2024"
-license = "Apache-2.0"
+license = "MIT"
 version = "0.2.0"
 description = "Solid GPUI renders Solid trees into one or more native GPUI surfaces."
 keywords = ["solid", "gpui", "native-ui"]

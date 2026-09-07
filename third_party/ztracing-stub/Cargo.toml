@@ -3,7 +3,7 @@ name = "ztracing"
 version = "0.1.0"
 edition = "2024"
 authors = ["React GPUI contributors"]
-license = "Apache-2.0"
+license = "MIT"
 
 [lib]
 proc-macro = true

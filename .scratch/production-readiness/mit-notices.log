@@ -1,0 +1,32 @@
+$ bun scripts/tasks.ts third-party-notices
+
+$ bash scripts/third-party-notices.sh /Users/jgbingzi/workspace/sp/solid-gpui/THIRD-PARTY-NOTICES.md
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+third-party notices: 788 Rust third-party packages, 66 Bun dependency records -> /Users/jgbingzi/workspace/sp/solid-gpui/THIRD-PARTY-NOTICES.md
+Rust 0BSD: 3
+Rust Apache-2.0: 564
+Rust Apache-2.0 WITH LLVM-exception: 5
+Rust BSD-2-Clause: 7
+Rust BSD-3-Clause: 12
+Rust BSL-1.0: 1
+Rust bzip2-1.0.6: 1
+Rust CC0-1.0: 5
+Rust GPL-2.0-only: 1
+Rust ISC: 3
+Rust LGPL-2.1-or-later: 2
+Rust MIT: 699
+Rust MIT-0: 1
+Rust MPL-2.0: 3
+Rust NCSA: 1
+Rust Unicode-3.0: 19
+Rust Unlicense: 10
+Rust Zlib: 30
+Bun Solid GPUI workspace 0BSD: 1
+Bun Solid GPUI workspace Apache-2.0: 5
+Bun Solid GPUI workspace BSD-3-Clause: 1
+Bun Solid GPUI workspace ISC: 1
+Bun Solid GPUI workspace MIT: 53
+Bun Solid GPUI workspace MPL-2.0: 2
+Bun Solid GPUI workspace Unknown: 1
+Bun Solid GPUI workspace Unlicense: 2

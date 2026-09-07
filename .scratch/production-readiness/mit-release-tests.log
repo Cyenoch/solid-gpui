@@ -1,0 +1,11 @@
+bun test v1.4.2 (744846f84)
+
+scripts/release-prep.test.ts:
+(pass) an already synchronized release still requires its changelog and frozen locks [1004.05ms]
+(pass) a failed final release step restores every manifest, lock and notices file [963.81ms]
+(pass) a successful release synchronizes package versions, the router peer and generated files [1373.97ms]
+
+ 3 pass
+ 0 fail
+ 20 expect() calls
+Ran 3 tests across 1 file. [3.37s]

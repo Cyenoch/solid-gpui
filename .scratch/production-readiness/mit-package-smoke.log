@@ -1,0 +1,52 @@
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-core-0.2.0.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-core.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-core.tgz
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-router-0.2.0.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-router.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-router.tgz
+
+$ bun install --no-progress
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [27]
+Saved lockfile
+
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-core.tgz
++ @solid-gpui/router@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-23SAlV/solid-gpui-router.tgz
++ solid-js@1.9.15
+
+54 packages installed [1454.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+
+$ bun --conditions=browser run core-runtime.ts
+
+$ bun --conditions=browser run router.ts
+
+$ bun --conditions=browser run native.ts
+
+$ bun node_modules/.bin/solid-gpui-build --runtime bun view.tsx bun-app.js
+
+$ bun node_modules/.bin/solid-gpui-build --runtime quickjs view.tsx quickjs-app.js
+
+$ bun node_modules/.bin/solid-gpui-build --runtime bun router.ts bundled-router.js
+
+$ bun bundled-router.js
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types core-runtime.ts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types router.ts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types native.ts
+
+$ bunx --no-install tsc --noEmit --strict --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types --jsx preserve core-runtime.ts view.tsx
+core and router package tarball consumer smoke passed
