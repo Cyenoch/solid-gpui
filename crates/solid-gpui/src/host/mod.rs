@@ -44,6 +44,9 @@ impl gpui::AssetSource for HostAssets {
         if path.starts_with("icons/") {
             return gpui_kit_assets::Assets.load(path);
         }
+        if let Some(bytes) = crate::icons::load(path) {
+            return Ok(Some(std::borrow::Cow::Borrowed(bytes)));
+        }
         gpui_iconify::IconAssets.load(path)
     }
     fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
@@ -72,6 +75,10 @@ pub struct HostCapabilities {
 pub trait HostProfile: 'static {
     fn native_bindings(&self) -> Result<String, String> {
         Ok(String::new())
+    }
+    /// Configure native window defaults before renderer open-surface overrides.
+    fn window_options(&self, options: WindowOptions, _cx: &App) -> WindowOptions {
+        options
     }
     fn capabilities(&self) -> HostCapabilities;
     fn extension_registry(&self) -> Rc<dyn ExtensionRegistry>;
@@ -366,12 +373,13 @@ impl NativeStateRegistry {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             ..Default::default()
         };
+        options = self.profile.window_options(options, cx);
         Self::apply_window_open_options(&mut options, window_options)?;
         if let Some(title) = title {
-            options.titlebar = Some(TitlebarOptions {
-                title: Some(title.to_owned().into()),
-                ..Default::default()
-            });
+            options
+                .titlebar
+                .get_or_insert_with(TitlebarOptions::default)
+                .title = Some(title.to_owned().into());
         }
         let runtime = Arc::clone(&self.runtime);
         let extensions = self.profile.extension_registry();
@@ -1425,11 +1433,17 @@ pub fn run(module: crate::native::ModuleDefinition) {
 /// Run an application-owned runtime without interpreting host CLI arguments.
 /// The host owns shutdown and joins the runtime when the application quits.
 pub fn run_application(module: crate::native::ModuleDefinition, runtime: Arc<dyn RuntimeAdapter>) {
+    run_application_with_profile(application_profile(module), runtime);
+}
+
+/// Run an application-owned profile and runtime without parsing CLI arguments.
+/// Protocols, overlays, close handling and runtime shutdown remain host-owned.
+pub fn run_application_with_profile<P: HostProfile>(profile: P, runtime: Arc<dyn RuntimeAdapter>) {
     install_panic_hook();
     let log_level = resolve_log_level(env::var(LOG_ENV).ok().as_deref(), |reason| {
         eprintln!("solid-gpui-host: invalid {LOG_ENV}: {reason}; defaulting to error");
     });
-    run_profile(application_profile(module), runtime, log_level);
+    run_profile(profile, runtime, log_level);
 }
 
 fn application_profile(module: crate::native::ModuleDefinition) -> impl HostProfile {
@@ -1451,7 +1465,9 @@ struct NativeHostProfile(Rc<crate::native::NativeModules>);
 #[cfg(not(feature = "gpui-component"))]
 impl HostProfile for NativeHostProfile {
     fn native_bindings(&self) -> Result<String, String> {
-        self.0.typescript()
+        self.0
+            .typescript()
+            .map(|source| format!("{source}{}", crate::icons::typescript()))
     }
     fn capabilities(&self) -> HostCapabilities {
         DefaultHostProfile.capabilities()

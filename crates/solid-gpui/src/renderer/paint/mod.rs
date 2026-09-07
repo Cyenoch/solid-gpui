@@ -8,8 +8,7 @@ use std::sync::atomic::Ordering;
 use gpui::{
     AnyElement, App, AppContext, Bounds, Element, ElementId, Entity, GlobalElementId,
     InspectorElementId, InteractiveElement, IntoElement, LayoutId, MouseButton, ParentElement,
-    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, StyledText, Window, div, px,
-    rgba,
+    Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Window, div, px, rgba,
 };
 
 use crate::protocol::{EVENT_POINTER_DOWN, EVENT_POINTER_UP, Event, KeyAction};
@@ -42,6 +41,7 @@ impl Render for TooltipView {
 }
 
 mod accessibility;
+mod border;
 mod drag;
 mod icon;
 mod image;
@@ -200,6 +200,16 @@ pub(crate) fn apply_style_to_extension<E: gpui::Styled>(
 
 impl SolidRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
+        let element = self.render_node_content(node, entity);
+        match self.style_for_node(node) {
+            Some(style) if border::has_edge_colors(style) => {
+                border::BorderElement::new(element, style).into_any()
+            }
+            _ => element,
+        }
+    }
+
+    fn render_node_content(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
         let style = self.style_for_node(node);
         if node.kind == KIND_EXTENSION {
             return super::extensions::render(self, node, entity, style);
@@ -243,30 +253,8 @@ impl SolidRoot {
             return accessibility::apply_accessibility(element, node).into_any();
         }
         if node.kind == KIND_TEXT {
-            let mut text = String::new();
-            let mut runs = Vec::new();
-            let text_style = gpui::TextStyle::default();
             if let Some(content) = node.text_content.as_ref() {
-                text.push_str(content);
-                runs.push(style::text_run(&text_style, style, content.len()));
-            }
-            for child in node.children(&self.store) {
-                if child.kind != KIND_TEXT {
-                    continue;
-                }
-                let Some(content) = child.text_content.as_ref() else {
-                    continue;
-                };
-                let start = text.len();
-                text.push_str(content);
-                runs.push(style::text_run(
-                    &text_style,
-                    child.style.as_ref(),
-                    text.len() - start,
-                ));
-            }
-            if !text.is_empty() {
-                element = element.child(StyledText::new(SharedString::from(text)).with_runs(runs));
+                element = element.child(SharedString::new(Arc::clone(content)));
             }
         } else {
             element = element.children(
@@ -349,6 +337,10 @@ impl SolidRoot {
                     );
                 });
             }
+        }
+        if node.kind == KIND_PRESSABLE {
+            element =
+                element.on_mouse_down(MouseButton::Left, |_, window, _| window.prevent_default());
         }
         if node.kind == KIND_PRESSABLE && node.listener_id != 0 {
             let runtime = Arc::clone(&self.runtime);

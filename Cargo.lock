@@ -2015,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "gallery-host"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "gpui-component",
  "gpui-pre",
@@ -2312,7 +2312,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-performance"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "gpui-pre",
 ]
@@ -3925,6 +3925,14 @@ dependencies = [
  "spirv",
  "thiserror 2.0.20",
  "unicode-ident",
+]
+
+[[package]]
+name = "native-migration-host"
+version = "0.3.0"
+dependencies = [
+ "gpui-component",
+ "solid-gpui",
 ]
 
 [[package]]
@@ -6054,7 +6062,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bebop",
  "chrono",
@@ -6067,6 +6075,7 @@ dependencies = [
  "gpui-pre",
  "gpui-pre-platform",
  "image",
+ "roxmltree 0.21.1",
  "rquickjs",
  "serde",
  "serde_ignored",
@@ -6084,11 +6093,11 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui-bun-sys"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "solid-gpui-macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",

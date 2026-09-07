@@ -715,15 +715,16 @@ impl SolidRoot {
         cx: &mut Context<Self>,
     ) -> Result<(), RenderError> {
         let is_commit = !matches!(&message, DecodedMessage::Command(_));
-        let bootstrap = self.store.is_empty() && matches!(&message, DecodedMessage::Snapshot(_));
+        let replaces_epoch = matches!(&message, DecodedMessage::Snapshot(snapshot)
+            if self.store.is_empty() || snapshot.epoch != self.store.epoch());
         self.apply_decoded_message(message, cx)?;
         if is_commit {
             self.reconcile_extension_instances(window, cx);
         }
-        if bootstrap {
-            // Bootstrap can precede GPUI's entity-to-window dependency tracking.
-            // Wake this window explicitly once; later commits invalidate only
-            // the already mounted SolidRoot through its normal notification.
+        if replaces_epoch {
+            // Epoch replacement recreates native descendants and their window
+            // dependencies. Schedule its first frame even in an idle window;
+            // ordinary patches retain the local entity notification path.
             window.refresh();
         }
         if !is_commit {

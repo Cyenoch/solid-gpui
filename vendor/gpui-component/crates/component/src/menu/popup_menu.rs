@@ -1239,6 +1239,12 @@ impl PopupMenu {
             _ => (px(26.), options.radius),
         };
 
+        let item_height = cx
+            .theme()
+            .component_metrics
+            .menu
+            .height
+            .unwrap_or(item_height);
         let this = MenuItemElement::new(ix, &group_name)
             .relative()
             .text_sm()
@@ -1247,6 +1253,7 @@ impl PopupMenu {
             .rounded(radius)
             .items_center()
             .selected(selected)
+            .map(|this| cx.theme().component_metrics.menu.apply(this))
             .on_hover(cx.listener(move |this, hovered, _, cx| {
                 if this.revision != revision {
                     return;

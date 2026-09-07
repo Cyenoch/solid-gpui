@@ -66,4 +66,6 @@ pub use tree::{
 mod tests;
 
 #[cfg(feature = "host")]
-pub use host::{run, run_application};
+pub use host::{run, run_application, run_application_with_profile};
+
+pub mod icons;

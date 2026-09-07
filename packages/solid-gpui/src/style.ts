@@ -49,7 +49,38 @@ export interface Transition {
   readonly onComplete?: (generation: number) => void;
 }
 
+export interface LinearGradient {
+  /** Degrees clockwise from up: 180 paints from top to bottom. */
+  readonly angle: number;
+  readonly stops: readonly [
+    { readonly color: string; readonly position: number },
+    { readonly color: string; readonly position: number },
+  ];
+}
+
 export interface Style {
+  readonly borderTopColor?: string;
+  readonly borderRightColor?: string;
+  readonly borderBottomColor?: string;
+  readonly borderLeftColor?: string;
+
+  readonly linearGradient?: LinearGradient;
+  readonly paddingTop?: number;
+  readonly paddingRight?: number;
+  readonly paddingBottom?: number;
+  readonly paddingLeft?: number;
+  readonly borderTopWidth?: number;
+  readonly borderRightWidth?: number;
+  readonly borderBottomWidth?: number;
+  readonly borderLeftWidth?: number;
+  readonly borderTopLeftRadius?: number;
+  readonly borderTopRightRadius?: number;
+  readonly borderBottomRightRadius?: number;
+  readonly borderBottomLeftRadius?: number;
+  readonly widthPercent?: number;
+  readonly heightPercent?: number;
+  readonly flexWrap?: "nowrap" | "wrap" | "wrap-reverse";
+
   readonly width?: number;
   readonly height?: number;
   readonly flexDirection?: FlexDirection;
@@ -98,6 +129,27 @@ export type StyleProp = Style | null | undefined;
 
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/;
 const STYLE_KEYS: Record<string, true> = {
+  borderTopColor: true,
+  borderRightColor: true,
+  borderBottomColor: true,
+  borderLeftColor: true,
+
+  linearGradient: true,
+  paddingTop: true,
+  paddingRight: true,
+  paddingBottom: true,
+  paddingLeft: true,
+  borderTopWidth: true,
+  borderRightWidth: true,
+  borderBottomWidth: true,
+  borderLeftWidth: true,
+  borderTopLeftRadius: true,
+  borderTopRightRadius: true,
+  borderBottomRightRadius: true,
+  borderBottomLeftRadius: true,
+  widthPercent: true,
+  heightPercent: true,
+  flexWrap: true,
   width: true,
   height: true,
   flexDirection: true,
@@ -215,6 +267,55 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     if (!STYLE_KEYS[key]) throw new TypeError(`Unsupported style field: ${key}`);
   }
   const style = value as Style;
+  if (style.linearGradient !== undefined) {
+    const gradient = style.linearGradient;
+    if (
+      !gradient ||
+      typeof gradient !== "object" ||
+      Object.keys(gradient).some((key) => key !== "angle" && key !== "stops")
+    )
+      throw new TypeError("linearGradient is invalid");
+    assertNumber("linearGradient.angle", gradient.angle, true);
+    if (gradient.angle > 360 || !Array.isArray(gradient.stops) || gradient.stops.length !== 2)
+      throw new TypeError("linearGradient requires an angle in [0, 360] and exactly two stops");
+    for (const stop of gradient.stops) {
+      if (
+        !stop ||
+        typeof stop !== "object" ||
+        Object.keys(stop).some((key) => key !== "color" && key !== "position") ||
+        typeof stop.color !== "string" ||
+        !COLOR_PATTERN.test(stop.color)
+      )
+        throw new TypeError("linearGradient stop is invalid");
+      assertNumber("linearGradient stop position", stop.position, true);
+      if (stop.position > 1) throw new TypeError("linearGradient stop position must be in [0, 1]");
+    }
+    if (gradient.stops[0].position >= gradient.stops[1].position)
+      throw new TypeError("linearGradient stops must be strictly increasing");
+  }
+  if (style.paddingTop !== undefined) assertNumber("paddingTop", style.paddingTop, true);
+  if (style.paddingRight !== undefined) assertNumber("paddingRight", style.paddingRight, true);
+  if (style.paddingBottom !== undefined) assertNumber("paddingBottom", style.paddingBottom, true);
+  if (style.paddingLeft !== undefined) assertNumber("paddingLeft", style.paddingLeft, true);
+  if (style.borderTopWidth !== undefined) assertNumber("borderTopWidth", style.borderTopWidth, true);
+  if (style.borderRightWidth !== undefined) assertNumber("borderRightWidth", style.borderRightWidth, true);
+  if (style.borderBottomWidth !== undefined) assertNumber("borderBottomWidth", style.borderBottomWidth, true);
+  if (style.borderLeftWidth !== undefined) assertNumber("borderLeftWidth", style.borderLeftWidth, true);
+  if (style.borderTopLeftRadius !== undefined) assertNumber("borderTopLeftRadius", style.borderTopLeftRadius, true);
+  if (style.borderTopRightRadius !== undefined) assertNumber("borderTopRightRadius", style.borderTopRightRadius, true);
+  if (style.borderBottomRightRadius !== undefined)
+    assertNumber("borderBottomRightRadius", style.borderBottomRightRadius, true);
+  if (style.borderBottomLeftRadius !== undefined)
+    assertNumber("borderBottomLeftRadius", style.borderBottomLeftRadius, true);
+  if (style.widthPercent !== undefined) assertNumber("widthPercent", style.widthPercent, true);
+  if (style.heightPercent !== undefined) assertNumber("heightPercent", style.heightPercent, true);
+  if (style.width !== undefined && style.widthPercent !== undefined)
+    throw new TypeError("width and widthPercent are mutually exclusive");
+  if (style.height !== undefined && style.heightPercent !== undefined)
+    throw new TypeError("height and heightPercent are mutually exclusive");
+  if (style.flexWrap !== undefined && !["nowrap", "wrap", "wrap-reverse"].includes(style.flexWrap))
+    throw new TypeError("flexWrap is invalid");
+
   if (style.width !== undefined) assertNumber("width", style.width, true);
   if (style.height !== undefined) assertNumber("height", style.height, true);
   if (
@@ -342,7 +443,15 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
   if (style.textAlign !== undefined && !["left", "center", "right"].includes(style.textAlign)) {
     throw new TypeError("textAlign is invalid");
   }
-  for (const key of ["borderColor", "backgroundColor", "color"] as const) {
+  for (const key of [
+    "borderColor",
+    "backgroundColor",
+    "color",
+    "borderTopColor",
+    "borderRightColor",
+    "borderBottomColor",
+    "borderLeftColor",
+  ] as const) {
     const color = style[key];
     if (color !== undefined && (typeof color !== "string" || !COLOR_PATTERN.test(color))) {
       throw new TypeError(`${key} must be #RRGGBB or #RRGGBBAA`);

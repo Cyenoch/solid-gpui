@@ -1,4 +1,4 @@
-import { ICON_NAMES, MAX_CLIPBOARD_TEXT_BYTES, utf8ByteLength } from "../protocol";
+import { isIconName, MAX_CLIPBOARD_TEXT_BYTES, utf8ByteLength } from "../protocol";
 import { encodeColor, validateStyle } from "../style";
 import type { AccessibilityProperties, HostProperties, IconProperties } from "../protocol";
 import type { HostKind, HostNodeInternal, HostProps, TextInputProps } from "./types";
@@ -128,8 +128,8 @@ export function imageFor(node: HostNodeInternal, props: HostProps): HostProperti
 export function iconFor(node: HostNodeInternal, props: HostProps): HostProperties | null {
   if (node.kind !== "Icon") return null;
   const name = props.name;
-  if (typeof name !== "string" || !(ICON_NAMES as readonly string[]).includes(name)) {
-    throw new TypeError("Icon name must be an allowlisted Iconify name");
+  if (!isIconName(name)) {
+    throw new TypeError("Icon name must be a built-in or registered application icon");
   }
   const size = props.size ?? 16;
   if (typeof size !== "number" || !Number.isFinite(size) || size <= 0 || !Number.isFinite(Math.fround(size))) {

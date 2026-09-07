@@ -10,6 +10,7 @@ keywords = ["solid", "gpui", "renderer", "native-ui"]
 categories = ["gui"]
 
 [dependencies]
+roxmltree = "0.21.1"
 bebop.workspace = true
 futures.workspace = true
 gpui.workspace = true

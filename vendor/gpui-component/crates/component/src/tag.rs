@@ -263,6 +263,7 @@ impl RenderOnce for Tag {
             .border_color(border)
             .rounded(rounded)
             .hover(|this| this.opacity(0.9))
+            .map(|this| cx.theme().component_metrics.tag.apply(this))
             .refine_style(&self.style)
             .children(self.children)
     }

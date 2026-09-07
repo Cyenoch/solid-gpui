@@ -11,6 +11,173 @@ export type AlertDialogProps = {
 };
 export type AlertVariant = "default" | "info" | "success" | "warning" | "error";
 export type AppMenuBarProps = Record<symbol, never>;
+export type ApplicationComponentMetrics = {
+  button?: ApplicationControlMetrics;
+  input?: ApplicationControlMetrics;
+  select?: ApplicationControlMetrics;
+  tag?: ApplicationControlMetrics;
+  menu?: ApplicationControlMetrics;
+  dialog?: ApplicationControlMetrics;
+};
+export type ApplicationControlMetrics = {
+  height?: LogicalPixels | null;
+  fontSize?: LogicalPixels | null;
+  lineHeight?: LogicalPixels | null;
+  paddingX?: LogicalPixels | null;
+  paddingY?: LogicalPixels | null;
+  radius?: LogicalPixels | null;
+};
+export type ApplicationTheme = {
+  components?: ApplicationComponentMetrics | null;
+  inputBackground?: Color | null;
+  colors: ApplicationThemeColors;
+  fontFamily?: string | null;
+  fontSize?: LogicalPixels | null;
+  lineHeight?: LogicalPixels | null;
+  radius?: LogicalPixels | null;
+  radiusLg?: LogicalPixels | null;
+};
+export type ApplicationThemeColors = {
+  accent?: Color | null;
+  accentForeground?: Color | null;
+  accordion?: Color | null;
+  background?: Color | null;
+  border?: Color | null;
+  button?: Color | null;
+  buttonActive?: Color | null;
+  buttonForeground?: Color | null;
+  buttonHover?: Color | null;
+  buttonDanger?: Color | null;
+  buttonDangerActive?: Color | null;
+  buttonDangerForeground?: Color | null;
+  buttonDangerHover?: Color | null;
+  buttonInfo?: Color | null;
+  buttonInfoActive?: Color | null;
+  buttonInfoForeground?: Color | null;
+  buttonInfoHover?: Color | null;
+  buttonPrimary?: Color | null;
+  buttonPrimaryActive?: Color | null;
+  buttonPrimaryForeground?: Color | null;
+  buttonPrimaryHover?: Color | null;
+  buttonSecondary?: Color | null;
+  buttonSecondaryActive?: Color | null;
+  buttonSecondaryForeground?: Color | null;
+  buttonSecondaryHover?: Color | null;
+  buttonSuccess?: Color | null;
+  buttonSuccessActive?: Color | null;
+  buttonSuccessForeground?: Color | null;
+  buttonSuccessHover?: Color | null;
+  buttonWarning?: Color | null;
+  buttonWarningActive?: Color | null;
+  buttonWarningForeground?: Color | null;
+  buttonWarningHover?: Color | null;
+  groupBox?: Color | null;
+  groupBoxForeground?: Color | null;
+  caret?: Color | null;
+  chart1?: Color | null;
+  chart2?: Color | null;
+  chart3?: Color | null;
+  chart4?: Color | null;
+  chart5?: Color | null;
+  chartBullish?: Color | null;
+  chartBearish?: Color | null;
+  danger?: Color | null;
+  dangerActive?: Color | null;
+  dangerForeground?: Color | null;
+  dangerHover?: Color | null;
+  descriptionListLabel?: Color | null;
+  descriptionListLabelForeground?: Color | null;
+  dragBorder?: Color | null;
+  dropTarget?: Color | null;
+  foreground?: Color | null;
+  info?: Color | null;
+  infoActive?: Color | null;
+  infoForeground?: Color | null;
+  infoHover?: Color | null;
+  input?: Color | null;
+  link?: Color | null;
+  linkActive?: Color | null;
+  linkHover?: Color | null;
+  list?: Color | null;
+  listActive?: Color | null;
+  listActiveBorder?: Color | null;
+  listEven?: Color | null;
+  listHead?: Color | null;
+  listHover?: Color | null;
+  muted?: Color | null;
+  mutedForeground?: Color | null;
+  popover?: Color | null;
+  popoverForeground?: Color | null;
+  primary?: Color | null;
+  primaryActive?: Color | null;
+  primaryForeground?: Color | null;
+  primaryHover?: Color | null;
+  progressBar?: Color | null;
+  ring?: Color | null;
+  scrollbar?: Color | null;
+  scrollbarThumb?: Color | null;
+  scrollbarThumbHover?: Color | null;
+  secondary?: Color | null;
+  secondaryActive?: Color | null;
+  secondaryForeground?: Color | null;
+  secondaryHover?: Color | null;
+  selection?: Color | null;
+  sidebar?: Color | null;
+  sidebarAccent?: Color | null;
+  sidebarAccentForeground?: Color | null;
+  sidebarBorder?: Color | null;
+  sidebarForeground?: Color | null;
+  sidebarPrimary?: Color | null;
+  sidebarPrimaryForeground?: Color | null;
+  skeleton?: Color | null;
+  sliderBar?: Color | null;
+  sliderThumb?: Color | null;
+  success?: Color | null;
+  successForeground?: Color | null;
+  successHover?: Color | null;
+  successActive?: Color | null;
+  switch?: Color | null;
+  switchThumb?: Color | null;
+  tab?: Color | null;
+  tabActive?: Color | null;
+  tabActiveForeground?: Color | null;
+  tabBar?: Color | null;
+  tabBarSegmented?: Color | null;
+  tabForeground?: Color | null;
+  table?: Color | null;
+  tableActive?: Color | null;
+  tableActiveBorder?: Color | null;
+  tableEven?: Color | null;
+  tableHead?: Color | null;
+  tableHeadForeground?: Color | null;
+  tableFoot?: Color | null;
+  tableFootForeground?: Color | null;
+  tableHover?: Color | null;
+  tableRowBorder?: Color | null;
+  titleBar?: Color | null;
+  titleBarBorder?: Color | null;
+  statusBar?: Color | null;
+  statusBarBorder?: Color | null;
+  tiles?: Color | null;
+  warning?: Color | null;
+  warningActive?: Color | null;
+  warningHover?: Color | null;
+  warningForeground?: Color | null;
+  overlay?: Color | null;
+  windowBorder?: Color | null;
+  red?: Color | null;
+  redLight?: Color | null;
+  green?: Color | null;
+  greenLight?: Color | null;
+  blue?: Color | null;
+  blueLight?: Color | null;
+  yellow?: Color | null;
+  yellowLight?: Color | null;
+  magenta?: Color | null;
+  magentaLight?: Color | null;
+  cyan?: Color | null;
+  cyanLight?: Color | null;
+};
 export type ArcCentroidRequest = { startAngle: number; endAngle: number; innerRadius: number; outerRadius: number };
 export type AreaChartProps = {
   data: Array<ChartValues>;
@@ -1204,8 +1371,8 @@ export const Accordion = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AccordionItemRef = {};
@@ -1225,8 +1392,8 @@ export const AccordionItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AlertRef = {};
@@ -1241,8 +1408,8 @@ export const Alert = createNativeComponent<__NativePropsAlert, { onClose?: () =>
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AlertDialogRef = { isOpen(): Promise<boolean>; resolve(request: ResolveModal): Promise<null> };
@@ -1268,8 +1435,8 @@ export const AlertDialog = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AppMenuBarRef = {};
@@ -1284,8 +1451,8 @@ export const AppMenuBar = createNativeComponent<AppMenuBarProps, { onEvent?: () 
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AreaChartRef = {};
@@ -1300,8 +1467,8 @@ export const AreaChart = createNativeComponent<AreaChartProps, {}, AreaChartRef,
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentRef = {};
@@ -1321,8 +1488,8 @@ export const Attachment = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentActionsRef = {};
@@ -1338,8 +1505,8 @@ export const AttachmentActions = createNativeComponent<__NativePropsAttachmentAc
     children: true,
     providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
     catalogDigest: [
-      96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185,
-      168, 193, 48, 225, 100, 101, 241,
+      110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134,
+      0, 14, 142, 205, 237, 184, 41, 67,
     ],
   },
 );
@@ -1360,8 +1527,8 @@ export const AttachmentContent = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentDescriptionRef = {};
@@ -1381,8 +1548,8 @@ export const AttachmentDescription = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentGroupRef = {};
@@ -1397,8 +1564,8 @@ export const AttachmentGroup = createNativeComponent<__NativePropsAttachmentGrou
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentMediaRef = {};
@@ -1413,8 +1580,8 @@ export const AttachmentMedia = createNativeComponent<__NativePropsAttachmentMedi
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AttachmentTitleRef = {};
@@ -1429,8 +1596,8 @@ export const AttachmentTitle = createNativeComponent<__NativePropsAttachmentTitl
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AvatarRef = {};
@@ -1445,8 +1612,8 @@ export const Avatar = createNativeComponent<__NativePropsAvatar, {}, AvatarRef, 
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type AvatarGroupRef = {};
@@ -1461,8 +1628,8 @@ export const AvatarGroup = createNativeComponent<__NativePropsAvatarGroup, {}, A
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BadgeRef = {};
@@ -1477,8 +1644,8 @@ export const Badge = createNativeComponent<__NativePropsBadge, {}, BadgeRef, nev
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BarChartRef = {};
@@ -1493,8 +1660,8 @@ export const BarChart = createNativeComponent<BarChartProps, {}, BarChartRef, ne
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BreadcrumbRef = {};
@@ -1509,8 +1676,8 @@ export const Breadcrumb = createNativeComponent<__NativePropsBreadcrumb, {}, Bre
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BreadcrumbItemRef = {};
@@ -1530,8 +1697,8 @@ export const BreadcrumbItem = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BubbleRef = {};
@@ -1546,8 +1713,8 @@ export const Bubble = createNativeComponent<__NativePropsBubble, {}, BubbleRef, 
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BubbleContentRef = {};
@@ -1562,8 +1729,8 @@ export const BubbleContent = createNativeComponent<__NativePropsBubbleContent, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BubbleGroupRef = {};
@@ -1578,8 +1745,8 @@ export const BubbleGroup = createNativeComponent<__NativePropsBubbleGroup, {}, B
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type BubbleReactionsRef = {};
@@ -1594,8 +1761,8 @@ export const BubbleReactions = createNativeComponent<__NativePropsBubbleReaction
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ButtonRef = {};
@@ -1634,8 +1801,8 @@ export const Button = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ButtonGroupRef = {};
@@ -1655,8 +1822,8 @@ export const ButtonGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CalendarRef = { showDate(request: CivilDate): Promise<null> };
@@ -1679,8 +1846,8 @@ export const Calendar = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CandlestickChartRef = {};
@@ -1695,8 +1862,8 @@ export const CandlestickChart = createNativeComponent<CandlestickChartProps, {},
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CaretRef = {};
@@ -1711,8 +1878,8 @@ export const Caret = createNativeComponent<__NativePropsCaret, {}, CaretRef, nev
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CheckboxRef = {};
@@ -1732,8 +1899,8 @@ export const Checkbox = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ClipboardRef = {};
@@ -1753,8 +1920,8 @@ export const Clipboard = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CollapsibleRef = {};
@@ -1769,8 +1936,8 @@ export const Collapsible = createNativeComponent<__NativePropsCollapsible, {}, C
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ColorPickerRef = { setOpen(request: boolean): Promise<null> };
@@ -1790,8 +1957,8 @@ export const ColorPicker = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ComboboxRef = {
@@ -1827,8 +1994,8 @@ export const Combobox = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type CommandRef = {
@@ -1866,8 +2033,8 @@ export const Command = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ContextMenuRef = { dismiss(): Promise<null>; focus(): Promise<null> };
@@ -1893,8 +2060,8 @@ export const ContextMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DataTableRef = {
@@ -1950,8 +2117,8 @@ export const DataTable = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DatePickerRef = { focus(): Promise<null>; setOpen(request: boolean): Promise<null> };
@@ -1974,8 +2141,8 @@ export const DatePicker = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DescriptionItemRef = {};
@@ -1990,8 +2157,8 @@ export const DescriptionItem = createNativeComponent<__NativePropsDescriptionIte
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DescriptionListRef = {};
@@ -2006,8 +2173,8 @@ export const DescriptionList = createNativeComponent<__NativePropsDescriptionLis
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DescriptionTextRef = {};
@@ -2022,8 +2189,8 @@ export const DescriptionText = createNativeComponent<__NativePropsDescriptionTex
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogRef = { isOpen(): Promise<boolean>; resolve(request: ResolveModal): Promise<null> };
@@ -2049,8 +2216,8 @@ export const Dialog = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogActionRef = {};
@@ -2065,8 +2232,8 @@ export const DialogAction = createNativeComponent<__NativePropsDialogAction, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogCloseRef = {};
@@ -2081,8 +2248,8 @@ export const DialogClose = createNativeComponent<__NativePropsDialogClose, {}, D
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogContentRef = {};
@@ -2097,8 +2264,8 @@ export const DialogContent = createNativeComponent<__NativePropsDialogContent, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogDescriptionRef = {};
@@ -2114,8 +2281,8 @@ export const DialogDescription = createNativeComponent<__NativePropsDialogDescri
     children: true,
     providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
     catalogDigest: [
-      96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185,
-      168, 193, 48, 225, 100, 101, 241,
+      110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134,
+      0, 14, 142, 205, 237, 184, 41, 67,
     ],
   },
 );
@@ -2131,8 +2298,8 @@ export const DialogFooter = createNativeComponent<__NativePropsDialogFooter, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogHeaderRef = {};
@@ -2147,8 +2314,8 @@ export const DialogHeader = createNativeComponent<__NativePropsDialogHeader, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DialogTitleRef = {};
@@ -2163,8 +2330,8 @@ export const DialogTitle = createNativeComponent<__NativePropsDialogTitle, {}, D
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DockAreaRef = {
@@ -2221,8 +2388,8 @@ export const DockArea = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DropdownButtonRef = { dismiss(): Promise<null>; focus(): Promise<null> };
@@ -2249,8 +2416,8 @@ export const DropdownButton = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type DropdownMenuRef = { dismiss(): Promise<null>; focus(): Promise<null> };
@@ -2277,8 +2444,8 @@ export const DropdownMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type EditorRef = {
@@ -2320,8 +2487,8 @@ export const Editor = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type FieldRef = {};
@@ -2336,8 +2503,8 @@ export const Field = createNativeComponent<__NativePropsField, {}, FieldRef, "la
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type FocusTrapRef = { focus(): Promise<null> };
@@ -2352,8 +2519,8 @@ export const FocusTrap = createNativeComponent<FocusTrapProps, { onEvent?: () =>
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type FormRef = {};
@@ -2368,8 +2535,8 @@ export const Form = createNativeComponent<__NativePropsForm, {}, FormRef, never>
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type GroupBoxRef = {};
@@ -2384,8 +2551,8 @@ export const GroupBox = createNativeComponent<__NativePropsGroupBox, {}, GroupBo
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type HoverCardRef = {};
@@ -2405,8 +2572,8 @@ export const HoverCard = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type IconRef = {};
@@ -2421,8 +2588,8 @@ export const Icon = createNativeComponent<__NativePropsIcon, {}, IconRef, never>
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type InputRef = {
@@ -2464,8 +2631,8 @@ export const Input = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type KbdRef = {};
@@ -2480,8 +2647,8 @@ export const Kbd = createNativeComponent<__NativePropsKbd, {}, KbdRef, never>({
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type LabelRef = {};
@@ -2496,8 +2663,8 @@ export const Label = createNativeComponent<__NativePropsLabel, {}, LabelRef, nev
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type LineChartRef = {};
@@ -2512,8 +2679,8 @@ export const LineChart = createNativeComponent<LineChartProps, {}, LineChartRef,
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type LinkRef = {};
@@ -2528,8 +2695,8 @@ export const Link = createNativeComponent<__NativePropsLink, { onPress?: () => v
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ListRef = {
@@ -2573,8 +2740,8 @@ export const List = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ListItemRef = {};
@@ -2589,8 +2756,8 @@ export const ListItem = createNativeComponent<__NativePropsListItem, { onPress?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ListSeparatorItemRef = {};
@@ -2606,8 +2773,8 @@ export const ListSeparatorItem = createNativeComponent<__NativePropsListSeparato
     children: true,
     providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
     catalogDigest: [
-      96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185,
-      168, 193, 48, 225, 100, 101, 241,
+      110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134,
+      0, 14, 142, 205, 237, 184, 41, 67,
     ],
   },
 );
@@ -2623,8 +2790,8 @@ export const Marker = createNativeComponent<__NativePropsMarker, {}, MarkerRef, 
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MarkerContentRef = {};
@@ -2639,8 +2806,8 @@ export const MarkerContent = createNativeComponent<__NativePropsMarkerContent, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MarkerIconRef = {};
@@ -2655,8 +2822,8 @@ export const MarkerIcon = createNativeComponent<__NativePropsMarkerIcon, {}, Mar
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageRef = {};
@@ -2671,8 +2838,8 @@ export const Message = createNativeComponent<__NativePropsMessage, {}, MessageRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageAvatarRef = {};
@@ -2687,8 +2854,8 @@ export const MessageAvatar = createNativeComponent<__NativePropsMessageAvatar, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageContentRef = {};
@@ -2703,8 +2870,8 @@ export const MessageContent = createNativeComponent<__NativePropsMessageContent,
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageFooterRef = {};
@@ -2719,8 +2886,8 @@ export const MessageFooter = createNativeComponent<__NativePropsMessageFooter, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageGroupRef = {};
@@ -2735,8 +2902,8 @@ export const MessageGroup = createNativeComponent<__NativePropsMessageGroup, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageHeaderRef = {};
@@ -2751,8 +2918,8 @@ export const MessageHeader = createNativeComponent<__NativePropsMessageHeader, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type MessageScrollerRef = {
@@ -2782,8 +2949,8 @@ export const MessageScroller = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type NativeMenuRef = { show(request: NativeMenuPosition): Promise<null> };
@@ -2803,8 +2970,8 @@ export const NativeMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type NotificationRef = { dismiss(): Promise<null> };
@@ -2828,8 +2995,8 @@ export const Notification = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type NumberInputRef = {
@@ -2871,8 +3038,8 @@ export const NumberInput = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type OtpInputRef = { focus(): Promise<null> };
@@ -2902,8 +3069,8 @@ export const OtpInput = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PaginationRef = {};
@@ -2923,8 +3090,8 @@ export const Pagination = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PieChartRef = {};
@@ -2939,8 +3106,8 @@ export const PieChart = createNativeComponent<PieChartProps, {}, PieChartRef, ne
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PlotRef = {};
@@ -2955,8 +3122,8 @@ export const Plot = createNativeComponent<PlotProps, {}, PlotRef, never>({
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PlotCrossLineRef = {};
@@ -2971,8 +3138,8 @@ export const PlotCrossLine = createNativeComponent<PlotCrossLineProps, {}, PlotC
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PlotDotRef = {};
@@ -2987,8 +3154,8 @@ export const PlotDot = createNativeComponent<PlotDotProps, {}, PlotDotRef, never
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PlotTooltipRef = {};
@@ -3003,8 +3170,8 @@ export const PlotTooltip = createNativeComponent<PlotTooltipProps, {}, PlotToolt
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PopoverRef = {};
@@ -3024,8 +3191,8 @@ export const Popover = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type PopupMenuRef = { dismiss(): Promise<null>; focus(): Promise<null> };
@@ -3051,8 +3218,8 @@ export const PopupMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ProgressRef = {};
@@ -3067,8 +3234,8 @@ export const Progress = createNativeComponent<__NativePropsProgress, {}, Progres
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ProgressCircleRef = {};
@@ -3083,8 +3250,8 @@ export const ProgressCircle = createNativeComponent<__NativePropsProgressCircle,
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type RadarChartRef = {};
@@ -3099,8 +3266,8 @@ export const RadarChart = createNativeComponent<RadarChartProps, {}, RadarChartR
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type RadioRef = {};
@@ -3120,8 +3287,8 @@ export const Radio = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type RadioGroupRef = {};
@@ -3141,8 +3308,8 @@ export const RadioGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type RatingRef = {};
@@ -3162,8 +3329,8 @@ export const Rating = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ResizablePanelRef = {};
@@ -3178,8 +3345,8 @@ export const ResizablePanel = createNativeComponent<ResizablePanelProps, {}, Res
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ResizablePanelGroupRef = {
@@ -3205,8 +3372,8 @@ export const ResizablePanelGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SankeyChartRef = {};
@@ -3221,8 +3388,8 @@ export const SankeyChart = createNativeComponent<SankeyChartProps, {}, SankeyCha
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ScrollableRef = {
@@ -3248,8 +3415,8 @@ export const Scrollable = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SearchableListItemElementRef = {};
@@ -3269,8 +3436,8 @@ export const SearchableListItemElement = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SelectRef = {
@@ -3301,8 +3468,8 @@ export const Select = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SeparatorRef = {};
@@ -3317,8 +3484,8 @@ export const Separator = createNativeComponent<__NativePropsSeparator, {}, Separ
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingCustomItemRef = {};
@@ -3338,8 +3505,8 @@ export const SettingCustomItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingFieldRef = {};
@@ -3354,8 +3521,8 @@ export const SettingField = createNativeComponent<SettingFieldProps, { onReset?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingGroupRef = {};
@@ -3370,8 +3537,8 @@ export const SettingGroup = createNativeComponent<SettingGroupProps, {}, Setting
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingItemRef = {};
@@ -3386,8 +3553,8 @@ export const SettingItem = createNativeComponent<SettingItemProps, {}, SettingIt
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingPageRef = {};
@@ -3402,8 +3569,8 @@ export const SettingPage = createNativeComponent<SettingPageProps, {}, SettingPa
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SettingsRef = {
@@ -3434,8 +3601,8 @@ export const Settings = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SheetRef = { isOpen(): Promise<boolean> };
@@ -3455,8 +3622,8 @@ export const Sheet = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ShimmerTextRef = {};
@@ -3471,8 +3638,8 @@ export const ShimmerText = createNativeComponent<__NativePropsShimmerText, {}, S
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarRef = {};
@@ -3487,8 +3654,8 @@ export const Sidebar = createNativeComponent<__NativePropsSidebar, {}, SidebarRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarFooterRef = {};
@@ -3503,8 +3670,8 @@ export const SidebarFooter = createNativeComponent<__NativePropsSidebarFooter, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarGroupRef = {};
@@ -3519,8 +3686,8 @@ export const SidebarGroup = createNativeComponent<__NativePropsSidebarGroup, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarHeaderRef = {};
@@ -3535,8 +3702,8 @@ export const SidebarHeader = createNativeComponent<__NativePropsSidebarHeader, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarMenuRef = {};
@@ -3551,8 +3718,8 @@ export const SidebarMenu = createNativeComponent<__NativePropsSidebarMenu, {}, S
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarMenuItemRef = {};
@@ -3572,8 +3739,8 @@ export const SidebarMenuItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SidebarToggleButtonRef = {};
@@ -3593,8 +3760,8 @@ export const SidebarToggleButton = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SkeletonRef = {};
@@ -3609,8 +3776,8 @@ export const Skeleton = createNativeComponent<__NativePropsSkeleton, {}, Skeleto
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SliderRef = {};
@@ -3633,8 +3800,8 @@ export const Slider = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SpinnerRef = {};
@@ -3649,8 +3816,8 @@ export const Spinner = createNativeComponent<__NativePropsSpinner, {}, SpinnerRe
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type StatusBarRef = {};
@@ -3665,8 +3832,8 @@ export const StatusBar = createNativeComponent<__NativePropsStatusBar, {}, Statu
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type StepperRef = {};
@@ -3686,8 +3853,8 @@ export const Stepper = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type StepperItemRef = {};
@@ -3702,8 +3869,8 @@ export const StepperItem = createNativeComponent<__NativePropsStepperItem, {}, S
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type SwitchRef = {};
@@ -3723,8 +3890,8 @@ export const Switch = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TabRef = {};
@@ -3739,8 +3906,8 @@ export const Tab = createNativeComponent<__NativePropsTab, { onPress?: () => voi
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TabBarRef = {};
@@ -3760,8 +3927,8 @@ export const TabBar = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableRef = {};
@@ -3776,8 +3943,8 @@ export const Table = createNativeComponent<__NativePropsTable, {}, TableRef, nev
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableBodyRef = {};
@@ -3792,8 +3959,8 @@ export const TableBody = createNativeComponent<__NativePropsTableBody, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableCaptionRef = {};
@@ -3808,8 +3975,8 @@ export const TableCaption = createNativeComponent<__NativePropsTableCaption, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableCellRef = {};
@@ -3824,8 +3991,8 @@ export const TableCell = createNativeComponent<__NativePropsTableCell, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableFooterRef = {};
@@ -3840,8 +4007,8 @@ export const TableFooter = createNativeComponent<__NativePropsTableFooter, {}, T
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableHeadRef = {};
@@ -3856,8 +4023,8 @@ export const TableHead = createNativeComponent<__NativePropsTableHead, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableHeaderRef = {};
@@ -3872,8 +4039,8 @@ export const TableHeader = createNativeComponent<__NativePropsTableHeader, {}, T
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TableRowRef = {};
@@ -3888,8 +4055,8 @@ export const TableRow = createNativeComponent<__NativePropsTableRow, {}, TableRo
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TagRef = {};
@@ -3904,8 +4071,8 @@ export const Tag = createNativeComponent<__NativePropsTag, {}, TagRef, never>({
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TextRef = {};
@@ -3920,8 +4087,8 @@ export const Text = createNativeComponent<__NativePropsText, {}, TextRef, never>
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TextViewRef = {
@@ -3949,8 +4116,8 @@ export const TextView = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TextareaRef = {
@@ -3992,8 +4159,8 @@ export const Textarea = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TitleBarRef = {};
@@ -4008,8 +4175,8 @@ export const TitleBar = createNativeComponent<__NativePropsTitleBar, { onClose?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ToggleRef = {};
@@ -4029,8 +4196,8 @@ export const Toggle = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type ToggleGroupRef = {};
@@ -4050,8 +4217,8 @@ export const ToggleGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TooltipRef = {};
@@ -4066,8 +4233,8 @@ export const Tooltip = createNativeComponent<__NativePropsTooltip, {}, TooltipRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type TreeRef = {
@@ -4111,8 +4278,8 @@ export const Tree = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type VirtualListRef = { getVisibleRange(): Promise<VisibleRange>; scrollToItem(request: number): Promise<null> };
@@ -4135,8 +4302,8 @@ export const VirtualList = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export type WindowBorderRef = {};
@@ -4151,8 +4318,8 @@ export const WindowBorder = createNativeComponent<__NativePropsWindowBorder, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
 });
 export interface NativeClient0 {
@@ -4164,14 +4331,15 @@ export interface NativeClient0 {
   scaleLinear(request: LinearScaleRequest): Promise<LinearScaleResult>;
   scaleOrdinal(request: OrdinalScaleRequest): Promise<Array<string | null>>;
   scalePoint(request: PointScaleRequest): Promise<CategoricalScaleResult>;
+  setApplicationTheme(request: ApplicationTheme): Promise<ThemeState>;
   setTheme(request: ThemeMode): Promise<ThemeState>;
   stackSeries(request: StackRequest): Promise<Array<PlotStackSeries>>;
 }
 const descriptor0 = {
   moduleId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   moduleDigest: [
-    96, 82, 28, 181, 212, 229, 163, 242, 3, 247, 65, 185, 18, 154, 24, 0, 15, 20, 79, 22, 135, 255, 221, 151, 185, 168,
-    193, 48, 225, 100, 101, 241,
+    110, 246, 159, 149, 53, 194, 12, 170, 171, 172, 68, 3, 202, 44, 174, 237, 43, 193, 189, 197, 187, 152, 197, 134, 0,
+    14, 142, 205, 237, 184, 41, 67,
   ],
   commands: [
     { id: 1, name: "arcCentroid", input: "ArcCentroidRequest", output: "PlotCoordinate" },
@@ -4182,8 +4350,9 @@ const descriptor0 = {
     { id: 6, name: "scaleLinear", input: "LinearScaleRequest", output: "LinearScaleResult" },
     { id: 7, name: "scaleOrdinal", input: "OrdinalScaleRequest", output: "Array<string | null>" },
     { id: 8, name: "scalePoint", input: "PointScaleRequest", output: "CategoricalScaleResult" },
-    { id: 9, name: "setTheme", input: "ThemeMode", output: "ThemeState" },
-    { id: 10, name: "stackSeries", input: "StackRequest", output: "Array<PlotStackSeries>" },
+    { id: 9, name: "setApplicationTheme", input: "ApplicationTheme", output: "ThemeState" },
+    { id: 10, name: "setTheme", input: "ThemeMode", output: "ThemeState" },
+    { id: 11, name: "stackSeries", input: "StackRequest", output: "Array<PlotStackSeries>" },
   ],
 };
 export const useNative0 = () => useNativeClient<NativeClient0>(descriptor0);

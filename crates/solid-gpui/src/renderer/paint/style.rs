@@ -140,6 +140,59 @@ fn apply_style_with_cursor<E: Styled>(
     if let Some(color) = style.border_color_rgba {
         element = element.border_color(rgba(color));
     }
+    if let Some(value) = style.padding_top {
+        element = element.pt(px(value));
+    }
+    if let Some(value) = style.padding_right {
+        element = element.pr(px(value));
+    }
+    if let Some(value) = style.padding_bottom {
+        element = element.pb(px(value));
+    }
+    if let Some(value) = style.padding_left {
+        element = element.pl(px(value));
+    }
+    if let Some(value) = style.border_top_width {
+        element = element.border_t(px(value));
+    }
+    if let Some(value) = style.border_right_width {
+        element = element.border_r(px(value));
+    }
+    if let Some(value) = style.border_bottom_width {
+        element = element.border_b(px(value));
+    }
+    if let Some(value) = style.border_left_width {
+        element = element.border_l(px(value));
+    }
+    if let Some(value) = style.border_top_left_radius {
+        element = element.rounded_tl(px(value));
+    }
+    if let Some(value) = style.border_top_right_radius {
+        element = element.rounded_tr(px(value));
+    }
+    if let Some(value) = style.border_bottom_right_radius {
+        element = element.rounded_br(px(value));
+    }
+    if let Some(value) = style.border_bottom_left_radius {
+        element = element.rounded_bl(px(value));
+    }
+    if let Some(value) = style.width_percent {
+        element = element.w(gpui::relative(value / 100.));
+    }
+    if let Some(value) = style.height_percent {
+        element = element.h(gpui::relative(value / 100.));
+    }
+    if let Some(value) = style.flex_wrap {
+        element = element.flex();
+        element.style().flex_wrap = Some(match value {
+            crate::protocol::FlexWrapCode::NoWrap => gpui::FlexWrap::NoWrap,
+            crate::protocol::FlexWrapCode::Wrap => gpui::FlexWrap::Wrap,
+            crate::protocol::FlexWrapCode::WrapReverse => gpui::FlexWrap::WrapReverse,
+        });
+    }
+    if super::border::has_edge_colors(style) {
+        element = element.border_color(gpui::transparent_black());
+    }
     if let Some(overflow) = style.overflow {
         element = match overflow {
             OverflowCode::Visible => {
@@ -161,6 +214,13 @@ fn apply_style_with_cursor<E: Styled>(
     }
     if let Some(background) = style.background_rgba {
         element = element.bg(rgba(background));
+    }
+    if let Some(gradient) = style.linear_gradient {
+        element = element.bg(gpui::linear_gradient(
+            gradient.angle,
+            gpui::linear_color_stop(rgba(gradient.start_color), gradient.start_position),
+            gpui::linear_color_stop(rgba(gradient.end_color), gradient.end_position),
+        ));
     }
     if let Some(shadows) = style.box_shadows.as_ref() {
         element = element.shadow(
@@ -203,7 +263,7 @@ fn apply_style_with_cursor<E: Styled>(
             CursorCode::RowResize => gpui::CursorStyle::ResizeRow,
         });
     }
-    element
+    apply_text_style(element, Some(style))
 }
 
 pub(super) fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>) -> E {
@@ -328,5 +388,28 @@ mod tests {
 
         let mut styled = apply_style_without_cursor(gpui::div(), Some(&style));
         assert_eq!(styled.style().mouse_cursor, None);
+    }
+    #[test]
+    fn migration_layout_overrides_shorthands_without_extra_boxes() {
+        let style = Style {
+            padding: Some(12.),
+            padding_left: Some(88.),
+            padding_top: Some(0.),
+            border_radius: Some(8.),
+            border_top_right_radius: Some(0.),
+            border_width: Some(0.),
+            border_bottom_width: Some(1.),
+            width_percent: Some(50.),
+            flex_wrap: Some(crate::protocol::FlexWrapCode::Wrap),
+            ..Style::default()
+        };
+        let mut element = apply_style(gpui::div(), Some(&style));
+        let actual = element.style();
+        assert_eq!(actual.padding.left, Some(px(88.).into()));
+        assert_eq!(actual.padding.top, Some(px(0.).into()));
+        assert_eq!(actual.border_widths.bottom, Some(px(1.).into()));
+        assert_eq!(actual.corner_radii.top_right, Some(px(0.).into()));
+        assert_eq!(actual.size.width, Some(gpui::relative(0.5).into()));
+        assert_eq!(actual.flex_wrap, Some(gpui::FlexWrap::Wrap));
     }
 }

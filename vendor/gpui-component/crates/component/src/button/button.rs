@@ -647,6 +647,7 @@ impl RenderOnce for Button {
                         })
                     })
             })
+            .map(|this| cx.theme().component_metrics.button.apply(this))
             .refine_style(&instance_style);
 
         // The explicit name wins: it exists precisely for the cases where the
@@ -740,15 +741,14 @@ impl RenderOnce for Button {
         // `Ghost`, `Link` and `Text` are transparent, so an alpha on their
         // background changes nothing.
         .when(loading && !disabled, |this| this.opacity(0.8))
-        .when(!disabled, |this| {
+        .map(|this| {
             this.on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                if loading {
+                // Claim titlebar dragging and avoid focus on mouse down.
+                window.prevent_default();
+                if loading || disabled {
                     cx.stop_propagation();
                     return;
                 }
-
-                // Avoid focus on mouse down.
-                window.prevent_default();
 
                 // Pressing a button must not start the window-level text selection.
                 crate::global_state::GlobalState::suppress_text_selection(cx);

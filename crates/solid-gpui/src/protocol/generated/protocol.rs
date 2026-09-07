@@ -3968,6 +3968,192 @@ impl<'raw> ::bebop::SubRecord<'raw> for BoxShadowSet {
 impl<'raw> ::bebop::Record<'raw> for BoxShadowSet {}
 
 #[derive(Clone, Debug, PartialEq, Default)]
+pub struct LinearGradient {
+    /// Field 1
+    pub angle: ::core::option::Option<f32>,
+    /// Field 2
+    pub start_color: ::core::option::Option<u32>,
+    /// Field 3
+    pub start_position: ::core::option::Option<f32>,
+    /// Field 4
+    pub end_color: ::core::option::Option<u32>,
+    /// Field 5
+    pub end_position: ::core::option::Option<f32>,
+}
+
+impl<'raw> ::bebop::SubRecord<'raw> for LinearGradient {
+    const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .angle
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start_position
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .end_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .end_position
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+    }
+
+    ::bebop::define_serialize_chained!(Self => |zelf, dest| {
+        let size = zelf.serialized_size();
+        ::bebop::write_len(dest, size - ::bebop::LEN_SIZE)?;
+        if let Some(v) = &zelf.angle {
+            1u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.start_color {
+            2u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.start_position {
+            3u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.end_color {
+            4u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.end_position {
+            5u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        0u8._serialize_chained(dest)?;
+        Ok(size)
+    });
+
+    fn _deserialize_chained(raw: &'raw [u8]) -> ::bebop::DeResult<(usize, Self)> {
+        let mut i = 0;
+        let len = ::bebop::read_len(&raw[i..])? + ::bebop::LEN_SIZE;
+        i += ::bebop::LEN_SIZE;
+
+        #[cfg(not(feature = "unchecked"))]
+        if len == 0 {
+            return Err(::bebop::DeserializeError::CorruptFrame);
+        }
+
+        if raw.len() < len {
+            return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+        }
+
+        let mut _angle = None;
+        let mut _start_color = None;
+        let mut _start_position = None;
+        let mut _end_color = None;
+        let mut _end_position = None;
+
+        #[cfg(not(feature = "unchecked"))]
+        let mut last = 0;
+
+        while i < len {
+            let di = raw[i];
+
+            #[cfg(not(feature = "unchecked"))]
+            if di != 0 {
+                if di < last {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+                last = di;
+            }
+
+            i += 1;
+            match di {
+                0 => {
+                    break;
+                }
+                1 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _angle.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _angle = Some(value)
+                }
+                2 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _start_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _start_color = Some(value)
+                }
+                3 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _start_position.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _start_position = Some(value)
+                }
+                4 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _end_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _end_color = Some(value)
+                }
+                5 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _end_position.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _end_position = Some(value)
+                }
+                _ => {
+                    i = len;
+                    break;
+                }
+            }
+        }
+
+        if i != len {
+            debug_assert!(i > len);
+            return Err(::bebop::DeserializeError::CorruptFrame);
+        }
+
+        Ok((
+            i,
+            Self {
+                angle: _angle,
+                start_color: _start_color,
+                start_position: _start_position,
+                end_color: _end_color,
+                end_position: _end_position,
+            },
+        ))
+    }
+}
+
+impl<'raw> ::bebop::Record<'raw> for LinearGradient {}
+
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct Style<'raw> {
     /// Field 1
     pub width: ::core::option::Option<f32>,
@@ -4053,6 +4239,46 @@ pub struct Style<'raw> {
     pub box_shadow: ::core::option::Option<BoxShadowSet>,
     /// Field 42
     pub font_family: ::core::option::Option<&'raw str>,
+    /// Field 43
+    pub padding_top: ::core::option::Option<f32>,
+    /// Field 44
+    pub padding_right: ::core::option::Option<f32>,
+    /// Field 45
+    pub padding_bottom: ::core::option::Option<f32>,
+    /// Field 46
+    pub padding_left: ::core::option::Option<f32>,
+    /// Field 47
+    pub border_top_width: ::core::option::Option<f32>,
+    /// Field 48
+    pub border_right_width: ::core::option::Option<f32>,
+    /// Field 49
+    pub border_bottom_width: ::core::option::Option<f32>,
+    /// Field 50
+    pub border_left_width: ::core::option::Option<f32>,
+    /// Field 51
+    pub border_top_left_radius: ::core::option::Option<f32>,
+    /// Field 52
+    pub border_top_right_radius: ::core::option::Option<f32>,
+    /// Field 53
+    pub border_bottom_right_radius: ::core::option::Option<f32>,
+    /// Field 54
+    pub border_bottom_left_radius: ::core::option::Option<f32>,
+    /// Field 55
+    pub width_percent: ::core::option::Option<f32>,
+    /// Field 56
+    pub height_percent: ::core::option::Option<f32>,
+    /// Field 57
+    pub flex_wrap: ::core::option::Option<u32>,
+    /// Field 58
+    pub linear_gradient: ::core::option::Option<LinearGradient>,
+    /// Field 59
+    pub border_top_color: ::core::option::Option<u32>,
+    /// Field 60
+    pub border_right_color: ::core::option::Option<u32>,
+    /// Field 61
+    pub border_bottom_color: ::core::option::Option<u32>,
+    /// Field 62
+    pub border_left_color: ::core::option::Option<u32>,
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
@@ -4272,6 +4498,106 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                 .as_ref()
                 .map(|v| v.serialized_size() + 1)
                 .unwrap_or(0)
+            + self
+                .padding_top
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_right
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_bottom
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_left
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_right_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_left_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_left_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_right_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_right_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_left_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .width_percent
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .height_percent
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .flex_wrap
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .linear_gradient
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_right_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_left_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -4445,6 +4771,86 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
             42u8._serialize_chained(dest)?;
             v._serialize_chained(dest)?;
         }
+        if let Some(v) = &zelf.padding_top {
+            43u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.padding_right {
+            44u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.padding_bottom {
+            45u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.padding_left {
+            46u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_top_width {
+            47u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_right_width {
+            48u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_bottom_width {
+            49u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_left_width {
+            50u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_top_left_radius {
+            51u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_top_right_radius {
+            52u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_bottom_right_radius {
+            53u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_bottom_left_radius {
+            54u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.width_percent {
+            55u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.height_percent {
+            56u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.flex_wrap {
+            57u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.linear_gradient {
+            58u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_top_color {
+            59u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_right_color {
+            60u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_bottom_color {
+            61u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.border_left_color {
+            62u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
         0u8._serialize_chained(dest)?;
         Ok(size)
     });
@@ -4505,6 +4911,26 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
         let mut _text_align = None;
         let mut _box_shadow = None;
         let mut _font_family = None;
+        let mut _padding_top = None;
+        let mut _padding_right = None;
+        let mut _padding_bottom = None;
+        let mut _padding_left = None;
+        let mut _border_top_width = None;
+        let mut _border_right_width = None;
+        let mut _border_bottom_width = None;
+        let mut _border_left_width = None;
+        let mut _border_top_left_radius = None;
+        let mut _border_top_right_radius = None;
+        let mut _border_bottom_right_radius = None;
+        let mut _border_bottom_left_radius = None;
+        let mut _width_percent = None;
+        let mut _height_percent = None;
+        let mut _flex_wrap = None;
+        let mut _linear_gradient = None;
+        let mut _border_top_color = None;
+        let mut _border_right_color = None;
+        let mut _border_bottom_color = None;
+        let mut _border_left_color = None;
 
         #[cfg(not(feature = "unchecked"))]
         let mut last = 0;
@@ -4903,6 +5329,186 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                     i += read;
                     _font_family = Some(value)
                 }
+                43 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _padding_top.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _padding_top = Some(value)
+                }
+                44 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _padding_right.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _padding_right = Some(value)
+                }
+                45 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _padding_bottom.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _padding_bottom = Some(value)
+                }
+                46 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _padding_left.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _padding_left = Some(value)
+                }
+                47 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_top_width.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_top_width = Some(value)
+                }
+                48 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_right_width.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_right_width = Some(value)
+                }
+                49 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_bottom_width.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_bottom_width = Some(value)
+                }
+                50 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_left_width.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_left_width = Some(value)
+                }
+                51 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_top_left_radius.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_top_left_radius = Some(value)
+                }
+                52 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_top_right_radius.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_top_right_radius = Some(value)
+                }
+                53 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_bottom_right_radius.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_bottom_right_radius = Some(value)
+                }
+                54 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_bottom_left_radius.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_bottom_left_radius = Some(value)
+                }
+                55 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _width_percent.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _width_percent = Some(value)
+                }
+                56 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _height_percent.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _height_percent = Some(value)
+                }
+                57 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _flex_wrap.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _flex_wrap = Some(value)
+                }
+                58 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _linear_gradient.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _linear_gradient = Some(value)
+                }
+                59 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_top_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_top_color = Some(value)
+                }
+                60 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_right_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_right_color = Some(value)
+                }
+                61 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_bottom_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_bottom_color = Some(value)
+                }
+                62 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _border_left_color.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _border_left_color = Some(value)
+                }
                 _ => {
                     i = len;
                     break;
@@ -4960,6 +5566,26 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                 text_align: _text_align,
                 box_shadow: _box_shadow,
                 font_family: _font_family,
+                padding_top: _padding_top,
+                padding_right: _padding_right,
+                padding_bottom: _padding_bottom,
+                padding_left: _padding_left,
+                border_top_width: _border_top_width,
+                border_right_width: _border_right_width,
+                border_bottom_width: _border_bottom_width,
+                border_left_width: _border_left_width,
+                border_top_left_radius: _border_top_left_radius,
+                border_top_right_radius: _border_top_right_radius,
+                border_bottom_right_radius: _border_bottom_right_radius,
+                border_bottom_left_radius: _border_bottom_left_radius,
+                width_percent: _width_percent,
+                height_percent: _height_percent,
+                flex_wrap: _flex_wrap,
+                linear_gradient: _linear_gradient,
+                border_top_color: _border_top_color,
+                border_right_color: _border_right_color,
+                border_bottom_color: _border_bottom_color,
+                border_left_color: _border_left_color,
             },
         ))
     }
@@ -15729,6 +16355,8 @@ pub mod owned {
 
     pub use super::BoxShadowSet;
 
+    pub use super::LinearGradient;
+
     #[derive(Clone, Debug, PartialEq, Default)]
     pub struct Style {
         /// Field 1
@@ -15815,6 +16443,46 @@ pub mod owned {
         pub box_shadow: ::core::option::Option<BoxShadowSet>,
         /// Field 42
         pub font_family: ::core::option::Option<String>,
+        /// Field 43
+        pub padding_top: ::core::option::Option<f32>,
+        /// Field 44
+        pub padding_right: ::core::option::Option<f32>,
+        /// Field 45
+        pub padding_bottom: ::core::option::Option<f32>,
+        /// Field 46
+        pub padding_left: ::core::option::Option<f32>,
+        /// Field 47
+        pub border_top_width: ::core::option::Option<f32>,
+        /// Field 48
+        pub border_right_width: ::core::option::Option<f32>,
+        /// Field 49
+        pub border_bottom_width: ::core::option::Option<f32>,
+        /// Field 50
+        pub border_left_width: ::core::option::Option<f32>,
+        /// Field 51
+        pub border_top_left_radius: ::core::option::Option<f32>,
+        /// Field 52
+        pub border_top_right_radius: ::core::option::Option<f32>,
+        /// Field 53
+        pub border_bottom_right_radius: ::core::option::Option<f32>,
+        /// Field 54
+        pub border_bottom_left_radius: ::core::option::Option<f32>,
+        /// Field 55
+        pub width_percent: ::core::option::Option<f32>,
+        /// Field 56
+        pub height_percent: ::core::option::Option<f32>,
+        /// Field 57
+        pub flex_wrap: ::core::option::Option<u32>,
+        /// Field 58
+        pub linear_gradient: ::core::option::Option<LinearGradient>,
+        /// Field 59
+        pub border_top_color: ::core::option::Option<u32>,
+        /// Field 60
+        pub border_right_color: ::core::option::Option<u32>,
+        /// Field 61
+        pub border_bottom_color: ::core::option::Option<u32>,
+        /// Field 62
+        pub border_left_color: ::core::option::Option<u32>,
     }
 
     impl<'raw> ::core::convert::From<super::Style<'raw>> for Style {
@@ -15862,6 +16530,26 @@ pub mod owned {
                 text_align: value.text_align,
                 box_shadow: value.box_shadow,
                 font_family: value.font_family.map(|value| value.into()),
+                padding_top: value.padding_top,
+                padding_right: value.padding_right,
+                padding_bottom: value.padding_bottom,
+                padding_left: value.padding_left,
+                border_top_width: value.border_top_width,
+                border_right_width: value.border_right_width,
+                border_bottom_width: value.border_bottom_width,
+                border_left_width: value.border_left_width,
+                border_top_left_radius: value.border_top_left_radius,
+                border_top_right_radius: value.border_top_right_radius,
+                border_bottom_right_radius: value.border_bottom_right_radius,
+                border_bottom_left_radius: value.border_bottom_left_radius,
+                width_percent: value.width_percent,
+                height_percent: value.height_percent,
+                flex_wrap: value.flex_wrap,
+                linear_gradient: value.linear_gradient,
+                border_top_color: value.border_top_color,
+                border_right_color: value.border_right_color,
+                border_bottom_color: value.border_bottom_color,
+                border_left_color: value.border_left_color,
             }
         }
     }
@@ -16083,6 +16771,106 @@ pub mod owned {
                     .as_ref()
                     .map(|v| v.serialized_size() + 1)
                     .unwrap_or(0)
+                + self
+                    .padding_top
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_right
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_bottom
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_left
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_right_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_left_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_left_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_right_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_right_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_left_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .width_percent
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .height_percent
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .flex_wrap
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .linear_gradient
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_right_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_left_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -16256,6 +17044,86 @@ pub mod owned {
                 42u8._serialize_chained(dest)?;
                 v._serialize_chained(dest)?;
             }
+            if let Some(v) = &zelf.padding_top {
+                43u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.padding_right {
+                44u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.padding_bottom {
+                45u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.padding_left {
+                46u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_top_width {
+                47u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_right_width {
+                48u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_bottom_width {
+                49u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_left_width {
+                50u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_top_left_radius {
+                51u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_top_right_radius {
+                52u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_bottom_right_radius {
+                53u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_bottom_left_radius {
+                54u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.width_percent {
+                55u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.height_percent {
+                56u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.flex_wrap {
+                57u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.linear_gradient {
+                58u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_top_color {
+                59u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_right_color {
+                60u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_bottom_color {
+                61u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.border_left_color {
+                62u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
             0u8._serialize_chained(dest)?;
             Ok(size)
         });
@@ -16316,6 +17184,26 @@ pub mod owned {
             let mut _text_align = None;
             let mut _box_shadow = None;
             let mut _font_family = None;
+            let mut _padding_top = None;
+            let mut _padding_right = None;
+            let mut _padding_bottom = None;
+            let mut _padding_left = None;
+            let mut _border_top_width = None;
+            let mut _border_right_width = None;
+            let mut _border_bottom_width = None;
+            let mut _border_left_width = None;
+            let mut _border_top_left_radius = None;
+            let mut _border_top_right_radius = None;
+            let mut _border_bottom_right_radius = None;
+            let mut _border_bottom_left_radius = None;
+            let mut _width_percent = None;
+            let mut _height_percent = None;
+            let mut _flex_wrap = None;
+            let mut _linear_gradient = None;
+            let mut _border_top_color = None;
+            let mut _border_right_color = None;
+            let mut _border_bottom_color = None;
+            let mut _border_left_color = None;
 
             #[cfg(not(feature = "unchecked"))]
             let mut last = 0;
@@ -16714,6 +17602,186 @@ pub mod owned {
                         i += read;
                         _font_family = Some(value)
                     }
+                    43 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _padding_top.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _padding_top = Some(value)
+                    }
+                    44 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _padding_right.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _padding_right = Some(value)
+                    }
+                    45 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _padding_bottom.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _padding_bottom = Some(value)
+                    }
+                    46 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _padding_left.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _padding_left = Some(value)
+                    }
+                    47 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_top_width.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_top_width = Some(value)
+                    }
+                    48 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_right_width.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_right_width = Some(value)
+                    }
+                    49 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_bottom_width.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_bottom_width = Some(value)
+                    }
+                    50 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_left_width.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_left_width = Some(value)
+                    }
+                    51 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_top_left_radius.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_top_left_radius = Some(value)
+                    }
+                    52 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_top_right_radius.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_top_right_radius = Some(value)
+                    }
+                    53 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_bottom_right_radius.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_bottom_right_radius = Some(value)
+                    }
+                    54 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_bottom_left_radius.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_bottom_left_radius = Some(value)
+                    }
+                    55 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _width_percent.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _width_percent = Some(value)
+                    }
+                    56 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _height_percent.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _height_percent = Some(value)
+                    }
+                    57 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _flex_wrap.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _flex_wrap = Some(value)
+                    }
+                    58 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _linear_gradient.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _linear_gradient = Some(value)
+                    }
+                    59 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_top_color.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_top_color = Some(value)
+                    }
+                    60 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_right_color.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_right_color = Some(value)
+                    }
+                    61 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_bottom_color.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_bottom_color = Some(value)
+                    }
+                    62 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _border_left_color.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _border_left_color = Some(value)
+                    }
                     _ => {
                         i = len;
                         break;
@@ -16771,6 +17839,26 @@ pub mod owned {
                     text_align: _text_align,
                     box_shadow: _box_shadow,
                     font_family: _font_family,
+                    padding_top: _padding_top,
+                    padding_right: _padding_right,
+                    padding_bottom: _padding_bottom,
+                    padding_left: _padding_left,
+                    border_top_width: _border_top_width,
+                    border_right_width: _border_right_width,
+                    border_bottom_width: _border_bottom_width,
+                    border_left_width: _border_left_width,
+                    border_top_left_radius: _border_top_left_radius,
+                    border_top_right_radius: _border_top_right_radius,
+                    border_bottom_right_radius: _border_bottom_right_radius,
+                    border_bottom_left_radius: _border_bottom_left_radius,
+                    width_percent: _width_percent,
+                    height_percent: _height_percent,
+                    flex_wrap: _flex_wrap,
+                    linear_gradient: _linear_gradient,
+                    border_top_color: _border_top_color,
+                    border_right_color: _border_right_color,
+                    border_bottom_color: _border_bottom_color,
+                    border_left_color: _border_left_color,
                 },
             ))
         }

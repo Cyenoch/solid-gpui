@@ -584,6 +584,7 @@ impl RenderOnce for Input {
             })
             .items_center()
             .gap(gap_x)
+            .map(|this| cx.theme().component_metrics.input.apply(this))
             .refine_style(&self.style)
             .when(
                 focused && self.appearance && self.bordered && self.focus_bordered,

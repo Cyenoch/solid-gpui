@@ -590,6 +590,7 @@ impl RenderOnce for Dialog {
                                     .pt(paddings.top)
                                     .pb(paddings.bottom)
                                     .gap(paddings.top.max(px(8.)))
+                                    .map(|this| cx.theme().component_metrics.dialog.apply(this))
                                     .refine_style(&self.style)
                                     .px_0()
                                     // There style is high priority, can't be overridden.

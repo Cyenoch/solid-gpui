@@ -36,6 +36,30 @@ function normalizeGenerated(value: unknown): unknown {
 }
 
 const fullStyle = {
+  paddingTop: 0,
+  paddingRight: 4,
+  paddingBottom: 8,
+  paddingLeft: 88,
+  borderTopWidth: 0,
+  borderRightWidth: 1,
+  borderBottomWidth: 2,
+  borderLeftWidth: 3,
+  borderTopLeftRadius: 8,
+  borderTopRightRadius: 0,
+  borderBottomRightRadius: 0,
+  borderBottomLeftRadius: 8,
+  borderTopColor: "#D4688CFF",
+  borderRightColor: "#2C2B33FF",
+  borderBottomColor: "#131217FF",
+  borderLeftColor: "#E07B9EFF",
+  flexWrap: "wrap" as const,
+  linearGradient: {
+    angle: 180,
+    stops: [
+      { color: "#13121700", position: 0.2 },
+      { color: "#131217FF", position: 1 },
+    ] as const,
+  },
   width: 120,
   height: 48,
   flexDirection: "column" as const,
@@ -162,7 +186,7 @@ const snapshot: Snapshot = {
     node(5, 1, 2, "TextInput", { listenerId: 8, hostProperties: input }),
     node(6, 1, 3, "VirtualList", { hostProperties: virtualList }),
     node(7, 1, 4, "Image", { hostProperties: image }),
-    node(8, 1, 5, "View", { listenerId: 11, hostProperties: drag }),
+    node(8, 1, 5, "View", { style: { widthPercent: 50, heightPercent: 100 }, listenerId: 11, hostProperties: drag }),
   ],
 };
 const patch: Patch = {

@@ -1,0 +1,9 @@
+[package]
+name = "native-migration-host"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }
+gpui-component.workspace = true

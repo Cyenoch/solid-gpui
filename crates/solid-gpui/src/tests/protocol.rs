@@ -202,6 +202,20 @@ fn root_node() -> Node {
         opacity: Some(0.8),
         transition: None,
         font_family: Some("Inter".to_owned()),
+        padding_left: Some(88.),
+        padding_top: Some(0.),
+        border_bottom_width: Some(1.),
+        border_top_right_radius: Some(0.),
+        border_bottom_color: Some(0xd4688cff),
+        flex_wrap: Some(crate::protocol::FlexWrapCode::Wrap),
+        linear_gradient: Some(crate::protocol::LinearGradient {
+            angle: 180.,
+            start_color: 0x13121700,
+            start_position: 0.2,
+            end_color: 0x131217ff,
+            end_position: 1.,
+        }),
+        ..Style::default()
     });
     node
 }

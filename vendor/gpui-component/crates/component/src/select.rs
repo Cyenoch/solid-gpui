@@ -541,6 +541,7 @@ where
                         })
                         .input_size(self.state.size)
                         .input_text_size(self.state.size)
+                        .map(|this| cx.theme().component_metrics.select.apply(this))
                         .refine_style(&self.state.style)
                         .when(outline_visible && self.state.appearance, |this| {
                             this.border_1().border_color(cx.theme().ring)

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "examples/gallery/native",
+    "examples/native-migration/native",
     "crates/solid-gpui",
     "crates/solid-gpui-macros",
     "crates/solid-gpui-bun-sys",
@@ -13,7 +14,7 @@ exclude = ["references/zed", "references/gpui-component", "vendor/gpui-component
 [workspace.package]
 edition = "2024"
 license = "Apache-2.0"
-version = "0.2.0"
+version = "0.3.0"
 description = "Solid GPUI renders Solid trees into one or more native GPUI surfaces."
 keywords = ["solid", "gpui", "native-ui"]
 categories = ["gui"]

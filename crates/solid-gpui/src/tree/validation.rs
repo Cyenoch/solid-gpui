@@ -262,7 +262,7 @@ pub(super) fn validate_host_properties_shape(
             if icon.name.is_empty()
                 || icon.name.len() > 128
                 || icon.name.chars().any(char::is_control)
-                || gpui_iconify::IconId::from_name(&icon.name).is_none()
+                || !crate::icons::is_registered(&icon.name)
                 || !icon.size.is_finite()
                 || icon.size <= 0.0
             {
@@ -363,6 +363,26 @@ pub(super) fn validate_nested_text_style(
             }
         };
     }
+    unsupported!(padding_top, "paddingTop");
+    unsupported!(padding_right, "paddingRight");
+    unsupported!(padding_bottom, "paddingBottom");
+    unsupported!(padding_left, "paddingLeft");
+    unsupported!(border_top_width, "borderTopWidth");
+    unsupported!(border_right_width, "borderRightWidth");
+    unsupported!(border_bottom_width, "borderBottomWidth");
+    unsupported!(border_left_width, "borderLeftWidth");
+    unsupported!(border_top_left_radius, "borderTopLeftRadius");
+    unsupported!(border_top_right_radius, "borderTopRightRadius");
+    unsupported!(border_bottom_right_radius, "borderBottomRightRadius");
+    unsupported!(border_bottom_left_radius, "borderBottomLeftRadius");
+    unsupported!(width_percent, "widthPercent");
+    unsupported!(height_percent, "heightPercent");
+    unsupported!(flex_wrap, "flexWrap");
+    unsupported!(linear_gradient, "linearGradient");
+    unsupported!(border_top_color, "borderTopColor");
+    unsupported!(border_right_color, "borderRightColor");
+    unsupported!(border_bottom_color, "borderBottomColor");
+    unsupported!(border_left_color, "borderLeftColor");
     unsupported!(width, "width");
     unsupported!(height, "height");
     unsupported!(flex_direction, "flexDirection");
@@ -555,6 +575,18 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
             reason: "lineClamp must be 1..=100",
         });
     }
+    if style
+        .linear_gradient
+        .as_ref()
+        .is_some_and(|v| !v.is_valid())
+        || style.width.is_some() && style.width_percent.is_some()
+        || style.height.is_some() && style.height_percent.is_some()
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "invalid gradient or conflicting dimensions",
+        });
+    }
     for value in [
         style.width,
         style.height,
@@ -571,6 +603,20 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
         style.min_height,
         style.max_height,
         style.flex_shrink,
+        style.padding_top,
+        style.padding_right,
+        style.padding_bottom,
+        style.padding_left,
+        style.border_top_width,
+        style.border_right_width,
+        style.border_bottom_width,
+        style.border_left_width,
+        style.border_top_left_radius,
+        style.border_top_right_radius,
+        style.border_bottom_right_radius,
+        style.border_bottom_left_radius,
+        style.width_percent,
+        style.height_percent,
         style.border_radius,
         style.border_width,
         style.opacity,

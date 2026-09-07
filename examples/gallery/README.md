@@ -31,7 +31,7 @@ and Rust build badge both reflect those interactions.
 
 To refresh it:
 
-1. Run `SOLID_GPUI_PERF_MONITOR=0 bun run gallery` from the repository root.
+1. Set `with_performance_monitor(false)` in `native/src/main.rs`, then run `bun run gallery` from the repository root.
 2. Open **Overview & Features**, select dark mode, and resize the window wide
    enough for the playground's two columns.
 3. Enter `Desktop workspace` and press **Build workspace** three times. Verify

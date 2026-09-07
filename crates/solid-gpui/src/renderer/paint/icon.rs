@@ -18,14 +18,26 @@ pub(super) fn render(
             .id(gpui::ElementId::Integer(node.id as u64))
             .into_any();
     };
-    let id = IconId::from_name(&icon.name).expect("validated Icon name");
-    let mut icon_view = IconView::new(id).with_size(px(icon.size));
-    if let Some(color) = icon
+    let color = icon
         .color_rgba
-        .or_else(|| style.and_then(|style| style.color_rgba))
-    {
-        icon_view = icon_view.text_color(rgba(color));
-    }
+        .or_else(|| style.and_then(|style| style.color_rgba));
+    let icon_view = if let Some(id) = IconId::from_name(&icon.name) {
+        let mut view = IconView::new(id).with_size(px(icon.size));
+        if let Some(color) = color {
+            view = view.text_color(rgba(color));
+        }
+        gpui::IntoElement::into_any_element(view)
+    } else if let Some(image) = crate::icons::image(&icon.name) {
+        gpui::IntoElement::into_any_element(gpui::img(image).size(px(icon.size)))
+    } else {
+        let mut view = gpui::svg()
+            .size(px(icon.size))
+            .path(format!("application-icons/{}", icon.name));
+        if let Some(color) = color {
+            view = view.text_color(rgba(color));
+        }
+        gpui::IntoElement::into_any_element(view)
+    };
     let element = gpui::div()
         .id(gpui::ElementId::Integer(node.id as u64))
         .flex_none()

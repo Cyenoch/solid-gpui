@@ -307,6 +307,7 @@ impl ParentElement for TitleBar {
 
 struct TitleBarState {
     should_move: bool,
+    accepts_double_click: bool,
 }
 
 // TODO: Remove this when GPUI has released v0.2.3
@@ -323,7 +324,10 @@ impl RenderOnce for TitleBar {
         let is_linux = cfg!(target_os = "linux");
         let is_macos = cfg!(target_os = "macos");
 
-        let state = window.use_state(cx, |_, _| TitleBarState { should_move: false });
+        let state = window.use_state(cx, |_, _| TitleBarState {
+            should_move: false,
+            accepts_double_click: false,
+        });
 
         div().flex_shrink_0().child(
             div()
@@ -342,18 +346,31 @@ impl RenderOnce for TitleBar {
                 ))
                 .refine_style(&self.style)
                 .when(is_linux, |this| {
-                    this.on_double_click(|_, window, _| window.zoom_window())
+                    this.on_double_click(window.listener_for(&state, |state, _, window, _| {
+                        if state.accepts_double_click {
+                            window.zoom_window();
+                        }
+                    }))
                 })
                 .when(is_macos, |this| {
-                    this.on_double_click(|_, window, _| window.titlebar_double_click())
+                    this.on_double_click(window.listener_for(&state, |state, _, window, _| {
+                        if state.accepts_double_click {
+                            window.titlebar_double_click();
+                        }
+                    }))
                 })
+                .capture_any_mouse_down(window.listener_for(&state, |state, _, _, _| {
+                    state.should_move = false;
+                    state.accepts_double_click = false;
+                }))
                 .on_mouse_down_out(window.listener_for(&state, |state, _, _, _| {
                     state.should_move = false;
                 }))
                 .on_mouse_down(
                     MouseButton::Left,
-                    window.listener_for(&state, |state, _, _, _| {
-                        state.should_move = true;
+                    window.listener_for(&state, |state, _, window, _| {
+                        state.accepts_double_click = !window.default_prevented();
+                        state.should_move = state.accepts_double_click;
                     }),
                 )
                 .on_mouse_up(
@@ -376,9 +393,9 @@ impl RenderOnce for TitleBar {
                         .flex_shrink_0()
                         .flex_1()
                         .when(!is_web, |this| {
-                            this.window_control_area(WindowControlArea::Drag)
-                                .when(window.is_fullscreen(), |this| this.pl_3())
-                                .when(is_linux && is_client_decorated, |this| {
+                            this.window_control_area(WindowControlArea::Drag).when(
+                                is_linux && is_client_decorated,
+                                |this| {
                                     this.child(
                                         div()
                                             .top_0()
@@ -393,7 +410,8 @@ impl RenderOnce for TitleBar {
                                                 },
                                             ),
                                     )
-                                })
+                                },
+                            )
                         })
                         .children(self.children),
                 )

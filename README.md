@@ -238,3 +238,6 @@ Apache-2.0. Dependency attribution is in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-
 The independent projects are `examples/gallery` (Bun) and `examples/gallery-vite` (Vite + Bun).
 Run `bun run gallery` or `bun run gallery:vite` from the workspace root. The Vite project imports the shared application from the Bun project.
 See [Vite + Bun guide](docs/hot-reload.md) for application integration and explicit state preservation.
+
+For application-owned runtimes, custom titlebars, native themes, layout details,
+and offline icons, see [native application migration](docs/native-migration.md).
