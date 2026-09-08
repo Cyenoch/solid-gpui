@@ -115,8 +115,7 @@ impl HostProfile for ComponentHost {
     }
 
     fn initialize(&mut self, cx: &mut App) {
-        gpui_component::init(cx);
-        super::theme::initialize(cx);
+        super::initialize(cx);
     }
 
     fn open_window(

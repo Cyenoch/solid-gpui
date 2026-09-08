@@ -18,6 +18,30 @@ type PackageSpec = {
 
 const specs: readonly PackageSpec[] = [
   {
+    name: "router-generator",
+    dts: "packages/solid-gpui-router/dist/generator.d.ts",
+    runtime: "packages/solid-gpui-router/dist/generator.js",
+    output: "fixtures/api-surface.router-generator.txt",
+  },
+  {
+    name: "router-vite",
+    dts: "packages/solid-gpui-router/dist/vite.d.ts",
+    runtime: "packages/solid-gpui-router/dist/vite.js",
+    output: "fixtures/api-surface.router-vite.txt",
+  },
+  {
+    name: "shiki",
+    dts: "packages/solid-gpui-shiki/dist/index.d.ts",
+    runtime: "packages/solid-gpui-shiki/dist/index.js",
+    output: "fixtures/api-surface.shiki.txt",
+  },
+  {
+    name: "shiki-bun",
+    dts: "packages/solid-gpui-shiki/dist/bun.d.ts",
+    runtime: "packages/solid-gpui-shiki/dist/bun.js",
+    output: "fixtures/api-surface.shiki-bun.txt",
+  },
+  {
     name: "core",
     dts: "packages/solid-gpui/dist/index.d.ts",
     runtime: "packages/solid-gpui/dist/index.js",

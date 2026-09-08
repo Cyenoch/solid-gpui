@@ -57,6 +57,7 @@ pub struct TooltipRequest {
     build: TooltipBuilder,
     trigger_bounds: Bounds<Pixels>,
     preferred_placement: Option<Placement>,
+    owner: Option<gpui::WeakEntity<()>>,
 }
 
 impl TooltipRequest {
@@ -68,7 +69,14 @@ impl TooltipRequest {
             build: Rc::new(build),
             trigger_bounds,
             preferred_placement: None,
+            owner: None,
         }
+    }
+
+    /// Dismiss this request when its trigger leaves the rendered tree.
+    pub fn owned_by(mut self, owner: gpui::WeakEntity<()>) -> Self {
+        self.owner = Some(owner);
+        self
     }
 
     pub fn placement(mut self, placement: Placement) -> Self {
@@ -93,6 +101,7 @@ pub enum TooltipTransition {
 /// Per-window tooltip provider and overlay.
 pub struct TooltipOverlay {
     content: Option<TooltipRequest>,
+    owner_release: Option<gpui::Subscription>,
     previous_bounds: Option<Bounds<Pixels>>,
     epoch: usize,
     had_recent_tooltip: bool,
@@ -107,6 +116,7 @@ impl TooltipOverlay {
     pub fn new() -> Self {
         Self {
             content: None,
+            owner_release: None,
             previous_bounds: None,
             epoch: 0,
             had_recent_tooltip: false,
@@ -137,6 +147,19 @@ impl TooltipOverlay {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.owner_release = content.owner.as_ref().and_then(|owner| {
+            owner
+                .upgrade()
+                .map(|owner| cx.observe_release(&owner, |overlay, _, cx| overlay.hide(cx)))
+        });
+        if content
+            .owner
+            .as_ref()
+            .is_some_and(|owner| owner.upgrade().is_none())
+        {
+            self.hide(cx);
+            return;
+        }
         self.hide_task = None;
         let was_visible = self.content.is_some();
         if was_visible || self.had_recent_tooltip {
@@ -190,6 +213,7 @@ impl TooltipOverlay {
             || self.had_recent_tooltip
             || self.show_task.is_some()
             || self.hide_task.is_some();
+        self.owner_release = None;
         self.content = None;
         self.previous_bounds = None;
         self.had_recent_tooltip = false;

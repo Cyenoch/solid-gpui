@@ -1,0 +1,2139 @@
+{
+  "date": "2026-09-08",
+  "wideViewport": [
+    1280,
+    800
+  ],
+  "narrowViewport": [
+    390,
+    844
+  ],
+  "entries": [
+    {
+      "id": "Accordion",
+      "page": "accordion",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Accordion--multiple",
+      "page": "accordion",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Accordion--disabled",
+      "page": "accordion",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Alert",
+      "page": "alert",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Alert--info",
+      "page": "alert",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Alert--success",
+      "page": "alert",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Alert--warning",
+      "page": "alert",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Alert--error",
+      "page": "alert",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Alert--banner",
+      "page": "alert",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AlertDialog",
+      "page": "alert-dialog",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "AlertDialog--form",
+      "page": "alert-dialog",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AlertDialog--confirm",
+      "page": "alert-dialog",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AppMenuBar",
+      "page": "app-menu-bar",
+      "variant": false,
+      "note": "AppMenuBar reflects application-wide menus configured through root.setMenus. Use it in desktop window chrome.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "AppMenuBar--groups",
+      "page": "app-menu-bar",
+      "variant": true,
+      "note": "AppMenuBar reflects application-wide menus configured through root.setMenus. Use it in desktop window chrome.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AppMenuBar--checked",
+      "page": "app-menu-bar",
+      "variant": true,
+      "note": "AppMenuBar reflects application-wide menus configured through root.setMenus. Use it in desktop window chrome.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AreaChart",
+      "page": "area-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "AreaChart--comparison",
+      "page": "area-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "AreaChart--minimal",
+      "page": "area-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Attachment",
+      "page": "attachment",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Attachment--uploading",
+      "page": "attachment",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Attachment--failed",
+      "page": "attachment",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Avatar",
+      "page": "avatar",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "AvatarGroup--sizes",
+      "page": "avatar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "AvatarGroup--overflow",
+      "page": "avatar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Badge",
+      "page": "badge",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Badge--count",
+      "page": "badge",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Badge--dot",
+      "page": "badge",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "BarChart",
+      "page": "bar-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "BarChart--styled",
+      "page": "bar-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "BarChart--minimal",
+      "page": "bar-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Breadcrumb",
+      "page": "breadcrumb",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Breadcrumb--navigation",
+      "page": "breadcrumb",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Breadcrumb--short",
+      "page": "breadcrumb",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Bubble",
+      "page": "bubble",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Bubble--outline",
+      "page": "bubble",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Bubble--secondary",
+      "page": "bubble",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Bubble--tinted",
+      "page": "bubble",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button",
+      "page": "button",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Button--primary",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--outline",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--secondary",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--ghost",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--danger",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--link",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--text",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--colors",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--sizes",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Button--icons",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Button--with-icon",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--rounded",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--loading",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--disabled",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--selected",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Button--group",
+      "page": "button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ButtonGroup",
+      "page": "button-group",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ButtonGroup--vertical",
+      "page": "button-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ButtonGroup--selection",
+      "page": "button-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Calendar",
+      "page": "calendar",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Calendar--range",
+      "page": "calendar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Calendar--restricted",
+      "page": "calendar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "CandlestickChart",
+      "page": "candlestick-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "CandlestickChart--bodies",
+      "page": "candlestick-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "CandlestickChart--minimal",
+      "page": "candlestick-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Caret",
+      "page": "caret",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Caret--sizes",
+      "page": "caret",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Caret--color",
+      "page": "caret",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Checkbox",
+      "page": "checkbox",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Checkbox--states",
+      "page": "checkbox",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Checkbox--sizes",
+      "page": "checkbox",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Clipboard",
+      "page": "clipboard",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Clipboard--feedback",
+      "page": "clipboard",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Clipboard--command",
+      "page": "clipboard",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Collapsible",
+      "page": "collapsible",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Collapsible--controlled",
+      "page": "collapsible",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Collapsible--summary",
+      "page": "collapsible",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ColorPicker",
+      "page": "color-picker",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ColorPicker--palette",
+      "page": "color-picker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ColorPicker--sizes",
+      "page": "color-picker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Combobox",
+      "page": "combobox",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Combobox--search",
+      "page": "combobox",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Combobox--disabled",
+      "page": "combobox",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Combobox--multiple",
+      "page": "combobox",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Command",
+      "page": "command",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Command--groups",
+      "page": "command",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Command--empty",
+      "page": "command",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ContextMenu",
+      "page": "context-menu",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ContextMenu--groups",
+      "page": "context-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ContextMenu--submenu",
+      "page": "context-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DataTable",
+      "page": "data-table",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DataTable--striped",
+      "page": "data-table",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DataTable--empty",
+      "page": "data-table",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DataTable--loading",
+      "page": "data-table",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DatePicker",
+      "page": "date-picker",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DatePicker--range",
+      "page": "date-picker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DatePicker--restricted",
+      "page": "date-picker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DatePicker--clear",
+      "page": "date-picker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DescriptionList",
+      "page": "description-list",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DescriptionList--vertical",
+      "page": "description-list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DescriptionList--compact",
+      "page": "description-list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Dialog",
+      "page": "dialog",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Dialog--form",
+      "page": "dialog",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Dialog--confirm",
+      "page": "dialog",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DockArea",
+      "page": "dock-area",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DockArea--tabs",
+      "page": "dock-area",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DockArea--locked",
+      "page": "dock-area",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DropdownButton",
+      "page": "dropdown-button",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DropdownButton--groups",
+      "page": "dropdown-button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DropdownButton--submenu",
+      "page": "dropdown-button",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DropdownMenu",
+      "page": "dropdown-menu",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "DropdownMenu--groups",
+      "page": "dropdown-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "DropdownMenu--submenu",
+      "page": "dropdown-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Editor",
+      "page": "editor",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Editor--readonly",
+      "page": "editor",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Editor--code",
+      "page": "editor",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Editor--wrap",
+      "page": "editor",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "FocusTrap",
+      "page": "focus-trap",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "FocusTrap--form",
+      "page": "focus-trap",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "FocusTrap--search",
+      "page": "focus-trap",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Form",
+      "page": "form",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Form--help",
+      "page": "form",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Form--conditional",
+      "page": "form",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "GroupBox",
+      "page": "group-box",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "GroupBox--fill",
+      "page": "group-box",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "GroupBox--outline",
+      "page": "group-box",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "HoverCard",
+      "page": "hover-card",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "HoverCard--profile",
+      "page": "hover-card",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "HoverCard--appearance",
+      "page": "hover-card",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Icon",
+      "page": "icon",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Icon--sizes",
+      "page": "icon",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Icon--color",
+      "page": "icon",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Input",
+      "page": "input",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Input--password",
+      "page": "input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Input--adornments",
+      "page": "input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Input--readonly",
+      "page": "input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Input--sizes",
+      "page": "input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Kbd",
+      "page": "kbd",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Kbd--shortcuts",
+      "page": "kbd",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Kbd--outline",
+      "page": "kbd",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Label",
+      "page": "label",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Label--secondary",
+      "page": "label",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Label--highlight",
+      "page": "label",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "LineChart",
+      "page": "line-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "LineChart--styled",
+      "page": "line-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "LineChart--minimal",
+      "page": "line-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Link",
+      "page": "link",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Link--action",
+      "page": "link",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Link--disabled",
+      "page": "link",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "List",
+      "page": "list",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "List--search",
+      "page": "list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "List--empty",
+      "page": "list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ListItem--selection",
+      "page": "list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ListItem--compact",
+      "page": "list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Marker",
+      "page": "marker",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Marker--separator",
+      "page": "marker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Marker--border",
+      "page": "marker",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Message",
+      "page": "message",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Message--start",
+      "page": "message",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Message--end",
+      "page": "message",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "NativeMenu",
+      "page": "native-menu",
+      "variant": false,
+      "note": "NativeMenu opens an operating-system menu. Try this example in the desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "NativeMenu--groups",
+      "page": "native-menu",
+      "variant": true,
+      "note": "NativeMenu opens an operating-system menu. Try this example in the desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "NativeMenu--submenu",
+      "page": "native-menu",
+      "variant": true,
+      "note": "NativeMenu opens an operating-system menu. Try this example in the desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Notification",
+      "page": "notification",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Notification--success",
+      "page": "notification",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Notification--error",
+      "page": "notification",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Notification--action",
+      "page": "notification",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "NumberInput",
+      "page": "number-input",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "NumberInput--readonly",
+      "page": "number-input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "NumberInput--sizes",
+      "page": "number-input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "NumberInput--units",
+      "page": "number-input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "OtpInput",
+      "page": "otp-input",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "OtpInput--groups",
+      "page": "otp-input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "OtpInput--masked",
+      "page": "otp-input",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Pagination",
+      "page": "pagination",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Pagination--compact",
+      "page": "pagination",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Pagination--limited",
+      "page": "pagination",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PieChart",
+      "page": "pie-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "PieChart--pie",
+      "page": "pie-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PieChart--donut",
+      "page": "pie-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Plot",
+      "page": "plot",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Plot--series",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Plot--stroke",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PlotCrossLine--vertical",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PlotCrossLine--horizontal",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PlotDot--size-4",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PlotDot--size-10",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PlotTooltip--series",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "PlotTooltip--plain",
+      "page": "plot",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Popover",
+      "page": "popover",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Popover--profile",
+      "page": "popover",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Popover--appearance",
+      "page": "popover",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PopupMenu",
+      "page": "popup-menu",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "PopupMenu--groups",
+      "page": "popup-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "PopupMenu--submenu",
+      "page": "popup-menu",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Progress",
+      "page": "progress",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Progress--values",
+      "page": "progress",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Progress--interactive",
+      "page": "progress",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ProgressCircle",
+      "page": "progress-circle",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ProgressCircle--values",
+      "page": "progress-circle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ProgressCircle--interactive",
+      "page": "progress-circle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ProgressCircle--color",
+      "page": "progress-circle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "RadarChart",
+      "page": "radar-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "RadarChart--comparison",
+      "page": "radar-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "RadarChart--minimal",
+      "page": "radar-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Radio",
+      "page": "radio",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Radio--states",
+      "page": "radio",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Radio--sizes",
+      "page": "radio",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "RadioGroup--choices",
+      "page": "radio",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "RadioGroup--disabled",
+      "page": "radio",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Rating",
+      "page": "rating",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Rating--readonly",
+      "page": "rating",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Rating--scale",
+      "page": "rating",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ResizablePanelGroup",
+      "page": "resizable-panel-group",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ResizablePanel--horizontal",
+      "page": "resizable-panel-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ResizablePanel--vertical",
+      "page": "resizable-panel-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "SankeyChart",
+      "page": "sankey-chart",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "SankeyChart--flows",
+      "page": "sankey-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "SankeyChart--appearance",
+      "page": "sankey-chart",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Scrollable",
+      "page": "scrollable",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Scrollable--vertical",
+      "page": "scrollable",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Scrollable--horizontal",
+      "page": "scrollable",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Select",
+      "page": "select",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Select--search",
+      "page": "select",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Select--disabled",
+      "page": "select",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Separator",
+      "page": "separator",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Separator--styles",
+      "page": "separator",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Separator--vertical",
+      "page": "separator",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Settings",
+      "page": "settings",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Settings--outline",
+      "page": "settings",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Settings--fill",
+      "page": "settings",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Sheet",
+      "page": "sheet",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Sheet--left",
+      "page": "sheet",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Sheet--right",
+      "page": "sheet",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Sheet--bottom",
+      "page": "sheet",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ShimmerText",
+      "page": "shimmer-text",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ShimmerText--once",
+      "page": "shimmer-text",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ShimmerText--direction",
+      "page": "shimmer-text",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Sidebar",
+      "page": "sidebar",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Sidebar--active",
+      "page": "sidebar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Sidebar--collapse",
+      "page": "sidebar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Skeleton",
+      "page": "skeleton",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Skeleton--profile",
+      "page": "skeleton",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Skeleton--card",
+      "page": "skeleton",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Slider",
+      "page": "slider",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Slider--range",
+      "page": "slider",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Slider--steps",
+      "page": "slider",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Slider--vertical",
+      "page": "slider",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Spinner",
+      "page": "spinner",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Spinner--sizes",
+      "page": "spinner",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Spinner--inline",
+      "page": "spinner",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "StatusBar",
+      "page": "status-bar",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "StatusBar--window-0",
+      "page": "status-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "StatusBar--window-1",
+      "page": "status-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Stepper",
+      "page": "stepper",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Stepper--vertical",
+      "page": "stepper",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Stepper--progress",
+      "page": "stepper",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Switch",
+      "page": "switch",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Switch--states",
+      "page": "switch",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Switch--sizes",
+      "page": "switch",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "TabBar",
+      "page": "tab-bar",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tab--pill",
+      "page": "tab-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tab--outline",
+      "page": "tab-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tab--segmented",
+      "page": "tab-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tab--underline",
+      "page": "tab-bar",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Table",
+      "page": "table",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Table--invoices",
+      "page": "table",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Table--compact",
+      "page": "table",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tag",
+      "page": "tag",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tag--variants",
+      "page": "tag",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Tag--outline",
+      "page": "tag",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Tag--sizes",
+      "page": "tag",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Text",
+      "page": "text",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Text--typography",
+      "page": "text",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Text--wrapping",
+      "page": "text",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "TextView",
+      "page": "text-view",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "TextView--markdown",
+      "page": "text-view",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "TextView--bounded",
+      "page": "text-view",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Textarea",
+      "page": "textarea",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Textarea--readonly",
+      "page": "textarea",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Textarea--autogrow",
+      "page": "textarea",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Textarea--controlled",
+      "page": "textarea",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "TitleBar",
+      "page": "title-bar",
+      "variant": false,
+      "note": "TitleBar controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "TitleBar--window-0",
+      "page": "title-bar",
+      "variant": true,
+      "note": "TitleBar controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "TitleBar--window-1",
+      "page": "title-bar",
+      "variant": true,
+      "note": "TitleBar controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Toggle",
+      "page": "toggle",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Toggle--states",
+      "page": "toggle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Toggle--sizes",
+      "page": "toggle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Toggle--outline",
+      "page": "toggle",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ToggleGroup",
+      "page": "toggle-group",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "ToggleGroup--choices",
+      "page": "toggle-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "ToggleGroup--disabled",
+      "page": "toggle-group",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Tooltip",
+      "page": "tooltip",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tooltip--shortcut",
+      "page": "tooltip",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tooltip--placement",
+      "page": "tooltip",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tree",
+      "page": "tree",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "Tree--nested",
+      "page": "tree",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "Tree--dense",
+      "page": "tree",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "VirtualList",
+      "page": "virtual-list",
+      "variant": false,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "VirtualList--vertical",
+      "page": "virtual-list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "VirtualList--horizontal",
+      "page": "virtual-list",
+      "variant": true,
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "WindowBorder",
+      "page": "window-border",
+      "variant": false,
+      "note": "WindowBorder controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": true
+    },
+    {
+      "id": "WindowBorder--window-0",
+      "page": "window-border",
+      "variant": true,
+      "note": "WindowBorder controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    },
+    {
+      "id": "WindowBorder--window-1",
+      "page": "window-border",
+      "variant": true,
+      "note": "WindowBorder controls a desktop window. Use this composition at the root of your desktop app.",
+      "wideVisualReviewed": true,
+      "narrowVisualReviewed": false
+    }
+  ]
+}

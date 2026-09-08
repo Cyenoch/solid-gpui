@@ -1,0 +1,21 @@
+[package]
+name = "solid-gpui-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+solid-gpui = { path = "../solid-gpui", default-features = false, features = ["component-runtime"] }
+gpui-iconify = { path = "../gpui-iconify" }
+gpui.workspace = true
+gpui-platform.workspace = true
+wasm-bindgen = "=0.2.121"
+
+wasm-bindgen-futures = "0.4"
+futures.workspace = true
+
+gpui-component.workspace = true

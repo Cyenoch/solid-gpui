@@ -1,6 +1,8 @@
+export { NativeCommandError, type NativeCommandIdentity } from "./native-call";
 export {
   mountApplication,
   type ApplicationDefinition,
+  type ApplicationActivation,
   type ApplicationOptions,
   type MountedApplication,
 } from "./application";

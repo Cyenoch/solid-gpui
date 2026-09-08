@@ -56,10 +56,10 @@ activity threshold, and inability to distinguish long stalls from idle time.
 Use external profiling and input latency to investigate severe stalls.
 
 Application hosts hide the monitor in every build. Enable it explicitly with
-`ComponentHost::with_performance_monitor(true)`. The Gallery opts in in
-`examples/gallery/native/src/main.rs`; set that argument to `false` and rebuild
+`ComponentHost::with_performance_monitor(true)`. The website opts in in
+`examples/website/native/src/main.rs`; set that argument to `false` and rebuild
 for a comparison without the overlay. No environment variable overrides this
-application policy. Run `bun run task gallery-profile` for interval logging.
+application policy. Run `bun run task website-native-profile` for interval logging.
 
 The host's `frame-profile` feature enables interval logging. The FPS overlay
 does not start a timer or notification loop. Use the same binary, window,
@@ -81,18 +81,16 @@ application. In that situation, collect real trackpad input in a dedicated
 diagnostic window and record the capture interval; do not keep treating
 ineffective synthetic input as a valid test.
 
-The repository's geometry and CPU diagnosis entrypoint is:
+The website navigation regression check is:
 
 ```sh
-bun run task gallery-scroll-audit
+bun run task website-navigation-check
 ```
 
-It derives routes from `PAGES` and covers narrow windows and retained-window
-resizing. This test-platform audit finds problems and checks correctness; it
-does not qualify as a production benchmark. Keep correctness assertions active,
-and enable timing thresholds explicitly only in a controlled environment.
-Do not remove interactions, explanatory text, or meaningful validation to
-stabilize timing.
+It mounts the actual website through the native Vite pipeline and checks that
+component route changes preserve the sidebar and send incremental updates. This
+is a lifecycle correctness check, not a geometry or CPU benchmark. Use the native
+measurement workflow above for Showcase scrolling and resize acceptance.
 
 ## 5. Attribute cost along the actual path
 

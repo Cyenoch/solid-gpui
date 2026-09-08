@@ -3,6 +3,7 @@ import type { Setter } from "solid-js";
 import type { ExtensionDescriptor } from "../src/renderer/extension";
 import {
   Icon,
+  Image,
   MemoryTransport,
   Pressable,
   Text,
@@ -15,7 +16,13 @@ import {
   createSurfaceHost,
 } from "../src/index";
 import { Envelope, type Body as WireBody } from "../src/protocol/generated/protocol";
-import { COMMAND_INVOKE_NATIVE, MAX_NATIVE_CALL_BYTES, encodeFrame, type Event } from "../src/protocol";
+import {
+  COMMAND_INVOKE_NATIVE,
+  MAX_NATIVE_CALL_BYTES,
+  MAX_IMAGE_SOURCE_BYTES,
+  encodeFrame,
+  type Event,
+} from "../src/protocol";
 import { batch, createComponent, createSignal, onCleanup } from "../src/runtime";
 import { TransportTerminatedError, type Transport } from "../src/transport";
 import { hostConfig, withRoot } from "../src/renderer/host-config";
@@ -106,7 +113,11 @@ test("invokeNative rejects missing, confused, and out-of-bounds JavaScript argum
 });
 
 test("CommandClient rejects mismatched identities and inappropriate byte results", async () => {
-  const client = new CommandClient({ submitFrame: () => true, getTerminationError: () => undefined });
+  const client = new CommandClient({
+    submitFrame: () => true,
+    getTerminationError: () => undefined,
+    cancelNative: () => {},
+  });
   const command = {
     type: "command" as const,
     surfaceId: 1,
@@ -147,11 +158,61 @@ test("CommandClient rejects mismatched identities and inappropriate byte results
   await expect(ordinary).rejects.toThrow();
   const failed = client.submit(command);
   client.resolve({ ...result, success: false, error: "native failure", value: null });
-  await expect(failed).rejects.toThrow("native failure");
+  await expect(failed).rejects.toMatchObject({
+    name: "NativeCommandError",
+    message: "native failure",
+    identity: { surfaceId: 1, epoch: 1, requestId: 1, nodeId: 1, command: COMMAND_INVOKE_NATIVE, functionId: 1 },
+  });
   const successful = client.submit(command);
   client.resolve(result);
   await expect(successful).resolves.toEqual(result.value);
 });
+test("native invocation cancellation is isolated, ordered, and settles only once", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport, { surfaceId: 93, epoch: 3 });
+  root.render(() => createComponent(Text, { children: "work" }));
+  const controller = new AbortController();
+  const reason = new Error("navigation cancelled");
+  const invoke = (options?: import("../src/native").NativeCallOptions) =>
+    root.invokeNative(new Uint8Array(16), new Uint8Array(32), 1, new Uint8Array(), options);
+  const cancelled = invoke({ signal: controller.signal }).catch((error: unknown) => error);
+  const adjacent = invoke();
+  controller.abort(reason);
+  expect(await cancelled).toBe(reason);
+  const cancellation = body(transport.submitted.at(-1)!);
+  expect(cancellation.tag === 4 && cancellation.value.payload).toEqual({ tag: 13, value: { requestId: 1 } });
+  const count = transport.submitted.length;
+  await expect(invoke({ signal: controller.signal })).rejects.toBe(reason);
+  await expect(invoke({ timeoutMs: -1 })).rejects.toThrow("timeout");
+  expect(transport.submitted.length).toBe(count);
+  for (const requestId of [1, 2])
+    transport.push(
+      encodeFrame({
+        type: "event",
+        surfaceId: 93,
+        epoch: 3,
+        revision: 1,
+        sequence: requestId,
+        nodeId: 1,
+        listenerId: 0,
+        payload: {
+          type: "command-result",
+          result: {
+            requestId,
+            command: COMMAND_INVOKE_NATIVE,
+            nodeId: 1,
+            success: true,
+            error: null,
+            value: { type: "bytes", value: Uint8Array.of(requestId) },
+          },
+        },
+      }),
+    );
+  await expect(adjacent).resolves.toEqual(Uint8Array.of(2));
+  await expect(invoke({ timeoutMs: 0 })).rejects.toMatchObject({ name: "TimeoutError" });
+  root.unmount();
+});
+
 test("Icon projects its allowlisted host properties", () => {
   const transport = new MemoryTransport();
   const root = createRoot(transport);
@@ -988,7 +1049,8 @@ test("a single incoming chunk batches semantic events into one Solid transaction
 test("createRoot tolerates synchronous transport termination registration", () => {
   const termination = new TransportTerminatedError("sync termination", { kind: "shutdown" });
   const transport: Transport = {
-    submit: () => undefined,
+    submit: () => true,
+    onDrain: () => () => undefined,
     onData: () => () => undefined,
     onTermination(listener) {
       listener(termination);
@@ -1016,7 +1078,8 @@ test("transport disposal rejects pending commands and notifies termination once"
   let notify: ((error: TransportTerminatedError) => void) | undefined;
   let notifications = 0;
   const transport: Transport = {
-    submit: () => undefined,
+    submit: () => true,
+    onDrain: () => () => undefined,
     onData: () => () => undefined,
     onTermination(listener) {
       notify = listener;
@@ -1099,4 +1162,104 @@ test("batched subtree removals use published ancestry, including moves through a
     );
     container.dispose();
   }
+});
+
+test("live region changes reach the wire independently of value changes", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  const [live, setLive] = createSignal<"polite" | "assertive">("polite");
+  root.render(() =>
+    createComponent(View, {
+      accessibilityRole: "status",
+      accessibilityValue: "Ready",
+      accessibilityDisabled: true,
+      get accessibilityLive() {
+        return live();
+      },
+    }),
+  );
+  const snapshot = body(transport.submitted[0]!);
+  expect(snapshot.tag === 1 && snapshot.value.nodes?.find((node) => node.accessibility)?.accessibility?.live).toBe(1);
+  setLive("assertive");
+  await Promise.resolve();
+  const patch = body(transport.submitted[1]!);
+  const update = patch.tag === 3 ? patch.value.operations?.[0]?.operation : undefined;
+  expect(update?.tag === 2 && update.value.accessibility?.live).toBe(2);
+  expect(update?.tag === 2 && update.value.accessibility?.disabled).toBe(true);
+  root.unmount();
+  const invalid = createRoot(new MemoryTransport());
+  expect(() => invalid.render(() => createComponent(View, { accessibilityLive: "polite" }))).toThrow("semantic role");
+  invalid.unmount();
+});
+
+test("native grid updates are committed and invalid tracks cannot enter the protocol", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  let setColumns!: Setter<number>;
+  root.render(() => {
+    const [columns, set] = createSignal(2);
+    setColumns = set;
+    return createComponent(View, {
+      get style() {
+        return { gridColumns: columns(), gap: 10 };
+      },
+      children: createComponent(Text, { style: { gridColumnSpan: 2 }, children: "Spanning cell" }),
+    });
+  });
+  setColumns(3);
+  await Promise.resolve();
+  const patch = body(transport.submitted.at(-1)!);
+  expect(patch.tag).toBe(3);
+  if (patch.tag !== 3) throw new Error("expected grid patch");
+  expect(
+    patch.value.operations?.some(({ operation }) => operation?.tag === 2 && operation.value.style?.gridColumns === 3),
+  ).toBe(true);
+  root.unmount();
+  const { validateStyle } = await import("../src/style");
+  expect(() => validateStyle({ gridColumns: 0 })).toThrow();
+  expect(() => validateStyle({ gridRowSpan: 65 })).toThrow();
+  expect(() => validateStyle({ gridColumns: 2, flexDirection: "row" })).toThrow();
+});
+
+test("Image supports bounded inline sources through reactive commits", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  const inline =
+    "data:image/svg+xml," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="2" height="1"><!--${"x".repeat(2048)}--><rect width="2" height="1" fill="red"/></svg>`,
+    );
+  const [source, setSource] = createSignal(inline);
+  root.render(() =>
+    createComponent(Image, {
+      get source() {
+        return source();
+      },
+      fallbackSource: inline,
+    }),
+  );
+  const initial = body(transport.submitted[0]!);
+  if (initial.tag !== 1) throw new Error("expected Image snapshot");
+  const properties = initial.value.nodes?.find((node) => node.hostProperties?.tag === 3)?.hostProperties;
+  expect(properties?.tag === 3 && properties.value.source).toBe(inline);
+  expect(properties?.tag === 3 && properties.value.fallbackSource).toBe(inline);
+  setSource("https://images.example/photo.png");
+  await Promise.resolve();
+  const patch = body(transport.submitted.at(-1)!);
+  expect(patch.tag).toBe(3);
+  if (patch.tag !== 3) throw new Error("expected Image patch");
+  expect(
+    patch.value.operations?.some(
+      ({ operation }) =>
+        operation?.tag === 2 &&
+        operation.value.hostProperties?.tag === 3 &&
+        operation.value.hostProperties.value.source === "https://images.example/photo.png",
+    ),
+  ).toBe(true);
+  root.unmount();
+  const invalid = createRoot(new MemoryTransport());
+  expect(() =>
+    invalid.render(() => createComponent(Image, { source: "x".repeat(MAX_IMAGE_SOURCE_BYTES + 1) })),
+  ).toThrow("source");
+  invalid.unmount();
 });

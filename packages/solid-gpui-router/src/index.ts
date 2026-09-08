@@ -8,7 +8,7 @@ import {
   type Style,
   type StyleProp,
 } from "@solid-gpui/core";
-import { createComponent } from "@solid-gpui/core/runtime";
+import { createComponent, lazy } from "@solid-gpui/core/runtime";
 import { createMemoryHistory, type RouterHistory } from "@tanstack/history";
 import {
   BaseRootRoute,
@@ -23,10 +23,14 @@ import {
   type AnyRoute,
   type AnyRouter,
   type ErrorComponentProps,
+  type CreateFileRoute,
+  type CreateLazyFileRoute,
+  type FileRoutesByPath,
   type GetStoreConfig,
   type MakeRouteMatch,
   type MakeRouteMatchUnion,
   type NavigateOptions,
+  type ToOptions,
   type NotFoundRouteProps,
   type RegisteredRouter,
   type ResolveFullPath,
@@ -62,6 +66,7 @@ import {
 } from "solid-js";
 
 export { isNotFound, isRedirect, notFound, redirect };
+export { lazyFn } from "@tanstack/router-core";
 export type {
   AnyContext,
   AnyRoute,
@@ -72,7 +77,39 @@ export type {
   RouteOptions,
   RouterState,
   RouteMask,
+  FileRoutesByPath,
+  Register,
 } from "@tanstack/router-core";
+
+/** The generated route tree supplies the route's ID, path, and parent. */
+export function createFileRoute<
+  TFilePath extends keyof FileRoutesByPath,
+  TParentRoute extends AnyRoute = FileRoutesByPath[TFilePath]["parentRoute"],
+  TId extends string = FileRoutesByPath[TFilePath]["id"],
+  TPath extends string = FileRoutesByPath[TFilePath]["path"],
+  TFullPath extends string = FileRoutesByPath[TFilePath]["fullPath"],
+>(_path: TFilePath): CreateFileRoute<TFilePath, TParentRoute, TId, TPath, TFullPath> {
+  return ((options: unknown) => {
+    const route = new BaseRoute(options as never);
+    // Parent options arrive later through the generated tree's update calls.
+    Object.assign(route, { isRoot: false });
+    return route;
+  }) as unknown as CreateFileRoute<TFilePath, TParentRoute, TId, TPath, TFullPath>;
+}
+
+export function createLazyFileRoute<TFilePath extends keyof FileRoutesByPath>(
+  id: TFilePath,
+): CreateLazyFileRoute<FileRoutesByPath[TFilePath]["preLoaderRoute"]> {
+  return (options) => ({ options: { ...options, id } });
+}
+
+/** Used by generated component-piece imports; loading belongs to the Solid owner. */
+export function lazyRouteComponent<TModule extends Record<TKey, (...args: any[]) => SolidElement>, TKey extends string>(
+  importer: () => Promise<TModule>,
+  exportName: TKey,
+) {
+  return lazy(async () => ({ default: (await importer())[exportName] }));
+}
 
 export type RouteComponent = () => SolidElement;
 export type ErrorRouteComponent = (props: ErrorComponentProps<unknown>) => SolidElement;
@@ -538,10 +575,7 @@ export type NativeNavigateOptions<
   TTo extends string | undefined,
   TMaskFrom extends string,
   TMaskTo extends string,
-> = Omit<
-  NavigateOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>,
-  "hashScrollIntoView" | "href" | "reloadDocument" | "resetScroll" | "startTransition" | "viewTransition"
->;
+> = ToOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo> & Pick<NavigateOptions, "replace" | "ignoreBlocker">;
 
 export type NativeNavigateResult<TRouter extends AnyRouter = RegisteredRouter, TDefaultFrom extends string = string> = <
   const TTo extends string | undefined = undefined,
@@ -565,7 +599,7 @@ export function useNavigate<
       hashScrollIntoView: false,
       viewTransition: false,
       reloadDocument: false,
-    } as NavigateOptions<TRouter>);
+    } as never);
 }
 
 export function useCanGoBack(): Accessor<boolean> {
@@ -619,7 +653,7 @@ function NativeMatch(props: { readonly routeId: string; readonly router: AnyRout
           return isNotFound(error) ? error.data : undefined;
         },
         isNotFound: true,
-        routeId: props.routeId,
+        routeId: props.routeId as NotFoundRouteProps["routeId"],
       });
     }
     const Component = route.options.component ?? props.router.options.defaultComponent ?? Outlet;
@@ -830,7 +864,7 @@ export function Link<
       },
       onPress: (event) => {
         props.onPress?.(event);
-        if (!props.disabled) void router.navigate(navigation());
+        if (!props.disabled) void router.navigate(navigation() as never);
       },
       get children() {
         return child();

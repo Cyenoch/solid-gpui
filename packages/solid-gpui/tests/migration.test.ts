@@ -6,6 +6,8 @@ import { Envelope } from "../src/protocol/generated/protocol";
 
 test("migration styles survive producer validation and the wire with explicit zero overrides", () => {
   const style: Style = {
+    gridColumns: 3,
+    gridColumnSpan: 2,
     padding: 12,
     paddingLeft: 88,
     paddingTop: 0,
@@ -32,6 +34,8 @@ test("migration styles survive producer validation and the wire with explicit ze
   const body = Envelope.decode(transport.submitted[0]!.subarray(4)).body!;
   if (body.tag !== 1) throw new Error("expected Snapshot");
   const result = body.value.nodes!.find((node) => node.style?.paddingLeft === 88)!.style!;
+  expect(result.gridColumns).toBe(3);
+  expect(result.gridColumnSpan).toBe(2);
   expect(result.paddingTop).toBe(0);
   expect(result.borderTopRightRadius).toBe(0);
   expect(result.borderBottomWidth).toBe(1);

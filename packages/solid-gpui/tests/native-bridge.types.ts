@@ -1,6 +1,6 @@
 import type { Root } from "@solid-gpui/core";
 import { Button, Checkbox } from "@solid-gpui/core/components";
-import { createClient } from "../../../examples/gallery/src/gallery/generated/native";
+import { createClient } from "../../../examples/website/src/generated/native";
 
 // Compiled by package-typecheck; not executed as a UI or runtime test.
 export async function generatedContractsAreTypeSafe(root: Root) {

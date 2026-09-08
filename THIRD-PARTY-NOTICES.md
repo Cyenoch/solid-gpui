@@ -14,7 +14,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 788 third-party packages and 1367 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 824 third-party packages and 1434 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -69,6 +69,8 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | atspi-common | 0.13.0 | Apache-2.0 | registry (crates.io) |
 | atspi-proxies | 0.13.0 | Apache-2.0 | registry (crates.io) |
 | autocfg | 1.5.1 | Apache-2.0 | registry (crates.io) |
+| aws-lc-rs | 1.18.1 | Apache-2.0 | registry (crates.io) |
+| aws-lc-sys | 0.45.0 | Apache-2.0 | registry (crates.io) |
 | backtrace | 0.3.76 | Apache-2.0 | registry (crates.io) |
 | base64 | 0.22.1 | Apache-2.0 | registry (crates.io) |
 | bebop | 3.2.3 | Apache-2.0 | registry (crates.io) |
@@ -97,6 +99,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | chrono | 0.4.45 | Apache-2.0 | registry (crates.io) |
 | cipher | 0.4.4 | Apache-2.0 | registry (crates.io) |
 | clang-sys | 1.9.1 | Apache-2.0 | registry (crates.io) |
+| cmake | 0.1.58 | Apache-2.0 | registry (crates.io) |
 | cocoa | 0.26.0 | Apache-2.0 | registry (crates.io) |
 | cocoa-foundation | 0.2.1 | Apache-2.0 | registry (crates.io) |
 | codespan-reporting | 0.13.1 | Apache-2.0 | registry (crates.io) |
@@ -108,6 +111,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | const-random | 0.1.18 | Apache-2.0 | registry (crates.io) |
 | const-random-macro | 0.1.16 | Apache-2.0 | registry (crates.io) |
 | core-foundation | 0.10.1 | Apache-2.0 | registry (crates.io) |
+| core-foundation | 0.9.4 | Apache-2.0 | registry (crates.io) |
 | core-foundation-sys | 0.8.7 | Apache-2.0 | registry (crates.io) |
 | core-graphics | 0.24.0 | Apache-2.0 | registry (crates.io) |
 | core-graphics-types | 0.2.0 | Apache-2.0 | registry (crates.io) |
@@ -195,11 +199,12 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | gpui-component | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
 | gpui-component-macros | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
 | gpui-kit-assets | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
-| gpui-pre | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-pre | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre/0.3.3; local patches) |
 | gpui-pre-apple | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-collections | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-derive-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-http-client | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-http-client-tls | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-linux | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-macos | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -208,13 +213,14 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | gpui-pre-platform | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-reqwest | 0.12.15 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-reqwest-client | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-reqwest-client/0.3.3; local patches) |
 | gpui-pre-scheduler | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-shared-string | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-sum-tree | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-util | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-util-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-web | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-wgpu | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-web | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-web/0.3.3; local patches) |
+| gpui-pre-wgpu | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-wgpu/0.3.3; local patches) |
 | gpui-pre-windows | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-zlog | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-ztracing | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -237,6 +243,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | http | 1.5.0 | Apache-2.0 | registry (crates.io) |
 | httparse | 1.10.1 | Apache-2.0 | registry (crates.io) |
 | hybrid-array | 0.4.14 | Apache-2.0 | registry (crates.io) |
+| hyper-rustls | 0.27.9 | Apache-2.0 | registry (crates.io) |
 | iana-time-zone | 0.1.65 | Apache-2.0 | registry (crates.io) |
 | iana-time-zone-haiku | 0.1.2 | Apache-2.0 | registry (crates.io) |
 | idna | 1.1.0 | Apache-2.0 | registry (crates.io) |
@@ -253,11 +260,13 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | itertools | 0.13.0 | Apache-2.0 | registry (crates.io) |
 | itertools | 0.14.0 | Apache-2.0 | registry (crates.io) |
 | itoa | 1.0.18 | Apache-2.0 | registry (crates.io) |
+| jni | 0.22.4 | Apache-2.0 | registry (crates.io) |
+| jni-macros | 0.22.4 | Apache-2.0 | registry (crates.io) |
 | jni-sys | 0.3.1 | Apache-2.0 | registry (crates.io) |
 | jni-sys | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | jni-sys-macros | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | jobserver | 0.1.35 | Apache-2.0 | registry (crates.io) |
-| js-sys | 0.3.105 | Apache-2.0 | registry (crates.io) |
+| js-sys | 0.3.98 | Apache-2.0 | registry (crates.io) |
 | khronos-egl | 6.0.0 | Apache-2.0 | registry (crates.io) |
 | khronos_api | 3.1.0 | Apache-2.0 | registry (crates.io) |
 | kurbo | 0.11.3 | Apache-2.0 | registry (crates.io) |
@@ -323,6 +332,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | objc2-user-notifications | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | object | 0.37.3 | Apache-2.0 | registry (crates.io) |
 | once_cell | 1.21.4 | Apache-2.0 | registry (crates.io) |
+| openssl-probe | 0.2.1 | Apache-2.0 | registry (crates.io) |
 | ordered-stream | 0.2.0 | Apache-2.0 | registry (crates.io) |
 | parking | 2.2.1 | Apache-2.0 | registry (crates.io) |
 | parking_lot | 0.12.5 | Apache-2.0 | registry (crates.io) |
@@ -386,6 +396,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | renderdoc-sys | 1.1.0 | Apache-2.0 | registry (crates.io) |
 | resvg | 0.45.1 | Apache-2.0 | registry (crates.io) |
 | resvg | 0.46.0 | Apache-2.0 | registry (crates.io) |
+| ring | 0.17.14 | Apache-2.0 | registry (crates.io) |
 | ropey | 2.0.0-beta.1 | Apache-2.0 | registry (crates.io) |
 | roxmltree | 0.20.0 | Apache-2.0 | registry (crates.io) |
 | roxmltree | 0.21.1 | Apache-2.0 | registry (crates.io) |
@@ -394,11 +405,19 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | rustc-hash | 2.1.3 | Apache-2.0 | registry (crates.io) |
 | rustc_version | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | rustix | 1.1.4 | Apache-2.0 | registry (crates.io) |
+| rustls | 0.23.44 | Apache-2.0 | registry (crates.io) |
+| rustls-native-certs | 0.8.4 | Apache-2.0 | registry (crates.io) |
+| rustls-pemfile | 2.2.0 | Apache-2.0 | registry (crates.io) |
+| rustls-pki-types | 1.15.1 | Apache-2.0 | registry (crates.io) |
+| rustls-platform-verifier | 0.7.0 | Apache-2.0 | registry (crates.io) |
+| rustls-platform-verifier-android | 0.1.1 | Apache-2.0 | registry (crates.io) |
 | rustversion | 1.0.23 | Apache-2.0 | registry (crates.io) |
 | rusty-fork | 0.3.1 | Apache-2.0 | registry (crates.io) |
 | ryu | 1.0.23 | Apache-2.0 | registry (crates.io) |
 | scoped-tls | 1.0.1 | Apache-2.0 | registry (crates.io) |
 | scopeguard | 1.2.0 | Apache-2.0 | registry (crates.io) |
+| security-framework | 3.7.0 | Apache-2.0 | registry (crates.io) |
+| security-framework-sys | 2.17.0 | Apache-2.0 | registry (crates.io) |
 | self_cell | 1.3.0 | Apache-2.0 | registry (crates.io) |
 | semver | 1.0.28 | Apache-2.0 | registry (crates.io) |
 | serde | 1.0.229 | Apache-2.0 | registry (crates.io) |
@@ -420,6 +439,8 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | shlex | 1.3.0 | Apache-2.0 | registry (crates.io) |
 | shlex | 2.0.1 | Apache-2.0 | registry (crates.io) |
 | signal-hook-registry | 1.4.8 | Apache-2.0 | registry (crates.io) |
+| simd_cesu8 | 1.2.0 | Apache-2.0 | registry (crates.io) |
+| simdutf8 | 0.1.5 | Apache-2.0 | registry (crates.io) |
 | simplecss | 0.2.2 | Apache-2.0 | registry (crates.io) |
 | siphasher | 1.0.3 | Apache-2.0 | registry (crates.io) |
 | skrifa | 0.40.0 | Apache-2.0 | registry (crates.io) |
@@ -443,6 +464,8 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | syn | 3.0.5 | Apache-2.0 | registry (crates.io) |
 | sync_wrapper | 1.0.2 | Apache-2.0 | registry (crates.io) |
 | sys-locale | 0.3.2 | Apache-2.0 | registry (crates.io) |
+| system-configuration | 0.6.1 | Apache-2.0 | registry (crates.io) |
+| system-configuration-sys | 0.6.0 | Apache-2.0 | registry (crates.io) |
 | tauri-winrt-notification | 0.7.3 | Apache-2.0 | registry (crates.io) |
 | tempfile | 3.27.0 | Apache-2.0 | registry (crates.io) |
 | tendril | 0.4.3 | Apache-2.0 | registry (crates.io) |
@@ -455,6 +478,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | time-core | 0.1.9 | Apache-2.0 | registry (crates.io) |
 | tinyvec | 1.13.2 | Apache-2.0 | registry (crates.io) |
 | tinyvec_macros | 0.1.1 | Apache-2.0 | registry (crates.io) |
+| tokio-rustls | 0.26.5 | Apache-2.0 | registry (crates.io) |
 | toml | 0.8.23 | Apache-2.0 | registry (crates.io) |
 | toml | 1.1.5+spec-1.1.0 | Apache-2.0 | registry (crates.io) |
 | toml_datetime | 0.6.11 | Apache-2.0 | registry (crates.io) |
@@ -495,13 +519,14 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | waker-fn | 1.2.0 | Apache-2.0 | registry (crates.io) |
 | wasi | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 | registry (crates.io) |
 | wasip2 | 1.0.4+wasi-0.2.12 | Apache-2.0 | registry (crates.io) |
-| wasm-bindgen | 0.2.128 | Apache-2.0 | registry (crates.io) |
-| wasm-bindgen-futures | 0.4.78 | Apache-2.0 | registry (crates.io) |
-| wasm-bindgen-macro | 0.2.128 | Apache-2.0 | registry (crates.io) |
-| wasm-bindgen-macro-support | 0.2.128 | Apache-2.0 | registry (crates.io) |
-| wasm-bindgen-shared | 0.2.128 | Apache-2.0 | registry (crates.io) |
+| wasm-bindgen | 0.2.121 | Apache-2.0 | registry (crates.io) |
+| wasm-bindgen-futures | 0.4.71 | Apache-2.0 | registry (crates.io) |
+| wasm-bindgen-macro | 0.2.121 | Apache-2.0 | registry (crates.io) |
+| wasm-bindgen-macro-support | 0.2.121 | Apache-2.0 | registry (crates.io) |
+| wasm-bindgen-shared | 0.2.121 | Apache-2.0 | registry (crates.io) |
+| wasm-streams | 0.4.2 | Apache-2.0 | registry (crates.io) |
 | wasm_thread | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| web-sys | 0.3.105 | Apache-2.0 | registry (crates.io) |
+| web-sys | 0.3.98 | Apache-2.0 | registry (crates.io) |
 | web-time | 1.1.0 | Apache-2.0 | registry (crates.io) |
 | weezl | 0.1.12 | Apache-2.0 | registry (crates.io) |
 | wgpu | 29.0.4 | Apache-2.0 | registry (crates.io) |
@@ -544,6 +569,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | windows-strings | 0.4.2 | Apache-2.0 | registry (crates.io) |
 | windows-strings | 0.5.1 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.48.0 | Apache-2.0 | registry (crates.io) |
+| windows-sys | 0.52.0 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.59.0 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.60.2 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.61.2 | Apache-2.0 | registry (crates.io) |
@@ -595,7 +621,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 564 package records.**
+**Total Apache-2.0: 590 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -628,6 +654,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
 | avif-serialize | 0.8.9 | BSD-3-Clause | registry (crates.io) |
+| aws-lc-sys | 0.45.0 | BSD-3-Clause | registry (crates.io) |
 | bindgen | 0.72.1 | BSD-3-Clause | registry (crates.io) |
 | encoding_rs | 0.8.35 | BSD-3-Clause | registry (crates.io) |
 | exr | 1.74.2 | BSD-3-Clause | registry (crates.io) |
@@ -640,7 +667,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | tiny-skia | 0.11.4 | BSD-3-Clause | registry (crates.io) |
 | tiny-skia-path | 0.11.4 | BSD-3-Clause | registry (crates.io) |
 
-**Total BSD-3-Clause: 12 package records.**
+**Total BSD-3-Clause: 13 package records.**
 
 ### BSL-1.0
 
@@ -670,6 +697,15 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 
 **Total CC0-1.0: 5 package records.**
 
+### CDLA-Permissive-2.0
+
+| Crate | Version | License (SPDX) | Source |
+| --- | --- | --- | --- |
+| webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 | registry (crates.io) |
+| webpki-roots | 1.0.9 | CDLA-Permissive-2.0 | registry (crates.io) |
+
+**Total CDLA-Permissive-2.0: 2 package records.**
+
 ### GPL-2.0-only
 
 | Crate | Version | License (SPDX) | Source |
@@ -682,11 +718,20 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
+| aws-lc-rs | 1.18.1 | ISC | registry (crates.io) |
+| aws-lc-sys | 0.45.0 | ISC | registry (crates.io) |
+| hyper-rustls | 0.27.9 | ISC | registry (crates.io) |
 | inotify | 0.11.4 | ISC | registry (crates.io) |
 | inotify-sys | 0.1.8 | ISC | registry (crates.io) |
 | libloading | 0.8.9 | ISC | registry (crates.io) |
+| ring | 0.17.14 | ISC | registry (crates.io) |
+| rustls | 0.23.44 | ISC | registry (crates.io) |
+| rustls-native-certs | 0.8.4 | ISC | registry (crates.io) |
+| rustls-pemfile | 2.2.0 | ISC | registry (crates.io) |
+| rustls-webpki | 0.103.15 | ISC | registry (crates.io) |
+| untrusted | 0.9.0 | ISC | registry (crates.io) |
 
-**Total ISC: 3 package records.**
+**Total ISC: 12 package records.**
 
 ### LGPL-2.1-or-later
 
@@ -745,6 +790,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | atspi-proxies | 0.13.0 | MIT | registry (crates.io) |
 | autocfg | 1.5.1 | MIT | registry (crates.io) |
 | av-scenechange | 0.14.1 | MIT | registry (crates.io) |
+| aws-lc-sys | 0.45.0 | MIT | registry (crates.io) |
 | backtrace | 0.3.76 | MIT | registry (crates.io) |
 | base62 | 2.2.4 | MIT | registry (crates.io) |
 | base64 | 0.22.1 | MIT | registry (crates.io) |
@@ -781,9 +827,11 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | cgl | 0.3.2 | MIT | registry (crates.io) |
 | chrono | 0.4.45 | MIT | registry (crates.io) |
 | cipher | 0.4.4 | MIT | registry (crates.io) |
+| cmake | 0.1.58 | MIT | registry (crates.io) |
 | cocoa | 0.26.0 | MIT | registry (crates.io) |
 | cocoa-foundation | 0.2.1 | MIT | registry (crates.io) |
 | color_quant | 1.1.0 | MIT | registry (crates.io) |
+| combine | 4.6.8 | MIT | registry (crates.io) |
 | compression-codecs | 0.4.39 | MIT | registry (crates.io) |
 | compression-core | 0.4.33 | MIT | registry (crates.io) |
 | concurrent-queue | 2.5.0 | MIT | registry (crates.io) |
@@ -794,6 +842,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | convert_case | 0.10.0 | MIT | registry (crates.io) |
 | convert_case | 0.11.0 | MIT | registry (crates.io) |
 | core-foundation | 0.10.1 | MIT | registry (crates.io) |
+| core-foundation | 0.9.4 | MIT | registry (crates.io) |
 | core-foundation-sys | 0.8.7 | MIT | registry (crates.io) |
 | core-graphics | 0.24.0 | MIT | registry (crates.io) |
 | core-graphics-types | 0.2.0 | MIT | registry (crates.io) |
@@ -867,6 +916,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | foreign-types-shared | 0.3.1 | MIT | registry (crates.io) |
 | form_urlencoded | 1.2.2 | MIT | registry (crates.io) |
 | freetype-sys | 0.20.1 | MIT | registry (crates.io) |
+| fs_extra | 1.3.0 | MIT | registry (crates.io) |
 | fsevent-sys | 4.1.0 | MIT | registry (crates.io) |
 | futf | 0.1.5 | MIT | registry (crates.io) |
 | futures | 0.3.34 | MIT | registry (crates.io) |
@@ -895,6 +945,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | gpu-descriptor | 0.3.2 | MIT | registry (crates.io) |
 | gpu-descriptor-types | 0.2.0 | MIT | registry (crates.io) |
 | gpui-pre-reqwest | 0.12.15 | MIT | registry (crates.io) |
+| h2 | 0.4.19 | MIT | registry (crates.io) |
 | half | 2.7.1 | MIT | registry (crates.io) |
 | harfrust | 0.5.2 | MIT | registry (crates.io) |
 | hash32 | 0.3.1 | MIT | registry (crates.io) |
@@ -917,6 +968,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | httparse | 1.10.1 | MIT | registry (crates.io) |
 | hybrid-array | 0.4.14 | MIT | registry (crates.io) |
 | hyper | 1.11.1 | MIT | registry (crates.io) |
+| hyper-rustls | 0.27.9 | MIT | registry (crates.io) |
 | hyper-util | 0.1.20 | MIT | registry (crates.io) |
 | iana-time-zone | 0.1.65 | MIT | registry (crates.io) |
 | iana-time-zone-haiku | 0.1.2 | MIT | registry (crates.io) |
@@ -939,11 +991,13 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | itertools | 0.13.0 | MIT | registry (crates.io) |
 | itertools | 0.14.0 | MIT | registry (crates.io) |
 | itoa | 1.0.18 | MIT | registry (crates.io) |
+| jni | 0.22.4 | MIT | registry (crates.io) |
+| jni-macros | 0.22.4 | MIT | registry (crates.io) |
 | jni-sys | 0.3.1 | MIT | registry (crates.io) |
 | jni-sys | 0.4.1 | MIT | registry (crates.io) |
 | jni-sys-macros | 0.4.1 | MIT | registry (crates.io) |
 | jobserver | 0.1.35 | MIT | registry (crates.io) |
-| js-sys | 0.3.105 | MIT | registry (crates.io) |
+| js-sys | 0.3.98 | MIT | registry (crates.io) |
 | khronos-egl | 6.0.0 | MIT | registry (crates.io) |
 | kqueue | 1.2.1 | MIT | registry (crates.io) |
 | kqueue-sys | 1.1.2 | MIT | registry (crates.io) |
@@ -1035,6 +1089,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | once_cell | 1.21.4 | MIT | registry (crates.io) |
 | oo7 | 0.6.0 | MIT | registry (crates.io) |
 | open | 5.4.3 | MIT | registry (crates.io) |
+| openssl-probe | 0.2.1 | MIT | registry (crates.io) |
 | ordered-float | 5.5.0 | MIT | registry (crates.io) |
 | ordered-stream | 0.2.0 | MIT | registry (crates.io) |
 | parking | 2.2.1 | MIT | registry (crates.io) |
@@ -1135,15 +1190,24 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | rustc-hash | 2.1.3 | MIT | registry (crates.io) |
 | rustc_version | 0.4.1 | MIT | registry (crates.io) |
 | rustix | 1.1.4 | MIT | registry (crates.io) |
+| rustls | 0.23.44 | MIT | registry (crates.io) |
+| rustls-native-certs | 0.8.4 | MIT | registry (crates.io) |
+| rustls-pemfile | 2.2.0 | MIT | registry (crates.io) |
+| rustls-pki-types | 1.15.1 | MIT | registry (crates.io) |
+| rustls-platform-verifier | 0.7.0 | MIT | registry (crates.io) |
+| rustls-platform-verifier-android | 0.1.1 | MIT | registry (crates.io) |
 | rustversion | 1.0.23 | MIT | registry (crates.io) |
 | rusty-fork | 0.3.1 | MIT | registry (crates.io) |
 | rustybuzz | 0.20.1 | MIT | registry (crates.io) |
 | same-file | 1.0.6 | MIT | registry (crates.io) |
+| schannel | 0.1.29 | MIT | registry (crates.io) |
 | schemars | 1.2.2 | MIT | registry (crates.io) |
 | schemars_derive | 1.2.2 | MIT | registry (crates.io) |
 | scoped-tls | 1.0.1 | MIT | registry (crates.io) |
 | scopeguard | 1.2.0 | MIT | registry (crates.io) |
 | seahash | 4.1.0 | MIT | registry (crates.io) |
+| security-framework | 3.7.0 | MIT | registry (crates.io) |
+| security-framework-sys | 2.17.0 | MIT | registry (crates.io) |
 | semver | 1.0.28 | MIT | registry (crates.io) |
 | serde | 1.0.229 | MIT | registry (crates.io) |
 | serde_bytes | 0.11.19 | MIT | registry (crates.io) |
@@ -1166,7 +1230,9 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | shlex | 2.0.1 | MIT | registry (crates.io) |
 | signal-hook-registry | 1.4.8 | MIT | registry (crates.io) |
 | simd-adler32 | 0.3.10 | MIT | registry (crates.io) |
+| simd_cesu8 | 1.2.0 | MIT | registry (crates.io) |
 | simd_helpers | 0.1.0 | MIT | registry (crates.io) |
+| simdutf8 | 0.1.5 | MIT | registry (crates.io) |
 | simplecss | 0.2.2 | MIT | registry (crates.io) |
 | siphasher | 1.0.3 | MIT | registry (crates.io) |
 | skrifa | 0.40.0 | MIT | registry (crates.io) |
@@ -1195,6 +1261,8 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | syn | 3.0.5 | MIT | registry (crates.io) |
 | synstructure | 0.13.2 | MIT | registry (crates.io) |
 | sys-locale | 0.3.2 | MIT | registry (crates.io) |
+| system-configuration | 0.6.1 | MIT | registry (crates.io) |
+| system-configuration-sys | 0.6.0 | MIT | registry (crates.io) |
 | taffy | 0.13.0 | MIT | registry (crates.io) |
 | tauri-winrt-notification | 0.7.3 | MIT | registry (crates.io) |
 | tempfile | 3.27.0 | MIT | registry (crates.io) |
@@ -1211,6 +1279,9 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | tinyvec | 1.13.2 | MIT | registry (crates.io) |
 | tinyvec_macros | 0.1.1 | MIT | registry (crates.io) |
 | tokio | 1.53.1 | MIT | registry (crates.io) |
+| tokio-rustls | 0.26.5 | MIT | registry (crates.io) |
+| tokio-socks | 0.5.3 | MIT | registry (crates.io) |
+| tokio-util | 0.7.19 | MIT | registry (crates.io) |
 | toml | 0.8.23 | MIT | registry (crates.io) |
 | toml | 1.1.5+spec-1.1.0 | MIT | registry (crates.io) |
 | toml_datetime | 0.6.11 | MIT | registry (crates.io) |
@@ -1267,11 +1338,12 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | want | 0.3.1 | MIT | registry (crates.io) |
 | wasi | 0.11.1+wasi-snapshot-preview1 | MIT | registry (crates.io) |
 | wasip2 | 1.0.4+wasi-0.2.12 | MIT | registry (crates.io) |
-| wasm-bindgen | 0.2.128 | MIT | registry (crates.io) |
-| wasm-bindgen-futures | 0.4.78 | MIT | registry (crates.io) |
-| wasm-bindgen-macro | 0.2.128 | MIT | registry (crates.io) |
-| wasm-bindgen-macro-support | 0.2.128 | MIT | registry (crates.io) |
-| wasm-bindgen-shared | 0.2.128 | MIT | registry (crates.io) |
+| wasm-bindgen | 0.2.121 | MIT | registry (crates.io) |
+| wasm-bindgen-futures | 0.4.71 | MIT | registry (crates.io) |
+| wasm-bindgen-macro | 0.2.121 | MIT | registry (crates.io) |
+| wasm-bindgen-macro-support | 0.2.121 | MIT | registry (crates.io) |
+| wasm-bindgen-shared | 0.2.121 | MIT | registry (crates.io) |
+| wasm-streams | 0.4.2 | MIT | registry (crates.io) |
 | wasm_thread | 0.3.3 | MIT | registry (crates.io) |
 | wayland-backend | 0.3.17 | MIT | registry (crates.io) |
 | wayland-client | 0.31.15 | MIT | registry (crates.io) |
@@ -1281,7 +1353,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | wayland-protocols-wlr | 0.3.12 | MIT | registry (crates.io) |
 | wayland-scanner | 0.31.11 | MIT | registry (crates.io) |
 | wayland-sys | 0.31.11 | MIT | registry (crates.io) |
-| web-sys | 0.3.105 | MIT | registry (crates.io) |
+| web-sys | 0.3.98 | MIT | registry (crates.io) |
 | web-time | 1.1.0 | MIT | registry (crates.io) |
 | weezl | 0.1.12 | MIT | registry (crates.io) |
 | wgpu | 29.0.4 | MIT | registry (crates.io) |
@@ -1326,6 +1398,7 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | windows-strings | 0.4.2 | MIT | registry (crates.io) |
 | windows-strings | 0.5.1 | MIT | registry (crates.io) |
 | windows-sys | 0.48.0 | MIT | registry (crates.io) |
+| windows-sys | 0.52.0 | MIT | registry (crates.io) |
 | windows-sys | 0.59.0 | MIT | registry (crates.io) |
 | windows-sys | 0.60.2 | MIT | registry (crates.io) |
 | windows-sys | 0.61.2 | MIT | registry (crates.io) |
@@ -1401,15 +1474,16 @@ The current Cargo inventory contains 788 third-party packages and 1367 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 699 package records.**
+**Total MIT: 727 package records.**
 
 ### MIT-0
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
+| aws-lc-sys | 0.45.0 | MIT-0 | registry (crates.io) |
 | dunce | 1.0.5 | MIT-0 | registry (crates.io) |
 
-**Total MIT-0: 1 package records.**
+**Total MIT-0: 2 package records.**
 
 ### MPL-2.0
 
@@ -1515,14 +1589,15 @@ These local Cargo records are project-owned rather than third-party dependencies
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| gallery-host | 0.2.0 | MIT | local (project-owned) |
+| website-host | 0.2.0 | MIT | local (project-owned) |
 | gpui-iconify | 0.0.0 | MIT | local (project-owned) |
 | gpui-performance | 0.2.0 | MIT | local (project-owned) |
 | solid-gpui | 0.2.0 | MIT | local (project-owned) |
 | solid-gpui-bun-sys | 0.2.0 | MIT | local (project-owned) |
 | solid-gpui-macros | 0.2.0 | MIT | local (project-owned) |
+| solid-gpui-web | 0.2.0 | MIT | local (project-owned) |
 
-**Total project-owned Rust crates: 6.**
+**Total project-owned Rust crates: 7.**
 
 ## Bun dependencies
 
@@ -1546,9 +1621,10 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | bebop | 3.2.3 | Apache-2.0 | registry (npm) | runtime |
 | bebop-tools | 3.2.3 | Apache-2.0 | registry (npm) | dev |
 | detect-libc | 2.1.2 | Apache-2.0 | registry (npm) | runtime |
+| typescript | 5.9.3 | Apache-2.0 | registry (npm) | dev |
 | typescript | 7.0.2 | Apache-2.0 | registry (npm) | dev |
 
-**Total Apache-2.0 (Solid GPUI workspace): 5 package records.**
+**Total Apache-2.0 (Solid GPUI workspace): 6 package records.**
 
 #### BSD-3-Clause
 
@@ -1562,9 +1638,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
+| @ungap/structured-clone | 1.4.0 | ISC | registry (npm) | runtime |
+| inherits | 2.0.4 | ISC | registry (npm) | runtime |
 | picocolors | 1.1.1 | ISC | registry (npm) | runtime |
 
-**Total ISC (Solid GPUI workspace): 1 package records.**
+**Total ISC (Solid GPUI workspace): 3 package records.**
 
 #### MIT
 
@@ -1584,47 +1662,127 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | @oxfmt/binding-darwin-arm64 | 0.66.0 | MIT | registry (npm) | runtime |
 | @rolldown/binding-darwin-arm64 | 1.2.7 | MIT | registry (npm) | runtime |
 | @rolldown/pluginutils | 1.0.1 | MIT | registry (npm) | runtime |
+| @shikijs/core | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/engine-javascript | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/engine-oniguruma | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/langs | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/primitive | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/themes | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/types | 4.4.2 | MIT | registry (npm) | runtime |
+| @shikijs/vscode-textmate | 10.0.2 | MIT | registry (npm) | runtime |
 | @solidjs/compiler | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @solidjs/compiler-darwin-arm64 | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @solidjs/compiler-wasm32-wasi | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @tanstack/history | 1.162.1 | MIT | registry (npm) | runtime |
 | @tanstack/router-core | 1.171.27 | MIT | registry (npm) | runtime |
 | @tybys/wasm-util | 0.10.3 | MIT | registry (npm) | runtime |
+| @types/hast | 3.0.5 | MIT | registry (npm) | runtime |
+| @types/mdast | 4.0.4 | MIT | registry (npm) | runtime |
 | @types/node | 26.4.1 | MIT | registry (npm) | runtime |
+| @types/unist | 3.0.3 | MIT | registry (npm) | runtime |
+| assert | 2.1.0 | MIT | registry (npm) | runtime |
+| available-typed-arrays | 1.0.7 | MIT | registry (npm) | runtime |
 | bun-types | 1.4.2 | MIT | registry (npm) | dev |
+| call-bind | 1.0.9 | MIT | registry (npm) | runtime |
+| call-bind-apply-helpers | 1.0.2 | MIT | registry (npm) | runtime |
+| call-bound | 1.0.4 | MIT | registry (npm) | runtime |
+| ccount | 2.0.1 | MIT | registry (npm) | runtime |
+| character-entities-html4 | 2.1.0 | MIT | registry (npm) | runtime |
+| character-entities-legacy | 3.0.0 | MIT | registry (npm) | runtime |
+| comma-separated-tokens | 2.0.3 | MIT | registry (npm) | runtime |
 | commander | 15.0.0 | MIT | registry (npm) | dev |
 | cookie-es | 3.1.1 | MIT | registry (npm) | runtime |
 | core-js-pure | 3.50.0 | MIT | registry (npm) | runtime |
 | csstype | 3.2.3 | MIT | registry (npm) | runtime |
 | debug | 4.4.3 | MIT | registry (npm) | dev |
+| define-data-property | 1.1.4 | MIT | registry (npm) | runtime |
+| define-properties | 1.2.1 | MIT | registry (npm) | runtime |
+| dequal | 2.0.3 | MIT | registry (npm) | runtime |
+| devlop | 1.1.0 | MIT | registry (npm) | runtime |
+| dunder-proto | 1.0.1 | MIT | registry (npm) | runtime |
+| es-define-property | 1.0.1 | MIT | registry (npm) | runtime |
+| es-errors | 1.3.0 | MIT | registry (npm) | runtime |
+| es-object-atoms | 1.1.2 | MIT | registry (npm) | runtime |
 | event-target-shim | 6.0.2 | MIT | registry (npm) | runtime |
 | fdir | 6.5.0 | MIT | registry (npm) | runtime |
 | fflate | 0.7.5 | MIT | registry (npm) | dev |
+| for-each | 0.3.5 | MIT | registry (npm) | runtime |
 | fsevents | 2.3.3 | MIT | registry (npm) | runtime |
+| function-bind | 1.1.2 | MIT | registry (npm) | runtime |
+| generator-function | 2.0.1 | MIT | registry (npm) | runtime |
+| get-intrinsic | 1.3.0 | MIT | registry (npm) | runtime |
+| get-proto | 1.0.1 | MIT | registry (npm) | runtime |
+| gopd | 1.2.0 | MIT | registry (npm) | runtime |
+| has-property-descriptors | 1.0.2 | MIT | registry (npm) | runtime |
+| has-symbols | 1.1.0 | MIT | registry (npm) | runtime |
+| has-tostringtag | 1.0.2 | MIT | registry (npm) | runtime |
+| hasown | 2.0.4 | MIT | registry (npm) | runtime |
+| hast-util-to-html | 9.0.5 | MIT | registry (npm) | runtime |
+| hast-util-whitespace | 3.0.0 | MIT | registry (npm) | runtime |
+| html-void-elements | 3.0.0 | MIT | registry (npm) | runtime |
+| is-arguments | 1.2.0 | MIT | registry (npm) | runtime |
+| is-callable | 1.2.7 | MIT | registry (npm) | runtime |
+| is-generator-function | 1.1.2 | MIT | registry (npm) | runtime |
+| is-nan | 1.3.2 | MIT | registry (npm) | runtime |
+| is-regex | 1.2.1 | MIT | registry (npm) | runtime |
+| is-typed-array | 1.1.15 | MIT | registry (npm) | runtime |
+| math-intrinsics | 1.1.0 | MIT | registry (npm) | runtime |
+| mdast-util-to-hast | 13.2.1 | MIT | registry (npm) | runtime |
+| micromark-util-character | 2.1.1 | MIT | registry (npm) | runtime |
+| micromark-util-encode | 2.0.1 | MIT | registry (npm) | runtime |
+| micromark-util-sanitize-uri | 2.0.1 | MIT | registry (npm) | runtime |
+| micromark-util-symbol | 2.0.1 | MIT | registry (npm) | runtime |
+| micromark-util-types | 2.0.2 | MIT | registry (npm) | runtime |
 | ms | 2.1.3 | MIT | registry (npm) | dev |
 | nanoid | 3.3.18 | MIT | registry (npm) | runtime |
+| object-is | 1.1.6 | MIT | registry (npm) | runtime |
+| object-keys | 1.1.1 | MIT | registry (npm) | runtime |
+| object.assign | 4.1.7 | MIT | registry (npm) | runtime |
+| oniguruma-parser | 0.12.2 | MIT | registry (npm) | runtime |
+| oniguruma-to-es | 4.3.6 | MIT | registry (npm) | runtime |
 | oxc-transform | 0.148.0 | MIT | registry (npm) | runtime |
 | oxfmt | 0.66.0 | MIT | registry (npm) | runtime |
 | path-browserify | 1.0.1 | MIT | registry (npm) | dev |
 | picomatch | 4.0.7 | MIT | registry (npm) | runtime |
+| possible-typed-array-names | 1.1.0 | MIT | registry (npm) | runtime |
 | postcss | 8.5.28 | MIT | registry (npm) | runtime |
+| property-information | 7.2.0 | MIT | registry (npm) | runtime |
 | randombytes | 2.1.0 | MIT | registry (npm) | dev |
 | randomfill | 1.0.4 | MIT | registry (npm) | dev |
+| regex | 6.1.0 | MIT | registry (npm) | runtime |
+| regex-recursion | 6.0.2 | MIT | registry (npm) | runtime |
+| regex-utilities | 2.3.0 | MIT | registry (npm) | runtime |
 | rolldown | 1.2.7 | MIT | registry (npm) | runtime |
 | safe-buffer | 5.2.1 | MIT | registry (npm) | dev |
+| safe-regex-test | 1.1.0 | MIT | registry (npm) | runtime |
 | seroval | 1.5.6 | MIT | registry (npm) | runtime |
 | seroval | 1.6.4 | MIT | registry (npm) | runtime |
 | seroval-plugins | 1.5.6 | MIT | registry (npm) | runtime |
 | seroval-plugins | 1.6.4 | MIT | registry (npm) | runtime |
+| set-function-length | 1.2.2 | MIT | registry (npm) | runtime |
+| shiki | 4.4.2 | MIT | registry (npm) | runtime |
 | solid-js | 1.9.15 | MIT | registry (npm) | runtime |
+| space-separated-tokens | 2.0.2 | MIT | registry (npm) | runtime |
+| stringify-entities | 4.0.4 | MIT | registry (npm) | runtime |
 | tinyglobby | 0.2.17 | MIT | registry (npm) | runtime |
 | tinypool | 2.1.0 | MIT | registry (npm) | runtime |
+| trim-lines | 3.0.1 | MIT | registry (npm) | runtime |
 | typedarray-to-buffer | 4.0.0 | MIT | registry (npm) | dev |
 | undici-types | 8.3.0 | MIT | registry (npm) | runtime |
+| unist-util-is | 6.0.1 | MIT | registry (npm) | runtime |
+| unist-util-position | 5.0.0 | MIT | registry (npm) | runtime |
+| unist-util-stringify-position | 4.0.0 | MIT | registry (npm) | runtime |
+| unist-util-visit | 5.1.0 | MIT | registry (npm) | runtime |
+| unist-util-visit-parents | 6.0.2 | MIT | registry (npm) | runtime |
+| util | 0.12.5 | MIT | registry (npm) | runtime |
+| vfile | 6.0.3 | MIT | registry (npm) | runtime |
+| vfile-message | 4.0.3 | MIT | registry (npm) | runtime |
 | vite | 8.2.2 | MIT | registry (npm) | runtime |
 | wasi-js | 1.7.3 | MIT | registry (npm) | dev |
+| which-typed-array | 1.1.22 | MIT | registry (npm) | runtime |
+| zwitch | 2.0.4 | MIT | registry (npm) | runtime |
 
-**Total MIT (Solid GPUI workspace): 53 package records.**
+**Total MIT (Solid GPUI workspace): 133 package records.**
 
 #### MPL-2.0
 
@@ -1652,6 +1810,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 
 **Total Unlicense (Solid GPUI workspace): 2 package records.**
 
+## Bundled fonts
+
+Maple Mono v7.9 (standard TTF, without CN or Nerd Font additions) is distributed under SIL OFL 1.1. Regular, italic, bold and bold italic are bundled in `crates/solid-gpui/fonts`; the complete license is in `MapleMono-OFL.txt`.
+Source: https://github.com/subframe7536/maple-font/releases/tag/v7.9
+
 ## Vendored JavaScript
 
 `packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).
@@ -1670,5 +1833,6 @@ These package manifests declare their project-owned licenses and are not third-p
 | --- | --- | --- | --- |
 | @solid-gpui/core | 0.2.0 | MIT | local (project-owned) |
 | @solid-gpui/router | 0.2.0 | MIT | local (project-owned) |
+| @solid-gpui/shiki | 0.2.0 | MIT | local (project-owned) |
 
-**Total project-owned Bun packages: 2.**
+**Total project-owned Bun packages: 3.**

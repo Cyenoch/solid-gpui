@@ -18,9 +18,12 @@
     "test": "bun run task test",
     "ci": "bun run task ci",
     "audit": "bun run task audit",
-    "gallery": "bun run task gallery",
-    "gallery:vite": "bun run --cwd examples/gallery-vite dev",
-    "gallery:package": "bun run task gallery-package"
+    "website": "bun run --cwd examples/website dev",
+    "website:build": "bun run --cwd examples/website build",
+    "website:native": "bun run task website-native",
+    "website:native:dev": "bun run task website-native-dev",
+    "website:native:package": "bun run task website-package",
+    "quickjs:dev": "bun run task quickjs-dev"
   },
   "devDependencies": {
     "@jridgewell/remapping": "2.3.5",

@@ -1,0 +1,40 @@
+{
+  "name": "@solid-gpui/shiki",
+  "version": "0.2.0",
+  "description": "Shiki syntax highlighting for native Solid GPUI code blocks.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cyenoch/solid-gpui.git"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bun": {
+      "types": "./dist/bun.d.ts",
+      "import": "./dist/bun.js",
+      "default": "./dist/bun.js"
+    },
+    "./worker": "./dist/worker.js"
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "dependencies": {
+    "shiki": "4.4.2"
+  },
+  "peerDependencies": {
+    "@solid-gpui/core": "^0.3.0",
+    "solid-js": "^1.9.10"
+  }
+}

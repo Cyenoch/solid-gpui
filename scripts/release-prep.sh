@@ -29,25 +29,26 @@ match = re.search(r'(?m)^version\s*=\s*"([^"]+)"\s*$', section.group(1))
 if match is None:
     raise SystemExit("missing workspace package version")
 package_versions = []
-router_core_peer = None
-for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json"):
+core_peers = []
+for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json", "packages/solid-gpui-shiki/package.json"):
     package = json.loads((root / relative).read_text())
     package_versions.append(package["version"])
-    if relative.endswith("solid-gpui-router/package.json"):
+    if relative != "packages/solid-gpui/package.json":
         peer_dependencies = package.get("peerDependencies")
         if not isinstance(peer_dependencies, dict):
-            raise SystemExit("router package is missing peerDependencies")
-        router_core_peer = peer_dependencies.get("@solid-gpui/core")
-        if not isinstance(router_core_peer, str):
-            raise SystemExit("router package is missing @solid-gpui/core peer dependency")
-print("\t".join((match.group(1), *package_versions, router_core_peer)))
+            raise SystemExit(f"{relative} is missing peerDependencies")
+        core_peer = peer_dependencies.get("@solid-gpui/core")
+        if not isinstance(core_peer, str):
+            raise SystemExit(f"{relative} is missing @solid-gpui/core peer dependency")
+        core_peers.append(core_peer)
+print("\t".join((match.group(1), *package_versions, *core_peers)))
 PY
 }
 
 versions="$(read_versions)"
-IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$versions"
+IFS=$'\t' read -r cargo_version core_version router_version shiki_version router_core_peer shiki_core_peer <<< "$versions"
 update_versions=1
-if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$router_version" == "$version" && "$router_core_peer" == "^$version" ]]; then
+if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$router_version" == "$version" && "$shiki_version" == "$version" && "$router_core_peer" == "^$version" && "$shiki_core_peer" == "^$version" ]]; then
   update_versions=0
 fi
 
@@ -72,6 +73,7 @@ release_files=(
   Cargo.toml
   packages/solid-gpui/package.json
   packages/solid-gpui-router/package.json
+  packages/solid-gpui-shiki/package.json
   Cargo.lock
   bun.lock
   THIRD-PARTY-NOTICES.md
@@ -127,6 +129,7 @@ cargo_path.write_text(cargo[:section.start(1)] + updated_section + cargo[section
 for relative, label in (
     ("packages/solid-gpui/package.json", "core"),
     ("packages/solid-gpui-router/package.json", "router"),
+    ("packages/solid-gpui-shiki/package.json", "shiki"),
 ):
     package_path = root / relative
     package = package_path.read_text()
@@ -138,7 +141,7 @@ for relative, label in (
     )
     if count != 1:
         raise SystemExit(f"{label} package version line is not uniquely anchored")
-    if label == "router":
+    if label != "core":
         updated_package, peer_count = re.subn(
             r'(?m)^(\s*"@solid-gpui/core"\s*:\s*")[^"]+("\s*,?\s*)$',
             rf'\g<1>^{version}\g<2>',
@@ -146,7 +149,7 @@ for relative, label in (
             count=1,
         )
         if peer_count != 1:
-            raise SystemExit("router @solid-gpui/core peer dependency is not uniquely anchored")
+            raise SystemExit(f"{label} @solid-gpui/core peer dependency is not uniquely anchored")
     package_path.write_text(updated_package)
 PY
 fi
@@ -172,9 +175,9 @@ fi
 )
 
 versions="$(read_versions)"
-IFS=$'\t' read -r cargo_version core_version router_version router_core_peer <<< "$versions"
-if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$router_version" != "$version" || "$router_core_peer" != "^$version" ]]; then
-  printf 'release-prep: version mismatch after update: cargo=%s core=%s router=%s router-core-peer=%s\n' "$cargo_version" "$core_version" "$router_version" "$router_core_peer" >&2
+IFS=$'\t' read -r cargo_version core_version router_version shiki_version router_core_peer shiki_core_peer <<< "$versions"
+if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$router_version" != "$version" || "$shiki_version" != "$version" || "$router_core_peer" != "^$version" || "$shiki_core_peer" != "^$version" ]]; then
+  printf 'release-prep: version mismatch after update: cargo=%s core=%s router=%s shiki=%s router-core-peer=%s shiki-core-peer=%s\n' "$cargo_version" "$core_version" "$router_version" "$shiki_version" "$router_core_peer" "$shiki_core_peer" >&2
   exit 1
 fi
 

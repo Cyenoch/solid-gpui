@@ -90,6 +90,7 @@ pub const COMMAND_GET_WINDOW_STATE: u32 = generated_facts::COMMAND_GET_WINDOW_ST
 pub const COMMAND_ACTIVATE_WINDOW: u32 = generated_facts::COMMAND_ACTIVATE_WINDOW;
 pub const COMMAND_INVOKE_NATIVE: u32 = generated_facts::COMMAND_INVOKE_NATIVE;
 pub const MAX_NATIVE_CALL_BYTES: usize = 1 << 20;
+pub const MAX_IMAGE_SOURCE_BYTES: usize = 1 << 20;
 pub const MAX_WINDOW_DIMENSION: u32 = 16_384;
 pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 1 << 20;
 /// File and clipboard-image payloads leave 1 KiB for the complete Bebop command/frame envelope.
@@ -327,6 +328,7 @@ schema_kind!(event_kind, EventKind, EventKind {
     PointerDownOutside => PointerDownOutside,
     CloseRequested => CloseRequested,
     Extension => Extension,
+    ApplicationActivation => ApplicationActivation,
 });
 
 #[derive(Debug, Clone, PartialEq)]
@@ -391,6 +393,8 @@ schema_kind!(command_kind, CommandKind, CommandKind {
     GetScrollOffset => GetScrollOffset,
     ScrollToOffset => ScrollToOffset,
     InvokeNative => InvokeNative,
+    CancelNative => CancelNative,
+    ConfigureApplication => ConfigureApplication,
 });
 
 #[derive(Debug, Clone, PartialEq)]
@@ -495,6 +499,14 @@ pub enum CommandOperation {
     ScrollToOffset {
         offset: f32,
     },
+    ConfigureApplication {
+        keep_alive: bool,
+        quit: bool,
+        acknowledged_sequence: u32,
+    },
+    CancelNative {
+        request_id: u32,
+    },
     InvokeNative {
         module_id: [u8; 16],
         module_digest: [u8; 32],
@@ -542,6 +554,8 @@ impl CommandOperation {
             Self::GetScrollOffset => CommandKind::GetScrollOffset,
             Self::ScrollToOffset { .. } => CommandKind::ScrollToOffset,
             Self::InvokeNative { .. } => CommandKind::InvokeNative,
+            Self::ConfigureApplication { .. } => CommandKind::ConfigureApplication,
+            Self::CancelNative { .. } => CommandKind::CancelNative,
         }
     }
 }
@@ -648,6 +662,7 @@ pub struct AccessibilityProperties {
     pub value: Option<String>,
     pub expanded: Option<bool>,
     pub level: Option<u32>,
+    pub live: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -777,6 +792,11 @@ pub struct Style {
     pub width_percent: Option<f32>,
     pub height_percent: Option<f32>,
     pub flex_wrap: Option<FlexWrapCode>,
+    pub grid_columns: Option<u32>,
+    pub grid_rows: Option<u32>,
+    pub grid_column_span: Option<u32>,
+    pub grid_row_span: Option<u32>,
+
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub flex_direction: Option<FlexDirectionCode>,
@@ -949,6 +969,12 @@ closed_code!(AccessibilityRoleCode {
     CheckBox = 5,
     Heading = 6,
     Link = 7,
+    Status = 8,
+    Alert = 9,
+    Group = 10,
+    List = 11,
+    ListItem = 12,
+    Dialog = 13,
 });
 closed_code!(ClipboardImageFormatCode {
     Png = 1,
@@ -1035,6 +1061,11 @@ impl WindowAppearance {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EventPayload {
+    ApplicationActivation {
+        target_surface_id: u32,
+        reason: String,
+        urls: Vec<String>,
+    },
     Press,
     TextInputChange(TextInputEvent),
     TextInputSelection(TextInputEvent),
@@ -1131,6 +1162,7 @@ impl EventPayload {
             Self::PointerDownOutside { .. } => EventKind::PointerDownOutside,
             Self::CloseRequested { .. } => EventKind::CloseRequested,
             Self::Extension { .. } => EventKind::Extension,
+            Self::ApplicationActivation { .. } => EventKind::ApplicationActivation,
         }
     }
 }

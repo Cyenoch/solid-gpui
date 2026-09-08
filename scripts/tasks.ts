@@ -9,8 +9,9 @@ import { Command } from "commander";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const corePackageDir = join(repoRoot, "packages/solid-gpui");
 const routerPackageDir = join(repoRoot, "packages/solid-gpui-router");
-const galleryEntry = join(repoRoot, "examples/gallery/src/main.tsx");
-const viteGalleryDir = join(repoRoot, "examples/gallery-vite");
+const shikiPackageDir = join(repoRoot, "packages/solid-gpui-shiki");
+const websiteNativeEntry = join(repoRoot, "examples/website/dist-native/main.native.js");
+const websiteDir = join(repoRoot, "examples/website");
 
 type RunOptions = {
   readonly cwd?: string;
@@ -71,6 +72,7 @@ class Tasks {
   private packageBuildPromise: Promise<void> | undefined;
   private corePackageBuildPromise: Promise<void> | undefined;
   private routerPackageBuildPromise: Promise<void> | undefined;
+  private shikiPackageBuildPromise: Promise<void> | undefined;
   private nativeCodegenPromise: Promise<void> | undefined;
 
   install(): Promise<void> {
@@ -86,6 +88,7 @@ class Tasks {
   private async buildPackages(): Promise<void> {
     await this.corePackageBuild();
     await this.routerPackageBuild();
+    await this.shikiPackageBuild();
   }
 
   private corePackageBuild(): Promise<void> {
@@ -105,6 +108,7 @@ class Tasks {
         "./src/components.ts",
         "./src/stdio.ts",
         "./src/embedded.ts",
+        "./src/web.ts",
       ],
       target: "bun",
       splitting: true,
@@ -116,7 +120,7 @@ class Tasks {
   private routerPackageBuild(): Promise<void> {
     this.routerPackageBuildPromise ??= this.buildPackage({
       directory: routerPackageDir,
-      entrypoints: ["./src/index.ts"],
+      entrypoints: ["./src/index.ts", "./src/generator.ts", "./src/generator-process.ts", "./src/vite.ts"],
       target: "bun",
       splitting: false,
       conditions: [],
@@ -125,11 +129,26 @@ class Tasks {
         "@solid-gpui/core/*",
         "@tanstack/router-core",
         "@tanstack/history",
+        "@tanstack/router-generator",
+        "@tanstack/router-utils",
+        "vite",
         "solid-js",
         "solid-js/*",
       ],
     });
     return this.routerPackageBuildPromise;
+  }
+
+  private shikiPackageBuild(): Promise<void> {
+    this.shikiPackageBuildPromise ??= this.buildPackage({
+      directory: shikiPackageDir,
+      entrypoints: ["./src/index.ts", "./src/bun.ts", "./src/worker.ts"],
+      target: "bun",
+      splitting: false,
+      conditions: ["browser"],
+      external: ["@solid-gpui/core", "@solid-gpui/core/*", "shiki", "shiki/*", "solid-js", "solid-js/*"],
+    });
+    return this.shikiPackageBuildPromise;
   }
 
   nativeCodegen(): Promise<void> {
@@ -296,6 +315,10 @@ class Tasks {
       "tsconfig.tools.json",
       "packages/solid-gpui/*.json",
       "packages/solid-gpui-router/*.json",
+      "packages/solid-gpui-shiki/src/**/*.ts",
+      "packages/solid-gpui-shiki/tests/**/*.ts",
+      "packages/solid-gpui-shiki/examples/**/*.ts",
+      "packages/solid-gpui-shiki/*.json",
     ]);
   }
 
@@ -304,24 +327,24 @@ class Tasks {
     await Promise.all([
       run(["bunx", "tsc", "--noEmit"], { cwd: corePackageDir }),
       run(["bunx", "tsc", "--noEmit"], { cwd: routerPackageDir }),
+      run(["bunx", "tsc", "--noEmit"], { cwd: shikiPackageDir }),
       run(["bunx", "tsc", "--project", "tsconfig.tools.json"]),
       run(["bunx", "tsc", "--project", "fixtures/tsconfig.json"]),
-      run(["bunx", "tsc", "--noEmit"], { cwd: join(repoRoot, "examples/gallery") }),
-      run(["bunx", "tsc", "--noEmit"], { cwd: viteGalleryDir }),
+      run(["bunx", "tsc", "--noEmit"], { cwd: websiteDir }),
     ]);
   }
   async packageTest(): Promise<void> {
     await this.packageBuild();
     await Promise.all([
-      run(["bun", "run", "test"], { cwd: join(repoRoot, "examples/gallery") }),
+      run(["bun", "run", "test"], { cwd: websiteDir }),
       run(["bun", "test", "--conditions=browser", "--preload", join(repoRoot, "scripts/solid-jsx.ts")], {
         cwd: corePackageDir,
       }),
       run(["bun", "--conditions=browser", "test"], { cwd: routerPackageDir }),
+      run(["bun", "--conditions=browser", "test"], { cwd: shikiPackageDir }),
       run([
         "bun",
         "test",
-        "scripts/gallery-entry.test.ts",
         "scripts/api-surface.test.ts",
         "scripts/application-build.test.ts",
         "scripts/hot-reload.test.ts",
@@ -336,9 +359,9 @@ class Tasks {
     await this.packageBuild();
     await run(["bun", "scripts/package-pack-smoke.ts"]);
   }
-  async galleryPackage(outputPath?: string): Promise<void> {
+  async websitePackage(outputPath?: string): Promise<void> {
     await this.packageBuild();
-    await run(["bun", "scripts/gallery-package.ts", ...(outputPath === undefined ? [] : ["--out", outputPath])]);
+    await run(["bun", "scripts/website-package.ts", ...(outputPath === undefined ? [] : ["--out", outputPath])]);
   }
   async packagePack(outputPath: string): Promise<void> {
     await this.corePackageBuild();
@@ -349,6 +372,12 @@ class Tasks {
     await this.corePackageBuild();
     await this.routerPackageBuild();
     await this.packPackage(routerPackageDir, outputPath);
+  }
+
+  async shikiPackagePack(outputPath: string): Promise<void> {
+    await this.corePackageBuild();
+    await this.shikiPackageBuild();
+    await this.packPackage(shikiPackageDir, outputPath);
   }
 
   private async packPackage(directory: string, outputPath: string): Promise<void> {
@@ -460,66 +489,59 @@ class Tasks {
     await this.hostRelease("check");
   }
 
-  async gallery(profile = false): Promise<void> {
+  async websiteNative(profile = false): Promise<void> {
     await this.packageBuild();
+    await run(["bun", "run", "build:native"], { cwd: websiteDir });
+    await run(
+      [
+        "cargo",
+        "run",
+        "-p",
+        "website-host",
+        ...(profile ? ["--features", "solid-gpui/frame-profile"] : []),
+        "--",
+        "bun",
+        "run",
+        "--conditions=browser",
+        websiteNativeEntry,
+      ],
+      { env: { SOLID_GPUI_PERF_MONITOR: profile ? "1" : "0" } },
+    );
+  }
+
+  async websiteNativeDev(): Promise<void> {
+    await this.packageBuild();
+    await run(
+      [
+        "cargo",
+        "run",
+        "-p",
+        "website-host",
+        "--",
+        "bun",
+        "run",
+        "--conditions=browser",
+        join(repoRoot, "packages/solid-gpui/src/vite/dev.ts"),
+        join(websiteDir, "src/main.native.tsx"),
+        join(websiteDir, "vite.native.config.ts"),
+      ],
+      { env: { SOLID_GPUI_PERF_MONITOR: "0" } },
+    );
+  }
+
+  async quickJsDev(): Promise<void> {
+    await this.packageBuild();
+    await run(["cargo", "build", "-p", "solid-gpui", "--bin", "solid-gpui-host", "--features", "quickjs"]);
     await run([
-      "cargo",
-      "run",
-      "-p",
-      "gallery-host",
-      ...(profile ? ["--features", "solid-gpui/frame-profile"] : []),
-      "--",
       "bun",
-      "run",
-      "--conditions=browser",
-      "--preload",
-      join(repoRoot, "scripts/solid-jsx.ts"),
-      galleryEntry,
+      join(repoRoot, "packages/solid-gpui/src/vite/quickjs-dev.ts"),
+      join(repoRoot, "fixtures/quickjs-counter.tsx"),
+      join(repoRoot, "target/debug/solid-gpui-host"),
     ]);
   }
 
-  async galleryDev(): Promise<void> {
-    await this.packageBuild();
-    await run([
-      "cargo",
-      "run",
-      "-p",
-      "gallery-host",
-      "--",
-      "bun",
-      "run",
-      "--conditions=browser",
-      join(repoRoot, "packages/solid-gpui/src/vite/dev.ts"),
-      join(viteGalleryDir, "src/main.tsx"),
-      join(viteGalleryDir, "vite.config.ts"),
-    ]);
-  }
-
-  async galleryScrollAudit(): Promise<void> {
-    await this.packageBuild();
-    const { PAGES, pagePath } = await import("../examples/gallery/src/gallery/types");
-    for (const width of [800, 560]) {
-      await run(
-        [
-          "cargo",
-          "test",
-          "-p",
-          "gallery-host",
-          "--test",
-          "gallery",
-          "--features",
-          "solid-gpui/test-support",
-          "--",
-          "--nocapture",
-        ],
-        {
-          env: {
-            SOLID_GPUI_GALLERY_ROUTES: PAGES.map((page) => pagePath(page.id)).join(","),
-            SOLID_GPUI_GALLERY_WIDTH: String(width),
-          },
-        },
-      );
-    }
+  async websiteNavigationCheck(): Promise<void> {
+    await run(["bun", "--conditions=browser", "test", "examples/website/tests/runtime.test.ts"]);
   }
 
   async hostCandidateSmoke(): Promise<void> {
@@ -584,7 +606,7 @@ addTask("package-build", "Build TypeScript packages", () => tasks.packageBuild()
 addTask("protocol-codegen", "Generate TypeScript and Rust protocol bindings", () => tasks.protocolCodegen());
 addTask("protocol-codegen-check", "Verify protocol bindings match schema", () => tasks.protocolCodegenCheck());
 addTask("protocol-golden-check", "Verify cross-language protocol fixtures", () => tasks.protocolGoldenCheck());
-addTask("native-codegen", "Generate bindings from the SDK and Gallery hosts", () => tasks.nativeCodegen());
+addTask("native-codegen", "Generate bindings from the SDK and website hosts", () => tasks.nativeCodegen());
 addTask("native-codegen-check", "Verify bindings match the actual native hosts", () => tasks.nativeCodegenCheck());
 addTask("embedded-check", "Build and qualify the embedded Bun VM and lifecycle", () => tasks.embeddedCheck());
 addTask("package-format", "Format TypeScript packages", () => tasks.packageFormat());
@@ -594,6 +616,7 @@ addTask("package-test", "Run TypeScript package tests", () => tasks.packageTest(
 addTask("package-pack-smoke", "Smoke test packed TypeScript packages", () => tasks.packagePackSmoke());
 addTask("package-pack <output>", "Pack core package", (output) => tasks.packagePack(output));
 addTask("router-package-pack <output>", "Pack router package", (output) => tasks.routerPackagePack(output));
+addTask("shiki-package-pack <output>", "Pack Shiki package", (output) => tasks.shikiPackagePack(output));
 addTask("package-ci", "Run TypeScript package CI suite", () => tasks.packageCI());
 addTask("rust-format", "Check Rust formatting", () => tasks.rustFormat());
 addTask("rust-compile", "Compile Rust workspace", () => tasks.rustCompile());
@@ -606,14 +629,17 @@ addTask("audit", "Run security and license audits", () => tasks.audit());
 addTask("third-party-notices", "Generate THIRD-PARTY-NOTICES.md", () => tasks.thirdPartyNotices());
 addTask("build", "Build all workspace packages and binaries", () => tasks.build());
 addTask("ci", "Run full CI suite", () => tasks.ci());
-addTask("gallery", "Build and run the Solid GPUI component gallery", () => tasks.gallery());
-addTask("gallery-dev", "Run Gallery with in-window hot reload", () => tasks.galleryDev());
-addTask("gallery-package [output]", "Build and verify a standalone Gallery package for this platform", (output) =>
-  tasks.galleryPackage(output),
+addTask("website-native", "Build and run the native website", () => tasks.websiteNative());
+addTask("quickjs-dev", "Run the counter with QuickJS application reload", () => tasks.quickJsDev());
+addTask("website-native-dev", "Run the native website with in-window hot reload", () => tasks.websiteNativeDev());
+addTask("website-package [output]", "Build and verify a standalone website package for this platform", (output) =>
+  tasks.websitePackage(output),
 );
-addTask("gallery-profile", "Run Gallery with native frame and input latency measurements", () => tasks.gallery(true));
-addTask("gallery-scroll-audit", "Audit every Gallery route across compact and resized layouts", () =>
-  tasks.galleryScrollAudit(),
+addTask("website-native-profile", "Run the native website with native frame and input latency measurements", () =>
+  tasks.websiteNative(true),
+);
+addTask("website-navigation-check", "Verify website previews and retained router navigation", () =>
+  tasks.websiteNavigationCheck(),
 );
 addTask("host-candidate-smoke", "Build and smoke the extracted host candidate", () => tasks.hostCandidateSmoke());
 addTask("host-embedded-candidate-smoke", "Run host embedded candidate smoke suite", () =>

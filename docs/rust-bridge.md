@@ -51,6 +51,51 @@ that has already started cannot be forcibly interrupted and occupies capacity
 until it finishes. Long tasks that require cancellation must cooperate;
 detached child tasks are not automatically cancelled with their parent call.
 
+## Request cancellation and deadlines
+
+Generated client methods accept a second `NativeCallOptions` argument:
+
+```tsx
+const controller = new AbortController();
+const result = native.greet({ name: "Ada" }, {
+  signal: controller.signal,
+  timeoutMs: 5_000,
+});
+controller.abort();
+await result;
+```
+
+Cancellation rejects with the signal's reason; a deadline rejects with a
+`TimeoutError`. An already-aborted signal sends no request. A deadline is a
+non-negative integer up to 2,147,483,647 milliseconds. Calls without a request
+DTO accept `undefined` as their first argument. Both successful completion and
+cancellation release the JavaScript listener and timer. Cancellation targets
+one request in its originating Surface and epoch; late results are discarded.
+
+An optional Rust `NativeCallContext` parameter is injected by the command macro
+and does not enter the generated request DTO:
+
+```rust
+#[command]
+fn scan(paths: Vec<String>, context: solid_gpui::native::NativeCallContext)
+    -> Result<u32, String>
+{
+    let mut completed = 0;
+    for path in paths {
+        context.check_cancelled()?;
+        std::fs::metadata(path).map_err(|error| error.to_string())?;
+        completed += 1;
+    }
+    Ok(completed)
+}
+```
+
+Blocking work should check between bounded units of work. Its admission slot
+remains occupied until it actually returns. `context.cancelled().await` can
+coordinate app-owned child work; ordinary async command futures are also
+aborted by the executor. Cancellation does not undo completed side effects.
+Direct `CommandDefinition` registrations receive `(request, context)`.
+
 The host handles `--export-native` before starting its window or runtime:
 
 ```sh
@@ -181,13 +226,13 @@ GPUI Entities, and thread objects do not cross runtime boundaries. Put domain
 constraints in the Rust DTO's `Deserialize` implementation, such as the
 built-in Percentage type's 0–100 validation.
 
-Run `bun run task native-codegen` to generate core component and Gallery
+Run `bun run task native-codegen` to generate core component and website
 bindings, and `bun run task native-codegen-check` to detect drift. Commit the
 generated files for editor support and validation; do not edit them by hand.
 Vite's `native` option invokes the same host exporter and provides the `#native`
 alias. Rust changes require rebuilding and restarting the host.
 
-For a runnable example, `examples/gallery/native/src/lib.rs` declares both
-`BuildBadge` and `analyze_workspace`; Gallery TSX uses the generated component
+For a runnable example, `examples/website/native/src/lib.rs` declares both
+`BuildBadge` and `analyze_workspace`; website TSX uses the generated component
 and Promise client. See [ADR-0016](adr/0016-rust-owned-native-modules.md) for the
 design rationale.

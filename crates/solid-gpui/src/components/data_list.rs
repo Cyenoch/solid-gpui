@@ -132,6 +132,8 @@ impl PaginationGate {
     }
 }
 struct Rows {
+    #[cfg(test)]
+    rendered: Vec<String>,
     data: Arc<Vec<ListSection>>,
     visible: Vec<Vec<usize>>,
     query: String,
@@ -206,6 +208,10 @@ impl ListDelegate for Rows {
         window: &mut Window,
         cx: &mut Context<ListState<Self>>,
     ) -> Option<ListItem> {
+        #[cfg(test)]
+        if let Some(row) = self.row(ix) {
+            self.rendered.push(row.key.clone());
+        }
         let row = self.row(ix)?;
         Some(
             ListItem::new(SharedString::from(row.key.clone()))
@@ -424,6 +430,8 @@ impl NativeView for List {
         let query = props.query.clone().unwrap_or_default();
         let visible = Rows::filter(&data, &query, props.filterable);
         let rows = Rows {
+            #[cfg(test)]
+            rendered: Vec::new(),
             data,
             visible,
             query,
@@ -642,5 +650,124 @@ mod tests {
             "prop projection and filtering must not synthesize selection events"
         );
         assert_eq!(loads, 2, "only one outstanding page request is allowed");
+    }
+    #[gpui::test]
+    fn large_keyed_list_keeps_selection_and_bounded_rendering_through_data_and_viewport_changes(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        fn draw(
+            f: &Fixture<List>,
+            cx: &mut gpui::TestAppContext,
+        ) -> (std::ops::Range<usize>, Vec<String>) {
+            f.update(cx, |v, _, cx| {
+                v.state.update(cx, |s, _| s.delegate_mut().rendered.clear())
+            });
+            cx.update_window(f.window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                window.simulate_next_frame(cx);
+            })
+            .unwrap();
+            cx.run_until_parked();
+            f.update(cx, |v, _, cx| {
+                v.state.update(cx, |s, _| {
+                    let range = s.scroll_handle().visible_range();
+                    let keys = std::mem::take(&mut s.delegate_mut().rendered);
+                    assert!(!range.is_empty(), "the native viewport must contain rows");
+                    assert!(range.len() < 64);
+                    assert!(
+                        !keys.is_empty() && keys.len() < 128,
+                        "drawing must remain proportional to the viewport: {} rows",
+                        keys.len()
+                    );
+                    (range, keys)
+                })
+            })
+        }
+        let mut data = sections(false);
+        let template = data[0].items[0].clone();
+        data[0].items = (0..20_000)
+            .map(|i| Choice {
+                key: format!("k{i}"),
+                label: format!("Row {i}"),
+                ..template.clone()
+            })
+            .collect();
+        let f = Fixture::<List>::new(
+            ListProps {
+                sections: data.clone(),
+                selected_key: Some("k10000".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        draw(&f, cx);
+        f.update(cx, |v, window, cx| {
+            v.state.update(cx, |s, cx| {
+                s.scroll_to_item(
+                    IndexPath::default().row(10_000),
+                    ScrollStrategy::Top,
+                    window,
+                    cx,
+                )
+            })
+        });
+        let (middle, keys) = draw(&f, cx);
+        assert!(middle.start > 9_900);
+        assert!(keys.iter().any(|key| key == "k10000"));
+        data[0].items.reverse();
+        data[0].items.push(Choice {
+            key: "appended".into(),
+            label: "Appended".into(),
+            ..template
+        });
+        let identity = f.update(cx, |v, window, cx| {
+            let identity = v.state.entity_id();
+            v.update(
+                ListProps {
+                    sections: data.clone(),
+                    selected_key: Some("k10000".into()),
+                    data_revision: 1,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            );
+            identity
+        });
+        cx.simulate_window_resize(f.window.into(), gpui::size(px(320.0), px(240.0)));
+        draw(&f, cx);
+        f.update(cx, |v, window, cx| {
+            assert_eq!(v.state.entity_id(), identity);
+            v.state.update(cx, |s, cx| {
+                assert_eq!(s.delegate().selected.as_deref(), Some("k10000"));
+                assert_eq!(
+                    s.delegate().row(s.selected_index().unwrap()).unwrap().key,
+                    "k10000"
+                );
+                s.scroll_to_item(
+                    IndexPath::default().row(20_000),
+                    ScrollStrategy::Bottom,
+                    window,
+                    cx,
+                );
+            });
+        });
+        assert!(draw(&f, cx).1.iter().any(|key| key == "appended"));
+        data[0].items.retain(|row| row.key == "k10000");
+        f.update(cx, |v, window, cx| {
+            v.update(
+                ListProps {
+                    sections: data,
+                    selected_key: Some("k10000".into()),
+                    data_revision: 2,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            )
+        });
+        let (_, keys) = draw(&f, cx);
+        assert!(keys.iter().all(|key| key == "k10000"));
     }
 }

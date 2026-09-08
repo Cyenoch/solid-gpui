@@ -18,6 +18,12 @@ export const ROLE_CODES: Record<NonNullable<AccessibilityProps["accessibilityRol
   checkbox: 5,
   heading: 6,
   link: 7,
+  status: 8,
+  alert: 9,
+  group: 10,
+  list: 11,
+  listitem: 12,
+  dialog: 13,
 };
 
 const PROP_GROUP_STYLE = 1;
@@ -36,6 +42,7 @@ const ACCESSIBILITY_PROPS: Record<string, true> = {
   accessibilityValue: true,
   accessibilityExpanded: true,
   accessibilityLevel: true,
+  accessibilityLive: true,
 };
 
 const BASE_PROPS = {

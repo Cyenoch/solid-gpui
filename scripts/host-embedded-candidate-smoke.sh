@@ -86,7 +86,7 @@ target="$(
   rustc -vV | python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))'
 )"
 binary="$repo_root/target/$target/release/solid-gpui-host"
-user_entry="$repo_root/fixtures/press-roundtrip.ts"
+user_entry="$repo_root/fixtures/embedded-press-roundtrip.ts"
 run_dir="$smoke_root/user-run"
 stderr_file="$smoke_root/embedded.stderr"
 stdout_file="$smoke_root/embedded.stdout"

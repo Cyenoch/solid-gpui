@@ -4,7 +4,7 @@ import { exportNativeBindings } from "../packages/solid-gpui/src/vite/native-exp
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const program = new Command()
-  .description("Generate TypeScript from an actual Rust host; no arguments generate SDK and Gallery bindings")
+  .description("Generate TypeScript from an actual Rust host; no arguments generate SDK and website bindings")
   .option("--check", "verify outputs without writing")
   .option("--manifest <path>", "Cargo manifest for a custom host")
   .option("--package <name>", "Cargo package for a custom host")
@@ -41,7 +41,7 @@ if (options.manifest || options.package || options.bin || options.features || op
       features: ["gpui-component"],
       output: "packages/solid-gpui/src/components.ts",
     },
-    { package: "gallery-host", output: "examples/gallery/src/gallery/generated/native.ts" },
+    { package: "website-host", output: "examples/website/src/generated/native.ts" },
   ]) {
     await exportNativeBindings({ manifestPath: "Cargo.toml", ...target, check: options.check }, root);
   }

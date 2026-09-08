@@ -6,5 +6,5 @@
   "trailingComma": "all",
   "sortImports": false,
   "sortPackageJson": false,
-  "ignorePatterns": ["vendor/", "references/", ".scratch/", ".claude/"]
+  "ignorePatterns": ["**/routeTree.gen.ts", "vendor/", "references/", ".scratch/", ".claude/"]
 }

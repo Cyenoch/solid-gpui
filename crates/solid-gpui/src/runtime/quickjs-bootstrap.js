@@ -157,19 +157,20 @@
   globalThis.__solidGpuiHost = Object.freeze({
     submit(frame) {
       if (ended) throw new Error('QuickJS transport is closed');
-      submit(frame);
+      return submit(frame);
     },
-    subscribe(onData, onTermination) {
+    subscribe(onData, onTermination, onDrain) {
       if (ended) throw new Error('QuickJS transport is closed');
       if (subscription) throw new Error('QuickJS supports one active transport per VM');
-      if (typeof onData !== 'function' || typeof onTermination !== 'function') throw new TypeError('transport callbacks must be functions');
-      const current = { onData, onTermination };
+      if ([onData, onTermination, onDrain].some(callback => typeof callback !== 'function')) throw new TypeError('transport callbacks must be functions');
+      const current = { onData, onTermination, onDrain };
       subscription = current;
       return () => { if (subscription === current) subscription = undefined; };
     },
   });
   return {
     subscribed: () => Boolean(subscription),
+    drain: () => subscription?.onDrain(),
     dispatch: frame => subscription.onData(frame),
     nextTimer: () => heap.length ? Math.max(0, heap[0].due - now()) : -1,
     runTimer() {

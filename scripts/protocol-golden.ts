@@ -62,7 +62,10 @@ const fullStyle = {
   },
   width: 120,
   height: 48,
-  flexDirection: "column" as const,
+  gridColumns: 2,
+  gridRows: 3,
+  gridColumnSpan: 2,
+  gridRowSpan: 1,
   flexGrow: 1,
   padding: 4,
   gap: 2,
@@ -120,6 +123,7 @@ const accessibility = {
   value: "42",
   expanded: true,
   level: 2,
+  live: null,
 };
 const input: HostProperties = {
   type: "text-input",
@@ -475,6 +479,31 @@ const events: readonly Event[] = [
   ...commandValueEvents,
 ];
 const rows = [
+  row("ts-application-ready", "command", {
+    type: "command",
+    surfaceId: 0,
+    epoch: 3,
+    afterRevision: 0,
+    requestId: 1,
+    nodeId: 0,
+    command: 38,
+    payload: { type: "configure-application", keepAlive: true, quit: false, acknowledgedSequence: 0 },
+  }),
+  row("ts-application-activation", "event", {
+    type: "event",
+    surfaceId: 0,
+    epoch: 3,
+    revision: 0,
+    sequence: 1,
+    nodeId: 0,
+    listenerId: 0,
+    payload: {
+      type: "application-activation",
+      targetSurfaceId: 8,
+      reason: "open-urls",
+      urls: ["demo://document/中文"],
+    },
+  }),
   row("ts-snapshot-full", "snapshot", snapshot),
   row("ts-patch-all-operations", "patch", patch),
   ...commands.map((value) => row(`ts-command-${value.command}`, "command", value)),

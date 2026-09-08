@@ -139,25 +139,25 @@ impl<T: gpui::Styled> gpui::Styled for NativeChild<T> {
         self.native.style()
     }
 }
-#[cfg(feature = "gpui-component")]
+#[cfg(feature = "component-runtime")]
 impl<T> From<NativeChild<T>> for gpui_component::ComponentChild<T> {
     fn from(child: NativeChild<T>) -> Self {
         Self::with_boundary(child.native, child.boundary)
     }
 }
-#[cfg(feature = "gpui-component")]
+#[cfg(feature = "component-runtime")]
 impl<T: gpui_component::Sizable> gpui_component::Sizable for NativeChild<T> {
     fn with_size(self, size: impl Into<gpui_component::Size>) -> Self {
         self.map_native(|v| v.with_size(size))
     }
 }
-#[cfg(feature = "gpui-component")]
+#[cfg(feature = "component-runtime")]
 impl<T: gpui_component::ChildElement> gpui_component::ChildElement for NativeChild<T> {
     fn with_ix(self, ix: usize) -> Self {
         self.map_native(|v| v.with_ix(ix))
     }
 }
-#[cfg(feature = "gpui-component")]
+#[cfg(feature = "component-runtime")]
 impl<T: gpui_component::Collapsible> gpui_component::Collapsible for NativeChild<T> {
     fn is_collapsed(&self) -> bool {
         self.native.is_collapsed()
@@ -166,7 +166,7 @@ impl<T: gpui_component::Collapsible> gpui_component::Collapsible for NativeChild
         self.map_native(|v| v.collapsed(value))
     }
 }
-#[cfg(feature = "gpui-component")]
+#[cfg(feature = "component-runtime")]
 impl<T: gpui_component::sidebar::SidebarItem + 'static> gpui_component::sidebar::SidebarItem
     for NativeChild<T>
 {

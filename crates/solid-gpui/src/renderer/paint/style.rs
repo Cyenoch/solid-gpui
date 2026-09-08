@@ -20,7 +20,15 @@ fn apply_style_with_cursor<E: Styled>(
     with_cursor: bool,
 ) -> E {
     let Some(style) = style else { return element };
-    if style.flex_direction.is_some()
+    if style.grid_columns.is_some() || style.grid_rows.is_some() {
+        element = element.grid();
+        if let Some(columns) = style.grid_columns {
+            element = element.grid_cols(columns as u16);
+        }
+        if let Some(rows) = style.grid_rows {
+            element = element.grid_rows(rows as u16);
+        }
+    } else if style.flex_direction.is_some()
         || style.gap.is_some()
         || style.justify_content.is_some()
         || style.align_items.is_some()
@@ -29,6 +37,12 @@ fn apply_style_with_cursor<E: Styled>(
         if style.flex_direction.is_none() {
             element = element.flex_col();
         }
+    }
+    if let Some(span) = style.grid_column_span {
+        element = element.col_span(span as u16);
+    }
+    if let Some(span) = style.grid_row_span {
+        element = element.row_span(span as u16);
     }
     if let Some(width) = style.width {
         element = element.w(px(width));

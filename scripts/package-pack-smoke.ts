@@ -8,6 +8,25 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const corePackageDir = join(repoRoot, "packages/solid-gpui");
 const routerPackageDir = join(repoRoot, "packages/solid-gpui-router");
+const shikiPackageDir = join(repoRoot, "packages/solid-gpui-shiki");
+
+const shikiSource = `import { createRoot, MemoryTransport } from "@solid-gpui/core";
+import { createComponent } from "@solid-gpui/core/runtime";
+import { CodeBlock } from "@solid-gpui/shiki";
+import { createBunHighlighter } from "@solid-gpui/shiki/bun";
+const highlighter = await createBunHighlighter({ languages: ["typescript"], themes: ["github-dark"] });
+const request = { code: 'const value = "你好😀";\\r\\n', language: "typescript", theme: "github-dark" };
+const transport = new MemoryTransport();
+const root = createRoot(transport);
+try {
+  const result = await highlighter.highlight(request);
+  if (result.runs.map(run => run.text).join("") !== request.code) throw new Error("Packed worker changed the source");
+  root.render(() => createComponent(CodeBlock, { highlighter, ...request }));
+  await highlighter.highlight(request);
+  await Promise.resolve();
+  if (transport.submitted.length < 2) throw new Error("Packed CodeBlock emitted no highlighted Patch");
+} finally { root.unmount(); highlighter.dispose(); }
+`;
 
 async function run(command: readonly string[], cwd: string): Promise<void> {
   console.error(`\n$ ${command.join(" ")}`);
@@ -196,7 +215,33 @@ const packageSpecs = [
     name: "router",
     directory: routerPackageDir,
     archiveName: "solid-gpui-router.tgz",
-    requiredEntries: ["package/package.json", "package/LICENSE", "package/dist/index.js", "package/dist/index.d.ts"],
+    requiredEntries: [
+      "package/package.json",
+      "package/LICENSE",
+      "package/dist/index.js",
+      "package/dist/index.d.ts",
+      "package/dist/generator.js",
+      "package/dist/generator.d.ts",
+      "package/dist/generator-process.js",
+      "package/dist/generator-engine.d.ts",
+      "package/dist/vite.js",
+      "package/dist/vite.d.ts",
+    ],
+  },
+  {
+    name: "shiki",
+    directory: shikiPackageDir,
+    archiveName: "solid-gpui-shiki.tgz",
+    requiredEntries: [
+      "package/package.json",
+      "package/LICENSE",
+      "package/README.md",
+      "package/dist/index.js",
+      "package/dist/index.d.ts",
+      "package/dist/bun.js",
+      "package/dist/bun.d.ts",
+      "package/dist/worker.js",
+    ],
   },
 ] as const;
 
@@ -226,7 +271,7 @@ try {
       if (manifest.dependencies?.["solid-js"] !== undefined) throw new Error("packed core bundles a Solid dependency");
       if (manifest.peerDependencies?.["solid-js"] === undefined)
         throw new Error("packed core has no Solid peer dependency");
-    } else {
+    } else if (spec.name === "router") {
       if (manifest.dependencies?.["@tanstack/history"] === undefined)
         throw new Error("packed router has no history dependency");
       if (manifest.dependencies?.["@tanstack/router-core"] === undefined)
@@ -235,6 +280,10 @@ try {
         throw new Error("packed router has no core peer dependency");
       if (manifest.peerDependencies?.["solid-js"] === undefined)
         throw new Error("packed router has no Solid peer dependency");
+    } else {
+      if (manifest.dependencies?.shiki !== "4.4.2") throw new Error("packed Shiki dependency is not pinned");
+      if (!manifest.peerDependencies?.["@solid-gpui/core"] || !manifest.peerDependencies?.["solid-js"])
+        throw new Error("packed Shiki package is missing its peers");
     }
   }
 
@@ -249,6 +298,7 @@ try {
         dependencies: {
           "@solid-gpui/core": "file:" + archivePaths.core,
           "@solid-gpui/router": "file:" + archivePaths.router,
+          "@solid-gpui/shiki": "file:" + archivePaths.shiki,
           "solid-js": "1.9.15",
         },
         overrides: {
@@ -264,6 +314,34 @@ try {
     Bun.write(join(consumerDir, "core-runtime.ts"), coreRuntimeSource),
     Bun.write(join(consumerDir, "view.tsx"), viewSource),
     Bun.write(join(consumerDir, "router.ts"), routerSource),
+    Bun.write(
+      join(consumerDir, "generate-routes.ts"),
+      `import { generateRoutes } from "@solid-gpui/router/generator";
+await generateRoutes({ root: import.meta.dirname });
+`,
+    ),
+    Bun.write(
+      join(consumerDir, "src/routes/__root.ts"),
+      `import { createRootRoute } from "@solid-gpui/router";
+export const Route = createRootRoute({});
+`,
+    ),
+    Bun.write(
+      join(consumerDir, "src/routes/index.ts"),
+      `import { createFileRoute } from "@solid-gpui/router";
+export const Route = createFileRoute("/")({ loader: () => ({ title: "Packed file route" }) });
+`,
+    ),
+    Bun.write(
+      join(consumerDir, "file-router.ts"),
+      `import { createRouter } from "@solid-gpui/router";
+import { routeTree } from "./src/routeTree.gen";
+const router = createRouter({ routeTree });
+await router.load();
+if (router.state.matches.at(-1)?.loaderData?.title !== "Packed file route") throw new Error("Packed file routes failed");
+`,
+    ),
+    Bun.write(join(consumerDir, "shiki.ts"), shikiSource),
     Bun.write(join(consumerDir, "native.ts"), nativeSource),
     Bun.write(
       join(consumerDir, "native-host/Cargo.toml"),
@@ -278,6 +356,14 @@ try {
   await run(["bun", "install", "--no-progress"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "core-runtime.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "router.ts"], consumerDir);
+  await run(["bun", "--conditions=browser", "run", "generate-routes.ts"], consumerDir);
+  await run(["bun", "--conditions=browser", "run", "file-router.ts"], consumerDir);
+  await run(["bun", "--conditions=browser", "run", "shiki.ts"], consumerDir);
+  await run(
+    ["bun", "build", "shiki.ts", "--target", "bun", "--conditions=browser", "--outfile", "bundled-shiki.js"],
+    consumerDir,
+  );
+  await run(["bun", "bundled-shiki.js"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "native.ts"], consumerDir);
   for (const runtime of ["bun", "quickjs"]) {
     await run(
@@ -308,9 +394,10 @@ try {
   ] as const;
   await run([...typecheck, "core-runtime.ts"], consumerDir);
   await run([...typecheck, "router.ts"], consumerDir);
+  await run([...typecheck, "shiki.ts"], consumerDir);
   await run([...typecheck, "native.ts"], consumerDir);
   await run([...typecheck, "--jsx", "preserve", "core-runtime.ts", "view.tsx"], consumerDir);
-  console.log("core and router package tarball consumer smoke passed");
+  console.log("core, router and Shiki package tarball consumer smoke passed");
 } finally {
   await rm(temporaryDir, { recursive: true, force: true });
 }

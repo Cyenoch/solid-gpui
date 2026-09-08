@@ -253,8 +253,8 @@ impl SolidRoot {
             return accessibility::apply_accessibility(element, node).into_any();
         }
         if node.kind == KIND_TEXT {
-            if let Some(content) = node.text_content.as_ref() {
-                element = element.child(SharedString::new(Arc::clone(content)));
+            if let Some(text) = node.text_content.as_ref().filter(|text| !text.is_empty()) {
+                element = element.child(SharedString::new(Arc::clone(text)));
             }
         } else {
             element = element.children(

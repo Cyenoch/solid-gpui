@@ -1,0 +1,4 @@
+# api-surface-v1
+# name	kind
+FileRouterOptions	type
+generateRoutes	value

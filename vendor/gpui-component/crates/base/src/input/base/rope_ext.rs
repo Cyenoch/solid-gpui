@@ -2,6 +2,7 @@ use std::ops::Range;
 
 use ropey::{LineType, Rope, RopeSlice};
 use sum_tree::Bias;
+use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
 
 /// Parser-independent byte/row/column position used for incremental edits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -76,6 +77,34 @@ impl<'a> Iterator for RopeLines<'a> {
 
 impl std::iter::ExactSizeIterator for RopeLines<'_> {}
 impl std::iter::FusedIterator for RopeLines<'_> {}
+
+/// Finds an extended grapheme boundary without flattening the document.
+/// Only chunks requested by Unicode segmentation are visited; long combining
+/// sequences and regional indicators may require additional preceding context.
+pub(super) fn grapheme_boundary(text: &Rope, offset: usize, forward: bool) -> usize {
+    let offset = text.clip_offset(offset, if forward { Bias::Right } else { Bias::Left });
+    let mut cursor = GraphemeCursor::new(offset, text.len(), true);
+    let (mut chunk, mut start) = text.chunk(offset);
+    loop {
+        let result = if forward {
+            cursor.next_boundary(chunk, start)
+        } else {
+            cursor.prev_boundary(chunk, start)
+        };
+        match result {
+            Ok(boundary) => return boundary.unwrap_or(if forward { text.len() } else { 0 }),
+            Err(GraphemeIncomplete::PreContext(end)) => {
+                let (context, context_start) = text.chunk(end - 1);
+                cursor.provide_context(&context[..end - context_start], context_start);
+            }
+            Err(GraphemeIncomplete::PrevChunk) => (chunk, start) = text.chunk(start - 1),
+            Err(GraphemeIncomplete::NextChunk) => (chunk, start) = text.chunk(start + chunk.len()),
+            Err(GraphemeIncomplete::InvalidOffset) => {
+                unreachable!("rope chunks contain the grapheme cursor")
+            }
+        }
+    }
+}
 
 /// An extension trait for [`Rope`] to provide additional utility methods.
 pub trait RopeExt {
@@ -449,6 +478,30 @@ impl RopeExt for Rope {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn grapheme_navigation_matches_unicode_across_rope_chunks() {
+        use unicode_segmentation::UnicodeSegmentation;
+        let text = format!(
+            "{}a{}👩🏽‍💻🇸🇬क्\u{200d}ष\r\n{}",
+            "x".repeat(1023),
+            "\u{301}".repeat(1800),
+            "🇦".repeat(701)
+        );
+        let rope = Rope::from(text.as_str());
+        assert!(rope.chunks().count() > 2);
+        let mut boundaries: Vec<_> = text
+            .grapheme_indices(true)
+            .map(|(offset, _)| offset)
+            .collect();
+        boundaries.push(text.len());
+        for pair in boundaries.windows(2) {
+            assert_eq!(super::grapheme_boundary(&rope, pair[0], true), pair[1]);
+            assert_eq!(super::grapheme_boundary(&rope, pair[1], false), pair[0]);
+        }
+        assert_eq!(super::grapheme_boundary(&Rope::new(), 0, true), 0);
+        assert_eq!(super::grapheme_boundary(&rope, 0, false), 0);
+    }
+
     use super::Point;
     use ropey::Rope;
     use sum_tree::Bias;

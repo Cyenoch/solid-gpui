@@ -1,9 +1,18 @@
+import { generationHost, encodeGenerationState } from "./generation";
+import { SurfaceRouter } from "./renderer/surface-router";
 import { createRoot as createOwner } from "solid-js";
-import { createRoot, type Root, type RootOptions, type SolidElement } from "./renderer";
-import { MAX_FRAME_SIZE } from "./protocol";
+import { createRootWithRouter, type Root, type RootOptions, type SolidElement } from "./renderer";
+import { MAX_FRAME_SIZE, COMMAND_CONFIGURE_APPLICATION, encodeFrame } from "./protocol";
 import type { DisposableTransport, Transport, TransportListener, TransportTerminationListener } from "./transport";
 
+export interface ApplicationActivation {
+  readonly reason: "launch" | "reopen" | "open-urls";
+  readonly urls: readonly string[];
+  readonly root: Root;
+}
+
 export interface ApplicationDefinition<State> {
+  readonly onActivate?: (activation: ApplicationActivation) => void;
   readonly render: () => SolidElement;
   readonly rootOptions?: Omit<RootOptions, "surfaceId" | "epoch">;
   readonly onMount?: (root: Root) => void;
@@ -14,6 +23,7 @@ export interface ApplicationDefinition<State> {
 export interface ApplicationOptions<State> {
   /** Stable entry URL during development HMR. Omit in production. */
   readonly hotKey?: string;
+  readonly lastWindowClose?: "quit" | "keep-alive";
   readonly surfaceId?: number;
   /** Creates the connection owned by this application; hot reload retains it. */
   readonly transport: () => DisposableTransport;
@@ -22,7 +32,8 @@ export interface ApplicationOptions<State> {
 }
 
 export interface MountedApplication {
-  readonly root: Root;
+  readonly root: Root | undefined;
+  quit(): void;
   dispose(): void;
 }
 
@@ -35,6 +46,7 @@ interface Session extends MountedApplication {
   readonly epoch: number;
   readonly surfaceId: number;
   readonly captureState?: () => unknown;
+  readonly activationSequence: number;
 }
 const sessionKey = Symbol.for("solid-gpui.application.sessions");
 function hotSessions(): Map<string, Session> {
@@ -42,26 +54,37 @@ function hotSessions(): Map<string, Session> {
   return (globals[sessionKey] ??= new Map());
 }
 
-/** Candidate output stays private until setup/render succeed. No new wire protocol. */
+/** Candidate output stays private until setup/render succeed. */
 class CandidateTransport implements Transport {
   private active = false;
   private disposed = false;
   private bytes = 0;
   private frames: Uint8Array[] = [];
+  private pressured = false;
 
   constructor(private readonly transport: Transport) {}
 
-  submit(frame: Uint8Array): void {
+  submit(frame: Uint8Array): boolean {
     if (this.disposed) throw new Error("application generation is disposed");
-    if (this.active) {
-      this.transport.submit(frame);
-      return;
+    if (this.active && !this.pressured) {
+      this.pressured = !this.transport.submit(frame);
+      return !this.pressured;
     }
-    if (this.bytes + frame.length > MAX_FRAME_SIZE + 4) {
+    if (this.frames.length >= 4096 || this.bytes + frame.length > MAX_FRAME_SIZE + 4) {
       throw new Error("application initial commit exceeds the candidate byte budget");
     }
     this.frames.push(frame.slice());
     this.bytes += frame.length;
+    return !this.pressured;
+  }
+
+  onDrain(listener: () => void): () => void {
+    return this.transport.onDrain(() => {
+      if (this.disposed) return;
+      this.pressured = false;
+      if (this.active) this.flush();
+      if (!this.pressured) listener();
+    });
   }
 
   onData(listener: TransportListener): () => void {
@@ -80,10 +103,15 @@ class CandidateTransport implements Transport {
 
   activate(): void {
     this.active = true;
-    const frames = this.frames;
-    this.frames = [];
-    this.bytes = 0;
-    for (const frame of frames) this.transport.submit(frame);
+    this.flush();
+  }
+
+  private flush(): void {
+    while (!this.pressured && this.frames.length > 0) {
+      const frame = this.frames.shift()!;
+      this.bytes -= frame.length;
+      this.pressured = !this.transport.submit(frame);
+    }
   }
 
   dispose(): void {
@@ -96,14 +124,18 @@ class CandidateTransport implements Transport {
 
 /** Mount once, or replace the hotKey's application without closing its native window. */
 export function mountApplication<State = never>(options: ApplicationOptions<State>): MountedApplication {
+  const generation = generationHost();
+  const handoff = generation
+    ? (JSON.parse(generation.state) as { state: State[]; surfaceId: number; open: boolean; activationSequence: number })
+    : undefined;
   const sessions = options.hotKey === undefined ? undefined : hotSessions();
   const previous = options.hotKey === undefined ? undefined : sessions?.get(options.hotKey);
-  const surfaceId = options.surfaceId ?? 1;
+  const surfaceId = options.surfaceId ?? handoff?.surfaceId ?? previous?.surfaceId ?? 1;
   if (previous && previous.surfaceId !== surfaceId) throw new Error("hot reload cannot change surfaceId");
-  const epoch = (previous?.epoch ?? 0) + 1;
+  const epoch = generation?.epoch ?? (previous?.epoch ?? 0) + 1;
   if (epoch > 0xffff_ffff) throw new Error("application epoch exhausted; restart the host");
   const saved = previous?.captureState?.();
-  const state = saved === undefined ? undefined : (structuredClone(saved) as State);
+  const state = handoff ? handoff.state[0] : saved === undefined ? undefined : (structuredClone(saved) as State);
   const transport = previous?.transport ?? options.transport();
   const closeTransport = previous?.closeTransport ?? (() => transport.dispose());
   const candidate = new CandidateTransport(transport);
@@ -112,15 +144,88 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
   let definition: ApplicationDefinition<State> | undefined;
   let disposed = false;
   let session: Session | undefined;
+  let lastSurfaceId = surfaceId;
+  let activationSequence = handoff?.activationSequence ?? previous?.activationSequence ?? 0;
+  let nextControlRequest = 1;
+  const keepAlive = options.lastWindowClose === "keep-alive";
+  const router = new SurfaceRouter(candidate, {
+    onTermination: (error) => {
+      try {
+        definition?.rootOptions?.onTransportTermination?.(error);
+      } finally {
+        dispose();
+      }
+    },
+    onApplicationActivation: (event) => {
+      if (
+        disposed ||
+        event.epoch !== epoch ||
+        event.sequence <= activationSequence ||
+        event.payload.type !== "application-activation"
+      )
+        return;
+
+      const activation = event.payload;
+      if (!root) {
+        if (activation.targetSurfaceId <= lastSurfaceId) throw new Error("activation reused a retired Surface");
+        openRoot(activation.targetSurfaceId);
+        root!.render(definition!.render);
+        definition?.onMount?.(root!);
+      }
+      if (disposed) return;
+      if (lastSurfaceId !== activation.targetSurfaceId) throw new Error("activation targets another Surface");
+      definition?.onActivate?.({ reason: activation.reason, urls: activation.urls, root: root! });
+      if (disposed) return;
+      activationSequence = event.sequence;
+      control(false);
+    },
+  });
+  const control = (quit: boolean) =>
+    router.submit(
+      encodeFrame({
+        type: "command",
+        surfaceId: 0,
+        epoch,
+        afterRevision: 0,
+        requestId: nextControlRequest++,
+        nodeId: 0,
+        command: COMMAND_CONFIGURE_APPLICATION,
+        payload: {
+          type: "configure-application",
+          keepAlive: !quit && keepAlive,
+          quit,
+          acknowledgedSequence: activationSequence,
+        },
+      }),
+    );
+  const openRoot = (id: number) => {
+    lastSurfaceId = id;
+    const callbacks = definition?.rootOptions;
+    root = createRootWithRouter(router, {
+      ...callbacks,
+      surfaceId: id,
+      epoch,
+      onClose: () => {
+        root = undefined;
+        // The host owns the last-window policy; auxiliary Surfaces may still be open.
+        callbacks?.onClose?.();
+      },
+      // The application connection owns termination, including zero-window time.
+      onTransportTermination: undefined,
+    });
+  };
   const retire = (): void => {
     if (disposed) return;
     disposed = true;
     candidate.dispose();
+    router.dispose();
     if (options.hotKey !== undefined && sessions?.get(options.hotKey) === session) {
       sessions?.delete(options.hotKey);
     }
     try {
-      root?.unmount();
+      const mounted = root;
+      root = undefined;
+      mounted?.unmount();
     } finally {
       disposeOwner?.();
     }
@@ -137,30 +242,15 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
     createOwner((cleanup) => {
       disposeOwner = cleanup;
       definition = options.setup(state);
-      const callbacks = definition.rootOptions;
-      root = createRoot(candidate, {
-        ...callbacks,
-        surfaceId,
-        epoch,
-        onClose: () => {
-          try {
-            callbacks?.onClose?.();
-          } finally {
-            dispose();
-          }
-        },
-        onTransportTermination: (error) => {
-          try {
-            callbacks?.onTransportTermination?.(error);
-          } finally {
-            dispose();
-          }
-        },
-      });
+      if (handoff ? handoff.open : !previous || previous.root) openRoot(surfaceId);
+      router.start();
     });
-    if (!root || !definition) throw new Error("application setup did not finish");
-    root.render(definition.render);
-    candidate.assertReady();
+    if (!definition) throw new Error("application setup did not finish");
+    if (root) {
+      root.render(definition.render);
+      candidate.assertReady();
+    }
+    control(false);
   } catch (error) {
     try {
       retire();
@@ -169,14 +259,27 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
     }
     throw error; // The previous generation is still live and interactive.
   }
-  if (!root || !definition) throw new Error("application setup did not finish");
+  if (!definition) throw new Error("application setup did not finish");
   session = {
-    root,
+    get root() {
+      return root;
+    },
+    get activationSequence() {
+      return activationSequence;
+    },
+    quit: () => {
+      if (!disposed) {
+        control(true);
+        dispose();
+      }
+    },
     transport,
     closeTransport,
     retire,
     epoch,
-    surfaceId,
+    get surfaceId() {
+      return lastSurfaceId;
+    },
     captureState: definition.captureState,
     dispose,
   };
@@ -188,8 +291,30 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
     console.error("solid-gpui: application cleanup failed", error);
   }
   if (options.hotKey !== undefined) sessions?.set(options.hotKey, session);
-  candidate.activate();
-  definition.onMount?.(root);
+  try {
+    candidate.activate();
+    if (generation) {
+      const activeDefinition = definition;
+      generation.register({
+        capture: () => {
+          const state = activeDefinition.captureState?.();
+          return encodeGenerationState({
+            state: state === undefined ? [] : [state],
+            surfaceId: lastSurfaceId,
+            open: Boolean(root),
+            activationSequence,
+          });
+        },
+        activate: () => {
+          if (root) activeDefinition.onMount?.(root);
+        },
+        retire,
+      });
+    } else if (root) definition.onMount?.(root);
+  } catch (error) {
+    dispose();
+    throw error;
+  }
   if (options.hotKey !== undefined) console.error(`solid-gpui: hot reload applied (epoch ${epoch})`);
   return session;
 }

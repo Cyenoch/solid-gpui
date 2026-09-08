@@ -300,3 +300,72 @@ mod exports {
     }
 }
 pub(super) use exports::native_module;
+
+#[cfg(test)]
+mod tests {
+    use gpui::{ParentElement, RenderOnce, Styled};
+    use std::{cell::Cell, rc::Rc};
+
+    #[gpui::test]
+    fn explicit_field_labels_render_without_placeholder_indentation(cx: &mut gpui::TestAppContext) {
+        cx.update(gpui_component::init);
+        let visual = cx.add_empty_window();
+        let rendered = Rc::new(Cell::new(false));
+        visual.update(|window, cx| {
+            let marker = rendered.clone();
+            let field = gpui_component::form::Field::new()
+                .label_indent(false)
+                .label_fn(move |_, _| {
+                    marker.set(true);
+                    gpui::div().child("Name")
+                })
+                .child(gpui::div().h(gpui::px(32.)));
+            let _ = field.render(window, cx);
+        });
+        assert!(
+            rendered.get(),
+            "an explicit label is independent of empty-label indentation"
+        );
+    }
+    struct FieldVisibility {
+        visible: bool,
+        bounds: Rc<Cell<gpui::Bounds<gpui::Pixels>>>,
+    }
+    impl gpui::Render for FieldVisibility {
+        fn render(
+            &mut self,
+            _: &mut gpui::Window,
+            _: &mut gpui::Context<Self>,
+        ) -> impl gpui::IntoElement {
+            use gpui_component::ElementExt;
+            let bounds = self.bounds.clone();
+            gpui::div().child(
+                gpui::div()
+                    .w(gpui::px(200.))
+                    .child(
+                        gpui_component::form::Field::new()
+                            .visible(self.visible)
+                            .child(gpui::div().h(gpui::px(32.))),
+                    )
+                    .on_prepaint(move |b, _, _| bounds.set(b)),
+            )
+        }
+    }
+    #[gpui::test]
+    fn conditional_fields_leave_no_layout_space_when_hidden(cx: &mut gpui::TestAppContext) {
+        cx.update(gpui_component::init);
+        for visible in [false, true] {
+            let bounds = Rc::new(Cell::new(gpui::Bounds::default()));
+            let (_, visual) = cx.add_window_view({
+                let bounds = bounds.clone();
+                move |_, _| FieldVisibility { visible, bounds }
+            });
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            if visible {
+                assert!(bounds.get().size.height >= gpui::px(32.));
+            } else {
+                assert_eq!(bounds.get().size.height, gpui::px(0.));
+            }
+        }
+    }
+}

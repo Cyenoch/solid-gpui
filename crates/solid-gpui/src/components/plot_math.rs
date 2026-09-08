@@ -517,14 +517,14 @@ pub(super) fn native_module() -> crate::native::ModuleDefinition {
         "gpui-component",
         vec![],
         vec![
-            C::sync("scaleLinear", linear_scale),
-            C::sync("scalePoint", point_scale),
-            C::sync("scaleBand", band_scale),
-            C::sync("scaleOrdinal", ordinal_scale),
-            C::sync("pieArcs", pie_arcs),
-            C::sync("arcCentroid", arc_centroid),
-            C::sync("stackSeries", stack_series),
-            C::sync("sankeyLayout", sankey_layout),
+            C::sync("scaleLinear", |request, _context| linear_scale(request)),
+            C::sync("scalePoint", |request, _context| point_scale(request)),
+            C::sync("scaleBand", |request, _context| band_scale(request)),
+            C::sync("scaleOrdinal", |request, _context| ordinal_scale(request)),
+            C::sync("pieArcs", |request, _context| pie_arcs(request)),
+            C::sync("arcCentroid", |request, _context| arc_centroid(request)),
+            C::sync("stackSeries", |request, _context| stack_series(request)),
+            C::sync("sankeyLayout", |request, _context| sankey_layout(request)),
         ],
     )
     .with_contract(include_str!("plot_math.rs"))

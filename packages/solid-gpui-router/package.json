@@ -25,6 +25,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./generator": {
+      "types": "./dist/generator.d.ts",
+      "import": "./dist/generator.js",
+      "default": "./dist/generator.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js",
+      "default": "./dist/vite.js"
     }
   },
   "engines": {
@@ -32,10 +42,21 @@
   },
   "dependencies": {
     "@tanstack/history": "1.162.1",
-    "@tanstack/router-core": "1.171.27"
+    "@tanstack/router-core": "1.171.28",
+    "@tanstack/router-generator": "1.167.34",
+    "@tanstack/router-utils": "1.162.2"
   },
   "peerDependencies": {
     "@solid-gpui/core": "^0.3.0",
-    "solid-js": "^1.9.10"
+    "solid-js": "^1.9.10",
+    "vite": "^8.0.0"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   }
 }

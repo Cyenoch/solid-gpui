@@ -385,6 +385,7 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
         value: None,
         expanded: None,
         level: None,
+        live: None,
     });
     Some(PatchOperation::Update {
         id: node.id,

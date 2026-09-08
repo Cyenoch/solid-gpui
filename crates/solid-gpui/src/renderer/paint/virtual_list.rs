@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::rc::Rc;
 
 use gpui::{
@@ -37,8 +36,6 @@ pub(super) fn render(
     let pending = Rc::clone(&root.pending_visible_ranges);
     let list_entity = entity.clone();
     let measurement_state = state.clone();
-    let scroll_state = state.clone();
-    let last_scroll_top = Cell::new(state.logical_scroll_top());
     let mut list_element = list(state, move |absolute_index, window, app| {
         let should_schedule = {
             let mut pending = pending.borrow_mut();
@@ -107,21 +104,9 @@ pub(super) fn render(
     // The public node owns layout. Keeping its style on the inner List loses
     // flex participation at the event boundary and can collapse it to zero.
     list_element = list_element.size_full();
-    // Native List handles the bubble first. Consume only actual list movement;
-    // unchanged offsets at either edge leave the wheel for the outer container.
-    // Track every event, including multiple wheel events between paints.
     let list_boundary = apply_style(
         div()
             .id(ElementId::Integer(((node.id as u64) << 32) | u64::MAX))
-            .on_scroll_wheel(move |_, _, cx| {
-                let current = scroll_state.logical_scroll_top();
-                let previous = last_scroll_top.replace(current);
-                if previous.item_ix != current.item_ix
-                    || previous.offset_in_item != current.offset_in_item
-                {
-                    cx.stop_propagation();
-                }
-            })
             .child(list_element),
         style,
     );

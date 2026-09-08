@@ -19,6 +19,7 @@ export const MAX_CLIPBOARD_IMAGE_BYTES = MAX_FRAME_SIZE - 1024;
 export const MAX_FILE_WRITE_BYTES = MAX_FRAME_SIZE - 1024;
 export const MAX_FILE_READ_BYTES = MAX_FRAME_SIZE - 1024;
 export const MAX_NATIVE_CALL_BYTES = 1_048_576;
+export const MAX_IMAGE_SOURCE_BYTES = 1 << 20;
 export const EVENT_EXTENSION = EVENT_KIND_CODES.Extension;
 export const MAX_EXTENSION_FIELDS = 256;
 export const MAX_EXTENSION_EVENTS = 256;
@@ -103,6 +104,7 @@ export const COMMAND_GET_WINDOW_BOUNDS = COMMAND_KIND_CODES.GetWindowBounds;
 export const COMMAND_GET_WINDOW_STATE = COMMAND_KIND_CODES.GetWindowState;
 export const COMMAND_ACTIVATE_WINDOW = COMMAND_KIND_CODES.ActivateWindow;
 export const COMMAND_INVOKE_NATIVE = COMMAND_KIND_CODES.InvokeNative;
+export const COMMAND_CANCEL_NATIVE = COMMAND_KIND_CODES.CancelNative;
 
 export const CLIPBOARD_IMAGE_FORMAT_PNG = 1 as const;
 export const CLIPBOARD_IMAGE_FORMAT_JPEG = 2 as const;
@@ -131,3 +133,6 @@ export const KEY_MODIFIER_NAMES = {
   shift: true,
   function: true,
 } as const;
+
+export const EVENT_APPLICATION_ACTIVATION = EVENT_KIND_CODES.ApplicationActivation;
+export const COMMAND_CONFIGURE_APPLICATION = COMMAND_KIND_CODES.ConfigureApplication;

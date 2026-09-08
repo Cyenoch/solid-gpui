@@ -59,6 +59,13 @@ pub(super) fn native_module() -> ModuleDefinition {
         "theme",
         vec![],
         vec![
+            CommandDefinition::foreground("getMotionPreference", |(): (), _, cx| {
+                crate::motion::get(cx)
+            }),
+            CommandDefinition::foreground(
+                "setMotionPreference",
+                |mode: crate::motion::MotionMode, _, cx| crate::motion::set(mode, cx),
+            ),
             CommandDefinition::foreground("getTheme", state),
             CommandDefinition::foreground("setTheme", change),
             CommandDefinition::foreground("setApplicationTheme", set_application),

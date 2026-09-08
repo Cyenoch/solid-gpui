@@ -1,11 +1,18 @@
 # Distributing a native application
 
-The Gallery is the reference application package. It compiles its Solid UI into
+The runtime strategy assigns Embedded Bun to production packaging for Bun-based
+applications and QuickJS to applications whose main capabilities live in Rust.
+External Bun serves rapid development. This guide currently implements the
+QuickJS website package; it does not yet provide an equivalent Embedded Bun
+release pipeline. See [runtime strategy](runtime-strategy.md) for the current
+gaps and intended roles.
+
+The website is the reference application package. It compiles its Solid UI into
 one ESM module, embeds that module in the Rust executable, and runs it with
 QuickJS. Production packages omit inline source maps. End users need neither Bun
 nor Node, a repository checkout, nor a JavaScript bundle beside the executable.
 Rust owns native services and rendering;
-the same Gallery composition also runs through Bun during development.
+the same website composition also runs through Bun during development.
 
 ## Build environment
 
@@ -40,32 +47,40 @@ embedded-bundle check runs without a display and does not validate that stack.
 
 ## Build and verify
 
+The website package uses the [approved project icon](../assets/branding/README.md).
+macOS bundles include `solid-gpui.icns` and declare it in `CFBundleIconFile`.
+Windows builds embed the ICO through the Windows SDK resource compiler.
+Linux archives include hicolor PNG icons and a matching desktop-entry `Icon` key.
+The shared navigation embeds its PNG in the JavaScript bundle, so it also works
+outside the checkout. Regenerate brand assets only when the source artwork changes;
+normal package builds use the checked-in files.
+
 Run this command **on each destination operating system**:
 
 ```sh
-bun run task gallery-package
+bun run task website-package
 ```
 
 The command builds workspace packages and native bindings, creates a release
 executable for the build machine's Rust host triple, and writes the archive and
-its SHA-256 checksum to `dist/gallery/`. Pass an output directory as the task's
-optional argument to change that location: `bun run task gallery-package ./dist/candidate`.
+its SHA-256 checksum to `dist/website/`. Pass an output directory as the task's
+optional argument to change that location: `bun run task website-package ./dist/candidate`.
 It extracts the archive into a temporary directory, verifies every packaged file,
 and runs its version and embedded-bundle checks outside the checkout with Bun
 absent from `PATH`. The bundle check evaluates the shipped JavaScript in the real
 QuickJS VM and consumes ordered Snapshots and Patches under one 15-second
 deadline. It validates the tree and each native component identity, requires
-actual content from both the SDK and Gallery native modules, then shuts down
+actual content from both the SDK and website native modules, then shuts down
 the runtime. The router's small loading Snapshot alone cannot pass this check.
 
 | Build host        | Artifact                                       | Launch after extraction                                         |
 | ----------------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| macOS             | `.zip` containing `Solid GPUI Gallery.app`     | Open the `.app`; optionally move it to `/Applications`          |
-| Linux             | `.tar.gz` containing `usr/bin` and `usr/share` | Run `./usr/bin/solid-gpui-gallery` from the extracted directory |
-| Windows with MSVC | `.zip` containing `solid-gpui-gallery.exe`     | Open the executable                                             |
+| macOS             | `.zip` containing `Solid GPUI.app`             | Open the `.app`; optionally move it to `/Applications`          |
+| Linux             | `.tar.gz` containing `usr/bin` and `usr/share` | Run `./usr/bin/solid-gpui-website` from the extracted directory |
+| Windows with MSVC | `.zip` containing `solid-gpui-website.exe`     | Open the executable                                             |
 
 Archives identify the version and exact Rust target, such as
-`solid-gpui-gallery-0.2.0-aarch64-apple-darwin.zip`. They also include license
+`solid-gpui-website-0.2.0-aarch64-apple-darwin.zip`. They also include license
 notices, an internal `SHA256SUMS`, and this guide. Unix archives include the
 observed native library dependencies in `NATIVE-DEPENDENCIES.txt`. A checksum
 detects corruption; publisher authentication requires signing.
@@ -75,7 +90,7 @@ collection of third-party license texts. The package includes that inventory and
 the project's MIT `LICENSE`; assembling and verifying the complete
 redistribution notices remains release work before public distribution.
 
-The `Gallery Packages` workflow builds native candidates on macOS ARM64,
+The `Website Packages` workflow builds native candidates on macOS ARM64,
 Linux x86-64, and Windows x86-64 and uploads the verified archives. It is manually
 triggered and runs for pull requests changing packaging inputs. Artifacts are
 unsigned candidates, not published releases. These checks do not establish
@@ -106,9 +121,9 @@ For example, before notarization, replace the candidate's ad hoc signature:
 
 ```sh
 codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: YOUR NAME (TEAMID)" "Solid GPUI Gallery.app"
-codesign --verify --strict --verbose=2 "Solid GPUI Gallery.app"
-ditto -c -k --keepParent "Solid GPUI Gallery.app" Gallery-notarization.zip
+  --sign "Developer ID Application: YOUR NAME (TEAMID)" "Solid GPUI.app"
+codesign --verify --strict --verbose=2 "Solid GPUI.app"
+ditto -c -k --keepParent "Solid GPUI.app" Website-notarization.zip
 ```
 
 QuickJS is an interpreter; this package does not embed Bun's JSC/JIT runtime.
@@ -126,11 +141,11 @@ intended fonts, graphics stack, desktop portals, and display scaling.
 To install an extracted package under `/usr/local`, run from its directory:
 
 ```sh
-sudo install -Dm755 usr/bin/solid-gpui-gallery /usr/local/bin/solid-gpui-gallery
-sudo install -Dm644 usr/share/applications/io.github.cyenoch.solid-gpui-gallery.desktop \
-  /usr/local/share/applications/io.github.cyenoch.solid-gpui-gallery.desktop
-sudo mkdir -p /usr/local/share/doc/solid-gpui-gallery
-sudo cp usr/share/doc/solid-gpui-gallery/* /usr/local/share/doc/solid-gpui-gallery/
+sudo install -Dm755 usr/bin/solid-gpui-website /usr/local/bin/solid-gpui-website
+sudo install -Dm644 usr/share/applications/io.github.cyenoch.solid-gpui-website.desktop \
+  /usr/local/share/applications/io.github.cyenoch.solid-gpui-website.desktop
+sudo mkdir -p /usr/local/share/doc/solid-gpui-website
+sudo cp usr/share/doc/solid-gpui-website/* /usr/local/share/doc/solid-gpui-website/
 ```
 
 The desktop entry uses an executable name resolved through the desktop session's
@@ -163,14 +178,14 @@ bundle and verification job, not an untested installer or automatic updater.
 
 ## Apply the pattern to another application
 
-Keep transport selection in the runtime entry: Gallery's `main.tsx` chooses
-`StdioTransport`, and `quickjs.tsx` chooses `EmbeddedTransport`. `mountGallery`
+Keep transport selection in the runtime entry: the website's `main.native.tsx` chooses
+`StdioTransport`, and `quickjs.tsx` chooses `EmbeddedTransport`. `mountWebsite`
 accepts a transport factory and owns the shared UI lifecycle. Generate native
 bindings before bundling; ordinary native development builds must not depend on
 the bundle whose generation requires those bindings.
 
-The `distribution` Cargo feature enables only the standalone Gallery binary and
-QuickJS. Its build script requires an absolute `SOLID_GPUI_GALLERY_BUNDLE` path,
+The `distribution` Cargo feature enables only the standalone website binary and
+QuickJS. Its build script requires an absolute `SOLID_GPUI_WEBSITE_BUNDLE` path,
 checks nonempty UTF-8 source, and tracks both the environment and source file for
 rebuilds. The binary embeds the copied module with `include_bytes!`, starts
 `QuickJsAdapter::from_source`, and passes it to `solid_gpui::run_application`.

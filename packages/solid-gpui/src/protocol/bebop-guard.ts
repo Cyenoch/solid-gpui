@@ -1,6 +1,7 @@
 import { PROTOCOL_SCHEMA } from "./generated/schema-meta";
 import {
   MAX_NATIVE_CALL_BYTES,
+  MAX_IMAGE_SOURCE_BYTES,
   MAX_CLIPBOARD_IMAGE_BYTES,
   MAX_CLIPBOARD_TEXT_BYTES,
   MAX_EXTENSION_EVENTS,
@@ -80,6 +81,7 @@ const STRING_DRAG_TYPE = 4;
 const STRING_TAG = 5;
 const STRING_NAMED = 6;
 const STRING_FILE_TEXT = 7;
+const STRING_IMAGE_SOURCE = 8;
 
 const ARRAY_DEFAULT = 0;
 const ARRAY_MODIFIERS = 1;
@@ -155,7 +157,8 @@ function scalarCode(name: string): number {
 function stringLimitKind(parent: string, field: string): number {
   if (field === "content") return STRING_CONTENT;
   if (field === "fontFamily") return STRING_FONT_FAMILY;
-  if (field === "path" || field === "source" || field === "fallbackSource") return STRING_PATH;
+  if (field === "path") return STRING_PATH;
+  if (field === "source" || field === "fallbackSource") return STRING_IMAGE_SOURCE;
   if (field === "dragType") return STRING_DRAG_TYPE;
   if (field === "tag") return STRING_TAG;
   if (field === "title" || field === "action" || field === "name" || field === "label" || field === "key")
@@ -309,6 +312,8 @@ class Guard {
         return 256;
       case STRING_PATH:
         return 1024;
+      case STRING_IMAGE_SOURCE:
+        return MAX_IMAGE_SOURCE_BYTES;
       case STRING_DRAG_TYPE:
         return 512;
       case STRING_TAG:

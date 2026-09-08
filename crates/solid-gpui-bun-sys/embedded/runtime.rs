@@ -296,7 +296,7 @@ fn deliver_turn(control: &Arc<ControlState>) -> JsResult<bool> {
     let flags = control.flags.swap(0, Ordering::AcqRel);
     if flags & OUTPUT_DRAIN != 0 {
         // Clear the old write's reference before invoking listeners. A drain
-        // listener can refill stdout and acquire a fresh reference. This also
+        // listener can refill the output queue and acquire a fresh reference. This also
         // keeps a final backpressured response alive after input has reached EOF.
         release_output_ref();
         deliver
@@ -314,9 +314,9 @@ fn deliver_turn(control: &Arc<ControlState>) -> JsResult<bool> {
         return Ok(true);
     }
     if !JS_STATE.with(|slot| slot.borrow().as_ref().is_some_and(|s| s.input_active)) {
-        // import() can yield before the app constructs its StdioTransport.
+        // import() can yield before the app constructs its EmbeddedTransport.
         // Keep frames in the bounded host queue until the first data listener
-        // exists. Its newListener hook activates input without polling.
+        // exists. Bridge subscription activates input without polling.
         control.flags.fetch_or(INPUT, Ordering::Release);
         return Ok(false);
     }
@@ -417,38 +417,32 @@ fn wrapper_source(entry: &[u8]) -> Box<[u8]> {
     let entry = std::str::from_utf8(entry).expect("validated UTF-8 entry");
     let quoted = format!("{:?}", entry);
     format!(
-        r#"import {{ EventEmitter }} from 'node:events';
-const input = new EventEmitter();
-input.readable = true;
-input.destroyed = false;
-input.on('newListener', kind => {{
-  if (kind === 'data') globalThis.__solid_gpui_activate_input();
+        r#"let subscription;
+let ended = false;
+globalThis.__solidGpuiHost = Object.freeze({{
+  submit(frame) {{
+    if (!(frame instanceof Uint8Array)) throw new TypeError('native bridge requires Uint8Array');
+    return globalThis.__solid_gpui_write(frame);
+  }},
+  subscribe(onData, onTermination, onDrain) {{
+    if (ended) throw new Error('native bridge input is closed');
+    if (subscription) throw new Error('one active transport is allowed per VM');
+    if ([onData, onTermination, onDrain].some(fn => typeof fn !== 'function'))
+      throw new TypeError('native bridge callbacks must be functions');
+    const current = {{ onData, onTermination, onDrain }};
+    subscription = current;
+    globalThis.__solid_gpui_activate_input();
+    return () => {{ if (subscription === current) subscription = undefined; }};
+  }},
 }});
-const output = new EventEmitter();
-output.writable = true;
-output.destroyed = false;
-output.writableNeedDrain = false;
-output.write = frame => {{
-  if (!(frame instanceof Uint8Array)) throw new TypeError('native stdout requires Uint8Array');
-  if (!output.writable) throw new Error('native stdout is closed');
-  const writable = globalThis.__solid_gpui_write(frame);
-  if (!writable) output.writableNeedDrain = true;
-  return writable;
-}};
-Object.defineProperty(process, 'stdin', {{ value: input, configurable: true }});
-Object.defineProperty(process, 'stdout', {{ value: output, configurable: true }});
 globalThis.__solid_gpui_register((kind, frame) => {{
-  if (kind === 1) {{
-    if (input.readable) input.emit('data', frame);
-  }} else if (kind === 2) {{
-    if (output.writable && output.writableNeedDrain) {{
-      output.writableNeedDrain = false;
-      output.emit('drain');
-    }}
-  }} else if (kind === 3 && input.readable) {{
-    input.readable = false;
-    input.destroyed = true;
-    try {{ input.emit('end'); }} finally {{ input.emit('close'); }}
+  if (kind === 1) subscription?.onData(frame);
+  else if (kind === 2) subscription?.onDrain();
+  else if (kind === 3 && !ended) {{
+    ended = true;
+    const current = subscription;
+    subscription = undefined;
+    current?.onTermination('native bridge input ended');
   }}
 }});
 await import({quoted});
@@ -551,7 +545,7 @@ fn run(control: &RuntimeControl, entry: &[u8], io: &EmbeddedIoCallbacks) -> crat
             unsafe { (*vm).on_before_exit() };
         }
     }
-    // Natural exit listeners may still synchronously use stdout. Run them
+    // Natural exit listeners may still synchronously submit final frames. Run them
     // while the bridge callback table and roots are alive, then revoke them
     // before destroying the heap. Forced termination forbids these listeners.
     session.on_exit();

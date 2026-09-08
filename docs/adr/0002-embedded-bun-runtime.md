@@ -31,14 +31,15 @@ or 1 MiB, then yields through Bun's event loop. One larger legal frame is
 delivered atomically. An input keepalive holds the loop open without a polling
 timer, and input queued during module loading waits for a data listener.
 
-The bootstrap exposes the renderer's stdio-shaped transport. A commit write
+The bootstrap exposes an explicit `EmbeddedTransport` native frame bridge.
+It does not replace `process.stdin` or `process.stdout`. A commit write
 returns true when writable, false when the frame was accepted under pressure,
 and throws when closed or over its hard bound. Removing queued commits posts
 a real drain notification; an output keepalive retains a pending drain even
 after input EOF. Host input never waits for queue capacity. Its byte and frame
 caps produce an explicit transport error on exhaustion.
 
-`close_input` drains accepted input before stdin end/close and permits final
+`close_input` drains accepted input before the bridge input termination callback and permits final
 output and normal beforeExit work. `request_shutdown` requests JSC termination
 and wakes the native loop without waiting. `shutdown` additionally waits for
 teardown on a background executor. Fatal host paths request termination before

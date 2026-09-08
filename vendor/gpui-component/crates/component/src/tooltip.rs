@@ -1,4 +1,8 @@
-use std::{cell::Cell, rc::Rc, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    time::Duration,
+};
 
 use gpui::{
     Action, AnyElement, AnyView, App, AppContext, Bounds, Context, ElementId, IntoElement,
@@ -250,9 +254,13 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
         let build_tooltip = Rc::new(build_tooltip);
         let trigger_bounds_cell: Rc<Cell<Bounds<Pixels>>> = Rc::new(Cell::new(Bounds::default()));
         let bounds_writer = trigger_bounds_cell.clone();
+        let owner = Rc::new(RefCell::new(None::<gpui::Entity<()>>));
+        let owner_writer = owner.clone();
 
-        self.on_prepaint(move |bounds, _, _| {
+        self.on_prepaint(move |bounds, window, cx| {
             bounds_writer.set(bounds);
+            *owner_writer.borrow_mut() =
+                Some(window.use_keyed_state("tooltip-owner", cx, |_, _| ()));
         })
         .on_hover({
             let trigger_bounds_cell = trigger_bounds_cell.clone();
@@ -266,6 +274,11 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
                             let request = BaseTooltipRequest::new(bounds, move |window, cx| {
                                 build(window, cx)
                             });
+                            let request = if let Some(owner) = owner.borrow().as_ref() {
+                                request.owned_by(owner.downgrade())
+                            } else {
+                                return;
+                            };
                             let request = match preferred_placement {
                                 Some(placement) => request.placement(placement),
                                 None => request,

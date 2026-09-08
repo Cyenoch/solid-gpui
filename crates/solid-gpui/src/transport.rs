@@ -53,7 +53,16 @@ impl std::fmt::Display for RuntimeStatus {
 /// A child process or embedded runtime can close its stream during explicit
 /// host shutdown. Callers use this status to distinguish that path from an
 /// unexpected runtime termination.
+pub enum HostCommit {
+    Frame(Vec<u8>),
+    #[cfg(feature = "quickjs")]
+    Replacement(Box<crate::runtime::reload::Replacement>),
+}
+
 pub trait RuntimeAdapter: Send + Sync {
+    fn recv_host_commit(&self) -> Result<Option<HostCommit>, ProtocolError> {
+        self.recv_commit().map(|frame| frame.map(HostCommit::Frame))
+    }
     fn recv_commit(&self) -> Result<Option<Vec<u8>>, ProtocolError>;
     fn send_event(&self, event: Event) -> Result<(), ProtocolError>;
     /// Revoke transport input and request termination without waiting for the

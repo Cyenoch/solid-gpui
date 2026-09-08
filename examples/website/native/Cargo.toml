@@ -1,0 +1,30 @@
+[package]
+name = "website-host"
+default-run = "website-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+distribution = ["solid-gpui/quickjs"]
+
+[[bin]]
+name = "website-host"
+path = "src/main.rs"
+
+[[bin]]
+name = "solid-gpui-website"
+path = "src/distribution.rs"
+required-features = ["distribution"]
+
+[dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }
+
+[build-dependencies]
+embed-resource = "=3.0.11"
+
+[dev-dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component", "test-support"] }
+gpui = { workspace = true, features = ["test-support"] }
+gpui-component.workspace = true

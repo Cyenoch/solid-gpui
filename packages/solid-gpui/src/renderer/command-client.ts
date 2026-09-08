@@ -8,10 +8,12 @@ import {
 } from "../protocol";
 import { TransportTerminatedError } from "../transport";
 import type { PendingCommand } from "./types";
+import { NativeCommandError, validateCallOptions, type NativeCallOptions } from "../native-call";
 
 export interface CommandFrameSink {
   getTerminationError(): TransportTerminatedError | undefined;
   submitFrame(frame: Uint8Array): boolean;
+  cancelNative(requestId: number): void;
 }
 export class CommandClient {
   private readonly pending = new Map<number, PendingCommand>();
@@ -25,17 +27,60 @@ export class CommandClient {
     return requestId;
   }
 
-  submit(command: Command): Promise<CommandValue | null> {
+  submit(command: Command, options?: NativeCallOptions): Promise<CommandValue | null> {
     const requestId = command.requestId;
     return new Promise<CommandValue | null>((resolve, reject) => {
-      this.pending.set(requestId, { command: command.command, nodeId: command.nodeId, resolve, reject });
+      validateCallOptions(options);
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      let submitted = false;
+      let cancelled = false;
+      const signal = options?.signal;
+      const cleanup = () => {
+        if (timeout !== undefined) clearTimeout(timeout);
+        signal?.removeEventListener("abort", onAbort);
+      };
+      const cancel = (reason: unknown) => {
+        if (!this.pending.delete(requestId)) return;
+        cancelled = true;
+        cleanup();
+        reject(reason);
+        if (submitted) this.sink.cancelNative(requestId);
+      };
+      const onAbort = () => cancel(signal!.reason);
+      this.pending.set(requestId, {
+        command: command.command,
+        nodeId: command.nodeId,
+        resolve,
+        reject,
+        cleanup,
+        identity: {
+          surfaceId: command.surfaceId,
+          epoch: command.epoch,
+          requestId,
+          nodeId: command.nodeId,
+          command: command.command,
+          ...(command.payload?.type === "invoke-native" ? { functionId: command.payload.functionId } : {}),
+        },
+      });
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (options?.timeoutMs !== undefined)
+        timeout = setTimeout(
+          () => cancel(new DOMException("Native command timed out", "TimeoutError")),
+          options.timeoutMs,
+        );
       try {
-        if (!this.sink.submitFrame(encodeFrame(command))) {
+        submitted = this.sink.submitFrame(encodeFrame(command));
+        if (!submitted) {
           this.pending.delete(requestId);
+          cleanup();
           reject(this.sink.getTerminationError() ?? new TransportTerminatedError("transport is terminated"));
+        } else if (cancelled) {
+          // Never let reentrant cancellation overtake its original request.
+          this.sink.cancelNative(requestId);
         }
       } catch (error) {
         this.pending.delete(requestId);
+        cleanup();
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
@@ -45,8 +90,11 @@ export class CommandClient {
     const pending = this.pending.get(result.requestId);
     if (pending === undefined) return;
     this.pending.delete(result.requestId);
+    pending.cleanup();
     if (result.command !== pending.command || result.nodeId !== pending.nodeId) {
-      pending.reject(new Error("native command response does not match the pending command"));
+      pending.reject(
+        new NativeCommandError("native command response does not match the pending command", pending.identity),
+      );
       return;
     }
     if (
@@ -57,15 +105,18 @@ export class CommandClient {
           result.value.value.byteLength > MAX_NATIVE_CALL_BYTES)) ||
       (pending.command === COMMAND_INVOKE_NATIVE && result.success && result.value?.type !== "bytes")
     ) {
-      pending.reject(new Error("native command returned an invalid byte result"));
+      pending.reject(new NativeCommandError("native command returned an invalid byte result", pending.identity));
       return;
     }
     if (result.success) pending.resolve(result.value);
-    else pending.reject(new Error(String(result.error ?? "native command failed")));
+    else pending.reject(new NativeCommandError(String(result.error ?? "native command failed"), pending.identity));
   }
 
   rejectAll(error: Error): void {
-    for (const pending of this.pending.values()) pending.reject(error);
+    for (const pending of this.pending.values()) {
+      pending.cleanup();
+      pending.reject(error);
+    }
     this.pending.clear();
   }
 }

@@ -5,6 +5,8 @@ AnyRoute	type
 AnyRouter	type
 BackButton	value
 BackButtonProps	type
+createFileRoute	value
+createLazyFileRoute	value
 createRootRoute	value
 createRootRouteWithContext	value
 createRoute	value
@@ -15,8 +17,11 @@ DefaultNotFoundComponent	value
 DefaultPendingComponent	value
 ErrorComponentProps	type
 ErrorRouteComponent	type
+FileRoutesByPath	type
 isNotFound	value
 isRedirect	value
+lazyFn	value
+lazyRouteComponent	value
 Link	value
 LinkProps	type
 NativeActiveOptions	type
@@ -31,6 +36,7 @@ NotFoundRouteComponent	type
 NotFoundRouteProps	type
 Outlet	value
 redirect	value
+Register	type
 RegisteredRouter	type
 RouteComponent	type
 RouteMask	type

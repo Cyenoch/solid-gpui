@@ -2,7 +2,7 @@
 export const PROTOCOL_SCHEMA = {
   schema: "protocol.bop",
   root: "Envelope",
-  digest: "c5d879f9f501d5313fbc933f0cb566cb36e01b3c44cde212cd73bb9a8fc625b0",
+  digest: "998a1e721623641996b055cf417498a30ce4bbc8299a33786946df2750223455",
   definitions: {
     NodeKind: {
       kind: "enum",
@@ -30,7 +30,7 @@ export const PROTOCOL_SCHEMA = {
     EventKind: {
       kind: "enum",
       base: "uint8",
-      values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+      values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
       names: [
         "Unknown",
         "Press",
@@ -57,6 +57,7 @@ export const PROTOCOL_SCHEMA = {
         "PointerDownOutside",
         "CloseRequested",
         "Extension",
+        "ApplicationActivation",
       ],
     },
     CommandKind: {
@@ -64,7 +65,7 @@ export const PROTOCOL_SCHEMA = {
       base: "uint8",
       values: [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 36,
+        30, 31, 32, 33, 34, 35, 36, 37, 38,
       ],
       names: [
         "Unknown",
@@ -104,6 +105,8 @@ export const PROTOCOL_SCHEMA = {
         "GetScrollOffset",
         "ScrollToOffset",
         "InvokeNative",
+        "CancelNative",
+        "ConfigureApplication",
       ],
     },
     Body: {
@@ -897,6 +900,14 @@ export const PROTOCOL_SCHEMA = {
             name: "uint32",
           },
         },
+        {
+          id: 10,
+          name: "live",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
       ],
     },
     Transition: {
@@ -1549,6 +1560,38 @@ export const PROTOCOL_SCHEMA = {
             name: "uint32",
           },
         },
+        {
+          id: 63,
+          name: "gridColumns",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 64,
+          name: "gridRows",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 65,
+          name: "gridColumnSpan",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 66,
+          name: "gridRowSpan",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
       ],
     },
     Node: {
@@ -2084,6 +2127,14 @@ export const PROTOCOL_SCHEMA = {
           id: 12,
           type: "InvokeNativeCommand",
         },
+        {
+          id: 13,
+          type: "CancelNativeCommand",
+        },
+        {
+          id: 14,
+          type: "ConfigureApplicationCommand",
+        },
       ],
     },
     U32PairCommand: {
@@ -2371,6 +2422,48 @@ export const PROTOCOL_SCHEMA = {
               kind: "scalar",
               name: "byte",
             },
+          },
+        },
+      ],
+    },
+    CancelNativeCommand: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "requestId",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+      ],
+    },
+    ConfigureApplicationCommand: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "keepAlive",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
+        {
+          id: 2,
+          name: "quit",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
+        {
+          id: 3,
+          name: "acknowledgedSequence",
+          type: {
+            kind: "scalar",
+            name: "uint32",
           },
         },
       ],
@@ -2710,6 +2803,10 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 21,
           type: "ExtensionEvent",
+        },
+        {
+          id: 22,
+          type: "ApplicationActivationEvent",
         },
       ],
     },
@@ -3271,6 +3368,38 @@ export const PROTOCOL_SCHEMA = {
             element: {
               kind: "def",
               name: "ExtensionField",
+            },
+          },
+        },
+      ],
+    },
+    ApplicationActivationEvent: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "targetSurfaceId",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 2,
+          name: "reason",
+          type: {
+            kind: "scalar",
+            name: "string",
+          },
+        },
+        {
+          id: 3,
+          name: "urls",
+          type: {
+            kind: "array",
+            element: {
+              kind: "scalar",
+              name: "string",
             },
           },
         },

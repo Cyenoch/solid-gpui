@@ -11,6 +11,7 @@ categories = ["gui"]
 
 [dependencies]
 roxmltree = "0.21.1"
+web-time = "1.1"
 bebop.workspace = true
 futures.workspace = true
 gpui.workspace = true
@@ -22,9 +23,9 @@ serde_json.workspace = true
 gpui-iconify = { path = "../gpui-iconify" }
 solid-gpui-macros = { path = "../solid-gpui-macros" }
 serde_ignored = "0.1"
+data-url = "0.3.2"
 sha2 = "0.11"
 ts-rs = "12.0.1"
-tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }
 gpui-component = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
 gpui-kit-assets = { workspace = true, optional = true }
@@ -36,14 +37,16 @@ rquickjs = { version = "=0.12.2", features = ["array-buffer"], optional = true }
 
 [features]
 default = ["host"]
-host = ["dep:gpui-platform"]
-gpui-component = ["host", "dep:gpui-component", "dep:gpui-base", "dep:gpui-kit-assets", "dep:chrono", "dep:gpui-performance"]
+host = ["dep:gpui-platform", "dep:reqwest-client"]
+component-runtime = ["dep:gpui-component", "dep:gpui-base", "dep:chrono"]
+gpui-component = ["host", "component-runtime", "dep:gpui-kit-assets", "dep:gpui-performance"]
 frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13.13", features = ["settings"] }
 gpui-platform = { workspace = true, features = ["font-kit", "wayland", "x11"], optional = true }
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
@@ -68,3 +71,21 @@ required-features = ["embedded-bun"]
 [[bin]]
 name = "solid-gpui-host"
 required-features = ["host"]
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+reqwest-client = { package = "gpui-pre-reqwest-client", version = "0.3.3", optional = true }
+tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen = "=0.2.121"
+web-sys = { version = "0.3", features = ["Window", "MediaQueryList", "MediaQueryListEvent"] }
+tokio = { version = "1.53", features = ["sync"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSAccessibility"] }
+objc2-foundation = { version = "0.3", features = ["NSNotification", "NSOperation", "NSString", "block2"] }
+block2 = "0.6"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Foundation", "UI_ViewManagement"] }

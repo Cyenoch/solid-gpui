@@ -26,33 +26,19 @@ Their natural size is part of their contract.
 
 ## Reproduction and regression
 
-Build the packages before capturing the routed Gallery:
+The original routed Gallery regression was removed with the old application.
+Its measurements below are historical evidence, not current website acceptance.
+Run the retained native scroll regressions and the website navigation check:
 
 ```sh
-bun run task package-build
-cargo test -p gallery-host --features solid-gpui/test-support --test gallery \
-  gallery_tests::gallery_panes_scroll_independently -- --exact --nocapture
+cargo test -p solid-gpui --lib renderer::scroll_tests -- --nocapture
+bun run task website-navigation-check
 ```
 
-The test captures the actual Gallery through Bun and mounts it through the
-real provider profile and `gpui_component::Root`. It verifies bounded panes,
-independent movement, both final content edges becoming reachable, and stationary
-header/footer. It also verifies every timed wheel moves content, alternates
-away from scroll limits, warms up, and reports p50/p95/max CPU duration.
-
-On a calibrated machine, enable a performance failure threshold explicitly:
-
-```sh
-SOLID_GPUI_SCROLL_P95_MS=8.333 cargo test -p gallery-host --features solid-gpui/test-support --test gallery \
-  gallery_tests::gallery_panes_scroll_independently -- --exact --nocapture
-```
-
-8.333 ms is a 120 Hz frame interval, not a universal CI timing assertion.
-Keep correctness unconditional; choose the timing budget for the measurement
-machine. The test platform measures native CPU work, not GPU presentation.
-`VisualTestContext::simulate_event` already draws. Flush next-frame callbacks
-without calling `window.draw` again in the timed section; an explicit second
-draw doubles the workload and must never be reported as one frame.
+For current website measurements, launch `bun run task website-native-profile`
+and follow [performance analysis](performance-analysis.md). Choose timing budgets
+for the measurement machine; deterministic native tests do not measure GPU
+presentation.
 
 Always also exercise the native application with continuous navigation/content
 scrolling, clicks after scrolling, resize, route changes, and both themes.
@@ -158,7 +144,7 @@ experiments were reverted.
 For actual native input and presentation measurements, run:
 
 ```sh
-bun run task gallery-profile 2> /tmp/solid-gpui-frame-profile.log
+bun run task website-native-profile 2> /tmp/solid-gpui-frame-profile.log
 ```
 
 The optional `frame-profile` Cargo feature enables GPUI's native profiler.
@@ -209,26 +195,20 @@ fit within their controls. Shared Button usage carries the fix to other pages;
 existing fixed-height benchmark cells, swatches and virtual rows were also
 inspected.
 
-Run the reusable audit with:
+The Gallery-specific all-route geometry harness described in this investigation
+was retired with the old Gallery application. The shared website now has a
+focused navigation regression check:
 
 ```sh
-bun run task gallery-scroll-audit
+bun run task website-navigation-check
 ```
 
-It gets route IDs from `PAGES`, so newly added pages are included automatically.
-It covers every registered page at 560/800/1280/1680 widths, preserving a mounted
-window through 800 → 1280 → 800 → 1280 → 1680 and testing compact layouts too.
-It verifies independent scrolling, reachable content, fixed chrome and stationary
-content when no overflow exists. Oversized final text only needs its end reachable;
-a fitting final text may need a small upward adjustment from maximum scroll
-because of trailing padding. Timed deltas stay within each pane's actual overflow.
-Provider globals initialize once per test application, matching production, and
-each audited window closes before the next route.
-
-Keep CPU audit and native acceptance distinct. Do not count idle intervals,
-concurrent builds, discarded experiments, or repeated runs until a threshold
-happens to pass as performance evidence. The all-route audit is a diagnosis and
-correctness tool; it does not prove every page presents at a stable 120 Hz.
+This verifies retained sidebar nodes and incremental updates when routes change.
+It does not measure native scrolling or frame presentation. For the current
+Showcase, follow [performance analysis](performance-analysis.md), verifying the
+Collections list with real input and both narrow and wide windows. Keep CPU
+measurement and native acceptance distinct; do not count idle intervals or
+concurrent builds as scrolling evidence.
 
 ## Overview: flowing sections must not accumulate flex measurement
 
@@ -338,3 +318,23 @@ subsequent events still scroll the list. At the user's request, this change
 preserved native behavior without timer-based gesture inference or GPUI
 dependency changes. Passing deterministic tests does not establish real
 trackpad acceptance.
+
+## Nested scroll ownership (2026-09-08)
+
+A wheel event belongs to the deepest viewport that can move in its direction.
+Clamp the new offset before deciding whether the viewport consumed the event.
+Movement stops propagation; an unchanged offset at an edge or in non-overflowing
+content lets an ancestor handle it. Reaching an edge consumes that event; only a
+subsequent event at the edge hands off. A horizontal strip without vertical
+overflow leaves vertical wheels to the containing page.
+
+This policy is implemented in GPUI's shared Div interactivity and variable-height
+List, covering ordinary overflow containers, UniformList, the component VirtualList,
+and list-backed widgets. InputBase and ScrollableMask also consume actual movement.
+Do not add per-example wheel blockers: they hide missing shared ownership and can
+trap scrolling at boundaries. Scrollbar dragging owns mouse drag events separately.
+
+The native regression matrix in `components::scroll_views::tests` checks child and
+ancestor offsets together, including pixel/line deltas, boundaries, horizontal
+lists, and non-overflowing content. A test asserting only the child moved cannot
+catch simultaneous page movement.

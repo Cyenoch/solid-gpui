@@ -37,7 +37,13 @@ pub trait NativeModule: Send + Sync {
 }
 
 mod component;
+#[cfg(not(target_family = "wasm"))]
 mod executor;
+#[cfg(target_family = "wasm")]
+#[path = "executor_web.rs"]
+mod executor;
+mod cancellation;
+pub use cancellation::NativeCallContext;
 mod json_guard;
 mod module;
 pub use component::*;

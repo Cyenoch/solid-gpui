@@ -1,4 +1,5 @@
-//! Host-owned Tokio execution; no process-global runtime or borrowed enter guard.
+use super::NativeCallContext;
+// Host-owned Tokio execution; no process-global runtime or borrowed enter guard.
 
 use futures::future::BoxFuture;
 use std::{
@@ -54,17 +55,22 @@ impl NativeExecutor {
         Ok((runtime.as_ref().map_err(Clone::clone)?, permit))
     }
 
-    pub fn asynchronous<F>(&self, future: F) -> BoxFuture<'static, Reply>
+    pub fn asynchronous<F, Fut>(&self, function: F) -> BoxFuture<'static, Reply>
     where
-        F: Future<Output = Reply> + Send + 'static,
+        F: FnOnce(NativeCallContext) -> Fut + Send + 'static,
+        Fut: Future<Output = Reply> + Send + 'static,
     {
+        let context = NativeCallContext::default();
+        let worker_context = context.clone();
         match self.admit() {
             Ok((runtime, permit)) => Box::pin(AbortOnDrop {
+                context,
+                completed: false,
                 join: runtime.spawn(async move {
                     // The actual task owns admission, not its observer. Dropping
                     // the observer aborts this future and eventually drops this permit.
                     let _permit = permit;
-                    future.await
+                    function(worker_context).await
                 }),
             }),
             Err(error) => Box::pin(std::future::ready(Err(error))),
@@ -73,15 +79,19 @@ impl NativeExecutor {
 
     pub fn blocking<F>(&self, function: F) -> BoxFuture<'static, Reply>
     where
-        F: FnOnce() -> Reply + Send + 'static,
+        F: FnOnce(NativeCallContext) -> Reply + Send + 'static,
     {
+        let context = NativeCallContext::default();
+        let worker_context = context.clone();
         match self.admit() {
             Ok((runtime, permit)) => Box::pin(AbortOnDrop {
+                context,
+                completed: false,
                 join: runtime.spawn_blocking(move || {
                     // Tokio cannot stop a blocking closure after it starts. Keep
                     // its permit until it returns, even if its result was cancelled.
                     let _permit = permit;
-                    function()
+                    function(worker_context)
                 }),
             }),
             Err(error) => Box::pin(std::future::ready(Err(error))),
@@ -102,6 +112,8 @@ impl Drop for NativeExecutor {
 /// Dropping a plain Tokio JoinHandle detaches its task. This wrapper instead
 /// connects cancellation of the GPUI request future to Tokio task abortion.
 struct AbortOnDrop {
+    context: NativeCallContext,
+    completed: bool,
     join: JoinHandle<Reply>,
 }
 
@@ -109,15 +121,20 @@ impl Future for AbortOnDrop {
     type Output = Reply;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Reply> {
-        Pin::new(&mut self.join)
+        let result = Pin::new(&mut self.join)
             .poll(cx)
-            .map(|result| result.unwrap_or_else(|error| Err(join_error(error))))
+            .map(|result| result.unwrap_or_else(|error| Err(join_error(error))));
+        self.completed = result.is_ready();
+        result
     }
 }
 
 impl Drop for AbortOnDrop {
     fn drop(&mut self) {
-        self.join.abort();
+        if !self.completed {
+            self.context.cancel();
+            self.join.abort();
+        }
     }
 }
 
@@ -161,7 +178,7 @@ mod tests {
         for _ in 0..MAX_IN_FLIGHT {
             let started = started_tx.clone();
             let dropped = dropped_tx.clone();
-            calls.push(executor.asynchronous(async move {
+            calls.push(executor.asynchronous(|_| async move {
                 let _drop = DropSignal(dropped);
                 started.send(()).unwrap();
                 std::future::pending::<Reply>().await
@@ -170,7 +187,7 @@ mod tests {
         for _ in 0..MAX_IN_FLIGHT {
             started_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         }
-        let overflow = futures::executor::block_on(executor.asynchronous(async { Ok(vec![]) }));
+        let overflow = futures::executor::block_on(executor.asynchronous(|_| async { Ok(vec![]) }));
         assert_eq!(overflow.unwrap_err(), "native executor capacity exceeded");
         drop(calls);
         for _ in 0..MAX_IN_FLIGHT {
@@ -184,7 +201,9 @@ mod tests {
             );
             std::thread::yield_now();
         }
-        assert!(futures::executor::block_on(executor.asynchronous(async { Ok(vec![]) })).is_ok());
+        assert!(
+            futures::executor::block_on(executor.asynchronous(|_| async { Ok(vec![]) })).is_ok()
+        );
     }
 
     #[test]
@@ -195,7 +214,7 @@ mod tests {
         };
         let (started_tx, started_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
-        let call = executor.blocking(move || {
+        let call = executor.blocking(move |_| {
             started_tx.send(()).unwrap();
             release_rx.recv_timeout(Duration::from_secs(3)).unwrap();
             Ok(vec![])
@@ -203,7 +222,8 @@ mod tests {
         started_rx.recv_timeout(Duration::from_secs(3)).unwrap();
         drop(call);
         assert_eq!(
-            futures::executor::block_on(executor.asynchronous(async { Ok(vec![]) })).unwrap_err(),
+            futures::executor::block_on(executor.asynchronous(|_| async { Ok(vec![]) }))
+                .unwrap_err(),
             "native executor capacity exceeded"
         );
         release_tx.send(()).unwrap();
@@ -229,7 +249,7 @@ mod tests {
         };
         let (started_tx, started_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
-        let blocking = executor.blocking(move || {
+        let blocking = executor.blocking(move |_| {
             started_tx.send(()).unwrap();
             release_rx
                 .recv_timeout(Duration::from_secs(3))
@@ -237,7 +257,7 @@ mod tests {
             Ok(vec![])
         });
         started_rx.recv_timeout(Duration::from_secs(3)).unwrap();
-        let asynchronous = executor.asynchronous(async move {
+        let asynchronous = executor.asynchronous(|_| async move {
             tokio::time::sleep(Duration::from_millis(1)).await;
             release_tx.send(()).map_err(|error| error.to_string())?;
             Ok(vec![])
@@ -251,7 +271,7 @@ mod tests {
         let executor = NativeExecutor::default();
         let (started_tx, started_rx) = mpsc::channel();
         let (dropped_tx, dropped_rx) = mpsc::channel();
-        let call = executor.asynchronous(async move {
+        let call = executor.asynchronous(|_| async move {
             let _drop = DropSignal(dropped_tx);
             started_tx.send(()).unwrap();
             std::future::pending::<Reply>().await
@@ -263,5 +283,39 @@ mod tests {
             futures::executor::block_on(call).unwrap_err(),
             "native command was cancelled"
         );
+    }
+    #[test]
+    fn blocking_work_observes_request_cancellation_and_success_is_not_cancelled() {
+        let executor = NativeExecutor::default();
+        let (started_tx, started_rx) = mpsc::channel();
+        let (finished_tx, finished_rx) = mpsc::channel();
+        let call = executor.blocking(move |context| {
+            started_tx.send(()).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while !context.is_cancelled() {
+                assert!(
+                    Instant::now() < deadline,
+                    "blocking command did not observe cancellation"
+                );
+                std::thread::yield_now();
+            }
+            finished_tx.send(context.check_cancelled()).unwrap();
+            Ok(vec![])
+        });
+        started_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        drop(call);
+        assert!(
+            finished_rx
+                .recv_timeout(Duration::from_secs(3))
+                .unwrap()
+                .is_err()
+        );
+        let (context_tx, context_rx) = mpsc::channel();
+        let call = executor.asynchronous(move |context| async move {
+            context_tx.send(context).unwrap();
+            Ok(vec![])
+        });
+        assert!(futures::executor::block_on(call).is_ok());
+        assert!(!context_rx.recv().unwrap().is_cancelled());
     }
 }

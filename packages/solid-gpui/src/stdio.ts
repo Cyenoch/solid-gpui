@@ -1,4 +1,3 @@
-import { MAX_FRAME_SIZE } from "./protocol";
 import { ProtocolTap } from "./protocol-tap";
 import {
   TransportTerminatedError,
@@ -30,12 +29,6 @@ export interface ByteOutput {
   off?: (event: "drain" | "error" | "close", listener: ByteOutputEventListener) => unknown;
   removeListener?: (event: "drain" | "error" | "close", listener: ByteOutputEventListener) => unknown;
 }
-
-export interface StdioTransportOptions {
-  readonly maxPendingBytes?: number;
-}
-
-export const DEFAULT_MAX_PENDING_BYTES = MAX_FRAME_SIZE + 4;
 
 function asBytes(chunk: TransportChunk): Uint8Array {
   return chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
@@ -122,11 +115,7 @@ export class StdioTransport implements DisposableTransport {
   private readonly drainListener: DrainListener;
   private readonly outputCloseListener: TransportCloseListener;
   private readonly outputErrorListener: TransportErrorListener;
-  private readonly maxPendingBytes: number;
-  private pendingFrames: Array<Uint8Array | undefined> = [];
-  private pendingHead = 0;
-  private pendingBytes = 0;
-  private backpressured = false;
+  private readonly drainListeners = new Set<() => void>();
   private disposed = false;
   private terminated = false;
   private terminationError: TransportTerminatedError | undefined;
@@ -135,13 +124,7 @@ export class StdioTransport implements DisposableTransport {
   constructor(
     private readonly output: ByteOutput = getDefaultOutput(),
     private readonly input: ByteInput = getDefaultInput(),
-    options: StdioTransportOptions = {},
   ) {
-    const maxPendingBytes = options.maxPendingBytes ?? DEFAULT_MAX_PENDING_BYTES;
-    if (!Number.isInteger(maxPendingBytes) || maxPendingBytes < 1) {
-      throw new RangeError("StdioTransport maxPendingBytes must be a positive integer");
-    }
-    this.maxPendingBytes = maxPendingBytes;
     this.tap = ProtocolTap.fromEnv();
     this.inputListener = (chunk) => {
       if (this.disposed || this.terminated) return;
@@ -154,7 +137,9 @@ export class StdioTransport implements DisposableTransport {
     this.inputCloseListener = () =>
       this.terminate(terminatedError("StdioTransport input closed", undefined, { kind: "eof" }));
     this.inputErrorListener = (error) => this.terminate(terminatedError("StdioTransport input failed", error));
-    this.drainListener = () => this.flushPending();
+    this.drainListener = () => {
+      for (const listener of this.drainListeners) listener();
+    };
     this.outputCloseListener = () =>
       this.terminate(terminatedError("StdioTransport output closed", undefined, { kind: "eof" }));
     this.outputErrorListener = (error) => this.terminate(terminatedError("StdioTransport output failed", error));
@@ -167,22 +152,23 @@ export class StdioTransport implements DisposableTransport {
     output.on("error", this.outputErrorListener);
   }
 
-  submit(frame: Uint8Array): void {
+  submit(frame: Uint8Array): boolean {
     if (this.terminated) throw this.terminationError;
     if (this.disposed) throw new Error("StdioTransport is disposed");
-    if (this.backpressured || this.pendingHead < this.pendingFrames.length) {
-      this.enqueue(frame);
-      this.tap?.recordOutboundFrame(frame);
-      return;
-    }
     try {
-      if (!this.output.write(frame)) this.backpressured = true;
+      const writable = this.output.write(frame);
       this.tap?.recordOutboundFrame(frame);
+      return writable;
     } catch (error) {
       const failure = terminatedError("StdioTransport output write failed", error);
       this.terminate(failure);
       throw failure;
     }
+  }
+
+  onDrain(listener: () => void): () => void {
+    this.drainListeners.add(listener);
+    return () => this.drainListeners.delete(listener);
   }
 
   onData(listener: TransportListener): () => void {
@@ -208,10 +194,7 @@ export class StdioTransport implements DisposableTransport {
     this.detachListeners();
     this.listeners.clear();
     this.terminationListeners.clear();
-    this.pendingFrames = [];
-    this.pendingHead = 0;
-    this.pendingBytes = 0;
-    this.backpressured = false;
+    this.drainListeners.clear();
     this.tap?.dispose();
   }
 
@@ -221,11 +204,8 @@ export class StdioTransport implements DisposableTransport {
     this.terminationError = error;
     this.detachListeners();
     this.listeners.clear();
-    this.pendingFrames = [];
-    this.pendingHead = 0;
-    this.pendingBytes = 0;
+    this.drainListeners.clear();
     this.tap?.dispose();
-    this.backpressured = false;
     const listeners = [...this.terminationListeners];
     this.terminationListeners.clear();
     for (const listener of listeners) listener(error);
@@ -239,47 +219,6 @@ export class StdioTransport implements DisposableTransport {
     detachOutputListener(this.output, "drain", this.drainListener);
     detachOutputListener(this.output, "close", this.outputCloseListener);
     detachOutputListener(this.output, "error", this.outputErrorListener);
-  }
-
-  private enqueue(frame: Uint8Array): void {
-    const frameBytes = frame.byteLength;
-    if (frameBytes > this.maxPendingBytes - this.pendingBytes) {
-      throw new RangeError(`StdioTransport pending output queue exceeds ${this.maxPendingBytes} bytes`);
-    }
-    this.pendingFrames.push(frame.slice());
-    this.pendingBytes += frameBytes;
-  }
-
-  private flushPending(): void {
-    if (this.disposed || this.terminated) return;
-    this.backpressured = false;
-    try {
-      while (this.pendingHead < this.pendingFrames.length) {
-        const frame = this.pendingFrames[this.pendingHead];
-        this.pendingFrames[this.pendingHead] = undefined;
-        this.pendingHead += 1;
-        if (frame === undefined) continue;
-        this.pendingBytes -= frame.byteLength;
-        if (!this.output.write(frame)) {
-          this.backpressured = true;
-          this.compactPending();
-          return;
-        }
-      }
-    } catch (error) {
-      this.terminate(terminatedError("StdioTransport output write failed", error));
-      return;
-    }
-    this.pendingFrames = [];
-    this.pendingHead = 0;
-    this.pendingBytes = 0;
-  }
-
-  private compactPending(): void {
-    if (this.pendingHead > 64 && this.pendingHead * 2 >= this.pendingFrames.length) {
-      this.pendingFrames = this.pendingFrames.slice(this.pendingHead);
-      this.pendingHead = 0;
-    }
   }
 }
 

@@ -1,0 +1,22 @@
+// Compound parts share a page with their owning component.
+export const componentFamilies = [
+  "Accordion AccordionItem",
+  "Attachment AttachmentActions AttachmentContent AttachmentDescription AttachmentGroup AttachmentMedia AttachmentTitle",
+  "Avatar AvatarGroup",
+  "Breadcrumb BreadcrumbItem",
+  "Bubble BubbleContent BubbleGroup BubbleReactions",
+  "DescriptionList DescriptionItem DescriptionText",
+  "Dialog DialogAction DialogClose DialogContent DialogDescription DialogFooter DialogHeader DialogTitle",
+  "Form Field",
+  "List ListItem ListSeparatorItem SearchableListItemElement",
+  "Marker MarkerContent MarkerIcon",
+  "Message MessageAvatar MessageContent MessageFooter MessageGroup MessageHeader MessageScroller",
+  "Plot PlotCrossLine PlotDot PlotTooltip",
+  "Radio RadioGroup",
+  "ResizablePanelGroup ResizablePanel",
+  "Settings SettingCustomItem SettingField SettingGroup SettingItem SettingPage",
+  "Sidebar SidebarFooter SidebarGroup SidebarHeader SidebarMenu SidebarMenuItem SidebarToggleButton",
+  "Stepper StepperItem",
+  "TabBar Tab",
+  "Table TableBody TableCaption TableCell TableFooter TableHead TableHeader TableRow",
+].map((family) => family.split(" "));

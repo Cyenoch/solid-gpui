@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-09-07.
 
+Updated: 2026-09-07 to make development and production positioning explicit.
+
 Support two application ownership models: Rust-led applications keep domain
 state and services in Rust; Bun-led applications keep them primarily in Bun.
 SolidJS composes the UI in either case, and Rust always owns GPUI rendering,
@@ -13,6 +15,19 @@ an optional lightweight embedded UI runtime for Rust-led applications: it runs
 a self-contained ESM bundle, schedules UI work, and reaches Rust services
 through generated native command clients. Adding Node/Bun service emulation to
 QuickJS would duplicate a full application runtime and obscure this boundary.
+
+The product workflow assigns external Bun to rapid development and Vite hot
+reload, and Embedded Bun to final production packaging for applications that
+need Bun services. QuickJS targets applications whose main capabilities live in
+Rust, with JSX/TSX limited to UI composition, interaction, and reactive
+presentation state. These are intended roles, not restrictions on which
+executable can evaluate a production bundle.
+
+The intended Embedded Bun release role is not a claim of completed packaging:
+its embedding remains macOS-only and the current Gallery package uses QuickJS.
+See [runtime strategy](../runtime-strategy.md) for current support and remaining
+release work. This clarification changes workflow guidance, not the runtime
+transport contract or the ownership distinction above.
 
 All engines retain the same bounded byte transport contract, atomic Commit
 Batches, Native Events, Surface lifetimes, and Native Modules. Applications

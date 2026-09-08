@@ -1,3 +1,4 @@
+import { EVENT_APPLICATION_ACTIVATION, COMMAND_CONFIGURE_APPLICATION } from "./constants";
 import { BebopView } from "bebop";
 import { boundedBebopDecode } from "./bebop-guard";
 import {
@@ -49,6 +50,7 @@ import {
   COMMAND_FILE_DIALOG_OPEN,
   COMMAND_FILE_DIALOG_SAVE,
   COMMAND_INVOKE_NATIVE,
+  COMMAND_CANCEL_NATIVE,
   MAX_NATIVE_CALL_BYTES,
   COMMAND_FOCUS,
   COMMAND_FOCUS_NEXT,
@@ -275,6 +277,10 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
   return {
     width: value.width === undefined ? undefined : Math.fround(value.width),
     height: value.height === undefined ? undefined : Math.fround(value.height),
+    gridColumns: value.gridColumns,
+    gridRows: value.gridRows,
+    gridColumnSpan: value.gridColumnSpan,
+    gridRowSpan: value.gridRowSpan,
     flexDirection:
       value.flexDirection === undefined
         ? undefined
@@ -416,6 +422,7 @@ function wireAccessibility(value: SemanticAccessibilityProperties | null): WireA
     value: value.value ?? undefined,
     expanded: value.expanded ?? undefined,
     level: value.level ?? undefined,
+    live: value.live ?? undefined,
   };
 }
 function wireHost(value: SemanticHostProperties | null): HostProperties | undefined {
@@ -588,6 +595,13 @@ function wireImage(value: ClipboardImage): WireClipboardImageCommand {
 }
 function wireCommandPayload(value: SemanticCommandPayload): CommandPayload | undefined {
   if (value === null) return undefined;
+  if (value.type === "configure-application")
+    return WireCommandPayload.fromConfigureApplicationCommand({
+      keepAlive: value.keepAlive,
+      quit: value.quit,
+      acknowledgedSequence: value.acknowledgedSequence,
+    });
+  if (value.type === "cancel-native") return WireCommandPayload.fromCancelNativeCommand({ requestId: value.requestId });
   if (value.type === "invoke-native")
     return WireCommandPayload.fromInvokeNativeCommand({
       moduleId: value.moduleId,
@@ -716,6 +730,28 @@ function validateCommand(value: SemanticCommand): void {
     throw new TypeError("native invocation requires a live root or component node");
   const payload = value.payload;
   switch (value.command) {
+    case COMMAND_CONFIGURE_APPLICATION: {
+      const control = requirePayloadType(payload, "configure-application");
+      if (
+        !isU32(control.acknowledgedSequence) ||
+        value.surfaceId !== 0 ||
+        value.nodeId !== 0 ||
+        value.afterRevision !== 0 ||
+        value.epoch === 0 ||
+        value.requestId === 0 ||
+        typeof control.keepAlive !== "boolean" ||
+        typeof control.quit !== "boolean" ||
+        (control.quit && control.keepAlive)
+      )
+        throw new TypeError("application control header or policy is invalid");
+      return;
+    }
+    case COMMAND_CANCEL_NATIVE: {
+      const target = requirePayloadType(payload, "cancel-native");
+      if (value.nodeId !== 1 || !isU32(target.requestId) || target.requestId === 0)
+        throw new TypeError("native cancellation requires a root and positive request ID");
+      return;
+    }
     case COMMAND_INVOKE_NATIVE: {
       const value = requirePayloadType(payload, "invoke-native");
       if (
@@ -985,6 +1021,8 @@ function wireTextInput(value: SemanticTextInputEventData): WireTextInputEventDat
 }
 function eventType(value: SemanticEventPayload): number {
   switch (value.type) {
+    case "application-activation":
+      return EVENT_APPLICATION_ACTIVATION;
     case "press":
       return EVENT_PRESS;
     case "change":
@@ -1039,6 +1077,12 @@ function eventType(value: SemanticEventPayload): number {
 }
 function wireEventPayload(value: SemanticEventPayload): EventPayload | undefined {
   switch (value.type) {
+    case "application-activation":
+      return WireEventPayload.fromApplicationActivationEvent({
+        targetSurfaceId: value.targetSurfaceId,
+        reason: value.reason,
+        urls: [...value.urls],
+      });
     case "press":
     case "hover":
     case "surface-closed":
@@ -1377,6 +1421,20 @@ function semanticEventPayload(eventType: number, value: WireEventPayload | undef
   }
   if (value === undefined) return null;
   switch (eventType) {
+    case EVENT_APPLICATION_ACTIVATION:
+      if (
+        value.tag !== 22 ||
+        value.value.targetSurfaceId === undefined ||
+        (value.value.reason !== "launch" && value.value.reason !== "reopen" && value.value.reason !== "open-urls") ||
+        value.value.urls === undefined
+      )
+        return null;
+      return {
+        type: "application-activation",
+        targetSurfaceId: value.value.targetSurfaceId,
+        reason: value.value.reason,
+        urls: value.value.urls,
+      };
     case EVENT_CHANGE:
     case EVENT_SELECTION: {
       if (value.tag !== 1) return null;

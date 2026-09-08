@@ -7,7 +7,7 @@ use solid_gpui::runtime::embedded::{CommitPoll, EmbeddedBunAdapter};
 use solid_gpui::{Event, RuntimeAdapter, Snapshot};
 
 fn counter_entry() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/press-roundtrip.ts")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/embedded-press-roundtrip.ts")
 }
 
 fn counter_roundtrip() {
@@ -92,7 +92,7 @@ function frame(n) {
   const bytes = Buffer.alloc(8);
   bytes.writeUInt32LE(4, 0);
   bytes.writeUInt32LE(n, 4);
-  return process.stdout.write(bytes);
+  return __solidGpuiHost.submit(bytes);
 }
 "#;
 
@@ -139,9 +139,7 @@ fn embedded_vm_roundtrip_pressure_termination_and_restart() {
         &format!(
             r#"{WRITE_FRAME}
 let received = 0;
-process.stdin.on('data', () => received++);
-process.stdin.on('end', () => frame(received));
-process.stdin.on('close', () => frame(99));
+__solidGpuiHost.subscribe(() => received++, () => {{ frame(received); frame(99); }}, () => {{}});
 process.once('beforeExit', () => setTimeout(() => frame(101), 0));
 frame(0);
 "#
@@ -187,7 +185,7 @@ frame(0);
             r#"{WRITE_FRAME}
 let count = 0;
 await new Promise(resolve => setTimeout(resolve, 5));
-process.stdin.on('data', () => {{ if (++count === 512) frame(count); }});
+__solidGpuiHost.subscribe(() => {{ if (++count === 512) frame(count); }}, () => {{}}, () => {{}});
 frame(0);
 setInterval(() => {{}}, 1000);
 "#
@@ -217,10 +215,10 @@ setInterval(() => {{}}, 1000);
             r#"{WRITE_FRAME}
 let calls = 0;
 process.on('uncaughtException', () => {{}});
-process.stdin.on('data', () => {{
+__solidGpuiHost.subscribe(() => {{
   if (++calls === 1) throw new Error('handled listener failure');
   frame(calls);
-}});
+}}, () => {{}}, () => {{}});
 frame(0);
 "#
         ),
@@ -243,9 +241,10 @@ frame(0);
         "pressure",
         &format!(
             r#"{WRITE_FRAME}
-import {{ once }} from 'node:events';
+let resume;
+__solidGpuiHost.subscribe(() => {{}}, () => {{}}, () => resume?.());
 for (let n = 1; n <= 128; n++) {{
-  if (!frame(n)) await once(process.stdout, 'drain');
+  if (!frame(n)) await new Promise(resolve => {{ resume = resolve; }});
 }}
 frame(999);
 "#
@@ -311,7 +310,7 @@ setInterval(() => {{}}, 1000);
     let callback_loop = Script::new(
         "busy-input-callback",
         &format!(
-            "{WRITE_FRAME}\nprocess.stdin.on('data', () => {{ frame(7); while (true) {{}} }}); frame(0);"
+            "{WRITE_FRAME}\n__solidGpuiHost.subscribe(() => {{ frame(7); while (true) {{}} }}, () => {{}}, () => {{}}); frame(0);"
         ),
     );
     let runtime = callback_loop.start();

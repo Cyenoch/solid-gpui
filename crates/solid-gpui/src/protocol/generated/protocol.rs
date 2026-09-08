@@ -183,6 +183,7 @@ pub enum EventKind {
     PointerDownOutside = 22,
     CloseRequested = 23,
     Extension = 24,
+    ApplicationActivation = 25,
 }
 
 impl ::core::convert::TryFrom<u8> for EventKind {
@@ -215,6 +216,7 @@ impl ::core::convert::TryFrom<u8> for EventKind {
             22 => Ok(EventKind::PointerDownOutside),
             23 => Ok(EventKind::CloseRequested),
             24 => Ok(EventKind::Extension),
+            25 => Ok(EventKind::ApplicationActivation),
             d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
                 d.into(),
             )),
@@ -250,6 +252,7 @@ impl ::core::convert::From<EventKind> for u8 {
             EventKind::PointerDownOutside => 22,
             EventKind::CloseRequested => 23,
             EventKind::Extension => 24,
+            EventKind::ApplicationActivation => 25,
         }
     }
 }
@@ -318,6 +321,8 @@ pub enum CommandKind {
     GetScrollOffset = 34,
     ScrollToOffset = 35,
     InvokeNative = 36,
+    CancelNative = 37,
+    ConfigureApplication = 38,
 }
 
 impl ::core::convert::TryFrom<u8> for CommandKind {
@@ -362,6 +367,8 @@ impl ::core::convert::TryFrom<u8> for CommandKind {
             34 => Ok(CommandKind::GetScrollOffset),
             35 => Ok(CommandKind::ScrollToOffset),
             36 => Ok(CommandKind::InvokeNative),
+            37 => Ok(CommandKind::CancelNative),
+            38 => Ok(CommandKind::ConfigureApplication),
             d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
                 d.into(),
             )),
@@ -409,6 +416,8 @@ impl ::core::convert::From<CommandKind> for u8 {
             CommandKind::GetScrollOffset => 34,
             CommandKind::ScrollToOffset => 35,
             CommandKind::InvokeNative => 36,
+            CommandKind::CancelNative => 37,
+            CommandKind::ConfigureApplication => 38,
         }
     }
 }
@@ -3248,6 +3257,8 @@ pub struct AccessibilityProperties<'raw> {
     pub expanded: ::core::option::Option<bool>,
     /// Field 9
     pub level: ::core::option::Option<u32>,
+    /// Field 10
+    pub live: ::core::option::Option<u32>,
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
@@ -3302,6 +3313,11 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
                 .as_ref()
                 .map(|v| v.serialized_size() + 1)
                 .unwrap_or(0)
+            + self
+                .live
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3343,6 +3359,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
             9u8._serialize_chained(dest)?;
             v._serialize_chained(dest)?;
         }
+        if let Some(v) = &zelf.live {
+            10u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
         0u8._serialize_chained(dest)?;
         Ok(size)
     });
@@ -3370,6 +3390,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
         let mut _value = None;
         let mut _expanded = None;
         let mut _level = None;
+        let mut _live = None;
 
         #[cfg(not(feature = "unchecked"))]
         let mut last = 0;
@@ -3471,6 +3492,15 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
                     i += read;
                     _level = Some(value)
                 }
+                10 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _live.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _live = Some(value)
+                }
                 _ => {
                     i = len;
                     break;
@@ -3495,6 +3525,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
                 value: _value,
                 expanded: _expanded,
                 level: _level,
+                live: _live,
             },
         ))
     }
@@ -4279,6 +4310,14 @@ pub struct Style<'raw> {
     pub border_bottom_color: ::core::option::Option<u32>,
     /// Field 62
     pub border_left_color: ::core::option::Option<u32>,
+    /// Field 63
+    pub grid_columns: ::core::option::Option<u32>,
+    /// Field 64
+    pub grid_rows: ::core::option::Option<u32>,
+    /// Field 65
+    pub grid_column_span: ::core::option::Option<u32>,
+    /// Field 66
+    pub grid_row_span: ::core::option::Option<u32>,
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
@@ -4598,6 +4637,26 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                 .as_ref()
                 .map(|v| v.serialized_size() + 1)
                 .unwrap_or(0)
+            + self
+                .grid_columns
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_rows
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_column_span
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_row_span
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -4851,6 +4910,22 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
             62u8._serialize_chained(dest)?;
             v._serialize_chained(dest)?;
         }
+        if let Some(v) = &zelf.grid_columns {
+            63u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.grid_rows {
+            64u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.grid_column_span {
+            65u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.grid_row_span {
+            66u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
         0u8._serialize_chained(dest)?;
         Ok(size)
     });
@@ -4931,6 +5006,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
         let mut _border_right_color = None;
         let mut _border_bottom_color = None;
         let mut _border_left_color = None;
+        let mut _grid_columns = None;
+        let mut _grid_rows = None;
+        let mut _grid_column_span = None;
+        let mut _grid_row_span = None;
 
         #[cfg(not(feature = "unchecked"))]
         let mut last = 0;
@@ -5509,6 +5588,42 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                     i += read;
                     _border_left_color = Some(value)
                 }
+                63 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _grid_columns.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _grid_columns = Some(value)
+                }
+                64 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _grid_rows.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _grid_rows = Some(value)
+                }
+                65 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _grid_column_span.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _grid_column_span = Some(value)
+                }
+                66 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _grid_row_span.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _grid_row_span = Some(value)
+                }
                 _ => {
                     i = len;
                     break;
@@ -5586,6 +5701,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
                 border_right_color: _border_right_color,
                 border_bottom_color: _border_bottom_color,
                 border_left_color: _border_left_color,
+                grid_columns: _grid_columns,
+                grid_rows: _grid_rows,
+                grid_column_span: _grid_column_span,
+                grid_row_span: _grid_row_span,
             },
         ))
     }
@@ -7848,6 +7967,22 @@ pub enum CommandPayload<'raw> {
         /// Field 4
         args: ::core::option::Option<::bebop::SliceWrapper<'raw, u8>>,
     },
+
+    /// Discriminator 13
+    CancelNativeCommand {
+        /// Field 1
+        request_id: ::core::option::Option<u32>,
+    },
+
+    /// Discriminator 14
+    ConfigureApplicationCommand {
+        /// Field 1
+        keep_alive: ::core::option::Option<bool>,
+        /// Field 2
+        quit: ::core::option::Option<bool>,
+        /// Field 3
+        acknowledged_sequence: ::core::option::Option<u32>,
+    },
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
@@ -8032,6 +8167,33 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
                         + _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::CancelNativeCommand {
+                    request_id: _request_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _keep_alive
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _acknowledged_sequence
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
                 }
             }
     }
@@ -8253,6 +8415,40 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                 }
                 if let Some(v) = &_args {
                     4u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                0u8._serialize_chained(dest)?;
+            }
+            Self::CancelNativeCommand {
+                request_id: _request_id,
+            }
+            => {
+                13u8._serialize_chained(dest)?;
+                ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                if let Some(v) = &_request_id {
+                    1u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                0u8._serialize_chained(dest)?;
+            }
+            Self::ConfigureApplicationCommand {
+                keep_alive: _keep_alive,
+                quit: _quit,
+                acknowledged_sequence: _acknowledged_sequence,
+            }
+            => {
+                14u8._serialize_chained(dest)?;
+                ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                if let Some(v) = &_keep_alive {
+                    1u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_quit {
+                    2u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_acknowledged_sequence {
+                    3u8._serialize_chained(dest)?;
                     v._serialize_chained(dest)?;
                 }
                 0u8._serialize_chained(dest)?;
@@ -9145,6 +9341,150 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                     module_digest: _module_digest,
                     function_id: _function_id,
                     args: _args,
+                }
+            }
+            13 => {
+                let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                i += ::bebop::LEN_SIZE;
+
+                #[cfg(not(feature = "unchecked"))]
+                if len == 0 {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                if raw.len() < len {
+                    return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                }
+
+                let mut _request_id = None;
+
+                #[cfg(not(feature = "unchecked"))]
+                let mut last = 0;
+
+                while i < len {
+                    let di = raw[i];
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if di != 0 {
+                        if di < last {
+                            return Err(::bebop::DeserializeError::CorruptFrame);
+                        }
+                        last = di;
+                    }
+
+                    i += 1;
+                    match di {
+                        0 => {
+                            break;
+                        }
+                        1 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _request_id.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _request_id = Some(value)
+                        }
+                        _ => {
+                            i = len;
+                            break;
+                        }
+                    }
+                }
+
+                if i != len {
+                    debug_assert!(i > len);
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                CommandPayload::CancelNativeCommand {
+                    request_id: _request_id,
+                }
+            }
+            14 => {
+                let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                i += ::bebop::LEN_SIZE;
+
+                #[cfg(not(feature = "unchecked"))]
+                if len == 0 {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                if raw.len() < len {
+                    return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                }
+
+                let mut _keep_alive = None;
+                let mut _quit = None;
+                let mut _acknowledged_sequence = None;
+
+                #[cfg(not(feature = "unchecked"))]
+                let mut last = 0;
+
+                while i < len {
+                    let di = raw[i];
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if di != 0 {
+                        if di < last {
+                            return Err(::bebop::DeserializeError::CorruptFrame);
+                        }
+                        last = di;
+                    }
+
+                    i += 1;
+                    match di {
+                        0 => {
+                            break;
+                        }
+                        1 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _keep_alive.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _keep_alive = Some(value)
+                        }
+                        2 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _quit.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _quit = Some(value)
+                        }
+                        3 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _acknowledged_sequence.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _acknowledged_sequence = Some(value)
+                        }
+                        _ => {
+                            i = len;
+                            break;
+                        }
+                    }
+                }
+
+                if i != len {
+                    debug_assert!(i > len);
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                CommandPayload::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
                 }
             }
             _ => {
@@ -10487,6 +10827,16 @@ pub enum EventPayload<'raw> {
         /// Field 2
         fields: ::core::option::Option<::std::vec::Vec<ExtensionField<'raw>>>,
     },
+
+    /// Discriminator 22
+    ApplicationActivationEvent {
+        /// Field 1
+        target_surface_id: ::core::option::Option<u32>,
+        /// Field 2
+        reason: ::core::option::Option<&'raw str>,
+        /// Field 3
+        urls: ::core::option::Option<::std::vec::Vec<&'raw str>>,
+    },
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
@@ -10814,6 +11164,23 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             .as_ref()
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
+                }
+                Self::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _target_surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _reason
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                 }
             }
     }
@@ -11243,6 +11610,28 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                 }
                 if let Some(v) = &_fields {
                     2u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                0u8._serialize_chained(dest)?;
+            }
+            Self::ApplicationActivationEvent {
+                target_surface_id: _target_surface_id,
+                reason: _reason,
+                urls: _urls,
+            }
+            => {
+                22u8._serialize_chained(dest)?;
+                ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                if let Some(v) = &_target_surface_id {
+                    1u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_reason {
+                    2u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_urls {
+                    3u8._serialize_chained(dest)?;
                     v._serialize_chained(dest)?;
                 }
                 0u8._serialize_chained(dest)?;
@@ -12910,6 +13299,90 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                 EventPayload::ExtensionEvent {
                     event_id: _event_id,
                     fields: _fields,
+                }
+            }
+            22 => {
+                let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                i += ::bebop::LEN_SIZE;
+
+                #[cfg(not(feature = "unchecked"))]
+                if len == 0 {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                if raw.len() < len {
+                    return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                }
+
+                let mut _target_surface_id = None;
+                let mut _reason = None;
+                let mut _urls = None;
+
+                #[cfg(not(feature = "unchecked"))]
+                let mut last = 0;
+
+                while i < len {
+                    let di = raw[i];
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if di != 0 {
+                        if di < last {
+                            return Err(::bebop::DeserializeError::CorruptFrame);
+                        }
+                        last = di;
+                    }
+
+                    i += 1;
+                    match di {
+                        0 => {
+                            break;
+                        }
+                        1 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _target_surface_id.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _target_surface_id = Some(value)
+                        }
+                        2 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _reason.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _reason = Some(value)
+                        }
+                        3 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _urls.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _urls = Some(value)
+                        }
+                        _ => {
+                            i = len;
+                            break;
+                        }
+                    }
+                }
+
+                if i != len {
+                    debug_assert!(i > len);
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                EventPayload::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
                 }
             }
             _ => {
@@ -16079,6 +16552,8 @@ pub mod owned {
         pub expanded: ::core::option::Option<bool>,
         /// Field 9
         pub level: ::core::option::Option<u32>,
+        /// Field 10
+        pub live: ::core::option::Option<u32>,
     }
 
     impl<'raw> ::core::convert::From<super::AccessibilityProperties<'raw>> for AccessibilityProperties {
@@ -16093,6 +16568,7 @@ pub mod owned {
                 value: value.value.map(|value| value.into()),
                 expanded: value.expanded,
                 level: value.level,
+                live: value.live,
             }
         }
     }
@@ -16149,6 +16625,11 @@ pub mod owned {
                     .as_ref()
                     .map(|v| v.serialized_size() + 1)
                     .unwrap_or(0)
+                + self
+                    .live
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -16190,6 +16671,10 @@ pub mod owned {
                 9u8._serialize_chained(dest)?;
                 v._serialize_chained(dest)?;
             }
+            if let Some(v) = &zelf.live {
+                10u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
             0u8._serialize_chained(dest)?;
             Ok(size)
         });
@@ -16217,6 +16702,7 @@ pub mod owned {
             let mut _value = None;
             let mut _expanded = None;
             let mut _level = None;
+            let mut _live = None;
 
             #[cfg(not(feature = "unchecked"))]
             let mut last = 0;
@@ -16318,6 +16804,15 @@ pub mod owned {
                         i += read;
                         _level = Some(value)
                     }
+                    10 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _live.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _live = Some(value)
+                    }
                     _ => {
                         i = len;
                         break;
@@ -16342,6 +16837,7 @@ pub mod owned {
                     value: _value,
                     expanded: _expanded,
                     level: _level,
+                    live: _live,
                 },
             ))
         }
@@ -16483,6 +16979,14 @@ pub mod owned {
         pub border_bottom_color: ::core::option::Option<u32>,
         /// Field 62
         pub border_left_color: ::core::option::Option<u32>,
+        /// Field 63
+        pub grid_columns: ::core::option::Option<u32>,
+        /// Field 64
+        pub grid_rows: ::core::option::Option<u32>,
+        /// Field 65
+        pub grid_column_span: ::core::option::Option<u32>,
+        /// Field 66
+        pub grid_row_span: ::core::option::Option<u32>,
     }
 
     impl<'raw> ::core::convert::From<super::Style<'raw>> for Style {
@@ -16550,6 +17054,10 @@ pub mod owned {
                 border_right_color: value.border_right_color,
                 border_bottom_color: value.border_bottom_color,
                 border_left_color: value.border_left_color,
+                grid_columns: value.grid_columns,
+                grid_rows: value.grid_rows,
+                grid_column_span: value.grid_column_span,
+                grid_row_span: value.grid_row_span,
             }
         }
     }
@@ -16871,6 +17379,26 @@ pub mod owned {
                     .as_ref()
                     .map(|v| v.serialized_size() + 1)
                     .unwrap_or(0)
+                + self
+                    .grid_columns
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_rows
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_column_span
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_row_span
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -17124,6 +17652,22 @@ pub mod owned {
                 62u8._serialize_chained(dest)?;
                 v._serialize_chained(dest)?;
             }
+            if let Some(v) = &zelf.grid_columns {
+                63u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.grid_rows {
+                64u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.grid_column_span {
+                65u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
+            if let Some(v) = &zelf.grid_row_span {
+                66u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
             0u8._serialize_chained(dest)?;
             Ok(size)
         });
@@ -17204,6 +17748,10 @@ pub mod owned {
             let mut _border_right_color = None;
             let mut _border_bottom_color = None;
             let mut _border_left_color = None;
+            let mut _grid_columns = None;
+            let mut _grid_rows = None;
+            let mut _grid_column_span = None;
+            let mut _grid_row_span = None;
 
             #[cfg(not(feature = "unchecked"))]
             let mut last = 0;
@@ -17782,6 +18330,42 @@ pub mod owned {
                         i += read;
                         _border_left_color = Some(value)
                     }
+                    63 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _grid_columns.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _grid_columns = Some(value)
+                    }
+                    64 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _grid_rows.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _grid_rows = Some(value)
+                    }
+                    65 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _grid_column_span.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _grid_column_span = Some(value)
+                    }
+                    66 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _grid_row_span.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _grid_row_span = Some(value)
+                    }
                     _ => {
                         i = len;
                         break;
@@ -17859,6 +18443,10 @@ pub mod owned {
                     border_right_color: _border_right_color,
                     border_bottom_color: _border_bottom_color,
                     border_left_color: _border_left_color,
+                    grid_columns: _grid_columns,
+                    grid_rows: _grid_rows,
+                    grid_column_span: _grid_column_span,
+                    grid_row_span: _grid_row_span,
                 },
             ))
         }
@@ -20028,6 +20616,22 @@ pub mod owned {
             /// Field 4
             args: ::core::option::Option<::std::vec::Vec<u8>>,
         },
+
+        /// Discriminator 13
+        CancelNativeCommand {
+            /// Field 1
+            request_id: ::core::option::Option<u32>,
+        },
+
+        /// Discriminator 14
+        ConfigureApplicationCommand {
+            /// Field 1
+            keep_alive: ::core::option::Option<bool>,
+            /// Field 2
+            quit: ::core::option::Option<bool>,
+            /// Field 3
+            acknowledged_sequence: ::core::option::Option<u32>,
+        },
     }
 
     impl<'raw> ::core::convert::From<super::CommandPayload<'raw>> for CommandPayload {
@@ -20119,6 +20723,20 @@ pub mod owned {
                         .map(|value| value.iter().map(|value| value).collect()),
                     function_id: _function_id,
                     args: _args.map(|value| value.iter().map(|value| value).collect()),
+                },
+                super::CommandPayload::CancelNativeCommand {
+                    request_id: _request_id,
+                } => Self::CancelNativeCommand {
+                    request_id: _request_id,
+                },
+                super::CommandPayload::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
+                } => Self::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
                 },
             }
         }
@@ -20305,6 +20923,33 @@ pub mod owned {
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
                             + _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::CancelNativeCommand {
+                        request_id: _request_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ConfigureApplicationCommand {
+                        keep_alive: _keep_alive,
+                        quit: _quit,
+                        acknowledged_sequence: _acknowledged_sequence,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _keep_alive
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _acknowledged_sequence
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
                 }
         }
@@ -20526,6 +21171,40 @@ pub mod owned {
                     }
                     if let Some(v) = &_args {
                         4u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    0u8._serialize_chained(dest)?;
+                }
+                Self::CancelNativeCommand {
+                    request_id: _request_id,
+                }
+                => {
+                    13u8._serialize_chained(dest)?;
+                    ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                    if let Some(v) = &_request_id {
+                        1u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    0u8._serialize_chained(dest)?;
+                }
+                Self::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
+                }
+                => {
+                    14u8._serialize_chained(dest)?;
+                    ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                    if let Some(v) = &_keep_alive {
+                        1u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_quit {
+                        2u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_acknowledged_sequence {
+                        3u8._serialize_chained(dest)?;
                         v._serialize_chained(dest)?;
                     }
                     0u8._serialize_chained(dest)?;
@@ -21418,6 +22097,150 @@ pub mod owned {
                         module_digest: _module_digest,
                         function_id: _function_id,
                         args: _args,
+                    }
+                }
+                13 => {
+                    let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                    i += ::bebop::LEN_SIZE;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if len == 0 {
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    if raw.len() < len {
+                        return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                    }
+
+                    let mut _request_id = None;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    let mut last = 0;
+
+                    while i < len {
+                        let di = raw[i];
+
+                        #[cfg(not(feature = "unchecked"))]
+                        if di != 0 {
+                            if di < last {
+                                return Err(::bebop::DeserializeError::CorruptFrame);
+                            }
+                            last = di;
+                        }
+
+                        i += 1;
+                        match di {
+                            0 => {
+                                break;
+                            }
+                            1 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _request_id.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _request_id = Some(value)
+                            }
+                            _ => {
+                                i = len;
+                                break;
+                            }
+                        }
+                    }
+
+                    if i != len {
+                        debug_assert!(i > len);
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    CommandPayload::CancelNativeCommand {
+                        request_id: _request_id,
+                    }
+                }
+                14 => {
+                    let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                    i += ::bebop::LEN_SIZE;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if len == 0 {
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    if raw.len() < len {
+                        return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                    }
+
+                    let mut _keep_alive = None;
+                    let mut _quit = None;
+                    let mut _acknowledged_sequence = None;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    let mut last = 0;
+
+                    while i < len {
+                        let di = raw[i];
+
+                        #[cfg(not(feature = "unchecked"))]
+                        if di != 0 {
+                            if di < last {
+                                return Err(::bebop::DeserializeError::CorruptFrame);
+                            }
+                            last = di;
+                        }
+
+                        i += 1;
+                        match di {
+                            0 => {
+                                break;
+                            }
+                            1 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _keep_alive.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _keep_alive = Some(value)
+                            }
+                            2 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _quit.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _quit = Some(value)
+                            }
+                            3 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _acknowledged_sequence.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _acknowledged_sequence = Some(value)
+                            }
+                            _ => {
+                                i = len;
+                                break;
+                            }
+                        }
+                    }
+
+                    if i != len {
+                        debug_assert!(i > len);
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    CommandPayload::ConfigureApplicationCommand {
+                        keep_alive: _keep_alive,
+                        quit: _quit,
+                        acknowledged_sequence: _acknowledged_sequence,
                     }
                 }
                 _ => {
@@ -22821,6 +23644,16 @@ pub mod owned {
             /// Field 2
             fields: ::core::option::Option<::std::vec::Vec<ExtensionField>>,
         },
+
+        /// Discriminator 22
+        ApplicationActivationEvent {
+            /// Field 1
+            target_surface_id: ::core::option::Option<u32>,
+            /// Field 2
+            reason: ::core::option::Option<String>,
+            /// Field 3
+            urls: ::core::option::Option<::std::vec::Vec<String>>,
+        },
     }
 
     impl<'raw> ::core::convert::From<super::EventPayload<'raw>> for EventPayload {
@@ -22995,6 +23828,15 @@ pub mod owned {
                     event_id: _event_id,
                     fields: _fields
                         .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::EventPayload::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
+                } => Self::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason.map(|value| value.into()),
+                    urls: _urls.map(|value| value.into_iter().map(|value| value.into()).collect()),
                 },
             }
         }
@@ -23324,6 +24166,23 @@ pub mod owned {
                                 .as_ref()
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
+                    }
+                    Self::ApplicationActivationEvent {
+                        target_surface_id: _target_surface_id,
+                        reason: _reason,
+                        urls: _urls,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _target_surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _reason
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                     }
                 }
         }
@@ -23753,6 +24612,28 @@ pub mod owned {
                     }
                     if let Some(v) = &_fields {
                         2u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    0u8._serialize_chained(dest)?;
+                }
+                Self::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
+                }
+                => {
+                    22u8._serialize_chained(dest)?;
+                    ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                    if let Some(v) = &_target_surface_id {
+                        1u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_reason {
+                        2u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_urls {
+                        3u8._serialize_chained(dest)?;
                         v._serialize_chained(dest)?;
                     }
                     0u8._serialize_chained(dest)?;
@@ -25420,6 +26301,90 @@ pub mod owned {
                     EventPayload::ExtensionEvent {
                         event_id: _event_id,
                         fields: _fields,
+                    }
+                }
+                22 => {
+                    let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                    i += ::bebop::LEN_SIZE;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if len == 0 {
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    if raw.len() < len {
+                        return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                    }
+
+                    let mut _target_surface_id = None;
+                    let mut _reason = None;
+                    let mut _urls = None;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    let mut last = 0;
+
+                    while i < len {
+                        let di = raw[i];
+
+                        #[cfg(not(feature = "unchecked"))]
+                        if di != 0 {
+                            if di < last {
+                                return Err(::bebop::DeserializeError::CorruptFrame);
+                            }
+                            last = di;
+                        }
+
+                        i += 1;
+                        match di {
+                            0 => {
+                                break;
+                            }
+                            1 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _target_surface_id.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _target_surface_id = Some(value)
+                            }
+                            2 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _reason.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _reason = Some(value)
+                            }
+                            3 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _urls.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _urls = Some(value)
+                            }
+                            _ => {
+                                i = len;
+                                break;
+                            }
+                        }
+                    }
+
+                    if i != len {
+                        debug_assert!(i > len);
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    EventPayload::ApplicationActivationEvent {
+                        target_surface_id: _target_surface_id,
+                        reason: _reason,
+                        urls: _urls,
                     }
                 }
                 _ => {

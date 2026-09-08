@@ -80,6 +80,11 @@ export interface Style {
   readonly widthPercent?: number;
   readonly heightPercent?: number;
   readonly flexWrap?: "nowrap" | "wrap" | "wrap-reverse";
+  /** Equal native grid tracks and item spans, each from 1 through 64. */
+  readonly gridColumns?: number;
+  readonly gridRows?: number;
+  readonly gridColumnSpan?: number;
+  readonly gridRowSpan?: number;
 
   readonly width?: number;
   readonly height?: number;
@@ -150,6 +155,11 @@ const STYLE_KEYS: Record<string, true> = {
   widthPercent: true,
   heightPercent: true,
   flexWrap: true,
+  gridColumns: true,
+  gridRows: true,
+  gridColumnSpan: true,
+  gridRowSpan: true,
+
   width: true,
   height: true,
   flexDirection: true,
@@ -429,6 +439,15 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     ].includes(style.cursor)
   ) {
     throw new TypeError("cursor is invalid");
+  }
+  for (const key of ["gridColumns", "gridRows", "gridColumnSpan", "gridRowSpan"] as const) {
+    const value = style[key];
+    if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 64)) {
+      throw new TypeError(`${key} must be an integer from 1 through 64`);
+    }
+  }
+  if ((style.gridColumns !== undefined || style.gridRows !== undefined) && style.flexDirection !== undefined) {
+    throw new TypeError("grid tracks and flexDirection cannot be combined");
   }
   if (style.opacity !== undefined) {
     assertNumber("opacity", style.opacity, true);

@@ -655,8 +655,20 @@ fn expand_command(function: &mut ItemFn) -> syn::Result<(Tokens, Tokens)> {
     let mut fields = Vec::new();
     let mut helpers = Vec::new();
     let mut args = Vec::new();
+    let mut has_context = false;
     for argument in &mut function.sig.inputs {
         let (arg, ty, attrs) = parameter(argument)?;
+        if type_last(&ty).is_some_and(|segment| segment.ident == "NativeCallContext") {
+            if has_context || !attrs.is_empty() {
+                return Err(syn::Error::new_spanned(
+                    ty,
+                    "native command accepts one undecorated NativeCallContext",
+                ));
+            }
+            has_context = true;
+            args.push(quote!(__context));
+            continue;
+        }
         let (field, helper) = field(&arg, &ty, attrs, &name)?;
         fields.push(field);
         helpers.push(helper);
@@ -687,9 +699,9 @@ fn expand_command(function: &mut ItemFn) -> syn::Result<(Tokens, Tokens)> {
         quote!(#request)
     };
     let constructor = if function.sig.asyncness.is_some() {
-        quote!(::solid_gpui::native::CommandDefinition::asynchronous::<#request, #output, _, _>(#js_name, |__request: #request| async move { #result }))
+        quote!(::solid_gpui::native::CommandDefinition::asynchronous::<#request, #output, _, _>(#js_name, |__request: #request, __context: ::solid_gpui::native::NativeCallContext| async move { #result }))
     } else {
-        quote!(::solid_gpui::native::CommandDefinition::sync::<#request, #output>(#js_name, |__request: #request| { #result }))
+        quote!(::solid_gpui::native::CommandDefinition::sync::<#request, #output>(#js_name, |__request: #request, __context: ::solid_gpui::native::NativeCallContext| { #result }))
     };
     Ok((
         quote! {

@@ -1,3 +1,4 @@
+import { EVENT_APPLICATION_ACTIVATION } from "./constants";
 import {
   COMMAND_INVOKE_NATIVE,
   MAX_NATIVE_CALL_BYTES,
@@ -157,6 +158,22 @@ function validateCommandResult(value: CommandResult): boolean {
 }
 function validateEventPayload(eventType: number, payload: EventPayload): boolean {
   switch (payload.type) {
+    case "application-activation":
+      return (
+        eventType === EVENT_APPLICATION_ACTIVATION &&
+        isU32(payload.targetSurfaceId) &&
+        payload.targetSurfaceId > 0 &&
+        ["launch", "reopen", "open-urls"].includes(payload.reason) &&
+        payload.urls.length <= 64 &&
+        payload.urls.every(
+          (url) =>
+            typeof url === "string" &&
+            url.length > 0 &&
+            utf8ByteLength(url) <= 4096 &&
+            !/[\u0000-\u001f\u007f]/.test(url),
+        ) &&
+        (payload.reason === "open-urls" ? payload.urls.length > 0 : payload.urls.length === 0)
+      );
     case "press":
       return eventType === EVENT_PRESS;
     case "change":
@@ -272,6 +289,16 @@ function validateEventPayload(eventType: number, payload: EventPayload): boolean
 
 export function validateEvent(value: Event): Event | null {
   if (
+    value.payload.type === "application-activation" &&
+    (value.surfaceId !== 0 ||
+      value.nodeId !== 0 ||
+      value.listenerId !== 0 ||
+      value.revision !== 0 ||
+      value.epoch === 0 ||
+      value.sequence === 0)
+  )
+    return null;
+  if (
     value.surfaceId < 0 ||
     !isU32(value.surfaceId) ||
     !isU32(value.epoch) ||
@@ -283,6 +310,8 @@ export function validateEvent(value: Event): Event | null {
     return null;
   const eventType = (() => {
     switch (value.payload.type) {
+      case "application-activation":
+        return EVENT_APPLICATION_ACTIVATION;
       case "press":
         return EVENT_PRESS;
       case "change":

@@ -158,3 +158,57 @@ mod exports {
     }
 }
 pub(super) use exports::native_module;
+
+#[cfg(test)]
+mod tests {
+    use gpui::{IntoElement, ParentElement, Styled};
+    use gpui_component::ElementExt;
+    use std::{cell::Cell, rc::Rc};
+
+    struct ObservedTrigger(Rc<Cell<gpui::Bounds<gpui::Pixels>>>);
+    impl gpui::Render for ObservedTrigger {
+        fn render(
+            &mut self,
+            _: &mut gpui::Window,
+            _: &mut gpui::Context<Self>,
+        ) -> impl IntoElement {
+            let bounds = self.0.clone();
+            gpui::div()
+                .w(gpui::px(200.))
+                .h(gpui::px(32.))
+                .child(gpui::div().h(gpui::px(32.)))
+                .on_prepaint(move |b, _, _| bounds.set(b))
+        }
+    }
+
+    #[test]
+    fn popup_corners_attach_outside_the_trigger() {
+        use gpui::{Anchor, Bounds, Point, Size, px};
+        let bounds = Bounds {
+            origin: Point::new(px(100.), px(100.)),
+            size: Size::new(px(200.), px(50.)),
+        };
+        assert_eq!(
+            gpui_base::Popup::resolved_corner(Anchor::TopCenter, bounds),
+            Point::new(px(200.), px(150.))
+        );
+        assert_eq!(
+            gpui_base::Popup::resolved_corner(Anchor::BottomRight, bounds),
+            Point::new(px(300.), px(100.))
+        );
+    }
+
+    #[gpui::test]
+    fn bounds_observer_reports_the_trigger_not_the_position_after_its_children(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let bounds = Rc::new(Cell::new(gpui::Bounds::default()));
+        let (_, visual) = cx.add_window_view({
+            let bounds = bounds.clone();
+            move |_, _| ObservedTrigger(bounds)
+        });
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(bounds.get().origin, gpui::point(gpui::px(0.), gpui::px(0.)));
+        assert_eq!(bounds.get().size, gpui::size(gpui::px(200.), gpui::px(32.)));
+    }
+}

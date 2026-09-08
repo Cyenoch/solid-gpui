@@ -1,0 +1,83 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PAGES_BASE_PATH: /${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - name: Install native binding generator prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libfontconfig1-dev libfreetype6-dev libxcb1-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev pkg-config
+      - name: Install pinned native Rust toolchain
+        run: rustup show active-toolchain
+      - name: Install Web Rust toolchain
+        run: rustup toolchain install nightly-2026-07-28 --profile minimal --target wasm32-unknown-unknown
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: pages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/build-web-host.sh') }}-${{ github.sha }}
+          restore-keys: |
+            pages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/build-web-host.sh') }}-
+      - name: Install matching wasm-bindgen
+        run: cargo +nightly-2026-07-28 install wasm-bindgen-cli --version 0.2.121 --locked
+      - name: Build and test
+        run: |
+          bun run website:build
+          bun --conditions=browser test examples/website/tests
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Upload website
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: examples/website/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Verify deployed site
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 10 --retry-delay 6 --retry-all-errors \
+            "$PAGE_URL" --output "$RUNNER_TEMP/pages-index.html"
+          grep -q '<title>Solid GPUI' "$RUNNER_TEMP/pages-index.html"

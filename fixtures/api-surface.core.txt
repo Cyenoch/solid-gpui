@@ -6,6 +6,7 @@ AlignSelf	type
 AnimationCompleteEvent	type
 Appearance	type
 AppearanceStore	type
+ApplicationActivation	type
 ApplicationDefinition	type
 ApplicationOptions	type
 BoxShadow	type
@@ -55,12 +56,15 @@ KeyEvent	type
 KeyHandler	type
 LayoutFrame	type
 LayoutHandler	type
+LinearGradient	type
 MemoryTransport	both
 MenuDefinition	type
 MenuItem	type
 mountApplication	value
 MountedApplication	type
 NamedStyles	type
+NativeCommandError	both
+NativeCommandIdentity	type
 NotificationAction	type
 NotificationOptions	type
 NotificationResponse	type
@@ -80,6 +84,7 @@ Pressable	value
 PressableProps	type
 PressEventType	type
 PressHandler	type
+registerIconNames	value
 Root	type
 RootOptions	type
 ScrollDeltaKind	type

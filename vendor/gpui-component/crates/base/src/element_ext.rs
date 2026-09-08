@@ -23,6 +23,8 @@ pub trait ElementExt: ParentElement + Sized {
                 |_, _, _, _| {},
             )
             .absolute()
+            .top_0()
+            .left_0()
             .size_full(),
         )
     }

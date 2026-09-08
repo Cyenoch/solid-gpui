@@ -35,7 +35,11 @@ fn full_style() -> Style {
         }),
         width: Some(120.0),
         height: Some(48.0),
-        flex_direction: Some(FlexDirectionCode::Column),
+        flex_direction: None,
+        grid_columns: Some(2),
+        grid_rows: Some(3),
+        grid_column_span: Some(2),
+        grid_row_span: Some(1),
         flex_grow: Some(1.0),
         padding: Some(4.0),
         gap: Some(2.0),
@@ -101,6 +105,7 @@ fn accessibility() -> AccessibilityProperties {
         value: Some("42".to_owned()),
         expanded: Some(true),
         level: Some(2),
+        live: None,
     }
 }
 
@@ -920,6 +925,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hex(&event.encode()?)
         ));
     }
+    rows.push(format!(
+        "ts-application-ready\tcommand\t{}",
+        hex(&Command::new(
+            CommandMeta {
+                surface_id: 0,
+                epoch: 3,
+                after_revision: 0,
+                request_id: 1,
+                node_id: 0
+            },
+            CommandOperation::ConfigureApplication {
+                keep_alive: true,
+                quit: false,
+                acknowledged_sequence: 0
+            },
+        )
+        .encode()?)
+    ));
+    rows.push(format!(
+        "ts-application-activation\tevent\t{}",
+        hex(&Event::new(
+            EventMeta {
+                surface_id: 0,
+                epoch: 3,
+                revision: 0,
+                sequence: 1,
+                node_id: 0,
+                listener_id: 0
+            },
+            EventPayload::ApplicationActivation {
+                target_surface_id: 8,
+                reason: "open-urls".into(),
+                urls: vec!["demo://document/中文".into()]
+            },
+        )
+        .encode()?)
+    ));
     rows.sort();
     let output_text = format!(
         "# protocol-golden-v5\n# id\tmessage\tpayload_hex\n{}\n",

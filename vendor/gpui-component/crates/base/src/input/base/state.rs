@@ -2339,24 +2339,12 @@ impl<M: InputModeKind> InputBaseState<M> {
     }
 
     pub(super) fn previous_boundary(&self, offset: usize) -> usize {
-        let mut offset = self.text.clip_offset(offset.saturating_sub(1), Bias::Left);
-        if let Some(ch) = self.text.char_at(offset) {
-            if ch == '\r' {
-                offset -= 1;
-            }
-        }
-
+        let offset = super::rope_ext::grapheme_boundary(&self.text, offset, false);
         self.clamp_offset_to_visible_backward(offset)
     }
 
     pub(super) fn next_boundary(&self, offset: usize) -> usize {
-        let mut offset = self.text.clip_offset(offset + 1, Bias::Right);
-        if let Some(ch) = self.text.char_at(offset) {
-            if ch == '\r' {
-                offset += 1;
-            }
-        }
-
+        let offset = super::rope_ext::grapheme_boundary(&self.text, offset, true);
         self.clamp_offset_to_visible_forward(offset)
     }
 

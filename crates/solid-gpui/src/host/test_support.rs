@@ -108,6 +108,12 @@ fn command(
                 .map(|(offset, _)| f32::from_bits(offset))
                 .unwrap_or_default(),
         },
+        CommandKind::CancelNative => CommandOperation::CancelNative {
+            request_id: payload.unwrap().0,
+        },
+        CommandKind::ConfigureApplication => {
+            panic!("application controls use application-scoped metadata")
+        }
         CommandKind::InvokeNative => {
             panic!("construct native invocation fixtures with their module's typed contract")
         }
@@ -2503,4 +2509,172 @@ pub fn last_surface_close_requests_application_quit(cx: &mut TestAppContext) {
         .expect("remove final lifecycle surface");
     assert!(quit_requested.get());
     assert!(registry.read_with(cx, |registry, _| registry.surfaces.is_empty()));
+}
+
+#[gpui::test]
+fn application_connection_survives_last_window_and_reopen_allocates_a_fresh_surface(
+    cx: &mut TestAppContext,
+) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    registry.update(cx, |registry, cx| {
+        registry.open_initial(cx).unwrap();
+        let configure = Command::new(
+            CommandMeta {
+                surface_id: 0,
+                epoch: 1,
+                after_revision: 0,
+                request_id: 1,
+                node_id: 0,
+            },
+            CommandOperation::ConfigureApplication {
+                keep_alive: true,
+                quit: false,
+                acknowledged_sequence: 0,
+            },
+        );
+        registry
+            .route_payload(&configure.encode().unwrap(), cx)
+            .unwrap();
+    });
+    let launch = runtime.take_event().unwrap().unwrap();
+    assert!(matches!(
+        launch.payload,
+        EventPayload::ApplicationActivation {
+            target_surface_id: 1,
+            ..
+        }
+    ));
+    registry.update(cx, |registry, cx| {
+        registry
+            .application
+            .configure(1, true, false, launch.meta.sequence)
+            .unwrap();
+        let window = registry.surfaces[&1].window;
+        assert!(!registry.window_closed(window.window_id(), cx));
+        window
+            .update(cx, |_, window, _| window.remove_window())
+            .unwrap();
+        assert!(registry.surfaces.is_empty());
+        registry
+            .activate_application("open-urls", vec!["file:///tmp/report.txt".into()], cx)
+            .unwrap();
+        assert!(registry.surfaces.contains_key(&2));
+        assert!(registry.retired_surface_ids.contains(&1));
+    });
+    let mut reopened = None;
+    while let Some(event) = runtime.take_event().unwrap() {
+        if let EventPayload::ApplicationActivation {
+            target_surface_id,
+            reason,
+            urls,
+        } = event.payload
+        {
+            reopened = Some((target_surface_id, reason, urls));
+        }
+    }
+    assert_eq!(
+        reopened,
+        Some((2, "open-urls".into(), vec!["file:///tmp/report.txt".into()]))
+    );
+    registry.update(cx, |registry, cx| {
+        let auxiliary_id = registry.allocate_surface_id().unwrap();
+        assert_eq!(auxiliary_id, 3);
+        let auxiliary = registry
+            .open_window(Some("Auxiliary"), 320, 240, None, cx)
+            .unwrap();
+        registry.insert_surface(auxiliary_id, auxiliary);
+        let application_window = registry.surfaces[&2].window;
+        assert!(!registry.window_closed(application_window.window_id(), cx));
+        application_window
+            .update(cx, |_, window, _| window.remove_window())
+            .unwrap();
+        registry
+            .activate_application("reopen", Vec::new(), cx)
+            .unwrap();
+        assert_eq!(registry.application_surface_id, Some(4));
+        assert!(registry.surfaces.contains_key(&3));
+        assert!(registry.surfaces.contains_key(&4));
+        registry
+            .activate_application("open-urls", vec!["demo://second-document".into()], cx)
+            .unwrap();
+        assert_eq!(registry.surfaces.len(), 2);
+    });
+    let mut targets = Vec::new();
+    while let Some(event) = runtime.take_event().unwrap() {
+        if let EventPayload::ApplicationActivation {
+            target_surface_id, ..
+        } = event.payload
+        {
+            targets.push(target_surface_id);
+        }
+    }
+    assert_eq!(
+        targets,
+        vec![4, 4],
+        "activation must recreate the app root without stealing an auxiliary Surface"
+    );
+}
+
+#[cfg(feature = "quickjs")]
+#[gpui::test]
+fn generation_preflight_validates_all_windows_and_zero_window_activation(cx: &mut TestAppContext) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    registry.update(cx, |registry, cx| {
+        registry.open_initial(cx).unwrap();
+        let auxiliary = registry
+            .open_window(Some("Auxiliary"), 320, 240, None, cx)
+            .unwrap();
+        let id = registry.allocate_surface_id().unwrap();
+        registry.insert_surface(id, auxiliary);
+        let snapshot =
+            |id, epoch| Snapshot::new(id, epoch, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+        for id in [1, 2] {
+            registry
+                .apply_to_surface(DecodedMessage::Snapshot(snapshot(id, 1)), cx)
+                .unwrap();
+        }
+        let configuration = Command::new(
+            CommandMeta {
+                surface_id: 0,
+                epoch: 2,
+                after_revision: 0,
+                request_id: 1,
+                node_id: 0,
+            },
+            CommandOperation::ConfigureApplication {
+                keep_alive: true,
+                quit: false,
+                acknowledged_sequence: 0,
+            },
+        );
+        let valid = vec![snapshot(1, 2), snapshot(2, 2)];
+        assert!(
+            registry
+                .prepare_generation(&valid, &configuration, 2, cx)
+                .is_ok()
+        );
+        let mut invalid = valid.clone();
+        invalid[1].nodes[0].kind = u32::MAX;
+        assert!(
+            registry
+                .prepare_generation(&invalid, &configuration, 2, cx)
+                .is_err()
+        );
+        assert!(
+            registry
+                .prepare_generation(&valid[..1], &configuration, 2, cx)
+                .is_err()
+        );
+        for surface in registry.surfaces.values() {
+            assert_eq!(surface.root.read(cx).store().epoch(), 1);
+        }
+        registry.surfaces.clear();
+        let lifecycle = registry
+            .prepare_generation(&[], &configuration, 2, cx)
+            .unwrap();
+        assert_eq!(lifecycle.epoch, 2);
+        assert!(lifecycle.keep_alive);
+    });
 }

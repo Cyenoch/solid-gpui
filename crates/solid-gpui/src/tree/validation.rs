@@ -170,10 +170,18 @@ pub(super) fn validate_accessibility_shape(
     let Some(accessibility) = accessibility else {
         return Ok(());
     };
-    if accessibility.role > 7 {
+    if accessibility.role > 13 {
         return Err(TreeError::InvalidProperties {
             node_id,
             reason: "unsupported accessibility role",
+        });
+    }
+    if accessibility.live.is_some_and(|live| {
+        live > 2 || (live != 0 && (accessibility.role <= 1 || accessibility.value.is_none()))
+    }) {
+        return Err(TreeError::InvalidProperties {
+            node_id,
+            reason: "live region requires a semantic role and value",
         });
     }
     if accessibility.checked.is_some() && accessibility.role != 5 {
@@ -245,10 +253,12 @@ pub(super) fn validate_host_properties_shape(
         }
         (Some(HostProperties::Image(image)), KIND_IMAGE) => {
             if image.source.is_empty()
-                || image.source.len() > 1024
+                || image.source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
                 || image.source.chars().any(char::is_control)
                 || image.fallback_source.as_ref().is_some_and(|source| {
-                    source.is_empty() || source.len() > 1024 || source.chars().any(char::is_control)
+                    source.is_empty()
+                        || source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
+                        || source.chars().any(char::is_control)
                 })
                 || !(1..=5).contains(&image.object_fit)
             {
@@ -657,6 +667,23 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
         return Err(TreeError::InvalidStyle {
             node_id,
             reason: "boxShadow must contain one or two shadows with finite offsets and non-negative blur/spread",
+        });
+    }
+    if [
+        style.grid_columns,
+        style.grid_rows,
+        style.grid_column_span,
+        style.grid_row_span,
+    ]
+    .into_iter()
+    .flatten()
+    .any(|count| !(1..=64).contains(&count))
+        || ((style.grid_columns.is_some() || style.grid_rows.is_some())
+            && style.flex_direction.is_some())
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "grid tracks/spans require 1 through 64 and tracks cannot use flexDirection",
         });
     }
     if style.font_family.as_ref().is_some_and(|family| {

@@ -242,7 +242,7 @@ impl RenderOnce for Field {
         } else {
             self.props.label_width
         };
-        let has_label = self.label_indent;
+        let has_label = self.label.is_some() || self.label_indent;
 
         #[inline]
         fn wrap_div(layout: Axis) -> Div {
@@ -276,6 +276,7 @@ impl RenderOnce for Field {
             .when_some(self.col_start, |this, start| this.col_start(start))
             .when_some(self.col_end, |this, end| this.col_end(end))
             .refine_style(&self.style)
+            .when(!self.visible, |this| this.hidden())
             .child(
                 // This warp for aligning the Label + Input
                 wrap_div(layout)

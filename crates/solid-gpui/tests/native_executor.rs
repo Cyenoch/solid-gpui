@@ -15,7 +15,7 @@ fn ordinary_callers_can_run_tokio_timers_and_network_io() {
         vec![],
         vec![CommandDefinition::asynchronous(
             "roundtrip",
-            |(): ()| async {
+            |(): (), _context| async {
                 tokio::time::timeout(Duration::from_secs(3), async {
                     tokio::time::sleep(Duration::from_millis(1)).await;
                     let listener = TcpListener::bind("127.0.0.1:0").await?;
@@ -61,15 +61,15 @@ fn composed_modules_share_one_runtime_and_panics_are_request_errors() {
             name,
             vec![],
             vec![
-                CommandDefinition::asynchronous("runtime", |(): ()| async {
+                CommandDefinition::asynchronous("runtime", |(): (), _context| async {
                     Ok(tokio::runtime::Handle::current().id().to_string())
                 }),
-                CommandDefinition::asynchronous("asyncPanic", |(): ()| async {
+                CommandDefinition::asynchronous("asyncPanic", |(): (), _context| async {
                     panic!("async failure");
                     #[allow(unreachable_code)]
                     Ok(())
                 }),
-                CommandDefinition::sync("syncPanic", |(): ()| {
+                CommandDefinition::sync("syncPanic", |(): (), _context| {
                     panic!("sync failure");
                     #[allow(unreachable_code)]
                     Ok(())

@@ -62,15 +62,16 @@ runtime remains Solid 1.9.15.
 
 For a Rust-led application using QuickJS, import `EmbeddedTransport` from
 `@solid-gpui/core/embedded` and build a self-contained ESM entry. See the
-[runtime selection](../README.md#runtime-choice) and
+[runtime selection](runtimes.md) and
 [production bundle examples](hot-reload.md#production-bundles).
 
-## Run Gallery
+## Run the website on desktop
 
-From the workspace root, run `bun run gallery` for direct Bun execution or
-`bun run gallery:vite` for Vite bundling and native hot reload. Each project also
-supports `bun run dev` from its own directory. Both use the shared application in
-`examples/gallery`; see [hot reload](hot-reload.md).
+From the workspace root, run `bun run website:native` to build and launch the website
+with Bun, or `bun run website:native:dev` for native hot reload. Inside
+`examples/website`, `bun run dev` starts the Web version and `bun run dev:native`
+starts the native version. Both share the same application and
+`@solid-gpui/router` route tree; see [hot reload](hot-reload.md).
 
 ## Test without a display
 

@@ -1420,8 +1420,8 @@ fn line_selection_range(text: &str, offset: usize) -> Range<usize> {
 
 fn previous_utf16_boundary(text: &str, offset: usize) -> usize {
     let mut current = 0;
-    for character in text.chars() {
-        let next = current + character.len_utf16();
+    for grapheme in text.graphemes(true) {
+        let next = current + grapheme.encode_utf16().count();
         if next >= offset {
             return current;
         }
@@ -1432,8 +1432,8 @@ fn previous_utf16_boundary(text: &str, offset: usize) -> usize {
 
 fn next_utf16_boundary(text: &str, offset: usize) -> usize {
     let mut current = 0;
-    for character in text.chars() {
-        let next = current + character.len_utf16();
+    for grapheme in text.graphemes(true) {
+        let next = current + grapheme.encode_utf16().count();
         if offset < next {
             return next;
         }
@@ -1884,6 +1884,33 @@ impl EntityInputHandler for SolidRoot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn caret_deletion_and_undo_preserve_extended_graphemes() {
+        for cluster in ["e\u{301}", "👩🏽‍💻", "🇸🇬", "क्‍ष", "\r\n"] {
+            let original = format!("a{cluster}z");
+            let end = 1 + cluster.encode_utf16().count();
+            assert_eq!(
+                move_selection_with_mode(&original, &(1..1), false, "right", false, false),
+                Some((end..end, false))
+            );
+            assert_eq!(
+                move_selection_with_mode(&original, &(end..end), false, "left", true, false),
+                Some((1..end, true))
+            );
+            for (caret, backward) in [(end, true), (1, false)] {
+                let mut state = NativeInputState::default();
+                state.replace(None, &original);
+                state.break_typing_coalescing();
+                let range =
+                    delete_range_for_selection(&state.text, &(caret..caret), backward, false);
+                state.replace(Some(range), "");
+                assert_eq!(state.text, "az");
+                assert!(state.undo());
+                assert_eq!(state.text, original);
+            }
+        }
+    }
 
     #[test]
     fn max_length_limits_utf16_replacements_without_splitting_surrogates() {

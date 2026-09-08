@@ -28,7 +28,7 @@ each seam:
   `NodeStore::apply_patch`, `crates/solid-gpui/src/transport.rs` —
   `fatal_runtime_failure`).
 - Image resources are loaded through GPUI's image path/cache path; a missing or
-  undecodable primary resource renders `fallbackSource` while loading/after
+  undecodable primary resource renders `fallbackSource` after
   failure when supplied, and otherwise produces blank output without a
   JavaScript failure (`crates/solid-gpui/src/renderer/paint/image.rs`,
   `docs/adr/0007-explicit-image-path-source.md`).

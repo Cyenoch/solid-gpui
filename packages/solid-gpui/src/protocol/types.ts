@@ -203,6 +203,7 @@ export interface AccessibilityProperties {
   readonly value: string | null;
   readonly expanded: boolean | null;
   readonly level: number | null;
+  readonly live: number | null;
 }
 
 export interface SnapshotNode {
@@ -312,6 +313,13 @@ export interface WindowOpenOptions {
 export type CommandPayload =
   | null
   | {
+      readonly type: "configure-application";
+      readonly keepAlive: boolean;
+      readonly quit: boolean;
+      readonly acknowledgedSequence: number;
+    }
+  | { readonly type: "cancel-native"; readonly requestId: number }
+  | {
       readonly type: "invoke-native";
       readonly moduleId: Uint8Array;
       readonly moduleDigest: Uint8Array;
@@ -392,6 +400,12 @@ export interface TextInputEventData {
 }
 
 export type EventPayload =
+  | {
+      readonly type: "application-activation";
+      readonly targetSurfaceId: number;
+      readonly reason: "launch" | "reopen" | "open-urls";
+      readonly urls: readonly string[];
+    }
   | { readonly type: "press" }
   | { readonly type: "change"; readonly data: TextInputEventData }
   | { readonly type: "selection"; readonly data: TextInputEventData }

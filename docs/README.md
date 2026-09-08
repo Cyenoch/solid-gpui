@@ -1,8 +1,12 @@
 # Solid GPUI documentation
 
+The [GitHub Pages website](https://cyenoch.github.io/solid-gpui/) hosts interactive
+guides, components, and Showcase apps. Until its first deployment, use the guides
+below or [run the website locally](../examples/website/README.md).
+
 Use this order:
 
-1. [`../README.md`](../README.md) — product boundary, packages, and runnable Gallery projects.
+1. [`../README.md`](../README.md) — project overview, quick start, and a small TSX example.
 2. [`../CONTEXT.md`](../CONTEXT.md) — shared domain vocabulary and invariants.
 3. [`getting-started.md`](getting-started.md) — build and run a Solid application.
 4. [`protocol.md`](protocol.md) — authoritative framed Bebop v5 contract, bounded decoding, and generated binding workflow.
@@ -16,7 +20,22 @@ Use this order:
 12. [`distribution.md`](distribution.md) — verified application bundles, native dependencies, and signing for macOS, Windows, and Linux.
 13. [`adr/`](adr/) — architectural decisions.
 
+Start with [Choose a runtime](runtimes.md) for the development and delivery paths.
+
+See also [runtime strategy](runtime-strategy.md) for external Bun development,
+Embedded Bun production packaging, Rust-led QuickJS applications, and the
+communication and QuickJS hot reload research. See
+[native async composition and accessibility](native-composition.md).
+
+See [native application migration](native-migration.md) for application-owned
+runtimes, window profiles, titlebars, theme overrides, edge styles, and offline icons.
+
 References:
+
+- [Project brand assets](../assets/branding/README.md) — approved icon and generated Web and desktop formats.
+- [Router](router.md) — file-based routing setup, native navigation, and TanStack references.
+- [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
+- [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
 
 - [GPUI Component Shell](https://longbridge.github.io/gpui-component/shell/) — host-owned rendering and script snapshot reference.
 - [GPUI Component source](../references/gpui-component/) — checked-in source used for implementation comparison.

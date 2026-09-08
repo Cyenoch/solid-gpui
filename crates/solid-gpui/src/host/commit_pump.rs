@@ -15,6 +15,8 @@ const MAX_BYTES_PER_TURN: usize = 1024 * 1024;
 
 enum Message {
     Payload(Vec<u8>),
+    #[cfg(feature = "quickjs")]
+    Replacement(Box<crate::runtime::reload::Replacement>),
     Terminated(RuntimeStatus),
     Transport(ProtocolError),
 }
@@ -35,11 +37,21 @@ impl CommitPump {
             .name("solid-gpui-host-commit-pump".to_owned())
             .spawn(move || {
                 loop {
-                    match runtime.recv_commit() {
-                        Ok(Some(payload)) => {
+                    match runtime.recv_host_commit() {
+                        Ok(Some(crate::transport::HostCommit::Frame(payload))) => {
                             runtime.tap_inbound_payload(&payload);
                             if futures::executor::block_on(sender.send(Message::Payload(payload)))
                                 .is_err()
+                            {
+                                break;
+                            }
+                        }
+                        #[cfg(feature = "quickjs")]
+                        Ok(Some(crate::transport::HostCommit::Replacement(replacement))) => {
+                            if futures::executor::block_on(
+                                sender.send(Message::Replacement(replacement)),
+                            )
+                            .is_err()
                             {
                                 break;
                             }
@@ -120,6 +132,12 @@ impl CommitPump {
                                 error,
                             );
                         }
+                    }
+                    #[cfg(feature = "quickjs")]
+                    Message::Replacement(replacement) => {
+                        registry.update(cx, |registry, cx| {
+                            registry.replace_generation(*replacement, cx)
+                        });
                     }
                     Message::Terminated(status) => {
                         registry.update(cx, |registry, cx| registry.close_all(cx));

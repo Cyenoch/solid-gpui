@@ -56,7 +56,9 @@ use extensions::{new_event_state, update_event_state, validate_extension_fields}
 use input::{NativeInputState, TextInputLayout};
 use paint::RenderedBounds;
 #[cfg(test)]
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(test)]
+use web_time::Instant;
 
 #[derive(Debug, Error)]
 pub enum RenderError {
@@ -559,6 +561,17 @@ impl SolidRoot {
         cx: &mut Context<Self>,
     ) -> Result<(), RenderError> {
         self.apply_decoded_message(crate::protocol::decode_message(payload)?, cx)
+    }
+
+    #[cfg(feature = "quickjs")]
+    pub(crate) fn validate_replacement(
+        &self,
+        snapshot: &crate::Snapshot,
+    ) -> Result<(), RenderError> {
+        let mut candidate = self.store.clone();
+        candidate.apply_snapshot(snapshot.clone())?;
+        self.validate_extension_tree(&candidate)?;
+        Ok(())
     }
 
     /// Atomically commit an already-decoded message and notify exactly once.
@@ -2016,7 +2029,17 @@ mod input_tests {
             super::paint::accessibility_role(7),
             Some(gpui::accesskit::Role::Link)
         );
-        assert_eq!(super::paint::accessibility_role(8), None);
+        for (code, role) in [
+            (8, gpui::accesskit::Role::Status),
+            (9, gpui::accesskit::Role::Alert),
+            (10, gpui::accesskit::Role::Group),
+            (11, gpui::accesskit::Role::List),
+            (12, gpui::accesskit::Role::ListItem),
+            (13, gpui::accesskit::Role::Dialog),
+        ] {
+            assert_eq!(super::paint::accessibility_role(code), Some(role));
+        }
+        assert_eq!(super::paint::accessibility_role(14), None);
     }
     #[test]
     fn placeholder_display_is_visual_only() {
@@ -3729,6 +3752,64 @@ mod input_tests {
         assert!(
             saw_reverted_change,
             "undo must emit the normal change event"
+        );
+    }
+
+    #[gpui::test]
+    fn selectable_text_measures_wrapped_height_at_narrow_and_wide_widths(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let mut heights = Vec::new();
+        for width in [220.0, 80.0] {
+            let runtime = InMemoryAdapter::new();
+            let window = cx.open_window(gpui::size(px(300.0), px(600.0)), move |_, _| {
+                SolidRoot::new(runtime)
+            });
+            let root = window.root(cx).expect("selectable test root");
+            let mut text = Node::new(2, 1, 0, KIND_TEXT);
+            text.selectable = true;
+            text.style = Some(Style {
+                width: Some(width),
+                ..Style::default()
+            });
+            let mut raw = Node::new(3, 2, 0, KIND_RAW_TEXT);
+            raw.text = Some(
+                "Selectable paragraphs must reserve the height of every wrapped visual line."
+                    .into(),
+            );
+            let snapshot =
+                Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), text, raw]);
+            root.update(cx, |root, cx| {
+                root.apply_payload(&snapshot.encode().unwrap(), cx)
+            })
+            .unwrap();
+            cx.update_window(window.into(), |_, window, cx| {
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+            let height = root.read_with(cx, |root, _| {
+                let layout = &root.selectable_text_layouts[&2];
+                let input::TextInputTextLayout::Multiline {
+                    lines, line_height, ..
+                } = &layout.text
+                else {
+                    panic!("expected multiline selection geometry")
+                };
+                let painted = lines
+                    .iter()
+                    .map(|line| line.size(*line_height).height)
+                    .fold(px(0.0), |sum, height| sum + height);
+                assert!(
+                    layout.bounds.size.height >= painted,
+                    "layout must contain every painted line"
+                );
+                layout.bounds.size.height
+            });
+            heights.push(height);
+        }
+        assert!(
+            heights[1] > heights[0],
+            "narrow text must reserve more height"
         );
     }
 

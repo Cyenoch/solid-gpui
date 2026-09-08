@@ -34,6 +34,8 @@ pub const COMMAND_PAYLOAD_KEYBINDINGS_COMMAND: u32 = 9;
 pub const COMMAND_PAYLOAD_CLIPBOARD_IMAGE_COMMAND: u32 = 10;
 pub const COMMAND_PAYLOAD_CLOSE_RESOLUTION_COMMAND: u32 = 11;
 pub const COMMAND_PAYLOAD_INVOKE_NATIVE_COMMAND: u32 = 12;
+pub const COMMAND_PAYLOAD_CANCEL_NATIVE_COMMAND: u32 = 13;
+pub const COMMAND_PAYLOAD_CONFIGURE_APPLICATION_COMMAND: u32 = 14;
 
 pub const COMMAND_VALUE_NUMBER_VALUE: u32 = 1;
 pub const COMMAND_VALUE_PAIR_VALUE: u32 = 2;
@@ -68,6 +70,7 @@ pub const EVENT_PAYLOAD_NOTIFICATION_RESPONSE_EVENT: u32 = 18;
 pub const EVENT_PAYLOAD_POINTER_DOWN_OUTSIDE_EVENT: u32 = 19;
 pub const EVENT_PAYLOAD_CLOSE_REQUESTED_EVENT: u32 = 20;
 pub const EVENT_PAYLOAD_EXTENSION_EVENT: u32 = 21;
+pub const EVENT_PAYLOAD_APPLICATION_ACTIVATION_EVENT: u32 = 22;
 
 pub const NODE_KIND_UNSPECIFIED: u32 = 0;
 pub const NODE_KIND_VIEW: u32 = 1;
@@ -105,6 +108,7 @@ pub const EVENT_NOTIFICATION_RESPONSE: u32 = 21;
 pub const EVENT_POINTER_DOWN_OUTSIDE: u32 = 22;
 pub const EVENT_CLOSE_REQUESTED: u32 = 23;
 pub const EVENT_EXTENSION: u32 = 24;
+pub const EVENT_APPLICATION_ACTIVATION: u32 = 25;
 
 pub const COMMAND_UNKNOWN: u32 = 0;
 pub const COMMAND_FOCUS: u32 = 1;
@@ -143,6 +147,8 @@ pub const COMMAND_ACTIVATE_WINDOW: u32 = 33;
 pub const COMMAND_GET_SCROLL_OFFSET: u32 = 34;
 pub const COMMAND_SCROLL_TO_OFFSET: u32 = 35;
 pub const COMMAND_INVOKE_NATIVE: u32 = 36;
+pub const COMMAND_CANCEL_NATIVE: u32 = 37;
+pub const COMMAND_CONFIGURE_APPLICATION: u32 = 38;
 
 pub(crate) const fn node_kind(value: u32) -> Option<super::generated::NodeKind> {
     match value {
@@ -196,6 +202,7 @@ pub(crate) const fn event_kind(value: u32) -> Option<super::generated::EventKind
         22 => Some(super::generated::EventKind::PointerDownOutside),
         23 => Some(super::generated::EventKind::CloseRequested),
         24 => Some(super::generated::EventKind::Extension),
+        25 => Some(super::generated::EventKind::ApplicationActivation),
         _ => None,
     }
 }
@@ -239,11 +246,13 @@ pub(crate) const fn command_kind(value: u32) -> Option<super::generated::Command
         34 => Some(super::generated::CommandKind::GetScrollOffset),
         35 => Some(super::generated::CommandKind::ScrollToOffset),
         36 => Some(super::generated::CommandKind::InvokeNative),
+        37 => Some(super::generated::CommandKind::CancelNative),
+        38 => Some(super::generated::CommandKind::ConfigureApplication),
         _ => None,
     }
 }
 
 pub const COMMAND_KINDS: &[u32] = &[
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-    27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
 ];

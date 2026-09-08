@@ -2,8 +2,11 @@ node_modules/
 /packages/solid-gpui/dist/
 /build_script_build
 dist/
-/examples/gallery-vite/dist/
+/examples/website/dist-native/
+/examples/website/dist-embedded/
 target/
 *.frame
 *.frames
 .scratch/protocol-benchmark
+/examples/website/src/wasm/
+*.log

@@ -616,6 +616,202 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
 mod tests {
     use super::*;
     use crate::components::test_support::Fixture;
+    use gpui::{
+        Axis, InteractiveElement, ScrollHandle, StatefulInteractiveElement, TestAppContext, Window,
+        point, size,
+    };
+    use gpui_base::InteractiveElementExt as _;
+    use gpui_base::VirtualListScrollHandle;
+    #[derive(Clone, Copy, Debug)]
+    enum ScrollKind {
+        Plain,
+        Virtual,
+        Variable,
+    }
+
+    struct NestedScrollHarness {
+        outer: ScrollHandle,
+        inner: VirtualListScrollHandle,
+        kind: ScrollKind,
+        axis: Axis,
+        count: usize,
+        list: gpui::ListState,
+        wheel_events: Rc<std::cell::Cell<usize>>,
+    }
+
+    impl Render for NestedScrollHarness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let wheel_events = self.wheel_events.clone();
+            let inner = if matches!(self.kind, ScrollKind::Variable) {
+                gpui::list(self.list.clone(), |_, _, _| {
+                    div().h(px(20.)).into_any_element()
+                })
+                .w(px(100.))
+                .h(px(100.))
+                .into_any_element()
+            } else if matches!(self.kind, ScrollKind::Virtual) {
+                gpui_base::virtual_list(
+                    cx.entity(),
+                    "inner",
+                    self.axis,
+                    Rc::new(vec![
+                        if self.axis == Axis::Vertical {
+                            size(px(100.), px(20.))
+                        } else {
+                            size(px(20.), px(100.))
+                        };
+                        self.count
+                    ]),
+                    |_, range, _, _| {
+                        range
+                            .map(|_| div().w(px(20.)).h(px(20.)))
+                            .collect::<Vec<_>>()
+                    },
+                )
+                .track_scroll(&self.inner)
+                .w(px(100.))
+                .h(px(100.))
+                .into_any_element()
+            } else {
+                div()
+                    .id("inner")
+                    .w(px(100.))
+                    .h(px(100.))
+                    .overflow_scroll()
+                    .lock_scroll_axis()
+                    .on_scroll_wheel(move |_, _, _| wheel_events.set(wheel_events.get() + 1))
+                    .track_scroll(self.inner.as_ref())
+                    .child(
+                        div()
+                            .w(if self.axis == Axis::Horizontal {
+                                px(self.count as f32 * 20.)
+                            } else {
+                                px(100.)
+                            })
+                            .h(if self.axis == Axis::Vertical {
+                                px(self.count as f32 * 20.)
+                            } else {
+                                px(100.)
+                            })
+                            .flex_shrink_0(),
+                    )
+                    .into_any_element()
+            };
+            div()
+                .id("outer")
+                .w(px(200.))
+                .h(px(200.))
+                .overflow_y_scroll()
+                .track_scroll(&self.outer)
+                .child(div().h(px(1000.)).flex_shrink_0().child(inner))
+        }
+    }
+
+    #[gpui::test]
+    fn nested_scroll_moves_only_the_consuming_viewport(cx: &mut TestAppContext) {
+        for kind in [ScrollKind::Plain, ScrollKind::Virtual, ScrollKind::Variable] {
+            let wheel_events = Rc::new(std::cell::Cell::new(0));
+            let outer = ScrollHandle::new();
+            let inner = VirtualListScrollHandle::new();
+            let list = gpui::ListState::new(50, gpui::ListAlignment::Top, px(0.)).measure_all();
+            let (_, visual) = cx.add_window_view({
+                let outer = outer.clone();
+                let inner = inner.clone();
+                let list = list.clone();
+                let wheel_events = wheel_events.clone();
+                move |_, _| NestedScrollHarness {
+                    outer,
+                    inner,
+                    kind,
+                    axis: Axis::Vertical,
+                    count: 50,
+                    list,
+                    wheel_events,
+                }
+            });
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(50.), px(50.)),
+                delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-40.))),
+                ..Default::default()
+            });
+            if matches!(kind, ScrollKind::Plain) {
+                assert_eq!(wheel_events.get(), 1, "local wheel listener still fires");
+            }
+            if matches!(kind, ScrollKind::Variable) {
+                let top = list.logical_scroll_top();
+                assert_eq!(px(top.item_ix as f32 * 20.) + top.offset_in_item, px(40.));
+            } else {
+                assert_eq!(inner.offset().y, px(-40.), "inner moves: {kind:?}");
+            }
+            assert_eq!(outer.offset().y, px(0.), "page stays still: {kind:?}");
+            // Reaching an edge consumes the current event, without overscrolling either viewport.
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(50.), px(50.)),
+                delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-2000.))),
+                ..Default::default()
+            });
+            assert_eq!(outer.offset().y, px(0.), "reaching edge: {kind:?}");
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: point(px(50.), px(50.)),
+                delta: gpui::ScrollDelta::Pixels(point(px(0.), px(-40.))),
+                ..Default::default()
+            });
+            assert_eq!(outer.offset().y, px(-40.), "edge hands off: {kind:?}");
+        }
+    }
+
+    #[gpui::test]
+    fn horizontal_and_non_overflowing_children_route_wheels_to_the_right_viewport(
+        cx: &mut TestAppContext,
+    ) {
+        for kind in [ScrollKind::Plain, ScrollKind::Virtual, ScrollKind::Variable] {
+            for axis in [Axis::Vertical, Axis::Horizontal] {
+                if matches!(kind, ScrollKind::Variable) && axis == Axis::Horizontal {
+                    continue;
+                }
+                let count = if axis == Axis::Vertical { 2 } else { 50 };
+                let outer = ScrollHandle::new();
+                let inner = VirtualListScrollHandle::new();
+                let (_, visual) = cx.add_window_view({
+                    let outer = outer.clone();
+                    let inner = inner.clone();
+                    move |_, _| NestedScrollHarness {
+                        outer,
+                        inner,
+                        kind,
+                        axis,
+                        count,
+                        wheel_events: Rc::new(std::cell::Cell::new(0)),
+                        list: gpui::ListState::new(count, gpui::ListAlignment::Top, px(0.))
+                            .measure_all(),
+                    }
+                });
+                visual.update(|window, cx| window.draw(cx).clear(cx));
+                if axis == Axis::Horizontal {
+                    visual.simulate_event(gpui::ScrollWheelEvent {
+                        position: point(px(50.), px(50.)),
+                        delta: gpui::ScrollDelta::Pixels(point(px(-40.), px(0.))),
+                        ..Default::default()
+                    });
+                    assert_eq!(inner.offset().x, px(-40.), "horizontal child: {kind:?}");
+                    assert_eq!(outer.offset().y, px(0.));
+                }
+                visual.simulate_event(gpui::ScrollWheelEvent {
+                    position: point(px(50.), px(50.)),
+                    delta: gpui::ScrollDelta::Lines(point(0., -2.)),
+                    ..Default::default()
+                });
+                assert!(
+                    outer.offset().y < px(0.),
+                    "vertical wheel reaches page: {kind:?}, {axis:?}"
+                );
+                assert_eq!(inner.offset().y, px(0.));
+            }
+        }
+    }
+
     #[gpui::test]
     fn message_append_prepend_and_reorder_keep_native_follow_mode_and_reading_anchor(
         cx: &mut gpui::TestAppContext,

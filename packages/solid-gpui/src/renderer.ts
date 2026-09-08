@@ -1,3 +1,5 @@
+import { generationHost } from "./generation";
+import type { NativeCallOptions } from "./native-call";
 import { createRoot as createSolidRoot, createSignal } from "solid-js";
 import { createRenderer, type Renderer } from "solid-js/universal";
 
@@ -169,6 +171,7 @@ export interface Root {
     moduleDigest: Uint8Array,
     functionId: number,
     args: Uint8Array,
+    options?: NativeCallOptions,
   ): Promise<Uint8Array>;
   render(element: SolidElement | null): void;
   setTitle(title: string): Promise<void>;
@@ -212,7 +215,7 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
 
 export function createRootWithRouter(router: SurfaceRouter, options: RootOptions = {}, startRouter = false): Root {
   const surfaceId = options.surfaceId ?? nextSurfaceId++;
-  const epoch = options.epoch ?? 1;
+  const epoch = options.epoch ?? generationHost()?.epoch ?? 1;
   let closed = false;
   let setElement: (element: unknown) => unknown;
   let disposeRender: (() => void) | undefined;
@@ -301,9 +304,10 @@ export function createRootWithRouter(router: SurfaceRouter, options: RootOptions
       moduleDigest: Uint8Array,
       functionId: number,
       args: Uint8Array,
+      options?: NativeCallOptions,
     ): Promise<Uint8Array> {
       if (closed) return Promise.reject(new SurfaceClosedError(surfaceId));
-      return container.invokeNative(moduleId, moduleDigest, functionId, args);
+      return container.invokeNative(moduleId, moduleDigest, functionId, args, options);
     },
     render(element: SolidElement | null): void {
       if (closed) throw new SurfaceClosedError(surfaceId);

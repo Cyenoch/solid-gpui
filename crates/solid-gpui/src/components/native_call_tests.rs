@@ -12,12 +12,14 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
     let runtime = InMemoryAdapter::new();
     let module = super::super::theme::native_module();
     let set_theme = module.command_id("setTheme").unwrap();
+    let set_motion = module.command_id("setMotionPreference").unwrap();
     let set_application = module.command_id("setApplicationTheme").unwrap();
     let id = module.id();
     let digest = module.digest();
     let mut profile = ComponentHost::new(vec![module]);
     let extensions = profile.extension_registry();
     let (window, root) = cx.update(|app| {
+        crate::motion::initialize_for_test(app);
         profile.initialize(app);
         profile
             .open_window(WindowOptions::default(), runtime.clone(), extensions, app)
@@ -115,6 +117,54 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
         let reply = result.expect("foreground command replies without waiting for a worker");
         assert_eq!(reply.request_id, request_id);
         assert_eq!(reply.success, success);
+    }
+    for enabled in [true, false] {
+        let command = Command::new(
+            CommandMeta {
+                surface_id: 1,
+                epoch: 1,
+                after_revision: 1,
+                request_id: 4,
+                node_id: 1,
+            },
+            CommandOperation::InvokeNative {
+                module_id: id,
+                module_digest: digest,
+                function_id: set_motion,
+                args: if enabled {
+                    br#""reduced""#.to_vec()
+                } else {
+                    br#""full""#.to_vec()
+                },
+            },
+        );
+        window
+            .update(cx, |_, window, cx| {
+                root.update(cx, |root, cx| {
+                    root.apply_decoded_message_in_window(
+                        crate::protocol::DecodedMessage::Command(command),
+                        window,
+                        cx,
+                    )
+                })
+                .unwrap();
+                assert_eq!(cx.reduce_motion(), enabled);
+            })
+            .unwrap();
+        let mut replied = false;
+        while let Some(event) = runtime.take_event().unwrap() {
+            if let EventPayload::CommandResult(reply) = event.payload {
+                assert!(reply.success);
+                let Some(CommandValue::Bytes(bytes)) = reply.value else {
+                    panic!("motion state reply")
+                };
+                let state: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+                assert_eq!(state["reduced"], enabled);
+                assert_eq!(state["mode"], if enabled { "reduced" } else { "full" });
+                replied = true;
+            }
+        }
+        assert!(replied);
     }
     let module = profile
         .extension_registry()

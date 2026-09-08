@@ -1,6 +1,6 @@
 # gpui-component from Solid
 
-The SDK exposes **144 generated JSX components/descriptors and 10 native functions (8 computation, 2 appearance)** from `@solid-gpui/core/components`. The linked native implementation is gpui-component 0.6.0 at `928c3eb776a3d733d9b771f7dea27a6a79242ced`, with the required declarative state seams recorded in `vendor/gpui-component/SOLID-GPUI.md`.
+The SDK exposes **144 generated JSX components/descriptors and 13 native functions (8 computation, 5 appearance)** from `@solid-gpui/core/components`. The linked native implementation is gpui-component 0.6.0 at `928c3eb776a3d733d9b771f7dea27a6a79242ced`, with the required declarative state seams recorded in `vendor/gpui-component/SOLID-GPUI.md`.
 
 Importing a component selects its real GPUI implementation. Solid owns application data and child composition. Native entities own focus, text editing, scrolling, menu interaction, docking and in-flight native work. Native callbacks read committed data and enqueue events; they do not synchronously execute JS.
 
@@ -13,7 +13,7 @@ const [name, setName] = createSignal("");
 <Button label="Clear" onPress={() => setName("")} />;
 ```
 
-The generated file is the API reference: `packages/solid-gpui/src/components.ts`. Do not edit it. `bun run task native-codegen` generates SDK and Gallery bindings from their actual Rust hosts; `bun run task native-codegen-check` verifies them. Custom native components, props, events and commands use the same generator.
+The generated file is the API reference: `packages/solid-gpui/src/components.ts`. Do not edit it. `bun run task native-codegen` generates SDK and website host bindings from their actual Rust hosts; `bun run task native-codegen-check` verifies them. Custom native components, props, events and commands use the same generator.
 
 ## Coverage
 
@@ -29,7 +29,7 @@ The generated file is the API reference: `packages/solid-gpui/src/components.ts`
 | Docking | DockArea; its layout descriptors create actual native TabGroup and TilesState containers |
 | Charts | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart |
 | Low-level drawing | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot |
-| Appearance | useNative().getTheme/setTheme; light, dark and system mode, applied to native Component and Base themes |
+| Appearance | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences |
 | Computation | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout |
 
 Some upstream types are parts of another control, not independent screen elements:
@@ -57,6 +57,13 @@ Lists, tables and trees render visible ranges. Search and load events describe t
 ## Appearance
 
 `await useNative().setTheme("dark")` changes the application-wide native Component theme and its Base projection; `"light"` and `"system"` are also supported. `getTheme()` reports the selected mode and resolved dark flag. The host follows OS appearance by default. Keep your Solid style tokens synchronized with the same choice, as the Gallery does. Themes are native App globals, so this setting applies to all windows.
+
+`setApplicationTheme` replaces application overrides for colors, typography,
+radii, input backgrounds, and component metrics. Overrides remain applied when
+`setTheme` changes the base appearance. For typed examples, titlebar setup, and
+local icon registration, see [native application migration](native-migration.md).
+`getMotionPreference` and `setMotionPreference` expose the `system`, `full`, and
+`reduced` motion modes; see [native composition](native-composition.md).
 
 These short UI operations use `CommandDefinition::foreground`; commands that perform computation or I/O continue through the Tokio executor. Foreground commands are typed and validated, require a mounted native window and must not block it.
 

@@ -51,7 +51,9 @@ export interface TransportTerminationDetails {
 export type TransportTerminationListener = (error: TransportTerminatedError) => void;
 
 export interface Transport {
-  submit(frame: Uint8Array): void;
+  /** False means accepted under pressure; resume only after onDrain. */
+  submit(frame: Uint8Array): boolean;
+  onDrain(listener: () => void): () => void;
   onData(listener: TransportListener): () => void;
   onTermination(listener: TransportTerminationListener): () => void;
 }
@@ -75,8 +77,13 @@ export class MemoryTransport implements DisposableTransport {
   readonly submitted: Uint8Array[] = [];
   private readonly listeners = new Set<TransportListener>();
 
-  submit(frame: Uint8Array): void {
+  submit(frame: Uint8Array): boolean {
     this.submitted.push(frame.slice());
+    return true;
+  }
+
+  onDrain(_listener: () => void): () => void {
+    return () => undefined;
   }
 
   onData(listener: TransportListener): () => void {

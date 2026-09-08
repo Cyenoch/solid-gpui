@@ -22,7 +22,10 @@ fn nested_dtos_use_strict_dispatch_and_preserve_unknown_field_errors() {
     let definition = ModuleDefinition::new(
         "echo",
         vec![],
-        vec![CommandDefinition::sync("echo", |value: Nested| Ok(value))],
+        vec![CommandDefinition::sync(
+            "echo",
+            |value: Nested, _context| Ok(value),
+        )],
     );
     let module = definition
         .native_module(definition.id(), definition.digest())
@@ -56,7 +59,7 @@ fn values_reject_json_precision_loss_and_resource_overflow() {
     let definition = ModuleDefinition::new(
         "errors",
         vec![],
-        vec![CommandDefinition::sync("fail", |(): ()| {
+        vec![CommandDefinition::sync("fail", |(): (), _context| {
             Err::<(), _>("domain error".into())
         })],
     );
@@ -75,18 +78,22 @@ fn exported_contract_rejects_bigint_and_digest_tracks_the_signature() {
     let large = ModuleDefinition::new(
         "large",
         vec![],
-        vec![CommandDefinition::sync("large", |(): ()| Ok(u64::MAX))],
+        vec![CommandDefinition::sync("large", |(): (), _context| {
+            Ok(u64::MAX)
+        })],
     );
     assert!(large.typescript().is_err());
     let original = ModuleDefinition::new(
         "typed",
         vec![],
-        vec![CommandDefinition::sync("get", |(): ()| Ok(String::new()))],
+        vec![CommandDefinition::sync("get", |(): (), _context| {
+            Ok(String::new())
+        })],
     );
     let changed = ModuleDefinition::new(
         "typed",
         vec![],
-        vec![CommandDefinition::sync("get", |(): ()| Ok(false))],
+        vec![CommandDefinition::sync("get", |(): (), _context| Ok(false))],
     );
     assert_eq!(original.id(), changed.id());
     assert_ne!(original.digest(), changed.digest());
@@ -109,9 +116,10 @@ fn ambiguous_type_and_command_names_cannot_form_a_contract() {
             ModuleDefinition::new(
                 "type-conflict",
                 vec![],
-                vec![CommandDefinition::sync("convert", |_: TextValue| {
-                    Ok(BoolValue { value: true })
-                })],
+                vec![CommandDefinition::sync(
+                    "convert",
+                    |_: TextValue, _context| Ok(BoolValue { value: true }),
+                )],
             )
         })
         .is_err()
@@ -122,8 +130,8 @@ fn ambiguous_type_and_command_names_cannot_form_a_contract() {
                 "command-conflict",
                 vec![],
                 vec![
-                    CommandDefinition::sync("same", |(): ()| Ok(false)),
-                    CommandDefinition::sync("same", |(): ()| Ok(true)),
+                    CommandDefinition::sync("same", |(): (), _context| Ok(false)),
+                    CommandDefinition::sync("same", |(): (), _context| Ok(true)),
                 ],
             )
         })
@@ -148,9 +156,10 @@ fn composed_modules_export_shared_multiline_types_as_valid_typescript() {
         ModuleDefinition::new(
             namespace,
             vec![],
-            vec![CommandDefinition::sync(command, |value: SharedDto| {
-                Ok(value)
-            })],
+            vec![CommandDefinition::sync(
+                command,
+                |value: SharedDto, _context| Ok(value),
+            )],
         )
     };
     let source = NativeModules::new(vec![make("one", "first"), make("two", "second")])
@@ -178,5 +187,31 @@ fn composed_modules_export_shared_multiline_types_as_valid_typescript() {
         output.status.success(),
         "generated TypeScript failed to parse: {}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[solid_gpui::native_module]
+mod cancellable_service {
+    use solid_gpui::native::NativeCallContext;
+
+    #[command]
+    fn echo(value: String, context: NativeCallContext) -> Result<String, String> {
+        context.check_cancelled()?;
+        Ok(value)
+    }
+}
+
+#[test]
+fn authored_context_is_injected_without_entering_the_wire_contract() {
+    let definition = cancellable_service::native_module();
+    let source = definition.typescript().unwrap();
+    assert!(!source.contains("context:"));
+    assert!(source.contains("options?: NativeCallOptions"));
+    let module = definition
+        .native_module(definition.id(), definition.digest())
+        .unwrap();
+    assert_eq!(
+        module.invoke(1, br#"{"value":"ready"}"#).unwrap(),
+        br#""ready""#
     );
 }

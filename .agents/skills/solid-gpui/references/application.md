@@ -26,6 +26,36 @@ handles survive route selection. Navigation and content scroll independently.
 Decide content scroll reset as a page-transition UX choice while preserving
 navigation position.
 
+### Route changes must preserve the shell
+
+Treat navigation scroll resets caused by remounting as a serious UX and performance
+regression. In the website incident on 2026-09-07, selecting a component near the
+end of the sidebar recreated the entire Components page: the menu jumped to the
+top and native views were rebuilt unnecessarily. This was a client-side remount,
+not a browser reload.
+
+The trigger was a JSX child function that read the full route while constructing
+the page: `() => route().startsWith("/components") ? <Components ... /> : ...`.
+Every route change reran that function, even when its branch stayed the same.
+Stable item keys cannot preserve a list whose parent owner is disposed.
+
+Use the existing router's stable shell and Outlet. For a custom route switch,
+derive the section with an equality-preserving `createMemo`, make shell selection
+depend only on that section, and pass the full route through reactive props to
+the retained page. Keep navigation, search inputs, and native scroll handles owned
+by that shell; scope deliberate content resets to the article pane. Fix ownership
+before considering offset restoration: restoring an offset after every remount
+leaves the reconstruction cost and other lost input state in place.
+
+Acceptance: scroll the sidebar near its end, select two different nearby pages,
+and verify that the article and unique selected item change while the same sidebar
+rows remain at the same viewport positions. Repeat after scrolling the article,
+with browser back/forward, and across responsive breakpoints. When instrumenting,
+verify that within-section navigation causes no sidebar-owner cleanup or sidebar
+Host Node replacement. Initial rendering, a correct URL, and a passing build are
+insufficient evidence. Measure protocol/layout work separately before claiming a
+quantified performance improvement.
+
 Style is this project's protocol type, not the full browser CSS model. Inspect
 `renderer/types.ts` and native `paint/style.rs`. In particular, `gap`, `alignItems`,
 and `justifyContent` implicitly enable flex column. Ordinary vertical content flow

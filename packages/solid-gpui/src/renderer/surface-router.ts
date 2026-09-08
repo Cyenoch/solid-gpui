@@ -9,6 +9,7 @@ export interface SurfaceRoute {
 export interface SurfaceRouterOptions {
   readonly maxFrameSize?: number;
   readonly onTermination?: TransportTerminationListener;
+  readonly onApplicationActivation?: (event: Event) => void;
 }
 
 export class SurfaceRouter {
@@ -17,6 +18,12 @@ export class SurfaceRouter {
   private readonly onTermination: TransportTerminationListener | undefined;
   private unsubscribeData: (() => void) | undefined;
   private unsubscribeTermination: (() => void) | undefined;
+  private unsubscribeDrain: (() => void) | undefined;
+  private pressured = false;
+  private output: Uint8Array[] = [];
+  private outputBytes = 0;
+  private input: Uint8Array[] = [];
+  private inputBytes = 0;
   private started = false;
   private terminated = false;
   private disposed = false;
@@ -24,7 +31,7 @@ export class SurfaceRouter {
 
   constructor(
     private readonly transport: Transport,
-    options: SurfaceRouterOptions = {},
+    private readonly options: SurfaceRouterOptions = {},
   ) {
     this.decoder = new FrameDecoder(options.maxFrameSize ?? MAX_FRAME_SIZE);
     this.onTermination = options.onTermination;
@@ -33,6 +40,7 @@ export class SurfaceRouter {
   start(): void {
     if (this.started || this.disposed) return;
     this.started = true;
+    this.unsubscribeDrain = this.transport.onDrain(() => this.drain());
     const unsubscribeData = this.transport.onData((chunk) => this.receive(chunk));
     this.unsubscribeData = unsubscribeData;
     if (this.terminated) {
@@ -68,14 +76,45 @@ export class SurfaceRouter {
     if (this.terminated) throw this.terminationError;
     if (this.disposed) throw new Error("SurfaceRouter is disposed");
     try {
-      this.transport.submit(frame);
+      if (this.pressured || this.output.length) {
+        if (this.output.length >= 4096 || frame.length > MAX_FRAME_SIZE + 4 - this.outputBytes)
+          throw new RangeError("renderer pending output capacity exceeded");
+        this.output.push(frame.slice());
+        this.outputBytes += frame.length;
+      } else {
+        this.pressured = !this.transport.submit(frame);
+      }
     } catch (error) {
       const termination =
         error instanceof TransportTerminatedError
           ? error
-          : new TransportTerminatedError("surface router output failed", error);
+          : new TransportTerminatedError(
+              `surface router output failed: ${error instanceof Error ? error.message : String(error)}`,
+              error,
+            );
       this.terminate(termination);
       throw termination;
+    }
+  }
+
+  private drain(): void {
+    if (this.disposed || this.terminated) return;
+    this.pressured = false;
+    try {
+      while (!this.pressured && this.output.length) {
+        const frame = this.output.shift()!;
+        this.outputBytes -= frame.length;
+        this.pressured = !this.transport.submit(frame);
+      }
+      // Pause event-driven production at the shared application scheduler.
+      // Timers may still submit, but share the same hard output budget.
+      while (!this.pressured && this.input.length) {
+        const frame = this.input.shift()!;
+        this.inputBytes -= frame.length;
+        this.receive(frame);
+      }
+    } catch (error) {
+      this.terminate(new TransportTerminatedError("renderer drain failed", error));
     }
   }
 
@@ -109,6 +148,16 @@ export class SurfaceRouter {
 
   private receive(chunk: Uint8Array | ArrayBuffer): void {
     if (this.terminated || this.disposed) return;
+    if (this.pressured) {
+      const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+      if (this.input.length >= 4096 || bytes.length > MAX_FRAME_SIZE + 4 - this.inputBytes) {
+        this.terminate(new TransportTerminatedError("renderer pending input capacity exceeded"));
+        return;
+      }
+      this.input.push(bytes.slice());
+      this.inputBytes += bytes.length;
+      return;
+    }
     let payloads: Uint8Array[];
     try {
       payloads = this.decoder.push(chunk);
@@ -125,7 +174,7 @@ export class SurfaceRouter {
       return;
     }
     if (payloads.length === 0) return;
-    const bySurface = new Map<number, Event[]>();
+    const decoded: Event[] = [];
     for (const payload of payloads) {
       let event: Event | null;
       try {
@@ -151,14 +200,38 @@ export class SurfaceRouter {
         );
         return;
       }
-      const events = bySurface.get(event.surfaceId);
-      if (events === undefined) bySurface.set(event.surfaceId, [event]);
-      else events.push(event);
+      decoded.push(event);
     }
-    for (const [surfaceId, events] of bySurface) this.routes.get(surfaceId)?.deliver(events);
+    const bySurface = new Map<number, Event[]>();
+    const flush = () => {
+      for (const [surfaceId, events] of bySurface) this.routes.get(surfaceId)?.deliver(events);
+      bySurface.clear();
+    };
+    for (const event of decoded) {
+      if (event.payload.type === "application-activation") {
+        flush();
+        if (this.disposed || this.terminated) return;
+        try {
+          this.options.onApplicationActivation?.(event);
+        } catch (error) {
+          this.terminate(new TransportTerminatedError("application activation failed", error));
+          return;
+        }
+      } else {
+        const events = bySurface.get(event.surfaceId);
+        if (events === undefined) bySurface.set(event.surfaceId, [event]);
+        else events.push(event);
+      }
+    }
+    flush();
   }
 
   private detachTransport(): void {
+    this.unsubscribeDrain?.();
+    this.unsubscribeDrain = undefined;
+    this.output = [];
+    this.input = [];
+    this.outputBytes = this.inputBytes = 0;
     const unsubscribeData = this.unsubscribeData;
     this.unsubscribeData = undefined;
     unsubscribeData?.();

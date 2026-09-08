@@ -176,6 +176,10 @@ fn wire_style(value: &Style) -> Result<generated::Style<'_>, ProtocolError> {
         width: value.width,
         height: value.height,
         flex_direction: value.flex_direction.map(u32::from),
+        grid_columns: value.grid_columns,
+        grid_rows: value.grid_rows,
+        grid_column_span: value.grid_column_span,
+        grid_row_span: value.grid_row_span,
         flex_grow: value.flex_grow,
         padding: value.padding,
         gap: value.gap,
@@ -333,6 +337,20 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
     {
         return Err(ProtocolError::InvalidStyle);
     }
+    if [
+        value.grid_columns,
+        value.grid_rows,
+        value.grid_column_span,
+        value.grid_row_span,
+    ]
+    .into_iter()
+    .flatten()
+    .any(|count| !(1..=64).contains(&count))
+        || ((value.grid_columns.is_some() || value.grid_rows.is_some())
+            && value.flex_direction.is_some())
+    {
+        return Err(ProtocolError::InvalidStyle);
+    }
     if invalid_style_code::<FlexDirectionCode>(value.flex_direction)
         || invalid_style_code::<JustifyContentCode>(value.justify_content)
         || invalid_style_code::<AlignItemsCode>(value.align_items)
@@ -377,6 +395,10 @@ fn decode_style(value: generated::Style<'_>) -> Result<Style, ProtocolError> {
         width: value.width,
         height: value.height,
         flex_direction: decode_style_code(value.flex_direction)?,
+        grid_columns: value.grid_columns,
+        grid_rows: value.grid_rows,
+        grid_column_span: value.grid_column_span,
+        grid_row_span: value.grid_row_span,
         flex_grow: value.flex_grow,
         padding: value.padding,
         gap: value.gap,
@@ -444,6 +466,12 @@ fn decode_style(value: generated::Style<'_>) -> Result<Style, ProtocolError> {
 }
 
 fn validate_accessibility(value: &AccessibilityProperties) -> Result<(), ProtocolError> {
+    if value
+        .live
+        .is_some_and(|live| live > 2 || (live != 0 && (value.role <= 1 || value.value.is_none())))
+    {
+        return Err(ProtocolError::InvalidHostProperties);
+    }
     AccessibilityRoleCode::try_from(value.role)
         .map(|_| ())
         .map_err(|_| ProtocolError::InvalidHostProperties)
@@ -713,6 +741,7 @@ fn wire_accessibility(value: &AccessibilityProperties) -> generated::Accessibili
         value: value.value.as_deref(),
         expanded: value.expanded,
         level: value.level,
+        live: value.live,
     }
 }
 
@@ -721,7 +750,7 @@ fn decode_accessibility(
 ) -> Result<AccessibilityProperties, ProtocolError> {
     let role = value.role.ok_or(ProtocolError::InvalidHostProperties)?;
     AccessibilityRoleCode::try_from(role).map_err(|_| ProtocolError::InvalidHostProperties)?;
-    Ok(AccessibilityProperties {
+    let result = AccessibilityProperties {
         role,
         label: value.label.map(str::to_owned),
         description: value.description.map(str::to_owned),
@@ -731,7 +760,10 @@ fn decode_accessibility(
         value: value.value.map(str::to_owned),
         expanded: value.expanded,
         level: value.level,
-    })
+        live: value.live,
+    };
+    validate_accessibility(&result)?;
+    Ok(result)
 }
 
 fn wire_host(value: &HostProperties) -> generated::HostProperties<'_> {
@@ -869,7 +901,11 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
             let object_fit = object_fit.ok_or(ProtocolError::InvalidHostProperties)?;
             ObjectFitCode::try_from(object_fit)
                 .map_err(|_| ProtocolError::InvalidHostProperties)?;
-            if fallback_source.is_some_and(|value| !valid_host_string(value, 1024)) {
+            if !valid_host_string(source, super::super::MAX_IMAGE_SOURCE_BYTES)
+                || fallback_source.is_some_and(|value| {
+                    !valid_host_string(value, super::super::MAX_IMAGE_SOURCE_BYTES)
+                })
+            {
                 return Err(ProtocolError::InvalidHostProperties);
             }
             Ok(HostProperties::Image(ImageProperties {
@@ -1632,6 +1668,20 @@ fn wire_command_payload<'a>(
     operation: &'a CommandOperation,
 ) -> Option<generated::CommandPayload<'a>> {
     match operation {
+        CommandOperation::ConfigureApplication {
+            keep_alive,
+            quit,
+            acknowledged_sequence,
+        } => Some(generated::CommandPayload::ConfigureApplicationCommand {
+            keep_alive: Some(*keep_alive),
+            quit: Some(*quit),
+            acknowledged_sequence: Some(*acknowledged_sequence),
+        }),
+        CommandOperation::CancelNative { request_id } => {
+            Some(generated::CommandPayload::CancelNativeCommand {
+                request_id: Some(*request_id),
+            })
+        }
         CommandOperation::InvokeNative {
             module_id,
             module_digest,
@@ -1797,6 +1847,23 @@ fn validate_command(value: &Command) -> Result<(), ProtocolError> {
         return Err(invalid("nodeId"));
     }
     match &value.operation {
+        CommandOperation::ConfigureApplication {
+            keep_alive, quit, ..
+        } if value.meta.surface_id != 0
+            || value.meta.node_id != 0
+            || value.meta.after_revision != 0
+            || value.meta.epoch == 0
+            || value.meta.request_id == 0
+            || (*keep_alive && *quit) =>
+        {
+            return Err(invalid("application control"));
+        }
+
+        CommandOperation::CancelNative { request_id }
+            if *request_id == 0 || value.meta.node_id != 1 =>
+        {
+            return Err(invalid("native cancellation"));
+        }
         CommandOperation::InvokeNative {
             function_id, args, ..
         } => {
@@ -2019,6 +2086,25 @@ fn decode_command_operation(
 ) -> Result<CommandOperation, ProtocolError> {
     let invalid = || ProtocolError::InvalidCommandPayload;
     match (kind, payload) {
+        (
+            CommandKind::ConfigureApplication,
+            Some(generated::CommandPayload::ConfigureApplicationCommand {
+                keep_alive,
+                quit,
+                acknowledged_sequence,
+            }),
+        ) => Ok(CommandOperation::ConfigureApplication {
+            keep_alive: keep_alive.ok_or_else(structural_error)?,
+            quit: quit.ok_or_else(structural_error)?,
+            acknowledged_sequence: acknowledged_sequence.ok_or_else(structural_error)?,
+        }),
+        (
+            CommandKind::CancelNative,
+            Some(generated::CommandPayload::CancelNativeCommand { request_id }),
+        ) => {
+            let request_id = request_id.filter(|id| *id != 0).ok_or_else(invalid)?;
+            Ok(CommandOperation::CancelNative { request_id })
+        }
         (
             CommandKind::InvokeNative,
             Some(generated::CommandPayload::InvokeNativeCommand {
@@ -2313,6 +2399,15 @@ fn wire_text_input<'a>(value: &'a TextInputEvent) -> generated::EventPayload<'a>
 
 fn wire_event_payload<'a>(value: &'a EventPayload) -> Option<generated::EventPayload<'a>> {
     match value {
+        EventPayload::ApplicationActivation {
+            target_surface_id,
+            reason,
+            urls,
+        } => Some(generated::EventPayload::ApplicationActivationEvent {
+            target_surface_id: Some(*target_surface_id),
+            reason: Some(reason),
+            urls: Some(urls.iter().map(String::as_str).collect()),
+        }),
         EventPayload::Press
         | EventPayload::Focus
         | EventPayload::Blur
@@ -2484,6 +2579,23 @@ fn decode_event_payload(
 ) -> Result<EventPayload, ProtocolError> {
     let invalid = || ProtocolError::InvalidEventPayload;
     match (event_kind, value) {
+        (
+            EventKind::ApplicationActivation,
+            generated::EventPayload::ApplicationActivationEvent {
+                target_surface_id,
+                reason,
+                urls,
+            },
+        ) => Ok(EventPayload::ApplicationActivation {
+            target_surface_id: target_surface_id.ok_or_else(structural_error)?,
+            reason: reason.ok_or_else(structural_error)?.to_owned(),
+            urls: urls
+                .ok_or_else(structural_error)?
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        }),
+
         (
             EventKind::Change,
             generated::EventPayload::TextInputEventData {
@@ -2821,6 +2933,23 @@ fn valid_command_value(value: &CommandValue) -> bool {
 
 fn valid_event_payload(payload: &EventPayload) -> bool {
     match payload {
+        EventPayload::ApplicationActivation {
+            target_surface_id,
+            reason,
+            urls,
+        } => {
+            *target_surface_id > 0
+                && matches!(reason.as_str(), "launch" | "reopen" | "open-urls")
+                && urls.len() <= 64
+                && (if reason == "open-urls" {
+                    !urls.is_empty()
+                } else {
+                    urls.is_empty()
+                })
+                && urls.iter().all(|url| {
+                    !url.is_empty() && url.len() <= 4096 && !url.chars().any(char::is_control)
+                })
+        }
         EventPayload::Press
         | EventPayload::Focus
         | EventPayload::Blur
@@ -2940,6 +3069,17 @@ fn valid_event_payload(payload: &EventPayload) -> bool {
 }
 
 fn validate_event(event: &Event) -> Result<(), ProtocolError> {
+    if matches!(event.payload, EventPayload::ApplicationActivation { .. })
+        && (event.meta.surface_id != 0
+            || event.meta.node_id != 0
+            || event.meta.listener_id != 0
+            || event.meta.revision != 0
+            || event.meta.epoch == 0
+            || event.meta.sequence == 0)
+    {
+        return Err(ProtocolError::InvalidEventPayload);
+    }
+
     if !valid_event_payload(&event.payload) {
         return Err(ProtocolError::InvalidEventPayload);
     }
@@ -3126,6 +3266,9 @@ fn command_value_size(value: &CommandValue) -> Result<usize, ProtocolError> {
 }
 fn event_payload_size(value: &EventPayload) -> Result<usize, ProtocolError> {
     let value = match value {
+        EventPayload::ApplicationActivation { reason, urls, .. } => {
+            record_size(&[4, string_size(reason)?, string_array_size(urls)?])?
+        }
         EventPayload::TextInputChange(value)
         | EventPayload::TextInputSelection(value)
         | EventPayload::FocusTextInput(value)

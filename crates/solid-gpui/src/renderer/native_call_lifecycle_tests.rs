@@ -235,3 +235,43 @@ fn closing_surface_and_dropping_root_cancel_pending_native_futures(cx: &mut Test
     assert!(reply.send(vec![]).is_err());
     assert!(runtime.take_event().unwrap().is_none());
 }
+
+#[gpui::test]
+fn cancellation_releases_only_the_target_native_call(cx: &mut TestAppContext) {
+    let fixture = Fixture::new(cx);
+    fixture.call(cx, 1, 7);
+    let cancelled = fixture.reply();
+    fixture.call(cx, 1, 8);
+    let adjacent = fixture.reply();
+    for request_id in [7, 7, 999] {
+        fixture.apply(
+            cx,
+            DecodedMessage::Command(Command::new(
+                CommandMeta {
+                    surface_id: 1,
+                    epoch: 1,
+                    after_revision: 1,
+                    request_id: 20,
+                    node_id: 1,
+                },
+                CommandOperation::CancelNative { request_id },
+            )),
+        );
+        cx.run_until_parked();
+    }
+    assert_eq!(fixture.calls.cancelled.load(Ordering::SeqCst), 1);
+    assert_eq!(fixture.calls.active.load(Ordering::SeqCst), 1);
+    assert!(cancelled.send(b"late".to_vec()).is_err());
+    adjacent.send(b"adjacent".to_vec()).unwrap();
+    cx.run_until_parked();
+    assert_eq!(fixture.calls.completed.load(Ordering::SeqCst), 1);
+    let mut replies = Vec::new();
+    while let Some(event) = fixture.runtime.take_event().unwrap() {
+        if let EventPayload::CommandResult(result) = event.payload
+            && result.command == CommandKind::InvokeNative
+        {
+            replies.push(result.request_id);
+        }
+    }
+    assert_eq!(replies, [8]);
+}

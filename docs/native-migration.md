@@ -4,14 +4,16 @@ The migration API targets Rust `solid-gpui`, `@solid-gpui/core`, and
 `@solid-gpui/router` **0.3.0**, from the same source revision. These changes use
 protocol v5 with an updated schema digest; deploy the Rust host and JavaScript
 packages together. This is source delivery, not a crates.io/npm publication.
-The audited baseline and remote main were
-`fd7aaa23e8bb6b51db3f01e776d2f8e5bc665212`.
+Use the existing `mountApplication`, Vite/Bun reload, typed native modules, and
+`@solid-gpui/router` APIs with an application-owned native host. The migration
+example combines those APIs with window profiles, application theme overrides,
+edge styles, and embedded icon resources.
 
-That baseline already provides `mountApplication`, Vite/Bun HMR, typed native
-modules, `@solid-gpui/router`, absolute positioning, image `objectFit`, `gap`,
-and `flexGrow`/`flexShrink` with minimum/maximum pixel dimensions. The fixture
-uses those APIs directly; this delivery extends their host/style/theme/resource
-integration rather than adding a separate runtime or navigation system.
+The website exposes this guide at `/docs/reference/native-migration` (under the
+site's hash route in the browser). Run the shared desktop website with
+`bun run website:native`; run the dedicated migration fixture with the commands below.
+Native window chrome and process-backed services require the desktop host. The
+browser website documents these APIs without simulating operating-system windows.
 
 ## Application-owned runtime and window profile
 
@@ -77,7 +79,7 @@ blank-area dragging and calls macOS `titlebar_double_click`, respecting the
 system preference. Controls claiming mouse-down do not initiate titlebar drag
 or double-click zoom. Core `Pressable` also claims this native default action.
 
-The performance monitor defaults to **off in every build**. The Gallery opts in
+The performance monitor defaults to **off in every build**. The website opts in
 with `with_performance_monitor(true)`; environment variables do not override
 application policy.
 
@@ -240,9 +242,18 @@ Registration and export use the same executable in development and production.
 `registerIconNames` is also public for custom generators; the Rust host remains
 an independent validator of names and resources.
 
+## Grid and migration styles
+
+`gridColumns` and `gridRows` define equal native tracks; `gridColumnSpan` and
+`gridRowSpan` set item spans. Each accepts an integer from 1 through 64. A grid
+container cannot also set `flexDirection`. Grid fields can be combined with
+per-edge padding, borders, corner radii, and gradients. The canonical schema
+assigns distinct field numbers to all of them; regenerate both language bindings
+and golden vectors when the schema changes.
+
 ## Runnable fixture and verification
 
-`examples/native-migration` is an API fixture, not an RMCL redesign. Its pages,
+`examples/native-migration` is a runnable API fixture. Its pages,
 layout, titlebar composition, router, and interactions are SolidJS. Rust provides
 the native host and a process-lifetime service counter.
 
@@ -274,6 +285,16 @@ Component-local signals and native input state remount unless explicitly capture
 Router route state is captured by this fixture. Asynchronous router/page-loading
 failures and `onMount` failures remain outside the synchronous rollback boundary.
 QuickJS HMR is not part of this example.
+
+### Integration verification (2026-09-08)
+
+The merged workspace passes 220 Rust library tests, four cross-language protocol
+tests, 37 migration/renderer tests, workspace TypeScript checks, and all five
+website tests. The migration fixture's host and generated bindings compile.
+The WASM release host and website production bundle build successfully with
+`wasm-bindgen 0.2.121`. Website checks cover component examples, documentation
+highlighting, and retained navigation. The native window interactions recorded
+below were not manually repeated during this integration.
 
 ### Verification record (2026-09-07)
 

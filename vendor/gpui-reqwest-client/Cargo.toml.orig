@@ -1,0 +1,38 @@
+[package]
+name = "gpui-pre-reqwest-client"
+version = "0.3.3"
+edition = { workspace = true }
+publish = true
+license = "Apache-2.0"
+description = "Zed's `reqwest_client` crate (gpui-pre snapshot of zed@5b055fa)"
+repository = "https://github.com/zed-industries/zed"
+
+[package.metadata.gpui-pre]
+zed-crate = "reqwest_client"
+zed-version = "0.1.0"
+zed-rev = "5b055fa789a8b8d38ac951a6e0cde272f66b4495"
+
+[lib]
+path = "src/reqwest_client.rs"
+doctest = true
+name = "reqwest_client"
+
+[features]
+test-support = []
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+http_client = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+regex = { workspace = true }
+reqwest = { workspace = true }
+gpui_util = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+http_client_tls = { workspace = true }
+
+[lints]
+workspace = true

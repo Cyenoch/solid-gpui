@@ -115,7 +115,11 @@ for row in cargo_rows[1:]:
             source_kind = "vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches)"
             source_detail = "vendored"
         elif manifest.is_relative_to(root / "vendor"):
-            raise SystemExit(f"vendored package requires source provenance: {package_ref}")
+            provenance = package.get("metadata", {}).get("solid-gpui-vendor", {}).get("source")
+            if not isinstance(provenance, str) or not provenance.startswith("https://"):
+                raise SystemExit(f"vendored package requires source provenance: {package_ref}")
+            source_kind = f"vendored ({provenance}; local patches)"
+            source_detail = "vendored"
         else:
             source_kind = "local (project-owned)"
             source_detail = "local"
@@ -155,7 +159,7 @@ rust_project_owned.sort(key=lambda item: (item["name"].casefold(), item["name"],
 
 package_versions = {}
 package_licenses = {}
-for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json"):
+for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json", "packages/solid-gpui-shiki/package.json"):
     package_json = json.loads((root / relative).read_text(encoding="utf-8"))
     package_versions[package_json["name"]] = package_json["version"]
     package_licenses[package_json["name"]] = package_json["license"]
@@ -319,6 +323,11 @@ for package_label in ("Solid GPUI workspace",):
 
 lines.extend(
     [
+        "## Bundled fonts",
+        "",
+        "Maple Mono v7.9 (standard TTF, without CN or Nerd Font additions) is distributed under SIL OFL 1.1. Regular, italic, bold and bold italic are bundled in `crates/solid-gpui/fonts`; the complete license is in `MapleMono-OFL.txt`.",
+        "Source: https://github.com/subframe7536/maple-font/releases/tag/v7.9",
+        "",
         "## Vendored JavaScript",
         "",
         "`packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).",

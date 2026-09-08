@@ -374,3 +374,105 @@ fn native_resize_feedback_loop(cx: &mut TestAppContext) {
         }
     }
 }
+
+#[gpui::test]
+fn native_grid_tracks_and_spans_relayout_after_patch(cx: &mut TestAppContext) {
+    let window = cx.open_window(gpui::size(px(400.0), px(200.0)), |_, _| {
+        SolidRoot::new(InMemoryAdapter::new())
+    });
+    let root = window.root(cx).unwrap();
+    let mut nodes = Vec::new();
+    let parent = node(
+        &mut nodes,
+        0,
+        KIND_VIEW,
+        Style {
+            width: Some(210.0),
+            height: Some(50.0),
+            grid_columns: Some(2),
+            gap: Some(10.0),
+            ..Style::default()
+        },
+    );
+    for index in 0..3 {
+        node(
+            &mut nodes,
+            parent,
+            KIND_VIEW,
+            Style {
+                height: Some(20.0),
+                grid_column_span: (index == 2).then_some(2),
+                background_rgba: Some(0x3366ccff),
+                ..Style::default()
+            },
+        );
+    }
+    let payload = Snapshot::new(1, 1, 0, 1, nodes).encode().unwrap();
+    root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+        .unwrap();
+    draw(cx, window.into());
+    let bounds = cx
+        .update_window(window.into(), |_, window, _| {
+            window
+                .painted_quads()
+                .into_iter()
+                .map(|quad| {
+                    quad.bounds
+                        .map(|value| px(value.as_f32() / window.scale_factor()))
+                })
+                .filter(|bounds| bounds.size.height.as_f32() == 20.0)
+                .collect::<Vec<_>>()
+        })
+        .unwrap();
+    assert_eq!(bounds.len(), 3);
+    assert_eq!(bounds[0].size.width.as_f32(), 100.0);
+    assert_eq!((bounds[1].origin.x - bounds[0].origin.x).as_f32(), 110.0);
+    assert_eq!(bounds[2].size.width.as_f32(), 210.0);
+    assert_eq!((bounds[2].origin.y - bounds[0].origin.y).as_f32(), 30.0);
+    let payload = Patch::new(
+        1,
+        1,
+        1,
+        2,
+        vec![crate::protocol::PatchOperation::Update {
+            id: parent,
+            mask: crate::protocol::UPDATE_STYLE,
+            style: Some(Style {
+                width: Some(330.0),
+                height: Some(50.0),
+                grid_columns: Some(3),
+                gap: Some(10.0),
+                ..Style::default()
+            }),
+            text: None,
+            listener_id: 0,
+            host_properties: None,
+            accessibility: None,
+            focusable: false,
+            selectable: false,
+            tooltip: None,
+            accepts_pointer_move: false,
+        }],
+    )
+    .encode()
+    .unwrap();
+    root.update(cx, |root, cx| root.apply_payload(&payload, cx))
+        .unwrap();
+    draw(cx, window.into());
+    let bounds = cx
+        .update_window(window.into(), |_, window, _| {
+            window
+                .painted_quads()
+                .into_iter()
+                .map(|quad| {
+                    quad.bounds
+                        .map(|value| px(value.as_f32() / window.scale_factor()))
+                })
+                .filter(|bounds| bounds.size.height.as_f32() == 20.0)
+                .collect::<Vec<_>>()
+        })
+        .unwrap();
+    assert_eq!(bounds.len(), 3);
+    assert!((bounds[0].size.width.as_f32() - 310.0 / 3.0).abs() < 1.0);
+    assert!((bounds[2].size.width.as_f32() - (620.0 / 3.0 + 10.0)).abs() < 1.0);
+}

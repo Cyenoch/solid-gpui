@@ -6,8 +6,8 @@ import {
 } from "./transport";
 
 interface EmbeddedBridge {
-  submit(frame: Uint8Array): void;
-  subscribe(onData: TransportListener, onTermination: (message: string) => void): () => void;
+  submit(frame: Uint8Array): boolean;
+  subscribe(onData: TransportListener, onTermination: (message: string) => void, onDrain: () => void): () => void;
 }
 
 function hostBridge(): EmbeddedBridge {
@@ -24,6 +24,7 @@ export class EmbeddedTransport implements DisposableTransport {
   private readonly listeners = new Set<TransportListener>();
   private readonly terminationListeners = new Set<TransportTerminationListener>();
   private readonly unsubscribe: () => void;
+  private readonly drainListeners = new Set<() => void>();
   private disposed = false;
   private failure: TransportTerminatedError | undefined;
 
@@ -33,18 +34,26 @@ export class EmbeddedTransport implements DisposableTransport {
         for (const listener of this.listeners) listener(frame);
       },
       (message) => this.terminate(new TransportTerminatedError(message)),
+      () => {
+        for (const listener of this.drainListeners) listener();
+      },
     );
   }
 
-  submit(frame: Uint8Array): void {
+  submit(frame: Uint8Array): boolean {
     this.assertActive();
     try {
-      this.bridge.submit(frame);
+      return this.bridge.submit(frame);
     } catch (error) {
       const failure = new TransportTerminatedError("EmbeddedTransport output failed", error);
       this.terminate(failure);
       throw failure;
     }
+  }
+
+  onDrain(listener: () => void): () => void {
+    this.drainListeners.add(listener);
+    return () => this.drainListeners.delete(listener);
   }
 
   onData(listener: TransportListener): () => void {
@@ -68,6 +77,7 @@ export class EmbeddedTransport implements DisposableTransport {
     this.disposed = true;
     this.unsubscribe();
     this.listeners.clear();
+    this.drainListeners.clear();
     this.terminationListeners.clear();
   }
 

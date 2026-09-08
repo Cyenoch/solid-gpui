@@ -26,8 +26,8 @@ claims of completed model evaluations.
    single-line control sizing from multiline content, and preserve descriptions.
 2. “VirtualList has itemCount 1000 but is blank”: Check boundary/row bounds and the
    range before changing overscan; item count alone cannot establish visibility.
-3. “Navigation jumps to the top”: Inspect shell/scroll identity lifetimes before
-   forcing offsets on every route change.
+3. “Navigation jumps to the top”: Follow the diagnosis and acceptance criteria in
+   [Route changes must preserve the shell](application.md#route-changes-must-preserve-the-shell).
 4. “Just put heavy work in async”: Inspect the executor and work per foreground poll.
 5. “FPS 120 proves performance is fine”: Distinguish self-induced repainting, actual
    window frame counts, CPU duration, and input latency.

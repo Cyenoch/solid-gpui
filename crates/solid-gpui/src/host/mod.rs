@@ -1,3 +1,5 @@
+mod application_lifecycle;
+use crate::motion;
 #[cfg(feature = "embedded-bun")]
 use crate::runtime::embedded::EmbeddedBunAdapter;
 use crate::{
@@ -6,8 +8,8 @@ use crate::{
     ProcessAdapter, RuntimeAdapter, SolidRoot, WindowOpenOptions, decode_message,
     fatal_runtime_failure,
 };
-#[cfg(feature = "embedded-bun")]
 use crate::{Event, send_event_or_exit};
+use application_lifecycle::ApplicationLifecycle;
 #[cfg(any(test, feature = "test-support"))]
 use gpui::WindowHandle;
 use gpui::{
@@ -144,6 +146,7 @@ enum RuntimeMode {
     Process,
     Embedded,
     QuickJs,
+    QuickJsDev,
 }
 
 #[repr(u8)]
@@ -286,6 +289,8 @@ fn check_command_metadata(meta: CommandMeta, actual: (u32, u32, u32)) -> Command
 }
 
 struct NativeStateRegistry {
+    application: ApplicationLifecycle,
+    application_surface_id: Option<u32>,
     runtime: Arc<dyn RuntimeAdapter>,
     profile: Box<dyn HostProfile>,
     surfaces: HashMap<u32, Surface>,
@@ -312,6 +317,8 @@ impl NativeStateRegistry {
         Self {
             runtime,
             profile: Box::new(profile),
+            application: ApplicationLifecycle::default(),
+            application_surface_id: None,
             surfaces: HashMap::new(),
             windows: HashMap::new(),
             keybindings: HashMap::new(),
@@ -518,6 +525,67 @@ impl NativeStateRegistry {
         debug_assert_eq!(surface_id, 1);
         let surface = self.open_window(None, 800, 600, None, cx)?;
         self.insert_surface(surface_id, surface);
+        self.application_surface_id = Some(surface_id);
+        Ok(())
+    }
+
+    fn activate_application(
+        &mut self,
+        reason: &'static str,
+        urls: Vec<String>,
+        cx: &mut Context<Self>,
+    ) -> Result<(), String> {
+        if self.transport_terminated {
+            return Ok(());
+        }
+        self.application.enqueue(reason, urls)?;
+        self.deliver_activations(cx)
+    }
+
+    fn deliver_activations(&mut self, cx: &mut Context<Self>) -> Result<(), String> {
+        for activation in self.application.pending() {
+            let surface_id = match self
+                .application_surface_id
+                .filter(|id| self.surfaces.contains_key(id))
+            {
+                Some(id) => id,
+                None => {
+                    let id = self.allocate_surface_id()?;
+                    let surface = self.open_window(None, 800, 600, None, cx)?;
+                    self.insert_surface(id, surface);
+                    self.application_surface_id = Some(id);
+                    id
+                }
+            };
+            if activation.reason != "launch" {
+                cx.activate(true);
+                self.surfaces[&surface_id]
+                    .window
+                    .update(cx, |_, window, _| {
+                        window.activate_window();
+                    })
+                    .map_err(|error| format!("failed to activate application window: {error}"))?;
+            }
+            let event = Event::new(
+                crate::protocol::EventMeta {
+                    surface_id: 0,
+                    epoch: self.application.epoch,
+                    revision: 0,
+                    sequence: activation.sequence,
+                    node_id: 0,
+                    listener_id: 0,
+                },
+                crate::protocol::EventPayload::ApplicationActivation {
+                    target_surface_id: surface_id,
+                    reason: activation.reason.into(),
+                    urls: activation.urls,
+                },
+            );
+            if !send_event_or_exit(self.runtime.as_ref(), "application activation", event) {
+                return Err("application activation transport terminated".into());
+            }
+            self.application.sent(activation.sequence);
+        }
         Ok(())
     }
 
@@ -526,6 +594,81 @@ impl NativeStateRegistry {
         let window_id = surface.window.window_id();
         self.windows.insert(window_id, surface_id);
         self.surfaces.insert(surface_id, surface);
+    }
+
+    #[cfg(feature = "quickjs")]
+    fn prepare_generation(
+        &self,
+        snapshots: &[crate::Snapshot],
+        configuration: &Command,
+        epoch: u32,
+        cx: &Context<Self>,
+    ) -> Result<ApplicationLifecycle, String> {
+        let ids: std::collections::HashSet<_> = snapshots.iter().map(|s| s.surface_id).collect();
+        if ids.len() != snapshots.len()
+            || ids.len() != self.surfaces.len()
+            || self.surfaces.keys().any(|id| !ids.contains(id))
+        {
+            return Err("candidate must replace exactly the current open Surface set".into());
+        }
+        for snapshot in snapshots {
+            let surface = &self.surfaces[&snapshot.surface_id];
+            surface
+                .window
+                .read(cx, |_: Entity<SolidRoot>, _| ())
+                .map_err(|e| e.to_string())?;
+            surface
+                .root
+                .read(cx)
+                .validate_replacement(snapshot)
+                .map_err(|e| e.to_string())?;
+        }
+        let CommandOperation::ConfigureApplication {
+            keep_alive,
+            quit,
+            acknowledged_sequence,
+        } = configuration.operation
+        else {
+            return Err("candidate configuration is invalid".into());
+        };
+        let mut application = self.application.clone();
+        application.configure(epoch, keep_alive, quit, acknowledged_sequence)?;
+        Ok(application)
+    }
+
+    #[cfg(feature = "quickjs")]
+    fn replace_generation(
+        &mut self,
+        mut replacement: crate::runtime::reload::Replacement,
+        cx: &mut Context<Self>,
+    ) {
+        let application = match self.prepare_generation(
+            &replacement.snapshots,
+            &replacement.configuration,
+            replacement.epoch,
+            cx,
+        ) {
+            Ok(application) => application,
+            Err(error) => {
+                replacement.reject(error);
+                return;
+            }
+        };
+        if let Err(error) = replacement.begin() {
+            replacement.reject(error);
+            return;
+        }
+        // No foreground suspension occurs between validation and installation.
+        // Window identity and Rust services are retained; old epoch work is cancelled.
+        for snapshot in std::mem::take(&mut replacement.snapshots) {
+            self.apply_to_surface(DecodedMessage::Snapshot(snapshot), cx)
+                .expect("validated generation installation on the same foreground turn");
+        }
+        self.application = application;
+        replacement.finish();
+        if let Err(error) = self.deliver_activations(cx) {
+            eprintln!("reload activation: {error}");
+        }
     }
 
     fn route_payload(&mut self, payload: &[u8], cx: &mut Context<Self>) -> Result<(), String> {
@@ -537,6 +680,23 @@ impl NativeStateRegistry {
             }
             DecodedMessage::Patch(patch) => self.apply_to_surface(DecodedMessage::Patch(patch), cx),
             DecodedMessage::Command(command) => {
+                if let CommandOperation::ConfigureApplication {
+                    keep_alive,
+                    quit,
+                    acknowledged_sequence,
+                } = command.operation
+                {
+                    if self.application.configure(
+                        command.meta.epoch,
+                        keep_alive,
+                        quit,
+                        acknowledged_sequence,
+                    )? {
+                        cx.quit();
+                        return Ok(());
+                    }
+                    return self.deliver_activations(cx);
+                }
                 let kind = command.operation.kind();
                 let capabilities = self.profile.capabilities();
                 if kind == CommandKind::SetKeybindings && !capabilities.set_keybindings {
@@ -835,7 +995,7 @@ impl NativeStateRegistry {
         self.surfaces.remove(&surface_id);
         self.keybindings.remove(&surface_id);
         self.restore_keybindings(cx);
-        self.surfaces.is_empty()
+        self.surfaces.is_empty() && !self.application.keep_alive
     }
     fn close_all(&mut self, cx: &mut Context<Self>) {
         self.transport_terminated = true;
@@ -926,6 +1086,74 @@ pub fn run_with_profile<P: HostProfile>(profile: P) {
     run_profile(profile, runtime, log_level);
 }
 
+fn image_http_client() -> Result<Arc<dyn gpui::http_client::HttpClient>, String> {
+    reqwest_client::ReqwestClient::proxy_user_agent_and_read_timeout(
+        None,
+        concat!("solid-gpui/", env!("CARGO_PKG_VERSION")),
+        Some(std::time::Duration::from_secs(15)),
+    )
+    .map(|client| Arc::new(client) as Arc<dyn gpui::http_client::HttpClient>)
+    .map_err(|error| error.to_string())
+}
+
+#[test]
+fn image_http_client_performs_a_real_local_request() {
+    use futures::AsyncReadExt as _;
+    use std::io::{Read as _, Write as _};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let (mut connection, _) = loop {
+            match listener.accept() {
+                Ok(connection) => break connection,
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock
+                        && std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(5))
+                }
+                Err(error) => panic!("HTTP fixture was not requested: {error}"),
+            }
+        };
+        connection.set_nonblocking(false).unwrap();
+        connection
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .unwrap();
+        let mut request = [0; 8192];
+        let mut count = 0;
+        while !request[..count]
+            .windows(4)
+            .any(|bytes| bytes == b"\r\n\r\n")
+        {
+            assert!(
+                count < request.len(),
+                "fixture request headers exceed the bound"
+            );
+            let read = connection.read(&mut request[count..]).unwrap();
+            assert!(read > 0, "fixture request ended before headers");
+            count += read;
+        }
+        assert!(request[..count].starts_with(b"GET /fixture.png HTTP/1.1"));
+        connection
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nimage")
+            .unwrap();
+    });
+    let client = image_http_client().unwrap();
+    let body = futures::executor::block_on(async {
+        let mut response = client
+            .get(&format!("http://{address}/fixture.png"), ().into(), true)
+            .await
+            .unwrap();
+        let mut body = Vec::new();
+        response.body_mut().read_to_end(&mut body).await.unwrap();
+        body
+    });
+    server.join().unwrap();
+    assert_eq!(body, b"image");
+}
+
 fn run_profile<P: HostProfile>(
     mut profile: P,
     runtime: Arc<dyn RuntimeAdapter>,
@@ -934,75 +1162,108 @@ fn run_profile<P: HostProfile>(
     let runtime_for_quit = Arc::clone(&runtime);
     let runtime_for_registry = Arc::clone(&runtime);
     let log_level_for_quit = log_level;
-    gpui_platform::application()
+    let (activation_sender, mut activations) = futures::channel::mpsc::channel(32);
+    let mut urls_sender = activation_sender.clone();
+    let mut reopen_sender = activation_sender;
+    let http_client = image_http_client().unwrap_or_else(|error| {
+        fatal_runtime_failure(
+            runtime.as_ref(),
+            "failed to initialize image HTTP client",
+            error,
+        )
+    });
+    let application = gpui_platform::application()
         .with_assets(HostAssets)
-        .run(move |cx: &mut App| {
-            let capabilities = profile.capabilities();
-            profile.initialize(cx);
-            let baseline_keybindings = cx.key_bindings().borrow().bindings().cloned().collect();
-            let registry = cx.new(|_| {
-                NativeStateRegistry::with_profile(
-                    runtime_for_registry,
-                    profile,
-                    baseline_keybindings,
-                )
-            });
-            if let Err(error) = registry.update(cx, |registry, cx| registry.open_initial(cx)) {
-                host_log(log_level, LogLevel::Error, error);
-                let _ = runtime_for_quit.request_shutdown();
-                std::process::exit(1);
+        .with_http_client(http_client);
+    application.on_open_urls(move |urls| {
+        if let Err(error) = urls_sender.try_send(("open-urls", urls)) {
+            eprintln!("solid-gpui-host: activation rejected: {error}");
+        }
+    });
+    application.on_reopen(move |_| {
+        if let Err(error) = reopen_sender.try_send(("reopen", Vec::new())) {
+            eprintln!("solid-gpui-host: activation rejected: {error}");
+        }
+    });
+    application.run(move |cx: &mut App| {
+        let capabilities = profile.capabilities();
+        motion::initialize(cx);
+        profile.initialize(cx);
+        let baseline_keybindings = cx.key_bindings().borrow().bindings().cloned().collect();
+        let registry = cx.new(|_| {
+            NativeStateRegistry::with_profile(runtime_for_registry, profile, baseline_keybindings)
+        });
+        if let Err(error) = registry.update(cx, |registry, cx| registry.open_initial(cx)) {
+            host_log(log_level, LogLevel::Error, error);
+            let _ = runtime_for_quit.request_shutdown();
+            std::process::exit(1);
+        }
+        let registry_for_activation = registry.downgrade();
+        cx.spawn(async move |cx| {
+            use futures::StreamExt;
+            while let Some((reason, urls)) = activations.next().await {
+                let Some(registry) = registry_for_activation.upgrade() else {
+                    break;
+                };
+                if let Err(error) = registry.update(cx, |registry, cx| {
+                    registry.activate_application(reason, urls, cx)
+                }) {
+                    eprintln!("solid-gpui-host: activation rejected: {error}");
+                }
             }
-            let registry_for_action = registry.downgrade();
-            cx.on_action(move |action: &MenuAction, cx| {
-                if let Some(registry) = registry_for_action.upgrade() {
+        })
+        .detach();
+        let registry_for_action = registry.downgrade();
+        cx.on_action(move |action: &MenuAction, cx| {
+            if let Some(registry) = registry_for_action.upgrade() {
+                registry.update(cx, |registry, cx| {
+                    registry.emit_action(action.name.clone(), cx)
+                });
+            }
+        });
+        if capabilities.notification_responses {
+            let registry_for_notification = registry.downgrade();
+            cx.on_system_notification_response(move |response, cx| {
+                if let Some(registry) = registry_for_notification.upgrade() {
                     registry.update(cx, |registry, cx| {
-                        registry.emit_action(action.name.clone(), cx)
+                        registry.emit_notification_response(response, cx)
                     });
                 }
             });
-            if capabilities.notification_responses {
-                let registry_for_notification = registry.downgrade();
-                cx.on_system_notification_response(move |response, cx| {
-                    if let Some(registry) = registry_for_notification.upgrade() {
-                        registry.update(cx, |registry, cx| {
-                            registry.emit_notification_response(response, cx)
-                        });
-                    }
-                });
-            }
+        }
 
-            let registry_for_close = registry.downgrade();
-            let close_subscription = cx.on_window_closed(move |cx, window_id| {
-                if let Some(registry) = registry_for_close.upgrade() {
-                    let should_quit =
-                        registry.update(cx, |registry, cx| registry.window_closed(window_id, cx));
-                    if should_quit {
-                        cx.quit();
-                    }
+        let registry_for_close = registry.downgrade();
+        let close_subscription = cx.on_window_closed(move |cx, window_id| {
+            if let Some(registry) = registry_for_close.upgrade() {
+                let should_quit =
+                    registry.update(cx, |registry, cx| registry.window_closed(window_id, cx));
+                if should_quit {
+                    cx.quit();
                 }
-            });
-            registry.update(cx, |registry, _| {
-                registry.close_subscription = Some(close_subscription);
-            });
-
-            let pump = CommitPump::start(Arc::clone(&runtime)).unwrap_or_else(|error| {
-                fatal_runtime_failure(runtime.as_ref(), "failed to start commit pump", error)
-            });
-            pump.attach(registry, Arc::clone(&runtime), cx);
-            cx.on_app_quit(move |cx| {
-                let runtime = Arc::clone(&runtime_for_quit);
-                cx.background_spawn(async move {
-                    let _ = runtime.shutdown();
-                    host_log(
-                        log_level_for_quit,
-                        LogLevel::Info,
-                        format!("runtime terminated status={:?}", runtime.status()),
-                    );
-                })
-            })
-            .detach();
-            cx.activate(true);
+            }
         });
+        registry.update(cx, |registry, _| {
+            registry.close_subscription = Some(close_subscription);
+        });
+
+        let pump = CommitPump::start(Arc::clone(&runtime)).unwrap_or_else(|error| {
+            fatal_runtime_failure(runtime.as_ref(), "failed to start commit pump", error)
+        });
+        pump.attach(registry, Arc::clone(&runtime), cx);
+        cx.on_app_quit(move |cx| {
+            let runtime = Arc::clone(&runtime_for_quit);
+            cx.background_spawn(async move {
+                let _ = runtime.shutdown();
+                host_log(
+                    log_level_for_quit,
+                    LogLevel::Info,
+                    format!("runtime terminated status={:?}", runtime.status()),
+                );
+            })
+        })
+        .detach();
+        cx.activate(true);
+    });
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1046,6 +1307,7 @@ fn parse_host_args(args: &[OsString]) -> Result<CliAction, String> {
                 "process" => RuntimeMode::Process,
                 "embedded" => RuntimeMode::Embedded,
                 "quickjs" => RuntimeMode::QuickJs,
+                "quickjs-dev" => RuntimeMode::QuickJsDev,
                 value => return Err(format!("unknown runtime `{value}`")),
             };
         } else if arg == "--embedded" {
@@ -1068,6 +1330,9 @@ fn parse_host_args(args: &[OsString]) -> Result<CliAction, String> {
     if mode == RuntimeMode::Embedded && renderer_args.is_empty() {
         return Err("embedded runtime requires an explicit application entry".to_owned());
     }
+    if mode == RuntimeMode::QuickJsDev && renderer_args.len() != 2 {
+        return Err("quickjs-dev requires a bundle and loopback tooling endpoint".into());
+    }
     if mode == RuntimeMode::QuickJs && renderer_args.len() != 1 {
         return Err("quickjs runtime requires exactly one bundled JavaScript entry".to_owned());
     }
@@ -1086,7 +1351,7 @@ fn renderer_entry(mode: RuntimeMode, renderer_args: &[OsString]) -> String {
             .map(|arg| arg.to_string_lossy().into_owned())
             .or_else(|| env::var(COMMAND_ENV).ok())
             .unwrap_or_else(|| "bun".to_owned()),
-        RuntimeMode::Embedded | RuntimeMode::QuickJs => renderer_args
+        RuntimeMode::Embedded | RuntimeMode::QuickJs | RuntimeMode::QuickJsDev => renderer_args
             .first()
             .map(|arg| arg.to_string_lossy().into_owned())
             .expect("embedded entry validated by CLI"),
@@ -1103,6 +1368,20 @@ fn start_runtime(
             .map(|runtime| runtime as Arc<dyn RuntimeAdapter>)
             .map_err(|error| format!("failed to spawn process renderer: {error}")),
         RuntimeMode::Embedded => start_embedded(renderer_args, smoke_press),
+        RuntimeMode::QuickJsDev => {
+            #[cfg(feature = "quickjs")]
+            {
+                crate::runtime::reload::ReloadableQuickJs::start(
+                    &renderer_args[0].to_string_lossy(),
+                    &renderer_args[1].to_string_lossy(),
+                )
+                .map(|r| r as Arc<dyn RuntimeAdapter>)
+            }
+            #[cfg(not(feature = "quickjs"))]
+            {
+                Err("QuickJS runtime is not compiled; use --features quickjs".into())
+            }
+        }
         RuntimeMode::QuickJs => {
             #[cfg(feature = "quickjs")]
             {
@@ -1191,7 +1470,7 @@ fn print_version() {
 
 fn print_help() {
     println!(
-        "solid-gpui-host\n\nUsage:\n  solid-gpui-host [host-options] [renderer-command [args...]]\n  solid-gpui-host --runtime embedded entry.ts\n  solid-gpui-host --runtime quickjs app.js\n\nHost options:\n  -h, --help           print this help without starting GPUI\n  -V, --version        print the package version without starting GPUI\n  --runtime process    child-process ProcessAdapter (default)\n  --runtime embedded   in-process Bun/JSC adapter (build with --features embedded-bun)\n  --runtime quickjs    embedded QuickJS for a bundled JS entry (build with --features quickjs)\n  --embedded           alias for --runtime embedded\n  --smoke-press        send one embedded pointer press before waiting\n  --                  stop host option parsing and run the renderer command",
+        "solid-gpui-host\n\nUsage:\n  solid-gpui-host [host-options] [renderer-command [args...]]\n  solid-gpui-host --runtime embedded entry.ts\n  solid-gpui-host --runtime quickjs app.js\n\nHost options:\n  -h, --help           print this help without starting GPUI\n  -V, --version        print the package version without starting GPUI\n  --runtime process    child-process ProcessAdapter (default)\n  --runtime embedded   in-process Bun/JSC adapter (build with --features embedded-bun)\n  --runtime quickjs-dev bundle endpoint    QuickJS development generation supervisor\n  --runtime quickjs    embedded QuickJS for a bundled JS entry (build with --features quickjs)\n  --embedded           alias for --runtime embedded\n  --smoke-press        send one embedded pointer press before waiting\n  --                  stop host option parsing and run the renderer command",
     );
 }
 

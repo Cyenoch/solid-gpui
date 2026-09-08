@@ -37,6 +37,8 @@ export const COMMAND_PAYLOAD_TAGS = {
   ClipboardImageCommand: 10,
   CloseResolutionCommand: 11,
   InvokeNativeCommand: 12,
+  CancelNativeCommand: 13,
+  ConfigureApplicationCommand: 14,
 } as const;
 export const COMMAND_VALUE_TAGS = {
   NumberValue: 1,
@@ -73,6 +75,7 @@ export const EVENT_PAYLOAD_TAGS = {
   PointerDownOutsideEvent: 19,
   CloseRequestedEvent: 20,
   ExtensionEvent: 21,
+  ApplicationActivationEvent: 22,
 } as const;
 export const NODE_KIND_CODES = {
   Unspecified: 0,
@@ -117,6 +120,7 @@ export const EVENT_KIND_CODES = {
   PointerDownOutside: 22,
   CloseRequested: 23,
   Extension: 24,
+  ApplicationActivation: 25,
 } as const;
 export const COMMAND_KIND_CODES = {
   Unknown: 0,
@@ -156,8 +160,10 @@ export const COMMAND_KIND_CODES = {
   GetScrollOffset: 34,
   ScrollToOffset: 35,
   InvokeNative: 36,
+  CancelNative: 37,
+  ConfigureApplication: 38,
 } as const;
 export const COMMAND_KINDS = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-  33, 34, 35, 36,
+  33, 34, 35, 36, 37, 38,
 ] as const;

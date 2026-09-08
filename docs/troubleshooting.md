@@ -42,7 +42,7 @@ A closed or unmounted surface ID is permanently retired. Create a new surface an
 
 ## Embedded Bun build fails
 
-The embedded Bun/JSC adapter is macOS-only. Use `bun run gallery` for process
+The embedded Bun/JSC adapter is macOS-only. Use `bun run website:native` for process
 mode. An embedded host built with `embedded-bun` accepts an explicit application entry and
 launches the embedded path; if that task fails, verify the pinned Bun source can
 be fetched and that the generated native graph matches the checked-in patch.
@@ -104,3 +104,15 @@ its release-candidate version is separate from the Solid 1 runtime, and the
 shared transform disables Solid 2 built-in auto-imports. Compiler upgrades
 must preserve reactive updates, owner cleanup, import side effects, and source
 maps in both the Bun preload and Vite paths.
+
+
+## Correlating native command failures
+
+Import `NativeCommandError` from `@solid-gpui/core` or its `/native` entry.
+Native rejection and malformed-result errors include `error.identity` with the
+Surface, epoch, request, target node, command kind, and native function ID when
+applicable. Record these fields alongside the error message to correlate with a
+protocol trace. The identity retains no argument bytes or result payloads.
+Application error strings can contain application data; choose their contents
+accordingly. Signal cancellation preserves the original abort reason, and
+transport shutdown retains its separate `TransportTerminatedError` type.

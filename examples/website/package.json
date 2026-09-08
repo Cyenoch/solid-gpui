@@ -1,0 +1,26 @@
+{
+  "name": "@solid-gpui/website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bash ../../scripts/build-web-host.sh && bun --bun vite --host 127.0.0.1",
+    "build": "bash ../../scripts/build-web-host.sh && bun run typecheck && bun --bun vite build",
+    "typecheck": "bun run routes:generate && tsc --noEmit",
+    "dev:native": "bun ../../scripts/tasks.ts website-native-dev",
+    "build:native": "bun --bun vite build --config vite.native.config.ts",
+    "build:embedded": "bun --bun vite build --config vite.embedded.config.ts",
+    "test": "bun --conditions=browser test tests",
+    "routes:generate": "bun generate-routes.ts"
+  },
+  "dependencies": {
+    "@solid-gpui/core": "workspace:*",
+    "@solid-gpui/shiki": "workspace:*",
+    "assert": "2.1.0",
+    "solid-js": "1.9.15",
+    "@solid-gpui/router": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript-api": "npm:typescript@5.9.3",
+    "vite": "8.2.2"
+  }
+}

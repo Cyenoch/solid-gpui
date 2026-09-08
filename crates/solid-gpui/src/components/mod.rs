@@ -9,6 +9,7 @@ mod dock;
 mod dock_layout;
 mod extra_elements;
 mod groups;
+#[cfg(feature = "gpui-component")]
 pub mod host;
 mod input;
 mod menus;
@@ -260,6 +261,22 @@ mod controls {
         gpui_component::progress::Progress::new(cx.id()).value(value.0)
     }
 }
+/// Initialize the shared component theme and interaction infrastructure.
+pub fn initialize(cx: &mut gpui::App) {
+    gpui_component::init(cx);
+    theme::initialize(cx);
+    cx.text_system()
+        .add_fonts(vec![
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/MapleMono-Regular.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/MapleMono-Italic.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/MapleMono-Bold.ttf")),
+            std::borrow::Cow::Borrowed(include_bytes!("../../fonts/MapleMono-BoldItalic.ttf")),
+        ])
+        .expect("bundled Maple Mono fonts must be valid");
+    cx.global_mut::<gpui_component::Theme>().mono_font_family = "Maple Mono".into();
+    gpui_component::Theme::sync_base(cx);
+}
+
 pub fn native_module() -> crate::native::ModuleDefinition {
     input::definitions()
         .into_iter()

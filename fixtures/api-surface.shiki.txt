@@ -1,0 +1,12 @@
+# api-surface-v1
+# name	kind
+CodeBlock	value
+CodeBlockProps	type
+CodeHighlighter	type
+HighlightedCode	value
+HighlightedCodeProps	type
+HighlightRequest	type
+HighlightResult	type
+HighlightRun	type
+MAX_CODE_BYTES	value
+MAX_CODE_RUNS	value

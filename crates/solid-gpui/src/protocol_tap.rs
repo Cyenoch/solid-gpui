@@ -4,7 +4,7 @@ use std::io::{self, Write as _};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use web_time::Instant;
 
 pub const TAP_CAPACITY_BYTES: u64 = 64 * 1024 * 1024;
 const TAP_STOP_RESERVE_BYTES: usize = 256;

@@ -13,7 +13,8 @@ export interface ApplicationBuildOptions {
 }
 
 /** Bundle the same universal JSX for either runtime, including Solid's client graph. */
-export async function buildApplication(options: ApplicationBuildOptions): Promise<void> {
+export async function buildApplication(options: ApplicationBuildOptions): Promise<readonly string[]> {
+  const dependencies = new Set<string>();
   if (options.runtime !== "bun" && options.runtime !== "quickjs") {
     throw new TypeError("Application runtime must be bun or quickjs");
   }
@@ -60,7 +61,9 @@ export async function buildApplication(options: ApplicationBuildOptions): Promis
               }
             });
           }
-          builder.onLoad({ filter: /\.[jt]sx$/ }, async ({ path }) => {
+          builder.onLoad({ filter: /.*/ }, async ({ path }) => {
+            dependencies.add(path);
+            if (!/\.[jt]sx$/.test(path)) return undefined;
             const { code, map } = transformJsx(await Bun.file(path).text(), path);
             return {
               contents: `${code}\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(map).toString("base64")}`,
@@ -78,6 +81,7 @@ export async function buildApplication(options: ApplicationBuildOptions): Promis
     throw new Error("Application entries must bundle into one JavaScript module; load native assets through host APIs");
   }
   await Bun.write(outfile, result.outputs[0]!);
+  return [...dependencies];
 }
 
 if (import.meta.main) {

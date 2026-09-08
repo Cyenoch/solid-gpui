@@ -63,3 +63,32 @@ test("production QuickJS bundles omit source maps and run without their authored
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("native async composition runs in a production Bun bundle", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "solid-gpui-async-"));
+  try {
+    const outfile = join(directory, "app.js");
+    const preload = join(directory, "host.js");
+    await writeFile(
+      preload,
+      `globalThis.__solidGpuiHost = {
+      subscribe() { return () => {}; },
+      submit(frame) { process.stdout.write(frame); }
+    };`,
+    );
+    await buildApplication({ runtime: "bun", entry: "fixtures/quickjs-async.tsx", outfile });
+    const child = Bun.spawn(["bun", "--preload", preload, outfile], { stdout: "pipe", stderr: "pipe" });
+    const [status, bytes, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).bytes(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status, stderr).toBe(0);
+    const { Envelope } = await import("../packages/solid-gpui/src/protocol/generated/protocol");
+    const body = Envelope.decode(bytes.subarray(4)).body;
+    expect(body?.tag).toBe(1);
+    expect(body?.tag === 1 && body.value.nodes?.some((node) => node.text === "Async: passed")).toBe(true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

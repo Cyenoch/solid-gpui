@@ -314,6 +314,10 @@ impl SolidRoot {
         cx: &mut Context<Self>,
     ) -> (bool, Option<String>, Option<CommandValue>, bool) {
         match operation {
+            CommandOperation::CancelNative { request_id } => {
+                self.pending_native_calls.remove(&request_id);
+                (true, None, None, false)
+            }
             CommandOperation::InvokeNative {
                 module_id,
                 module_digest,
@@ -785,7 +789,8 @@ impl SolidRoot {
                 && matches!(command.operation, CommandOperation::InvokeNative { .. }))
                 || matches!(
                     command.operation,
-                    CommandOperation::SetMenus { .. }
+                    CommandOperation::CancelNative { .. }
+                        | CommandOperation::SetMenus { .. }
                         | CommandOperation::ShowNotification { .. }
                         | CommandOperation::FileDialogOpen { .. }
                         | CommandOperation::FileDialogSave { .. }

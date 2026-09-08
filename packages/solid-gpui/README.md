@@ -26,9 +26,12 @@ Launch direct Bun entrypoints with `bun --conditions=browser run app.ts` so
 
 ## Runtime selection
 
-Bun supports Rust-led applications and applications whose business logic and host
-services run in Bun. QuickJS provides a lightweight embedded UI runtime for
-Rust-led applications. Rust owns GPUI rendering in every mode.
+External Bun is the rapid development runtime. Embedded Bun is the intended
+production packaging runtime for Bun-based applications; its current embedding
+is macOS-only and its release pipeline remains separate work. QuickJS targets
+applications whose main capabilities live in Rust, with JSX/TSX responsible for
+UI composition and reactive presentation state. Rust owns GPUI rendering in
+every mode. See [runtime strategy](../../docs/runtime-strategy.md).
 
 `mountApplication` requires an explicit `transport` factory and owns its lifetime:
 
@@ -42,8 +45,8 @@ mountApplication({
 });
 ```
 
-Use `StdioTransport` from `@solid-gpui/core/stdio` for Bun, including embedded Bun.
-Use `EmbeddedTransport` for the QuickJS host bridge. All surfaces in an application
+Use `StdioTransport` from `@solid-gpui/core/stdio` for external Bun.
+Use `EmbeddedTransport` for both Embedded Bun and QuickJS. All surfaces in an application
 share its connection.
 
 ```sh
@@ -67,8 +70,15 @@ are generated from it, and the native host consumes matching generated Rust
 bindings. A schema-derived guard rejects malformed fields, unions, enums,
 strings, and repeated values before generated decoding.
 
-## Repository Gallery
+## Repository website
 
-Install the workspace with `bun install --frozen-lockfile`, then run `bun run gallery`
-for the direct Bun project or `bun run gallery:vite` for Vite + Bun hot reload.
-Shared application code lives in `examples/gallery`; the Vite project imports it.
+Install the workspace with `bun install --frozen-lockfile`, then run `bun run website:native`
+for the native website or `bun run website:native:dev` for Vite + Bun hot reload.
+Web and desktop share the application and router in `examples/website`.
+
+## Images
+
+`Image.source` and `fallbackSource` accept HTTP(S) URLs directly, local paths,
+native `file:` URLs, and `data:image/...` URLs. GPUI owns loading and caching;
+no JavaScript fetch is required. See [Images](../../docs/native-composition.md#images)
+for an example, fallback behavior, and custom host setup.

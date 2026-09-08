@@ -60,22 +60,20 @@ impl Popup {
 
     pub fn resolved_corner(anchor: Anchor, trigger_bounds: Bounds<Pixels>) -> Point<Pixels> {
         match anchor {
-            Anchor::TopLeft => trigger_bounds.origin,
-            Anchor::TopCenter => trigger_bounds.top_center(),
-            Anchor::TopRight => trigger_bounds.top_right(),
-            Anchor::BottomLeft => Point {
-                x: trigger_bounds.origin.x,
-                y: trigger_bounds.origin.y - trigger_bounds.size.height,
+            Anchor::TopLeft => trigger_bounds.bottom_left(),
+            Anchor::TopCenter => trigger_bounds.bottom_center(),
+            Anchor::TopRight => trigger_bounds.bottom_right(),
+            Anchor::BottomLeft => trigger_bounds.origin,
+            Anchor::BottomCenter => trigger_bounds.top_center(),
+            Anchor::BottomRight => trigger_bounds.top_right(),
+            Anchor::LeftCenter => Point {
+                x: trigger_bounds.right(),
+                y: trigger_bounds.center().y,
             },
-            Anchor::BottomCenter => Point {
-                x: trigger_bounds.top_center().x,
-                y: trigger_bounds.origin.y - trigger_bounds.size.height,
+            Anchor::RightCenter => Point {
+                x: trigger_bounds.left(),
+                y: trigger_bounds.center().y,
             },
-            Anchor::BottomRight => Point {
-                x: trigger_bounds.top_right().x,
-                y: trigger_bounds.origin.y - trigger_bounds.size.height,
-            },
-            Anchor::LeftCenter | Anchor::RightCenter => trigger_bounds.origin,
         }
     }
 }
@@ -152,18 +150,18 @@ mod tests {
     use gpui::{Context, Render, px};
 
     #[test]
-    fn resolved_corner_preserves_existing_anchor_math() {
+    fn popup_corners_meet_the_opposite_trigger_edge() {
         let bounds = Bounds {
             origin: Point::new(px(100.), px(100.)),
             size: gpui::Size::new(px(200.), px(50.)),
         };
         assert_eq!(
             Popup::resolved_corner(Anchor::TopCenter, bounds),
-            Point::new(px(200.), px(100.))
+            Point::new(px(200.), px(150.))
         );
         assert_eq!(
             Popup::resolved_corner(Anchor::BottomRight, bounds),
-            Point::new(px(300.), px(50.))
+            Point::new(px(300.), px(100.))
         );
     }
 

@@ -21,6 +21,10 @@ components does not automatically reduce native element counts or layout passes.
 
 ## Lists and identity
 
+For route-driven scroll resets or whole-page reconstruction, follow
+[Route changes must preserve the shell](../../solid-gpui/references/application.md#route-changes-must-preserve-the-shell)
+before tuning list caches or restoring offsets.
+
 Use native `uniform_list` only for genuinely equal-height rows. Use `list` with a
 retained ListState when heights vary. Create scroll handles/ListState in the entity
 that owns the state and reference them during render. Use stable item IDs: after

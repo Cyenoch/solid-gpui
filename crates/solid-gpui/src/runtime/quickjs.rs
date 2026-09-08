@@ -57,6 +57,12 @@ impl Frames {
     }
 }
 
+enum Control {
+    Capture(std::sync::mpsc::SyncSender<Result<String, String>>),
+    Resume,
+    Activate,
+}
+
 #[derive(Default)]
 struct Queues {
     events: Frames,
@@ -64,6 +70,13 @@ struct Queues {
     failure: Option<String>,
     shutdown: bool,
     finished: bool,
+    control: Option<Control>,
+    paused: bool,
+    ready: bool,
+    pressured: bool,
+    staging: bool,
+    drain: bool,
+    wake_reader: bool,
 }
 
 #[derive(Default)]
@@ -122,17 +135,25 @@ impl QuickJsAdapter {
         name: impl Into<String>,
         source: Vec<u8>,
     ) -> Result<Arc<Self>, QuickJsError> {
-        let name = name.into();
+        Self::launch(name.into(), source, None)
+    }
+
+    pub(super) fn launch(
+        name: String,
+        source: Vec<u8>,
+        generation: Option<(u32, String)>,
+    ) -> Result<Arc<Self>, QuickJsError> {
         let tap = ProtocolTap::from_env();
         let worker_tap = tap.clone();
         let shared = Arc::new(Shared::default());
+        shared.queues.lock().unwrap().staging = generation.is_some();
         let worker_shared = Arc::clone(&shared);
         let worker = thread::Builder::new()
             .name("solid-gpui-quickjs".into())
             .stack_size(WORKER_STACK_BYTES)
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    run(&worker_shared, &worker_tap, name, source)
+                    run(&worker_shared, &worker_tap, name, source, generation)
                 }));
                 match result {
                     Ok(Err(error)) => worker_shared.fail(error),
@@ -152,6 +173,68 @@ impl QuickJsAdapter {
         }))
     }
 
+    pub(super) fn capture(&self) -> Result<String, String> {
+        let (send, recv) = std::sync::mpsc::sync_channel(1);
+        self.shared.queues.lock().unwrap().control = Some(Control::Capture(send));
+        self.shared.changed.notify_all();
+        recv.recv_timeout(Duration::from_secs(2))
+            .map_err(|_| "reload state capture timed out".to_owned())?
+    }
+
+    pub(super) fn resume(&self, activate: bool) {
+        self.shared.queues.lock().unwrap().control = Some(if activate {
+            Control::Activate
+        } else {
+            Control::Resume
+        });
+        self.shared.changed.notify_all();
+    }
+
+    pub(super) fn wait_ready(&self, timeout: Duration) -> Result<(), String> {
+        let queue = self.shared.queues.lock().unwrap();
+        let (queue, _) = self
+            .shared
+            .changed
+            .wait_timeout_while(queue, timeout, |q| {
+                !q.ready && q.failure.is_none() && !q.finished && !q.shutdown
+            })
+            .unwrap();
+        if let Some(error) = &queue.failure {
+            return Err(error.clone());
+        }
+        if !queue.ready {
+            return Err("QuickJS preparation timed out or stopped".into());
+        }
+        Ok(())
+    }
+    pub(super) fn wake_reader(&self) {
+        self.shared.queues.lock().unwrap().wake_reader = true;
+        self.shared.changed.notify_all();
+    }
+    pub(super) fn recv_interruptible(&self) -> Result<CommitPoll, ProtocolError> {
+        self.receive(None)
+    }
+
+    pub(super) fn candidate_frames(&self) -> Result<Option<Vec<Vec<u8>>>, String> {
+        let mut queue = self.shared.queues.lock().unwrap();
+        if let Some(error) = &queue.failure {
+            return Err(error.clone());
+        }
+        if !queue.ready {
+            return Ok(None);
+        }
+        let mut frames = Vec::new();
+        while let Some(frame) = queue.commits.pop() {
+            frames.push(frame);
+        }
+        if queue.pressured {
+            queue.pressured = false;
+            queue.drain = true;
+            self.shared.changed.notify_all();
+        }
+        Ok(Some(frames))
+    }
+
     pub fn recv_commit_timeout(&self, timeout: Duration) -> Result<CommitPoll, ProtocolError> {
         self.receive(Some(timeout))
     }
@@ -160,6 +243,7 @@ impl QuickJsAdapter {
         let queue = self.shared.queues.lock().unwrap();
         let waiting = |queue: &mut Queues| {
             queue.commits.values.is_empty()
+                && !queue.wake_reader
                 && !queue.finished
                 && !queue.shutdown
                 && queue.failure.is_none()
@@ -174,7 +258,16 @@ impl QuickJsAdapter {
             }
             None => self.shared.changed.wait_while(queue, waiting).unwrap(),
         };
+        queue.wake_reader = false;
         if let Some(payload) = queue.commits.pop() {
+            if queue.pressured
+                && queue.commits.values.len() < 16
+                && queue.commits.bytes < MAX_QUEUED_BYTES / 4
+            {
+                queue.pressured = false;
+                queue.drain = true;
+                self.shared.changed.notify_all();
+            }
             return Ok(CommitPoll::Commit(payload));
         }
         if let Some(error) = &queue.failure {
@@ -269,6 +362,7 @@ fn run(
     tap: &ProtocolTap,
     name: String,
     source: Vec<u8>,
+    generation: Option<(u32, String)>,
 ) -> Result<(), String> {
     let runtime = Runtime::new().map_err(|error| error.to_string())?;
     runtime.set_memory_limit(MAX_VM_BYTES);
@@ -300,7 +394,7 @@ fn run(
         let submit_shared = Arc::clone(shared);
         let submit = Function::new(
             ctx.clone(),
-            move |ctx: Ctx, frame: TypedArray<u8>| -> rquickjs::Result<()> {
+            move |ctx: Ctx, frame: TypedArray<u8>| -> rquickjs::Result<bool> {
                 let bytes = frame
                     .as_bytes()
                     .ok_or_else(|| Exception::throw_type(&ctx, "submitted frame is detached"))?;
@@ -329,8 +423,14 @@ fn run(
                     submit_shared.changed.notify_all();
                     return Err(Exception::throw_range(&ctx, message));
                 }
+                // Candidate publication is one bounded transaction: pausing
+                // midway would hide its configuration from native validation.
+                let writable = queue.staging
+                    || (queue.commits.values.len() < 32
+                        && queue.commits.bytes < MAX_QUEUED_BYTES / 2);
+                queue.pressured |= !writable;
                 submit_shared.changed.notify_all();
-                Ok(())
+                Ok(writable)
             },
         )
         .catch(&ctx)
@@ -378,7 +478,41 @@ fn run(
             .set("__solidGpuiTrackRejection", track)
             .catch(&ctx)
             .map_err(|error| error.to_string())?;
-        let result = drive(&ctx, shared, tap, &bridge, name, source);
+        if let Some((epoch, state)) = generation {
+            let settings = Object::new(ctx.clone()).map_err(|e| e.to_string())?;
+            settings.set("epoch", epoch).map_err(|e| e.to_string())?;
+            settings.set("state", state).map_err(|e| e.to_string())?;
+            ctx.globals()
+                .set("__solidGpuiGeneration", settings)
+                .map_err(|e| e.to_string())?;
+            ctx.eval::<(), _>(
+                r#"
+                let lifecycle;
+                __solidGpuiGeneration.register = value => {
+                    if (lifecycle) throw new Error('one mounted application per reload generation');
+                    lifecycle = value;
+                };
+                globalThis.__solidGpuiGenerationControl = operation => {
+                    if (operation === 'ready') return Boolean(lifecycle);
+                    if (!lifecycle) throw new Error('reload requires mountApplication');
+                    if (operation === 'capture') return lifecycle.capture();
+                    if (operation === 'activate') lifecycle.activate();
+                    if (operation === 'retire') lifecycle.retire();
+                };
+            "#,
+            )
+            .catch(&ctx)
+            .map_err(|e| e.to_string())?;
+        }
+        let result = drive(
+            &ctx,
+            shared,
+            tap,
+            &bridge,
+            name,
+            source,
+            &termination_deadline,
+        );
         let shutdown = shared.queues.lock().unwrap().shutdown;
         if let Err(error) = &result
             && !shutdown
@@ -415,6 +549,7 @@ fn drive<'js>(
     bridge: &Object<'js>,
     name: String,
     source: Vec<u8>,
+    deadline: &Cell<Option<Instant>>,
 ) -> Result<(), String> {
     let dispatch: Function = bridge
         .get("dispatch")
@@ -439,8 +574,91 @@ fn drive<'js>(
     let entry = Module::evaluate(ctx.clone(), name, source)
         .catch(ctx)
         .map_err(|error| error.to_string())?;
+    let generation = ctx
+        .globals()
+        .get::<_, Function>("__solidGpuiGenerationControl")
+        .ok();
+    let mut candidate = generation.is_some();
     let mut prefer_timer = false;
     loop {
+        // Capture only after the active event's microtask checkpoint. Candidate
+        // jobs stay suspended until native activation has acknowledged the tree.
+        if !candidate && !shared.queues.lock().unwrap().paused {
+            while !shared.stopped.load(Ordering::Acquire) && ctx.execute_pending_job() {
+                if ctx.has_exception() {
+                    return Err(
+                        rquickjs::CaughtError::from_error(ctx, rquickjs::Error::Exception)
+                            .to_string(),
+                    );
+                }
+            }
+        }
+        let control = shared.queues.lock().unwrap().control.take();
+        if let Some(control) = control {
+            match control {
+                Control::Capture(reply) => {
+                    deadline.set(Some(Instant::now() + Duration::from_millis(500)));
+                    let result = generation
+                        .as_ref()
+                        .ok_or_else(|| "runtime is not reloadable".to_owned())
+                        .and_then(|f| {
+                            f.call::<_, String>(("capture",))
+                                .catch(ctx)
+                                .map_err(|e| e.to_string())
+                        });
+                    deadline.set(None);
+                    shared.queues.lock().unwrap().paused = result.is_ok();
+                    let _ = reply.send(result);
+                }
+                Control::Resume => {
+                    shared.queues.lock().unwrap().paused = false;
+                }
+                Control::Activate => {
+                    candidate = false;
+                    {
+                        let mut queue = shared.queues.lock().unwrap();
+                        queue.paused = false;
+                        queue.staging = false;
+                    }
+                    generation
+                        .as_ref()
+                        .unwrap()
+                        .call::<_, ()>(("activate",))
+                        .catch(ctx)
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        if shared.stopped.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let entry_ready = if let Some(result) = entry.result::<Value>() {
+            result.catch(ctx).map_err(|error| error.to_string())?;
+            true
+        } else {
+            false
+        };
+        if candidate
+            && entry_ready
+            && generation
+                .as_ref()
+                .unwrap()
+                .call::<_, bool>(("ready",))
+                .catch(ctx)
+                .map_err(|e| e.to_string())?
+        {
+            let mut queue = shared.queues.lock().unwrap();
+            queue.ready = true;
+            queue.paused = true;
+            shared.changed.notify_all();
+        }
+        {
+            let queue = shared.queues.lock().unwrap();
+            if queue.paused && queue.control.is_none() && !queue.shutdown {
+                drop(shared.changed.wait(queue).unwrap());
+                continue;
+            }
+        }
         // Each native event/timer gets a complete microtask checkpoint. Checking
         // cancellation between jobs also interrupts self-replenishing job queues.
         while !shared.stopped.load(Ordering::Acquire) && ctx.execute_pending_job() {
@@ -460,6 +678,21 @@ fn drive<'js>(
             .call::<_, ()>(())
             .catch(ctx)
             .map_err(|error| error.to_string())?;
+        if candidate && !entry_ready && entry.result::<Value>().is_some() {
+            continue;
+        }
+        let drain = {
+            let mut queue = shared.queues.lock().unwrap();
+            std::mem::take(&mut queue.drain)
+        };
+        if drain {
+            bridge
+                .get::<_, Function>("drain")
+                .and_then(|f| f.call::<_, ()>(()))
+                .catch(ctx)
+                .map_err(|error| error.to_string())?;
+            continue;
+        }
         if prefer_timer
             && run_timer
                 .call::<_, bool>(())
@@ -503,6 +736,8 @@ fn drive<'js>(
                 .map_err(|error| error.to_string())?;
             let queue = shared.queues.lock().unwrap();
             if shared.stopped.load(Ordering::Acquire)
+                || queue.control.is_some()
+                || queue.drain
                 || (can_dispatch && !queue.events.values.is_empty())
             {
                 continue;
@@ -581,12 +816,56 @@ mod tests {
     }
 
     #[test]
+    fn candidate_staging_crosses_soft_watermark_and_resumes_after_activation() {
+        let runtime = QuickJsAdapter::launch(
+            "staged-pressure.js".into(),
+            br#"
+            const large = new Uint8Array(4 + 5 * 1024 * 1024);
+            new DataView(large.buffer).setUint32(0, large.length - 4, true);
+            const small = new Uint8Array([1, 0, 0, 0, 7]);
+            __solidGpuiHost.subscribe(() => {}, () => {}, () => {});
+            if (!__solidGpuiHost.submit(large)) throw new Error('partial staging');
+            __solidGpuiHost.submit(small);
+            __solidGpuiGeneration.register({
+                capture: () => '{}',
+                activate: () => __solidGpuiHost.submit(small),
+                retire: () => {}
+            });
+            "#
+            .to_vec(),
+            Some((1, "{}".into())),
+        )
+        .unwrap();
+        runtime.wait_ready(Duration::from_secs(3)).unwrap();
+        let frames = runtime.candidate_frames().unwrap().unwrap();
+        assert_eq!(frames.len(), 2);
+        assert_eq!(frames[0].len(), 5 * 1024 * 1024);
+        runtime.resume(true);
+        assert_eq!(
+            runtime.recv_commit_timeout(Duration::from_secs(3)).unwrap(),
+            CommitPoll::Commit(vec![7])
+        );
+        runtime.shutdown().unwrap();
+    }
+
+    #[test]
     fn real_solid_bundle_round_trips_snapshot_press_and_patch() {
         let entry = Entry::bundle("fixtures/quickjs-counter.tsx");
         let source = std::fs::read(&entry.0).unwrap();
         drop(entry);
         let runtime = QuickJsAdapter::from_source("embedded-counter.js", source).unwrap();
         let snapshot = Snapshot::decode(&receive(&runtime)).unwrap();
+        let ready = crate::protocol::decode_message(&receive(&runtime)).unwrap();
+        assert!(matches!(
+            ready,
+            crate::protocol::DecodedMessage::Command(crate::protocol::Command {
+                operation: crate::protocol::CommandOperation::ConfigureApplication {
+                    quit: false,
+                    ..
+                },
+                ..
+            })
+        ));
         let button = snapshot
             .nodes
             .iter()
@@ -630,6 +909,20 @@ mod tests {
         );
         runtime.shutdown().unwrap();
         assert_eq!(runtime.status(), RuntimeStatus::Shutdown);
+    }
+
+    #[test]
+    fn native_async_boundaries_and_transitions_run_in_real_vm() {
+        let entry = Entry::bundle("fixtures/quickjs-async.tsx");
+        let runtime = entry.start();
+        let snapshot = Snapshot::decode(&receive(&runtime)).unwrap();
+        assert!(
+            snapshot
+                .nodes
+                .iter()
+                .any(|node| node.text.as_deref() == Some("Async: passed"))
+        );
+        runtime.shutdown().unwrap();
     }
 
     #[test]
@@ -732,12 +1025,12 @@ mod tests {
         let entry = Entry::new(
             r#"
             await new Promise(resolve => setTimeout(resolve, 2));
-            const old = __solidGpuiHost.subscribe(() => { throw new Error('retired subscription called'); }, () => {});
+            const old = __solidGpuiHost.subscribe(() => { throw new Error('retired subscription called'); }, () => {}, () => {});
             let rejected = false;
-            try { __solidGpuiHost.subscribe(() => {}, () => {}); } catch { rejected = true; }
+            try { __solidGpuiHost.subscribe(() => {}, () => {}, () => {}); } catch { rejected = true; }
             if (!rejected) throw new Error('second transport was admitted');
             old();
-            __solidGpuiHost.subscribe(frame => __solidGpuiHost.submit(frame), () => { while (true) {} });
+            __solidGpuiHost.subscribe(frame => __solidGpuiHost.submit(frame), () => { while (true) {} }, () => {});
             old();
         "#,
         );

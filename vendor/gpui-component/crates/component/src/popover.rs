@@ -365,27 +365,27 @@ mod tests {
 
         let pos = BasePopup::resolved_corner(Anchor::TopLeft, bounds);
         assert_eq!(pos.x, px(100.));
-        assert_eq!(pos.y, px(100.));
+        assert_eq!(pos.y, px(150.));
 
         let pos = BasePopup::resolved_corner(Anchor::TopCenter, bounds);
         assert_eq!(pos.x, px(200.));
-        assert_eq!(pos.y, px(100.));
+        assert_eq!(pos.y, px(150.));
 
         let pos = BasePopup::resolved_corner(Anchor::TopRight, bounds);
         assert_eq!(pos.x, px(300.));
-        assert_eq!(pos.y, px(100.));
+        assert_eq!(pos.y, px(150.));
 
         let pos = BasePopup::resolved_corner(Anchor::BottomLeft, bounds);
         assert_eq!(pos.x, px(100.));
-        assert_eq!(pos.y, px(50.));
+        assert_eq!(pos.y, px(100.));
 
         let pos = BasePopup::resolved_corner(Anchor::BottomCenter, bounds);
         assert_eq!(pos.x, px(200.));
-        assert_eq!(pos.y, px(50.));
+        assert_eq!(pos.y, px(100.));
 
         let pos = BasePopup::resolved_corner(Anchor::BottomRight, bounds);
         assert_eq!(pos.x, px(300.));
-        assert_eq!(pos.y, px(50.));
+        assert_eq!(pos.y, px(100.));
     }
 
     struct PopoverHarness {

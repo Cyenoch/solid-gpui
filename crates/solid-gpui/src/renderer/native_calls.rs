@@ -50,7 +50,9 @@ impl SolidRoot {
                 if meta.surface_id != root.store.surface_id() || meta.epoch != root.store.epoch() {
                     return;
                 }
-                root.pending_native_calls.remove(&meta.request_id);
+                if root.pending_native_calls.remove(&meta.request_id).is_none() {
+                    return;
+                }
                 let (success, error, value) = match result {
                     Ok(bytes) => (true, None, Some(CommandValue::Bytes(bytes))),
                     Err(error) => (false, Some(error), None),

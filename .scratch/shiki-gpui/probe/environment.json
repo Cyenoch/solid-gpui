@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-07",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "head": "696660354ed75a838b7a80124ebb6ba3779b0653",
+  "scope": "Dirty workspace source inspection and standalone runtime probes; no native window or benchmark.",
+  "files": {
+    "Cargo.toml": {
+      "sha256": "3714d764802bbed907db43934f5ebbd716938550f3932091c1672b7fc921a9d4",
+      "bytes": 1852
+    },
+    "Cargo.lock": {
+      "sha256": "9d15dca52faf96ce5c46a7f1de50dd174ce8a5fc1d4b879067a5cbe614729696",
+      "bytes": 226114
+    },
+    "crates/solid-gpui/Cargo.toml": {
+      "sha256": "f2128649f46d322cc3b30a52bc45a5df0c23a105b4bd6ef6fd4d775427ae7836",
+      "bytes": 3130
+    },
+    "crates/solid-gpui/src/runtime/quickjs.rs": {
+      "sha256": "40c1cdebac78398eb9bddc0a27aadcba1ad30eea1ab36aef443acc20722866bd",
+      "bytes": 29711
+    },
+    "vendor/gpui/src/text_system.rs": {
+      "sha256": "3bb73a6479e9dc011dd9a7fb0df751ccc338ecfeda7b07d5c5e98dda554ed4e8",
+      "bytes": 42218
+    },
+    "vendor/gpui-component/crates/base/src/input/editor/highlighting.rs": {
+      "sha256": "840100e5ff4546c238e17cd0b5189fe4984c631ca66a2dcb33e8fc260cc679d4",
+      "bytes": 7812
+    },
+    "vendor/gpui-component/crates/base/src/text/node.rs": {
+      "sha256": "8773ea2a75a32888c4eec6be734f91c10ea25d9bb1bc55aaa63aaa6d0c4d8070",
+      "bytes": 116435
+    },
+    ".scratch/shiki-gpui/probe/bundle.js": {
+      "sha256": "50c9a85a9d629d7cf40f3f1fa0f67cd133f46354b0864eb4046c2adf2f3e9e06",
+      "bytes": 792058
+    }
+  },
+  "quickjs_regex_source": {
+    "path": "/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rquickjs-sys-0.12.2/quickjs/libregexp.c",
+    "sha256": "d1e7c4280e1948a25310aaa80aedc273b6fe12322964965f9025ba1800f2c14d",
+    "capture_count_max": 255
+  },
+  "versions": {
+    "bun": "1.4.2",
+    "node": "v24.20.0",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+  }
+}

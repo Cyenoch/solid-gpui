@@ -1,3 +1,4 @@
+import type { NativeCallOptions } from "../native-call";
 import type {
   AccessibilityProperties,
   CommandKind,
@@ -24,7 +25,12 @@ export interface RootOwner {
   invalid: boolean;
   validationError: Error | undefined;
   submitCommand(node: HostNodeInternal, kind: CommandKind, payload: CommandPayload): Promise<void>;
-  submitCommandValue(node: HostNodeInternal, kind: CommandKind, payload: CommandPayload): Promise<CommandValue | null>;
+  submitCommandValue(
+    node: HostNodeInternal,
+    kind: CommandKind,
+    payload: CommandPayload,
+    options?: NativeCallOptions,
+  ): Promise<CommandValue | null>;
   releaseDetachedFocus(node: HostNodeInternal): void;
   markPropsDirty(node: HostNodeInternal, groups: number): void;
   recordNodeMutation(node: HostNodeInternal): void;
@@ -49,7 +55,20 @@ export interface HostNode {
   readonly kind: HostKind;
 }
 export interface AccessibilityProps {
-  readonly accessibilityRole?: "button" | "text" | "textbox" | "checkbox" | "heading" | "generic" | "link";
+  readonly accessibilityRole?:
+    | "button"
+    | "text"
+    | "textbox"
+    | "checkbox"
+    | "heading"
+    | "generic"
+    | "link"
+    | "status"
+    | "alert"
+    | "group"
+    | "list"
+    | "listitem"
+    | "dialog";
   readonly accessibilityLabel?: string;
   readonly accessibilityDescription?: string;
   readonly accessibilityDisabled?: boolean;
@@ -58,6 +77,7 @@ export interface AccessibilityProps {
   readonly accessibilityValue?: string;
   readonly accessibilityExpanded?: boolean;
   readonly accessibilityLevel?: number;
+  readonly accessibilityLive?: "off" | "polite" | "assertive";
 }
 
 export interface TextInputProps extends AccessibilityProps {
@@ -242,7 +262,9 @@ export interface ViewProps extends AccessibilityProps {
   readonly children?: SolidChild;
 }
 export interface ImageProps extends AccessibilityProps {
+  /** Local path, file: URL (native), HTTP(S) URL, or data:image/... URL; at most 1 MiB of UTF-8. */
   readonly source: string;
+  /** Image source displayed when the primary fails, using the same supported source formats. */
   readonly fallbackSource?: string;
   readonly objectFit?: ImageObjectFit;
   readonly style?: StyleProp;
@@ -337,6 +359,8 @@ export interface HostProps extends AccessibilityProps {
   readonly [key: string]: unknown;
 }
 export interface PendingCommand {
+  readonly identity: import("../native-call").NativeCommandIdentity;
+  readonly cleanup: () => void;
   readonly command: CommandKind;
   readonly nodeId: number;
   readonly resolve: (value: CommandValue | null) => void;

@@ -21,22 +21,111 @@ use super::accessibility::apply_accessibility;
 use super::style::{apply_style, apply_style_without_cursor, apply_text_style};
 pub(crate) struct RichTextParts {
     pub(super) text: String,
-    run_styles: Vec<(usize, Option<Style>)>,
+    pub(super) runs: Vec<RunStyle>,
     pub(super) clickable_ranges: Vec<Range<usize>>,
     pub(super) clickable_targets: Vec<(u32, u32)>,
+}
+
+#[derive(Clone)]
+pub(super) struct RunStyle {
+    len: usize,
+    style: Option<Style>,
+}
+
+impl RichTextParts {
+    fn resolve_runs(&self, inherited: &gpui::TextStyle) -> Vec<TextRun> {
+        self.runs
+            .iter()
+            .map(|run| super::style::text_run(inherited, run.style.as_ref(), run.len))
+            .collect()
+    }
+}
+
+type BuildTextElement = Box<dyn FnOnce(StyledText, Vec<TextRun>) -> AnyElement>;
+
+/// Resolve inherited styling during layout, while caching only local text facts.
+struct InheritedText {
+    parts: Rc<RichTextParts>,
+    build: Option<BuildTextElement>,
+}
+
+impl InheritedText {
+    fn new(
+        parts: Rc<RichTextParts>,
+        build: impl FnOnce(StyledText, Vec<TextRun>) -> AnyElement + 'static,
+    ) -> Self {
+        Self {
+            parts,
+            build: Some(Box::new(build)),
+        }
+    }
+}
+
+impl IntoElement for InheritedText {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl Element for InheritedText {
+    type RequestLayoutState = AnyElement;
+    type PrepaintState = ();
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, AnyElement) {
+        let runs = self.parts.resolve_runs(&window.text_style());
+        let text =
+            StyledText::new(SharedString::from(self.parts.text.clone())).with_runs(runs.clone());
+        let mut element = self.build.take().expect("text element is laid out once")(text, runs);
+        let layout = element.request_layout(window, cx);
+        (layout, element)
+    }
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        element: &mut AnyElement,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        element.prepaint(window, cx);
+    }
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        element: &mut AnyElement,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        element.paint(window, cx);
+    }
 }
 
 pub(super) fn rich_text_parts(
     root: &SolidRoot,
     node: &StoredNode,
-    _style: Option<&Style>,
+    style: Option<&Style>,
 ) -> Rc<RichTextParts> {
     if let Some(parts) = root.rich_text_parts_cache.borrow().get(&node.id) {
         return Rc::clone(parts);
     }
-
     let mut text = String::new();
-    let mut run_styles = Vec::new();
+    let mut runs = Vec::new();
     let mut clickable_ranges = Vec::new();
     let mut clickable_targets = Vec::new();
     for child in node.children(&root.store) {
@@ -50,14 +139,14 @@ pub(super) fn rich_text_parts(
         };
         let start = text.len();
         text.push_str(content);
-        run_styles.push((
-            content.len(),
-            if child.kind == crate::tree::KIND_TEXT {
+        runs.push(RunStyle {
+            len: content.len(),
+            style: if child.kind == crate::tree::KIND_TEXT {
                 child.style.clone()
             } else {
-                None
+                style.cloned()
             },
-        ));
+        });
         if child.kind == crate::tree::KIND_TEXT && child.listener_id != 0 {
             clickable_ranges.push(start..text.len());
             clickable_targets.push((child.id, child.listener_id));
@@ -70,14 +159,17 @@ pub(super) fn rich_text_parts(
             .filter(|content| !content.is_empty())
     {
         text.push_str(content);
-        run_styles.push((content.len(), None));
+        runs.push(RunStyle {
+            len: content.len(),
+            style: style.cloned(),
+        });
     }
     #[cfg(test)]
     root.rich_text_assembly_count
         .set(root.rich_text_assembly_count.get() + 1);
     let parts = Rc::new(RichTextParts {
         text,
-        run_styles,
+        runs,
         clickable_ranges,
         clickable_targets,
     });
@@ -85,30 +177,6 @@ pub(super) fn rich_text_parts(
         .borrow_mut()
         .insert(node.id, Rc::clone(&parts));
     parts
-}
-
-impl RichTextParts {
-    fn resolved_runs(&self, window: &Window) -> Vec<TextRun> {
-        let inherited = window.text_style();
-        self.run_styles
-            .iter()
-            .map(|(len, style)| super::style::text_run(&inherited, style.as_ref(), *len))
-            .collect()
-    }
-}
-
-/// Resolve text runs inside the actual native parent's typography scope.
-#[derive(gpui::IntoElement)]
-pub(super) struct DeferredText(Box<dyn FnOnce(&mut Window) -> AnyElement>);
-impl DeferredText {
-    pub(super) fn new(render: impl FnOnce(&mut Window) -> AnyElement + 'static) -> Self {
-        Self(Box::new(render))
-    }
-}
-impl gpui::RenderOnce for DeferredText {
-    fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
-        (self.0)(window)
-    }
 }
 
 struct RichTextElement {
@@ -343,7 +411,7 @@ impl Element for TextInputElement {
     ) -> Self::PrepaintState {
         let root = self.entity.read(cx);
         #[cfg(test)]
-        let content_started = std::time::Instant::now();
+        let content_started = web_time::Instant::now();
         #[cfg(test)]
         root.input_content_assembly_count
             .set(root.input_content_assembly_count.get() + 1);
@@ -376,7 +444,7 @@ impl Element for TextInputElement {
         let text_style = window.text_style();
         let text_color = text_input_text_color(&text_style, is_placeholder);
         #[cfg(test)]
-        let run_started = std::time::Instant::now();
+        let run_started = web_time::Instant::now();
         let mut run = text_style.to_run(display_text.len());
         run.color = text_color;
         #[cfg(test)]
@@ -388,7 +456,7 @@ impl Element for TextInputElement {
         let line_height = window.line_height();
         let font_size = text_style.font_size.to_pixels(window.rem_size());
         #[cfg(test)]
-        let shape_started = std::time::Instant::now();
+        let shape_started = web_time::Instant::now();
         #[cfg(test)]
         root.input_shape_count.set(root.input_shape_count.get() + 1);
         let text_layout = if self.multiline {
@@ -583,11 +651,11 @@ impl Element for SelectableTextElement {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
-        let mut style = gpui::Style::default();
-        style.size.width = relative(1.).into();
-        let line_count = self.text.split('\n').count().max(1);
-        style.size.height = (window.line_height() * line_count as f32).into();
-        (window.request_layout(style, [], cx), ())
+        // Use GPUI's shaped-text measurement so intrinsic width and wrapped
+        // height agree with painting and selectable text cannot overlap siblings.
+        StyledText::new(SharedString::from(self.text.clone()))
+            .with_runs(self.runs.clone())
+            .request_layout(_id, _inspector_id, window, cx)
     }
 
     fn prepaint(
@@ -704,7 +772,7 @@ pub(super) fn render_text_input(
         .expect("TextInput focus handle is reconciled before render");
     let input_id = node.id;
     let input_disabled = input.disabled;
-    let mut input_element = apply_style(div(), style);
+    let mut input_element = apply_text_style(apply_style(div(), style), style);
     let actual_text = root
         .input_states
         .get(&node.id)
@@ -945,11 +1013,7 @@ pub(super) fn render_rich_text(
     element = apply_text_style(element, style);
     if parts.clickable_ranges.is_empty() {
         if !parts.text.is_empty() {
-            element = element.child(DeferredText::new(move |window| {
-                StyledText::new(SharedString::from(parts.text.clone()))
-                    .with_runs(parts.resolved_runs(window))
-                    .into_any()
-            }));
+            element = element.child(InheritedText::new(parts, |text, _| text.into_any()));
         }
         return apply_accessibility(element, node).into_any();
     }
@@ -972,15 +1036,16 @@ pub(super) fn render_rich_text(
                 .map(|focus| (run_node_id, range, focus))
         })
         .collect();
-    let affordance_bounds = Rc::clone(&root.link_affordance_bounds);
     let node_id = node.id;
-    element = element.child(DeferredText::new(move |window| {
-        let runs = parts.resolved_runs(window);
+    let text = parts.text.clone();
+    let affordance_bounds = Rc::clone(&root.link_affordance_bounds);
+    let text_ranges = ranges.clone();
+    element = element.child(InheritedText::new(parts, move |styled_text, runs| {
         let interactive = InteractiveText::new(
             ElementId::named_usize("solid-gpui-text-runs", node_id as usize),
-            StyledText::new(SharedString::from(parts.text.clone())).with_runs(runs.clone()),
+            styled_text,
         )
-        .on_click(ranges.clone(), move |index, _, _| {
+        .on_click(text_ranges, move |index, _, _| {
             let Some((node_id, listener_id)) = click_targets.get(index).copied() else {
                 return;
             };
@@ -997,13 +1062,14 @@ pub(super) fn render_rich_text(
         RichTextElement {
             node_id,
             interactive,
-            text: parts.text.clone(),
+            text,
             runs,
             focuses,
             affordance_bounds,
         }
         .into_any()
     }));
+
     for (run_node_id, run_listener_id) in targets {
         let Some(focus) = root.focus_handles.get(&run_node_id).cloned() else {
             continue;
@@ -1058,7 +1124,6 @@ pub(super) fn render_selectable(
     let node_id = node.id;
     let parts = rich_text_parts(root, node, style);
     let text = parts.text.clone();
-
     let focus = root
         .focus_handles
         .get(&node_id)
@@ -1077,13 +1142,12 @@ pub(super) fn render_selectable(
         .cursor(gpui::CursorStyle::IBeam)
         .child({
             let entity = entity.clone();
-            let text = text.clone();
-            DeferredText::new(move |window| {
+            InheritedText::new(parts, move |_, runs| {
                 SelectableTextElement {
                     entity,
                     node_id,
                     text,
-                    runs: parts.resolved_runs(window),
+                    runs,
                 }
                 .into_any()
             })
@@ -1144,6 +1208,79 @@ mod rich_text_cursor_tests {
 #[cfg(test)]
 mod text_input_style_tests {
     use super::*;
+
+    #[gpui::test]
+    fn cached_text_inherits_live_parent_style_and_preserves_inline_overrides(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        use gpui::{AppContext as _, Render};
+        use std::cell::RefCell;
+        struct Example {
+            color: u32,
+            parts: Rc<RichTextParts>,
+            observed: Rc<RefCell<Vec<TextRun>>>,
+        }
+        impl Render for Example {
+            fn render(&mut self, _: &mut Window, _: &mut gpui::Context<Self>) -> impl IntoElement {
+                let observed = self.observed.clone();
+                div()
+                    .text_color(rgba(self.color))
+                    .font_weight(gpui::FontWeight::BOLD)
+                    .child(InheritedText::new(self.parts.clone(), move |text, runs| {
+                        *observed.borrow_mut() = runs;
+                        text.into_any()
+                    }))
+            }
+        }
+        let parts = Rc::new(RichTextParts {
+            text: "parent override".into(),
+            runs: vec![
+                RunStyle {
+                    len: 7,
+                    style: None,
+                },
+                RunStyle {
+                    len: 8,
+                    style: Some(Style {
+                        color_rgba: Some(0xcc8844ff),
+                        font_weight: Some(crate::protocol::FontWeightCode::Normal),
+                        ..Default::default()
+                    }),
+                },
+            ],
+            clickable_ranges: Vec::new(),
+            clickable_targets: Vec::new(),
+        });
+        let observed = Rc::new(RefCell::new(Vec::new()));
+        let window = cx.open_window(size(px(250.), px(80.)), {
+            let parts = parts.clone();
+            let observed = observed.clone();
+            move |_, _| Example {
+                color: 0xeeeeeeff,
+                parts,
+                observed,
+            }
+        });
+        let entity = window.root(cx).unwrap();
+        for color in [0xeeeeeeff, 0x222222ff] {
+            entity.update(cx, |example, cx| {
+                example.color = color;
+                cx.notify();
+            });
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+            let runs = observed.borrow();
+            assert_eq!(runs.len(), 2);
+            assert_eq!(runs[0].color, rgba(color).into());
+            assert_eq!(runs[0].font.weight, gpui::FontWeight::BOLD);
+            assert_eq!(runs[1].color, rgba(0xcc8844ff).into());
+            assert_eq!(runs[1].font.weight, gpui::FontWeight::NORMAL);
+            entity.read_with(cx, |example, _| assert!(Rc::ptr_eq(&parts, &example.parts)));
+        }
+    }
 
     #[test]
     fn placeholder_remains_readable_on_light_and_dark_inputs() {

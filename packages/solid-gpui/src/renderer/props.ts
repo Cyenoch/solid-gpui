@@ -1,4 +1,4 @@
-import { isIconName, MAX_CLIPBOARD_TEXT_BYTES, utf8ByteLength } from "../protocol";
+import { isIconName, MAX_CLIPBOARD_TEXT_BYTES, MAX_IMAGE_SOURCE_BYTES, utf8ByteLength } from "../protocol";
 import { encodeColor, validateStyle } from "../style";
 import type { AccessibilityProperties, HostProperties, IconProperties } from "../protocol";
 import type { HostKind, HostNodeInternal, HostProps, TextInputProps } from "./types";
@@ -42,6 +42,11 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
   const value = Object.hasOwn(props, "accessibilityValue") ? props.accessibilityValue : undefined;
   const expanded = Object.hasOwn(props, "accessibilityExpanded") ? props.accessibilityExpanded : undefined;
   const level = Object.hasOwn(props, "accessibilityLevel") ? props.accessibilityLevel : undefined;
+  const live = props.accessibilityLive;
+  const liveCodes = { off: 0, polite: 1, assertive: 2 } as const;
+  if (live !== undefined && !Object.hasOwn(liveCodes, live)) throw new TypeError("accessibilityLive is invalid");
+  if (live !== undefined && live !== "off" && (role === undefined || role === "generic" || value === undefined))
+    throw new TypeError("A live region requires a semantic role and accessibilityValue");
   const inputDisabled =
     kind === "TextInput" && Object.hasOwn(props, "disabled") ? (props as TextInputProps).disabled : undefined;
   assertAccessibilityText("accessibilityLabel", label, 1024);
@@ -72,6 +77,7 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
     value: value ?? null,
     expanded: expanded ?? null,
     level: level ?? null,
+    live: live === undefined ? null : liveCodes[live],
   };
 }
 export function inputFor(node: HostNodeInternal, props: HostProps): HostProperties | null {
@@ -106,10 +112,10 @@ function assertImageSource(name: string, value: unknown): asserts value is strin
   if (
     typeof value !== "string" ||
     value.length === 0 ||
-    utf8ByteLength(value) > 1024 ||
+    utf8ByteLength(value) > MAX_IMAGE_SOURCE_BYTES ||
     /[\u0000-\u001f\u007f]/.test(value)
   ) {
-    throw new TypeError(`Image ${name} must be a non-empty path of at most 1024 UTF-8 bytes`);
+    throw new TypeError(`Image ${name} must be a non-empty source of at most ${MAX_IMAGE_SOURCE_BYTES} UTF-8 bytes`);
   }
 }
 

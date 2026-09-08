@@ -64,18 +64,19 @@ pub mod native {
             self
         }
     }
+    pub struct NativeCallContext;
     pub struct CommandDefinition(pub String);
     impl CommandDefinition {
         pub fn sync<I: DeserializeOwned + TS, O: Serialize + TS>(
             _: &'static str,
-            _: fn(I) -> Result<O, String>,
+            _: fn(I, NativeCallContext) -> Result<O, String>,
         ) -> Self {
             Self(I::name(&ts_rs::Config::new()))
         }
         pub fn asynchronous<
             I: DeserializeOwned + TS,
             O: Serialize + TS,
-            F: Fn(I) -> Fut,
+            F: Fn(I, NativeCallContext) -> Fut,
             Fut: Future<Output = Result<O, String>>,
         >(
             _: &'static str,

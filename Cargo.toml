@@ -1,9 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-    "examples/gallery/native",
+    "examples/website/native",
     "examples/native-migration/native",
     "crates/solid-gpui",
+    "crates/solid-gpui-web",
     "crates/solid-gpui-macros",
     "crates/solid-gpui-bun-sys",
     "crates/gpui-iconify",
@@ -57,3 +58,9 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[patch.crates-io]
+gpui-pre-reqwest-client = { path = "vendor/gpui-reqwest-client" }
+gpui-pre = { path = "vendor/gpui" }
+gpui-pre-web = { path = "vendor/gpui-web" }
+gpui-pre-wgpu = { path = "vendor/gpui-wgpu" }

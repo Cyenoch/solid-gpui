@@ -41,6 +41,7 @@ fn accessibility_properties_validate_and_keep_stable_ids() {
         value: Some("A".into()),
         expanded: Some(false),
         level: None,
+        live: None,
     });
     let store = {
         let mut store = NodeStore::default();
@@ -74,6 +75,7 @@ fn accessibility_properties_validate_and_keep_stable_ids() {
         value: None,
         expanded: None,
         level: None,
+        live: None,
     });
     assert!(matches!(
         NodeStore::default().apply_snapshot(root_snapshot(1, vec![invalid])),
@@ -97,6 +99,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
         value: None,
         expanded: None,
         level: None,
+        live: None,
     };
     let patch = Patch::new(
         7,
@@ -152,6 +155,7 @@ fn accessibility_patch_updates_a_valid_label() {
                 value: None,
                 expanded: Some(true),
                 level: None,
+                live: None,
             }),
             focusable: false,
             selectable: false,
@@ -188,6 +192,7 @@ fn accessibility_patch_can_clear_existing_properties() {
         value: None,
         expanded: None,
         level: None,
+        live: None,
     });
     let mut store = NodeStore::default();
     store
@@ -500,6 +505,10 @@ fn style_values_must_be_finite_and_non_negative() {
         text_align: Some(TextAlignCode::Right),
         box_shadows: None,
         font_family: None,
+        grid_columns: None,
+        grid_rows: None,
+        grid_column_span: Some(2),
+        grid_row_span: Some(1),
         ..Style::default()
     });
     NodeStore::default()
@@ -874,7 +883,23 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
     );
     NodeStore::default().apply_snapshot(snapshot).unwrap();
 
+    let mut inline = Node::new(2, 1, 0, KIND_IMAGE);
+    inline.host_properties = Some(HostProperties::Image(ImageProperties {
+        source: format!("data:image/svg+xml,{}", "x".repeat(2048)),
+        object_fit: 2,
+        fallback_source: Some(format!("data:image/svg+xml,{}", "x".repeat(2048))),
+    }));
+    let inline = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), inline]);
+    let decoded = Snapshot::decode(&inline.encode().unwrap()).unwrap();
+    assert_eq!(decoded, inline);
+    NodeStore::default().apply_snapshot(decoded).unwrap();
+
     for properties in [
+        ImageProperties {
+            source: "x".repeat(crate::protocol::MAX_IMAGE_SOURCE_BYTES + 1),
+            object_fit: 2,
+            fallback_source: None,
+        },
         ImageProperties {
             source: String::new(),
             object_fit: 2,

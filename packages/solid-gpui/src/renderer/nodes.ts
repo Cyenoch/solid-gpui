@@ -268,6 +268,10 @@ function equalStyle(a: HostNodeInternal["style"], b: HostNodeInternal["style"]):
   return (
     a.width === b.width &&
     a.height === b.height &&
+    a.gridColumns === b.gridColumns &&
+    a.gridRows === b.gridRows &&
+    a.gridColumnSpan === b.gridColumnSpan &&
+    a.gridRowSpan === b.gridRowSpan &&
     a.flexDirection === b.flexDirection &&
     a.flexGrow === b.flexGrow &&
     a.padding === b.padding &&
@@ -401,7 +405,8 @@ function equalAccessibility(a: AccessibilityProperties | null, b: AccessibilityP
     a.selected === b.selected &&
     a.value === b.value &&
     a.expanded === b.expanded &&
-    a.level === b.level
+    a.level === b.level &&
+    a.live === b.live
   );
 }
 
@@ -696,6 +701,25 @@ export class NodeGraph {
 
   completeTransaction(): void {
     this.transaction = undefined;
+  }
+
+  publishedNode(id: number): HostNodeInternal | undefined {
+    return this.transaction?.nodesById.has(id) ? this.transaction.nodesById.get(id) : this.nodesById.get(id);
+  }
+
+  publishedChildren(parentId: number): readonly HostNodeInternal[] {
+    const parent = parentId === this.syntheticRoot.id ? this.syntheticRoot : this.publishedNode(parentId);
+    if (parent === undefined) return [];
+    return (this.transaction?.nodeStates.get(parent)?.children ?? parent.children).filter(
+      (child) => !this.createdIds.has(child.id),
+    );
+  }
+
+  publishedParentId(id: number): number {
+    const node = this.publishedNode(id);
+    if (node === undefined) throw new Error(`Node ${id} was not published`);
+    const previous = this.transaction?.nodeStates.get(node);
+    return (previous === undefined ? node.parent : previous.parent)?.id ?? this.syntheticRoot.id;
   }
 
   /** Disjoint removals from the published tree, before any current reparenting. */

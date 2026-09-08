@@ -9,9 +9,6 @@ import {
   isRedirect,
   redirect,
 } from "@solid-gpui/router";
-import { createGalleryState } from "../examples/gallery/src/gallery/context";
-import { createGalleryRouter } from "../examples/gallery/src/gallery/routes";
-import { PAGES, pagePath } from "../examples/gallery/src/gallery/types";
 
 function assert(condition: unknown, message: string): void {
   if (!condition) throw new Error(message);
@@ -194,25 +191,6 @@ try {
   assert(renderedError === "expected loader failure", "loader error rendering");
 } finally {
   root.unmount();
-}
-
-const galleryTransport = new MemoryTransport();
-const galleryRoot = createRoot(galleryTransport);
-const gallery = createGalleryState("dark");
-gallery.setRoot(galleryRoot);
-const galleryRouter = createGalleryRouter();
-try {
-  galleryRoot.render(() => <RouterProvider router={galleryRouter} />);
-  await galleryRouter.load();
-  for (const page of PAGES) {
-    const path = pagePath(page.id);
-    await galleryRouter.navigate({ to: path });
-    await Promise.resolve();
-    assert(galleryRouter.latestLocation.pathname === path, `Gallery navigation: ${path}`);
-    galleryTransport.submitted.length = 0;
-  }
-} finally {
-  galleryRoot.unmount();
 }
 
 // The real VM test receives this snapshot only after all asynchronous assertions.

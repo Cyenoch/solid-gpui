@@ -10,7 +10,10 @@ replacement uses a new protocol epoch on the existing surface after candidate re
 crosses generations; component owners and native caches do not. This avoids assuming
 module replacement preserves renderer identity or cleans up effects automatically.
 
-Production uses a Vite SSR bundle executed by Bun, without a development server.
+For Bun execution, production uses a bundle without a development server.
+[ADR-0017](0017-runtime-engines.md) clarifies the intended Embedded Bun release
+role and the separate QuickJS production target; this ADR describes the
+external Bun development path.
 The embedded one-evaluation runtime in ADR 0002 is unchanged; this development path uses
 an external Bun process. Rust/config changes require restart.
 

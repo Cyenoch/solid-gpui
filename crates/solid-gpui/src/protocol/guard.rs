@@ -135,7 +135,8 @@ impl<'a> Guard<'a> {
         match (parent, field) {
             (_, "content") => super::MAX_FILE_WRITE_BYTES,
             (_, "fontFamily") => 256,
-            (_, "path" | "source" | "fallbackSource") => 1024,
+            (_, "path") => 1024,
+            (_, "source" | "fallbackSource") => super::MAX_IMAGE_SOURCE_BYTES,
             (_, "dragType") => 512,
             (_, "tag") => 1024,
             (_, "title" | "action" | "name" | "label" | "key") => 1024,

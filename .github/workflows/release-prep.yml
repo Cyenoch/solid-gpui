@@ -60,10 +60,14 @@ jobs:
       - name: Pack router candidate (no publish)
         run: bun run task router-package-pack "$RUNNER_TEMP/solid-gpui-router-$RELEASE_VERSION.tgz"
 
+      - name: Pack Shiki candidate (no publish)
+        run: bun run task shiki-package-pack "$RUNNER_TEMP/solid-gpui-shiki-$RELEASE_VERSION.tgz"
+
       - name: Verify candidate package tarballs
         run: |
           test -s "$RUNNER_TEMP/solid-gpui-core-$RELEASE_VERSION.tgz"
           test -s "$RUNNER_TEMP/solid-gpui-router-$RELEASE_VERSION.tgz"
+          test -s "$RUNNER_TEMP/solid-gpui-shiki-$RELEASE_VERSION.tgz"
 
       - name: Upload candidate package tarballs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -72,5 +76,6 @@ jobs:
           path: |
             ${{ runner.temp }}/solid-gpui-core-*.tgz
             ${{ runner.temp }}/solid-gpui-router-*.tgz
+            ${{ runner.temp }}/solid-gpui-shiki-*.tgz
           if-no-files-found: error
           retention-days: 7

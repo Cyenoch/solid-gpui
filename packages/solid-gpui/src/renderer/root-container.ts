@@ -1,5 +1,6 @@
 import {
   COMMAND_INVOKE_NATIVE,
+  COMMAND_CANCEL_NATIVE,
   MAX_NATIVE_CALL_BYTES,
   COMMAND_ACTIVATE_WINDOW,
   COMMAND_BLUR,
@@ -54,6 +55,7 @@ import { TransportTerminatedError, type TransportTerminationListener } from "../
 import type { Appearance } from "../hooks";
 import { dispatchEvent, type DispatchContext } from "./dispatch";
 import { CommandClient } from "./command-client";
+import type { NativeCallOptions } from "../native-call";
 import { HostTree } from "./host-tree";
 import { afterRootCommit } from "./host-config";
 import { assertU32Option, nextU32 } from "./props";
@@ -164,8 +166,8 @@ export class RootContainer implements DispatchContext {
     this.onNotificationResponse = options.onNotificationResponse;
     this.commandClient = new CommandClient(this);
     this.tree = new HostTree({
-      invokeNative: (moduleId, moduleDigest, functionId, args) =>
-        this.invokeNative(moduleId, moduleDigest, functionId, args),
+      invokeNative: (moduleId, moduleDigest, functionId, args, options) =>
+        this.invokeNative(moduleId, moduleDigest, functionId, args, options),
       surfaceId: this.surfaceId,
       epoch: this.epoch,
       getRevision: () => this.revision,
@@ -176,7 +178,7 @@ export class RootContainer implements DispatchContext {
       },
       onCommitError: (error) => this.recordUnhandledError(error),
       submitCommand: (node, kind, payload) => this.submitCommand(node, kind, payload),
-      submitCommandValue: (node, kind, payload) => this.submitCommandValue(node, kind, payload),
+      submitCommandValue: (node, kind, payload, options) => this.submitCommandValue(node, kind, payload, options),
     });
   }
 
@@ -226,7 +228,12 @@ export class RootContainer implements DispatchContext {
   submitCommand(node: HostNodeInternal, kind: CommandKind, payload: CommandPayload): Promise<void> {
     return this.submitCommandValue(node, kind, payload).then(() => undefined);
   }
-  submitCommandValue(node: HostNodeInternal, kind: CommandKind, payload: CommandPayload): Promise<CommandValue | null> {
+  submitCommandValue(
+    node: HostNodeInternal,
+    kind: CommandKind,
+    payload: CommandPayload,
+    options?: NativeCallOptions,
+  ): Promise<CommandValue | null> {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
@@ -297,7 +304,7 @@ export class RootContainer implements DispatchContext {
       command: kind,
       payload,
     };
-    return this.commandClient.submit(command);
+    return this.commandClient.submit(command, options);
   }
   setTitle(title: string): Promise<void> {
     if (this.transportTerminated) {
@@ -328,7 +335,11 @@ export class RootContainer implements DispatchContext {
   private submitSurfaceCommand(kind: CommandKind, payload: CommandPayload): Promise<void> {
     return this.submitSurfaceCommandValue(kind, payload).then(() => undefined);
   }
-  private submitSurfaceCommandValue(kind: CommandKind, payload: CommandPayload): Promise<CommandValue | null> {
+  private submitSurfaceCommandValue(
+    kind: CommandKind,
+    payload: CommandPayload,
+    options?: NativeCallOptions,
+  ): Promise<CommandValue | null> {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
@@ -349,7 +360,31 @@ export class RootContainer implements DispatchContext {
       command: kind,
       payload,
     };
-    return this.commandClient.submit(command);
+    return this.commandClient.submit(command, options);
+  }
+
+  cancelNative(requestId: number): void {
+    if (this.transportTerminated || this.unmounted) return;
+    // Cancellation is ordered with commits, but needs no result observer.
+    try {
+      if (
+        !this.submitFrame(
+          encodeFrame({
+            type: "command",
+            surfaceId: this.surfaceId,
+            epoch: this.epoch,
+            afterRevision: this.revision,
+            requestId: this.commandClient.allocateRequestId(nextU32),
+            nodeId: 1,
+            command: COMMAND_CANCEL_NATIVE,
+            payload: { type: "cancel-native", requestId },
+          }),
+        )
+      )
+        throw this.terminationError ?? new Error("transport rejected cancellation");
+    } catch (error) {
+      this.terminate(new TransportTerminatedError("Native cancellation could not be delivered", error));
+    }
   }
 
   invokeNative(
@@ -357,6 +392,7 @@ export class RootContainer implements DispatchContext {
     moduleDigest: Uint8Array,
     functionId: number,
     args: Uint8Array,
+    options?: NativeCallOptions,
   ): Promise<Uint8Array> {
     if (!(moduleId instanceof Uint8Array) || moduleId.byteLength !== 16)
       return Promise.reject(new TypeError("native module id must contain exactly 16 bytes"));
@@ -368,13 +404,17 @@ export class RootContainer implements DispatchContext {
     if (args.byteLength > MAX_NATIVE_CALL_BYTES)
       return Promise.reject(new RangeError("native arguments exceed the supported size"));
     return afterRootCommit(this.tree, () =>
-      this.submitSurfaceCommandValue(COMMAND_INVOKE_NATIVE, {
-        type: "invoke-native",
-        moduleId,
-        moduleDigest,
-        functionId,
-        args,
-      }),
+      this.submitSurfaceCommandValue(
+        COMMAND_INVOKE_NATIVE,
+        {
+          type: "invoke-native",
+          moduleId,
+          moduleDigest,
+          functionId,
+          args,
+        },
+        options,
+      ),
     ).then((value) => {
       if (
         value === null ||

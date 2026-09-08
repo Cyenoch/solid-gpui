@@ -1,3 +1,6 @@
+export { NativeCommandError, type NativeCommandIdentity } from "./native-call";
+import { validateCallOptions, type NativeCallOptions } from "./native-call";
+export type { NativeCallOptions } from "./native-call";
 import { createMemo, createSignal, onCleanup } from "solid-js";
 import { createHostElement, type SolidElement } from "./renderer";
 import { afterRootCommit, resolveTree } from "./renderer/host-config";
@@ -12,6 +15,7 @@ export interface NativeInvoker {
     moduleDigest: Uint8Array,
     functionId: number,
     args: Uint8Array,
+    options?: NativeCallOptions,
   ): Promise<Uint8Array>;
 }
 export interface NativeCommandDescriptor {
@@ -117,16 +121,20 @@ function identity(values: readonly number[], length: number, name: string): Uint
 
 function commandProxy<T>(
   commands: readonly NativeCommandDescriptor[],
-  invoke: (id: number, request: unknown) => Promise<unknown>,
+  invoke: (id: number, request: unknown, options?: NativeCallOptions) => Promise<unknown>,
 ): T {
-  const proxy: Record<string, (request?: unknown) => Promise<unknown>> = Object.create(null);
+  const proxy: Record<string, (request?: unknown, options?: NativeCallOptions) => Promise<unknown>> =
+    Object.create(null);
   const ids = new Set<number>();
   for (const { id, name } of commands) {
     assertExtensionId(id, "native command id");
     if (!name || name === "then" || Object.hasOwn(proxy, name) || ids.has(id))
       throw new TypeError("Native commands must have unique IDs and non-then names");
     ids.add(id);
-    proxy[name] = async (request) => invoke(id, request === undefined ? null : request);
+    proxy[name] = async (request, options) => {
+      validateCallOptions(options);
+      return invoke(id, request === undefined ? null : request, options);
+    };
   }
   return Object.freeze(proxy) as T;
 }
@@ -134,11 +142,11 @@ function commandProxy<T>(
 export function createNativeClient<T>(invoker: NativeInvoker, descriptor: NativeClientDescriptor): T {
   const moduleId = identity(descriptor.moduleId, 16, "moduleId");
   const digest = identity(descriptor.moduleDigest, 32, "moduleDigest");
-  return commandProxy<T>(descriptor.commands, async (id, request) => {
+  return commandProxy<T>(descriptor.commands, async (id, request, options) => {
     const bytes = encodeJson(request);
     // Finish Solid's synchronous batch before asking the bound root to flush.
     await Promise.resolve();
-    return decodeJson(await invoker.invokeNative(moduleId.slice(), digest.slice(), id, bytes));
+    return decodeJson(await invoker.invokeNative(moduleId.slice(), digest.slice(), id, bytes, options));
   });
 }
 
@@ -294,7 +302,7 @@ export function createNativeComponent<P extends object, E extends object, R, S e
     });
     const tree = resolveTree(node);
     const pending = new Set<(error: Error) => void>();
-    const ref = commandProxy<R>(descriptor.commands, async (id, request) => {
+    const ref = commandProxy<R>(descriptor.commands, async (id, request, options) => {
       const args = encodeJson(request);
       await Promise.resolve();
       return afterRootCommit(tree, () => {
@@ -303,13 +311,18 @@ export function createNativeComponent<P extends object, E extends object, R, S e
         return new Promise((resolve, reject) => {
           pending.add(reject);
           void tree
-            .submitCommandValue(node, COMMAND_INVOKE_NATIVE, {
-              type: "invoke-native",
-              moduleId: providerId.slice(),
-              moduleDigest: catalogDigest.slice(),
-              functionId: id,
-              args,
-            })
+            .submitCommandValue(
+              node,
+              COMMAND_INVOKE_NATIVE,
+              {
+                type: "invoke-native",
+                moduleId: providerId.slice(),
+                moduleDigest: catalogDigest.slice(),
+                functionId: id,
+                args,
+              },
+              options,
+            )
             .then((result) => {
               if (disposed || !node.attached) throw new Error("Native component is unmounted");
               if (result?.type !== "bytes") throw new TypeError("Native command returned invalid bytes");

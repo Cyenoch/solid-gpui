@@ -58,7 +58,12 @@
       "import": "./dist/components.js",
       "default": "./dist/components.js"
     },
-    "./vite/build": "./src/vite/build.ts"
+    "./vite/build": "./src/vite/build.ts",
+    "./web": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.js",
+      "default": "./dist/web.js"
+    }
   },
   "engines": {
     "bun": ">=1.4.2"
@@ -70,7 +75,8 @@
     "core-js-pure": "3.50.0",
     "event-target-shim": "6.0.2",
     "oxc-transform": "0.148.0",
-    "oxfmt": "0.66.0"
+    "oxfmt": "0.66.0",
+    "@jridgewell/trace-mapping": "0.3.31"
   },
   "peerDependencies": {
     "solid-js": "^1.9.10",
@@ -86,6 +92,7 @@
   },
   "bin": {
     "solid-gpui-dev": "./src/vite/dev.ts",
-    "solid-gpui-build": "./src/vite/build.ts"
+    "solid-gpui-build": "./src/vite/build.ts",
+    "solid-gpui-quickjs-dev": "./src/vite/quickjs-dev.ts"
   }
 }

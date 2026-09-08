@@ -647,6 +647,7 @@ impl TextMode for Code {
         _: &NativeChildren,
     ) -> AnyElement {
         let mut v = gpui_component::input::Editor::new(s)
+            .h(gpui::relative(1.))
             .disabled(p.disabled)
             .readonly(p.readonly)
             .appearance(p.appearance)
@@ -954,6 +955,23 @@ mod tests {
         );
     }
     #[gpui::test]
+    fn editor_fills_its_native_viewport(cx: &mut TestAppContext) {
+        let f = super::super::test_support::Fixture::<TextControl<Code>>::new(
+            EditorProps {
+                default_value: Some("first\nsecond\nthird".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        cx.update_window(f.window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+            let state = f.view.read(cx).state.read(cx);
+            assert!(state.input_bounds().size.height > gpui::px(200.));
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
     fn fixed_textarea_rows_set_the_native_drawn_height(cx: &mut TestAppContext) {
         let f = super::super::test_support::Fixture::<TextControl<MultiLine>>::new(
             TextareaProps {
@@ -1075,6 +1093,77 @@ mod tests {
                     .is_err()
                 );
             });
+        });
+    }
+    #[gpui::test]
+    fn large_editor_composition_survives_parent_updates_resize_delayed_echo_and_undo(
+        cx: &mut TestAppContext,
+    ) {
+        let original = "start e\u{301} 👩🏽‍💻 🇸🇬 العربية אבג\n".repeat(1_000);
+        let fixture = crate::components::test_support::Fixture::<TextControl<Code>>::new(
+            EditorProps {
+                value: Some(original.clone()),
+                ..Default::default()
+            },
+            cx,
+        );
+        let identity = fixture.update(cx, |editor, window, cx| {
+            editor.focus((), window, cx).unwrap();
+            editor.state.update(cx, |state, cx| {
+                state.set_selected_range(0..5, cx);
+                state.replace_and_mark_text_in_range(None, "ni", None, window, cx);
+            });
+            editor.update(
+                EditorProps {
+                    value: Some("delayed server result".into()),
+                    line_numbers: false,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            );
+            assert!(editor.pending.is_some());
+            editor.state.entity_id()
+        });
+        cx.simulate_window_resize(
+            fixture.window.into(),
+            gpui::size(gpui::px(300.0), gpui::px(240.0)),
+        );
+        cx.update_window(fixture.window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx)
+        })
+        .unwrap();
+        fixture.update(cx, |editor, window, cx| {
+            editor.state.update(cx, |state, cx| {
+                state.replace_text_in_range(None, "你", window, cx)
+            })
+        });
+        cx.run_until_parked();
+        tick(cx);
+        let expected = format!("你{}", &original[5..]);
+        fixture.update(cx, |editor, window, cx| {
+            assert_eq!(editor.state.entity_id(), identity);
+            assert_eq!(editor.state.read(cx).value().as_ref(), expected);
+            assert!(editor.pending.is_none() && editor.retry_task.is_none());
+            editor.update(
+                EditorProps {
+                    value: Some(original.clone()),
+                    ack_edit_seq: 0,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            );
+            assert_eq!(editor.state.read(cx).value().as_ref(), expected);
+        });
+        cx.update_window(fixture.window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx)
+        })
+        .unwrap();
+        cx.dispatch_action(fixture.window.into(), gpui_component::input::Undo);
+        fixture.update(cx, |editor, _, cx| {
+            assert_eq!(editor.state.read(cx).value().as_ref(), original);
+            assert_eq!(editor.state.read(cx).selected_range(), 0..5);
         });
     }
 }

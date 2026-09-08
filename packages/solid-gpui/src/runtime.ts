@@ -1,4 +1,9 @@
-import { createComponent as createSolidComponent } from "solid-js";
+import {
+  ErrorBoundary as solidErrorBoundary,
+  Suspense as solidSuspense,
+  lazy as solidLazy,
+  createComponent as createSolidComponent,
+} from "solid-js";
 import type { SolidChild } from "./renderer/types";
 
 export {
@@ -8,6 +13,9 @@ export {
   createRenderEffect,
   createRoot,
   createSignal,
+  createResource,
+  useTransition,
+  startTransition,
   onCleanup,
   untrack,
 } from "solid-js";
@@ -38,3 +46,17 @@ export const spread = solidRenderer.spread;
 export const setProp = solidRenderer.setProp;
 export const mergeProps = solidRenderer.mergeProps;
 export const use = solidRenderer.use;
+
+// Solid control flow is host-independent; these types describe native children.
+export type Component<Props = {}> = (props: Props) => SolidChild;
+export const Suspense = solidSuspense as unknown as Component<{
+  children: SolidChild;
+  fallback?: SolidChild;
+}>;
+export const ErrorBoundary = solidErrorBoundary as unknown as Component<{
+  children: SolidChild;
+  fallback: SolidChild | ((error: unknown, reset: () => void) => SolidChild);
+}>;
+export const lazy = solidLazy as unknown as <Props>(
+  load: () => Promise<{ default: Component<Props> }>,
+) => Component<Props> & { preload(): Promise<{ default: Component<Props> }> };

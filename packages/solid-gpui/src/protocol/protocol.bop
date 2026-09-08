@@ -43,6 +43,7 @@ enum EventKind : uint8 {
     PointerDownOutside = 22;
     CloseRequested = 23;
     Extension = 24;
+    ApplicationActivation = 25;
 }
 
 enum CommandKind : uint8 {
@@ -83,6 +84,8 @@ enum CommandKind : uint8 {
     GetScrollOffset = 34;
     ScrollToOffset = 35;
     InvokeNative = 36;
+    CancelNative = 37;
+    ConfigureApplication = 38;
 }
 
 union Body {
@@ -206,6 +209,7 @@ message AccessibilityProperties {
     7 -> string value;
     8 -> bool expanded;
     9 -> uint32 level;
+    10 -> uint32 live;
 }
 
 message Transition {
@@ -300,6 +304,10 @@ message Style {
     61 -> uint32 borderBottomColor;
     62 -> uint32 borderLeftColor;
 
+    63 -> uint32 gridColumns;
+    64 -> uint32 gridRows;
+    65 -> uint32 gridColumnSpan;
+    66 -> uint32 gridRowSpan;
 }
 
 message Node {
@@ -440,6 +448,14 @@ union CommandPayload {
         2 -> byte[] moduleDigest;
         3 -> uint32 functionId;
         4 -> byte[] args;
+    }
+    13 -> message CancelNativeCommand {
+        1 -> uint32 requestId;
+    }
+    14 -> message ConfigureApplicationCommand {
+        1 -> bool keepAlive;
+        2 -> bool quit;
+        3 -> uint32 acknowledgedSequence;
     }
 }
 
@@ -584,6 +600,11 @@ union EventPayload {
     21 -> message ExtensionEvent {
         1 -> uint32 eventId;
         2 -> ExtensionField[] fields;
+    }
+    22 -> message ApplicationActivationEvent {
+        1 -> uint32 targetSurfaceId;
+        2 -> string reason;
+        3 -> string[] urls;
     }
 }
 

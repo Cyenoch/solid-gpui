@@ -8,6 +8,8 @@ const releaseFiles = {
   "packages/solid-gpui/package.json": '{\n  "version": "0.2.0"\n}\n',
   "packages/solid-gpui-router/package.json":
     '{\n  "version": "0.2.0",\n  "peerDependencies": {\n    "@solid-gpui/core": "^0.2.0"\n  }\n}\n',
+  "packages/solid-gpui-shiki/package.json":
+    '{\n  "version": "0.2.0",\n  "peerDependencies": {\n    "@solid-gpui/core": "^0.2.0"\n  }\n}\n',
   "Cargo.lock": "original cargo lock\n",
   "bun.lock": "original bun lock\n",
   "THIRD-PARTY-NOTICES.md": "original notices\n",
@@ -94,9 +96,12 @@ test("a successful release synchronizes package versions, the router peer and ge
     expect(await readFile(join(directory, "Cargo.toml"), "utf8")).toContain('version = "0.3.0"');
     const core = await Bun.file(join(directory, "packages/solid-gpui/package.json")).json();
     const router = await Bun.file(join(directory, "packages/solid-gpui-router/package.json")).json();
+    const shiki = await Bun.file(join(directory, "packages/solid-gpui-shiki/package.json")).json();
     expect(core.version).toBe("0.3.0");
     expect(router.version).toBe("0.3.0");
     expect(router.peerDependencies["@solid-gpui/core"]).toBe("^0.3.0");
+    expect(shiki.version).toBe("0.3.0");
+    expect(shiki.peerDependencies["@solid-gpui/core"]).toBe("^0.3.0");
     for (const file of ["Cargo.lock", "bun.lock", "THIRD-PARTY-NOTICES.md"]) {
       expect(await readFile(join(directory, file), "utf8")).toBe("updated\n");
     }

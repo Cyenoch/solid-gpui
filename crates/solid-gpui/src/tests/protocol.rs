@@ -215,6 +215,10 @@ fn root_node() -> Node {
             end_color: 0x131217ff,
             end_position: 1.,
         }),
+        grid_columns: None,
+        grid_rows: None,
+        grid_column_span: Some(2),
+        grid_row_span: Some(1),
         ..Style::default()
     });
     node
