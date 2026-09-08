@@ -72,6 +72,8 @@ pub const COMMAND_GET_FOCUS: u32 = generated_facts::COMMAND_GET_FOCUS;
 pub const COMMAND_CLIPBOARD_WRITE: u32 = generated_facts::COMMAND_CLIPBOARD_WRITE;
 pub const COMMAND_CLIPBOARD_READ: u32 = generated_facts::COMMAND_CLIPBOARD_READ;
 pub const COMMAND_OPEN_SURFACE: u32 = generated_facts::COMMAND_OPEN_SURFACE;
+pub const COMMAND_OPEN_POPUP: u32 = generated_facts::COMMAND_OPEN_POPUP;
+pub const COMMAND_CLOSE_POPUP: u32 = generated_facts::COMMAND_CLOSE_POPUP;
 pub const COMMAND_FILE_DIALOG_OPEN: u32 = generated_facts::COMMAND_FILE_DIALOG_OPEN;
 pub const COMMAND_FILE_DIALOG_SAVE: u32 = generated_facts::COMMAND_FILE_DIALOG_SAVE;
 pub const COMMAND_SHOW_NOTIFICATION: u32 = generated_facts::COMMAND_SHOW_NOTIFICATION;
@@ -374,6 +376,8 @@ schema_kind!(command_kind, CommandKind, CommandKind {
     ClipboardWrite => ClipboardWrite,
     ClipboardRead => ClipboardRead,
     OpenSurface => OpenSurface,
+    OpenPopup => OpenPopup,
+    ClosePopup => ClosePopup,
     FileDialogOpen => FileDialogOpen,
     FileDialogSave => FileDialogSave,
     ShowNotification => ShowNotification,
@@ -414,6 +418,16 @@ pub struct CommandMeta {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CommandOperation {
+    OpenPopup {
+        anchor_node_id: u32,
+        width: u32,
+        height: u32,
+        placement: u32,
+        gap: f32,
+    },
+    ClosePopup {
+        request_id: u32,
+    },
     Focus,
     Blur,
     SetSelection {
@@ -535,6 +549,8 @@ impl CommandOperation {
             Self::ClipboardWrite { .. } => CommandKind::ClipboardWrite,
             Self::ClipboardRead => CommandKind::ClipboardRead,
             Self::OpenSurface { .. } => CommandKind::OpenSurface,
+            Self::OpenPopup { .. } => CommandKind::OpenPopup,
+            Self::ClosePopup { .. } => CommandKind::ClosePopup,
             Self::FileDialogOpen { .. } => CommandKind::FileDialogOpen,
             Self::FileDialogSave { .. } => CommandKind::FileDialogSave,
             Self::ShowNotification { .. } => CommandKind::ShowNotification,

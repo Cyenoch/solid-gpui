@@ -358,6 +358,12 @@ add(
   "<N.Scrollable style={{ height: 240 }}>{Array.from({ length: 30 }, (_, i) => <View style={{ padding: 10 }}><N.Label text={`Project ${i + 1}`} /></View>)}</N.Scrollable>",
 );
 add(
+  "ScrollShadow",
+  "Reveal scrollable content with edge fades that disappear at the boundaries.",
+  componentDescriptionsChinese["Reveal scrollable content with edge fades that disappear at the boundaries."],
+  '<N.ScrollShadow axis="vertical" color="#0a0a0a" style={{ height: 180 }}>{Array.from({ length: 12 }, (_, i) => <View style={{ padding: 12 }}><N.Label text={`Project ${i + 1}`} /></View>)}</N.ScrollShadow>',
+);
+add(
   "FocusTrap",
   "Keep content within a bounded, keyboard-accessible region.",
   componentDescriptionsChinese["Keep content within a bounded, keyboard-accessible region."],
@@ -437,7 +443,11 @@ componentExamples.push({
   names: ["HoverCard"],
   source: componentExamples.find((e) => e.names.includes("Popover"))!.source.replace(/N\.Popover/g, "N.HoverCard"),
 });
-componentExamples.find((e) => e.names.includes("Popover"))!.names = ["Popover"];
+const popoverExample = componentExamples.find((e) => e.names.includes("Popover"))!;
+popoverExample.names = ["Popover"];
+popoverExample.description =
+  "Show contextual information inside the current window. For native content beyond its boundary, see the System popovers guide.";
+popoverExample.descriptionChinese = componentDescriptionsChinese[popoverExample.description];
 add(
   "Tooltip",
   "Explain a control on hover or keyboard focus.",

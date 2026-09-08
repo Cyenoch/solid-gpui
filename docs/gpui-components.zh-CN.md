@@ -17,34 +17,47 @@ const [name, setName] = createSignal("");
 
 ## 覆盖范围
 
-| 原生家族 | JS 入口 |
-| --- | --- |
-| 基础控件 | Alert、Avatar/AvatarGroup、Badge、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag |
-| 编辑与选择 | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret |
-| 数据与滚动 | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、FocusTrap |
-| 组合 | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar |
-| 消息与附件 | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素 |
-| 导航与设置 | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder |
-| 覆盖层 | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification |
-| 停靠 | DockArea，布局描述符创建真实原生 TabGroup 与 TilesState 容器 |
-| 图表 | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart |
-| 底层绘图 | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot |
-| 外观 | useNative().getTheme/setTheme，支持 light、dark、system，应用于原生 Component 和 Base 主题 |
-| 计算 | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout |
+| 原生家族   | JS 入口                                                                                                                                                                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 基础控件   | Alert、Avatar/AvatarGroup、Badge、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag |
+| 编辑与选择 | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                           |
+| 数据与滚动 | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                       |
+| 组合       | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar                                  |
+| 消息与附件 | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                  |
+| 导航与设置 | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                |
+| 覆盖层     | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                             |
+| 停靠       | DockArea，布局描述符创建真实原生 TabGroup 与 TilesState 容器                                                                                                                                                                                 |
+| 图表       | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                          |
+| 底层绘图   | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                              |
+| 外观       | useNative().getTheme/setTheme，支持 light、dark、system，应用于原生 Component 和 Base 主题                                                                                                                                                   |
+| 计算       | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                   |
 
 部分上游类型属于其他控件，不是独立屏幕元素：
 
 - 宿主每个窗口安装一次 Root、NotificationList、文本选择层、模态层及主题。Dialog、Sheet 和 Notification 使用该 Root。
 - Scrollbar 与 ScrollableMask 由 Scrollable 和列表/表格/消息滚动 API 集成，并使用对应原生滚动句柄。FocusTrapContainer 是 FocusTrap 的实现，DropdownMenuPopover 是 DropdownMenu 的实现。
-- FieldBuilder 通过 Field 的文本/子插槽表示。Command 条目/组、表格列/组、Tree 项、日期预设、菜单项和图表标签使用类型化属性或子描述符，不用不绘制内容的别名替代。
-- DivInspector 是条件启用的宿主调试工具，依赖启用时可通过 macOS `cmd-alt-i`、其他平台 `ctrl-shift-i` 打开，不是始终存在的生产 JSX 元素。
-- Rust trait、渲染 hook、几何句柄、transition helper 和注册表保留为实现机制，面向 JS 的能力由上述控件、命令及类型化数据表达。
+
+**ScrollShadow** 提供带动态边缘淡出的滚动区域，内部滚动视图、滚动条和淡出共用原生滚动句柄。
+`axis="horizontal"` 控制左右边缘，`axis="vertical"`（默认）控制上下边缘。
+纵向区域需要限定高度，横向区域可由内容决定高度，无需额外嵌套 `Scrollable`。
+
+`color` 应匹配周围背景色，默认使用主题背景；`fadeSize` 控制最大淡出范围，默认 24 像素，0 表示关闭淡出。
+接近边界的最后 `fadeSize` 像素内，淡出范围和不透明度随剩余距离逐渐减小。
+起点前缘完全清晰，终点后缘完全清晰；内容完全容纳时既无淡出，也无滚动条。
+原生绘制直接读取滚动几何信息，滚轮、拖动、`scrollTo` 和尺寸变化均无需 JavaScript 滚动订阅即可更新。
+覆盖层不拦截输入，绘制在滚动条下方，同时支持 `onScroll` 和 `getScrollPosition`。
+
+`scrollbarVisibility` 默认为 `"always"`，也支持 `"hover"` 和 `"scrolling"`。
+若覆盖式滚动条会挡住内容，请沿滚动条所在边缘预留内边距。
+网站的 Markdown 表格和组件 API 表格在 Web 与桌面端共用横向 `ScrollShadow`。
 
 固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与 138 个普通公共渲染接口分开列出。
 
 ## Popover 呈现范围
 
-`Popover` 在当前 GPUI 窗口内渲染，不能越过窗口边界。它支持原生 GPUI 焦点和关闭行为，但不会创建 AppKit `NSPopover` 或独立的系统弹层窗口。SDK 当前没有导出 `SystemPopover`。子 Surface 设计建议和各平台支持缺口见[原生呈现研究](../.scratch/native-presentation/spec.md)。
+`Popover` 在当前 GPUI 窗口内渲染，不能越过窗口边界。它支持原生 GPUI 焦点和关闭行为，但不会创建 AppKit `NSPopover` 或独立的系统弹层窗口。
+
+需要超出所属窗口时，从 `@solid-gpui/core` 导入 `SystemPopover`。它通过内容工厂创建独立的所属 Surface，并共享 Solid 上下文。API、多显示器行为、平台支持及原生验收限制见[系统弹层](system-popover.md)。
 
 ## 子内容与原生状态
 

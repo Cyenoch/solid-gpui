@@ -252,13 +252,18 @@ Preparation has a three-second deadline. A candidate that fails or becomes stale
 is discarded, and the previous generation resumes. Rebuild requests are latest
 wins; only one pending bundle and one candidate are retained.
 
-A candidate must describe exactly the currently open Surface set. Auxiliary roots
+A candidate must describe exactly the currently open persistent Surface set. Auxiliary roots
 created during setup must use stable explicit Surface IDs and share the connection;
 their default epoch comes from the host generation. Register their cleanup in the
 application owner and include their UI state in `captureState`. Opening/closing
 native windows or changing the window set during staging rejects that candidate
 instead of partially replacing the application. Zero-window keep-alive reload
 preserves the application connection and activation acknowledgement sequence.
+
+`SystemPopover` Surfaces are transient: the old generation closes them, and the
+new controlled state recreates them after activation. Their native IDs are not
+part of the candidate's persistent Surface set. Keep shared form state above the
+content factory and include it in `captureState`.
 
 After activation, asynchronous errors and native side effects are not rolled
 back. A failed development VM leaves the last native tree visible; a later edit

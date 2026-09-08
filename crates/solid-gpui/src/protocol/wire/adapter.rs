@@ -1668,6 +1668,24 @@ fn wire_command_payload<'a>(
     operation: &'a CommandOperation,
 ) -> Option<generated::CommandPayload<'a>> {
     match operation {
+        CommandOperation::OpenPopup {
+            anchor_node_id,
+            width,
+            height,
+            placement,
+            gap,
+        } => Some(generated::CommandPayload::OpenPopupCommand {
+            anchor_node_id: Some(*anchor_node_id),
+            width: Some(*width),
+            height: Some(*height),
+            placement: Some(*placement),
+            gap: Some(*gap),
+        }),
+        CommandOperation::ClosePopup { request_id } => {
+            Some(generated::CommandPayload::ClosePopupCommand {
+                request_id: Some(*request_id),
+            })
+        }
         CommandOperation::ConfigureApplication {
             keep_alive,
             quit,
@@ -1847,6 +1865,28 @@ fn validate_command(value: &Command) -> Result<(), ProtocolError> {
         return Err(invalid("nodeId"));
     }
     match &value.operation {
+        CommandOperation::OpenPopup {
+            anchor_node_id,
+            width,
+            height,
+            placement,
+            gap,
+        } if value.meta.node_id != 1
+            || *anchor_node_id < 2
+            || *width == 0
+            || *height == 0
+            || !valid_surface_size(*width, *height)
+            || *placement > 11
+            || !gap.is_finite()
+            || !(0.0..=1024.0).contains(gap) =>
+        {
+            return Err(invalid("popup options"));
+        }
+        CommandOperation::ClosePopup { request_id }
+            if value.meta.node_id != 1 || *request_id == 0 =>
+        {
+            return Err(invalid("popup surface"));
+        }
         CommandOperation::ConfigureApplication {
             keep_alive, quit, ..
         } if value.meta.surface_id != 0
@@ -2086,6 +2126,28 @@ fn decode_command_operation(
 ) -> Result<CommandOperation, ProtocolError> {
     let invalid = || ProtocolError::InvalidCommandPayload;
     match (kind, payload) {
+        (
+            CommandKind::OpenPopup,
+            Some(generated::CommandPayload::OpenPopupCommand {
+                anchor_node_id,
+                width,
+                height,
+                placement,
+                gap,
+            }),
+        ) => Ok(CommandOperation::OpenPopup {
+            anchor_node_id: anchor_node_id.ok_or_else(invalid)?,
+            width: width.ok_or_else(invalid)?,
+            height: height.ok_or_else(invalid)?,
+            placement: placement.ok_or_else(invalid)?,
+            gap: gap.ok_or_else(invalid)?,
+        }),
+        (
+            CommandKind::ClosePopup,
+            Some(generated::CommandPayload::ClosePopupCommand { request_id }),
+        ) => Ok(CommandOperation::ClosePopup {
+            request_id: request_id.ok_or_else(invalid)?,
+        }),
         (
             CommandKind::ConfigureApplication,
             Some(generated::CommandPayload::ConfigureApplicationCommand {

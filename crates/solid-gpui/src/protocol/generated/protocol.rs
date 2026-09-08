@@ -323,6 +323,8 @@ pub enum CommandKind {
     InvokeNative = 36,
     CancelNative = 37,
     ConfigureApplication = 38,
+    OpenPopup = 39,
+    ClosePopup = 40,
 }
 
 impl ::core::convert::TryFrom<u8> for CommandKind {
@@ -369,6 +371,8 @@ impl ::core::convert::TryFrom<u8> for CommandKind {
             36 => Ok(CommandKind::InvokeNative),
             37 => Ok(CommandKind::CancelNative),
             38 => Ok(CommandKind::ConfigureApplication),
+            39 => Ok(CommandKind::OpenPopup),
+            40 => Ok(CommandKind::ClosePopup),
             d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
                 d.into(),
             )),
@@ -418,6 +422,8 @@ impl ::core::convert::From<CommandKind> for u8 {
             CommandKind::InvokeNative => 36,
             CommandKind::CancelNative => 37,
             CommandKind::ConfigureApplication => 38,
+            CommandKind::OpenPopup => 39,
+            CommandKind::ClosePopup => 40,
         }
     }
 }
@@ -7983,6 +7989,26 @@ pub enum CommandPayload<'raw> {
         /// Field 3
         acknowledged_sequence: ::core::option::Option<u32>,
     },
+
+    /// Discriminator 15
+    OpenPopupCommand {
+        /// Field 1
+        anchor_node_id: ::core::option::Option<u32>,
+        /// Field 2
+        width: ::core::option::Option<u32>,
+        /// Field 3
+        height: ::core::option::Option<u32>,
+        /// Field 4
+        placement: ::core::option::Option<u32>,
+        /// Field 5
+        gap: ::core::option::Option<f32>,
+    },
+
+    /// Discriminator 16
+    ClosePopupCommand {
+        /// Field 1
+        request_id: ::core::option::Option<u32>,
+    },
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
@@ -8191,6 +8217,43 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             .unwrap_or(0)
                         + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                         + _acknowledged_sequence
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _anchor_node_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _placement
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::ClosePopupCommand {
+                    request_id: _request_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
                             .as_ref()
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
@@ -8449,6 +8512,50 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                 }
                 if let Some(v) = &_acknowledged_sequence {
                     3u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                0u8._serialize_chained(dest)?;
+            }
+            Self::OpenPopupCommand {
+                anchor_node_id: _anchor_node_id,
+                width: _width,
+                height: _height,
+                placement: _placement,
+                gap: _gap,
+            }
+            => {
+                15u8._serialize_chained(dest)?;
+                ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                if let Some(v) = &_anchor_node_id {
+                    1u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_width {
+                    2u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_height {
+                    3u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_placement {
+                    4u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_gap {
+                    5u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                0u8._serialize_chained(dest)?;
+            }
+            Self::ClosePopupCommand {
+                request_id: _request_id,
+            }
+            => {
+                16u8._serialize_chained(dest)?;
+                ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                if let Some(v) = &_request_id {
+                    1u8._serialize_chained(dest)?;
                     v._serialize_chained(dest)?;
                 }
                 0u8._serialize_chained(dest)?;
@@ -9485,6 +9592,174 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                     keep_alive: _keep_alive,
                     quit: _quit,
                     acknowledged_sequence: _acknowledged_sequence,
+                }
+            }
+            15 => {
+                let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                i += ::bebop::LEN_SIZE;
+
+                #[cfg(not(feature = "unchecked"))]
+                if len == 0 {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                if raw.len() < len {
+                    return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                }
+
+                let mut _anchor_node_id = None;
+                let mut _width = None;
+                let mut _height = None;
+                let mut _placement = None;
+                let mut _gap = None;
+
+                #[cfg(not(feature = "unchecked"))]
+                let mut last = 0;
+
+                while i < len {
+                    let di = raw[i];
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if di != 0 {
+                        if di < last {
+                            return Err(::bebop::DeserializeError::CorruptFrame);
+                        }
+                        last = di;
+                    }
+
+                    i += 1;
+                    match di {
+                        0 => {
+                            break;
+                        }
+                        1 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _anchor_node_id.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _anchor_node_id = Some(value)
+                        }
+                        2 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _width.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _width = Some(value)
+                        }
+                        3 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _height.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _height = Some(value)
+                        }
+                        4 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _placement.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _placement = Some(value)
+                        }
+                        5 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _gap.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _gap = Some(value)
+                        }
+                        _ => {
+                            i = len;
+                            break;
+                        }
+                    }
+                }
+
+                if i != len {
+                    debug_assert!(i > len);
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                CommandPayload::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                }
+            }
+            16 => {
+                let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                i += ::bebop::LEN_SIZE;
+
+                #[cfg(not(feature = "unchecked"))]
+                if len == 0 {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                if raw.len() < len {
+                    return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                }
+
+                let mut _request_id = None;
+
+                #[cfg(not(feature = "unchecked"))]
+                let mut last = 0;
+
+                while i < len {
+                    let di = raw[i];
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if di != 0 {
+                        if di < last {
+                            return Err(::bebop::DeserializeError::CorruptFrame);
+                        }
+                        last = di;
+                    }
+
+                    i += 1;
+                    match di {
+                        0 => {
+                            break;
+                        }
+                        1 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _request_id.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _request_id = Some(value)
+                        }
+                        _ => {
+                            i = len;
+                            break;
+                        }
+                    }
+                }
+
+                if i != len {
+                    debug_assert!(i > len);
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+
+                CommandPayload::ClosePopupCommand {
+                    request_id: _request_id,
                 }
             }
             _ => {
@@ -20632,6 +20907,26 @@ pub mod owned {
             /// Field 3
             acknowledged_sequence: ::core::option::Option<u32>,
         },
+
+        /// Discriminator 15
+        OpenPopupCommand {
+            /// Field 1
+            anchor_node_id: ::core::option::Option<u32>,
+            /// Field 2
+            width: ::core::option::Option<u32>,
+            /// Field 3
+            height: ::core::option::Option<u32>,
+            /// Field 4
+            placement: ::core::option::Option<u32>,
+            /// Field 5
+            gap: ::core::option::Option<f32>,
+        },
+
+        /// Discriminator 16
+        ClosePopupCommand {
+            /// Field 1
+            request_id: ::core::option::Option<u32>,
+        },
     }
 
     impl<'raw> ::core::convert::From<super::CommandPayload<'raw>> for CommandPayload {
@@ -20737,6 +21032,24 @@ pub mod owned {
                     keep_alive: _keep_alive,
                     quit: _quit,
                     acknowledged_sequence: _acknowledged_sequence,
+                },
+                super::CommandPayload::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                } => Self::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                },
+                super::CommandPayload::ClosePopupCommand {
+                    request_id: _request_id,
+                } => Self::ClosePopupCommand {
+                    request_id: _request_id,
                 },
             }
         }
@@ -20947,6 +21260,43 @@ pub mod owned {
                                 .unwrap_or(0)
                             + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                             + _acknowledged_sequence
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::OpenPopupCommand {
+                        anchor_node_id: _anchor_node_id,
+                        width: _width,
+                        height: _height,
+                        placement: _placement,
+                        gap: _gap,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _anchor_node_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _placement
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::ClosePopupCommand {
+                        request_id: _request_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
                                 .as_ref()
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
@@ -21205,6 +21555,50 @@ pub mod owned {
                     }
                     if let Some(v) = &_acknowledged_sequence {
                         3u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    0u8._serialize_chained(dest)?;
+                }
+                Self::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                }
+                => {
+                    15u8._serialize_chained(dest)?;
+                    ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                    if let Some(v) = &_anchor_node_id {
+                        1u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_width {
+                        2u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_height {
+                        3u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_placement {
+                        4u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_gap {
+                        5u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    0u8._serialize_chained(dest)?;
+                }
+                Self::ClosePopupCommand {
+                    request_id: _request_id,
+                }
+                => {
+                    16u8._serialize_chained(dest)?;
+                    ::bebop::write_len(dest, size - ::bebop::LEN_SIZE * 2 - 1)?;
+                    if let Some(v) = &_request_id {
+                        1u8._serialize_chained(dest)?;
                         v._serialize_chained(dest)?;
                     }
                     0u8._serialize_chained(dest)?;
@@ -22241,6 +22635,174 @@ pub mod owned {
                         keep_alive: _keep_alive,
                         quit: _quit,
                         acknowledged_sequence: _acknowledged_sequence,
+                    }
+                }
+                15 => {
+                    let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                    i += ::bebop::LEN_SIZE;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if len == 0 {
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    if raw.len() < len {
+                        return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                    }
+
+                    let mut _anchor_node_id = None;
+                    let mut _width = None;
+                    let mut _height = None;
+                    let mut _placement = None;
+                    let mut _gap = None;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    let mut last = 0;
+
+                    while i < len {
+                        let di = raw[i];
+
+                        #[cfg(not(feature = "unchecked"))]
+                        if di != 0 {
+                            if di < last {
+                                return Err(::bebop::DeserializeError::CorruptFrame);
+                            }
+                            last = di;
+                        }
+
+                        i += 1;
+                        match di {
+                            0 => {
+                                break;
+                            }
+                            1 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _anchor_node_id.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _anchor_node_id = Some(value)
+                            }
+                            2 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _width.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _width = Some(value)
+                            }
+                            3 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _height.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _height = Some(value)
+                            }
+                            4 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _placement.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _placement = Some(value)
+                            }
+                            5 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _gap.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _gap = Some(value)
+                            }
+                            _ => {
+                                i = len;
+                                break;
+                            }
+                        }
+                    }
+
+                    if i != len {
+                        debug_assert!(i > len);
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    CommandPayload::OpenPopupCommand {
+                        anchor_node_id: _anchor_node_id,
+                        width: _width,
+                        height: _height,
+                        placement: _placement,
+                        gap: _gap,
+                    }
+                }
+                16 => {
+                    let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
+                    i += ::bebop::LEN_SIZE;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    if len == 0 {
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    if raw.len() < len {
+                        return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+                    }
+
+                    let mut _request_id = None;
+
+                    #[cfg(not(feature = "unchecked"))]
+                    let mut last = 0;
+
+                    while i < len {
+                        let di = raw[i];
+
+                        #[cfg(not(feature = "unchecked"))]
+                        if di != 0 {
+                            if di < last {
+                                return Err(::bebop::DeserializeError::CorruptFrame);
+                            }
+                            last = di;
+                        }
+
+                        i += 1;
+                        match di {
+                            0 => {
+                                break;
+                            }
+                            1 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _request_id.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _request_id = Some(value)
+                            }
+                            _ => {
+                                i = len;
+                                break;
+                            }
+                        }
+                    }
+
+                    if i != len {
+                        debug_assert!(i > len);
+                        return Err(::bebop::DeserializeError::CorruptFrame);
+                    }
+
+                    CommandPayload::ClosePopupCommand {
+                        request_id: _request_id,
                     }
                 }
                 _ => {

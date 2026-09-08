@@ -21,6 +21,28 @@ export default function Example() {
 }`,
 });
 export const componentVariants: ComponentVariant[] = [
+  {
+    component: "ScrollShadow",
+    id: "ScrollShadow--vertical",
+    title: "Vertical",
+    description: "A bounded vertical viewport with wider fades and room for its scrollbar.",
+    source: `import * as N from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+export default function Example() {
+  return <N.ScrollShadow axis="vertical" color="#0a0a0a" fadeSize={40} style={{ height: 180 }}><View style={{ paddingRight: 14 }}>{Array.from({ length: 12 }, (_, i) => <View style={{ padding: 12 }}><N.Label text={"Project " + (i + 1)} /></View>)}</View></N.ScrollShadow>;
+}`,
+  },
+  {
+    component: "ScrollShadow",
+    id: "ScrollShadow--horizontal",
+    title: "Horizontal",
+    description: "A content-sized horizontal viewport with a visible scrollbar and dynamic edge fades.",
+    source: `import * as N from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+export default function Example() {
+  return <N.ScrollShadow axis="horizontal" color="#0a0a0a" style={{ width: 280 }}><View style={{ width: 720, flexDirection: "row", paddingBottom: 14 }}>{Array.from({ length: 6 }, (_, i) => <View style={{ width: 120, flexShrink: 0, padding: 12 }}><N.Label text={\`Column \${i + 1}\`} /></View>)}</View></N.ScrollShadow>;
+}`,
+  },
   example(
     "primary",
     "Primary",

@@ -1,4 +1,5 @@
 mod application_lifecycle;
+mod popup;
 use crate::motion;
 #[cfg(feature = "embedded-bun")]
 use crate::runtime::embedded::EmbeddedBunAdapter;
@@ -289,6 +290,7 @@ fn check_command_metadata(meta: CommandMeta, actual: (u32, u32, u32)) -> Command
 }
 
 struct NativeStateRegistry {
+    popups: HashMap<u32, popup::PopupSession>,
     application: ApplicationLifecycle,
     application_surface_id: Option<u32>,
     runtime: Arc<dyn RuntimeAdapter>,
@@ -315,6 +317,7 @@ impl NativeStateRegistry {
         baseline_keybindings: Vec<KeyBinding>,
     ) -> Self {
         Self {
+            popups: HashMap::new(),
             runtime,
             profile: Box::new(profile),
             application: ApplicationLifecycle::default(),
@@ -408,7 +411,15 @@ impl NativeStateRegistry {
                 root.update(cx, |_, cx| {
                     cx.observe_window_activation(window, move |_, _, cx| {
                         if let Some(registry) = activation_registry.upgrade() {
-                            registry.update(cx, |registry, cx| registry.restore_keybindings(cx));
+                            registry.update(cx, |registry, cx| {
+                                registry.restore_keybindings(cx);
+                                let registry = cx.weak_entity();
+                                cx.defer(move |cx| {
+                                    let _ = registry.update(cx, |registry, cx| {
+                                        registry.dismiss_unrelated_popups(cx)
+                                    });
+                                });
+                            });
                         }
                     })
                 })
@@ -606,10 +617,21 @@ impl NativeStateRegistry {
     ) -> Result<ApplicationLifecycle, String> {
         let ids: std::collections::HashSet<_> = snapshots.iter().map(|s| s.surface_id).collect();
         if ids.len() != snapshots.len()
-            || ids.len() != self.surfaces.len()
-            || self.surfaces.keys().any(|id| !ids.contains(id))
+            || ids.len()
+                != self
+                    .surfaces
+                    .keys()
+                    .filter(|id| {
+                        !self.popups.contains_key(id) && !self.retired_surface_ids.contains(id)
+                    })
+                    .count()
+            || ids.iter().any(|id| {
+                !self.surfaces.contains_key(id)
+                    || self.popups.contains_key(id)
+                    || self.retired_surface_ids.contains(id)
+            })
         {
-            return Err("candidate must replace exactly the current open Surface set".into());
+            return Err("candidate must replace exactly the current persistent Surface set".into());
         }
         for snapshot in snapshots {
             let surface = &self.surfaces[&snapshot.surface_id];
@@ -674,6 +696,23 @@ impl NativeStateRegistry {
     fn route_payload(&mut self, payload: &[u8], cx: &mut Context<Self>) -> Result<(), String> {
         let message = decode_message(payload)
             .map_err(|error| format!("rejected renderer commit: {error}"))?;
+        let surface_id = match &message {
+            DecodedMessage::Snapshot(snapshot) => snapshot.surface_id,
+            DecodedMessage::Patch(patch) => patch.surface_id,
+            DecodedMessage::Command(command) => command.meta.surface_id,
+        };
+        if self.retired_surface_ids.contains(&surface_id) {
+            // Native dismissal can race the JS acknowledgement and initial
+            // Snapshot. The late child root needs its own terminal event.
+            if let DecodedMessage::Snapshot(snapshot) = message {
+                send_event_or_exit(
+                    self.runtime.as_ref(),
+                    "retired surface closed event",
+                    Event::surface_closed(surface_id, snapshot.epoch, snapshot.revision, 1),
+                );
+            }
+            return Ok(());
+        }
         match message {
             DecodedMessage::Snapshot(snapshot) => {
                 self.apply_to_surface(DecodedMessage::Snapshot(snapshot), cx)
@@ -739,6 +778,8 @@ impl NativeStateRegistry {
                         Ok(())
                     }
                     CommandKind::OpenSurface => self.open_surface(command, cx),
+                    CommandKind::OpenPopup => self.open_popup(command, cx),
+                    CommandKind::ClosePopup => self.close_popup_command(command, cx),
                     _ => self.apply_to_surface(DecodedMessage::Command(command), cx),
                 }
             }
@@ -778,6 +819,7 @@ impl NativeStateRegistry {
         };
         let root = surface.root.clone();
         let previous_epoch = root.read(cx).store().epoch();
+        let first_snapshot = previous_epoch == 0 && matches!(message, DecodedMessage::Snapshot(_));
         surface
             .window
             .update(cx, |_, window, cx| {
@@ -787,6 +829,12 @@ impl NativeStateRegistry {
             })
             .map_err(|error| format!("surface {surface_id} window is unavailable: {error}"))?
             .map_err(|error| format!("surface {surface_id} rejected commit: {error}"))?;
+        if first_snapshot {
+            self.popup_received_snapshot(surface_id, cx);
+        }
+        if root.read(cx).store().epoch() != previous_epoch && previous_epoch != 0 {
+            self.close_owned_popups(surface_id, cx);
+        }
         if root.read(cx).store().epoch() != previous_epoch
             && self.keybindings.remove(&surface_id).is_some()
         {
@@ -981,13 +1029,21 @@ impl NativeStateRegistry {
         let Some(surface_id) = self.windows.get(&window_id).copied() else {
             return false;
         };
+        self.close_owned_popups(surface_id, cx);
+        self.release_popup(surface_id, cx);
         if !self.transport_terminated {
             let root = self
                 .surfaces
                 .get(&surface_id)
                 .map(|surface| surface.root.clone());
             if let Some(root) = root {
-                root.update(cx, |root, _| root.emit_surface_closed());
+                root.update(cx, |root, _| {
+                    // An uninitialized child has no wire identity yet. A late
+                    // Snapshot receives a terminal event from route_payload.
+                    if root.store().epoch() != 0 {
+                        root.emit_surface_closed();
+                    }
+                });
             }
         }
         self.windows.remove(&window_id);
@@ -995,18 +1051,23 @@ impl NativeStateRegistry {
         self.surfaces.remove(&surface_id);
         self.keybindings.remove(&surface_id);
         self.restore_keybindings(cx);
-        self.surfaces.is_empty() && !self.application.keep_alive
+        self.surfaces
+            .keys()
+            .all(|id| self.popups.contains_key(id) || self.retired_surface_ids.contains(id))
+            && !self.application.keep_alive
     }
     fn close_all(&mut self, cx: &mut Context<Self>) {
         self.transport_terminated = true;
         // Removing a window invokes `on_window_closed` synchronously. Drop the
         // registry's callback before that update can re-enter this entity.
         self.close_subscription.take();
-        let windows = self
-            .surfaces
-            .values()
-            .map(|surface| surface.window)
+        let mut ids = self.surfaces.keys().copied().collect::<Vec<_>>();
+        ids.sort_unstable_by(|a, b| b.cmp(a));
+        let windows = ids
+            .into_iter()
+            .map(|id| self.surfaces[&id].window)
             .collect::<Vec<_>>();
+        self.popups.clear();
         self.keybindings.clear();
         self.profile
             .restore_keybindings(&self.baseline_keybindings, Vec::new(), cx);

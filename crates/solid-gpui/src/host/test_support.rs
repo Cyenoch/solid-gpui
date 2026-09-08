@@ -111,6 +111,9 @@ fn command(
         CommandKind::CancelNative => CommandOperation::CancelNative {
             request_id: payload.unwrap().0,
         },
+        CommandKind::OpenPopup | CommandKind::ClosePopup => {
+            panic!("construct popup requests with explicit anchors and identity")
+        }
         CommandKind::ConfigureApplication => {
             panic!("application controls use application-scoped metadata")
         }
@@ -2677,4 +2680,294 @@ fn generation_preflight_validates_all_windows_and_zero_window_activation(cx: &mu
         assert_eq!(lifecycle.epoch, 2);
         assert!(lifecycle.keep_alive);
     });
+}
+
+#[gpui::test]
+fn system_popover_cancellation_and_epoch_replacement_retire_owned_surfaces(
+    cx: &mut TestAppContext,
+) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    let weak = registry.downgrade();
+    let subscription = cx.update(|cx| {
+        cx.on_window_closed(move |cx, id| {
+            let _ = weak.update(cx, |registry, cx| registry.window_closed(id, cx));
+        })
+    });
+    registry.update(cx, |registry, cx| {
+        registry.close_subscription = Some(subscription);
+        registry.open_initial(cx).unwrap();
+    });
+    let snapshot = |epoch| {
+        Snapshot::new(
+            1,
+            epoch,
+            0,
+            1,
+            vec![
+                Node::new(1, 0, 0, KIND_VIEW),
+                styled_view(
+                    2,
+                    1,
+                    0,
+                    Style {
+                        width: Some(120.0),
+                        height: Some(32.0),
+                        ..Default::default()
+                    },
+                ),
+            ],
+        )
+    };
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot(1).encode().unwrap(), cx)
+        })
+        .unwrap();
+    draw_surface(&registry, cx, 1);
+    take_events(&runtime);
+    let request = |request_id, operation| {
+        Command::new(
+            CommandMeta {
+                surface_id: 1,
+                epoch: 1,
+                after_revision: 1,
+                request_id,
+                node_id: 1,
+            },
+            operation,
+        )
+    };
+    let open = || CommandOperation::OpenPopup {
+        anchor_node_id: 2,
+        width: 300,
+        height: 180,
+        placement: 0,
+        gap: 8.0,
+    };
+    registry.update(cx, |registry, cx| {
+        registry
+            .route_payload(&request(1, open()).encode().unwrap(), cx)
+            .unwrap();
+        assert_eq!(registry.popups.len(), 1);
+        registry
+            .route_payload(
+                &request(2, CommandOperation::ClosePopup { request_id: 1 })
+                    .encode()
+                    .unwrap(),
+                cx,
+            )
+            .unwrap();
+        assert!(registry.popups.is_empty());
+        assert_eq!(registry.surfaces.len(), 1);
+    });
+    assert!(!command_result(&take_events(&runtime), 1).success);
+    route_command(&registry, cx, request(3, open()));
+    let result = command_result(&take_events(&runtime), 3);
+    assert!(result.success, "{:?}", result.error);
+    let Some(CommandValue::Number(child)) = result.value else {
+        panic!("popup Surface ID")
+    };
+    assert_eq!(child, 3, "cancelled IDs must never be reused");
+    draw_surface(&registry, cx, 1);
+    assert!(
+        take_events(&runtime)
+            .iter()
+            .all(|event| !matches!(event.payload, EventPayload::CommandResult(_)))
+    );
+    registry.update(cx, |registry, cx| {
+        let content = Snapshot::new(child, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+        registry
+            .route_payload(&content.encode().unwrap(), cx)
+            .unwrap();
+        #[cfg(feature = "quickjs")]
+        {
+            let configuration = Command::new(
+                CommandMeta {
+                    surface_id: 0,
+                    epoch: 2,
+                    after_revision: 0,
+                    request_id: 1,
+                    node_id: 0,
+                },
+                CommandOperation::ConfigureApplication {
+                    keep_alive: false,
+                    quit: false,
+                    acknowledged_sequence: 0,
+                },
+            );
+            assert!(
+                registry
+                    .prepare_generation(&[snapshot(2)], &configuration, 2, cx)
+                    .is_ok()
+            );
+        }
+        registry
+            .route_payload(&snapshot(2).encode().unwrap(), cx)
+            .unwrap();
+    });
+    cx.run_until_parked();
+    registry.read_with(cx, |registry, cx| {
+        assert_eq!(registry.surfaces.len(), 1);
+        assert!(registry.popups.is_empty());
+        assert!(registry.retired_surface_ids.contains(&child));
+        assert!(registry.surfaces[&1].root.read(cx).popup_anchors.is_empty());
+    });
+    take_events(&runtime);
+    registry.update(cx, |registry, cx| {
+        let late = Snapshot::new(child, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+        assert!(
+            registry.route_payload(&late.encode().unwrap(), cx).is_ok(),
+            "a retired Surface must not terminate the application"
+        );
+        let unknown = Snapshot::new(999, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW)]);
+        assert!(
+            registry
+                .route_payload(&unknown.encode().unwrap(), cx)
+                .is_err()
+        );
+    });
+    assert!(
+        take_events(&runtime)
+            .iter()
+            .any(|event| event.meta.surface_id == child
+                && matches!(event.payload, EventPayload::SurfaceClosed))
+    );
+}
+
+#[gpui::test]
+fn system_popover_placement_flips_at_edges_and_recovers_requested_size(cx: &mut TestAppContext) {
+    use gpui::{point, popup::*};
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .unwrap();
+    let parent = window_for(&registry, cx, 1).into();
+    let displays = [
+        Bounds::new(point(px(-1280.0), px(0.0)), size(px(1280.0), px(800.0))),
+        Bounds::new(point(px(0.0), px(-900.0)), size(px(1600.0), px(900.0))),
+    ];
+    assert_eq!(
+        popup_display(
+            Bounds::new(point(px(-10.0), px(-100.0)), size(px(100.0), px(30.0))),
+            &displays
+        ),
+        Some(1)
+    );
+    assert_eq!(
+        popup_display(
+            Bounds::new(point(px(-900.0), px(200.0)), size(px(100.0), px(30.0))),
+            &displays
+        ),
+        Some(0)
+    );
+    assert_eq!(
+        popup_display(
+            Bounds::new(point(px(50.0), px(40.0)), size(px(20.0), px(20.0))),
+            &displays
+        ),
+        Some(1)
+    );
+    let requested = size(px(300.0), px(200.0));
+    let mut options = PopupOptions {
+        parent,
+        anchor_rect: Bounds::new(point(px(-80.0), px(720.0)), size(px(60.0), px(32.0))),
+        anchor: PopupAnchor::BottomLeft,
+        gravity: PopupGravity::BottomRight,
+        constraint_adjustment: PopupConstraintAdjustment::all(),
+        offset: point(px(0.0), px(8.0)),
+        grab: false,
+    };
+    let work = Bounds::new(point(px(-1280.0), px(0.0)), size(px(1280.0), px(800.0)));
+    let bounds = popup_bounds(&options, requested, work);
+    assert_eq!(bounds, Bounds::new(point(px(-320.0), px(512.0)), requested));
+    let tiny = Bounds::new(point(px(-200.0), px(0.0)), size(px(200.0), px(120.0)));
+    let constrained = popup_bounds(&options, requested, tiny);
+    assert_eq!(constrained, tiny);
+    options.anchor_rect.origin = point(px(-900.0), px(200.0));
+    let restored = popup_bounds(&options, requested, work);
+    assert_eq!(restored.size, requested);
+    assert_eq!(restored.origin, point(px(-900.0), px(240.0)));
+}
+
+#[gpui::test]
+fn system_popover_nested_activation_uses_native_focus_before_observers_catch_up(
+    cx: &mut TestAppContext,
+) {
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    let snapshot = |surface| {
+        Snapshot::new(
+            surface,
+            1,
+            0,
+            1,
+            vec![
+                Node::new(1, 0, 0, KIND_VIEW),
+                styled_view(
+                    2,
+                    1,
+                    0,
+                    Style {
+                        width: Some(100.0),
+                        height: Some(32.0),
+                        ..Default::default()
+                    },
+                ),
+            ],
+        )
+    };
+    registry.update(cx, |registry, cx| {
+        registry.open_initial(cx).unwrap();
+        registry
+            .route_payload(&snapshot(1).encode().unwrap(), cx)
+            .unwrap();
+    });
+    let open = |owner| {
+        Command::new(
+            CommandMeta {
+                surface_id: owner,
+                epoch: 1,
+                after_revision: 1,
+                request_id: 1,
+                node_id: 1,
+            },
+            CommandOperation::OpenPopup {
+                anchor_node_id: 2,
+                width: 240,
+                height: 160,
+                placement: 0,
+                gap: 8.0,
+            },
+        )
+    };
+    route_command(&registry, cx, open(1));
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot(2).encode().unwrap(), cx)
+        })
+        .unwrap();
+    draw_surface(&registry, cx, 2);
+    route_command(&registry, cx, open(2));
+    registry.update(cx, |registry, cx| {
+        registry
+            .route_payload(&snapshot(3).encode().unwrap(), cx)
+            .unwrap();
+        // The OS already names the new key window, before GPUI activation callbacks run.
+        assert_eq!(
+            cx.active_window().unwrap().window_id(),
+            registry.surfaces[&3].window.window_id()
+        );
+        registry.dismiss_unrelated_popups(cx);
+        assert!(
+            registry.popups.contains_key(&2),
+            "nested activation must retain its parent"
+        );
+        assert!(
+            registry.popups.contains_key(&3),
+            "nested activation must retain its child"
+        );
+    });
+    cx.run_until_parked();
 }

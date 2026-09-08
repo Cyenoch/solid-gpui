@@ -37,7 +37,8 @@ References:
 - [Router](router.md) — file-based routing setup, native navigation, and TanStack references.
 - [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
-- [Native presentation research](../.scratch/native-presentation/spec.md) — proposed system popovers and SwiftUI composition, current backend gaps, and implementation acceptance gates; these capabilities are not implemented.
+- [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
+- [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
 - [GPUI Component Shell](https://longbridge.github.io/gpui-component/shell/) — host-owned rendering and script snapshot reference.
 - [GPUI Component source](../references/gpui-component/) — checked-in source used for implementation comparison.

@@ -311,6 +311,15 @@ export interface WindowOpenOptions {
 }
 
 export type CommandPayload =
+  | {
+      readonly type: "open-popup";
+      readonly anchorNodeId: number;
+      readonly width: number;
+      readonly height: number;
+      readonly placement: number;
+      readonly gap: number;
+    }
+  | { readonly type: "close-popup"; readonly requestId: number }
   | null
   | {
       readonly type: "configure-application";

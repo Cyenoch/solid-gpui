@@ -1,4 +1,4 @@
-import { generationHost, encodeGenerationState } from "./generation";
+import { generationHost, encodeGenerationState, activateGeneration } from "./generation";
 import { SurfaceRouter } from "./renderer/surface-router";
 import { createRoot as createOwner } from "solid-js";
 import { createRootWithRouter, type Root, type RootOptions, type SolidElement } from "./renderer";
@@ -311,6 +311,7 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
           });
         },
         activate: () => {
+          activateGeneration();
           if (root) activeDefinition.onMount?.(root);
         },
         retire,

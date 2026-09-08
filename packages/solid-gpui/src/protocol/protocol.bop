@@ -86,6 +86,8 @@ enum CommandKind : uint8 {
     InvokeNative = 36;
     CancelNative = 37;
     ConfigureApplication = 38;
+    OpenPopup = 39;
+    ClosePopup = 40;
 }
 
 union Body {
@@ -456,6 +458,16 @@ union CommandPayload {
         1 -> bool keepAlive;
         2 -> bool quit;
         3 -> uint32 acknowledgedSequence;
+    }
+    15 -> message OpenPopupCommand {
+        1 -> uint32 anchorNodeId;
+        2 -> uint32 width;
+        3 -> uint32 height;
+        4 -> uint32 placement;
+        5 -> float32 gap;
+    }
+    16 -> message ClosePopupCommand {
+        1 -> uint32 requestId;
     }
 }
 

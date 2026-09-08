@@ -103,6 +103,9 @@ SurfaceIdReusedError	both
 SurfaceKind	type
 SurfaceOpenOptions	type
 SurfaceOptions	type
+SystemPopover	value
+SystemPopoverPlacement	type
+SystemPopoverProps	type
 Text	value
 TextAlign	type
 TextDecoration	type

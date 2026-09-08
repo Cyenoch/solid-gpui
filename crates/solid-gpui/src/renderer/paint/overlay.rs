@@ -16,6 +16,7 @@ struct RenderedBoundsElement {
     element: AnyElement,
     node_id: u32,
     rendered_bounds: RenderedBounds,
+    clip: bool,
 }
 
 impl IntoElement for RenderedBoundsElement {
@@ -57,6 +58,11 @@ impl Element for RenderedBoundsElement {
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
+        let bounds = if self.clip {
+            bounds.intersect(&window.content_mask().bounds)
+        } else {
+            bounds
+        };
         let frame = (
             f32::from(bounds.origin.x),
             f32::from(bounds.origin.y),
@@ -245,11 +251,12 @@ pub(super) fn apply(
         } else {
             element
         };
-    if captures_anchor_bounds {
+    if captures_anchor_bounds || root.popup_anchors.contains(&node.id) {
         RenderedBoundsElement {
             element,
             node_id: node.id,
             rendered_bounds: Rc::clone(&root.rendered_bounds),
+            clip: root.popup_anchors.contains(&node.id),
         }
         .into_any()
     } else {

@@ -180,48 +180,60 @@ not imply that a new frame has been painted.
 
 The semantic command kind remains the following complete set:
 
-| Code | Kind                | Payload / ownership                                      |
-| ---: | ------------------- | -------------------------------------------------------- |
-|    1 | Focus               | null; focusable node                                     |
-|    2 | Blur                | null; focusable node                                     |
-|    3 | SetSelection        | u32 start/end; TextInput                                 |
-|    4 | ScrollToIndex       | u32 index/alignment; VirtualList                         |
-|    5 | ScrollToEnd         | null; VirtualList                                        |
-|    6 | SetTitle            | text; root                                               |
-|    7 | ResizeWindow        | u32 width/height; root                                   |
-|    8 | ZoomWindow          | null; root                                               |
-|    9 | ToggleFullscreen    | null; root                                               |
-|   10 | OpenUrl             | text; root                                               |
-|   11 | FocusNext           | null; root                                               |
-|   12 | FocusPrev           | null; root                                               |
-|   13 | GetWindowSize       | null; root                                               |
-|   14 | GetFocus            | null; focusable node                                     |
-|   15 | ClipboardWrite      | text; root                                               |
-|   16 | ClipboardRead       | null; root                                               |
-|   17 | OpenSurface         | title, u32 width/height, optional creation options; root |
-|   18 | FileDialogOpen      | title, directories, multiple; root                       |
-|   19 | FileDialogSave      | default name text; root                                  |
-|   20 | ShowNotification    | title, body, optional action list; root                  |
-|   21 | SetMenus            | complete menu tree; root                                 |
-|   22 | SetKeybindings      | complete binding list; root                              |
-|   23 | SetClosePolicy      | `allow` or `require-confirmation`; root                  |
-|   24 | ResolveCloseRequest | request ID and allow bool; root                          |
-|   25 | ReadTextFile        | absolute path text; root                                 |
-|   26 | WriteTextFile       | absolute path and content; root                          |
-|   27 | ClipboardWriteImage | format code and bounded bytes; root                      |
-|   28 | ClipboardReadImage  | null; root                                               |
-|   29 | LoadFont            | absolute path text; root                                 |
-|   30 | MinimizeWindow      | null; root                                               |
-|   31 | GetWindowBounds     | null; root                                               |
-|   32 | GetWindowState      | null; root                                               |
-|   33 | ActivateWindow      | null; root                                               |
-|   34 | GetScrollOffset     | null; VirtualList                                        |
-|   35 | ScrollToOffset      | finite non-negative f32; VirtualList                     |
+| Code | Kind                 | Payload / ownership                                            |
+| ---: | -------------------- | -------------------------------------------------------------- |
+|    1 | Focus                | null; focusable node                                           |
+|    2 | Blur                 | null; focusable node                                           |
+|    3 | SetSelection         | u32 start/end; TextInput                                       |
+|    4 | ScrollToIndex        | u32 index/alignment; VirtualList                               |
+|    5 | ScrollToEnd          | null; VirtualList                                              |
+|    6 | SetTitle             | text; root                                                     |
+|    7 | ResizeWindow         | u32 width/height; root                                         |
+|    8 | ZoomWindow           | null; root                                                     |
+|    9 | ToggleFullscreen     | null; root                                                     |
+|   10 | OpenUrl              | text; root                                                     |
+|   11 | FocusNext            | null; root                                                     |
+|   12 | FocusPrev            | null; root                                                     |
+|   13 | GetWindowSize        | null; root                                                     |
+|   14 | GetFocus             | null; focusable node                                           |
+|   15 | ClipboardWrite       | text; root                                                     |
+|   16 | ClipboardRead        | null; root                                                     |
+|   17 | OpenSurface          | title, u32 width/height, optional creation options; root       |
+|   18 | FileDialogOpen       | title, directories, multiple; root                             |
+|   19 | FileDialogSave       | default name text; root                                        |
+|   20 | ShowNotification     | title, body, optional action list; root                        |
+|   21 | SetMenus             | complete menu tree; root                                       |
+|   22 | SetKeybindings       | complete binding list; root                                    |
+|   23 | SetClosePolicy       | `allow` or `require-confirmation`; root                        |
+|   24 | ResolveCloseRequest  | request ID and allow bool; root                                |
+|   25 | ReadTextFile         | absolute path text; root                                       |
+|   26 | WriteTextFile        | absolute path and content; root                                |
+|   27 | ClipboardWriteImage  | format code and bounded bytes; root                            |
+|   28 | ClipboardReadImage   | null; root                                                     |
+|   29 | LoadFont             | absolute path text; root                                       |
+|   30 | MinimizeWindow       | null; root                                                     |
+|   31 | GetWindowBounds      | null; root                                                     |
+|   32 | GetWindowState       | null; root                                                     |
+|   33 | ActivateWindow       | null; root                                                     |
+|   34 | GetScrollOffset      | null; VirtualList                                              |
+|   35 | ScrollToOffset       | finite non-negative f32; VirtualList                           |
+|   36 | InvokeNative         | catalog identity, function ID, bounded args; root or component |
+|   37 | CancelNative         | original invocation request ID; root                           |
+|   38 | ConfigureApplication | lifecycle policy and acknowledged sequence; application scope  |
+|   39 | OpenPopup            | anchor node, content size, placement, gap; owner root          |
+|   40 | ClosePopup           | original OpenPopup request ID; owner root                      |
 
 The generated payload union uses typed records for u32 pairs, f32 values, text,
 string pairs, OpenSurface, FileDialogOpen, notifications, menus, keybindings,
-clipboard images, and close resolution. The decoder checks that the payload
+clipboard images, close resolution, native invocation/cancellation, application
+configuration, and popup creation/cancellation. The decoder checks that the payload
 variant agrees with the command kind and that root/node ownership is valid.
+
+`OpenPopup` requires a mounted owner anchor (node ID at least 2), positive content
+size at most 16384 per axis, placement 0–11, and finite gap 0–1024. Its successful
+result carries a fresh child Surface ID. `ClosePopup` names the original opening
+request within the owner Surface and epoch, so cancellation works before a child
+ID exists. Repeated cancellation is idempotent. See [System popovers](system-popover.md).
 
 Command results are Events carrying request ID, command code, node ID, success,
 optional error text, and an optional `CommandValue`. Value tags remain:
@@ -229,6 +241,11 @@ optional error text, and an optional `CommandValue`. Value tags remain:
 `7=image`, `8=bounds`, `9=window state`, and `10=scroll offset`. File, image,
 clipboard, path, menu, notification, and keybinding limits are checked before
 publication to JavaScript.
+
+Valid in-flight messages for a retired Surface are discarded without publishing
+state or terminating the application. A late initial Snapshot receives a matching
+SurfaceClosed event so its newly registered root can dispose itself. This does
+not admit never-allocated IDs or revive retired IDs.
 
 ## 4. Events
 
@@ -303,7 +320,7 @@ generated protocol records to Solid components.
 ## 6. Conformance and cutover
 
 `bun run task protocol-golden-check` regenerates representative v5 Snapshot,
-Patch, all 36 Command kinds, all Event payload forms (including both focus/blur
+Patch, all 40 Command kinds, all Event payload forms (including both focus/blur
 forms), malformed cases, and frame boundaries, then fails if committed fixtures
 drift. TypeScript authors `ts_to_rust.hex`; Rust independently constructs the
 same representative semantic families and authors `rust_to_ts.hex`. Rust

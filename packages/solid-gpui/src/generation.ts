@@ -58,3 +58,23 @@ export function encodeGenerationState(value: unknown): string {
   if (new TextEncoder().encode(encoded).length > 1024 * 1024) throw new RangeError("reload state exceeds 1 MiB");
   return encoded;
 }
+
+// Native presentations cannot be created while a QuickJS candidate is staging.
+let activated = false;
+const activationListeners = new Set<() => void>();
+export function afterGenerationActivation(callback: () => void): () => void {
+  if (!generationHost() || activated) {
+    callback();
+    return () => {};
+  }
+  activationListeners.add(callback);
+  return () => {
+    activationListeners.delete(callback);
+  };
+}
+export function activateGeneration(): void {
+  activated = true;
+  const callbacks = [...activationListeners];
+  activationListeners.clear();
+  for (const callback of callbacks) callback();
+}

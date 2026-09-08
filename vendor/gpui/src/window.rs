@@ -2624,6 +2624,11 @@ impl Window {
         self.platform_window.resize(size);
     }
 
+    /// Reposition an existing native popup using parent-local logical bounds.
+    pub fn reposition_popup(&mut self, anchor: Bounds<Pixels>) -> Result<()> {
+        self.platform_window.reposition_popup(anchor)
+    }
+
     /// Returns whether or not the window is currently fullscreen
     pub fn is_fullscreen(&self) -> bool {
         self.platform_window.is_fullscreen()

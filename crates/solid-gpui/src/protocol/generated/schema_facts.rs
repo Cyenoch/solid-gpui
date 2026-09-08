@@ -36,6 +36,8 @@ pub const COMMAND_PAYLOAD_CLOSE_RESOLUTION_COMMAND: u32 = 11;
 pub const COMMAND_PAYLOAD_INVOKE_NATIVE_COMMAND: u32 = 12;
 pub const COMMAND_PAYLOAD_CANCEL_NATIVE_COMMAND: u32 = 13;
 pub const COMMAND_PAYLOAD_CONFIGURE_APPLICATION_COMMAND: u32 = 14;
+pub const COMMAND_PAYLOAD_OPEN_POPUP_COMMAND: u32 = 15;
+pub const COMMAND_PAYLOAD_CLOSE_POPUP_COMMAND: u32 = 16;
 
 pub const COMMAND_VALUE_NUMBER_VALUE: u32 = 1;
 pub const COMMAND_VALUE_PAIR_VALUE: u32 = 2;
@@ -149,6 +151,8 @@ pub const COMMAND_SCROLL_TO_OFFSET: u32 = 35;
 pub const COMMAND_INVOKE_NATIVE: u32 = 36;
 pub const COMMAND_CANCEL_NATIVE: u32 = 37;
 pub const COMMAND_CONFIGURE_APPLICATION: u32 = 38;
+pub const COMMAND_OPEN_POPUP: u32 = 39;
+pub const COMMAND_CLOSE_POPUP: u32 = 40;
 
 pub(crate) const fn node_kind(value: u32) -> Option<super::generated::NodeKind> {
     match value {
@@ -248,11 +252,13 @@ pub(crate) const fn command_kind(value: u32) -> Option<super::generated::Command
         36 => Some(super::generated::CommandKind::InvokeNative),
         37 => Some(super::generated::CommandKind::CancelNative),
         38 => Some(super::generated::CommandKind::ConfigureApplication),
+        39 => Some(super::generated::CommandKind::OpenPopup),
+        40 => Some(super::generated::CommandKind::ClosePopup),
         _ => None,
     }
 }
 
 pub const COMMAND_KINDS: &[u32] = &[
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+    27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
 ];

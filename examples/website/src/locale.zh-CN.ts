@@ -1,5 +1,11 @@
 import { recipeChinese } from "../component-recipes/translations.zh-CN";
 export const chinese: Record<string, string> = {
+  Horizontal: "横向",
+  Vertical: "纵向",
+  "A content-sized horizontal viewport with a visible scrollbar and dynamic edge fades.":
+    "高度随内容变化的横向滚动区域，带可见滚动条与动态边缘淡出。",
+  "A bounded vertical viewport with wider fades and room for its scrollbar.":
+    "限定高度的纵向滚动区域，使用更宽的淡出范围并为滚动条预留空间。",
   "Native application migration": "原生应用迁移",
   "Choose a runtime": "选择运行时",
   "Runtime strategy": "运行时策略",
@@ -142,6 +148,7 @@ export const chinese: Record<string, string> = {
   Router: "路由",
   "Keyboard & menus": "键盘与菜单",
   "Async & accessibility": "异步与无障碍",
+  "System popovers": "系统弹层",
   Distribution: "分发应用",
   "Web setup": "Web 配置",
   "Rust integration": "Rust 集成",

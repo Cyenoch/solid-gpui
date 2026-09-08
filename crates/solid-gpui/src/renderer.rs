@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 #[cfg(test)]
 use gpui::ListOffset;
 use gpui::{
-    Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Render, Styled,
+    App, Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Render, Styled,
     Subscription, Window, WindowAppearance as GpuiWindowAppearance, div, px,
 };
 use thiserror::Error;
@@ -228,6 +228,9 @@ fn add_store_subtree(store: &NodeStore, ids: &mut HashSet<u32>, root_id: u32) {
 }
 
 pub struct SolidRoot {
+    pub(crate) popup_anchors: std::collections::HashSet<u32>,
+    pub(crate) popup_observer: Option<Rc<dyn Fn(&mut App)>>,
+    pub(crate) popup_input: Option<Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>>,
     store: NodeStore,
     runtime: Arc<dyn RuntimeAdapter>,
     next_sequence: Arc<AtomicU32>,
@@ -298,6 +301,9 @@ impl SolidRoot {
         let extension_event_state =
             new_event_state(Arc::clone(&runtime), Arc::clone(&next_sequence));
         Self {
+            popup_anchors: HashSet::new(),
+            popup_observer: None,
+            popup_input: None,
             store: NodeStore::empty(),
             runtime,
             next_sequence,
@@ -357,6 +363,14 @@ impl SolidRoot {
     }
     pub fn store(&self) -> &NodeStore {
         &self.store
+    }
+
+    pub(crate) fn popup_anchor(&self, node_id: u32) -> Option<gpui::Bounds<gpui::Pixels>> {
+        self.store.get(node_id)?;
+        let (x, y, width, height) = self.rendered_bounds.borrow().get(&node_id).copied()?;
+        (width > 0.0 && height > 0.0).then(|| {
+            gpui::Bounds::new(gpui::point(px(x), px(y)), gpui::size(px(width), px(height)))
+        })
     }
     pub(crate) fn extension_registry(&self) -> &dyn ExtensionRegistry {
         self.extension_registry.as_ref()
@@ -1231,6 +1245,9 @@ impl SolidRoot {
         }
         let resize = cx.observe_window_bounds(window, |root, window, cx| {
             root.schedule_window_observation(window, cx);
+            if root.popup_observer.is_some() {
+                cx.notify();
+            }
         });
         let activation = cx.observe_window_activation(window, |root, window, cx| {
             root.schedule_window_observation(window, cx);
@@ -1319,16 +1336,21 @@ impl SolidRoot {
 impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.rendered_bounds.borrow_mut().clear();
+        if let Some(observer) = self.popup_observer.clone() {
+            cx.defer(move |cx| observer(cx));
+        }
         self.reconcile_disabled_input_focus(window, cx);
         self.ensure_window_observers(window, cx);
         self.ensure_focus_observers(window, cx);
         self.process_commands(window, cx);
         self.prepare_animation_frame(window, cx);
         let entity = cx.entity();
-        self.store
+        let content = self
+            .store
             .root()
             .map(|root| self.render_node(root, &entity))
-            .unwrap_or_else(|| div().size_full().into_any())
+            .unwrap_or_else(|| div().size_full().into_any());
+        paint::presentation(content, self.popup_input.clone())
     }
 }
 

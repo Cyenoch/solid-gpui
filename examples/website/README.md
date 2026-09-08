@@ -19,6 +19,10 @@ share the available width equally, with a 220-pixel minimum per column to keep
 prose readable. Wider tables scroll horizontally inside the article instead of
 compressing the final column or switching to stacked records. This shared renderer
 also displays component API tables on Web and desktop.
+Tables use the shared `ScrollShadow` component in horizontal mode. Overflowing tables show an always-visible, draggable horizontal scrollbar with
+space below the final row. Native gradient overlays mark only edges with more
+content, shrinking and becoming transparent near the boundary; they disappear at the corresponding scroll boundary or when the table
+fits. The overlays do not intercept input and paint below the scrollbar.
 
 The browser startup screen is defined in `index.html` and `src/base.css`. Its
 stylesheet loads directly from the document head, so the branded loading state
@@ -127,6 +131,7 @@ sources and their `.zh-CN.md` copies:
 
 - [Choose a runtime](../../docs/runtimes.md) at `/docs/reference/runtimes` introduces the runtime and transport choices.
 - [Development workflow](../../docs/hot-reload.md) at `/docs/reference/hot-reload` covers the consuming workspace's QuickJS build profile, captured-state contract, generation lifecycle, and application reload verification.
+- [System popovers](../../docs/system-popover.md) at `/docs/reference/system-popover` documents the core API, editable and nested native Surfaces, multi-display placement, and platform acceptance limits. This capability needs a desktop host; its example is published as source without a browser preview.
 - [Troubleshooting](../../docs/troubleshooting.md) at `/docs/reference/troubleshooting` explains nested-route stack errors, rejected state, and failures after activation.
 
 Keep runtime guidance in those sources. `src/documentation.ts` loads the pages

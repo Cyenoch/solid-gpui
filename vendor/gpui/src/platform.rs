@@ -819,6 +819,10 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn window_bounds(&self) -> WindowBounds;
     fn content_size(&self) -> Size<Pixels>;
     fn resize(&mut self, size: Size<Pixels>);
+    /// Update an anchored popup after its parent's layout changes.
+    fn reposition_popup(&mut self, _anchor: Bounds<Pixels>) -> Result<()> {
+        Err(popup::PopupNotSupportedError.into())
+    }
     fn scale_factor(&self) -> f32;
     fn appearance(&self) -> WindowAppearance;
     fn display(&self) -> Option<Rc<dyn PlatformDisplay>>;

@@ -312,6 +312,9 @@ const commands: readonly Command[] = [
     functionId: 1,
     args: new Uint8Array([3, 4]),
   }),
+  command(137, 1, 37, { type: "cancel-native", requestId: 136 }),
+  command(139, 1, 39, { type: "open-popup", anchorNodeId: 6, width: 340, height: 220, placement: 0, gap: 8 }),
+  command(140, 1, 40, { type: "close-popup", requestId: 139 }),
 ];
 const event = (sequence: number, nodeId: number, listenerId: number, payload: EventPayload): Event => ({
   type: "event",
@@ -532,7 +535,31 @@ for (let index = 0; index + 1 < invalidEventType.length; index += 1) {
     break;
   }
 }
+const invalidPopup = Envelope.decode(
+  encodePayload(
+    command(139, 1, 39, {
+      type: "open-popup",
+      anchorNodeId: 6,
+      width: 340,
+      height: 220,
+      placement: 0,
+      gap: 8,
+    }),
+  ),
+);
+if (invalidPopup.body?.tag !== 4) throw new Error("expected popup command");
+invalidPopup.body.value.nodeId = 6;
+const invalidPopupOwner = Envelope.encode(invalidPopup);
+const invalidCancellation = Envelope.decode(
+  encodePayload(command(140, 1, 40, { type: "close-popup", requestId: 139 })),
+);
+if (invalidCancellation.body?.tag !== 4 || invalidCancellation.body.value.payload?.tag !== 16)
+  throw new Error("expected popup cancellation");
+invalidCancellation.body.value.payload.value.requestId = 0;
+const invalidPopupCancellation = Envelope.encode(invalidCancellation);
 const invalidRows = [
+  `ts-invalid-popup-owner\tcommand\t${hex(invalidPopupOwner)}\terror\tok`,
+  `ts-invalid-popup-cancellation\tcommand\t${hex(invalidPopupCancellation)}\terror\tok`,
   `ts-invalid-version\tevent\t${hex(invalidEvent)}\terror\terror`,
   `ts-invalid-event-type\tevent\t${hex(invalidEventType)}\terror\terror`,
   `ts-invalid-unknown-field\tevent\t${hex(unknownFieldResult)}\terror\terror`,

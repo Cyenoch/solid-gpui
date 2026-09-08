@@ -1,4 +1,5 @@
 export { NativeCommandError, type NativeCommandIdentity } from "./native-call";
+export { SystemPopover, type SystemPopoverProps, type SystemPopoverPlacement } from "./system-popover";
 export {
   mountApplication,
   type ApplicationDefinition,

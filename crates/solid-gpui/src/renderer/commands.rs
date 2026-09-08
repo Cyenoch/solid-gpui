@@ -753,6 +753,11 @@ impl SolidRoot {
                     _ => unreachable!(),
                 }
             }
+            CommandOperation::OpenPopup { .. } | CommandOperation::ClosePopup { .. } => (
+                false,
+                Some("SystemPopover requires a desktop host with native popup support".to_owned()),
+                None,
+            ),
             _ => (
                 false,
                 Some("command is not supported by this node".to_owned()),

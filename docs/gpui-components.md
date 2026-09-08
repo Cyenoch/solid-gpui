@@ -17,28 +17,46 @@ The generated file is the API reference: `packages/solid-gpui/src/components.ts`
 
 ## Coverage
 
-| Native family | JS entry points |
-| --- | --- |
-| Basic controls | Alert, Avatar/AvatarGroup, Badge, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag |
-| Editing and choices | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret |
-| Data and scrolling | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, FocusTrap |
-| Composition | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar |
-| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog |
-| Navigation and settings | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder |
-| Overlays | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification |
-| Docking | DockArea; its layout descriptors create actual native TabGroup and TilesState containers |
-| Charts | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart |
-| Low-level drawing | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot |
-| Appearance | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences |
-| Computation | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout |
+| Native family            | JS entry points                                                                                                                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Basic controls           | Alert, Avatar/AvatarGroup, Badge, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag |
+| Editing and choices      | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                           |
+| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                       |
+| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar                                  |
+| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                 |
+| Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                      |
+| Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                            |
+| Docking                  | DockArea; its layout descriptors create actual native TabGroup and TilesState containers                                                                                                                                                     |
+| Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                          |
+| Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                      |
+| Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                 |
+| Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                   |
 
 Some upstream types are parts of another control, not independent screen elements:
 
 - The host installs native **Root**, its **NotificationList**, text-selection layer, modal layers and theme once per window. Dialogs, sheets and notifications use that Root.
 - **Scrollbar** and **ScrollableMask** are integrated by Scrollable and the list/table/message-scroller APIs, with the corresponding native scroll handle. **FocusTrapContainer** is the native implementation behind FocusTrap; **DropdownMenuPopover** is behind DropdownMenu.
-- **FieldBuilder** is represented by Field's text/child slots. Command entries/groups, table columns/groups, tree items, date presets, menu items and chart labels are typed props or child descriptors. No draw-nothing aliases stand in for them.
-- Native **DivInspector** is the host's debug inspector, available through its native shortcut (`cmd-alt-i` on macOS, `ctrl-shift-i` elsewhere) when the dependency enables it. It is a conditional developer tool, not an always-present production JSX element.
-- Rust traits, renderer hooks, geometry handles, transition helpers and registries remain implementation machinery. Their JS-facing operations are expressed through the controls, native commands and typed data above.
+
+Use **ScrollShadow** for a scrollable region with dynamic edge fades. It owns an
+internal scroll view and shares its native handle with the scrollbar and fades.
+Set `axis="horizontal"` for left/right edges or `axis="vertical"` (the default)
+for top/bottom edges. Give vertical regions a bounded height; horizontal regions
+can size their height from the content. No nested `Scrollable` is needed.
+
+`color` matches the surrounding surface (default: theme background), and
+`fadeSize` sets the maximum fade extent in pixels (default: 24; 0 disables fades).
+Each fade shrinks and becomes transparent over the final `fadeSize` pixels toward
+its boundary. At the start the leading edge is clear; at the end the trailing
+edge is clear; content that fits has neither fades nor a scrollbar. Geometry is
+read during native paint, so wheel input, dragging, `scrollTo`, and resize update
+the effect without JavaScript scroll subscriptions. Overlays do not intercept
+input and paint below the scrollbar. `onScroll` and `getScrollPosition` are also
+available.
+
+`scrollbarVisibility` defaults to `"always"` for discoverability and also supports
+`"hover"` and `"scrolling"`. Reserve content padding along the scrollbar edge when
+it would otherwise cover content. Markdown and component API tables on the website
+use the same horizontal `ScrollShadow` on Web and desktop.
 
 The complete pinned upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`. It includes constructor descriptors and internal/conditional types separately from the 138 ordinary public rendering interfaces.
 
@@ -46,10 +64,12 @@ The complete pinned upstream requirement inventory is `.scratch/gpui-component-c
 
 `Popover` renders inside its current GPUI window and cannot extend beyond that
 window's boundary. It supports native GPUI focus and dismissal behavior, but does
-not create an AppKit `NSPopover` or a separate system popup window. The SDK does
-not currently export `SystemPopover`. See the
-[native presentation research](../.scratch/native-presentation/spec.md) for the
-proposed child-Surface design and platform support gaps.
+not create an AppKit `NSPopover` or a separate system popup window.
+
+For content beyond the owner window, import `SystemPopover` from
+`@solid-gpui/core`. It mounts a separate owned Surface and shares Solid context
+through a content factory. See [System popovers](system-popover.md) for its API,
+platform and multi-display behavior, and native acceptance limits.
 
 ## Children and native state
 

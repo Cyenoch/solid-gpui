@@ -1,9 +1,18 @@
-import { generationHost } from "./generation";
+import { generationHost, afterGenerationActivation } from "./generation";
 import type { NativeCallOptions } from "./native-call";
-import { createRoot as createSolidRoot, createSignal } from "solid-js";
+import { createRoot as createSolidRoot, createSignal, runWithOwner, type Owner } from "solid-js";
+import { COMMAND_OPEN_POPUP, COMMAND_CLOSE_POPUP, type CommandPayload } from "./protocol";
+import type { HostTree } from "./renderer/host-tree";
 import { createRenderer, type Renderer } from "solid-js/universal";
 
-import { hostConfig, cancelScheduledCommit, withRoot, withRootTransaction } from "./renderer/host-config";
+import {
+  hostConfig,
+  bindRootOwner,
+  afterRootCommit,
+  cancelScheduledCommit,
+  withRoot,
+  withRootTransaction,
+} from "./renderer/host-config";
 import { SurfaceClosedError, RootContainer } from "./renderer/root-container";
 import { SurfaceRouter } from "./renderer/surface-router";
 
@@ -82,6 +91,83 @@ export type {
 } from "./renderer/extension";
 export { SurfaceClosedError } from "./renderer/root-container";
 export const solidRenderer: Renderer<HostNodeInternal> = createRenderer(hostConfig);
+
+const surfaceContexts = new WeakMap<
+  HostTree,
+  {
+    router: SurfaceRouter;
+    container: RootContainer;
+    children: Set<() => void>;
+  }
+>();
+
+/** Internal presentation seam: content is constructed in its destination HostTree. */
+export function mountPopupSurface(
+  tree: HostTree,
+  options: Extract<CommandPayload, { type: "open-popup" }>,
+  owner: Owner,
+  content: () => SolidElement,
+  closed: () => void,
+  failed: (error: unknown) => void,
+): () => void {
+  const context = surfaceContexts.get(tree);
+  if (!context || tree.isDisposed()) throw new Error("SystemPopover requires a mounted Surface");
+  let disposed = false;
+  let requestId: number | undefined;
+  let root: Root | undefined;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    stopWaiting();
+    context.children.delete(dispose);
+    if (requestId !== undefined && !context.container.unmounted) {
+      void context.container
+        .submitSurfaceCommand(COMMAND_CLOSE_POPUP, { type: "close-popup", requestId })
+        .catch((error) => {
+          if (!(error instanceof SurfaceClosedError) && !tree.isDisposed()) failed(error);
+        });
+    }
+    root?.unmount();
+  };
+  const start = () => {
+    void afterRootCommit(tree, () => {
+      if (disposed || tree.isDisposed()) return Promise.resolve(null);
+      const pending = context.container.beginSurfaceCommand(COMMAND_OPEN_POPUP, options);
+      requestId = pending.requestId;
+      return pending.result.catch((error) => {
+        requestId = undefined;
+        throw error;
+      });
+    })
+      .then((value) => {
+        if (disposed || tree.isDisposed()) return;
+        if (!value || value.type !== "number" || !Number.isInteger(value.value) || value.value <= 0)
+          throw new Error("native popup creation returned an invalid Surface ID");
+        runWithOwner(owner, () => {
+          root = createRootWithRouter(context.router, {
+            surfaceId: value.value,
+            epoch: context.container.epoch,
+            onClose: () => {
+              if (disposed) return;
+              disposed = true;
+              context.children.delete(dispose);
+              closed();
+            },
+          });
+          root.render(content);
+        });
+      })
+      .catch((error) => {
+        const report = !disposed && !tree.isDisposed();
+        dispose();
+        if (report) failed(error);
+      });
+  };
+  context.children.add(dispose);
+  const stopWaiting = afterGenerationActivation(start);
+  return dispose;
+}
+
 function normalizeRefProps(props: HostProps): HostProps {
   const ref = props.ref;
   if (ref === undefined || typeof ref === "function") return props;
@@ -283,18 +369,20 @@ export function createRootWithRouter(router: SurfaceRouter, options: RootOptions
     },
   });
   container.start(unregister);
+  const children = new Set<() => void>();
+  surfaceContexts.set(container.tree, { router, container, children });
   if (startRouter) router.start();
   if (!closed) {
-    withRoot(container.tree, () => {
-      const [element, set] = createSignal<unknown>(null, { equals: false });
-      setElement = set;
-      createSolidRoot((dispose) => {
-        disposeRender = dispose;
-        withRoot(container.tree, () => {
-          solidRenderer.insert(container.tree.syntheticRoot, () =>
-            withRoot(container.tree, () => unwrapElement(element()) as HostNodeInternal | null),
-          );
-        });
+    createSolidRoot((dispose) => {
+      disposeRender = dispose;
+      // Bind the new Solid root once. Rendering it must not rebind the caller's owner.
+      bindRootOwner(container.tree);
+      withRoot(container.tree, () => {
+        const [element, set] = createSignal<unknown>(null, { equals: false });
+        setElement = set;
+        solidRenderer.insert(container.tree.syntheticRoot, () =>
+          withRoot(container.tree, () => unwrapElement(element()) as HostNodeInternal | null),
+        );
       });
     });
   }
@@ -432,6 +520,8 @@ export function createRootWithRouter(router: SurfaceRouter, options: RootOptions
     },
     unmount(): void {
       if (closed) return;
+      for (const dispose of children) dispose();
+      children.clear();
       closed = true;
       cancelScheduledCommit(container.tree);
       container.dispose();

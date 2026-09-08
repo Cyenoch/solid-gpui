@@ -19,5 +19,5 @@
       "@solid-gpui/core/jsx-runtime": ["../packages/solid-gpui/dist/jsx-runtime"]
     }
   },
-  "include": ["quickjs-*.tsx"]
+  "include": ["quickjs-*.tsx", "system-popover*.tsx"]
 }

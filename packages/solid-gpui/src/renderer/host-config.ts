@@ -13,7 +13,7 @@ const pendingCommits = new WeakMap<HostTree, object>();
 let activeTree: HostTree | undefined;
 const transactionDepths = new WeakMap<HostTree, number>();
 
-function rememberOwner(tree: HostTree): void {
+export function bindRootOwner(tree: HostTree): void {
   const owner = getOwner() as SolidOwner | null;
   if (owner !== null) ownerTrees.set(owner as object, tree);
 }
@@ -39,7 +39,7 @@ export function resolveTree(node?: HostNodeInternal): HostTree {
   const owner = ownerTree();
   if (owner !== undefined) return owner;
   if (activeTree !== undefined) {
-    rememberOwner(activeTree);
+    bindRootOwner(activeTree);
     return activeTree;
   }
   throw new Error("Solid GPUI host operation is not associated with a root");
@@ -48,7 +48,6 @@ export function resolveTree(node?: HostNodeInternal): HostTree {
 export function withRoot<T>(tree: HostTree, callback: () => T): T {
   const previous = activeTree;
   activeTree = tree;
-  rememberOwner(tree);
   try {
     return callback();
   } finally {

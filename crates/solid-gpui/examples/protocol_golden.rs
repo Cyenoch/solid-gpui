@@ -461,6 +461,19 @@ fn commands() -> Vec<Command> {
                 args: vec![3, 4],
             },
         ),
+        command(137, 1, CommandOperation::CancelNative { request_id: 136 }),
+        command(
+            139,
+            1,
+            CommandOperation::OpenPopup {
+                anchor_node_id: 6,
+                width: 340,
+                height: 220,
+                placement: 0,
+                gap: 8.0,
+            },
+        ),
+        command(140, 1, CommandOperation::ClosePopup { request_id: 139 }),
     ]
 }
 
@@ -894,8 +907,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let events = events();
     assert_eq!(
         commands.len(),
-        36,
-        "Rust golden producer must cover every command kind"
+        39,
+        "Rust golden producer covers all Surface commands; application configuration is added separately"
     );
     assert_eq!(
         events.len(),

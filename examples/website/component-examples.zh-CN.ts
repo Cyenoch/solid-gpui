@@ -1,4 +1,6 @@
 export const componentDescriptionsChinese: Record<string, string> = {
+  "Reveal scrollable content with edge fades that disappear at the boundaries.":
+    "通过边缘淡出提示可滚动内容，滚动到边界时对应淡出消失。",
   "Show application status and contextual information.": "显示应用状态与上下文信息。",
   "Search and select rows from a grouped collection.": "搜索并选择分组集合中的数据行。",
   "A button for actions, with variants, loading and disabled states.": "用于触发操作的按钮，支持样式、加载和禁用状态。",
@@ -54,6 +56,8 @@ export const componentDescriptionsChinese: Record<string, string> = {
   "Present a focused dialog with a title, description and actions.": "使用带标题、说明和操作的对话框聚焦当前任务。",
   "Open supporting content in a panel at the window edge.": "在窗口边缘的面板中打开辅助内容。",
   "Deliver a dismissible message inside the application.": "在应用内发送可关闭的通知。",
+  "Show contextual information inside the current window. For native content beyond its boundary, see the System popovers guide.":
+    "在当前窗口内展示上下文信息。需要越过窗口边界时，请参阅系统弹层指南。",
   "Show contextual information next to a trigger.": "在触发元素旁展示上下文信息。",
   "Explain a control on hover or keyboard focus.": "在悬停或键盘聚焦时说明控件。",
   "Offer related actions in a dropdown menu.": "在下拉菜单中提供相关操作。",

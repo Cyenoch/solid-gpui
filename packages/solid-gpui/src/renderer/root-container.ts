@@ -332,24 +332,33 @@ export class RootContainer implements DispatchContext {
     };
     return this.commandClient.submit(command).then(() => undefined);
   }
-  private submitSurfaceCommand(kind: CommandKind, payload: CommandPayload): Promise<void> {
+  submitSurfaceCommand(kind: CommandKind, payload: CommandPayload): Promise<void> {
     return this.submitSurfaceCommandValue(kind, payload).then(() => undefined);
   }
-  private submitSurfaceCommandValue(
+  submitSurfaceCommandValue(
     kind: CommandKind,
     payload: CommandPayload,
     options?: NativeCallOptions,
   ): Promise<CommandValue | null> {
-    if (this.transportTerminated) {
-      return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
-    }
-    if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
-    let requestId: number;
     try {
-      requestId = this.commandClient.allocateRequestId(nextU32);
+      return this.beginSurfaceCommand(kind, payload, options).result;
     } catch (error) {
       return Promise.reject(error);
     }
+  }
+
+  beginSurfaceCommand(
+    kind: CommandKind,
+    payload: CommandPayload,
+    options?: NativeCallOptions,
+  ): {
+    requestId: number;
+    result: Promise<CommandValue | null>;
+  } {
+    if (this.transportTerminated)
+      throw this.terminationError ?? new TransportTerminatedError("transport is terminated");
+    if (this.unmounted) throw new SurfaceClosedError(this.surfaceId);
+    const requestId = this.commandClient.allocateRequestId(nextU32);
     const command: Command = {
       type: "command",
       surfaceId: this.surfaceId,
@@ -360,7 +369,7 @@ export class RootContainer implements DispatchContext {
       command: kind,
       payload,
     };
-    return this.commandClient.submit(command, options);
+    return { requestId, result: this.commandClient.submit(command, options) };
   }
 
   cancelNative(requestId: number): void {

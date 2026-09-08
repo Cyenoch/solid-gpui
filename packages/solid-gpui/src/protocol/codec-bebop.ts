@@ -63,6 +63,8 @@ import {
   COMMAND_LOAD_FONT,
   COMMAND_MINIMIZE_WINDOW,
   COMMAND_OPEN_SURFACE,
+  COMMAND_OPEN_POPUP,
+  COMMAND_CLOSE_POPUP,
   COMMAND_OPEN_URL,
   COMMAND_READ_TEXT_FILE,
   COMMAND_RESIZE_WINDOW,
@@ -595,6 +597,15 @@ function wireImage(value: ClipboardImage): WireClipboardImageCommand {
 }
 function wireCommandPayload(value: SemanticCommandPayload): CommandPayload | undefined {
   if (value === null) return undefined;
+  if (value.type === "open-popup")
+    return WireCommandPayload.fromOpenPopupCommand({
+      anchorNodeId: value.anchorNodeId,
+      width: value.width,
+      height: value.height,
+      placement: value.placement,
+      gap: value.gap,
+    });
+  if (value.type === "close-popup") return WireCommandPayload.fromClosePopupCommand({ requestId: value.requestId });
   if (value.type === "configure-application")
     return WireCommandPayload.fromConfigureApplicationCommand({
       keepAlive: value.keepAlive,
@@ -805,6 +816,30 @@ function validateCommand(value: SemanticCommand): void {
       const value = requirePayloadType(payload, "number");
       if (!Number.isFinite(value.value) || value.value < 0 || !Number.isFinite(Math.fround(value.value)))
         throw new TypeError("scroll offset payload is invalid");
+      return;
+    }
+    case COMMAND_OPEN_POPUP: {
+      if (value.nodeId !== 1) throw new TypeError("popup creation requires the Surface root");
+      const options = requirePayloadType(payload, "open-popup");
+      if (
+        !isU32(options.anchorNodeId) ||
+        options.anchorNodeId < 2 ||
+        !validWindowSize(options.width, options.height) ||
+        options.width === 0 ||
+        options.height === 0 ||
+        !isU32(options.placement) ||
+        options.placement > 11 ||
+        !Number.isFinite(options.gap) ||
+        options.gap < 0 ||
+        options.gap > 1024
+      )
+        throw new TypeError("popup options are invalid");
+      return;
+    }
+    case COMMAND_CLOSE_POPUP: {
+      if (value.nodeId !== 1) throw new TypeError("popup cancellation requires the Surface root");
+      const options = requirePayloadType(payload, "close-popup");
+      if (!isU32(options.requestId) || options.requestId === 0) throw new TypeError("popup request is invalid");
       return;
     }
     case COMMAND_OPEN_SURFACE: {

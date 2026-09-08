@@ -64,3 +64,7 @@ gpui-pre-reqwest-client = { path = "vendor/gpui-reqwest-client" }
 gpui-pre = { path = "vendor/gpui" }
 gpui-pre-web = { path = "vendor/gpui-web" }
 gpui-pre-wgpu = { path = "vendor/gpui-wgpu" }
+
+gpui-pre-macos = { path = "vendor/gpui-macos" }
+gpui-pre-windows = { path = "vendor/gpui-windows" }
+gpui-pre-linux = { path = "vendor/gpui-linux" }

@@ -1,4 +1,5 @@
 import { View, type SolidChild } from "@solid-gpui/core";
+import { ScrollShadow } from "@solid-gpui/core/components";
 import { MarkdownText } from "./MarkdownText";
 import { Copy, colors } from "./ui";
 import type { MarkdownBlock } from "./markdown";
@@ -11,8 +12,13 @@ export function MarkdownTable(props: {
   const tableWidth = () => Math.max(props.width, props.block.header.length * 220);
   const columnWidth = () => tableWidth() / props.block.header.length;
   return (
-    <View style={{ flexShrink: 0, width: props.width, minWidth: 0, overflow: "scroll" }}>
-      <View style={{ width: tableWidth(), flexShrink: 0 }}>
+    <ScrollShadow
+      axis="horizontal"
+      scrollbarVisibility="always"
+      color={colors.bg}
+      style={{ flexShrink: 0, width: props.width, minWidth: 0 }}
+    >
+      <View style={{ width: tableWidth(), flexShrink: 0, paddingBottom: tableWidth() > props.width ? 14 : 0 }}>
         <View style={{ flexDirection: "row", backgroundColor: colors.panel }}>
           {() =>
             props.block.header.map((cell, index) => (
@@ -56,6 +62,6 @@ export function MarkdownTable(props: {
         }
         <View style={{ height: 1, backgroundColor: colors.line }} />
       </View>
-    </View>
+    </ScrollShadow>
   );
 }

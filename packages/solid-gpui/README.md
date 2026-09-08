@@ -60,6 +60,15 @@ imports and unresolved dynamic imports are rejected; expose Rust services throug
 generated native commands. For Bun applications, build with `--runtime bun` and
 launch the result through the Bun host mode.
 
+## System popovers
+
+`SystemPopover` from `@solid-gpui/core` creates an owned native popup Surface that
+can cross its parent window boundary. Its content factory shares Solid context
+and signals while keeping native input and disposal local to the child Surface.
+See [System popovers](../../docs/system-popover.md) for controlled forms,
+platform support, multi-display placement, and native verification limits.
+Use the generated `Popover` for in-window content, including browser UI.
+
 ## Protocol
 
 The renderer speaks the lockstep framed Bebop v5 protocol. Each frame begins

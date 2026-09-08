@@ -59,6 +59,7 @@ const referenceLabels: Record<string, string> = {
   runtimes: "Choose a runtime",
   "runtime-strategy": "Runtime strategy",
   "gpui-components": "Component library",
+  "system-popover": "System popovers",
   "native-migration": "Native application migration",
   "hot-reload": "Development workflow",
   router: "Router",

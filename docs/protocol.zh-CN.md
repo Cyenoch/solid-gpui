@@ -64,16 +64,16 @@ HostProperties 包含：
 
 Patch 操作为 1=Create、2=Update、3=Move、4=Delete。PatchUpdate 精确保留 mask 存在性：
 
-| 位 | 字段                   |
-| --: | ----------------------- |
-|   1 | style                   |
-|   2 | text                    |
-|   4 | listener                |
-|   8 | 宿主属性         |
-|  16 | 无障碍           |
-|  32 | focusable               |
-|  64 | selectable              |
-| 128 | tooltip                 |
+|  位 | 字段         |
+| --: | ------------ |
+|   1 | style        |
+|   2 | text         |
+|   4 | listener     |
+|   8 | 宿主属性     |
+|  16 | 无障碍       |
+|  32 | focusable    |
+|  64 | selectable   |
+| 128 | tooltip      |
 | 256 | 指针移动能力 |
 
 style 位设置时必须携带 style（设置）或空 clearStyle 标记（清除），未设置时两者均省略（不变）。focusable/selectable 同样在更新位未设置时省略，设置时必须存在，包括显式 false。位未设置却出现字段会被拒绝，省略字段转为语义 false 占位。带 mask 的可选字段区分省略清除与不变，显式 false/零保留。可选尾部仍是语义缺失，不是兼容路径。Create 携带完整 Node，Move 重新挂接/排序，Delete 移除子树，树校验和原子回滚保持权威。
@@ -84,60 +84,69 @@ Command 携带 surfaceId、epoch、afterRevision、requestId、nodeId、数值 k
 
 完整语义命令集合：
 
-| 代码 | 类型                | 载荷 / 所有权                                      |
-| ---: | ------------------- | -------------------------------------------------------- |
-|    1 | Focus               | null； 可聚焦节点                                     |
-|    2 | Blur                | null； 可聚焦节点                                     |
-|    3 | SetSelection        | u32 start/end; TextInput                                 |
-|    4 | ScrollToIndex       | u32 index/alignment; VirtualList                         |
-|    5 | ScrollToEnd         | null； VirtualList                                        |
-|    6 | SetTitle            | 文本； 根节点                                               |
-|    7 | ResizeWindow        | u32 width/height; 根节点                                   |
-|    8 | ZoomWindow          | null； 根节点                                               |
-|    9 | ToggleFullscreen    | null； 根节点                                               |
-|   10 | OpenUrl             | 文本； 根节点                                               |
-|   11 | FocusNext           | null； 根节点                                               |
-|   12 | FocusPrev           | null； 根节点                                               |
-|   13 | GetWindowSize       | null； 根节点                                               |
-|   14 | GetFocus            | null； 可聚焦节点                                     |
-|   15 | ClipboardWrite      | 文本； 根节点                                               |
-|   16 | ClipboardRead       | null； 根节点                                               |
-|   17 | OpenSurface         | title, u32 width/height, optional creation options; 根节点 |
-|   18 | FileDialogOpen      | title, directories, multiple; 根节点                       |
-|   19 | FileDialogSave      | default name 文本； 根节点                                  |
-|   20 | ShowNotification    | title, body, optional action list; 根节点                  |
-|   21 | SetMenus            | 完整菜单树; 根节点                                 |
-|   22 | SetKeybindings      | 完整绑定列表; 根节点                              |
-|   23 | SetClosePolicy      | `allow` or `require-confirmation`; 根节点                  |
-|   24 | ResolveCloseRequest | request ID and allow bool; 根节点                          |
-|   25 | ReadTextFile        | absolute path 文本； 根节点                                 |
-|   26 | WriteTextFile       | 绝对路径与内容; 根节点                          |
-|   27 | ClipboardWriteImage | format code and bounded bytes; 根节点                      |
-|   28 | ClipboardReadImage  | null； 根节点                                               |
-|   29 | LoadFont            | absolute path 文本； 根节点                                 |
-|   30 | MinimizeWindow      | null； 根节点                                               |
-|   31 | GetWindowBounds     | null； 根节点                                               |
-|   32 | GetWindowState      | null； 根节点                                               |
-|   33 | ActivateWindow      | null； 根节点                                               |
-|   34 | GetScrollOffset     | null； VirtualList                                        |
-|   35 | ScrollToOffset      | finite non-negative f32; VirtualList                     |
+| 代码 | 类型                 | 载荷 / 所有权                                                  |
+| ---: | -------------------- | -------------------------------------------------------------- |
+|    1 | Focus                | null； 可聚焦节点                                              |
+|    2 | Blur                 | null； 可聚焦节点                                              |
+|    3 | SetSelection         | u32 start/end; TextInput                                       |
+|    4 | ScrollToIndex        | u32 index/alignment; VirtualList                               |
+|    5 | ScrollToEnd          | null； VirtualList                                             |
+|    6 | SetTitle             | 文本； 根节点                                                  |
+|    7 | ResizeWindow         | u32 width/height; 根节点                                       |
+|    8 | ZoomWindow           | null； 根节点                                                  |
+|    9 | ToggleFullscreen     | null； 根节点                                                  |
+|   10 | OpenUrl              | 文本； 根节点                                                  |
+|   11 | FocusNext            | null； 根节点                                                  |
+|   12 | FocusPrev            | null； 根节点                                                  |
+|   13 | GetWindowSize        | null； 根节点                                                  |
+|   14 | GetFocus             | null； 可聚焦节点                                              |
+|   15 | ClipboardWrite       | 文本； 根节点                                                  |
+|   16 | ClipboardRead        | null； 根节点                                                  |
+|   17 | OpenSurface          | title, u32 width/height, optional creation options; 根节点     |
+|   18 | FileDialogOpen       | title, directories, multiple; 根节点                           |
+|   19 | FileDialogSave       | default name 文本； 根节点                                     |
+|   20 | ShowNotification     | title, body, optional action list; 根节点                      |
+|   21 | SetMenus             | 完整菜单树; 根节点                                             |
+|   22 | SetKeybindings       | 完整绑定列表; 根节点                                           |
+|   23 | SetClosePolicy       | `allow` or `require-confirmation`; 根节点                      |
+|   24 | ResolveCloseRequest  | request ID and allow bool; 根节点                              |
+|   25 | ReadTextFile         | absolute path 文本； 根节点                                    |
+|   26 | WriteTextFile        | 绝对路径与内容; 根节点                                         |
+|   27 | ClipboardWriteImage  | format code and bounded bytes; 根节点                          |
+|   28 | ClipboardReadImage   | null； 根节点                                                  |
+|   29 | LoadFont             | absolute path 文本； 根节点                                    |
+|   30 | MinimizeWindow       | null； 根节点                                                  |
+|   31 | GetWindowBounds      | null； 根节点                                                  |
+|   32 | GetWindowState       | null； 根节点                                                  |
+|   33 | ActivateWindow       | null； 根节点                                                  |
+|   34 | GetScrollOffset      | null； VirtualList                                             |
+|   35 | ScrollToOffset       | finite non-negative f32; VirtualList                           |
+|   36 | InvokeNative         | catalog identity, function ID, bounded args; root or component |
+|   37 | CancelNative         | original invocation request ID; root                           |
+|   38 | ConfigureApplication | lifecycle policy and acknowledged sequence; application scope  |
+|   39 | OpenPopup            | anchor node, content size, placement, gap; owner root          |
+|   40 | ClosePopup           | original OpenPopup request ID; owner root                      |
 
 生成载荷 union 使用 u32 pair、f32、文本、字符串 pair、OpenSurface、FileDialogOpen、通知、菜单、快捷键、剪贴板图片和关闭确认等类型化记录。解码验证载荷变体与命令类型匹配，以及 root/node 所有权。
 
+`OpenPopup` 要求已挂载锚点（node ID 至少为 2）、每轴 1–16384 的内容尺寸、0–11 的 placement 和 0–1024 的有限 gap。成功后返回新子 Surface ID。`ClosePopup` 在所属 Surface 与 epoch 内引用原始打开请求，因此子 ID 尚未返回时也能取消；重复取消幂等。参见[系统弹层](system-popover.md)。
+
 命令结果以 Event 返回 request ID、command code、node ID、success、可选错误和 CommandValue。值标签为 1=number、2=pair、3=boolean、4=text、5=paths、6=file text、7=image、8=bounds、9=window state、10=scroll offset。文件、图片、剪贴板、路径、菜单、通知和快捷键限制在发布到 JS 前检查。
+
+已退役 Surface 的合法在途提交不再发布，也不会终止应用。迟到的初始 Snapshot 会收到匹配的 SurfaceClosed，让客户端释放子根。此规则不接受从未分配的 ID，也不恢复已退役 ID。
 
 ## 4. 事件
 
 每个 Event 携带 surface、epoch、revision、sequence、node、listener、数值 eventType 和可选类型化 EventPayload：
 
-| 代码 | 类型                 | 载荷                                             |
+| 代码 | 类型                 | 载荷                                                |
 | ---: | -------------------- | --------------------------------------------------- |
 |    1 | Press                | null                                                |
 |    2 | Change               | TextInput 数据                                      |
 |    3 | Selection            | TextInput 数据                                      |
 |    4 | Focus                | null or TextInput 数据                              |
 |    5 | Blur                 | null or TextInput 数据                              |
-|    6 | CommandResult        | 命令结果                                      |
+|    6 | CommandResult        | 命令结果                                            |
 |    7 | VisibleRange         | u32 start/end                                       |
 |    8 | AnimationComplete    | u32 generation                                      |
 |    9 | Key                  | key, modifiers, action down/repeat/up               |
@@ -147,14 +156,14 @@ Command 携带 surfaceId、epoch、afterRevision、requestId、nodeId、数值 k
 |   13 | Submit               | text                                                |
 |   14 | WindowResize         | f32 width/height/scale                              |
 |   15 | WindowActivation     | active bool                                         |
-|   16 | SurfaceClosed        | null； node/listener `0/0`                           |
-|   17 | Action               | action 文本； 根节点/listener `1/0`                    |
-|   18 | WindowAppearance     | light/dark; 根节点/listener `1/0`                     |
+|   16 | SurfaceClosed        | null； node/listener `0/0`                          |
+|   17 | Action               | action 文本； 根节点/listener `1/0`                 |
+|   18 | WindowAppearance     | light/dark; 根节点/listener `1/0`                   |
 |   19 | Layout               | f32 x/y/width/height                                |
 |   20 | Drag                 | drag-over, drag-drop, or external paths             |
-|   21 | NotificationResponse | tag and optional action ID; 根节点/listener `1/0`     |
+|   21 | NotificationResponse | tag and optional action ID; 根节点/listener `1/0`   |
 |   22 | PointerDownOutside   | f32 x/y                                             |
-|   23 | CloseRequested       | request ID; 根节点/listener `1/0`                     |
+|   23 | CloseRequested       | request ID; 根节点/listener `1/0`                   |
 |   24 | Extension            | event ID and sorted Extension fields; node/listener |
 
 Focus/Blur 有意保留双形式：View/Pressable 焦点观察者省略载荷，TextInput 则携带编辑数据。Pointer down/up/move 是 Event 10 下的类型化变体；drag-over/drop/外部文件 drop 是 Event 20 下的变体。修饰键列表由唯一 cmd、ctrl、alt、shift、function 成员组成。坐标在契约要求处有限且非负，布局和滚动偏移保留 f32 语义。
@@ -169,6 +178,6 @@ TypeScript SurfaceRouter 是唯一帧解码和事件路由器，将输入 chunk 
 
 ## 6. 一致性与切换
 
-`bun run task protocol-golden-check` 重新生成代表性的 v5 Snapshot、Patch、全部 36 种 Command、全部 Event 载荷（含双形式 focus/blur）、畸形案例及帧边界，提交 fixture 漂移则失败。TypeScript 生成 ts_to_rust.hex，Rust 独立构造同类语义数据生成 rust_to_ts.hex。Rust 解码并重编码每个 TS 行，TS 结构/语义解码每个 Rust 行并验证规范字节，两端执行 invalid.hex 和 frames.hex 期望。语义错误包含有界 body、operation、node、field 路径，预解码 guard 保持通用有界结构错误。
+`bun run task protocol-golden-check` 重新生成代表性的 v5 Snapshot、Patch、全部 40 种 Command、全部 Event 载荷（含双形式 focus/blur）、畸形案例及帧边界，提交 fixture 漂移则失败。TypeScript 生成 ts_to_rust.hex，Rust 独立构造同类语义数据生成 rust_to_ts.hex。Rust 解码并重编码每个 TS 行，TS 结构/语义解码每个 Rust 行并验证规范字节，两端执行 invalid.hex 和 frames.hex 期望。语义错误包含有界 body、operation、node、field 路径，预解码 guard 保持通用有界结构错误。
 
 可复用带帧 Event writer 为每个 Rust 输出 worker 持有一个有界缓冲区，原地序列化，直接写四字节长度与载荷，flush 流块，避免每事件 payload Vec 加帧复制。TS 适配器使用可复用 BebopView 写入，只复制调用方拥有的返回传输帧。生成 runtime 不暴露给渲染器调用方。

@@ -80,6 +80,9 @@ pub struct ScrollableProps {
 }
 pub struct Scrollable {
     props: ScrollableProps,
+    state: ScrollState,
+}
+struct ScrollState {
     children: NativeSlot,
     handle: ScrollHandle,
     event: Event<ScrollPosition>,
@@ -103,10 +106,7 @@ impl NativeView for Scrollable {
     ) -> Self {
         Self {
             props,
-            event,
-            children: children.content(),
-            handle: ScrollHandle::default(),
-            last: Rc::default(),
+            state: ScrollState::new(event, children),
         }
     }
     fn update(&mut self, props: Self::Props, _: &mut gpui::Window, cx: &mut Context<Self>) {
@@ -114,29 +114,64 @@ impl NativeView for Scrollable {
         cx.notify();
     }
     fn commands() -> Vec<ViewCommand<Self>> {
-        vec![
-            ViewCommand::new("scrollTo", |this, p: ScrollPosition, _, cx| {
-                if !p.x.is_finite() || !p.y.is_finite() || p.x < 0. || p.y < 0. {
-                    return Err("scroll positions must be finite and nonnegative".into());
-                }
-                this.handle.set_offset(point(px(-p.x), px(-p.y)));
-                cx.notify();
-                Ok(())
-            }),
-            ViewCommand::new("getScrollPosition", |this, (): (), _, _| {
-                let p = this.handle.offset();
-                Ok(ScrollPosition {
-                    x: -p.x.as_f32(),
-                    y: -p.y.as_f32(),
-                })
-            }),
-        ]
+        scroll_commands::<Self>()
     }
+}
+trait ScrollView: Sized + 'static {
+    fn scroll_state(&mut self) -> &mut ScrollState;
+}
+impl ScrollView for Scrollable {
+    fn scroll_state(&mut self) -> &mut ScrollState {
+        &mut self.state
+    }
+}
+fn scroll_commands<V: ScrollView>() -> Vec<ViewCommand<V>> {
+    vec![
+        ViewCommand::new("scrollTo", |this: &mut V, p: ScrollPosition, _, cx| {
+            if !p.x.is_finite() || !p.y.is_finite() || p.x < 0. || p.y < 0. {
+                return Err("scroll positions must be finite and nonnegative".into());
+            }
+            this.scroll_state()
+                .handle
+                .set_offset(point(px(-p.x), px(-p.y)));
+            cx.notify();
+            Ok(())
+        }),
+        ViewCommand::new("getScrollPosition", |this: &mut V, (): (), _, _| {
+            let p = this.scroll_state().handle.offset();
+            Ok(ScrollPosition {
+                x: -p.x.as_f32(),
+                y: -p.y.as_f32(),
+            })
+        }),
+    ]
 }
 impl Render for Scrollable {
     fn render(&mut self, _: &mut gpui::Window, _: &mut Context<Self>) -> impl IntoElement {
-        let content = div().size_full().child(self.children.clone());
-        let area = match self.props.axis {
+        self.state
+            .render_content(&self.props, self.state.children.clone(), None)
+    }
+}
+impl ScrollState {
+    fn new(event: Event<ScrollPosition>, children: NativeChildren) -> Self {
+        Self {
+            event,
+            children: children.content(),
+            handle: ScrollHandle::default(),
+            last: Rc::default(),
+        }
+    }
+    fn render_content(
+        &self,
+        props: &ScrollableProps,
+        children: impl IntoElement,
+        shadow: Option<ScrollFade>,
+    ) -> gpui::AnyElement {
+        let content = div()
+            .size_full()
+            .when(props.axis == ScrollAxis::Horizontal, |v| v.h_auto())
+            .child(children);
+        let area = match props.axis {
             ScrollAxis::Horizontal => content.overflow_x_scrollbar(),
             ScrollAxis::Vertical => content.overflow_y_scrollbar(),
             ScrollAxis::Both => content.overflow_scrollbar(),
@@ -150,22 +185,84 @@ impl Render for Scrollable {
         div()
             .relative()
             .size_full()
+            .when(props.axis == ScrollAxis::Horizontal, |v| v.h_auto())
             .min_size_0()
             .child(area)
-            .when(!self.props.hide_scrollbar, |v| {
+            .when_some(shadow, |v, fade| {
+                let handle = self.handle.clone();
+                v.child(
+                    gpui::canvas(
+                        |_, _, _| {},
+                        move |bounds, (), window, _| {
+                            let horizontal = fade.axis == Orientation::Horizontal;
+                            let offset = handle.offset();
+                            let max = handle.max_offset();
+                            let (leading, trailing) = scroll_fade_extents(
+                                if horizontal { offset.x } else { offset.y }.as_f32(),
+                                if horizontal { max.x } else { max.y }.as_f32(),
+                                if horizontal {
+                                    bounds.size.width
+                                } else {
+                                    bounds.size.height
+                                }
+                                .as_f32(),
+                                fade.size,
+                            );
+                            for (extent, end) in [(leading, false), (trailing, true)] {
+                                if extent <= 0. {
+                                    continue;
+                                }
+                                let mut opaque = fade.color;
+                                opaque.a *= extent / fade.size;
+                                let mut transparent = opaque;
+                                transparent.a = 0.;
+                                let mut edge = bounds;
+                                if horizontal {
+                                    edge.size.width = px(extent);
+                                    if end {
+                                        edge.origin.x = bounds.right() - px(extent);
+                                    }
+                                } else {
+                                    edge.size.height = px(extent);
+                                    if end {
+                                        edge.origin.y = bounds.bottom() - px(extent);
+                                    }
+                                }
+                                window.paint_quad(gpui::fill(
+                                    edge,
+                                    gpui::linear_gradient(
+                                        match (horizontal, end) {
+                                            (true, true) => 90.,
+                                            (true, false) => 270.,
+                                            (false, true) => 180.,
+                                            (false, false) => 0.,
+                                        },
+                                        gpui::linear_color_stop(transparent, 0.),
+                                        gpui::linear_color_stop(opaque, 1.),
+                                    ),
+                                ));
+                            }
+                        },
+                    )
+                    .absolute()
+                    .inset_0()
+                    .size_full(),
+                )
+            })
+            .when(!props.hide_scrollbar, |v| {
                 v.child(
                     Scrollbar::new(&self.handle)
                         .id("scrollbar")
-                        .axis(self.props.axis)
-                        .mode(self.props.scrollbar_visibility.into()),
+                        .axis(props.axis)
+                        .mode(props.scrollbar_visibility.into()),
                 )
             })
             .when(
-                self.props.contain_scroll && self.props.axis != ScrollAxis::Horizontal,
+                props.contain_scroll && props.axis != ScrollAxis::Horizontal,
                 |v| v.child(ScrollableMask::new(gpui::Axis::Vertical, &self.handle).id("y-mask")),
             )
             .when(
-                self.props.contain_scroll && self.props.axis != ScrollAxis::Vertical,
+                props.contain_scroll && props.axis != ScrollAxis::Vertical,
                 |v| v.child(ScrollableMask::new(gpui::Axis::Horizontal, &self.handle).id("x-mask")),
             )
             .when(self.event.is_subscribed(), |v| {
@@ -188,6 +285,122 @@ impl Render for Scrollable {
                     .size_full(),
                 )
             })
+            .into_any_element()
+    }
+}
+
+// Read after scroll layout so dragging, commands and resize share the same geometry.
+fn scroll_fade_extents(
+    offset: f32,
+    max_offset: f32,
+    viewport_extent: f32,
+    fade_size: f32,
+) -> (f32, f32) {
+    let extent = max_offset.max(0.);
+    let position = (-offset).clamp(0., extent);
+    let width = fade_size.min(viewport_extent.max(0.) / 2.);
+    (position.min(width), (extent - position).min(width))
+}
+struct ScrollFade {
+    axis: Orientation,
+    color: gpui::Hsla,
+    size: f32,
+}
+
+#[crate::native_type]
+#[derive(Clone)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ScrollShadowProps {
+    pub axis: Orientation,
+    /// Match the surrounding surface. Defaults to the theme background.
+    pub color: Option<Color>,
+    /// Maximum fade extent in pixels; shrinks and becomes transparent near each boundary.
+    pub fade_size: u16,
+    pub scrollbar_visibility: ScrollbarVisibility,
+}
+impl Default for ScrollShadowProps {
+    fn default() -> Self {
+        Self {
+            axis: Orientation::Vertical,
+            color: None,
+            fade_size: 24,
+            scrollbar_visibility: ScrollbarVisibility::Always,
+        }
+    }
+}
+impl ScrollShadowProps {
+    fn viewport(&self) -> ScrollableProps {
+        ScrollableProps {
+            axis: if self.axis == Orientation::Horizontal {
+                ScrollAxis::Horizontal
+            } else {
+                ScrollAxis::Vertical
+            },
+            scrollbar_visibility: self.scrollbar_visibility,
+            ..Default::default()
+        }
+    }
+}
+pub struct ScrollShadow {
+    props: ScrollShadowProps,
+    state: ScrollState,
+}
+impl ScrollView for ScrollShadow {
+    fn scroll_state(&mut self) -> &mut ScrollState {
+        &mut self.state
+    }
+}
+impl NativeView for ScrollShadow {
+    type Props = ScrollShadowProps;
+    type Event = ScrollPosition;
+    fn accepts_children() -> bool {
+        true
+    }
+    fn event_name() -> &'static str {
+        "scroll"
+    }
+    fn mount(
+        props: Self::Props,
+        event: Event<Self::Event>,
+        children: NativeChildren,
+        _: &mut gpui::Window,
+        _: &mut Context<Self>,
+    ) -> Self {
+        Self {
+            props,
+            state: ScrollState::new(event, children),
+        }
+    }
+    fn update(&mut self, props: Self::Props, _: &mut gpui::Window, cx: &mut Context<Self>) {
+        self.props = props;
+        cx.notify();
+    }
+    fn commands() -> Vec<ViewCommand<Self>> {
+        scroll_commands::<Self>()
+    }
+}
+impl Render for ScrollShadow {
+    fn render(&mut self, _: &mut gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.render_content(self.state.children.clone(), cx)
+    }
+}
+impl ScrollShadow {
+    fn render_content(&self, children: impl IntoElement, cx: &gpui::App) -> gpui::AnyElement {
+        use gpui_component::ActiveTheme;
+        self.state.render_content(
+            &self.props.viewport(),
+            children,
+            Some(ScrollFade {
+                axis: self.props.axis,
+                color: self
+                    .props
+                    .color
+                    .as_ref()
+                    .map(Color::native)
+                    .unwrap_or_else(|| cx.theme().background),
+                size: self.props.fade_size as f32,
+            }),
+        )
     }
 }
 #[crate::native_type]
@@ -603,6 +816,7 @@ impl Render for MessageScroller {
 pub(super) fn definitions() -> Vec<ComponentDefinition> {
     vec![
         ComponentDefinition::view::<Scrollable>("Scrollable"),
+        ComponentDefinition::view::<ScrollShadow>("ScrollShadow"),
         ComponentDefinition::view::<FocusTrap>("FocusTrap"),
         ComponentDefinition::view::<VirtualList>("VirtualList"),
         ComponentDefinition::view::<MessageScroller>("MessageScroller"),
@@ -622,6 +836,172 @@ mod tests {
     };
     use gpui_base::InteractiveElementExt as _;
     use gpui_base::VirtualListScrollHandle;
+    #[test]
+    fn scroll_fades_follow_available_content() {
+        assert_eq!(scroll_fade_extents(0., 200., 100., 24.), (0., 24.));
+        assert_eq!(scroll_fade_extents(-100., 200., 100., 24.), (24., 24.));
+        assert_eq!(scroll_fade_extents(-200., 200., 100., 24.), (24., 0.));
+        assert_eq!(scroll_fade_extents(-195., 200., 100., 24.), (24., 5.));
+        assert_eq!(scroll_fade_extents(-200., 0., 300., 24.), (0., 0.));
+        assert_eq!(scroll_fade_extents(-5., 10., 8., 24.), (4., 4.));
+    }
+    struct ScrollShadowHarness {
+        view: Entity<ScrollShadow>,
+        width: f32,
+        content_width: f32,
+    }
+    impl Render for ScrollShadowHarness {
+        fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let view = self.view.read(cx);
+            let horizontal = view.props.axis == Orientation::Horizontal;
+            let area = view.render_content(
+                div()
+                    .w(px(self.content_width))
+                    .h(px(400.))
+                    .debug_selector(|| "shadow-content".into()),
+                cx,
+            );
+            div().size_full().child(
+                div()
+                    .w(px(self.width))
+                    .flex_shrink_0()
+                    .when(!horizontal, |v| v.h(px(180.)))
+                    .child(area)
+                    .debug_selector(|| "shadow-viewport".into()),
+            )
+        }
+    }
+    #[gpui::test]
+    fn scroll_shadow_sizes_and_scrolls_in_both_directions(cx: &mut TestAppContext) {
+        for axis in [Orientation::Horizontal, Orientation::Vertical] {
+            let fixture = Fixture::<ScrollShadow>::new(
+                ScrollShadowProps {
+                    axis,
+                    ..Default::default()
+                },
+                cx,
+            );
+            let state = fixture.view.clone();
+            let horizontal = axis == Orientation::Horizontal;
+            let (view, visual) = cx.add_window_view(move |_, _| ScrollShadowHarness {
+                view: fixture.view.clone(),
+                width: 300.,
+                content_width: if horizontal { 500. } else { 300. },
+            });
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            let viewport = visual.debug_bounds("shadow-viewport").unwrap();
+            assert_eq!(
+                viewport.size,
+                size(px(300.), px(if horizontal { 400. } else { 180. }))
+            );
+            visual.update(|window, _| {
+                let fades: Vec<_> = window
+                    .painted_quads()
+                    .into_iter()
+                    .filter(|quad| quad.background.as_solid().is_none())
+                    .collect();
+                assert_eq!(
+                    fades.len(),
+                    1,
+                    "only the trailing edge should fade at the start"
+                );
+                let fade = &fades[0];
+                assert_eq!(
+                    if horizontal {
+                        fade.bounds.size.width
+                    } else {
+                        fade.bounds.size.height
+                    }
+                    .as_f32(),
+                    24. * window.scale_factor()
+                );
+                let mut expected = viewport;
+                if horizontal {
+                    expected.origin.x = viewport.right() - px(24.);
+                    expected.size.width = px(24.);
+                } else {
+                    expected.origin.y = viewport.bottom() - px(24.);
+                    expected.size.height = px(24.);
+                }
+                assert_eq!(
+                    fade.bounds,
+                    expected.scale(window.scale_factor()),
+                    "fades must overlay the viewport, not follow its content"
+                );
+            });
+            let before = visual.debug_bounds("shadow-content").unwrap();
+            visual.simulate_event(gpui::ScrollWheelEvent {
+                position: viewport.origin + point(px(50.), px(50.)),
+                delta: gpui::ScrollDelta::Pixels(if horizontal {
+                    point(px(-40.), px(0.))
+                } else {
+                    point(px(0.), px(-40.))
+                }),
+                ..Default::default()
+            });
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            let after = visual.debug_bounds("shadow-content").unwrap();
+            visual.update(|window, _| {
+                assert_eq!(
+                    window
+                        .painted_quads()
+                        .iter()
+                        .filter(|quad| quad.background.as_solid().is_none())
+                        .count(),
+                    2,
+                    "both edges should fade while scrolled between boundaries"
+                );
+            });
+            if horizontal {
+                assert!(after.left() < before.left());
+                assert_eq!(after.top(), before.top());
+            } else {
+                assert!(after.top() < before.top());
+                assert_eq!(after.left(), before.left());
+            }
+            visual.update(|_, cx| {
+                state.update(cx, |view, _| {
+                    let max = view.state.handle.max_offset();
+                    view.state.handle.set_offset(point(-max.x, -max.y));
+                });
+                view.update(cx, |_, cx| cx.notify());
+            });
+            visual.update(|window, cx| window.draw(cx).clear(cx));
+            visual.update(|window, _| {
+                let fades: Vec<_> = window
+                    .painted_quads()
+                    .into_iter()
+                    .filter(|quad| quad.background.as_solid().is_none())
+                    .collect();
+                assert_eq!(fades.len(), 1, "the trailing edge must be clear at the end");
+                assert_eq!(
+                    fades[0].bounds.origin,
+                    viewport.origin.scale(window.scale_factor())
+                );
+            });
+            // A growing viewport must clear stale overflow and restore the leading content.
+            if horizontal {
+                visual.update(|_, cx| {
+                    view.update(cx, |view, cx| {
+                        view.width = 600.;
+                        cx.notify();
+                    })
+                });
+                visual.update(|window, cx| window.draw(cx).clear(cx));
+                visual.update(|window, cx| {
+                    assert!(
+                        window
+                            .painted_quads()
+                            .iter()
+                            .all(|quad| quad.background.as_solid().is_some()),
+                        "content that fits must have no fades"
+                    );
+                    assert_eq!(state.read(cx).state.handle.max_offset().x, px(0.));
+                    assert_eq!(state.read(cx).state.handle.offset().x, px(0.));
+                });
+            }
+        }
+    }
     #[derive(Clone, Copy, Debug)]
     enum ScrollKind {
         Plain,

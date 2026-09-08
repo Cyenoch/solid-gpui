@@ -1,8 +1,13 @@
 # Native popovers and SwiftUI composition
 
-Status: proposal
+Status: design baseline; SystemPopover implementation tracked separately
 Date: 2026-09-08
-Scope: research and implementation recommendation; no new runtime capability is implemented.
+Scope: original research and recommendation. The repository audit below records
+pre-implementation behavior, not current capability.
+
+Owner-attached popovers now have a [public guide](../../docs/system-popover.md).
+See the [implementation record](implementation.md) for changes, verification,
+and remaining native acceptance. SwiftUI/AppKit embedding stages remain proposed.
 
 ## Recommendation
 

@@ -136,3 +136,6 @@ export const KEY_MODIFIER_NAMES = {
 
 export const EVENT_APPLICATION_ACTIVATION = EVENT_KIND_CODES.ApplicationActivation;
 export const COMMAND_CONFIGURE_APPLICATION = COMMAND_KIND_CODES.ConfigureApplication;
+
+export const COMMAND_OPEN_POPUP = COMMAND_KIND_CODES.OpenPopup;
+export const COMMAND_CLOSE_POPUP = COMMAND_KIND_CODES.ClosePopup;

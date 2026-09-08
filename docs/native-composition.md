@@ -7,10 +7,10 @@ not expose embeddable AppKit views or SwiftUI hosting in either direction.
 Multiple Surfaces currently use separate GPUI windows; they do not establish
 support for multiple GPUI views inside one SwiftUI/AppKit window.
 
-The [native presentation research](../.scratch/native-presentation/spec.md)
-proposes owner-attached system popovers followed by explicit native view hosting.
-It records the required input, accessibility, lifecycle, and layout changes.
-This is a design proposal, not an available SDK capability.
+[SystemPopover](system-popover.md) now provides a separate owned native window
+with shared Solid context. SwiftUI/AppKit embedding remains a separate proposed
+stage. The [native presentation research](../.scratch/native-presentation/spec.md)
+records the view-lifetime, input, accessibility, and layout changes it requires.
 
 ## Solid async control flow
 

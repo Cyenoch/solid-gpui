@@ -2,7 +2,7 @@
 export const PROTOCOL_SCHEMA = {
   schema: "protocol.bop",
   root: "Envelope",
-  digest: "998a1e721623641996b055cf417498a30ce4bbc8299a33786946df2750223455",
+  digest: "912b55d4d924c340c29ac554544886b3de0cda9b2b46e10ce4d5a5bbd20a19a3",
   definitions: {
     NodeKind: {
       kind: "enum",
@@ -65,7 +65,7 @@ export const PROTOCOL_SCHEMA = {
       base: "uint8",
       values: [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 36, 37, 38,
+        30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
       ],
       names: [
         "Unknown",
@@ -107,6 +107,8 @@ export const PROTOCOL_SCHEMA = {
         "InvokeNative",
         "CancelNative",
         "ConfigureApplication",
+        "OpenPopup",
+        "ClosePopup",
       ],
     },
     Body: {
@@ -2135,6 +2137,14 @@ export const PROTOCOL_SCHEMA = {
           id: 14,
           type: "ConfigureApplicationCommand",
         },
+        {
+          id: 15,
+          type: "OpenPopupCommand",
+        },
+        {
+          id: 16,
+          type: "ClosePopupCommand",
+        },
       ],
     },
     U32PairCommand: {
@@ -2461,6 +2471,64 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 3,
           name: "acknowledgedSequence",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+      ],
+    },
+    OpenPopupCommand: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "anchorNodeId",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 2,
+          name: "width",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 3,
+          name: "height",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 4,
+          name: "placement",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 5,
+          name: "gap",
+          type: {
+            kind: "scalar",
+            name: "float32",
+          },
+        },
+      ],
+    },
+    ClosePopupCommand: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "requestId",
           type: {
             kind: "scalar",
             name: "uint32",
