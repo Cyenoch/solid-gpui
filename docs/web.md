@@ -121,8 +121,7 @@ Iconify assets supply navigation and action icons.
 The deployment URL is [cyenoch.github.io/solid-gpui](https://cyenoch.github.io/solid-gpui/).
 The repository's About website field and root README link to this address.
 The repository's publishing source is **GitHub Actions**, and its `github-pages`
-environment permits deployments from `main`. The first deployment still requires
-the website source and workflow to be committed and pushed.
+environment permits deployments from `main`.
 
 The [Pages workflow](../.github/workflows/pages.yml) handles the full deployment:
 

@@ -1,10 +1,9 @@
 # Solid GPUI website
 
 Pages URL: [cyenoch.github.io/solid-gpui](https://cyenoch.github.io/solid-gpui/).
-The site is awaiting its first deployment; the commands below run it locally.
-Once the website source and [Pages workflow](../../.github/workflows/pages.yml)
-reach `main`, pushes changing website, documentation, branding, SDK, Rust, or build
-inputs build, test, and deploy the site automatically. Matching pull requests
+The [Pages workflow](../../.github/workflows/pages.yml) builds, tests, and deploys
+the site automatically when pushes to `main` change website, documentation,
+branding, SDK, Rust, or build inputs. Matching pull requests
 only build and test. See the
 [deployment guide](../../docs/web.md#github-pages) for the build environment,
 required source files, and manual redeployment.

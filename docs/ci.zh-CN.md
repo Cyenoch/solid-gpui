@@ -4,13 +4,13 @@ GitHub Actions 分别执行开发检查、依赖审计、网站部署和发布�
 
 ## 自动检查
 
-| 工作流 | 自动触发条件 | 覆盖范围 |
-| --- | --- | --- |
-| [CI](../.github/workflows/ci.yml) | 源码、测试夹具、构建配置或 Actions 变化的 PR 与 `main` 推送 | 一个 macOS 作业运行 `bun run ci`，检查生成契约、Rust 格式/编译/Clippy/测试、包格式/类型/测试及包安装冒烟测试。 |
-| [Cross-platform host](../.github/workflows/cross-platform.yml) | 原生宿主或渲染器输入变化的 PR 与 `main` 推送 | Linux Clippy 和库测试夹具；Windows 工作区检查与进程宿主链接。 |
-| [Dependency audit](../.github/workflows/audit.yml) | 依赖清单、锁文件、审计配置或许可清单输入变化；每周一 03:37 UTC | Bun/Rust 安全公告及 macOS 上的第三方许可清单校验。 |
-| [GitHub Pages](../.github/workflows/pages.yml) | 网站、文档、品牌资源、SDK、Rust 或构建输入变化 | WASM 构建、网站类型检查和测试；仅从 `main` 部署。 |
-| [Embedded Bun](../.github/workflows/embedded-bun.yml) | 内嵌运行时、宿主生命周期、内嵌夹具或工具链/依赖输入变化 | macOS 26 上的内嵌 VM 生命周期测试与 Clippy。 |
+| 工作流                                                         | 自动触发条件                                                   | 覆盖范围                                                                                                       |
+| -------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [CI](../.github/workflows/ci.yml)                              | 源码、测试夹具、构建配置或 Actions 变化的 PR 与 `main` 推送    | 一个 macOS 作业运行 `bun run ci`，检查生成契约、Rust 格式/编译/Clippy/测试、包格式/类型/测试及包安装冒烟测试。 |
+| [Cross-platform host](../.github/workflows/cross-platform.yml) | 原生宿主或渲染器输入变化的 PR 与 `main` 推送                   | Linux Clippy 和库测试夹具；Windows 工作区检查与进程宿主链接。                                                  |
+| [Dependency audit](../.github/workflows/audit.yml)             | 依赖清单、锁文件、审计配置或许可清单输入变化；每周一 03:37 UTC | Bun/Rust 安全公告及 macOS 上的第三方许可清单校验。                                                             |
+| [GitHub Pages](../.github/workflows/pages.yml)                 | 网站、文档、品牌资源、SDK、Rust 或构建输入变化                 | WASM 构建、网站类型检查和测试；仅从 `main` 部署。                                                              |
+| [Embedded Bun](../.github/workflows/embedded-bun.yml)          | 内嵌运行时、宿主生命周期、内嵌夹具或工具链/依赖输入变化        | macOS 15 上检查所有 targets 的 Rust 集成 Clippy 和内嵌覆盖源码格式；不编译 Bun。                               |
 
 仅修改网站读取的 `docs/*.md` 指南时运行网站工作流。智能体笔记和参考源码不会单独触发构建，除非也修改了列出的构建输入。
 路径过滤器保存在各工作流中，YAML 锚点保持 push 与 PR 的过滤器一致。
@@ -31,7 +31,7 @@ Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一
 - [Website Packages](../.github/workflows/website-packages.yml) 在 macOS ARM64、Linux x86-64 和 Windows x86-64 上构建并验证原生归档。
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) 先执行开发检查和审计，再构建并冒烟测试解压后的进程宿主。
 - [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，并上传 core、Vite、router 和 Shiki 四个 npm 包。
-- 手动运行 Embedded Bun 并启用 `candidate` 输入时，还会验证内嵌发布宿主；同一作业先完成内嵌功能检查。
+- 手动运行 Embedded Bun 并启用 `candidate` 输入时，先完成轻量检查，再由独立的 macOS 26 作业编译 Bun、运行真实 VM 生命周期测试并验证内嵌发布宿主。
 
 这些工作流上传候选产物，不公开发布。已经压缩的归档上传时不再重复压缩。
 
@@ -42,8 +42,11 @@ bun run ci
 bun run audit
 bun run task host-candidate-smoke
 bun run task embedded-check
+bun run task embedded-test # 编译 Bun；需要 macOS 26 SDK 和 LLVM 21.1。
 bun run task website-package
 ```
+
+`embedded-check` 仅为 Clippy 设置 `SOLID_GPUI_BUN_CHECK_ONLY=1`。sys crate 此时提供真实的 Rust FFI 声明，但不构建或链接 Bun，也不提供替代符号或 VM mock。这可以检查宿主侧类型和 lint（包括测试 targets），但不能验证与 Bun 的 ABI 兼容性、补丁应用、原生链接或 VM 行为。覆盖源码的格式检查会解析 Rust 语法，但不会针对 Bun 检查类型。运行时保证需通过 `embedded-test` 和手动候选工作流验证；构建可执行文件时不要设置该变量。
 
 ## 缓存与验证
 
@@ -51,9 +54,11 @@ bun run task website-package
 
 保存前清理工作区构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复 Rust 缓存；推送和手动运行可保存缓存，包括检查失败之前已经编译完成的依赖。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
 
-Embedded Bun 通过 `target` 目录外的 `SOLID_GPUI_BUN_CACHE`，在测试、Clippy 和 release profile 之间共享原生构建图。其独立缓存要求工具链和内嵌源码准确匹配，不会被通用 Cargo 缓存清理删除。
+轻量内嵌作业共享 macOS CI 依赖缓存，不构建 SDK 包、不生成原生绑定、不安装 LLVM，也不下载原生构建图；Clippy 仍启用 `embedded-bun` feature。
 
-内嵌作业在恢复构建缓存前安装 Homebrew `llvm@21`，并将其可执行文件加入 `PATH`。固定的 Bun 源码要求 LLVM 21.1，Xcode 自带的 Apple Clang 属于另一套工具链。原生缓存键包含 LLVM 版本和工作流文件，编译器变化会使旧构建图失效。
+手动内嵌候选作业通过 `target` 目录外的 `SOLID_GPUI_BUN_CACHE`，在测试和 release profile 之间共享原生构建图。其独立缓存要求工具链和内嵌源码准确匹配，不会被通用 Cargo 缓存清理删除。
+
+候选作业在恢复构建缓存前安装 Homebrew `llvm@21`，并将其可执行文件加入 `PATH`。固定的 Bun 源码要求 LLVM 21.1，Xcode 自带的 Apple Clang 属于另一套工具链。原生缓存键包含 LLVM 版本和工作流文件，编译器变化会使旧构建图失效。
 
 `cargo-deny` 和 `wasm-bindgen-cli` 通过 [install-action](https://github.com/taiki-e/install-action) 安装固定版本、经过校验和验证的预编译程序，并禁用源码安装回退。Bun 保留 setup-bun 的可执行文件缓存；不再归档包缓存，因为[所检查的 CI 运行](https://github.com/Cyenoch/solid-gpui/actions/runs/34180146937)中恢复该缓存耗时五秒，而无缓存的工作区安装耗时四秒。
 

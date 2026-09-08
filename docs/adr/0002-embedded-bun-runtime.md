@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-24
-- **Updated:** 2026-09-06
+- **Updated:** 2026-09-08
 
 ## Context
 
@@ -22,6 +22,13 @@ The build script fetches Bun revision
 builds the native graph using `nightly-2026-07-20`, and links the generated
 library. `SOLID_GPUI_BUN_CACHE` can select a reusable build directory; it does
 not bypass revision verification, patch application, or rebuilding.
+
+For Rust-only `cargo check` and Clippy, `SOLID_GPUI_BUN_CHECK_ONLY=1` skips
+native compilation and linking while retaining the real FFI declarations.
+Automatic CI uses this mode; full Bun builds and VM lifecycle tests run through
+manual candidate qualification. This mode supplies no replacement native symbols
+and cannot qualify the ABI, native patch, linker, or runtime behavior. See
+[continuous integration](../ci.md) for the two verification commands.
 
 The C ABI owns a control handle with create, run, wake, terminate, and destroy
 operations. Cross-thread control holds Bun's weak `VmHandle` and `JsPoster`,

@@ -182,31 +182,51 @@ class Tasks {
 
   async embeddedCheck(): Promise<void> {
     requireMacOS("embedded-check");
+    await run([
+      "rustfmt",
+      "--check",
+      "--edition",
+      "2024",
+      "--config",
+      "skip_children=true",
+      "crates/solid-gpui-bun-sys/embedded/runtime.rs",
+      "crates/solid-gpui-bun-sys/embedded/lifecycle.rs",
+    ]);
+    await run(
+      [
+        "cargo",
+        "clippy",
+        "--locked",
+        "-p",
+        "solid-gpui",
+        "--all-targets",
+        "--features",
+        "embedded-bun",
+        "--",
+        "-D",
+        "warnings",
+      ],
+      { env: { SOLID_GPUI_BUN_CHECK_ONLY: "1" } },
+    );
+  }
+
+  async embeddedTest(): Promise<void> {
+    requireMacOS("embedded-test");
     await this.packageBuild();
-    await run([
-      "cargo",
-      "test",
-      "--locked",
-      "-p",
-      "solid-gpui",
-      "--features",
-      "embedded-bun",
-      "--test",
-      "host_embedded_counter",
-    ]);
-    await run([
-      "cargo",
-      "clippy",
-      "--locked",
-      "-p",
-      "solid-gpui",
-      "--all-targets",
-      "--features",
-      "embedded-bun",
-      "--",
-      "-D",
-      "warnings",
-    ]);
+    await run(
+      [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "solid-gpui",
+        "--features",
+        "embedded-bun",
+        "--test",
+        "host_embedded_counter",
+      ],
+      { env: { SOLID_GPUI_BUN_CHECK_ONLY: undefined } },
+    );
   }
 
   private async buildPackage(options: {
@@ -622,7 +642,8 @@ addTask("protocol-codegen-check", "Verify protocol bindings match schema", () =>
 addTask("protocol-golden-check", "Verify cross-language protocol fixtures", () => tasks.protocolGoldenCheck());
 addTask("native-codegen", "Generate bindings from the SDK and website hosts", () => tasks.nativeCodegen());
 addTask("native-codegen-check", "Verify bindings match the actual native hosts", () => tasks.nativeCodegenCheck());
-addTask("embedded-check", "Build and qualify the embedded Bun VM and lifecycle", () => tasks.embeddedCheck());
+addTask("embedded-check", "Check embedded Rust integration without building Bun", () => tasks.embeddedCheck());
+addTask("embedded-test", "Build Bun and test the embedded VM lifecycle", () => tasks.embeddedTest());
 addTask("package-format", "Format TypeScript packages", () => tasks.packageFormat());
 addTask("package-typecheck", "Typecheck TypeScript packages", () => tasks.packageTypecheck());
 addTask("api-surface", "Generate public API surface fixtures", () => tasks.apiSurface());

@@ -5,13 +5,13 @@ and release qualification. All workflows can also be started manually.
 
 ## Automatic checks
 
-| Workflow | Automatic trigger | Coverage |
-| --- | --- | --- |
-| [CI](../.github/workflows/ci.yml) | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | One macOS job runs `bun run ci`: generated contracts, Rust formatting/checks/Clippy/tests, package formatting/types/tests, and package installation smoke tests. |
-| [Cross-platform host](../.github/workflows/cross-platform.yml) | Pull requests and pushes to `main` changing native host or renderer inputs | Linux Clippy and library fixtures; Windows workspace checks and a linked process host. |
-| [Dependency audit](../.github/workflows/audit.yml) | Dependency manifests, locks, audit configuration, or notice inputs; Mondays at 03:37 UTC | Bun and Rust advisories, plus generated third-party notice verification on macOS. |
-| [GitHub Pages](../.github/workflows/pages.yml) | Website, documentation, branding, SDK, Rust, or build inputs | WASM build, website types and tests; deployments only from `main`. |
-| [Embedded Bun](../.github/workflows/embedded-bun.yml) | Embedded runtime, host lifecycle, embedding fixtures, or toolchain/dependency inputs | Embedded VM lifecycle tests and Clippy on macOS 26. |
+| Workflow                                                       | Automatic trigger                                                                             | Coverage                                                                                                                                                         |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CI](../.github/workflows/ci.yml)                              | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | One macOS job runs `bun run ci`: generated contracts, Rust formatting/checks/Clippy/tests, package formatting/types/tests, and package installation smoke tests. |
+| [Cross-platform host](../.github/workflows/cross-platform.yml) | Pull requests and pushes to `main` changing native host or renderer inputs                    | Linux Clippy and library fixtures; Windows workspace checks and a linked process host.                                                                           |
+| [Dependency audit](../.github/workflows/audit.yml)             | Dependency manifests, locks, audit configuration, or notice inputs; Mondays at 03:37 UTC      | Bun and Rust advisories, plus generated third-party notice verification on macOS.                                                                                |
+| [GitHub Pages](../.github/workflows/pages.yml)                 | Website, documentation, branding, SDK, Rust, or build inputs                                  | WASM build, website types and tests; deployments only from `main`.                                                                                               |
+| [Embedded Bun](../.github/workflows/embedded-bun.yml)          | Embedded runtime, host lifecycle, embedding fixtures, or toolchain/dependency inputs          | Rust integration Clippy across all targets and embedding overlay formatting on macOS 15; no Bun compilation.                                                     |
 
 Changes confined to the website's `docs/*.md` guides run the website workflow.
 Agent notes and reference checkouts do not trigger builds unless a listed build
@@ -60,7 +60,8 @@ Release builds and archives run on demand:
 - [Release Prep](../.github/workflows/release-prep.yml) synchronizes a candidate
   version, runs checks and audits, and uploads the core, Vite, router, and Shiki npm package tarballs.
 - Run Embedded Bun with its `candidate` input enabled to also rehearse the
-  embedded release host. The same job first runs the embedded feature checks.
+  embedded release host. After the lightweight checks, a separate macOS 26 job
+  builds Bun and runs the real VM lifecycle tests before the release smoke.
 
 These workflows upload candidates without publishing releases. Already compressed
 archives are uploaded without another compression pass.
@@ -73,8 +74,18 @@ bun run ci
 bun run audit
 bun run task host-candidate-smoke
 bun run task embedded-check
+bun run task embedded-test # Builds Bun; requires the macOS 26 SDK and LLVM 21.1.
 bun run task website-package
 ```
+
+`embedded-check` sets `SOLID_GPUI_BUN_CHECK_ONLY=1` only for Clippy. The sys crate
+then exposes the real Rust FFI declarations without building or linking Bun.
+No replacement symbols or VM mocks are supplied. This checks host-side types and
+lints, including test targets; it cannot verify ABI compatibility with Bun,
+patch applicability, native linking, or VM behavior. The overlay formatting check
+parses those Rust sources but does not type-check them against Bun. Use
+`embedded-test` and the manual candidate workflow for those runtime guarantees.
+Do not set the check-only variable for executable builds.
 
 ## Caching and verification
 
@@ -91,12 +102,16 @@ pushes and manual runs can save them, including successfully compiled dependenci
 from a failed check. Audit jobs cache only the registry. Candidate build caches
 are isolated from development and WASM caches.
 
-Embedded Bun uses `SOLID_GPUI_BUN_CACHE` outside Cargo's `target` directory to share
+The lightweight embedded job shares the macOS CI dependency cache and skips SDK
+package builds, native binding generation, LLVM installation, and native graph
+downloads. Its Clippy feature selection still includes `embedded-bun`.
+
+The manual embedded candidate uses `SOLID_GPUI_BUN_CACHE` outside Cargo's `target` directory to share
 its native build graph across checks, Clippy, and release profiles. Its separate
 cache requires an exact toolchain and embedding-source match. Generic Cargo cache
 cleanup cannot remove that graph.
 
-The embedded job installs Homebrew `llvm@21` before restoring build caches and
+The candidate job installs Homebrew `llvm@21` before restoring build caches and
 puts its binaries on `PATH`. The pinned Bun source requires LLVM 21.1; the
 Apple Clang shipped with Xcode is a different toolchain. The native cache key
 includes the LLVM version and workflow so compiler changes invalidate the build graph.

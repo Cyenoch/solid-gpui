@@ -57,7 +57,7 @@ Hero 将官方 [vgpu Optimized Black Hole 预览](https://vgpu.sh/preview/optimi
 
 ## GitHub Pages
 
-部署地址为 [cyenoch.github.io/solid-gpui](https://cyenoch.github.io/solid-gpui/)，仓库 About 的网站字段和根 README 均指向该地址。仓库发布来源已设为 **GitHub Actions**，`github-pages` 环境允许从 `main` 部署。首次部署仍需提交并推送网站源码和工作流。
+部署地址为 [cyenoch.github.io/solid-gpui](https://cyenoch.github.io/solid-gpui/)，仓库 About 的网站字段和根 README 均指向该地址。仓库发布来源已设为 **GitHub Actions**，`github-pages` 环境允许从 `main` 部署。
 
 [Pages 工作流](../.github/workflows/pages.yml) 负责完整部署：
 

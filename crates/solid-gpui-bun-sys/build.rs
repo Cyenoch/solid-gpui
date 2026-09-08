@@ -305,8 +305,16 @@ fn main() {
     println!("cargo:rerun-if-changed=bun_embed.patch");
     println!("cargo:rerun-if-changed=embedded");
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CACHE");
+    println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CHECK_ONLY");
     if env::var_os("CARGO_FEATURE_EMBEDDED_BUN").is_none() {
         return;
+    }
+    // Cargo check and Clippy need the Rust ABI, but never link the native VM.
+    // No substitute symbols are provided: executables still require a real build.
+    match env::var("SOLID_GPUI_BUN_CHECK_ONLY").as_deref() {
+        Ok("1") => return,
+        Err(env::VarError::NotPresent) => {}
+        _ => panic!("SOLID_GPUI_BUN_CHECK_ONLY must be unset or 1"),
     }
     let out_dir = PathBuf::from(
         env::var_os("SOLID_GPUI_BUN_CACHE")

@@ -1,8 +1,8 @@
 # Solid GPUI documentation
 
 The [GitHub Pages website](https://cyenoch.github.io/solid-gpui/) hosts interactive
-guides, components, and Showcase apps. Until its first deployment, use the guides
-below or [run the website locally](../examples/website/README.md).
+guides, components, and Showcase apps. Read the guides below or
+[run the website locally](../examples/website/README.md).
 
 Use this order:
 

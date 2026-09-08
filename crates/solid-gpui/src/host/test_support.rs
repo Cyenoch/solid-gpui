@@ -2633,7 +2633,7 @@ fn generation_preflight_accepts_component_window_roots(cx: &mut TestAppContext) 
     assert_generation_preflight(profile, cx);
 }
 
-#[cfg(feature = "quickjs")]
+#[cfg(all(test, feature = "quickjs"))]
 fn assert_generation_preflight(profile: impl HostProfile, cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
     let registry = cx.new(|_| NativeStateRegistry::with_profile(runtime, profile, Vec::new()));
