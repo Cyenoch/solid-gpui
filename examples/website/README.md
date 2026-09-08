@@ -58,9 +58,14 @@ Markdown fences retain their declared language, including plain text.
 Run the website checks with:
 
 ```sh
-bun run --cwd examples/website typecheck
+bun run website:build
 bun --conditions=browser test examples/website/tests
 ```
+
+The build generates the WASM module before type checking. Standalone
+`bun run --cwd examples/website typecheck` requires those generated files.
+Pages owns these browser checks; the SDK package CI gate runs independently of
+website build products.
 
 Start the website with the matching SDK bindings and WASM host:
 

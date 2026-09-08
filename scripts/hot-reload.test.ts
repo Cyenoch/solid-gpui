@@ -139,23 +139,25 @@ export default { plugins: [solidGpui({entry: ${JSON.stringify(entry)}})], resolv
       .at(-1)
       ?.nodes?.map((node) => node.text ?? "")
       .join("");
+  const completedUpdates = () => diagnostics.match(/^hot updated:/gm)?.length ?? 0;
   try {
     expect(preloadCode, preloadErrors).toBe(0);
     expect(preloadOutput.trim()).toBe("function");
     await until(() => snapshots.length === 1);
     expect(text()).toBe("v1:1");
     await writeFile(dependency, view("v2"));
-    await until(() => snapshots.length === 2);
+    // A snapshot or error can arrive before the current HMR update completes.
+    await until(() => snapshots.length === 2 && completedUpdates() === 1);
     expect(text()).toBe("v2:2");
     expect(diagnostics).toContain("disposed-generation:1");
     await writeFile(dependency, "export const syntax = ;");
-    await until(() => /error/i.test(diagnostics));
+    await until(() => /error/i.test(diagnostics) && completedUpdates() === 2);
     expect(snapshots).toHaveLength(2);
     await writeFile(dependency, "export function Demo() { throw new Error('hot-render-failure'); }");
-    await until(() => diagnostics.includes("hot-render-failure"));
+    await until(() => diagnostics.includes("hot-render-failure") && completedUpdates() === 3);
     expect(snapshots).toHaveLength(2);
     await writeFile(dependency, view("v3"));
-    await until(() => snapshots.length === 3);
+    await until(() => snapshots.length === 3 && completedUpdates() === 4);
     expect(text()).toBe("v3:3");
     expect(snapshots.map((snapshot) => [snapshot.surfaceId, snapshot.epoch, snapshot.baseRevision])).toEqual([
       [1, 1, 0],

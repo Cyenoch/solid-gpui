@@ -28,6 +28,12 @@ already checks all targets, so it does not repeat
 workspace and links the host to exercise its shader compiler and linker.
 Display and GPU qualification remain separate; see [distribution](distribution.md).
 
+Browser website types and tests run in Pages after `bun run website:build` has
+generated the WASM module. The SDK package gate does not require pre-existing
+website build products or repeat those checks. The component example checker
+resolves types from the website's tsconfig, so it also works when invoked from
+the repository root with Bun's isolated dependency layout.
+
 Linux portal dependencies explicitly select Ashpd's `async-io` backend to match
 GPUI. Enabling Ashpd's default Tokio backend at the same time fails compilation.
 The host HTTP adapter and browser asset downloader use upstream Reqwest, keeping
@@ -86,6 +92,11 @@ Embedded Bun uses `SOLID_GPUI_BUN_CACHE` outside Cargo's `target` directory to s
 its native build graph across checks, Clippy, and release profiles. Its separate
 cache requires an exact toolchain and embedding-source match. Generic Cargo cache
 cleanup cannot remove that graph.
+
+The embedded job installs Homebrew `llvm@21` before restoring build caches and
+puts its binaries on `PATH`. The pinned Bun source requires LLVM 21.1; the
+Apple Clang shipped with Xcode is a different toolchain. The native cache key
+includes the LLVM version and workflow so compiler changes invalidate the build graph.
 
 `cargo-deny` and `wasm-bindgen-cli` use fixed, checksum-verified prebuilt versions
 through [install-action](https://github.com/taiki-e/install-action), with source

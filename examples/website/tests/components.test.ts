@@ -28,8 +28,9 @@ test("every exported component has a usage example that type-checks against the 
     expect(new Set(page.examples.map((example) => example.source)).size).toBe(page.examples.length);
   }
   const root = resolve(import.meta.dirname, "..");
-  const config = ts.readConfigFile(resolve(root, "tsconfig.json"), ts.sys.readFile);
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
+  const configPath = resolve(root, "tsconfig.json");
+  const config = ts.readConfigFile(configPath, ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root, undefined, configPath);
   const sources = new Map(
     [
       ...componentExamples.map((example) => ({ id: example.names[0], source: example.source })),
@@ -116,4 +117,4 @@ test("every exported component has a usage example that type-checks against the 
   expect(
     errors.map((error) => `${error.file?.fileName}: ${ts.flattenDiagnosticMessageText(error.messageText, "\n")}`),
   ).toEqual([]);
-});
+}, 30_000);

@@ -30,6 +30,8 @@ export default defineConfig({
 
 默认读取 Vite 根目录下的 `src/routes`，生成 `src/routeTree.gen.ts`。插件会在模块解析前和生产构建时运行，并跟随文件新增、修改、重命名和删除更新路由树。浏览器 GPUI 宿主也可使用同一个插件，不要在同一目录同时启用 TanStack 的网页框架路由插件。
 
+文件事件按顺序处理；即使路由删除与生成文件的无变化通知同时到达，也会更新路由树，不会遗漏删除事件。
+
 可配置 `routesDirectory`、`generatedRouteTree`、`routeFilePrefix`、`routeFileIgnorePrefix`、`routeFileIgnorePattern`、`indexToken`、`routeToken`、`quoteStyle` 和 `semicolons`。命名 token 使用字符串；通常保留默认约定即可。
 
 独立类型检查或 Bun/QuickJS 构建前可以直接生成：

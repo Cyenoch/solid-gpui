@@ -18,6 +18,8 @@ GitHub Actions 分别执行开发检查、依赖审计、网站部署和发布�
 
 macOS CI 作业先检查 Rust 格式，再让 Rust 与 Bun 检查共享包生成和 Cargo 编译。Linux Clippy 已检查所有 targets，因此不重复执行 `cargo check` 或与平台无关的格式检查。Windows 仍保留工作区检查与宿主链接，以覆盖着色器编译器和链接器。显示和 GPU 验证见[分发指南](distribution.md)。
 
+浏览器网站的类型检查和测试由 Pages 执行，先通过 `bun run website:build` 生成 WASM 模块。SDK 包检查不依赖网站已有构建产物，也不重复这些检查。组件示例检查器按网站的 tsconfig 解析类型，因此在 Bun 隔离安装依赖后，从仓库根目录运行也能正确解析。
+
 Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一致；同时启用 Ashpd 默认的 Tokio 后端会导致编译失败。宿主 HTTP 适配器和浏览器资源下载器使用官方 Reqwest，使根锁文件不再包含已停止维护的 `rustls-pemfile`。macOS CI 和 Linux 库检查也会运行 HTTP 适配器的本地服务器测试，覆盖重定向策略、流式请求体、超时和代理配置。
 
 审计根据 Cargo 元数据、`cargo-deny` 的 JSON 许可清单和 Bun 许可清单重新生成 `THIRD-PARTY-NOTICES.md`。依赖变化后运行 `bun run task third-party-notices` 更新它。每个本地工作区包都必须声明许可证，通常使用 `license.workspace = true`。
@@ -50,6 +52,8 @@ bun run task website-package
 保存前清理工作区构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复 Rust 缓存；推送和手动运行可保存缓存，包括检查失败之前已经编译完成的依赖。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
 
 Embedded Bun 通过 `target` 目录外的 `SOLID_GPUI_BUN_CACHE`，在测试、Clippy 和 release profile 之间共享原生构建图。其独立缓存要求工具链和内嵌源码准确匹配，不会被通用 Cargo 缓存清理删除。
+
+内嵌作业在恢复构建缓存前安装 Homebrew `llvm@21`，并将其可执行文件加入 `PATH`。固定的 Bun 源码要求 LLVM 21.1，Xcode 自带的 Apple Clang 属于另一套工具链。原生缓存键包含 LLVM 版本和工作流文件，编译器变化会使旧构建图失效。
 
 `cargo-deny` 和 `wasm-bindgen-cli` 通过 [install-action](https://github.com/taiki-e/install-action) 安装固定版本、经过校验和验证的预编译程序，并禁用源码安装回退。Bun 保留 setup-bun 的可执行文件缓存；不再归档包缓存，因为[所检查的 CI 运行](https://github.com/Cyenoch/solid-gpui/actions/runs/34180146937)中恢复该缓存耗时五秒，而无缓存的工作区安装耗时四秒。
 

@@ -40,6 +40,8 @@ export default defineConfig({
 The defaults are `src/routes` and `src/routeTree.gen.ts`, relative to Vite's root.
 The plugin generates before module resolution, follows file additions, edits,
 renames, and deletions during development, and runs during production builds.
+File events are processed in order; a notification for an unchanged generated
+tree cannot swallow a route deletion arriving at the same time.
 The same plugin works with the browser GPUI host's universal JSX setup.
 Do not also install TanStack's web-framework router plugin for the same directory.
 

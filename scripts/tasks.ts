@@ -330,13 +330,11 @@ class Tasks {
       run(["bunx", "tsc", "--noEmit"], { cwd: shikiPackageDir }),
       run(["bunx", "tsc", "--project", "tsconfig.tools.json"]),
       run(["bunx", "tsc", "--project", "fixtures/tsconfig.json"]),
-      run(["bunx", "tsc", "--noEmit"], { cwd: websiteDir }),
     ]);
   }
   async packageTest(): Promise<void> {
     await this.packageBuild();
     await Promise.all([
-      run(["bun", "run", "test"], { cwd: websiteDir }),
       run(["bun", "test", "--conditions=browser", "--preload", join(repoRoot, "scripts/solid-jsx.ts")], {
         cwd: corePackageDir,
       }),

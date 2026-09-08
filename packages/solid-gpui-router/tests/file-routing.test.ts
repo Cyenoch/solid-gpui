@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import { resolve } from "node:path";
 import { createServer } from "vite";
 import { generateRoutes } from "../src/generator";
+import { createGenerationSession } from "../src/generation-session";
 import { solidGpuiRouter } from "../src/vite";
 
 const packageRoot = resolve(import.meta.dirname, "..");
@@ -159,6 +160,7 @@ test("Vite generates before resolving modules and tracks route additions, rename
     server = await createServer({
       configFile: false,
       root,
+      cacheDir: resolve(root, "node_modules/.vite"),
       plugins: [
         solidGpuiRouter(),
         {
@@ -194,6 +196,24 @@ test("Vite generates before resolving modules and tracks route additions, rename
     await rm(root, { recursive: true, force: true });
   }
 }, 15_000);
+
+test("an unchanged generated-tree notification does not swallow a concurrent route deletion", async () => {
+  const root = await fixture();
+  const session = createGenerationSession({ root });
+  try {
+    const file = resolve(root, "src/routes/first.ts");
+    const tree = resolve(root, "src/routeTree.gen.ts");
+    await writeFile(file, route("/first"));
+    await session.run();
+    expect(await readFile(tree, "utf8")).toContain('"/first"');
+    await rm(file);
+    await Promise.all([session.run({ path: tree, type: "update" }), session.run({ path: file, type: "delete" })]);
+    expect(await readFile(tree, "utf8")).not.toContain('"/first"');
+  } finally {
+    session.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 async function waitFor(condition: () => Promise<boolean>) {
   const deadline = Date.now() + 5_000;

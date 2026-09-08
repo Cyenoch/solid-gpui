@@ -12,6 +12,9 @@ APIs such as `createFileRoute` and `createLazyFileRoute` from `@solid-gpui/route
 For non-Vite builds and standalone type checking, run `generateRoutes()` from
 `@solid-gpui/router/generator` first.
 
+The generator processes file events in order, including deletions arriving
+alongside notifications for unchanged generated files.
+
 Follow the [Router guide](../../docs/router.md) for installation, route files,
 native navigation, lazy routes, and platform limits. Refer to the
 [TanStack Router Solid documentation](https://tanstack.com/router/latest/docs/framework/solid)
