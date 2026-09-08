@@ -1,3 +1,4 @@
+mod metrics;
 use crate::{
     highlighter::HighlightTheme, list::ListSettings, notification::NotificationSettings,
     scroll::ScrollbarMode, sheet::SheetSettings,
@@ -7,6 +8,7 @@ pub use gpui_base::{
     ColorTokens, RadiusTokens, SemanticThemeTokens, ShadowTokens, SpacingTokens, TextStyleToken,
     TypographyTokens,
 };
+pub use metrics::{ComponentMetrics, ComponentMetricsSet};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -85,6 +87,9 @@ fn scrollbar_motion(mode: ScrollbarMode) -> gpui_base::ScrollbarMotion {
 /// The global theme configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Theme {
+    #[serde(default)]
+    pub component_metrics: ComponentMetricsSet,
+    pub input_background_override: Option<Hsla>,
     pub colors: ThemeColor,
     /// Component-specific resolved tokens retained for legacy compatibility.
     ///
@@ -331,6 +336,9 @@ impl Theme {
     /// otherwise use the `cx.theme().background` color.
     #[inline]
     pub fn input_background(&self) -> Hsla {
+        if let Some(color) = self.input_background_override {
+            return color;
+        }
         if self.is_dark() {
             self.input.mix_oklab(self.transparent, 0.3)
         } else {
@@ -613,6 +621,8 @@ mod semantic_token_tests {
 impl From<&ThemeColor> for Theme {
     fn from(colors: &ThemeColor) -> Self {
         Theme {
+            component_metrics: ComponentMetricsSet::default(),
+            input_background_override: None,
             mode: ThemeMode::default(),
             transparent: Hsla::transparent_black(),
             font_family: ".SystemUIFont".into(),

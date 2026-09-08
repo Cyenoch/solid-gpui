@@ -1,7 +1,7 @@
 {
   "schema": "protocol.bop",
   "root": "Envelope",
-  "digest": "fdce168b9d239fefacd4a1f5814bb7d2ea880c9ba446fbe6098927088dab6264",
+  "digest": "c5d879f9f501d5313fbc933f0cb566cb36e01b3c44cde212cd73bb9a8fc625b0",
   "definitions": {
     "NodeKind": {
       "kind": "enum",
@@ -1084,6 +1084,51 @@
         }
       ]
     },
+    "LinearGradient": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "angle",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 2,
+          "name": "startColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "startPosition",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 4,
+          "name": "endColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 5,
+          "name": "endPosition",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        }
+      ]
+    },
     "Style": {
       "kind": "message",
       "fields": [
@@ -1421,6 +1466,166 @@
           "type": {
             "kind": "scalar",
             "name": "string"
+          }
+        },
+        {
+          "id": 43,
+          "name": "paddingTop",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 44,
+          "name": "paddingRight",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 45,
+          "name": "paddingBottom",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 46,
+          "name": "paddingLeft",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 47,
+          "name": "borderTopWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 48,
+          "name": "borderRightWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 49,
+          "name": "borderBottomWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 50,
+          "name": "borderLeftWidth",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 51,
+          "name": "borderTopLeftRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 52,
+          "name": "borderTopRightRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 53,
+          "name": "borderBottomRightRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 54,
+          "name": "borderBottomLeftRadius",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 55,
+          "name": "widthPercent",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 56,
+          "name": "heightPercent",
+          "type": {
+            "kind": "scalar",
+            "name": "float32"
+          }
+        },
+        {
+          "id": 57,
+          "name": "flexWrap",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 58,
+          "name": "linearGradient",
+          "type": {
+            "kind": "def",
+            "name": "LinearGradient"
+          }
+        },
+        {
+          "id": 59,
+          "name": "borderTopColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 60,
+          "name": "borderRightColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 61,
+          "name": "borderBottomColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 62,
+          "name": "borderLeftColor",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
           }
         }
       ]

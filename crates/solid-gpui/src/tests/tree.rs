@@ -500,6 +500,7 @@ fn style_values_must_be_finite_and_non_negative() {
         text_align: Some(TextAlignCode::Right),
         box_shadows: None,
         font_family: None,
+        ..Style::default()
     });
     NodeStore::default()
         .apply_snapshot(root_snapshot(1, vec![valid]))

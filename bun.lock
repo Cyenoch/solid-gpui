@@ -34,9 +34,20 @@
         "vite": "8.2.2",
       },
     },
+    "examples/native-migration": {
+      "name": "@solid-gpui/native-migration",
+      "dependencies": {
+        "@solid-gpui/core": "workspace:*",
+        "@solid-gpui/router": "workspace:*",
+        "solid-js": "1.9.15",
+      },
+      "devDependencies": {
+        "vite": "8.2.2",
+      },
+    },
     "packages/solid-gpui": {
       "name": "@solid-gpui/core",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "bin": {
         "solid-gpui-dev": "./src/vite/dev.ts",
         "solid-gpui-build": "./src/vite/build.ts",
@@ -63,7 +74,7 @@
     },
     "packages/solid-gpui-router": {
       "name": "@solid-gpui/router",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "@tanstack/history": "1.162.1",
         "@tanstack/router-core": "1.171.27",
@@ -213,6 +224,8 @@
     "@solid-gpui/gallery": ["@solid-gpui/gallery@workspace:examples/gallery"],
 
     "@solid-gpui/gallery-vite": ["@solid-gpui/gallery-vite@workspace:examples/gallery-vite"],
+
+    "@solid-gpui/native-migration": ["@solid-gpui/native-migration@workspace:examples/native-migration"],
 
     "@solid-gpui/router": ["@solid-gpui/router@workspace:packages/solid-gpui-router"],
 

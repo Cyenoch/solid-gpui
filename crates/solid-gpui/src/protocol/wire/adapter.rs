@@ -169,6 +169,10 @@ fn decode_box_shadows(value: generated::BoxShadowSet) -> Result<Vec<BoxShadow>, 
 }
 fn wire_style(value: &Style) -> Result<generated::Style<'_>, ProtocolError> {
     let wire = generated::Style {
+        border_top_color: value.border_top_color,
+        border_right_color: value.border_right_color,
+        border_bottom_color: value.border_bottom_color,
+        border_left_color: value.border_left_color,
         width: value.width,
         height: value.height,
         flex_direction: value.flex_direction.map(u32::from),
@@ -210,7 +214,29 @@ fn wire_style(value: &Style) -> Result<generated::Style<'_>, ProtocolError> {
         cursor: value.cursor.map(u32::from),
         text_align: value.text_align.map(u32::from),
         box_shadow: value.box_shadows.as_deref().map(wire_box_shadows),
+        linear_gradient: value.linear_gradient.map(|v| generated::LinearGradient {
+            angle: Some(v.angle),
+            start_color: Some(v.start_color),
+            start_position: Some(v.start_position),
+            end_color: Some(v.end_color),
+            end_position: Some(v.end_position),
+        }),
         font_family: value.font_family.as_deref(),
+        padding_top: value.padding_top,
+        padding_right: value.padding_right,
+        padding_bottom: value.padding_bottom,
+        padding_left: value.padding_left,
+        border_top_width: value.border_top_width,
+        border_right_width: value.border_right_width,
+        border_bottom_width: value.border_bottom_width,
+        border_left_width: value.border_left_width,
+        border_top_left_radius: value.border_top_left_radius,
+        border_top_right_radius: value.border_top_right_radius,
+        border_bottom_right_radius: value.border_bottom_right_radius,
+        border_bottom_left_radius: value.border_bottom_left_radius,
+        width_percent: value.width_percent,
+        height_percent: value.height_percent,
+        flex_wrap: value.flex_wrap.map(u32::from),
     };
     validate_style_value(&wire)?;
     Ok(wire)
@@ -233,7 +259,42 @@ where
     value.is_some_and(|value| T::try_from(value).is_err())
 }
 fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolError> {
+    if value.linear_gradient.as_ref().is_some_and(|v| {
+        v.angle.is_none()
+            || v.start_color.is_none()
+            || v.start_position.is_none()
+            || v.end_color.is_none()
+            || v.end_position.is_none()
+    }) {
+        return Err(ProtocolError::InvalidStyle);
+    }
+    if value.linear_gradient.as_ref().is_some_and(|v| {
+        !(crate::protocol::LinearGradient {
+            angle: v.angle.unwrap(),
+            start_color: v.start_color.unwrap(),
+            start_position: v.start_position.unwrap(),
+            end_color: v.end_color.unwrap(),
+            end_position: v.end_position.unwrap(),
+        })
+        .is_valid()
+    }) {
+        return Err(ProtocolError::InvalidStyle);
+    }
     let non_negative = [
+        value.padding_top,
+        value.padding_right,
+        value.padding_bottom,
+        value.padding_left,
+        value.border_top_width,
+        value.border_right_width,
+        value.border_bottom_width,
+        value.border_left_width,
+        value.border_top_left_radius,
+        value.border_top_right_radius,
+        value.border_bottom_right_radius,
+        value.border_bottom_left_radius,
+        value.width_percent,
+        value.height_percent,
         value.width,
         value.height,
         value.flex_grow,
@@ -257,6 +318,9 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
         .into_iter()
         .flatten()
         .any(|amount| !amount.is_finite() || amount < 0.0)
+        || value.width.is_some() && value.width_percent.is_some()
+        || value.height.is_some() && value.height_percent.is_some()
+        || invalid_style_code::<crate::protocol::FlexWrapCode>(value.flex_wrap)
         || value.opacity.is_some_and(|opacity| opacity > 1.0)
     {
         return Err(ProtocolError::InvalidStyle);
@@ -306,6 +370,10 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
 fn decode_style(value: generated::Style<'_>) -> Result<Style, ProtocolError> {
     validate_style_value(&value)?;
     Ok(Style {
+        border_top_color: value.border_top_color,
+        border_right_color: value.border_right_color,
+        border_bottom_color: value.border_bottom_color,
+        border_left_color: value.border_left_color,
         width: value.width,
         height: value.height,
         flex_direction: decode_style_code(value.flex_direction)?,
@@ -347,7 +415,31 @@ fn decode_style(value: generated::Style<'_>) -> Result<Style, ProtocolError> {
         cursor: decode_style_code(value.cursor)?,
         text_align: decode_style_code(value.text_align)?,
         box_shadows: value.box_shadow.map(decode_box_shadows).transpose()?,
+        linear_gradient: value
+            .linear_gradient
+            .map(|v| crate::protocol::LinearGradient {
+                angle: v.angle.unwrap(),
+                start_color: v.start_color.unwrap(),
+                start_position: v.start_position.unwrap(),
+                end_color: v.end_color.unwrap(),
+                end_position: v.end_position.unwrap(),
+            }),
         font_family: value.font_family.map(str::to_owned),
+        padding_top: value.padding_top,
+        padding_right: value.padding_right,
+        padding_bottom: value.padding_bottom,
+        padding_left: value.padding_left,
+        border_top_width: value.border_top_width,
+        border_right_width: value.border_right_width,
+        border_bottom_width: value.border_bottom_width,
+        border_left_width: value.border_left_width,
+        border_top_left_radius: value.border_top_left_radius,
+        border_top_right_radius: value.border_top_right_radius,
+        border_bottom_right_radius: value.border_bottom_right_radius,
+        border_bottom_left_radius: value.border_bottom_left_radius,
+        width_percent: value.width_percent,
+        height_percent: value.height_percent,
+        flex_wrap: decode_style_code(value.flex_wrap)?,
     })
 }
 
@@ -599,7 +691,7 @@ fn validate_host(value: &HostProperties) -> Result<(), ProtocolError> {
         HostProperties::Extension(extension) => validate_extension_properties(extension),
         HostProperties::Icon(icon) => {
             if !valid_host_string(&icon.name, 128)
-                || gpui_iconify::IconId::from_name(&icon.name).is_none()
+                || !crate::icons::is_registered(&icon.name)
                 || !icon.size.is_finite()
                 || icon.size <= 0.0
             {
@@ -832,7 +924,7 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
             let name = name.ok_or(ProtocolError::InvalidHostProperties)?;
             let size = size.ok_or(ProtocolError::InvalidHostProperties)?;
             if !valid_host_string(name, 128)
-                || gpui_iconify::IconId::from_name(name).is_none()
+                || !crate::icons::is_registered(name)
                 || !size.is_finite()
                 || size <= 0.0
             {

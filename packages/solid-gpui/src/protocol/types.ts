@@ -75,7 +75,33 @@ export const ICON_NAMES = [
   "lucide:x",
   "lucide:zap",
 ] as const;
-export type IconName = (typeof ICON_NAMES)[number];
+declare const applicationIcon: unique symbol;
+export type ApplicationIconName = string & { readonly [applicationIcon]: true };
+export type IconName = (typeof ICON_NAMES)[number] | ApplicationIconName;
+const applicationIcons = new Set<string>();
+
+/** Register names from the application's embedded Rust catalog before rendering. */
+export function registerIconNames<const T extends readonly string[]>(
+  names: T,
+): { readonly [K in keyof T]: T[K] & ApplicationIconName } {
+  const candidate = new Set(applicationIcons);
+  for (const name of names) {
+    if (
+      typeof name !== "string" ||
+      name.length > 128 ||
+      !/^[a-z0-9-]+:[a-z0-9-]+$/.test(name) ||
+      (ICON_NAMES as readonly string[]).includes(name)
+    )
+      throw new TypeError(`Invalid or reserved application icon: ${name}`);
+    candidate.add(name);
+  }
+  if (candidate.size > 256) throw new RangeError("Application icon catalog exceeds 256 names");
+  for (const name of candidate) applicationIcons.add(name);
+  return Object.freeze([...names]) as unknown as { readonly [K in keyof T]: T[K] & ApplicationIconName };
+}
+export function isIconName(name: unknown): name is IconName {
+  return typeof name === "string" && ((ICON_NAMES as readonly string[]).includes(name) || applicationIcons.has(name));
+}
 export type NodeKind =
   | "View"
   | "Text"

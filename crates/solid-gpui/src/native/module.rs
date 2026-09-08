@@ -208,6 +208,13 @@ impl ModuleDefinition {
     pub fn id(&self) -> [u8; 16] {
         self.id
     }
+    pub fn command_id(&self, name: &str) -> Option<u32> {
+        self.commands
+            .entries
+            .iter()
+            .position(|command| command.name == name)
+            .map(|i| i as u32 + 1)
+    }
     pub fn component_id(&self, name: &str) -> Option<u32> {
         self.components
             .iter()

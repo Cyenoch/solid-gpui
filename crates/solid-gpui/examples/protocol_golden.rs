@@ -7,6 +7,32 @@ use solid_gpui::*;
 
 fn full_style() -> Style {
     Style {
+        padding_top: Some(0.0),
+        padding_right: Some(4.0),
+        padding_bottom: Some(8.0),
+        padding_left: Some(88.0),
+        border_top_width: Some(0.0),
+        border_right_width: Some(1.0),
+        border_bottom_width: Some(2.0),
+        border_left_width: Some(3.0),
+        border_top_left_radius: Some(8.0),
+        border_top_right_radius: Some(0.0),
+        border_bottom_right_radius: Some(0.0),
+        border_bottom_left_radius: Some(8.0),
+        border_top_color: Some(0xd4688cff),
+        border_right_color: Some(0x2c2b33ff),
+        border_bottom_color: Some(0x131217ff),
+        border_left_color: Some(0xe07b9eff),
+        width_percent: None,
+        height_percent: None,
+        flex_wrap: Some(solid_gpui::protocol::FlexWrapCode::Wrap),
+        linear_gradient: Some(solid_gpui::protocol::LinearGradient {
+            angle: 180.,
+            start_color: 0x13121700,
+            start_position: 0.2,
+            end_color: 0x131217ff,
+            end_position: 1.,
+        }),
         width: Some(120.0),
         height: Some(48.0),
         flex_direction: Some(FlexDirectionCode::Column),
@@ -142,6 +168,11 @@ fn snapshot() -> Snapshot {
     }));
 
     let mut drag = node(8, 1, 5, KIND_VIEW);
+    drag.style = Some(Style {
+        width_percent: Some(50.),
+        height_percent: Some(100.),
+        ..Style::default()
+    });
     drag.listener_id = 11;
     drag.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".to_owned()),

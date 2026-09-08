@@ -11,7 +11,7 @@ export type {
   ExtensionProperties,
   ExtensionValue,
 } from "./protocol";
-export { ICON_NAMES } from "./protocol";
+export { ICON_NAMES, registerIconNames } from "./protocol";
 import { createMemo, createSignal, mapArray } from "solid-js";
 import { createHostElement } from "./renderer";
 import type {
@@ -128,6 +128,7 @@ export {
   type FontStyle,
   type FontWeight,
   type JustifyContent,
+  type LinearGradient,
   type NamedStyles,
   type Overflow,
   type Style,

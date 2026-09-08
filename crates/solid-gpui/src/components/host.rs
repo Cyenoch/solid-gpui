@@ -32,6 +32,13 @@ impl Render for ProviderContent {
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         div()
+            .line_height(
+                gpui_base::Theme::global(cx)
+                    .tokens
+                    .typography
+                    .md
+                    .line_height,
+            )
             .relative()
             .size_full()
             .child(self.solid_root.clone())
@@ -42,16 +49,38 @@ impl Render for ProviderContent {
     }
 }
 
+type WindowOptionsFactory = Rc<dyn Fn(WindowOptions, &App) -> WindowOptions>;
+
 /// Host profile that renders Solid GPUI through gpui-component's root and overlays.
 #[derive(Clone)]
 pub struct ComponentHost {
     modules: Rc<NativeModules>,
+    window_options: Option<WindowOptionsFactory>,
+    performance_monitor: bool,
 }
 impl ComponentHost {
     pub fn new(modules: Vec<ModuleDefinition>) -> Self {
         Self {
             modules: Rc::new(NativeModules::new(modules)),
+            window_options: None,
+            performance_monitor: false,
         }
+    }
+}
+impl ComponentHost {
+    /// Customize GPUI options using TitleBar::window_options() as the base for a custom title bar.
+    pub fn with_window_options(
+        mut self,
+        configure: impl Fn(WindowOptions, &App) -> WindowOptions + 'static,
+    ) -> Self {
+        self.window_options = Some(Rc::new(configure));
+        self
+    }
+
+    /// Enable the development performance overlay explicitly. Disabled by default in all builds.
+    pub fn with_performance_monitor(mut self, enabled: bool) -> Self {
+        self.performance_monitor = enabled;
+        self
     }
 }
 impl Default for ComponentHost {
@@ -61,8 +90,16 @@ impl Default for ComponentHost {
 }
 
 impl HostProfile for ComponentHost {
+    fn window_options(&self, options: WindowOptions, cx: &App) -> WindowOptions {
+        match &self.window_options {
+            Some(configure) => configure(options, cx),
+            None => options,
+        }
+    }
     fn native_bindings(&self) -> Result<String, String> {
-        self.modules.typescript()
+        self.modules
+            .typescript()
+            .map(|source| format!("{source}{}", crate::icons::typescript()))
     }
     fn capabilities(&self) -> HostCapabilities {
         HostCapabilities {
@@ -89,17 +126,13 @@ impl HostProfile for ComponentHost {
         extensions: Rc<dyn ExtensionRegistry>,
         cx: &mut App,
     ) -> Result<(AnyWindowHandle, Entity<SolidRoot>), String> {
+        let monitor_enabled = self.performance_monitor;
         let solid_root = Rc::new(RefCell::new(None));
         let solid_root_for_window = Rc::clone(&solid_root);
         let window = cx
             .open_window(options, move |window, cx| {
                 let root = cx.new(|_| SolidRoot::with_extensions(runtime, extensions));
                 *solid_root_for_window.borrow_mut() = Some(root.clone());
-                let monitor_enabled = match std::env::var("SOLID_GPUI_PERF_MONITOR").as_deref() {
-                    Ok("1") => true,
-                    Ok("0") => false,
-                    _ => cfg!(debug_assertions),
-                };
                 let frame_monitor = monitor_enabled
                     .then(|| cx.new(|cx| PerformanceMonitor::new(MonitorCorner::TopRight, cx)));
                 let content = cx.new(|cx| ProviderContent {

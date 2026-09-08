@@ -756,6 +756,27 @@ pub struct BoxShadow {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Style {
+    pub border_top_color: Option<u32>,
+    pub border_right_color: Option<u32>,
+    pub border_bottom_color: Option<u32>,
+    pub border_left_color: Option<u32>,
+
+    pub linear_gradient: Option<LinearGradient>,
+    pub padding_top: Option<f32>,
+    pub padding_right: Option<f32>,
+    pub padding_bottom: Option<f32>,
+    pub padding_left: Option<f32>,
+    pub border_top_width: Option<f32>,
+    pub border_right_width: Option<f32>,
+    pub border_bottom_width: Option<f32>,
+    pub border_left_width: Option<f32>,
+    pub border_top_left_radius: Option<f32>,
+    pub border_top_right_radius: Option<f32>,
+    pub border_bottom_right_radius: Option<f32>,
+    pub border_bottom_left_radius: Option<f32>,
+    pub width_percent: Option<f32>,
+    pub height_percent: Option<f32>,
+    pub flex_wrap: Option<FlexWrapCode>,
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub flex_direction: Option<FlexDirectionCode>,
@@ -1936,4 +1957,26 @@ pub fn write_frame<W: Write>(writer: &mut W, payload: &[u8]) -> Result<(), Proto
         .and_then(|_| writer.write_all(payload))
         .and_then(|_| writer.flush())
         .map_err(ProtocolError::Io)
+}
+
+closed_code!(FlexWrapCode { NoWrap = 0, Wrap = 1, WrapReverse = 2 });
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LinearGradient {
+    pub angle: f32,
+    pub start_color: u32,
+    pub start_position: f32,
+    pub end_color: u32,
+    pub end_position: f32,
+}
+impl LinearGradient {
+    pub(crate) fn is_valid(&self) -> bool {
+        self.angle.is_finite()
+            && (0.0..=360.0).contains(&self.angle)
+            && self.start_position.is_finite()
+            && self.end_position.is_finite()
+            && (0.0..=1.0).contains(&self.start_position)
+            && (0.0..=1.0).contains(&self.end_position)
+            && self.start_position < self.end_position
+    }
 }

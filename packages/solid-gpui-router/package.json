@@ -1,6 +1,6 @@
 {
   "name": "@solid-gpui/router",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TanStack Router integration for native Solid GPUI surfaces.",
   "keywords": [
     "solidjs",
@@ -35,7 +35,7 @@
     "@tanstack/router-core": "1.171.27"
   },
   "peerDependencies": {
-    "@solid-gpui/core": "^0.2.0",
+    "@solid-gpui/core": "^0.3.0",
     "solid-js": "^1.9.10"
   }
 }

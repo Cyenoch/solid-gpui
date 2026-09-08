@@ -228,6 +228,14 @@ message BoxShadowSet {
     1 -> BoxShadowValue[] values;
 }
 
+message LinearGradient {
+    1 -> float32 angle;
+    2 -> uint32 startColor;
+    3 -> float32 startPosition;
+    4 -> uint32 endColor;
+    5 -> float32 endPosition;
+}
+
 message Style {
     1 -> float32 width;
     2 -> float32 height;
@@ -271,6 +279,27 @@ message Style {
     40 -> uint32 textAlign;
     41 -> BoxShadowSet boxShadow;
     42 -> string fontFamily;
+    43 -> float32 paddingTop;
+    44 -> float32 paddingRight;
+    45 -> float32 paddingBottom;
+    46 -> float32 paddingLeft;
+    47 -> float32 borderTopWidth;
+    48 -> float32 borderRightWidth;
+    49 -> float32 borderBottomWidth;
+    50 -> float32 borderLeftWidth;
+    51 -> float32 borderTopLeftRadius;
+    52 -> float32 borderTopRightRadius;
+    53 -> float32 borderBottomRightRadius;
+    54 -> float32 borderBottomLeftRadius;
+    55 -> float32 widthPercent;
+    56 -> float32 heightPercent;
+    57 -> uint32 flexWrap;
+    58 -> LinearGradient linearGradient;
+    59 -> uint32 borderTopColor;
+    60 -> uint32 borderRightColor;
+    61 -> uint32 borderBottomColor;
+    62 -> uint32 borderLeftColor;
+
 }
 
 message Node {

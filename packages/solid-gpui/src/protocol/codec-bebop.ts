@@ -368,7 +368,40 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
           }[value.cursor],
     textAlign: value.textAlign === undefined ? undefined : { left: 1, center: 2, right: 3 }[value.textAlign],
     boxShadow: value.boxShadow === undefined ? undefined : wireShadow(value.boxShadow),
+    linearGradient:
+      value.linearGradient === undefined
+        ? undefined
+        : {
+            angle: Math.fround(value.linearGradient.angle),
+            startColor: encodeColor(value.linearGradient.stops[0].color),
+            startPosition: Math.fround(value.linearGradient.stops[0].position),
+            endColor: encodeColor(value.linearGradient.stops[1].color),
+            endPosition: Math.fround(value.linearGradient.stops[1].position),
+          },
     fontFamily: value.fontFamily,
+    borderTopColor: value.borderTopColor === undefined ? undefined : encodeColor(value.borderTopColor),
+    borderRightColor: value.borderRightColor === undefined ? undefined : encodeColor(value.borderRightColor),
+    borderBottomColor: value.borderBottomColor === undefined ? undefined : encodeColor(value.borderBottomColor),
+    borderLeftColor: value.borderLeftColor === undefined ? undefined : encodeColor(value.borderLeftColor),
+
+    paddingTop: value.paddingTop === undefined ? undefined : Math.fround(value.paddingTop),
+    paddingRight: value.paddingRight === undefined ? undefined : Math.fround(value.paddingRight),
+    paddingBottom: value.paddingBottom === undefined ? undefined : Math.fround(value.paddingBottom),
+    paddingLeft: value.paddingLeft === undefined ? undefined : Math.fround(value.paddingLeft),
+    borderTopWidth: value.borderTopWidth === undefined ? undefined : Math.fround(value.borderTopWidth),
+    borderRightWidth: value.borderRightWidth === undefined ? undefined : Math.fround(value.borderRightWidth),
+    borderBottomWidth: value.borderBottomWidth === undefined ? undefined : Math.fround(value.borderBottomWidth),
+    borderLeftWidth: value.borderLeftWidth === undefined ? undefined : Math.fround(value.borderLeftWidth),
+    borderTopLeftRadius: value.borderTopLeftRadius === undefined ? undefined : Math.fround(value.borderTopLeftRadius),
+    borderTopRightRadius:
+      value.borderTopRightRadius === undefined ? undefined : Math.fround(value.borderTopRightRadius),
+    borderBottomRightRadius:
+      value.borderBottomRightRadius === undefined ? undefined : Math.fround(value.borderBottomRightRadius),
+    borderBottomLeftRadius:
+      value.borderBottomLeftRadius === undefined ? undefined : Math.fround(value.borderBottomLeftRadius),
+    widthPercent: value.widthPercent === undefined ? undefined : Math.fround(value.widthPercent),
+    heightPercent: value.heightPercent === undefined ? undefined : Math.fround(value.heightPercent),
+    flexWrap: value.flexWrap === undefined ? undefined : { nowrap: 0, wrap: 1, "wrap-reverse": 2 }[value.flexWrap],
   };
 }
 function wireAccessibility(value: SemanticAccessibilityProperties | null): WireAccessibilityProperties | undefined {

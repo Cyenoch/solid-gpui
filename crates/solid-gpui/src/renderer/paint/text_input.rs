@@ -21,7 +21,7 @@ use super::accessibility::apply_accessibility;
 use super::style::{apply_style, apply_style_without_cursor, apply_text_style};
 pub(crate) struct RichTextParts {
     pub(super) text: String,
-    pub(super) runs: Vec<TextRun>,
+    run_styles: Vec<(usize, Option<Style>)>,
     pub(super) clickable_ranges: Vec<Range<usize>>,
     pub(super) clickable_targets: Vec<(u32, u32)>,
 }
@@ -29,14 +29,14 @@ pub(crate) struct RichTextParts {
 pub(super) fn rich_text_parts(
     root: &SolidRoot,
     node: &StoredNode,
-    style: Option<&Style>,
+    _style: Option<&Style>,
 ) -> Rc<RichTextParts> {
     if let Some(parts) = root.rich_text_parts_cache.borrow().get(&node.id) {
         return Rc::clone(parts);
     }
-    let text_style = gpui::TextStyle::default();
+
     let mut text = String::new();
-    let mut runs = Vec::new();
+    let mut run_styles = Vec::new();
     let mut clickable_ranges = Vec::new();
     let mut clickable_targets = Vec::new();
     for child in node.children(&root.store) {
@@ -50,14 +50,13 @@ pub(super) fn rich_text_parts(
         };
         let start = text.len();
         text.push_str(content);
-        runs.push(super::style::text_run(
-            &text_style,
-            if child.kind == crate::tree::KIND_TEXT {
-                child.style.as_ref()
-            } else {
-                style
-            },
+        run_styles.push((
             content.len(),
+            if child.kind == crate::tree::KIND_TEXT {
+                child.style.clone()
+            } else {
+                None
+            },
         ));
         if child.kind == crate::tree::KIND_TEXT && child.listener_id != 0 {
             clickable_ranges.push(start..text.len());
@@ -71,14 +70,14 @@ pub(super) fn rich_text_parts(
             .filter(|content| !content.is_empty())
     {
         text.push_str(content);
-        runs.push(super::style::text_run(&text_style, style, content.len()));
+        run_styles.push((content.len(), None));
     }
     #[cfg(test)]
     root.rich_text_assembly_count
         .set(root.rich_text_assembly_count.get() + 1);
     let parts = Rc::new(RichTextParts {
         text,
-        runs,
+        run_styles,
         clickable_ranges,
         clickable_targets,
     });
@@ -86,6 +85,30 @@ pub(super) fn rich_text_parts(
         .borrow_mut()
         .insert(node.id, Rc::clone(&parts));
     parts
+}
+
+impl RichTextParts {
+    fn resolved_runs(&self, window: &Window) -> Vec<TextRun> {
+        let inherited = window.text_style();
+        self.run_styles
+            .iter()
+            .map(|(len, style)| super::style::text_run(&inherited, style.as_ref(), *len))
+            .collect()
+    }
+}
+
+/// Resolve text runs inside the actual native parent's typography scope.
+#[derive(gpui::IntoElement)]
+pub(super) struct DeferredText(Box<dyn FnOnce(&mut Window) -> AnyElement>);
+impl DeferredText {
+    pub(super) fn new(render: impl FnOnce(&mut Window) -> AnyElement + 'static) -> Self {
+        Self(Box::new(render))
+    }
+}
+impl gpui::RenderOnce for DeferredText {
+    fn render(self, window: &mut Window, _: &mut App) -> impl IntoElement {
+        (self.0)(window)
+    }
 }
 
 struct RichTextElement {
@@ -922,10 +945,11 @@ pub(super) fn render_rich_text(
     element = apply_text_style(element, style);
     if parts.clickable_ranges.is_empty() {
         if !parts.text.is_empty() {
-            element = element.child(
+            element = element.child(DeferredText::new(move |window| {
                 StyledText::new(SharedString::from(parts.text.clone()))
-                    .with_runs(parts.runs.clone()),
-            );
+                    .with_runs(parts.resolved_runs(window))
+                    .into_any()
+            }));
         }
         return apply_accessibility(element, node).into_any();
     }
@@ -937,24 +961,6 @@ pub(super) fn render_rich_text(
     let surface_id = root.store.surface_id();
     let epoch = root.store.epoch();
     let revision = root.store.revision();
-    let interactive = InteractiveText::new(
-        ElementId::named_usize("solid-gpui-text-runs", node.id as usize),
-        StyledText::new(SharedString::from(parts.text.clone())).with_runs(parts.runs.clone()),
-    )
-    .on_click(ranges.clone(), move |index, _, _| {
-        let Some((node_id, listener_id)) = click_targets.get(index).copied() else {
-            return;
-        };
-        let event = Event::press(
-            surface_id,
-            epoch,
-            revision,
-            sequence.fetch_add(1, Ordering::Relaxed),
-            node_id,
-            listener_id,
-        );
-        send_event_or_exit(runtime.as_ref(), "text run press event", event);
-    });
     let focuses = targets
         .clone()
         .into_iter()
@@ -966,14 +972,38 @@ pub(super) fn render_rich_text(
                 .map(|focus| (run_node_id, range, focus))
         })
         .collect();
-    element = element.child(RichTextElement {
-        node_id: node.id,
-        interactive,
-        text: parts.text.clone(),
-        runs: parts.runs.clone(),
-        focuses,
-        affordance_bounds: Rc::clone(&root.link_affordance_bounds),
-    });
+    let affordance_bounds = Rc::clone(&root.link_affordance_bounds);
+    let node_id = node.id;
+    element = element.child(DeferredText::new(move |window| {
+        let runs = parts.resolved_runs(window);
+        let interactive = InteractiveText::new(
+            ElementId::named_usize("solid-gpui-text-runs", node_id as usize),
+            StyledText::new(SharedString::from(parts.text.clone())).with_runs(runs.clone()),
+        )
+        .on_click(ranges.clone(), move |index, _, _| {
+            let Some((node_id, listener_id)) = click_targets.get(index).copied() else {
+                return;
+            };
+            let event = Event::press(
+                surface_id,
+                epoch,
+                revision,
+                sequence.fetch_add(1, Ordering::Relaxed),
+                node_id,
+                listener_id,
+            );
+            send_event_or_exit(runtime.as_ref(), "text run press event", event);
+        });
+        RichTextElement {
+            node_id,
+            interactive,
+            text: parts.text.clone(),
+            runs,
+            focuses,
+            affordance_bounds,
+        }
+        .into_any()
+    }));
     for (run_node_id, run_listener_id) in targets {
         let Some(focus) = root.focus_handles.get(&run_node_id).cloned() else {
             continue;
@@ -1028,7 +1058,7 @@ pub(super) fn render_selectable(
     let node_id = node.id;
     let parts = rich_text_parts(root, node, style);
     let text = parts.text.clone();
-    let runs = parts.runs.clone();
+
     let focus = root
         .focus_handles
         .get(&node_id)
@@ -1045,11 +1075,18 @@ pub(super) fn render_selectable(
         .tab_stop(true)
         .track_focus(&focus)
         .cursor(gpui::CursorStyle::IBeam)
-        .child(SelectableTextElement {
-            entity: entity.clone(),
-            node_id,
-            text: text.clone(),
-            runs,
+        .child({
+            let entity = entity.clone();
+            let text = text.clone();
+            DeferredText::new(move |window| {
+                SelectableTextElement {
+                    entity,
+                    node_id,
+                    text,
+                    runs: parts.resolved_runs(window),
+                }
+                .into_any()
+            })
         });
     let mouse_entity = entity.clone();
     let mouse_focus = focus.clone();

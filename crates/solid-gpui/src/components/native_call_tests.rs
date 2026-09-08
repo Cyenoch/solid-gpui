@@ -11,6 +11,8 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
 ) {
     let runtime = InMemoryAdapter::new();
     let module = super::super::theme::native_module();
+    let set_theme = module.command_id("setTheme").unwrap();
+    let set_application = module.command_id("setApplicationTheme").unwrap();
     let id = module.id();
     let digest = module.digest();
     let mut profile = ComponentHost::new(vec![module]);
@@ -34,10 +36,25 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
             .unwrap();
         })
         .unwrap();
-    for (request_id, input, success, dark) in [
-        (1, "\"dark\"", true, true),
-        (2, "\"unknown\"", false, true),
-        (3, "\"light\"", true, false),
+    for (request_id, input, success, dark, function_id) in [
+        (1, "\"dark\"", true, true, set_theme),
+        (2, "\"unknown\"", false, true, set_theme),
+        (3, "\"light\"", true, false, set_theme),
+        (
+            4,
+            r##"{"colors":{"primary":"#D4688C","buttonPrimaryHover":"#E07B9E","foreground":"#ECEAF1"},"fontSize":14,"radius":6,"inputBackground":"#1B1A20","components":{"button":{"height":32,"fontSize":14}}}"##,
+            true,
+            false,
+            set_application,
+        ),
+        (
+            5,
+            r##"{"colors":{"primary":"invalid"}}"##,
+            false,
+            false,
+            set_application,
+        ),
+        (6, "\"dark\"", true, true, set_theme),
     ] {
         let command = Command::new(
             CommandMeta {
@@ -50,7 +67,7 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
             CommandOperation::InvokeNative {
                 module_id: id,
                 module_digest: digest,
-                function_id: 2,
+                function_id,
                 args: input.as_bytes().to_vec(),
             },
         );
@@ -66,6 +83,20 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
                 .unwrap();
                 window.draw(cx).clear(cx);
                 assert_eq!(gpui_component::Theme::global(cx).is_dark(), dark);
+                if request_id >= 4 {
+                    let theme = gpui_component::Theme::global(cx);
+                    assert_eq!(theme.primary, gpui::rgb(0xd4688c).into());
+                    assert_eq!(theme.input_background(), gpui::rgb(0x1b1a20).into());
+                    assert_eq!(theme.component_metrics.button.height, Some(gpui::px(32.)));
+                    assert_eq!(
+                        theme.tokens.button_primary_hover.color,
+                        gpui::rgb(0xe07b9e).into()
+                    );
+                    assert_eq!(
+                        gpui_base::Theme::global(cx).tokens.colors.primary,
+                        theme.primary
+                    );
+                }
                 assert_eq!(
                     matches!(
                         gpui_base::Theme::global(cx).appearance,
@@ -91,7 +122,7 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
         .unwrap();
     assert!(
         module
-            .invoke(2, br#""dark""#)
+            .invoke(set_theme, br#""dark""#)
             .unwrap_err()
             .contains("foreground")
     );
