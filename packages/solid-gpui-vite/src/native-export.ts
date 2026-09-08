@@ -13,21 +13,45 @@ export interface NativeExportOptions {
   readonly check?: boolean;
 }
 
-/** Compile and query the actual host before any JavaScript entry is loaded. */
-export async function exportNativeBindings(options: NativeExportOptions, cwd = process.cwd()): Promise<string> {
-  const output = resolve(cwd, options.output);
+/** Cargo's artifact message is authoritative, including custom target directories. */
+export async function buildNativeHost(
+  options: Omit<NativeExportOptions, "output" | "check">,
+  cwd: string,
+): Promise<string> {
   const args = [
-    "run",
-    "--quiet",
+    "build",
+    "--message-format=json-render-diagnostics",
     "--manifest-path",
     resolve(cwd, options.manifestPath),
     ...(options.package ? ["--package", options.package] : []),
     ...(options.bin ? ["--bin", options.bin] : []),
     ...(options.features?.length ? ["--features", options.features.join(",")] : []),
-    "--",
-    "--export-native",
   ];
   const { stdout, stderr } = await promisify(execFile)("cargo", args, { cwd, maxBuffer: 16 * 1024 * 1024 });
+  if (stderr) process.stderr.write(stderr);
+  const executables = new Set<string>();
+  for (const line of stdout.trim().split("\n")) {
+    const artifact = JSON.parse(line);
+    if (artifact.reason === "compiler-artifact" && artifact.executable && artifact.target.kind.includes("bin")) {
+      if (!options.bin || artifact.target.name === options.bin) executables.add(artifact.executable);
+    }
+  }
+  if (executables.size !== 1) throw new Error("Select one native host executable with native.package and native.bin");
+  return [...executables][0]!;
+}
+
+/** Query the executable that will run the application, then publish atomically. */
+export async function exportNativeBindings(
+  options: NativeExportOptions,
+  cwd = process.cwd(),
+  executable?: string,
+): Promise<string> {
+  const output = resolve(cwd, options.output);
+  executable ??= await buildNativeHost(options, cwd);
+  const { stdout, stderr } = await promisify(execFile)(executable, ["--export-native"], {
+    cwd,
+    maxBuffer: 16 * 1024 * 1024,
+  });
   if (stderr) process.stderr.write(stderr);
   const { format } = await import("oxfmt");
   // Rust exports TypeScript regardless of the destination's extension.

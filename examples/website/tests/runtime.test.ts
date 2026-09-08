@@ -1,5 +1,5 @@
 import { test } from "bun:test";
-import { createServer, isRunnableDevEnvironment } from "vite";
+import { createRunnableDevEnvironment, createServer, isRunnableDevEnvironment } from "vite";
 import { resolve } from "node:path";
 
 test("documented previews render without DOM globals and component navigation retains the sidebar", async () => {
@@ -8,6 +8,7 @@ test("documented previews render without DOM globals and component navigation re
     root,
     configFile: resolve(root, "vite.native.config.ts"),
     server: { middlewareMode: true, hmr: false, ws: false },
+    environments: { ssr: { dev: { createEnvironment: createRunnableDevEnvironment } } },
     logLevel: "error",
   });
   try {

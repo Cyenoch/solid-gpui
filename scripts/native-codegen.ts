@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { fileURLToPath } from "node:url";
-import { exportNativeBindings } from "../packages/solid-gpui/src/vite/native-export";
+import { exportNativeBindings } from "../packages/solid-gpui-vite/src/native-export";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const program = new Command()

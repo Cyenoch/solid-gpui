@@ -4,7 +4,6 @@ import { chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFi
 import { basename, dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { parseArgs } from "node:util";
-import { buildApplication } from "../packages/solid-gpui/src/vite/build";
 
 const root = resolve(import.meta.dirname, "..");
 const executable = "solid-gpui-website";
@@ -121,12 +120,7 @@ async function main(): Promise<void> {
   try {
     const bundle = join(temporary, "website.js");
     await run(["bun", "run", "build:embedded"], join(root, "examples/website"));
-    await buildApplication({
-      runtime: "quickjs",
-      entry: join(root, "examples/website/dist-embedded/quickjs.js"),
-      outfile: bundle,
-      sourcemap: "none",
-    });
+    await copyFile(join(root, "examples/website/dist-embedded/app.js"), bundle);
     const environment: Record<string, string> = { SOLID_GPUI_WEBSITE_BUNDLE: bundle };
     if (process.platform === "darwin") {
       // Record the selected target consistently in both Mach-O and Info.plist.

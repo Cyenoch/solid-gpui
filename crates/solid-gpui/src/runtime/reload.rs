@@ -392,12 +392,13 @@ mod tests {
             ProcessCommand::new("bun")
                 .current_dir(root)
                 .args([
-                    "packages/solid-gpui/src/vite/build.ts",
-                    "--runtime",
-                    "quickjs",
-                    "fixtures/quickjs-counter.tsx"
+                    "--bun",
+                    "vite",
+                    "build",
+                    "--config",
+                    "fixtures/vite.config.ts"
                 ])
-                .arg(&entry)
+                .env("SOLID_GPUI_FIXTURE_OUTPUT", &entry)
                 .status()
                 .unwrap()
                 .success()

@@ -47,7 +47,7 @@ function App() {
 
 ## 构建时高亮
 
-已知代码片段可在 Bun 构建期间高亮，并序列化为数据：
+已知代码片段可在 Bun 执行的 Vite 构建期间高亮，并序列化为数据：
 
 ```ts
 const result = await highlighter.highlight({

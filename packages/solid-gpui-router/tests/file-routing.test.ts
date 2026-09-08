@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createServer } from "vite";
+import { build, createServer } from "vite";
 import { generateRoutes } from "../src/generator";
 import { createGenerationSession } from "../src/generation-session";
 import { solidGpuiRouter } from "../src/vite";
@@ -124,21 +124,13 @@ if (second.state.location.pathname !== "/") throw new Error("Shared window histo
     });
     const output = (await new Response(checker.stdout).text()) + (await new Response(checker.stderr).text());
     expect({ exitCode: await checker.exited, output }).toEqual({ exitCode: 0, output: "" });
-    const bundle = await Bun.build({
-      entrypoints: [resolve(root, "src/consumer.ts")],
-      outdir: resolve(root, "dist"),
-      target: "bun",
-      conditions: ["browser"],
-      plugins: [
-        {
-          name: "router-source",
-          setup(build) {
-            build.onResolve({ filter: /^@solid-gpui\/router$/ }, () => ({ path: runtime }));
-          },
-        },
-      ],
+    await build({
+      configFile: false,
+      root,
+      resolve: { alias: { "@solid-gpui/router": runtime } },
+      ssr: { noExternal: true, resolve: { conditions: ["browser"] } },
+      build: { ssr: resolve(root, "src/consumer.ts"), outDir: "dist", target: "esnext" },
     });
-    expect(bundle.success).toBe(true);
     const child = Bun.spawn(["bun", "--conditions=browser", resolve(root, "dist/consumer.js")], {
       stdout: "pipe",
       stderr: "pipe",

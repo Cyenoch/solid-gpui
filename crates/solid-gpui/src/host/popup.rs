@@ -361,28 +361,28 @@ impl NativeStateRegistry {
                             }
                         }
                     });
-                }) as Rc<dyn Fn(Option<Point<Pixels>>, &mut App)>
+                }) as crate::renderer::PopupInput
             });
             cx.notify();
         });
     }
 
     pub(super) fn popup_received_snapshot(&self, surface_id: u32, cx: &mut Context<Self>) {
-        if self.popups.contains_key(&surface_id) {
-            if let Some(surface) = self.surfaces.get(&surface_id) {
-                let _ = surface.window.update(cx, |_, window, _| {
-                    // Hidden X11 windows do not receive frame ticks. Admit mapping
-                    // only once the initial content Snapshot has been installed.
-                    window.activate_window();
-                    window.on_next_frame(|window, _| {
-                        window.on_next_frame(|window, cx| {
-                            if window.is_window_active() {
-                                window.focus_next(cx);
-                            }
-                        });
+        if self.popups.contains_key(&surface_id)
+            && let Some(surface) = self.surfaces.get(&surface_id)
+        {
+            let _ = surface.window.update(cx, |_, window, _| {
+                // Hidden X11 windows do not receive frame ticks. Admit mapping
+                // only once the initial content Snapshot has been installed.
+                window.activate_window();
+                window.on_next_frame(|window, _| {
+                    window.on_next_frame(|window, cx| {
+                        if window.is_window_active() {
+                            window.focus_next(cx);
+                        }
                     });
                 });
-            }
+            });
         }
     }
 
@@ -402,15 +402,13 @@ impl NativeStateRegistry {
                 let restore_focus =
                     restore_focus && was_active && cx.active_window() == Some(window);
                 let _ = window.update(cx, |_, window, _| window.remove_window());
-                if restore_focus {
-                    if let Some((owner, focus)) = focus {
-                        let _ = owner.update(cx, |_, window, cx| {
-                            window.activate_window();
-                            if let Some(focus) = focus {
-                                focus.focus(window, cx);
-                            }
-                        });
-                    }
+                if restore_focus && let Some((owner, focus)) = focus {
+                    let _ = owner.update(cx, |_, window, cx| {
+                        window.activate_window();
+                        if let Some(focus) = focus {
+                            focus.focus(window, cx);
+                        }
+                    });
                 }
             });
         }

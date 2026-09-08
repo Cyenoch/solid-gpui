@@ -1,6 +1,7 @@
 import { plugin } from "bun";
-import { transformJsx } from "../packages/solid-gpui/src/vite/transform";
+import { transformJsx } from "../packages/solid-gpui-vite/src/transform";
 
+// Test-only loader; applications compile JSX/TSX through @solid-gpui/vite.
 plugin({
   name: "solid-gpui-jsx",
   setup(build) {

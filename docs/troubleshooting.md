@@ -53,7 +53,7 @@ Use `EmbeddedTransport` from `@solid-gpui/core/embedded` with the QuickJS host.
 `StdioTransport` belongs to Bun's process or embedded stdio environment and
 requires `process.stdin` and `process.stdout`.
 
-Build with `solid-gpui-build --runtime quickjs <entry.tsx> <output.js>` so
+Configure `solidGpui({ entry, runtime: "quickjs" })` and run `bun --bun vite build` so
 dependencies are included in one ESM module. Node/Bun imports are rejected;
 ambient `process`, `Bun`, filesystem, and network APIs such as `fetch` are
 unavailable. Move those services into Rust Native Modules and call the
@@ -128,8 +128,7 @@ Use:
 }
 ```
 
-Use the shared Solid/Oxc universal transform through the Vite plugin or
-`solid-gpui-build`. A generic React-style JSX transform cannot generate this
+Use the Solid/Oxc universal transform through the [Vite plugin](vite.md). A generic React-style JSX transform cannot generate this
 renderer's reactive host operations.
 
 ## Scrolling is unbounded or slow
@@ -150,7 +149,7 @@ Regenerate API fixtures and run the semantic re-export test as well as
 its release-candidate version is separate from the Solid 1 runtime, and the
 shared transform disables Solid 2 built-in auto-imports. Compiler upgrades
 must preserve reactive updates, owner cleanup, import side effects, and source
-maps in both the Bun preload and Vite paths.
+maps in both Vite development and production builds.
 
 
 ## Correlating native command failures

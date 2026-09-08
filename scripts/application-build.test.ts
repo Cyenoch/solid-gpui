@@ -1,8 +1,30 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { buildApplication } from "../packages/solid-gpui/src/vite/build";
+import { basename, dirname, join, resolve } from "node:path";
+import { build } from "vite";
+import { solidGpui } from "../packages/solid-gpui-vite/src";
+import { fixtureAliases } from "../fixtures/vite.config";
+
+async function buildApplication(options: {
+  entry: string;
+  outfile: string;
+  runtime: "bun" | "quickjs";
+  sourcemap?: "none" | "inline";
+}) {
+  await build({
+    configFile: false,
+    logLevel: "silent",
+    plugins: [solidGpui({ entry: resolve(options.entry), runtime: options.runtime, host: false })],
+    resolve: { alias: fixtureAliases },
+    build: {
+      outDir: dirname(options.outfile),
+      emptyOutDir: false,
+      sourcemap: options.sourcemap === "inline" ? "inline" : false,
+      rolldownOptions: { output: { entryFileNames: basename(options.outfile) } },
+    },
+  });
+}
 
 test("runtime bundles reject unavailable QuickJS imports without overwriting a working output", async () => {
   const directory = await mkdtemp(join(tmpdir(), "solid-gpui-build-"));
@@ -21,7 +43,7 @@ test("runtime bundles reject unavailable QuickJS imports without overwriting a w
 
     await writeFile(
       entry,
-      'import { basename } from "node:path"; console.log(basename("/native/bun") + ":" + process.env.NODE_ENV);',
+      'import { basename } from "node:path"; import { file } from "bun"; import { Database } from "bun:sqlite"; const db = new Database(":memory:"); const row = db.query("select 42 as value").get(); db.close(); console.log(basename("/native/bun") + ":" + process.env.NODE_ENV + ":" + row.value + ":" + await file(import.meta.filename).exists());',
     );
     await buildApplication({ runtime: "bun", entry, outfile });
     const child = Bun.spawn(["bun", outfile], { stdout: "pipe", stderr: "pipe" });
@@ -31,7 +53,7 @@ test("runtime bundles reject unavailable QuickJS imports without overwriting a w
       new Response(child.stderr).text(),
     ]);
     expect(status, stderr).toBe(0);
-    expect(stdout.trim()).toBe("bun:production");
+    expect(stdout.trim()).toBe("bun:production:42:true");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

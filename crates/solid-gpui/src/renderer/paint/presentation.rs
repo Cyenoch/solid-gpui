@@ -1,9 +1,11 @@
 use super::*;
-use gpui::{DispatchPhase, KeyDownEvent, MouseDownEvent, Point};
+use crate::renderer::PopupInput;
+use gpui::{DispatchPhase, KeyDownEvent, MouseDownEvent};
 
-type Input = Rc<dyn Fn(Option<Point<Pixels>>, &mut App)>;
-
-pub(in crate::renderer) fn presentation(element: AnyElement, input: Option<Input>) -> AnyElement {
+pub(in crate::renderer) fn presentation(
+    element: AnyElement,
+    input: Option<PopupInput>,
+) -> AnyElement {
     match input {
         Some(input) => PresentationElement { element, input }.into_any(),
         None => element,
@@ -12,7 +14,7 @@ pub(in crate::renderer) fn presentation(element: AnyElement, input: Option<Input
 
 struct PresentationElement {
     element: AnyElement,
-    input: Input,
+    input: PopupInput,
 }
 
 impl IntoElement for PresentationElement {

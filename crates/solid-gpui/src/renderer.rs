@@ -227,10 +227,13 @@ fn add_store_subtree(store: &NodeStore, ids: &mut HashSet<u32>, root_id: u32) {
     }
 }
 
+pub(crate) type PopupObserver = Rc<dyn Fn(&mut App)>;
+pub(crate) type PopupInput = Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>;
+
 pub struct SolidRoot {
     pub(crate) popup_anchors: std::collections::HashSet<u32>,
-    pub(crate) popup_observer: Option<Rc<dyn Fn(&mut App)>>,
-    pub(crate) popup_input: Option<Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>>,
+    pub(crate) popup_observer: Option<PopupObserver>,
+    pub(crate) popup_input: Option<PopupInput>,
     store: NodeStore,
     runtime: Arc<dyn RuntimeAdapter>,
     next_sequence: Arc<AtomicU32>,

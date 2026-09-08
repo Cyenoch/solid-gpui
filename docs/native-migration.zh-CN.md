@@ -6,6 +6,10 @@
 
 网站路由为 `/docs/reference/native-migration`，浏览器使用 hash 路由。运行 `bun run website:native` 启动共享桌面网站。原生窗口装饰和进程服务需要桌面宿主，浏览器文档不会模拟操作系统窗口。
 
+示例使用 `@solid-gpui/vite`：`bun run dev` 由 Vite 启动原生宿主，
+`bun run dev:rust` 则由 Rust 通过 `runtime::vite::Vite` 启动开发。两者使用
+同一份 Vite 配置和 native bindings，参见 [Vite 集成](vite.md)。
+
 ## 应用拥有的运行时与窗口配置
 
 `run_application_with_profile(profile, Arc<dyn RuntimeAdapter>)` 不解析命令行，也不创建运行时。它复用 `run` 的宿主运行器：提交准入、原生事件、协议处理、Surface 所有权、覆盖层、窗口关闭和运行时最终关闭仍由框架管理。

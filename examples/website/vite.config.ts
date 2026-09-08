@@ -1,6 +1,6 @@
 import { solidGpuiRouter } from "../../packages/solid-gpui-router/src/vite";
 import { componentVariants } from "./component-variants";
-import { solidGpui } from "../../packages/solid-gpui/src/vite/index.ts";
+import { solidGpui } from "../../packages/solid-gpui-vite/src/index.ts";
 import { browserPreviewNames } from "./component-previews";
 import { componentExamples } from "./component-examples";
 import { componentCatalog } from "./component-catalog";
@@ -9,7 +9,7 @@ import { format } from "oxfmt";
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 import { readdirSync } from "node:fs";
-import { transformJsx } from "../../packages/solid-gpui/src/vite/transform.ts";
+import { transformJsx } from "../../packages/solid-gpui-vite/src/transform.ts";
 const source = (path: string) => resolve(import.meta.dirname, "../../packages/solid-gpui/src", path);
 export function websiteConfig(desktop = false, embedded = false) {
   return defineConfig({
@@ -17,7 +17,20 @@ export function websiteConfig(desktop = false, embedded = false) {
     base: process.env.PAGES_BASE_PATH ?? "/solid-gpui/",
     plugins: [
       solidGpuiRouter(),
-      ...(desktop ? [solidGpui({ entry: embedded ? "src/quickjs.tsx" : "src/main.native.tsx" })] : []),
+      desktop
+        ? solidGpui({
+            entry: embedded ? "src/quickjs.tsx" : "src/main.native.tsx",
+            ...(embedded
+              ? { runtime: "quickjs" as const, host: false as const }
+              : {
+                  native: {
+                    manifestPath: "native/Cargo.toml",
+                    bin: "website-host",
+                    output: "src/generated/native.ts",
+                  },
+                }),
+          })
+        : solidGpui({ target: "web" }),
       {
         name: "component-documentation",
         resolveId(id) {
@@ -81,18 +94,6 @@ export function websiteConfig(desktop = false, embedded = false) {
           return `export default ${JSON.stringify(catalog)};\nexport const highlights = ${JSON.stringify(highlights)};`;
         },
       },
-      ...(!desktop
-        ? [
-            {
-              name: "solid-gpui-web-jsx",
-              enforce: "pre",
-              transform(code, id) {
-                const filename = id.split("?")[0]!;
-                if (/\.[jt]sx$/.test(filename)) return transformJsx(code, filename);
-              },
-            } as import("vite").Plugin,
-          ]
-        : []),
     ],
     resolve: {
       alias: [
@@ -121,7 +122,6 @@ export function websiteConfig(desktop = false, embedded = false) {
       outDir: desktop ? (embedded ? "dist-embedded" : "dist-native") : "dist",
       target: "esnext",
       rolldownOptions: {
-        ...(embedded ? { platform: "neutral" as const } : {}),
         input: desktop
           ? resolve(import.meta.dirname, embedded ? "src/quickjs.tsx" : "src/main.native.tsx")
           : { main: resolve(import.meta.dirname, "index.html") },

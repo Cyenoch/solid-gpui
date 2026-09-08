@@ -205,8 +205,8 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | gpui-pre-derive-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-http-client | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-http-client-tls | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-linux | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-macos | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-linux | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-linux/0.3.3; local patches) |
+| gpui-pre-macos | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-macos/0.3.3; local patches) |
 | gpui-pre-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-media | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-perf | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -220,7 +220,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | gpui-pre-util-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-web | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-web/0.3.3; local patches) |
 | gpui-pre-wgpu | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-wgpu/0.3.3; local patches) |
-| gpui-pre-windows | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-windows | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-windows/0.3.3; local patches) |
 | gpui-pre-zlog | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-ztracing | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-ztracing-macro | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -1857,11 +1857,11 @@ Source: https://github.com/subframe7536/maple-font/releases/tag/v7.9
 
 ## Vendored JavaScript
 
-`packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).
+`packages/solid-gpui-vite/src/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).
 Source: https://github.com/vercel/edge-runtime/blob/440c123a37284d6a852ce453af810ad484ecfc01/packages/primitives/src/primitives/abort-controller.js
 The source file retains the complete MIT notice and describes local changes. It is shipped with the core package's build tools and included in QuickJS application bundles.
 
-`packages/solid-gpui/src/vite/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).
+`packages/solid-gpui-vite/src/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).
 Source: https://github.com/jimmywarting/fetch-headers/blob/66d63ac7a67d3b9c863cd80b872f2ea999cbc7a7/headers.js
 The source retains the complete MIT notice. Local changes correct header validation/normalization, preserve values after rejected mutations, and remove Node inspection support.
 

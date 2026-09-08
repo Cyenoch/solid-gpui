@@ -24,7 +24,20 @@ handles TypeScript/TSX changes. Calling Vite directly bypasses this preparation
 and can pair new component bindings with an obsolete host catalog.
 
 Set `WASM_BINDGEN` to a matching executable if your default wasm-bindgen version
-differs. Set `PAGES_BASE_PATH=/` for hosting at a domain root. The default is
+differs. The CLI must match the `wasm-bindgen` version in `Cargo.lock` exactly;
+a newer CLI is not interchangeable. To replace an already installed version, run:
+
+```sh
+cargo +nightly-2026-07-28 install wasm-bindgen-cli --version 0.2.121 --locked --force
+wasm-bindgen --version
+bun run website:build
+```
+
+This replaces the CLI in Cargo's installation directory. If another project
+needs a different version, install with `--root <directory>` and point
+`WASM_BINDGEN` at `<directory>/bin/wasm-bindgen` for this project's build.
+
+Set `PAGES_BASE_PATH=/` for hosting at a domain root. The default is
 `/solid-gpui/`; all local assets respect that prefix. Hash routes keep
 Docs deep links refreshable on static hosting.
 

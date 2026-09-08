@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["bun-types"]
   },
-  "include": ["scripts/**/*.ts", "scripts/**/*.d.ts", "packages/solid-gpui/src/vite/**/*.ts"]
+  "include": ["scripts/**/*.ts", "scripts/**/*.d.ts", "packages/solid-gpui-vite/src/**/*.ts"]
 }

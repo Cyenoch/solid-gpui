@@ -2,7 +2,9 @@
 
 Status: accepted
 
-Use Vite's runnable server environment under Bun for development. Transform Solid JSX
+Use Vite's ModuleRunner under Bun for development, either in a native-host-owned
+child connected to Vite or in a Rust-owned Vite process.
+[ADR-0018](0018-vite-application-toolchain.md) defines the package and build ownership. Transform Solid JSX
 with `generate: universal`. Retain the native host and its byte transport; an application
 replacement uses a new protocol epoch on the existing surface after candidate rendering succeeds.
 

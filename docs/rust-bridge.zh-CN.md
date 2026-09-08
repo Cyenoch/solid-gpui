@@ -163,3 +163,5 @@ function Editor() {
 运行 `bun run task native-codegen` 生成核心组件和 website 绑定，运行 `bun run task native-codegen-check` 检查漂移。提交生成文件以支持编辑器与验证，不要手工修改。Vite `native` 选项调用相同宿主导出器并提供 `#native` 别名。Rust 变化需要重建并重启宿主。
 
 可运行示例 `examples/website/native/src/lib.rs` 声明 BuildBadge 和 analyze_workspace，website TSX 使用生成组件与 Promise 客户端。设计依据见 [ADR-0016](adr/0016-rust-owned-native-modules.md)。
+
+`@solid-gpui/vite` 从 Cargo 的实际可执行文件导出 bindings。由 Rust 启动 Vite 时使用当前宿主；直接 Bun JS 也能导入生成文件，无需打包器，Native Contract 不变。配置与生命周期见 [Vite 集成](vite.md)。

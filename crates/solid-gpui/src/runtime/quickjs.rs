@@ -800,12 +800,14 @@ mod tests {
             let output = Command::new("bun")
                 .current_dir(root)
                 .args([
-                    "packages/solid-gpui/src/vite/build.ts",
-                    "--runtime",
-                    "quickjs",
-                    fixture,
+                    "--bun",
+                    "vite",
+                    "build",
+                    "--config",
+                    "fixtures/vite.config.ts",
                 ])
-                .arg(&entry.0)
+                .env("SOLID_GPUI_FIXTURE", fixture)
+                .env("SOLID_GPUI_FIXTURE_OUTPUT", &entry.0)
                 .output()
                 .unwrap();
             assert!(

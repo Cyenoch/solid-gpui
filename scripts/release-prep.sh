@@ -30,7 +30,7 @@ if match is None:
     raise SystemExit("missing workspace package version")
 package_versions = []
 core_peers = []
-for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json", "packages/solid-gpui-shiki/package.json"):
+for relative in ("packages/solid-gpui/package.json", "packages/solid-gpui-router/package.json", "packages/solid-gpui-shiki/package.json", "packages/solid-gpui-vite/package.json"):
     package = json.loads((root / relative).read_text())
     package_versions.append(package["version"])
     if relative != "packages/solid-gpui/package.json":
@@ -46,9 +46,9 @@ PY
 }
 
 versions="$(read_versions)"
-IFS=$'\t' read -r cargo_version core_version router_version shiki_version router_core_peer shiki_core_peer <<< "$versions"
+IFS=$'\t' read -r cargo_version core_version router_version shiki_version vite_version router_core_peer shiki_core_peer vite_core_peer <<< "$versions"
 update_versions=1
-if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$router_version" == "$version" && "$shiki_version" == "$version" && "$router_core_peer" == "^$version" && "$shiki_core_peer" == "^$version" ]]; then
+if [[ "$cargo_version" == "$version" && "$core_version" == "$version" && "$router_version" == "$version" && "$shiki_version" == "$version" && "$vite_version" == "$version" && "$router_core_peer" == "^$version" && "$shiki_core_peer" == "^$version" && "$vite_core_peer" == "^$version" ]]; then
   update_versions=0
 fi
 
@@ -74,6 +74,7 @@ release_files=(
   packages/solid-gpui/package.json
   packages/solid-gpui-router/package.json
   packages/solid-gpui-shiki/package.json
+  packages/solid-gpui-vite/package.json
   Cargo.lock
   bun.lock
   THIRD-PARTY-NOTICES.md
@@ -130,6 +131,7 @@ for relative, label in (
     ("packages/solid-gpui/package.json", "core"),
     ("packages/solid-gpui-router/package.json", "router"),
     ("packages/solid-gpui-shiki/package.json", "shiki"),
+    ("packages/solid-gpui-vite/package.json", "vite"),
 ):
     package_path = root / relative
     package = package_path.read_text()
@@ -175,9 +177,9 @@ fi
 )
 
 versions="$(read_versions)"
-IFS=$'\t' read -r cargo_version core_version router_version shiki_version router_core_peer shiki_core_peer <<< "$versions"
-if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$router_version" != "$version" || "$shiki_version" != "$version" || "$router_core_peer" != "^$version" || "$shiki_core_peer" != "^$version" ]]; then
-  printf 'release-prep: version mismatch after update: cargo=%s core=%s router=%s shiki=%s router-core-peer=%s shiki-core-peer=%s\n' "$cargo_version" "$core_version" "$router_version" "$shiki_version" "$router_core_peer" "$shiki_core_peer" >&2
+IFS=$'\t' read -r cargo_version core_version router_version shiki_version vite_version router_core_peer shiki_core_peer vite_core_peer <<< "$versions"
+if [[ "$cargo_version" != "$version" || "$core_version" != "$version" || "$router_version" != "$version" || "$shiki_version" != "$version" || "$vite_version" != "$version" || "$router_core_peer" != "^$version" || "$shiki_core_peer" != "^$version" || "$vite_core_peer" != "^$version" ]]; then
+  printf 'release-prep: version mismatch after update: cargo=%s core=%s router=%s shiki=%s vite=%s router-core-peer=%s shiki-core-peer=%s vite-core-peer=%s\n' "$cargo_version" "$core_version" "$router_version" "$shiki_version" "$vite_version" "$router_core_peer" "$shiki_core_peer" "$vite_core_peer" >&2
   exit 1
 fi
 
@@ -185,6 +187,6 @@ printf 'release-prep: synchronized version %s\n' "$version"
 printf 'release-prep diff summary:\n'
 (
   cd "$repo_root"
-  git diff --stat -- Cargo.toml Cargo.lock bun.lock THIRD-PARTY-NOTICES.md packages/solid-gpui/package.json packages/solid-gpui-router/package.json
+  git diff --stat -- Cargo.toml Cargo.lock bun.lock THIRD-PARTY-NOTICES.md packages/solid-gpui/package.json packages/solid-gpui-router/package.json packages/solid-gpui-shiki/package.json packages/solid-gpui-vite/package.json
 )
 completed=1

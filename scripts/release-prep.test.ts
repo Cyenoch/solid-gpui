@@ -10,6 +10,8 @@ const releaseFiles = {
     '{\n  "version": "0.2.0",\n  "peerDependencies": {\n    "@solid-gpui/core": "^0.2.0"\n  }\n}\n',
   "packages/solid-gpui-shiki/package.json":
     '{\n  "version": "0.2.0",\n  "peerDependencies": {\n    "@solid-gpui/core": "^0.2.0"\n  }\n}\n',
+  "packages/solid-gpui-vite/package.json":
+    '{\n  "version": "0.2.0",\n  "peerDependencies": {\n    "@solid-gpui/core": "^0.2.0"\n  }\n}\n',
   "Cargo.lock": "original cargo lock\n",
   "bun.lock": "original bun lock\n",
   "THIRD-PARTY-NOTICES.md": "original notices\n",
@@ -89,7 +91,7 @@ test("a failed final release step restores every manifest, lock and notices file
   });
 });
 
-test("a successful release synchronizes package versions, the router peer and generated files", async () => {
+test("a successful release synchronizes package versions, core peers and generated files", async () => {
   await withReleaseFixture(async (directory) => {
     const result = await prepare(directory, "0.3.0");
     expect(result.code, result.output).toBe(0);
@@ -97,6 +99,9 @@ test("a successful release synchronizes package versions, the router peer and ge
     const core = await Bun.file(join(directory, "packages/solid-gpui/package.json")).json();
     const router = await Bun.file(join(directory, "packages/solid-gpui-router/package.json")).json();
     const shiki = await Bun.file(join(directory, "packages/solid-gpui-shiki/package.json")).json();
+    const vite = await Bun.file(join(directory, "packages/solid-gpui-vite/package.json")).json();
+    expect(vite.version).toBe("0.3.0");
+    expect(vite.peerDependencies["@solid-gpui/core"]).toBe("^0.3.0");
     expect(core.version).toBe("0.3.0");
     expect(router.version).toBe("0.3.0");
     expect(router.peerDependencies["@solid-gpui/core"]).toBe("^0.3.0");

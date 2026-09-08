@@ -2622,8 +2622,21 @@ fn application_connection_survives_last_window_and_reopen_allocates_a_fresh_surf
 #[cfg(feature = "quickjs")]
 #[gpui::test]
 fn generation_preflight_validates_all_windows_and_zero_window_activation(cx: &mut TestAppContext) {
+    assert_generation_preflight(DefaultHostProfile, cx);
+}
+
+#[cfg(all(feature = "quickjs", feature = "gpui-component"))]
+#[gpui::test]
+fn generation_preflight_accepts_component_window_roots(cx: &mut TestAppContext) {
+    let mut profile = crate::components::host::ComponentHost::default();
+    cx.update(|cx| profile.initialize(cx));
+    assert_generation_preflight(profile, cx);
+}
+
+#[cfg(feature = "quickjs")]
+fn assert_generation_preflight(profile: impl HostProfile, cx: &mut TestAppContext) {
     let runtime = InMemoryAdapter::new();
-    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    let registry = cx.new(|_| NativeStateRegistry::with_profile(runtime, profile, Vec::new()));
     registry.update(cx, |registry, cx| {
         registry.open_initial(cx).unwrap();
         let auxiliary = registry
@@ -2673,6 +2686,15 @@ fn generation_preflight_validates_all_windows_and_zero_window_activation(cx: &mu
         for surface in registry.surfaces.values() {
             assert_eq!(surface.root.read(cx).store().epoch(), 1);
         }
+        registry.surfaces[&2]
+            .window
+            .update(cx, |_, window, _| window.remove_window())
+            .unwrap();
+        assert!(
+            registry
+                .prepare_generation(&valid, &configuration, 2, cx)
+                .is_err()
+        );
         registry.surfaces.clear();
         let lifecycle = registry
             .prepare_generation(&[], &configuration, 2, cx)

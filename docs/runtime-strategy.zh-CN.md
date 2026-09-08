@@ -2,6 +2,8 @@
 
 三种运行模式具有不同产品定位。这些定位描述预期开发与交付方式，不代表所有发布流水线已经完成。
 
+编写方式与运行时选择独立：JavaScript 可直接运行，JSX/TSX 只使用 Vite 编译。Bun 保留自己的 API；native 模块在两种编写方式中使用同一契约，见 [Vite 集成](vite.md)。
+
 ## 定位
 
 | 运行时 | 主要定位 | 应用职责 |
@@ -18,7 +20,7 @@
 
 Bun 应用使用外部 Bun 与 Vite 开发，再通过内嵌 Bun 打包。必须验证真实内嵌运行时；外部 Bun 可执行文件的测试通过，不代表另一个固定版本的内嵌 Bun 及其服务 API 已验证。
 
-以 Rust 为主的应用通过 QuickJS 交付界面。外部 Bun 与 Vite 可以快速迭代，但共享界面仍需在真实 QuickJS VM 中执行，以发现不支持的依赖和平台假设。使用 `bun run quickjs:dev` 或 `solid-gpui-quickjs-dev` 启用 QuickJS 应用重载。
+以 Rust 为主的应用通过 QuickJS 交付界面。外部 Bun 与 Vite 可以快速迭代，但共享界面仍需在真实 QuickJS VM 中执行，以发现不支持的依赖和平台假设。使用 `bun run quickjs:dev` 或 `vite`（配置 `runtime: "quickjs"`） 启用 QuickJS 应用重载。
 
 | 范围 | 当前实现 | 剩余工作 |
 | --- | --- | --- |
@@ -58,6 +60,6 @@ Bun 应用使用外部 Bun 与 Vite 开发，再通过内嵌 Bun 打包。必须
 
 推荐保留外部 Bun 的带帧 stdio，并让两种内嵌引擎共用显式原生帧桥接。背压必须传到渲染调度器；仅更换适配器或再加一层队列无法实现有界生产。不建议直接共享存活的 JS/GPUI 对象。大块缓冲区所有权转移是独立优化，需要测量与显式内存记账。
 
-QuickJS 重载使用外部 Bun/Vite 工具，在全新的 QuickJS Runtime 中替换整个 bundle。稳定的 Rust supervisor 管理 epoch、状态交接、候选验证、激活和退役，保留窗口与 Rust 服务。Vite 无需在 QuickJS 内执行。优先复用当前 QuickJS 构建策略，现有 Vite SSR 配置不是 QuickJS 目标。只有测量证明重建或计算成本值得额外复杂度时，才考虑自定义 ModuleRunner。
+QuickJS 重载使用外部 Bun/Vite 工具，在全新的 QuickJS Runtime 中替换整个 bundle。稳定的 Rust supervisor 管理 epoch、状态交接、候选验证、激活和退役，保留窗口与 Rust 服务。Vite 无需在 QuickJS 内执行。Vite 插件提供同一套 QuickJS 构建策略：单个自包含模块、平台初始化和不支持导入的检查。只有测量证明重建或计算成本值得额外复杂度时，才考虑自定义 ModuleRunner。
 
 当前桥接和整包 QuickJS 重载已经实现；ModuleRunner 与大块缓冲区所有权转移仍是由测量决定的备选方案。参见[重载流程](hot-reload.md)。

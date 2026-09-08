@@ -43,15 +43,14 @@ fn main() {
         print!("{}", profile.native_bindings().expect("native contract"));
         return;
     }
-    let mut command = Command::new("bun");
-    command.arg("--conditions=browser");
-    if std::env::args().any(|arg| arg == "--production") {
-        command.arg("dist/main.js");
+    let runtime = if std::env::args().any(|arg| arg == "--production") {
+        let mut command = Command::new("bun");
+        command.arg("--conditions=browser").arg("dist/main.js");
+        ProcessAdapter::spawn(command).expect("Bun runtime")
     } else {
-        command
-            .arg("../../packages/solid-gpui/src/vite/dev.ts")
-            .arg("src/main.tsx");
-    }
-    let runtime = ProcessAdapter::spawn(command).expect("Bun runtime");
+        solid_gpui::runtime::vite::Vite::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."))
+            .spawn()
+            .expect("Vite runtime")
+    };
     solid_gpui::run_application_with_profile(profile, runtime);
 }

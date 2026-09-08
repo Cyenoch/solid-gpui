@@ -53,7 +53,7 @@ root.render(() => createComponent(Counter, {}));
 
 ## JSX
 
-JSX 是可选的。`@solid-gpui/core/vite`、仓库 Bun preload 和 `solid-gpui-build` 共用基于 Oxc 的官方 Solid universal 转换，并使用 `@solid-gpui/core/runtime`。TypeScript 配置中将 `jsx` 设为 `preserve`，将 `jsxImportSource` 设为 `@solid-gpui/core`，后者选择宿主元素类型。编译器固定为 `@solidjs/compiler` 2.0.0-rc.6，应用运行时仍为 Solid 1.9.15。
+JavaScript 可直接运行，无需打包器。JSX/TSX 使用 Vite 和独立的 `@solid-gpui/vite` 包，执行基于 Oxc 的官方 Solid universal 转换，并使用 `@solid-gpui/core/runtime`。TypeScript 配置中将 `jsx` 设为 `preserve`，将 `jsxImportSource` 设为 `@solid-gpui/core`，后者选择宿主元素类型。编译器固定为 `@solidjs/compiler` 2.0.0-rc.6，应用运行时仍为 Solid 1.9.15。
 
 以 Rust 为主、使用 QuickJS 的应用应从 `@solid-gpui/core/embedded` 导入 `EmbeddedTransport`，构建自包含的 ESM 入口。参见[运行时选择](runtimes.md)和[生产构建](hot-reload.md)。
 

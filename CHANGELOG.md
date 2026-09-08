@@ -5,7 +5,7 @@
 ### Changed
 
 - Added an optional embedded QuickJS UI runtime for Rust-led applications, with bounded transport queues, cancellable scheduling, and the existing native protocol/command contract. Bun continues to support Rust-led and Bun-led applications.
-- Replaced the Babel JSX pipeline with the pinned official Solid/Oxc universal compiler shared by Bun, Vite, and the new `solid-gpui-build` CLI.
+- Made Vite the application bundler through the separate `@solid-gpui/vite` package. Direct JS needs no bundler; JSX/TSX uses one Solid/Oxc transform for Bun and QuickJS builds. Native host startup, bindings, Vite HMR/watch, and Rust-owned development share the same project configuration. Bun retains its runtime APIs; the previous standalone bundler and TSX launchers have been removed.
 - Replaced direct Prettier tooling with Oxfmt, preserving the existing formatting style and check commands; removed an unused generated-file formatter.
 - Moved process I/O exports to `@solid-gpui/core/stdio`, added the QuickJS `/embedded` transport, and made application transport ownership explicit.
 - Removed redundant renderer state, corrected callback and route reactivity, made native Patch rollback complete, and bounded foreground commit polling. Frame decoding is iterative and sibling reindexing avoids repeated vector copies.
@@ -27,7 +27,7 @@
 - Added the provider-neutral v5 `Icon` and `Extension` Host Node surface,
   including exact Extension Catalog Identity and transactional adapter
   validation before publication.
-- Unified Rust component/command authoring in `solid-gpui` with host-generated TypeScript; `@solid-gpui/core/components` includes Button, Checkbox, Switch, Progress and retained native Input. Vite tools are included in `@solid-gpui/core/vite`.
+- Unified Rust component/command authoring in `solid-gpui` with host-generated TypeScript; `@solid-gpui/core/components` includes Button, Checkbox, Switch, Progress and retained native Input. Vite tools are included in `@solid-gpui/vite`.
 - Added the reusable gpui-component provider host: each surface keeps its `Entity<SolidRoot>` renderer target inside a provider-owned `gpui_component::Root`, and `ShowNotification` is rejected because gpui-component owns the global system notification callback.
 - Added schema-derived bounded decoding guards for frame/message/repeated-field budgets, strict booleans and enums, UTF-8, field order, unions, terminators, and resource limits.
 - Added the owned Rust Event queue with exact bounded reservation and a reusable writer buffer for direct framed output.

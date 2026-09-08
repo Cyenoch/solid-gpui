@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const corePackageDir = join(repoRoot, "packages/solid-gpui");
+const vitePackageDir = join(repoRoot, "packages/solid-gpui-vite");
 const routerPackageDir = join(repoRoot, "packages/solid-gpui-router");
 const shikiPackageDir = join(repoRoot, "packages/solid-gpui-shiki");
 
@@ -28,11 +29,11 @@ try {
 } finally { root.unmount(); highlighter.dispose(); }
 `;
 
-async function run(command: readonly string[], cwd: string): Promise<void> {
+async function run(command: readonly string[], cwd: string, env: Record<string, string> = {}): Promise<void> {
   console.error(`\n$ ${command.join(" ")}`);
   const child = Bun.spawn([...command], {
     cwd,
-    env: process.env,
+    env: { ...process.env, ...env },
     stdio: ["inherit", "inherit", "inherit"],
   });
   const exitCode = await child.exited;
@@ -43,11 +44,8 @@ async function run(command: readonly string[], cwd: string): Promise<void> {
 
 const coreRuntimeSource = `import { MemoryTransport, Text, View, createRoot } from "@solid-gpui/core";
 import { createComponent, createSignal } from "@solid-gpui/core/runtime";
-import type { JSX } from "@solid-gpui/core/jsx-runtime";
-
-const emptyElement: JSX.Element = null;
-void emptyElement;
-let increment: (() => void) | undefined;
+/** @type {(() => void) | undefined} */
+let increment;
 function App() {
   const [count, setCount] = createSignal(0);
   increment = () => setCount((value) => value + 1);
@@ -58,7 +56,7 @@ function App() {
 
 const transport = new MemoryTransport();
 const root = createRoot(transport);
-function submittedFrameCount(): number {
+function submittedFrameCount() {
   return transport.submitted.length;
 }
 root.render(() => createComponent(App, {}));
@@ -85,14 +83,13 @@ import { EmbeddedTransport } from "@solid-gpui/core/embedded";
 import { createSignal } from "@solid-gpui/core/runtime";
 import { Button, Progress } from "@solid-gpui/core/components";
 import { encodeJson, decodeJson } from "@solid-gpui/core/native";
-import { solidGpui } from "@solid-gpui/core/vite";
-import { startDev } from "@solid-gpui/core/vite/dev";
-import { buildApplication } from "@solid-gpui/core/vite/build";
+import { solidGpui } from "@solid-gpui/vite";
+import { startDev } from "@solid-gpui/vite/dev";
 
 if (typeof StdioTransport !== "function" || typeof EmbeddedTransport !== "function")
   throw new Error("packed runtime transports are missing");
 const plugin = solidGpui({ entry: "app.tsx", native: { manifestPath: "native-host/Cargo.toml" } });
-if (plugin.name !== "solid-gpui" || typeof startDev !== "function" || typeof buildApplication !== "function")
+if (plugin.name !== "solid-gpui" || typeof startDev !== "function")
   throw new Error("packed Vite entrypoints are missing");
 if (typeof plugin.config !== "function") throw new Error("packed Vite config hook is missing");
 await Reflect.apply(plugin.config, {}, [{ root: process.cwd() }, { command: "build", mode: "production" }]);
@@ -200,15 +197,29 @@ const packageSpecs = [
       "package/dist/native.d.ts",
       "package/dist/components.js",
       "package/dist/components.d.ts",
-      "package/src/vite/index.ts",
-      "package/src/vite/dev.ts",
-      "package/src/vite/transform.ts",
-      "package/src/vite/build.ts",
-      "package/src/vite/quickjs-platform.ts",
-      "package/src/vite/quickjs-platform-types.d.ts",
-      "package/src/vite/quickjs-abort.ts",
-      "package/src/vite/quickjs-headers.js",
-      "package/src/vite/native-export.ts",
+    ],
+  },
+  {
+    name: "vite",
+    directory: vitePackageDir,
+    archiveName: "solid-gpui-vite.tgz",
+    requiredEntries: [
+      "package/package.json",
+      "package/LICENSE",
+      "package/README.md",
+      "package/dist/index.js",
+      "package/dist/index.d.ts",
+      "package/dist/dev.d.ts",
+      "package/dist/dev.js",
+      "package/dist/transform.js",
+      "package/dist/environment.js",
+      "package/dist/runner.js",
+      "package/dist/quickjs-build.js",
+      "package/dist/quickjs-dev.js",
+      "package/dist/quickjs-platform.js",
+      "package/dist/quickjs-abort.js",
+      "package/dist/quickjs-headers.js",
+      "package/dist/native-export.js",
     ],
   },
   {
@@ -280,6 +291,9 @@ try {
         throw new Error("packed router has no core peer dependency");
       if (manifest.peerDependencies?.["solid-js"] === undefined)
         throw new Error("packed router has no Solid peer dependency");
+    } else if (spec.name === "vite") {
+      if (!manifest.peerDependencies?.["@solid-gpui/core"] || !manifest.peerDependencies?.vite)
+        throw new Error("packed Vite package is missing its peers");
     } else {
       if (manifest.dependencies?.shiki !== "4.4.2") throw new Error("packed Shiki dependency is not pinned");
       if (!manifest.peerDependencies?.["@solid-gpui/core"] || !manifest.peerDependencies?.["solid-js"])
@@ -299,6 +313,7 @@ try {
           "@solid-gpui/core": "file:" + archivePaths.core,
           "@solid-gpui/router": "file:" + archivePaths.router,
           "@solid-gpui/shiki": "file:" + archivePaths.shiki,
+          "@solid-gpui/vite": "file:" + archivePaths.vite,
           "solid-js": "1.9.15",
         },
         overrides: {
@@ -311,7 +326,7 @@ try {
     )}\n`,
   );
   await Promise.all([
-    Bun.write(join(consumerDir, "core-runtime.ts"), coreRuntimeSource),
+    Bun.write(join(consumerDir, "core-runtime.js"), coreRuntimeSource),
     Bun.write(join(consumerDir, "view.tsx"), viewSource),
     Bun.write(join(consumerDir, "router.ts"), routerSource),
     Bun.write(
@@ -354,34 +369,41 @@ if (router.state.matches.at(-1)?.loaderData?.title !== "Packed file route") thro
   ]);
 
   await run(["bun", "install", "--no-progress"], consumerDir);
-  await run(["bun", "--conditions=browser", "run", "core-runtime.ts"], consumerDir);
+  await run(["bun", "--conditions=browser", "run", "core-runtime.js"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "router.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "generate-routes.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "file-router.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "shiki.ts"], consumerDir);
-  await run(
-    ["bun", "build", "shiki.ts", "--target", "bun", "--conditions=browser", "--outfile", "bundled-shiki.js"],
-    consumerDir,
-  );
-  await run(["bun", "bundled-shiki.js"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "native.ts"], consumerDir);
-  for (const runtime of ["bun", "quickjs"]) {
-    await run(
-      ["bun", "node_modules/.bin/solid-gpui-build", "--runtime", runtime, "view.tsx", `${runtime}-app.js`],
-      consumerDir,
-    );
-  }
-  await run(
-    ["bun", "node_modules/.bin/solid-gpui-build", "--runtime", "bun", "router.ts", "bundled-router.js"],
-    consumerDir,
+  await Bun.write(
+    join(consumerDir, "vite.config.ts"),
+    `import { solidGpui } from '@solid-gpui/vite';
+export default { plugins: [solidGpui({ entry: process.env.SOLID_GPUI_ENTRY,
+runtime: process.env.SOLID_GPUI_RUNTIME, host: false })], build: { emptyOutDir: false,
+rolldownOptions: { output: { entryFileNames: process.env.SOLID_GPUI_OUTPUT } } } };`,
   );
-  await run(["bun", "bundled-router.js"], consumerDir);
+  for (const [runtime, entry, output] of [
+    ["bun", "view.tsx", "bun-app.js"],
+    ["quickjs", "view.tsx", "quickjs-app.js"],
+    ["bun", "router.ts", "bundled-router.js"],
+    ["bun", "shiki.ts", "bundled-shiki.js"],
+  ]) {
+    await run(["bun", "--bun", "vite", "build"], consumerDir, {
+      SOLID_GPUI_RUNTIME: runtime!,
+      SOLID_GPUI_ENTRY: entry!,
+      SOLID_GPUI_OUTPUT: output!,
+    });
+  }
+  await run(["bun", "dist/bundled-router.js"], consumerDir);
+  await run(["bun", "dist/bundled-shiki.js"], consumerDir);
   const typecheck = [
     "bunx",
     "--no-install",
     "tsc",
     "--noEmit",
     "--strict",
+    "--allowJs",
+    "--checkJs",
     "--skipLibCheck",
     "--target",
     "ES2022",
@@ -392,12 +414,12 @@ if (router.state.matches.at(-1)?.loaderData?.title !== "Packed file route") thro
     "--types",
     "bun-types",
   ] as const;
-  await run([...typecheck, "core-runtime.ts"], consumerDir);
+  await run([...typecheck, "core-runtime.js"], consumerDir);
   await run([...typecheck, "router.ts"], consumerDir);
   await run([...typecheck, "shiki.ts"], consumerDir);
   await run([...typecheck, "native.ts"], consumerDir);
-  await run([...typecheck, "--jsx", "preserve", "core-runtime.ts", "view.tsx"], consumerDir);
-  console.log("core, router and Shiki package tarball consumer smoke passed");
+  await run([...typecheck, "--jsx", "preserve", "core-runtime.js", "view.tsx"], consumerDir);
+  console.log("core, Vite, router and Shiki package tarball consumer smoke passed");
 } finally {
   await rm(temporaryDir, { recursive: true, force: true });
 }

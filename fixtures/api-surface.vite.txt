@@ -1,0 +1,5 @@
+# api-surface-v1
+# name	kind
+NativeHostOptions	type
+solidGpui	value
+SolidGpuiOptions	type

@@ -4,6 +4,10 @@ The three runtime modes have distinct product roles. These roles describe the
 intended development and delivery workflow; they do not imply that every release
 pipeline is already implemented.
 
+JavaScript can run directly; JSX/TSX uses Vite, the sole application bundler.
+Bun retains Bun APIs in development and built applications. Runtime choice does
+not select a second compiler. See [Vite integration](vite.md).
+
 ## Positioning
 
 | Runtime          | Primary role                                                     | Application responsibilities                                                                                                  |
@@ -35,7 +39,7 @@ For a Rust-led application, ship the UI through QuickJS. External Bun and Vite
 can provide rapid UI iteration today, but the shared UI must also run in the real
 QuickJS VM to catch unsupported dependencies and platform assumptions. QuickJS
 application reload is available through `bun run quickjs:dev` or the
-`solid-gpui-quickjs-dev` application launcher.
+`vite` command with `runtime: "quickjs"`.
 
 | Area                     | Current implementation                                                                                                                             | Remaining work                                                                                                               |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -106,8 +110,8 @@ QuickJS reload implements external Bun/Vite tooling plus
 whole-bundle replacement in a fresh QuickJS Runtime. A stable Rust supervisor
 owns epochs, state handoff, candidate validation, activation, and retirement,
 while preserving native windows and Rust services. Vite need not execute inside
-QuickJS. Reuse the current QuickJS build policy first; the existing Vite SSR
-configuration is not a QuickJS target. A custom ModuleRunner is a later option
+QuickJS. The Vite plugin now owns the QuickJS build policy: one self-contained module,
+explicit platform initialization, and rejection of unavailable imports. A custom ModuleRunner is a later option
 only if measured rebuild/evaluation costs justify its complexity.
 
 The reports preserve the research evidence and alternatives. The current bridge

@@ -10,6 +10,7 @@ export const chinese: Record<string, string> = {
   "Choose a runtime": "选择运行时",
   "Runtime strategy": "运行时策略",
   "Syntax highlighting": "语法高亮",
+  Iconify: "Iconify 图标",
 
   ...recipeChinese,
   "Scroll horizontally to explore": "横向滚动查看完整预览",

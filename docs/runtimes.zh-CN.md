@@ -1,5 +1,7 @@
 # 选择运行时
 
+可以直接编写 JavaScript，或用 Vite 编译 JSX/TSX。运行时选择与编写方式独立：Bun 保留自身 API，QuickJS 要求自包含 JS，并通过 Rust 提供服务。见 [Vite 集成](vite.zh-CN.md)。
+
 Solid GPUI 提供三种原生运行模式，共用 Solid 组件 API、原生控件与 Rust 渲染引擎。选择取决于应用能力由谁实现，以及开发、交付方式。
 
 ## 运行时比较
@@ -51,13 +53,13 @@ mountApplication({
 构建生产入口：
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime quickjs src/app.tsx dist/app.js
+bun --bun vite build # solidGpui({ entry: "src/app.tsx", runtime: "quickjs" })
 ```
 
 使用真实 QuickJS 引擎开发时，在应用的工作区根清单配置[解释器开发 profile](hot-reload.md#application-build-configuration)，构建启用 `quickjs` 的原生宿主，然后运行：
 
 ```sh
-node_modules/.bin/solid-gpui-quickjs-dev src/app.tsx target/debug/my-app
+bun --bun vite
 ```
 
 外部开发工具监听并打包代码，宿主准备新的 QuickJS VM，验证替代应用后再切换。Rust 服务和原生窗口保持存活。显式捕获的状态以有界 JSON 数据跨代传递。Rust、协议及构建配置变化需要重启开发命令。参见[重载生命周期](hot-reload.md)。

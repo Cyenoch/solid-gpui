@@ -18,6 +18,18 @@ type PackageSpec = {
 
 const specs: readonly PackageSpec[] = [
   {
+    name: "vite",
+    dts: "packages/solid-gpui-vite/dist/index.d.ts",
+    runtime: "packages/solid-gpui-vite/dist/index.js",
+    output: "fixtures/api-surface.vite.txt",
+  },
+  {
+    name: "vite-dev",
+    dts: "packages/solid-gpui-vite/dist/dev.d.ts",
+    runtime: "packages/solid-gpui-vite/dist/dev.js",
+    output: "fixtures/api-surface.vite-dev.txt",
+  },
+  {
     name: "router-generator",
     dts: "packages/solid-gpui-router/dist/generator.d.ts",
     runtime: "packages/solid-gpui-router/dist/generator.js",

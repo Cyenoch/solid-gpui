@@ -303,3 +303,6 @@ priority = -1
 [lints.rust.unexpected_cfgs]
 level = "allow"
 priority = 0
+
+[package.metadata.solid-gpui-vendor]
+source = "https://crates.io/crates/gpui-pre-linux/0.3.3"

@@ -26,6 +26,10 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **Native Event**: A semantic notification from a native surface to the matching Solid root. It is ordered by surface, epoch, revision, and event sequence; it is not a browser event.
 
+**JavaScript Runtime**: The engine and execution environment that evaluate an application's JavaScript. Bun and QuickJS supply different service capabilities; selecting a runtime does not select a source compiler or bundler.
+
+**Authoring Path**: How application source becomes executable JavaScript: direct JavaScript, or JSX/TSX compiled through Vite. Native Modules are available independently of this choice.
+
 **Runtime Adapter**: The byte-only connection between an application's JavaScript runtime and its native host, carrying Commit Batches, Native Events, and Surface Commands. Runtime choice does not change native rendering ownership or the Native Contract.
 
 **Rust-led Application**: An application whose domain state and services live primarily in Rust, with SolidJS providing composition and reactive UI state. Its UI can run in Bun or an Embedded UI Runtime.

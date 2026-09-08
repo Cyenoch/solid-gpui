@@ -19,10 +19,12 @@ createRoot(new StdioTransport()).render(() => createComponent(App, {}));
 
 Host rendering is transactional: the first update emits a Snapshot and later signal updates emit incremental Patches. GPUI owns native layout, input, focus, and painting.
 
-For JSX, use `@solid-gpui/core/vite` or `solid-gpui-build`. Both use the pinned official Oxc-based Solid universal compiler; Babel is not required. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
+Write JavaScript directly without a bundler, or use the separate `@solid-gpui/vite` package to compile JSX/TSX with the pinned official Oxc-based Solid universal compiler. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
 
-Launch direct Bun entrypoints with `bun --conditions=browser run app.ts` so
-`solid-js` resolves the client reactive runtime.
+Launch a direct JS application with `solid-gpui-host bun --conditions=browser app.js`
+so the host owns protocol stdio and Solid resolves its client reactive runtime.
+Bun APIs remain available. See [Vite integration](../../docs/vite.md) for both
+authoring paths and application-owned native modules.
 
 ## Runtime selection
 
@@ -50,14 +52,15 @@ Use `EmbeddedTransport` for both Embedded Bun and QuickJS. All surfaces in an ap
 share its connection.
 
 ```sh
-solid-gpui-build --runtime quickjs app.tsx dist/app.js
+bun --bun vite build
 solid-gpui-host --runtime quickjs dist/app.js
 ```
 
+Configure `solidGpui({ entry: "app.tsx", runtime: "quickjs" })` in Vite.
 The host must be compiled with Cargo feature `quickjs`. The bundle includes the
 Solid client runtime and must be a self-contained ES module. Node/Bun service
 imports and unresolved dynamic imports are rejected; expose Rust services through
-generated native commands. For Bun applications, build with `--runtime bun` and
+generated native commands. For Bun applications, configure Vite with `runtime: "bun"` and
 launch the result through the Bun host mode.
 
 ## System popovers

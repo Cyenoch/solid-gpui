@@ -3,7 +3,7 @@ import URLSearchParams from "core-js-pure/actual/url-search-params";
 import DOMException from "core-js-pure/actual/dom-exception";
 import { Event, EventTarget } from "event-target-shim";
 import { Headers } from "./quickjs-headers.js";
-import { AbortController, AbortSignal } from "./quickjs-abort";
+import { AbortController, AbortSignal } from "./quickjs-abort.ts";
 
 /** TanStack redirects need Response identity and metadata, but no network or body services. */
 class NativeRouterResponse {

@@ -45,6 +45,9 @@ The audit regenerates `THIRD-PARTY-NOTICES.md` from Cargo metadata,
 `cargo-deny`'s JSON license inventory, and Bun's license inventory. Regenerate it
 with `bun run task third-party-notices` after changing dependencies. Every local
 workspace package must declare its license, normally with `license.workspace = true`.
+Vendored GPUI crates must also declare their upstream package URL in
+`package.metadata.solid-gpui-vendor.source` in `Cargo.toml`; a prose provenance
+record alone does not populate the generated inventory.
 
 ## Release qualification
 
@@ -55,7 +58,7 @@ Release builds and archives run on demand:
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) runs
   development checks and audits, then builds and smokes the extracted process host.
 - [Release Prep](../.github/workflows/release-prep.yml) synchronizes a candidate
-  version, runs checks and audits, and uploads the three npm package tarballs.
+  version, runs checks and audits, and uploads the core, Vite, router, and Shiki npm package tarballs.
 - Run Embedded Bun with its `candidate` input enabled to also rehearse the
   embedded release host. The same job first runs the embedded feature checks.
 

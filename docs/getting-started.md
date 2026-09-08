@@ -53,8 +53,8 @@ Pass a producer to `root.render`. This ensures component creation occurs under t
 
 ## JSX
 
-JSX is optional. `@solid-gpui/core/vite`, the repository Bun preload, and
-`solid-gpui-build` share the official Oxc-based Solid universal transform with
+JavaScript runs directly without a bundler. JSX/TSX uses Vite with
+`@solid-gpui/vite`, the official Oxc-based Solid universal transform for
 `@solid-gpui/core/runtime`. Set TypeScript's `jsx` to `preserve` and
 `jsxImportSource` to `@solid-gpui/core`; the latter selects host element types.
 The compiler is pinned to `@solidjs/compiler` 2.0.0-rc.6 while the application
@@ -63,7 +63,7 @@ runtime remains Solid 1.9.15.
 For a Rust-led application using QuickJS, import `EmbeddedTransport` from
 `@solid-gpui/core/embedded` and build a self-contained ESM entry. See the
 [runtime selection](runtimes.md) and
-[production bundle examples](hot-reload.md#production-bundles).
+[Vite integration](vite.md).
 
 ## Run the website on desktop
 

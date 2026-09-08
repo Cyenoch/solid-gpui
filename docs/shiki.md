@@ -58,7 +58,7 @@ and 4,096 coalesced runs. It is not a virtualized editor.
 
 ## Build-time highlighting
 
-Known snippets can be highlighted during a Bun build and serialized as data:
+Known snippets can be highlighted during a Vite build running under Bun and serialized as data:
 
 ```ts
 const result = await highlighter.highlight({

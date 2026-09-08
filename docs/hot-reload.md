@@ -9,8 +9,10 @@ Vite 8 handles the module graph, file watching, HMR, and production bundling.
 The plugin compiles universal JSX with the official Oxc-based
 `@solidjs/compiler` 2.0.0-rc.6 and lowers TypeScript with `oxc-transform` 0.148.0.
 The application runtime remains Solid 1.9.15. In the external Bun workflow,
-Bun executes Vite's RunnableDevEnvironment/ModuleRunner
-and the application JavaScript. The GPUI host keeps its native window and receives
+Bun executes Vite's ModuleRunner and the application JavaScript in the
+host-owned child. Vite is the only application bundler; Bun and QuickJS execute
+JavaScript. See [Vite integration](vite.md) for direct JS, JSX/TSX, native modules,
+and Rust-owned startup. The GPUI host keeps its native window and receives
 a new epoch's Snapshot over the existing stdio connection. This is a native
 application module environment; it does not require HTML, a DOM, or a WebView.
 
@@ -24,8 +26,8 @@ entrypoint and Vite configuration run Components and Showcase in a native window
 - `target/debug/website-host bun --conditions=browser examples/website/dist-native/main.native.js`: run the bundle after building the host.
 
 Saving application code remounts it in the existing window. Changes to Rust,
-the protocol schema, generated native APIs, or Vite configuration require
-restarting the development command. Rust changes also require rebuilding the host.
+the protocol schema, generated native APIs, require restarting the development command and rebuilding the host. Vite configuration
+changes restart its environment; native preparation follows shutdown of the old environment.
 
 ## Application integration
 
@@ -33,19 +35,17 @@ Install `@solid-gpui/core` and Vite 8, then create a configuration:
 
 ```ts
 import { defineConfig } from "vite";
-import { solidGpui } from "@solid-gpui/core/vite";
+import { solidGpui } from "@solid-gpui/vite";
 
 export default defineConfig({
   plugins: [solidGpui({ entry: "src/app.tsx" })],
 });
 ```
 
-Have the existing native host launch `node_modules/.bin/solid-gpui-dev src/app.tsx`.
-This entrypoint uses Bun with the `browser` condition and loads the Vite
-configuration from the current directory. A second argument can select a
-configuration file. A custom Bun launcher can call
-`startDev(entry, configFile?)` from `@solid-gpui/core/vite/dev`; its return value
-provides Vite shutdown. The plugin publishes TypeScript source for execution in Bun.
+Run `bun --bun vite` to launch the configured host and Bun module runner. Use
+`native` to build an application-owned Rust host and generate `#native`, or `host`
+to select an existing executable. Rust applications can launch the same config
+through `solid_gpui::runtime::vite::Vite`. See [Vite integration](vite.md).
 
 ```tsx
 import { mountApplication, Text } from "@solid-gpui/core";
@@ -107,12 +107,10 @@ loaded and updates it when routes are added, edited, renamed, or removed. See th
 
 ## Production bundles
 
-`solid-gpui-build` uses the same Solid/Oxc transform as Vite and the Bun preload.
-It runs under Bun during the build; the compiler does not run inside QuickJS.
-Select the target explicitly:
+Configure `solidGpui({ entry: "src/app.tsx", runtime: "bun" })` and build with Vite:
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime bun src/app.tsx dist/app.js
+bun --bun vite build
 ```
 
 A Bun entrypoint uses `StdioTransport`, as above. Run its bundle with an existing
@@ -136,7 +134,7 @@ mountApplication({
 Build a self-contained ESM bundle, then launch the QuickJS-enabled host:
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime quickjs src/quickjs.tsx dist/app.js
+bun --bun vite build # solidGpui({ entry: "src/quickjs.tsx", runtime: "quickjs" })
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs dist/app.js
 ```
 
@@ -170,13 +168,12 @@ Use the actual QuickJS engine while iterating on a Rust-led UI:
 bun run quickjs:dev # Counter demo in the actual QuickJS engine
 ```
 
-For another application, compile its host with `quickjs`, then run
-`solid-gpui-quickjs-dev src/quickjs.tsx target/debug/my-app`. The entry uses
-`EmbeddedTransport` and `mountApplication`. Vite watches files outside the VM;
-the existing QuickJS bundler supplies the same platform and unsupported-import
-checks as production. A loopback development connection carries bounded bundles,
-separately from the UI protocol. No browser client, WebSocket, fetch, or Vite
-ModuleRunner is installed inside QuickJS.
+For another application, configure `solidGpui({ entry, runtime: "quickjs", native })`
+with a QuickJS-enabled host and run `bun --bun vite`. The entry uses
+`EmbeddedTransport` and `mountApplication`. Vite's build watcher applies the same
+plugins, aliases, and QuickJS build policy as production. A loopback development
+connection carries bounded bundles separately from the UI protocol. No browser
+client, WebSocket, fetch, or ModuleRunner is installed inside QuickJS.
 
 ### Application build configuration
 

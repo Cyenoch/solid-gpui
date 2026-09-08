@@ -2,7 +2,7 @@ import remapping from "@jridgewell/remapping";
 import { transform } from "@solidjs/compiler";
 import { transformSync } from "oxc-transform";
 
-/** Compile Solid's universal JSX once for both Vite and Bun. */
+/** Compile universal JSX with source locations in authored code. */
 export function transformJsx(source: string, filename: string): { code: string; map: string } {
   const jsx = transform(source, {
     filename,

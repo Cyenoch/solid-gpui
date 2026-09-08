@@ -20,6 +20,9 @@ Use this order:
 12. [`distribution.md`](distribution.md) — verified application bundles, native dependencies, and signing for macOS, Windows, and Linux.
 13. [`adr/`](adr/) — architectural decisions.
 
+See [Vite integration](vite.md) for direct JS, JSX/TSX development and builds,
+Bun APIs, native module generation, and Rust-owned Vite startup.
+
 Start with [Choose a runtime](runtimes.md) for the development and delivery paths.
 
 See also [runtime strategy](runtime-strategy.md) for external Bun development,
@@ -37,6 +40,7 @@ References:
 - [Router](router.md) — file-based routing setup, native navigation, and TanStack references.
 - [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
+- [Iconify](iconify.md) — embedded icons, size and color, reactive usage, and application icon registration.
 - [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 

@@ -15,7 +15,17 @@ bun run website
 
 打开 `http://127.0.0.1:5173/solid-gpui/`。生成的 WASM 绑定位于 `examples/website/src/wasm/`，部署产物位于 `examples/website/dist/`，两者均不提交。浏览器的 `dev` 和 `build` 命令会先执行 `scripts/build-web-host.sh`，从同一份 Rust 源码生成 SDK 绑定并重建 WASM。Rust 或协议变化后重启开发命令；TypeScript/TSX 变化由 Vite 处理。直接调用 Vite 会跳过同步，可能将新组件绑定与旧宿主目录混用。
 
-默认 wasm-bindgen 版本不匹配时，用 `WASM_BINDGEN` 指定匹配的可执行文件。部署在域名根路径时设置 `PAGES_BASE_PATH=/`，默认前缀是 `/solid-gpui/`，所有本地资源都遵循该前缀。Hash 路由允许静态托管中的文档深链接刷新。
+默认 wasm-bindgen 版本不匹配时，用 `WASM_BINDGEN` 指定匹配的可执行文件。CLI 必须与 `Cargo.lock` 中的 `wasm-bindgen` 版本完全一致，较新的 CLI 不能替代。替换已安装版本时执行：
+
+```sh
+cargo +nightly-2026-07-28 install wasm-bindgen-cli --version 0.2.121 --locked --force
+wasm-bindgen --version
+bun run website:build
+```
+
+这会替换 Cargo 安装目录中的 CLI。如果其他项目需要不同版本，可使用 `--root <directory>` 安装，并在构建本项目时将 `WASM_BINDGEN` 指向 `<directory>/bin/wasm-bindgen`。
+
+部署在域名根路径时设置 `PAGES_BASE_PATH=/`，默认前缀是 `/solid-gpui/`，所有本地资源都遵循该前缀。Hash 路由允许静态托管中的文档深链接刷新。
 
 ## 渲染与所有权
 

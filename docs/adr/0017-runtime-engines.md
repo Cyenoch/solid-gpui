@@ -36,8 +36,10 @@ created by its factory and retains it across application reloads. Runtime
 selection must not silently substitute engines or permit GPUI/JavaScript
 objects to cross thread boundaries.
 
-Compilation is separate from runtime selection. Bun runs the shared official
-Solid/Oxc universal transform during development and bundling. The pinned
+Compilation is separate from runtime selection. As specified in
+[ADR-0018](0018-vite-application-toolchain.md), Vite runs the shared official
+Solid/Oxc universal transform during development and bundling; direct JS needs
+no bundler. The pinned
 compiler emits the renderer helper contract exercised against the existing
 Solid 1 runtime; choosing QuickJS does not require another JSX transform.
 

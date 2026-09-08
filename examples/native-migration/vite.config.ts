@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { solidGpui } from "@solid-gpui/core/vite";
+import { solidGpui } from "@solid-gpui/vite";
 import { resolve } from "node:path";
 const root = import.meta.dirname;
 const source = (path: string) => resolve(root, "../..", path);

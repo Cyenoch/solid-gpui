@@ -2,8 +2,9 @@ import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { exportNativeBindings } from "../packages/solid-gpui/src/vite/native-export";
-import { solidGpui } from "../packages/solid-gpui/src/vite";
+import { build } from "vite";
+import { exportNativeBindings } from "../packages/solid-gpui-vite/src/native-export";
+import { solidGpui } from "../packages/solid-gpui-vite/src";
 
 test("Vite exports an actual Rust host before resolving #native, preserves stable outputs and rejects stale/failed generation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "solid-native-export-"));
@@ -20,10 +21,22 @@ test("Vite exports an actual Rust host before resolving #native, preserves stabl
       source,
       'fn main() { assert_eq!(std::env::args().nth(1).as_deref(), Some("--export-native")); println!("export const answer=42;"); }',
     );
-    const hook = solidGpui({ entry: "app.tsx", native: { manifestPath } }).config;
-    if (typeof hook !== "function") throw new Error("expected Vite config hook");
-    const config = await Reflect.apply(hook, {}, [{ root: directory }, { command: "build", mode: "production" }]);
-    expect(config.resolve.alias).toEqual([{ find: "#native", replacement: output }]);
+    await writeFile(join(directory, "app.js"), 'import { answer } from "#native"; console.log(answer);');
+    await writeFile(join(directory, "package.json"), '{"type":"module"}');
+    await build({
+      configFile: false,
+      root: directory,
+      logLevel: "silent",
+      plugins: [solidGpui({ entry: "app.js", native: { manifestPath } })],
+    });
+    const child = Bun.spawn(["bun", join(directory, "dist/app.js")], { stdout: "pipe", stderr: "pipe" });
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(code, stderr).toBe(0);
+    expect(stdout.trim()).toBe("42");
     expect(await readFile(output, "utf8")).toBe("export const answer = 42;\n");
     const before = await stat(output);
     await exportNativeBindings({ manifestPath, output });

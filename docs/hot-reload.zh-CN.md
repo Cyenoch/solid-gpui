@@ -12,7 +12,7 @@ Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于
 - `bun run --cwd examples/website build:native`：生成 `examples/website/dist-native/main.native.js`。
 - `target/debug/website-host bun --conditions=browser examples/website/dist-native/main.native.js`：构建宿主后运行 bundle。
 
-保存应用代码会在现有窗口重新挂载。Rust、协议 schema、生成的原生 API 或 Vite 配置变化需重启开发命令；Rust 变化也需重建宿主。
+保存应用代码会在现有窗口重新挂载。Rust、协议 schema、生成的原生 API 变化需重启开发命令并重建宿主；Vite 配置变化会重启环境，先关闭旧环境，再准备新宿主。
 
 ## 应用集成
 
@@ -20,14 +20,14 @@ Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于
 
 ```ts
 import { defineConfig } from "vite";
-import { solidGpui } from "@solid-gpui/core/vite";
+import { solidGpui } from "@solid-gpui/vite";
 
 export default defineConfig({
   plugins: [solidGpui({ entry: "src/app.tsx" })],
 });
 ```
 
-让现有原生宿主启动 `node_modules/.bin/solid-gpui-dev src/app.tsx`。入口使用带 browser condition 的 Bun，从当前目录加载 Vite 配置；第二参数可指定配置文件。自定义 Bun 启动器可调用 `@solid-gpui/core/vite/dev` 的 `startDev(entry, configFile?)`，返回值提供 Vite 关闭方法。插件发布供 Bun 执行的 TypeScript 源码。
+运行 `bun --bun vite` 启动配置的宿主和 Bun ModuleRunner。通过 `native` 构建应用自己的 Rust 宿主并生成 `#native`，或用 `host` 选择已有可执行文件。Rust 应用通过 `solid_gpui::runtime::vite::Vite` 使用同一配置。Vite 是唯一应用打包器，Bun 和 QuickJS 执行 JavaScript；直接 JS、JSX/TSX 和 native 模块的边界见 [Vite 集成](vite.zh-CN.md)。
 
 ```tsx
 import { mountApplication, Text } from "@solid-gpui/core";
@@ -61,10 +61,10 @@ mountApplication<number>({
 
 ## 生产 bundle
 
-`solid-gpui-build` 与 Vite、Bun preload 共用 Solid/Oxc 转换。编译器在构建阶段的 Bun 中执行，不进入 QuickJS。显式选择目标：
+配置 `solidGpui({ entry: "src/app.tsx", runtime: "bun" })`，使用 Vite 构建。Bun API 保留给 Bun runtime 执行：
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime bun src/app.tsx dist/app.js
+bun --bun vite build
 ```
 
 Bun 入口使用 StdioTransport，由现有宿主和 `bun --conditions=browser dist/app.js` 运行。内嵌 Bun 使用 EmbeddedTransport，要求 embedded-bun feature，并应提供导入共享应用组合的独立入口。
@@ -85,7 +85,7 @@ mountApplication({
 构建自包含 ESM，再启动启用 QuickJS 的宿主：
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime quickjs src/quickjs.tsx dist/app.js
+bun --bun vite build # solidGpui({ entry: "src/quickjs.tsx", runtime: "quickjs" })
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs dist/app.js
 ```
 
@@ -103,7 +103,7 @@ QuickJS 无环境 Bun/Node 服务，不在运行时加载外部包。打包 Java
 bun run quickjs:dev # Counter demo in the actual QuickJS engine
 ```
 
-其他应用应编译启用 quickjs 的宿主，再执行 `solid-gpui-quickjs-dev src/quickjs.tsx target/debug/my-app`。入口使用 EmbeddedTransport 和 mountApplication。Vite 在 VM 外监听文件，现有 QuickJS 打包器执行与生产一致的平台和不支持导入检查。独立于 UI 协议的 loopback 开发连接传输有界 bundle。QuickJS 内不安装浏览器客户端、WebSocket、fetch 或 Vite ModuleRunner。
+其他应用配置 `solidGpui({ entry, runtime: "quickjs", native })`，宿主启用 quickjs，然后运行 `bun --bun vite`。入口使用 EmbeddedTransport 和 mountApplication。Vite build watcher 应用与生产相同的插件、别名和构建检查；独立于 UI 协议的 loopback 通道传递有界 bundle。QuickJS 内不安装浏览器客户端、WebSocket、fetch 或 ModuleRunner，也不再使用第二个打包器。
 
 ### 应用构建配置
 

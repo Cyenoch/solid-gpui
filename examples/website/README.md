@@ -100,6 +100,12 @@ bun run --cwd examples/website build:embedded
 bun run website:native:package
 ```
 
+All three targets use `@solid-gpui/vite`: native development owns the host and
+Bun ModuleRunner, embedded builds select QuickJS, and browser builds select the
+universal web transform. Native bindings come from the configured Cargo host.
+`build:embedded` writes the final self-contained `dist-embedded/app.js`; packaging
+copies that artifact without another bundling pass.
+
 The native Rust package is `website-host`; the packaged executable is
 `solid-gpui-website`, and verified archives are written to `dist/website/`.
 Use `bun run task website-native-profile` for native performance measurements.
@@ -129,6 +135,8 @@ application-specific native module live in `native`; generated bindings live in
 The Guides sidebar publishes these references from the authoritative Markdown
 sources and their `.zh-CN.md` copies:
 
+- [Iconify](../../docs/iconify.md) at `/docs/reference/iconify` covers the built-in offline catalog, Solid usage, styling, and application icon registration.
+- [Vite integration](../../docs/vite.md) at `/docs/reference/vite` covers direct JS, JSX/TSX builds, Bun APIs, native modules, and Rust-owned development.
 - [Choose a runtime](../../docs/runtimes.md) at `/docs/reference/runtimes` introduces the runtime and transport choices.
 - [Development workflow](../../docs/hot-reload.md) at `/docs/reference/hot-reload` covers the consuming workspace's QuickJS build profile, captured-state contract, generation lifecycle, and application reload verification.
 - [System popovers](../../docs/system-popover.md) at `/docs/reference/system-popover` documents the core API, editable and nested native Surfaces, multi-display placement, and platform acceptance limits. This capability needs a desktop host; its example is published as source without a browser preview.

@@ -130,7 +130,7 @@ Build the SDK, then run the editable, nested fixture:
 
 ```sh
 bun run task build
-bun packages/solid-gpui/src/vite/build.ts --runtime quickjs fixtures/system-popover.tsx /tmp/system-popover.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover.js
 ```
 
@@ -139,7 +139,7 @@ trigger three times, checks a native owner command after each mount, and exits.
 Keep it in the foreground while it runs:
 
 ```sh
-bun packages/solid-gpui/src/vite/build.ts --runtime quickjs fixtures/system-popover-lifecycle.tsx /tmp/system-popover-lifecycle.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover-lifecycle.js
 ```
 

@@ -45,7 +45,7 @@ TypeScript 包与原生宿主必须使用相同协议版本。从同一 checkout
 
 QuickJS 宿主使用 `@solid-gpui/core/embedded` 的 `EmbeddedTransport`。`StdioTransport` 属于 Bun 进程或内嵌 stdio 环境，需要 `process.stdin` 和 `process.stdout`。
 
-使用 `solid-gpui-build --runtime quickjs <entry.tsx> <output.js>` 将依赖打成一个 ESM 模块。Node/Bun 导入会被拒绝，环境不提供 `process`、`Bun`、文件系统或 `fetch` 等网络 API。将服务移到 Rust Native Module，调用生成客户端。打包器的 browser target 只选择可移植依赖，不会为 QuickJS 创建浏览器环境。
+使用 `bun --bun vite build`（配置 `runtime: "quickjs"`） 将依赖打成一个 ESM 模块。Node/Bun 导入会被拒绝，环境不提供 `process`、`Bun`、文件系统或 `fetch` 等网络 API。将服务移到 Rust Native Module，调用生成客户端。打包器的 browser target 只选择可移植依赖，不会为 QuickJS 创建浏览器环境。
 
 ## QuickJS 在深层路由上栈溢出
 
@@ -88,7 +88,7 @@ QuickJS 宿主使用 `@solid-gpui/core/embedded` 的 `EmbeddedTransport`。`Stdi
 }
 ```
 
-通过 Vite 插件或 `solid-gpui-build` 使用共享 Solid/Oxc 通用转换。普通 React 风格 JSX 转换不能生成该渲染器的响应式宿主操作。
+通过 Vite 插件或 Vite 插件 使用共享 Solid/Oxc 通用转换。普通 React 风格 JSX 转换不能生成该渲染器的响应式宿主操作。
 
 ## 滚动没有边界或很慢
 
@@ -98,7 +98,7 @@ QuickJS 宿主使用 `@solid-gpui/core/embedded` 的 `EmbeddedTransport`。`Stdi
 
 TypeScript 7 通过 `typescript/unstable/async` 暴露编译器服务，根 `typescript` 不再提供 `createProgram`。在 Bun 中使用异步 API；同步客户端私有 Node 管道句柄不可用。等待 `api.close()`，让快照释放完成后再关闭连接。升级后重新生成 API fixture，运行语义重导出测试和 `package-typecheck`。
 
-保持官方 Solid 编译器固定版本：候选版本与 Solid 1 运行时独立，共享转换禁用 Solid 2 内置自动导入。升级必须保留 Bun preload 和 Vite 两条路径的响应式更新、owner 清理、导入副作用和 source map。
+保持官方 Solid 编译器固定版本：候选版本与 Solid 1 运行时独立，共享转换禁用 Solid 2 内置自动导入。升级必须保留 Vite 开发与生产构建两条路径的响应式更新、owner 清理、导入副作用和 source map。
 
 ## 关联原生命令错误
 

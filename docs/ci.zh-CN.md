@@ -22,7 +22,7 @@ macOS CI 作业先检查 Rust 格式，再让 Rust 与 Bun 检查共享包生成
 
 Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一致；同时启用 Ashpd 默认的 Tokio 后端会导致编译失败。宿主 HTTP 适配器和浏览器资源下载器使用官方 Reqwest，使根锁文件不再包含已停止维护的 `rustls-pemfile`。macOS CI 和 Linux 库检查也会运行 HTTP 适配器的本地服务器测试，覆盖重定向策略、流式请求体、超时和代理配置。
 
-审计根据 Cargo 元数据、`cargo-deny` 的 JSON 许可清单和 Bun 许可清单重新生成 `THIRD-PARTY-NOTICES.md`。依赖变化后运行 `bun run task third-party-notices` 更新它。每个本地工作区包都必须声明许可证，通常使用 `license.workspace = true`。
+审计根据 Cargo 元数据、`cargo-deny` 的 JSON 许可清单和 Bun 许可清单重新生成 `THIRD-PARTY-NOTICES.md`。依赖变化后运行 `bun run task third-party-notices` 更新它。每个本地工作区包都必须声明许可证，通常使用 `license.workspace = true`。Vendored GPUI crate 还必须在 `Cargo.toml` 的 `package.metadata.solid-gpui-vendor.source` 中声明上游包 URL；仅在说明文档中记录来源不会填入生成的清单。
 
 ## 发布验证
 
@@ -30,7 +30,7 @@ Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一
 
 - [Website Packages](../.github/workflows/website-packages.yml) 在 macOS ARM64、Linux x86-64 和 Windows x86-64 上构建并验证原生归档。
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) 先执行开发检查和审计，再构建并冒烟测试解压后的进程宿主。
-- [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，并上传三个 npm 包。
+- [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，并上传 core、Vite、router 和 Shiki 四个 npm 包。
 - 手动运行 Embedded Bun 并启用 `candidate` 输入时，还会验证内嵌发布宿主；同一作业先完成内嵌功能检查。
 
 这些工作流上传候选产物，不公开发布。已经压缩的归档上传时不再重复压缩。

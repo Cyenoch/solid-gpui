@@ -48,7 +48,7 @@ export async function buildHighlights(
     }
   }
   const highlighter = await createBunHighlighter({
-    languages: ["tsx", "typescript", "rust", "bash", "toml", "json"],
+    languages: ["javascript", "tsx", "typescript", "rust", "bash", "toml", "json"],
     themes: ["github-dark"],
     workerURL: new URL("../../packages/solid-gpui-shiki/src/worker.ts", import.meta.url),
   });

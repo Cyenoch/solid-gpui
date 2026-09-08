@@ -34,7 +34,9 @@
     "oxc-transform": "0.148.0",
     "oxfmt": "0.66.0",
     "solid-js": "1.9.15",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "@solid-gpui/vite": "workspace:*"
   },
   "trustedDependencies": [
     "bebop-tools"

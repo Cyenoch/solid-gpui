@@ -15,6 +15,10 @@ site's hash route in the browser). Run the shared desktop website with
 Native window chrome and process-backed services require the desktop host. The
 browser website documents these APIs without simulating operating-system windows.
 
+The example uses `@solid-gpui/vite`: `bun run dev` starts Vite and the native host;
+`bun run dev:rust` starts Rust first with `runtime::vite::Vite`. Both load the same
+Vite configuration and native bindings. See [Vite integration](vite.md).
+
 ## Application-owned runtime and window profile
 
 `run_application_with_profile(profile, Arc<dyn RuntimeAdapter>)` does not parse

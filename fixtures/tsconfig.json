@@ -13,11 +13,12 @@
       "@solid-gpui/core": ["../packages/solid-gpui/dist/index"],
       "@solid-gpui/core/runtime": ["../packages/solid-gpui/dist/runtime"],
       "@solid-gpui/core/embedded": ["../packages/solid-gpui/dist/embedded"],
+      "@solid-gpui/core/stdio": ["../packages/solid-gpui/dist/stdio"],
       "@solid-gpui/core/components": ["../packages/solid-gpui/dist/components"],
       "@solid-gpui/core/native": ["../packages/solid-gpui/dist/native"],
       "@solid-gpui/router": ["../packages/solid-gpui-router/dist/index"],
       "@solid-gpui/core/jsx-runtime": ["../packages/solid-gpui/dist/jsx-runtime"]
     }
   },
-  "include": ["quickjs-*.tsx", "system-popover*.tsx"]
+  "include": ["quickjs-*.tsx", "vite-counter.tsx", "system-popover*.tsx"]
 }

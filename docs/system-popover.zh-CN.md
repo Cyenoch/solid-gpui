@@ -108,7 +108,7 @@ QuickJS 新代校验保留持久窗口，弹层随旧代释放，待新代激活
 
 ```sh
 bun run task build
-bun packages/solid-gpui/src/vite/build.ts --runtime quickjs fixtures/system-popover.tsx /tmp/system-popover.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover.js
 ```
 
@@ -116,7 +116,7 @@ cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime qu
 每轮检查主窗口的原生命令仍可响应，成功后自动退出。运行时保持测试应用在前台：
 
 ```sh
-bun packages/solid-gpui/src/vite/build.ts --runtime quickjs fixtures/system-popover-lifecycle.tsx /tmp/system-popover-lifecycle.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover-lifecycle.js
 ```
 

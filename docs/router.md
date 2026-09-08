@@ -26,7 +26,7 @@ Add `solidGpuiRouter()` before the universal JSX plugin in your Vite configurati
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { solidGpui } from "@solid-gpui/core/vite";
+import { solidGpui } from "@solid-gpui/vite";
 import { solidGpuiRouter } from "@solid-gpui/router/vite";
 
 export default defineConfig({
@@ -51,7 +51,7 @@ To change the paths, pass `routesDirectory` and `generatedRouteTree` to
 The naming tokens are strings. Prefer the defaults unless your project needs a
 different convention.
 
-Generation is also available before standalone type checks or Bun/QuickJS builds:
+Generation is also available before standalone type checks or Vite builds targeting Bun or QuickJS:
 
 ```ts
 // generate-routes.ts
@@ -240,7 +240,7 @@ export const Route = createLazyFileRoute("/posts/$postId")({
 });
 ```
 
-Remove `component` from the corresponding non-lazy file. Vite/Bun may split the
+Remove `component` from the corresponding non-lazy file. Vite may split the
 result according to the application's bundling configuration. QuickJS delivery
 must include all route code in its self-contained bundle. Automatic TanStack
 component extraction (`autoCodeSplitting`) is not exposed by this adapter.

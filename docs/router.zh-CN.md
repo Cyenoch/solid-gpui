@@ -17,7 +17,7 @@ bun add @solid-gpui/router
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { solidGpui } from "@solid-gpui/core/vite";
+import { solidGpui } from "@solid-gpui/vite";
 import { solidGpuiRouter } from "@solid-gpui/router/vite";
 
 export default defineConfig({
@@ -34,7 +34,7 @@ export default defineConfig({
 
 可配置 `routesDirectory`、`generatedRouteTree`、`routeFilePrefix`、`routeFileIgnorePrefix`、`routeFileIgnorePattern`、`indexToken`、`routeToken`、`quoteStyle` 和 `semicolons`。命名 token 使用字符串；通常保留默认约定即可。
 
-独立类型检查或 Bun/QuickJS 构建前可以直接生成：
+独立类型检查或 面向 Bun/QuickJS 的 Vite 构建前可以直接生成：
 
 ```ts
 // generate-routes.ts
@@ -188,7 +188,7 @@ export const Route = createLazyFileRoute("/posts/$postId")({
 });
 ```
 
-Vite/Bun 是否拆分代码取决于应用构建配置。QuickJS 交付必须将路由代码包含在自包含 bundle 中。适配层没有开放 TanStack 的自动组件抽取选项 `autoCodeSplitting`。
+Vite 是否拆分代码取决于应用构建配置。QuickJS 交付必须将路由代码包含在自包含 bundle 中。适配层没有开放 TanStack 的自动组件抽取选项 `autoCodeSplitting`。
 
 原生 router 使用 memory history，禁用浏览器文档跳转、DOM 滚动恢复、view transitions 与 hover 预加载。外部 URL 通过 native root 的 `openUrl` 打开。网站在浏览器入口同步 hash URL，桌面应用无需该桥接。TanStack 的 DOM 组件、SSR/hydration 和浏览器 devtools 不属于原生适配层。
 

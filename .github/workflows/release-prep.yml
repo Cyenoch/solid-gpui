@@ -63,6 +63,9 @@ jobs:
       - name: Pack core candidate (no publish)
         run: bun run task package-pack "$RUNNER_TEMP/solid-gpui-core-$RELEASE_VERSION.tgz"
 
+      - name: Pack Vite candidate (no publish)
+        run: bun run task vite-package-pack "$RUNNER_TEMP/solid-gpui-vite-$RELEASE_VERSION.tgz"
+
       - name: Pack router candidate (no publish)
         run: bun run task router-package-pack "$RUNNER_TEMP/solid-gpui-router-$RELEASE_VERSION.tgz"
 
@@ -75,6 +78,7 @@ jobs:
           name: solid-gpui-release-prep-${{ inputs.version }}
           path: |
             ${{ runner.temp }}/solid-gpui-core-*.tgz
+            ${{ runner.temp }}/solid-gpui-vite-*.tgz
             ${{ runner.temp }}/solid-gpui-router-*.tgz
             ${{ runner.temp }}/solid-gpui-shiki-*.tgz
           if-no-files-found: error

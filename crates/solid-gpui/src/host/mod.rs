@@ -633,12 +633,16 @@ impl NativeStateRegistry {
         {
             return Err("candidate must replace exactly the current persistent Surface set".into());
         }
+        let windows: std::collections::HashSet<_> = cx
+            .windows()
+            .into_iter()
+            .map(|window| window.window_id())
+            .collect();
         for snapshot in snapshots {
             let surface = &self.surfaces[&snapshot.surface_id];
-            surface
-                .window
-                .read(cx, |_: Entity<SolidRoot>, _| ())
-                .map_err(|e| e.to_string())?;
+            if !windows.contains(&surface.window.window_id()) {
+                return Err(format!("Surface {} window is closed", snapshot.surface_id));
+            }
             surface
                 .root
                 .read(cx)
@@ -1425,9 +1429,15 @@ fn start_runtime(
     smoke_press: bool,
 ) -> Result<Arc<dyn RuntimeAdapter>, String> {
     match mode {
-        RuntimeMode::Process => ProcessAdapter::spawn(renderer_command(renderer_args))
-            .map(|runtime| runtime as Arc<dyn RuntimeAdapter>)
-            .map_err(|error| format!("failed to spawn process renderer: {error}")),
+        RuntimeMode::Process => (if renderer_args.is_empty() {
+            crate::runtime::vite::runner_command()
+                .map(|command| command.unwrap_or_else(|| renderer_command(renderer_args)))
+        } else {
+            Ok(renderer_command(renderer_args))
+        })
+        .and_then(ProcessAdapter::spawn)
+        .map(|runtime| runtime as Arc<dyn RuntimeAdapter>)
+        .map_err(|error| format!("failed to spawn process renderer: {error}")),
         RuntimeMode::Embedded => start_embedded(renderer_args, smoke_press),
         RuntimeMode::QuickJsDev => {
             #[cfg(feature = "quickjs")]

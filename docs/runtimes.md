@@ -1,5 +1,9 @@
 # Choose a runtime
 
+Author JavaScript directly, or compile JSX/TSX with Vite. Runtime selection is
+independent of this choice. Bun retains its native APIs; QuickJS requires
+self-contained JS and Rust services. See [Vite integration](vite.md).
+
 Solid GPUI offers three native runtime modes. They share the same Solid component
 API, native controls, and Rust rendering engine. Choose where application
 capabilities live and how you want to develop and deliver the application.
@@ -69,7 +73,7 @@ mountApplication({
 Build a production entry:
 
 ```sh
-node_modules/.bin/solid-gpui-build --runtime quickjs src/app.tsx dist/app.js
+bun --bun vite build # solidGpui({ entry: "src/app.tsx", runtime: "quickjs" })
 ```
 
 For development against the actual QuickJS engine, build your native host with
@@ -78,7 +82,7 @@ For development against the actual QuickJS engine, build your native host with
 in your application's workspace-root manifest, then run:
 
 ```sh
-node_modules/.bin/solid-gpui-quickjs-dev src/app.tsx target/debug/my-app
+bun --bun vite
 ```
 
 The external development tool watches and bundles code. The host prepares a fresh

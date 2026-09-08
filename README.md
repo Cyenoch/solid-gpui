@@ -15,7 +15,7 @@
   <a href="docs/README.md">Documentation</a>
 </p>
 
-Build desktop interfaces in TypeScript and TSX. **SolidJS manages reactive state;
+Build desktop interfaces in JavaScript or JSX/TSX. **SolidJS manages reactive state;
 Rust and GPUI handle native layout, rendering, and input.**
 
 The shared website brings together interactive guides, a component catalog, and
@@ -34,7 +34,7 @@ Rust WebAssembly host.
 - **Typed Rust integration.** Export Rust functions and components with
   [generated TypeScript bindings](docs/rust-bridge.md).
 - **Tools for complete apps.** [Routing](packages/solid-gpui-router),
-  [code highlighting](docs/shiki.md), and [Vite hot reload](docs/hot-reload.md).
+  [code highlighting](docs/shiki.md), and [Vite development and builds](docs/vite.md).
 
 ## Try it locally
 
@@ -71,7 +71,9 @@ export function Counter() {
 }
 ```
 
-Use the [Solid GPUI Vite plugin](docs/hot-reload.md) to compile TSX, then
+Write JS directly without a bundler, or use [@solid-gpui/vite](docs/vite.md) to
+compile JSX/TSX. Bun and QuickJS execute the resulting JavaScript; selecting Bun
+keeps Bun APIs available. Both paths support Rust native modules. Then
 [mount your application](docs/getting-started.md#mount-a-root) in a GPUI host.
 
 ## Go further

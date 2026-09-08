@@ -230,7 +230,11 @@ Run `bun run task native-codegen` to generate core component and website
 bindings, and `bun run task native-codegen-check` to detect drift. Commit the
 generated files for editor support and validation; do not edit them by hand.
 Vite's `native` option invokes the same host exporter and provides the `#native`
-alias. Rust changes require rebuilding and restarting the host.
+alias. The separate `@solid-gpui/vite` package builds the exact Cargo artifact
+that exports the bindings. Rust-owned Vite development exports from the running
+host. Direct Bun JS can import those generated bindings without a bundler;
+the Native Contract is unchanged. Rust changes require rebuilding and restarting
+the host. See [Vite integration](vite.md).
 
 For a runnable example, `examples/website/native/src/lib.rs` declares both
 `BuildBadge` and `analyze_workspace`; website TSX uses the generated component

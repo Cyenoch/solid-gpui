@@ -19,8 +19,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE",
-    "src/vite"
+    "LICENSE"
   ],
   "exports": {
     ".": {
@@ -46,8 +45,6 @@
     "./jsx-runtime": {
       "types": "./dist/jsx-runtime.d.ts"
     },
-    "./vite": "./src/vite/index.ts",
-    "./vite/dev": "./src/vite/dev.ts",
     "./native": {
       "types": "./dist/native.d.ts",
       "import": "./dist/native.js",
@@ -58,7 +55,6 @@
       "import": "./dist/components.js",
       "default": "./dist/components.js"
     },
-    "./vite/build": "./src/vite/build.ts",
     "./web": {
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js",
@@ -69,30 +65,12 @@
     "bun": ">=1.4.2"
   },
   "dependencies": {
-    "@jridgewell/remapping": "2.3.5",
-    "@solidjs/compiler": "2.0.0-rc.6",
-    "bebop": "3.2.3",
-    "core-js-pure": "3.50.0",
-    "event-target-shim": "6.0.2",
-    "oxc-transform": "0.148.0",
-    "oxfmt": "0.66.0",
-    "@jridgewell/trace-mapping": "0.3.31"
+    "bebop": "3.2.3"
   },
   "peerDependencies": {
-    "solid-js": "^1.9.10",
-    "vite": "^8.2.2"
+    "solid-js": "^1.9.10"
   },
   "devDependencies": {
     "@solid-gpui/router": "workspace:*"
-  },
-  "peerDependenciesMeta": {
-    "vite": {
-      "optional": true
-    }
-  },
-  "bin": {
-    "solid-gpui-dev": "./src/vite/dev.ts",
-    "solid-gpui-build": "./src/vite/build.ts",
-    "solid-gpui-quickjs-dev": "./src/vite/quickjs-dev.ts"
   }
 }

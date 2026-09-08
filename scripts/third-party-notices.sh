@@ -29,7 +29,7 @@ target="$(python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in 
 if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
   generated_date="$(date -u -r "$SOURCE_DATE_EPOCH" +%Y-%m-%d)"
 else
-  generated_date="$(git -C "$repo_root" log -1 --format=%cs -- Cargo.lock Cargo.toml bun.lock package.json packages/solid-gpui/package.json packages/solid-gpui-router/package.json scripts/tasks.ts scripts/third-party-notices.sh)"
+  generated_date="$(git -C "$repo_root" log -1 --format=%cs -- Cargo.lock Cargo.toml bun.lock package.json packages/solid-gpui/package.json packages/solid-gpui-router/package.json packages/solid-gpui-vite/package.json scripts/tasks.ts scripts/third-party-notices.sh)"
 fi
 [[ -n "$generated_date" ]] || { printf 'unable to determine a stable generation date\n' >&2; exit 1; }
 
@@ -324,11 +324,11 @@ lines.extend(
         "",
         "## Vendored JavaScript",
         "",
-        "`packages/solid-gpui/src/vite/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).",
+        "`packages/solid-gpui-vite/src/quickjs-abort.ts` adapts the AbortController/AbortSignal implementation from Vercel's `@edge-runtime/primitives` 6.0.0 under MIT (copyright 2024 Vercel, Inc.).",
         "Source: https://github.com/vercel/edge-runtime/blob/440c123a37284d6a852ce453af810ad484ecfc01/packages/primitives/src/primitives/abort-controller.js",
         "The source file retains the complete MIT notice and describes local changes. It is shipped with the core package's build tools and included in QuickJS application bundles.",
         "",
-        "`packages/solid-gpui/src/vite/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).",
+        "`packages/solid-gpui-vite/src/quickjs-headers.js` adapts `fetch-headers` 3.0.1 under MIT (copyright 2021 Jimmy Wärting).",
         "Source: https://github.com/jimmywarting/fetch-headers/blob/66d63ac7a67d3b9c863cd80b872f2ea999cbc7a7/headers.js",
         "The source retains the complete MIT notice. Local changes correct header validation/normalization, preserve values after rejected mutations, and remove Node inspection support.",
         "",
