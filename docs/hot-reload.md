@@ -1,4 +1,4 @@
-# Native development with Vite and Bun
+# Native development and hot reload
 
 External Bun is the rapid iteration runtime. Embedded Bun is the intended
 production packaging runtime for Bun-based applications; QuickJS is the UI
@@ -8,7 +8,8 @@ for the distinction between these roles and current delivery support.
 Vite 8 handles the module graph, file watching, HMR, and production bundling.
 The plugin compiles universal JSX with the official Oxc-based
 `@solidjs/compiler` 2.0.0-rc.6 and lowers TypeScript with `oxc-transform` 0.148.0.
-The application runtime remains Solid 1.9.15. Bun executes Vite's RunnableDevEnvironment/ModuleRunner
+The application runtime remains Solid 1.9.15. In the external Bun workflow,
+Bun executes Vite's RunnableDevEnvironment/ModuleRunner
 and the application JavaScript. The GPUI host keeps its native window and receives
 a new epoch's Snapshot over the existing stdio connection. This is a native
 application module environment; it does not require HTML, a DOM, or a WebView.
@@ -72,9 +73,11 @@ For development aliases to library source, see
 ## State and failure boundaries
 
 Reloading remounts the application. It does not automatically preserve each
-component's signals. `captureState` returns structured-cloneable data that the
-next generation receives in `setup`. The website preserves its route, language, and window size; component state, native input, and scroll caches are
-recreated. Do not retain Solid owners, Root or router instances, functions, or
+component's signals. Under Bun, `captureState` returns structured-cloneable data
+that the next generation receives in `setup`. QuickJS uses the stricter
+[JSON contract](#captured-state). Capture explicit application data such as the
+route, selected item, or window size; component state, native input, and scroll
+caches are recreated. Do not retain Solid owners, Root or router instances, functions, or
 native resources across generations.
 
 After the candidate's setup, render, and first-frame preparation succeed, the
@@ -175,12 +178,36 @@ checks as production. A loopback development connection carries bounded bundles,
 separately from the UI protocol. No browser client, WebSocket, fetch, or Vite
 ModuleRunner is installed inside QuickJS.
 
+### Application build configuration
+
+In the consuming application's **workspace-root** `Cargo.toml`, keep the
+interpreter optimized during development:
+
+```toml
+[profile.dev.package.rquickjs-sys]
+opt-level = 3
+```
+
+This repository already sets that profile, but Cargo ignores profile settings
+in dependencies. An unoptimized interpreter can exhaust the same 2 MiB JS stack
+on a nested route that succeeds with the optimized interpreter. See
+[QuickJS stack diagnosis](troubleshooting.md#quickjs-overflows-the-stack-on-a-nested-route)
+before changing layouts or increasing the runtime's stack limit. Rebuild and
+restart the native host after changing the profile.
+
+### Generation lifecycle
+
 A successful build creates a fresh VM while keeping the Rust host, windows, and
 services alive. The old VM pauses at a microtask checkpoint and exports explicit
 `captureState` data. The host validates every candidate Surface and application
 configuration before switching routing on the foreground thread. Old epoch input
 and replies cannot invoke the new generation. Native caches and component-local
 signals remount. Current window observations are sent again after replacement.
+Lifecycle requests use a bounded FIFO: a later capture cannot overwrite an
+activation that the VM has not processed yet. Exhausting the control queue is
+reported explicitly rather than silently dropping a lifecycle step.
+
+### Captured state
 
 QuickJS captured state must be acyclic JSON data: plain objects, dense arrays,
 strings, booleans, finite numbers, and null. Accessors, hidden properties, symbols,
@@ -188,6 +215,34 @@ functions, non-plain objects, sparse arrays, negative zero, and non-finite numbe
 are rejected. The state budget is 1 MiB, 100,000 visited values, and 64 nesting
 levels. An absent captured value is distinct from an explicit null. Bun's
 same-VM HMR still uses its structured-clone state contract.
+
+Return a dedicated state object rather than the entire live session. For example,
+if a session's `userId` can be `undefined`, choose its persisted meaning explicitly:
+
+```ts
+type ReloadState = { session: { userId: string | null } };
+
+const captureState = (): ReloadState => ({
+  session: { userId: session.userId ?? null },
+});
+```
+
+Use `null` when it means “no user”, or omit an optional object property when it
+means “not supplied”. Array elements must contain JSON values; neither holes nor
+`undefined` elements are accepted. Returning `undefined` from `captureState`
+itself means no captured state, and the next `setup` receives `undefined`;
+returning `null` preserves `null`. Do not use a `JSON.stringify`/`JSON.parse`
+round trip to sanitize a live session: it silently drops or changes unsupported
+values before validation can report them.
+
+Validation errors identify the field, for example
+`$.state[0].session.userId: undefined is not JSON`. `state[0]` is the captured
+application value inside the handoff envelope. Capture runs in the **old VM**,
+before the candidate is created. A capture failure keeps that VM interactive;
+fix its live state or restart after correcting `captureState`. Editing only the
+candidate cannot replace an old capture function that always returns invalid data.
+
+### Activation and recovery
 
 Candidate preparation accepts initial Snapshots and application configuration.
 Perform native effects in the application's `onMount`, after activation. The
@@ -210,6 +265,28 @@ back. A failed development VM leaves the last native tree visible; a later edit
 can recover using the last captured UI state and current host activation metadata.
 That state is a checkpoint, not a promise to preserve changes made after it.
 Rust/config/native-contract changes still require a development restart.
+
+The `applied` diagnostic confirms activation, not completion of asynchronous
+route rendering. Verify the restored page's actual content and an interaction
+after activation; a loading Snapshot or persistent navigation label is insufficient.
+
+### Verify application reload
+
+Run acceptance checks with the consuming application's native build profile and
+actual QuickJS host. Rebuild the TypeScript packages first when the application
+resolves their compiled `dist` exports.
+
+1. Start directly at a nested route and verify its page-specific content and an
+   interaction. Also navigate to it from another page; these initialization paths
+   can create different amounts of the component tree at once.
+2. Change data covered by `captureState`, edit a TSX dependency, and wait for the
+   restored page to finish loading. Check the route, captured values, and an
+   interaction in the new generation.
+3. Introduce a syntax error or synchronous preparation error. Verify that the
+   previous generation remains interactive, then fix the error and reload again.
+   Repeat saves to exercise replacement ordering and recovery.
+4. Inspect diagnostics after activation for asynchronous route or native-command
+   failures. Validate these outcomes separately from the `applied` acknowledgement.
 
 ## External Bun operational constraints
 

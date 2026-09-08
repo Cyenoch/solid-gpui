@@ -1,0 +1,26 @@
+name: Set up Rust
+description: Use the pinned toolchain and cache reusable Cargo dependencies
+
+inputs:
+  cache-key:
+    description: Build purpose and runner image, kept separate across incompatible jobs
+    required: true
+  cache-targets:
+    description: Cache compiled dependencies as well as the Cargo registry
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Confirm pinned Rust toolchain
+      shell: bash
+      run: rustup show active-toolchain
+
+    - name: Cache Cargo dependencies
+      uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-key }}
+        cache-targets: ${{ inputs.cache-targets }}
+        cache-bin: false
+        cache-on-failure: true
+        save-if: ${{ github.event_name != 'pull_request' }}

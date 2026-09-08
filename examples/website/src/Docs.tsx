@@ -74,6 +74,11 @@ const referenceLabels: Record<string, string> = {
   troubleshooting: "Troubleshooting",
 };
 
+function referenceLabel(doc: (typeof referenceDocs)[number]): string {
+  const label = referenceLabels[doc.id];
+  return label ? t(label) : locale() === "zh-CN" ? doc.titleChinese : doc.title;
+}
+
 const referenceOrder = new Map(Object.keys(referenceLabels).map((id, index) => [id, index]));
 const referenceNavigation = [...referenceDocs].sort(
   (a, b) => (referenceOrder.get(a.id) ?? referenceOrder.size) - (referenceOrder.get(b.id) ?? referenceOrder.size),
@@ -202,7 +207,7 @@ export function Docs(props: {
   );
   const filteredReferences = createMemo(() =>
     referenceNavigation.filter((doc) =>
-      `${t(referenceLabels[doc.id] ?? doc.title)} ${doc.title} ${doc.source}`
+      `${referenceLabel(doc)} ${doc.title} ${doc.titleChinese} ${doc.source} ${doc.sourceChinese}`
         .toLowerCase()
         .includes(query().toLowerCase()),
     ),
@@ -277,7 +282,8 @@ export function Docs(props: {
               {() =>
                 filteredReferences().map((doc) => (
                   <NavItem
-                    label={referenceLabels[doc.id] ?? doc.title}
+                    label={referenceLabel(doc)}
+                    translate={false}
                     active={reference()?.id === doc.id}
                     onPress={() => navigate(`/docs/reference/${doc.id}`)}
                   />

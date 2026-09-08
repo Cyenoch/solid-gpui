@@ -45,7 +45,7 @@ bundle 检查在真实 QuickJS VM 计算交付的 JavaScript，在统一 15 秒�
 
 THIRD-PARTY-NOTICES.md 是依赖清单，不是完整第三方许可文本集合。包中包含该清单及项目 MIT LICENSE；公开分发前仍需汇总并验证完整再分发说明。
 
-Website Packages 工作流在 macOS ARM64、Linux x86-64、Windows x86-64 构建并上传已验证候选包，支持手动触发，也在打包输入变化的 PR 中运行。产物是未签名候选，不是公开发布。检查不证明 Windows/Linux 的显示、GPU、无障碍、输入法、菜单或通知正确性，发布前需真实桌面验证。
+Website Packages 工作流在 macOS ARM64、Linux x86-64、Windows x86-64 构建并上传已验证候选包，发布验证时手动触发；普通 PR 执行开发和跨平台宿主检查。触发条件、缓存与其他候选工作流见[持续集成](ci.md)。产物是未签名候选，不是公开发布。检查不证明 Windows/Linux 的显示、GPU、无障碍、输入法、菜单或通知正确性，发布前需真实桌面验证。
 
 ## macOS
 

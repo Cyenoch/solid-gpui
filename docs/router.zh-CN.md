@@ -1,4 +1,4 @@
-# Router
+# 路由
 
 `@solid-gpui/router` 将 TanStack Router Core 接入 Solid GPUI。新应用推荐使用文件路由：文件定义路由层级，构建工具生成路由树及 TypeScript 类型关系。
 

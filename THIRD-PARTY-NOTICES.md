@@ -1,12 +1,12 @@
 # Third-Party Notices
 
-This inventory accompanies the host release archive `solid-gpui-host-0.2.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
+This inventory accompanies the host release archive `solid-gpui-host-0.3.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
 It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.
 The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.
 The archive embeds the project-owned MIT text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.
 Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.
 
-**Generated:** 2026-09-07
+**Generated:** 2026-09-08
 **Generation command:** `bun run task third-party-notices`
 
 The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.
@@ -14,7 +14,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 824 third-party packages and 1434 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 819 third-party packages and 1423 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -212,7 +212,6 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | gpui-pre-perf | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-platform | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-reqwest | 0.12.15 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-reqwest-client | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-reqwest-client/0.3.3; local patches) |
 | gpui-pre-scheduler | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-shared-string | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -394,9 +393,9 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | regex-automata | 0.4.18 | Apache-2.0 | registry (crates.io) |
 | regex-syntax | 0.8.11 | Apache-2.0 | registry (crates.io) |
 | renderdoc-sys | 1.1.0 | Apache-2.0 | registry (crates.io) |
+| reqwest | 0.13.4 | Apache-2.0 | registry (crates.io) |
 | resvg | 0.45.1 | Apache-2.0 | registry (crates.io) |
 | resvg | 0.46.0 | Apache-2.0 | registry (crates.io) |
-| ring | 0.17.14 | Apache-2.0 | registry (crates.io) |
 | ropey | 2.0.0-beta.1 | Apache-2.0 | registry (crates.io) |
 | roxmltree | 0.20.0 | Apache-2.0 | registry (crates.io) |
 | roxmltree | 0.21.1 | Apache-2.0 | registry (crates.io) |
@@ -407,7 +406,6 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | rustix | 1.1.4 | Apache-2.0 | registry (crates.io) |
 | rustls | 0.23.44 | Apache-2.0 | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | Apache-2.0 | registry (crates.io) |
-| rustls-pemfile | 2.2.0 | Apache-2.0 | registry (crates.io) |
 | rustls-pki-types | 1.15.1 | Apache-2.0 | registry (crates.io) |
 | rustls-platform-verifier | 0.7.0 | Apache-2.0 | registry (crates.io) |
 | rustls-platform-verifier-android | 0.1.1 | Apache-2.0 | registry (crates.io) |
@@ -464,7 +462,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | syn | 3.0.5 | Apache-2.0 | registry (crates.io) |
 | sync_wrapper | 1.0.2 | Apache-2.0 | registry (crates.io) |
 | sys-locale | 0.3.2 | Apache-2.0 | registry (crates.io) |
-| system-configuration | 0.6.1 | Apache-2.0 | registry (crates.io) |
+| system-configuration | 0.7.0 | Apache-2.0 | registry (crates.io) |
 | system-configuration-sys | 0.6.0 | Apache-2.0 | registry (crates.io) |
 | tauri-winrt-notification | 0.7.3 | Apache-2.0 | registry (crates.io) |
 | tempfile | 3.27.0 | Apache-2.0 | registry (crates.io) |
@@ -524,7 +522,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | wasm-bindgen-macro | 0.2.121 | Apache-2.0 | registry (crates.io) |
 | wasm-bindgen-macro-support | 0.2.121 | Apache-2.0 | registry (crates.io) |
 | wasm-bindgen-shared | 0.2.121 | Apache-2.0 | registry (crates.io) |
-| wasm-streams | 0.4.2 | Apache-2.0 | registry (crates.io) |
+| wasm-streams | 0.5.0 | Apache-2.0 | registry (crates.io) |
 | wasm_thread | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | web-sys | 0.3.98 | Apache-2.0 | registry (crates.io) |
 | web-time | 1.1.0 | Apache-2.0 | registry (crates.io) |
@@ -559,17 +557,14 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | windows-link | 0.2.1 | Apache-2.0 | registry (crates.io) |
 | windows-numerics | 0.2.0 | Apache-2.0 | registry (crates.io) |
 | windows-numerics | 0.3.1 | Apache-2.0 | registry (crates.io) |
-| windows-registry | 0.4.0 | Apache-2.0 | registry (crates.io) |
 | windows-registry | 0.6.1 | Apache-2.0 | registry (crates.io) |
 | windows-result | 0.2.0 | Apache-2.0 | registry (crates.io) |
 | windows-result | 0.3.4 | Apache-2.0 | registry (crates.io) |
 | windows-result | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | windows-strings | 0.1.0 | Apache-2.0 | registry (crates.io) |
-| windows-strings | 0.3.1 | Apache-2.0 | registry (crates.io) |
 | windows-strings | 0.4.2 | Apache-2.0 | registry (crates.io) |
 | windows-strings | 0.5.1 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.48.0 | Apache-2.0 | registry (crates.io) |
-| windows-sys | 0.52.0 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.59.0 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.60.2 | Apache-2.0 | registry (crates.io) |
 | windows-sys | 0.61.2 | Apache-2.0 | registry (crates.io) |
@@ -621,7 +616,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 590 package records.**
+**Total Apache-2.0: 585 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -724,14 +719,12 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | inotify | 0.11.4 | ISC | registry (crates.io) |
 | inotify-sys | 0.1.8 | ISC | registry (crates.io) |
 | libloading | 0.8.9 | ISC | registry (crates.io) |
-| ring | 0.17.14 | ISC | registry (crates.io) |
 | rustls | 0.23.44 | ISC | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | ISC | registry (crates.io) |
-| rustls-pemfile | 2.2.0 | ISC | registry (crates.io) |
 | rustls-webpki | 0.103.15 | ISC | registry (crates.io) |
 | untrusted | 0.9.0 | ISC | registry (crates.io) |
 
-**Total ISC: 12 package records.**
+**Total ISC: 10 package records.**
 
 ### LGPL-2.1-or-later
 
@@ -944,7 +937,6 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | gpu-allocator | 0.28.0 | MIT | registry (crates.io) |
 | gpu-descriptor | 0.3.2 | MIT | registry (crates.io) |
 | gpu-descriptor-types | 0.2.0 | MIT | registry (crates.io) |
-| gpui-pre-reqwest | 0.12.15 | MIT | registry (crates.io) |
 | h2 | 0.4.19 | MIT | registry (crates.io) |
 | half | 2.7.1 | MIT | registry (crates.io) |
 | harfrust | 0.5.2 | MIT | registry (crates.io) |
@@ -1170,6 +1162,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | regex-automata | 0.4.18 | MIT | registry (crates.io) |
 | regex-syntax | 0.8.11 | MIT | registry (crates.io) |
 | renderdoc-sys | 1.1.0 | MIT | registry (crates.io) |
+| reqwest | 0.13.4 | MIT | registry (crates.io) |
 | resvg | 0.45.1 | MIT | registry (crates.io) |
 | resvg | 0.46.0 | MIT | registry (crates.io) |
 | rgb | 0.8.53 | MIT | registry (crates.io) |
@@ -1192,7 +1185,6 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | rustix | 1.1.4 | MIT | registry (crates.io) |
 | rustls | 0.23.44 | MIT | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | MIT | registry (crates.io) |
-| rustls-pemfile | 2.2.0 | MIT | registry (crates.io) |
 | rustls-pki-types | 1.15.1 | MIT | registry (crates.io) |
 | rustls-platform-verifier | 0.7.0 | MIT | registry (crates.io) |
 | rustls-platform-verifier-android | 0.1.1 | MIT | registry (crates.io) |
@@ -1261,7 +1253,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | syn | 3.0.5 | MIT | registry (crates.io) |
 | synstructure | 0.13.2 | MIT | registry (crates.io) |
 | sys-locale | 0.3.2 | MIT | registry (crates.io) |
-| system-configuration | 0.6.1 | MIT | registry (crates.io) |
+| system-configuration | 0.7.0 | MIT | registry (crates.io) |
 | system-configuration-sys | 0.6.0 | MIT | registry (crates.io) |
 | taffy | 0.13.0 | MIT | registry (crates.io) |
 | tauri-winrt-notification | 0.7.3 | MIT | registry (crates.io) |
@@ -1280,7 +1272,6 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | tinyvec_macros | 0.1.1 | MIT | registry (crates.io) |
 | tokio | 1.53.1 | MIT | registry (crates.io) |
 | tokio-rustls | 0.26.5 | MIT | registry (crates.io) |
-| tokio-socks | 0.5.3 | MIT | registry (crates.io) |
 | tokio-util | 0.7.19 | MIT | registry (crates.io) |
 | toml | 0.8.23 | MIT | registry (crates.io) |
 | toml | 1.1.5+spec-1.1.0 | MIT | registry (crates.io) |
@@ -1292,6 +1283,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | toml_write | 0.1.2 | MIT | registry (crates.io) |
 | toml_writer | 1.1.2+spec-1.1.0 | MIT | registry (crates.io) |
 | tower | 0.5.3 | MIT | registry (crates.io) |
+| tower-http | 0.6.11 | MIT | registry (crates.io) |
 | tower-layer | 0.3.3 | MIT | registry (crates.io) |
 | tower-service | 0.3.3 | MIT | registry (crates.io) |
 | tracing | 0.1.44 | MIT | registry (crates.io) |
@@ -1343,7 +1335,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | wasm-bindgen-macro | 0.2.121 | MIT | registry (crates.io) |
 | wasm-bindgen-macro-support | 0.2.121 | MIT | registry (crates.io) |
 | wasm-bindgen-shared | 0.2.121 | MIT | registry (crates.io) |
-| wasm-streams | 0.4.2 | MIT | registry (crates.io) |
+| wasm-streams | 0.5.0 | MIT | registry (crates.io) |
 | wasm_thread | 0.3.3 | MIT | registry (crates.io) |
 | wayland-backend | 0.3.17 | MIT | registry (crates.io) |
 | wayland-client | 0.31.15 | MIT | registry (crates.io) |
@@ -1388,17 +1380,14 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | windows-link | 0.2.1 | MIT | registry (crates.io) |
 | windows-numerics | 0.2.0 | MIT | registry (crates.io) |
 | windows-numerics | 0.3.1 | MIT | registry (crates.io) |
-| windows-registry | 0.4.0 | MIT | registry (crates.io) |
 | windows-registry | 0.6.1 | MIT | registry (crates.io) |
 | windows-result | 0.2.0 | MIT | registry (crates.io) |
 | windows-result | 0.3.4 | MIT | registry (crates.io) |
 | windows-result | 0.4.1 | MIT | registry (crates.io) |
 | windows-strings | 0.1.0 | MIT | registry (crates.io) |
-| windows-strings | 0.3.1 | MIT | registry (crates.io) |
 | windows-strings | 0.4.2 | MIT | registry (crates.io) |
 | windows-strings | 0.5.1 | MIT | registry (crates.io) |
 | windows-sys | 0.48.0 | MIT | registry (crates.io) |
-| windows-sys | 0.52.0 | MIT | registry (crates.io) |
 | windows-sys | 0.59.0 | MIT | registry (crates.io) |
 | windows-sys | 0.60.2 | MIT | registry (crates.io) |
 | windows-sys | 0.61.2 | MIT | registry (crates.io) |
@@ -1474,7 +1463,7 @@ The current Cargo inventory contains 824 third-party packages and 1434 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 727 package records.**
+**Total MIT: 723 package records.**
 
 ### MIT-0
 
@@ -1589,15 +1578,16 @@ These local Cargo records are project-owned rather than third-party dependencies
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| website-host | 0.2.0 | MIT | local (project-owned) |
 | gpui-iconify | 0.0.0 | MIT | local (project-owned) |
-| gpui-performance | 0.2.0 | MIT | local (project-owned) |
-| solid-gpui | 0.2.0 | MIT | local (project-owned) |
-| solid-gpui-bun-sys | 0.2.0 | MIT | local (project-owned) |
-| solid-gpui-macros | 0.2.0 | MIT | local (project-owned) |
-| solid-gpui-web | 0.2.0 | MIT | local (project-owned) |
+| gpui-performance | 0.3.0 | MIT | local (project-owned) |
+| native-migration-host | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui-bun-sys | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui-macros | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui-web | 0.3.0 | MIT | local (project-owned) |
+| website-host | 0.3.0 | MIT | local (project-owned) |
 
-**Total project-owned Rust crates: 7.**
+**Total project-owned Rust crates: 8.**
 
 ## Bun dependencies
 
@@ -1618,36 +1608,67 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
 | @typescript/typescript-darwin-arm64 | 7.0.2 | Apache-2.0 | registry (npm) | dev |
+| baseline-browser-mapping | 2.11.21 | Apache-2.0 | registry (npm) | runtime |
 | bebop | 3.2.3 | Apache-2.0 | registry (npm) | runtime |
 | bebop-tools | 3.2.3 | Apache-2.0 | registry (npm) | dev |
 | detect-libc | 2.1.2 | Apache-2.0 | registry (npm) | runtime |
 | typescript | 5.9.3 | Apache-2.0 | registry (npm) | dev |
 | typescript | 7.0.2 | Apache-2.0 | registry (npm) | dev |
 
-**Total Apache-2.0 (Solid GPUI workspace): 6 package records.**
+**Total Apache-2.0 (Solid GPUI workspace): 7 package records.**
 
 #### BSD-3-Clause
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
+| diff | 8.0.4 | BSD-3-Clause | registry (npm) | runtime |
 | source-map-js | 1.2.1 | BSD-3-Clause | registry (npm) | runtime |
 
-**Total BSD-3-Clause (Solid GPUI workspace): 1 package records.**
+**Total BSD-3-Clause (Solid GPUI workspace): 2 package records.**
+
+#### CC-BY-4.0
+
+| Package | Version | License (SPDX) | Source | Scope |
+| --- | --- | --- | --- | --- |
+| caniuse-lite | 1.0.30001810 | CC-BY-4.0 | registry (npm) | runtime |
+
+**Total CC-BY-4.0 (Solid GPUI workspace): 1 package records.**
 
 #### ISC
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
 | @ungap/structured-clone | 1.4.0 | ISC | registry (npm) | runtime |
+| ansis | 4.3.1 | ISC | registry (npm) | runtime |
+| electron-to-chromium | 1.5.423 | ISC | registry (npm) | runtime |
 | inherits | 2.0.4 | ISC | registry (npm) | runtime |
+| lru-cache | 5.1.1 | ISC | registry (npm) | runtime |
 | picocolors | 1.1.1 | ISC | registry (npm) | runtime |
+| semver | 6.3.1 | ISC | registry (npm) | runtime |
+| yallist | 3.1.1 | ISC | registry (npm) | runtime |
 
-**Total ISC (Solid GPUI workspace): 3 package records.**
+**Total ISC (Solid GPUI workspace): 8 package records.**
 
 #### MIT
 
 | Package | Version | License (SPDX) | Source | Scope |
 | --- | --- | --- | --- | --- |
+| @babel/code-frame | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/compat-data | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/core | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/generator | 7.29.8 | MIT | registry (npm) | runtime |
+| @babel/helper-compilation-targets | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-globals | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-module-imports | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-module-transforms | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-string-parser | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-validator-identifier | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helper-validator-option | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/helpers | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/parser | 7.29.8 | MIT | registry (npm) | runtime |
+| @babel/template | 7.29.7 | MIT | registry (npm) | runtime |
+| @babel/traverse | 7.29.8 | MIT | registry (npm) | runtime |
+| @babel/types | 7.29.8 | MIT | registry (npm) | runtime |
 | @emnapi/core | 1.11.3 | MIT | registry (npm) | runtime |
 | @emnapi/runtime | 1.11.3 | MIT | registry (npm) | runtime |
 | @emnapi/wasi-threads | 1.2.3 | MIT | registry (npm) | runtime |
@@ -1674,7 +1695,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | @solidjs/compiler-darwin-arm64 | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @solidjs/compiler-wasm32-wasi | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
 | @tanstack/history | 1.162.1 | MIT | registry (npm) | runtime |
-| @tanstack/router-core | 1.171.27 | MIT | registry (npm) | runtime |
+| @tanstack/history | 1.162.2 | MIT | registry (npm) | runtime |
+| @tanstack/router-core | 1.171.28 | MIT | registry (npm) | runtime |
+| @tanstack/router-generator | 1.167.34 | MIT | registry (npm) | runtime |
+| @tanstack/router-utils | 1.162.2 | MIT | registry (npm) | runtime |
+| @tanstack/virtual-file-routes | 1.162.0 | MIT | registry (npm) | runtime |
 | @tybys/wasm-util | 0.10.3 | MIT | registry (npm) | runtime |
 | @types/hast | 3.0.5 | MIT | registry (npm) | runtime |
 | @types/mdast | 4.0.4 | MIT | registry (npm) | runtime |
@@ -1682,6 +1707,8 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | @types/unist | 3.0.3 | MIT | registry (npm) | runtime |
 | assert | 2.1.0 | MIT | registry (npm) | runtime |
 | available-typed-arrays | 1.0.7 | MIT | registry (npm) | runtime |
+| babel-dead-code-elimination | 1.0.12 | MIT | registry (npm) | runtime |
+| browserslist | 4.28.9 | MIT | registry (npm) | runtime |
 | bun-types | 1.4.2 | MIT | registry (npm) | dev |
 | call-bind | 1.0.9 | MIT | registry (npm) | runtime |
 | call-bind-apply-helpers | 1.0.2 | MIT | registry (npm) | runtime |
@@ -1691,10 +1718,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | character-entities-legacy | 3.0.0 | MIT | registry (npm) | runtime |
 | comma-separated-tokens | 2.0.3 | MIT | registry (npm) | runtime |
 | commander | 15.0.0 | MIT | registry (npm) | dev |
+| convert-source-map | 2.0.0 | MIT | registry (npm) | runtime |
 | cookie-es | 3.1.1 | MIT | registry (npm) | runtime |
 | core-js-pure | 3.50.0 | MIT | registry (npm) | runtime |
 | csstype | 3.2.3 | MIT | registry (npm) | runtime |
-| debug | 4.4.3 | MIT | registry (npm) | dev |
+| debug | 4.4.3 | MIT | registry (npm) | runtime |
 | define-data-property | 1.1.4 | MIT | registry (npm) | runtime |
 | define-properties | 1.2.1 | MIT | registry (npm) | runtime |
 | dequal | 2.0.3 | MIT | registry (npm) | runtime |
@@ -1703,6 +1731,7 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | es-define-property | 1.0.1 | MIT | registry (npm) | runtime |
 | es-errors | 1.3.0 | MIT | registry (npm) | runtime |
 | es-object-atoms | 1.1.2 | MIT | registry (npm) | runtime |
+| escalade | 3.2.0 | MIT | registry (npm) | runtime |
 | event-target-shim | 6.0.2 | MIT | registry (npm) | runtime |
 | fdir | 6.5.0 | MIT | registry (npm) | runtime |
 | fflate | 0.7.5 | MIT | registry (npm) | dev |
@@ -1710,6 +1739,7 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | fsevents | 2.3.3 | MIT | registry (npm) | runtime |
 | function-bind | 1.1.2 | MIT | registry (npm) | runtime |
 | generator-function | 2.0.1 | MIT | registry (npm) | runtime |
+| gensync | 1.0.0-beta.2 | MIT | registry (npm) | runtime |
 | get-intrinsic | 1.3.0 | MIT | registry (npm) | runtime |
 | get-proto | 1.0.1 | MIT | registry (npm) | runtime |
 | gopd | 1.2.0 | MIT | registry (npm) | runtime |
@@ -1726,6 +1756,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | is-nan | 1.3.2 | MIT | registry (npm) | runtime |
 | is-regex | 1.2.1 | MIT | registry (npm) | runtime |
 | is-typed-array | 1.1.15 | MIT | registry (npm) | runtime |
+| jiti | 2.7.0 | MIT | registry (npm) | runtime |
+| js-tokens | 4.0.0 | MIT | registry (npm) | runtime |
+| jsesc | 3.1.0 | MIT | registry (npm) | runtime |
+| json5 | 2.2.3 | MIT | registry (npm) | runtime |
+| magic-string | 0.30.21 | MIT | registry (npm) | runtime |
 | math-intrinsics | 1.1.0 | MIT | registry (npm) | runtime |
 | mdast-util-to-hast | 13.2.1 | MIT | registry (npm) | runtime |
 | micromark-util-character | 2.1.1 | MIT | registry (npm) | runtime |
@@ -1733,8 +1768,9 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | micromark-util-sanitize-uri | 2.0.1 | MIT | registry (npm) | runtime |
 | micromark-util-symbol | 2.0.1 | MIT | registry (npm) | runtime |
 | micromark-util-types | 2.0.2 | MIT | registry (npm) | runtime |
-| ms | 2.1.3 | MIT | registry (npm) | dev |
+| ms | 2.1.3 | MIT | registry (npm) | runtime |
 | nanoid | 3.3.18 | MIT | registry (npm) | runtime |
+| node-releases | 2.0.54 | MIT | registry (npm) | runtime |
 | object-is | 1.1.6 | MIT | registry (npm) | runtime |
 | object-keys | 1.1.1 | MIT | registry (npm) | runtime |
 | object.assign | 4.1.7 | MIT | registry (npm) | runtime |
@@ -1743,9 +1779,11 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | oxc-transform | 0.148.0 | MIT | registry (npm) | runtime |
 | oxfmt | 0.66.0 | MIT | registry (npm) | runtime |
 | path-browserify | 1.0.1 | MIT | registry (npm) | dev |
+| pathe | 2.0.3 | MIT | registry (npm) | runtime |
 | picomatch | 4.0.7 | MIT | registry (npm) | runtime |
 | possible-typed-array-names | 1.1.0 | MIT | registry (npm) | runtime |
 | postcss | 8.5.28 | MIT | registry (npm) | runtime |
+| prettier | 3.9.6 | MIT | registry (npm) | runtime |
 | property-information | 7.2.0 | MIT | registry (npm) | runtime |
 | randombytes | 2.1.0 | MIT | registry (npm) | dev |
 | randomfill | 1.0.4 | MIT | registry (npm) | dev |
@@ -1774,15 +1812,17 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | unist-util-stringify-position | 4.0.0 | MIT | registry (npm) | runtime |
 | unist-util-visit | 5.1.0 | MIT | registry (npm) | runtime |
 | unist-util-visit-parents | 6.0.2 | MIT | registry (npm) | runtime |
+| update-browserslist-db | 1.3.2 | MIT | registry (npm) | runtime |
 | util | 0.12.5 | MIT | registry (npm) | runtime |
 | vfile | 6.0.3 | MIT | registry (npm) | runtime |
 | vfile-message | 4.0.3 | MIT | registry (npm) | runtime |
 | vite | 8.2.2 | MIT | registry (npm) | runtime |
 | wasi-js | 1.7.3 | MIT | registry (npm) | dev |
 | which-typed-array | 1.1.22 | MIT | registry (npm) | runtime |
+| zod | 4.5.4 | MIT | registry (npm) | runtime |
 | zwitch | 2.0.4 | MIT | registry (npm) | runtime |
 
-**Total MIT (Solid GPUI workspace): 133 package records.**
+**Total MIT (Solid GPUI workspace): 168 package records.**
 
 #### MPL-2.0
 
@@ -1831,8 +1871,8 @@ These package manifests declare their project-owned licenses and are not third-p
 
 | Package | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| @solid-gpui/core | 0.2.0 | MIT | local (project-owned) |
-| @solid-gpui/router | 0.2.0 | MIT | local (project-owned) |
+| @solid-gpui/core | 0.3.0 | MIT | local (project-owned) |
+| @solid-gpui/router | 0.3.0 | MIT | local (project-owned) |
 | @solid-gpui/shiki | 0.2.0 | MIT | local (project-owned) |
 
 **Total project-owned Bun packages: 3.**

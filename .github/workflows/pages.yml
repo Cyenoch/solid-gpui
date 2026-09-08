@@ -3,7 +3,28 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
+    paths: &website-paths
+      - ".github/workflows/pages.yml"
+      - ".github/actions/setup-rust/**"
+      - ".bun-version"
+      - ".cargo/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig*.json"
+      - "examples/*/native/Cargo.toml"
+      - "crates/**"
+      - "vendor/**"
+      - "third_party/**"
+      - "packages/**"
+      - "examples/website/**"
+      - "assets/**"
+      - "docs/*.md"
+      - "scripts/**"
   pull_request:
+    paths: *website-paths
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,6 +32,10 @@ permissions:
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
   build:
@@ -30,21 +55,17 @@ jobs:
           sudo apt-get install --yes --no-install-recommends \
             libfontconfig1-dev libfreetype6-dev libxcb1-dev \
             libxkbcommon-dev libxkbcommon-x11-dev pkg-config
-      - name: Install pinned native Rust toolchain
-        run: rustup show active-toolchain
       - name: Install Web Rust toolchain
         run: rustup toolchain install nightly-2026-07-28 --profile minimal --target wasm32-unknown-unknown
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: pages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/build-web-host.sh') }}-${{ github.sha }}
-          restore-keys: |
-            pages-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'scripts/build-web-host.sh') }}-
+          cache-key: pages-ubuntu-24.04
       - name: Install matching wasm-bindgen
-        run: cargo +nightly-2026-07-28 install wasm-bindgen-cli --version 0.2.121 --locked
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        with:
+          tool: wasm-bindgen-cli@0.2.121
+          fallback: none
       - name: Build and test
         run: |
           bun run website:build
@@ -61,7 +82,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       pages: write

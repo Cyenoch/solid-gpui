@@ -2,37 +2,55 @@ name: Embedded Bun
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
+    inputs:
+      candidate:
+        description: Also build and rehearse the release candidate
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: &embedded-paths
+      - ".github/workflows/embedded-bun.yml"
+      - ".github/actions/setup-rust/**"
       - ".bun-version"
+      - ".cargo/**"
       - "bun.lock"
       - "package.json"
       - "Cargo.lock"
       - "Cargo.toml"
-      - "crates/solid-gpui/**"
-      - "crates/solid-gpui-bun-sys/**"
-      - "crates/solid-gpui/src/host/**"
-      - "packages/solid-gpui/**"
-      - "scripts/tasks.ts"
       - "rust-toolchain.toml"
-      - ".github/workflows/embedded-bun.yml"
+      - "crates/solid-gpui/Cargo.toml"
+      - "crates/solid-gpui/src/runtime/**"
+      - "crates/solid-gpui/src/host/**"
+      - "crates/solid-gpui/src/bin/**"
+      - "crates/solid-gpui/src/lib.rs"
+      - "crates/solid-gpui/tests/host_embedded_counter.rs"
+      - "crates/solid-gpui-bun-sys/**"
+      - "packages/solid-gpui/src/embedded.ts"
+      - "packages/solid-gpui/src/runtime.ts"
+      - "fixtures/embedded-*.ts"
+      - "scripts/tasks.ts"
+      - "scripts/host-embedded-candidate-smoke.sh"
+  pull_request:
+    paths: *embedded-paths
 
 permissions:
   contents: read
 
 concurrency:
-  group: embedded-bun-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: embedded-bun-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
   embedded-bun:
     name: Build embedded Bun on macOS ARM
     runs-on: macos-26 # Bun/JSC embedding requires the macOS 26 SDK/toolchain
-    timeout-minutes: 90
+    timeout-minutes: ${{ inputs.candidate && 120 || 90 }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -45,16 +63,24 @@ jobs:
       - name: Install Bun workspace
         run: bun install --frozen-lockfile
 
-      - name: Cache embedded Bun build
+      - name: Configure shared Bun build directory
+        # Reuse Bun's native graph across Cargo profiles and build-script OUT_DIRs.
+        run: echo "SOLID_GPUI_BUN_CACHE=$RUNNER_TEMP/solid-gpui-bun" >> "$GITHUB_ENV"
+
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: embedded-macos-26
+
+      - name: Cache Bun native build graph
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: embedded-bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', '.bun-version', 'crates/solid-gpui-bun-sys/build.rs', 'crates/solid-gpui-bun-sys/bun_embed.patch', 'crates/solid-gpui-bun-sys/embedded/**/*.rs') }}
-          restore-keys: |
-            embedded-bun-${{ runner.os }}-${{ runner.arch }}-
+          path: ${{ env.SOLID_GPUI_BUN_CACHE }}
+          key: embedded-native-macos-26-${{ runner.arch }}-${{ hashFiles('.bun-version', 'rust-toolchain.toml', 'crates/solid-gpui-bun-sys/build.rs', 'crates/solid-gpui-bun-sys/bun_embed.patch', 'crates/solid-gpui-bun-sys/embedded/**/*.rs') }}
 
       - name: Check embedded Bun build
         run: bun run task embedded-check
+
+      - name: Rehearse extracted-style embedded candidate
+        if: github.event_name == 'workflow_dispatch' && inputs.candidate
+        run: bun run task host-embedded-candidate-smoke

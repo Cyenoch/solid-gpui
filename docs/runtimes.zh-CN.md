@@ -54,7 +54,7 @@ mountApplication({
 node_modules/.bin/solid-gpui-build --runtime quickjs src/app.tsx dist/app.js
 ```
 
-使用真实 QuickJS 引擎开发时，构建启用 `quickjs` 的原生宿主，然后运行：
+使用真实 QuickJS 引擎开发时，在应用的工作区根清单配置[解释器开发 profile](hot-reload.md#application-build-configuration)，构建启用 `quickjs` 的原生宿主，然后运行：
 
 ```sh
 node_modules/.bin/solid-gpui-quickjs-dev src/app.tsx target/debug/my-app

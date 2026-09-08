@@ -12,6 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
@@ -22,6 +23,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # The notices check uses the last dependency change date.
 
       - name: Set up pinned Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
@@ -31,10 +34,21 @@ jobs:
       - name: Install Bun workspace
         run: bun install --frozen-lockfile
 
-      - name: Install pinned cargo-deny
-        run: cargo install cargo-deny --locked --version 0.20.2
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: host-candidate-macos-15
 
-      - name: Run full CI gate before bundling
+      - name: Install pinned cargo-deny
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        with:
+          tool: cargo-deny@0.20.2
+          fallback: none
+
+      - name: Audit candidate dependencies and notices
+        run: bun run audit
+
+      - name: Run development checks before bundling
         run: bun run ci
 
       - name: Smoke extracted candidate with user renderer
@@ -47,3 +61,4 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 7
+          compression-level: 0

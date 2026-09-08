@@ -16,7 +16,12 @@ export interface ApplicationDefinition<State> {
   readonly render: () => SolidElement;
   readonly rootOptions?: Omit<RootOptions, "surfaceId" | "epoch">;
   readonly onMount?: (root: Root) => void;
-  /** Return structured-cloneable application state; component-local signals remount. */
+  /**
+   * Return explicit application data; component-local signals remount.
+   * QuickJS reload requires acyclic JSON data, with no nested undefined values.
+   * Bun same-VM HMR accepts structured-cloneable data. Returning undefined means
+   * no captured state; null is preserved as an explicit value.
+   */
   readonly captureState?: () => State;
 }
 

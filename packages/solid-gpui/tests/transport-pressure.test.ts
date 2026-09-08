@@ -69,6 +69,9 @@ test("pressure pauses event production, sends accepted frames once, and bounds s
 });
 
 test("generation handoff rejects values JSON would silently lose or coerce", () => {
+  expect(() => encodeGenerationState({ state: [{ session: { userId: undefined } }] })).toThrow(
+    "reload state at $.state[0].session.userId: undefined is not JSON; omit the property or use null",
+  );
   expect(JSON.parse(encodeGenerationState({ state: [null], text: "你好🌍", count: 3 }))).toEqual({
     state: [null],
     text: "你好🌍",
@@ -84,6 +87,7 @@ test("generation handoff rejects values JSON would silently lose or coerce", () 
     new Date(),
     { bad: undefined },
     [, ,],
+    Object.assign(new Array(1), { extra: "not an array element" }),
     cycle,
     {
       get value() {

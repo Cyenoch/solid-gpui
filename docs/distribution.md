@@ -92,7 +92,9 @@ redistribution notices remains release work before public distribution.
 
 The `Website Packages` workflow builds native candidates on macOS ARM64,
 Linux x86-64, and Windows x86-64 and uploads the verified archives. It is manually
-triggered and runs for pull requests changing packaging inputs. Artifacts are
+triggered for release qualification; normal pull requests use the development
+and cross-platform host checks. See [continuous integration](ci.md) for triggers,
+caching, and the other candidate workflows. Artifacts are
 unsigned candidates, not published releases. These checks do not establish
 display, GPU, accessibility, input-method, menu, or notification correctness on
 Windows/Linux. Qualify those behaviors on real desktop sessions before release.

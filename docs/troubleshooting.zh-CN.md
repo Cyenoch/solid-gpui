@@ -47,6 +47,26 @@ QuickJS 宿主使用 `@solid-gpui/core/embedded` 的 `EmbeddedTransport`。`Stdi
 
 使用 `solid-gpui-build --runtime quickjs <entry.tsx> <output.js>` 将依赖打成一个 ESM 模块。Node/Bun 导入会被拒绝，环境不提供 `process`、`Bun`、文件系统或 `fetch` 等网络 API。将服务移到 Rust Native Module，调用生成客户端。打包器的 browser target 只选择可移植依赖，不会为 QuickJS 创建浏览器环境。
 
+## QuickJS 在深层路由上栈溢出
+
+先检查应用工作区的 Cargo profile。在应用**工作区根目录**的 `Cargo.toml` 中设置 `[profile.dev.package.rquickjs-sys]` 和 `opt-level = 3`，然后重新编译并重启宿主。Cargo 只读取工作区根清单中的 profile，不继承依赖仓库的配置。参见 [Cargo profile 文档](https://doc.rust-lang.org/cargo/reference/profiles.html)。
+
+解释器优化会影响原生栈占用和执行速度。在相同的 2 MiB JS 栈预算下，未优化的 debug 构建可能在初始化深层组件树时溢出，而优化后的构建能够完成初始化。本仓库中的测试通过，并不能证明应用使用了相同的构建配置。
+
+分别对比直接启动到目标路由、从简单路由导航过去，以及重载后恢复。导航可能复用已有父布局，启动和重载则会重新创建它。比较构建 profile 时保持 bundle、捕获状态、布局和栈预算不变。如果优化后的构建仍失败，缩小路由复现，检查组件递归创建和响应式更新，再考虑调整栈预算。
+
+## QuickJS 拒绝捕获的状态
+
+检查错误中的字段路径，例如 `$.state[0].session.userId`；`state[0]` 是应用 `captureState` 的返回值。返回专用 JSON 状态对象，明确使用 `null` 或省略可选字段。嵌套 `undefined`、稀疏数组、访问器和运行时对象不能跨 VM 传递。`captureState` 本身返回 `undefined` 表示没有捕获值。
+
+捕获在创建候选之前的旧 VM 中运行。修正其运行中的状态，或修复始终返回非法数据的捕获函数后重启宿主。JSON stringify/parse 往返可能静默丢失数据；应按[捕获状态契约](hot-reload.zh-CN.md#捕获状态)显式定义交接内容。
+
+## QuickJS 报告 `applied` 后页面仍然失败
+
+`applied` 表示宿主已激活验证通过的候选。路由加载、由加载触发的组件初始化和异步原生副作用仍可能在随后失败。这些错误不在回滚边界内；VM 停止后，最后发布的原生树仍可能可见。
+
+检查后续运行时诊断，并验证页面特有的内容和一次交互。loading 页面或一直存在的导航标签不能证明恢复后的页面可用。参见[应用重载验证](hot-reload.zh-CN.md#验证应用重载)。
+
 ## 渲染器失败后进程宿主退出
 
 检查 stderr 中的渲染错误及宿主崩溃报告路径。协议解码或验证失败是致命错误，继续执行会丢失 revision 一致性。应用渲染错误会抛给应用，Solid GPUI 不会自行生成备用界面。

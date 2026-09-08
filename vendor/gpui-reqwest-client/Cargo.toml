@@ -67,18 +67,17 @@ features = [
 version = "1.5"
 
 [dependencies.reqwest]
-version = "0.12.15"
+version = "0.13.4"
 features = [
     "charset",
     "http2",
-    "macos-system-configuration",
     "multipart",
-    "rustls-tls-native-roots",
+    "rustls",
     "socks",
     "stream",
+    "system-proxy",
 ]
 default-features = false
-package = "gpui-pre-reqwest"
 
 [dependencies.tokio]
 version = "1"

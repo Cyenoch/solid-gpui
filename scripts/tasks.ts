@@ -430,6 +430,7 @@ class Tasks {
   async rustTest(): Promise<void> {
     await this.packageBuild();
     await run(["cargo", "test", "--workspace", "--locked", "--features", "solid-gpui/quickjs"]);
+    await run(["cargo", "test", "-p", "gpui-pre-reqwest-client", "--lib", "--locked"]);
   }
 
   async rustCheck(): Promise<void> {
@@ -478,15 +479,12 @@ class Tasks {
   }
 
   async ci(): Promise<void> {
+    await this.rustFormat();
     await this.protocolCodegenCheck();
     await this.packageBuild();
-    await this.rustFormat();
     await this.protocolGoldenCheck();
     await this.rustCheck();
     await this.packageCI();
-    await this.audit();
-    // A cold release build must not compete with bounded Rust fixture tests.
-    await this.hostRelease("check");
   }
 
   async websiteNative(profile = false): Promise<void> {
@@ -628,7 +626,7 @@ addTask("test", "Run all workspace tests", () => tasks.test());
 addTask("audit", "Run security and license audits", () => tasks.audit());
 addTask("third-party-notices", "Generate THIRD-PARTY-NOTICES.md", () => tasks.thirdPartyNotices());
 addTask("build", "Build all workspace packages and binaries", () => tasks.build());
-addTask("ci", "Run full CI suite", () => tasks.ci());
+addTask("ci", "Check generated contracts, formatting, types, and tests", () => tasks.ci());
 addTask("website-native", "Build and run the native website", () => tasks.websiteNative());
 addTask("quickjs-dev", "Run the counter with QuickJS application reload", () => tasks.quickJsDev());
 addTask("website-native-dev", "Run the native website with in-window hot reload", () => tasks.websiteNativeDev());

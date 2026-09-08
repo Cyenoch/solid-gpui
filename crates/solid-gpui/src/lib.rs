@@ -2,10 +2,10 @@ extern crate self as solid_gpui;
 pub use gpui;
 #[cfg(feature = "component-runtime")]
 pub mod components;
-#[cfg(any(feature = "host", feature = "component-runtime"))]
-pub mod motion;
 #[cfg(feature = "host")]
 pub mod host;
+#[cfg(any(feature = "host", feature = "component-runtime"))]
+pub mod motion;
 pub mod native;
 pub mod runtime;
 #[cfg(feature = "quickjs")]

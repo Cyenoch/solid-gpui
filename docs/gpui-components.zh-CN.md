@@ -42,6 +42,10 @@ const [name, setName] = createSignal("");
 
 固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与 138 个普通公共渲染接口分开列出。
 
+## Popover 呈现范围
+
+`Popover` 在当前 GPUI 窗口内渲染，不能越过窗口边界。它支持原生 GPUI 焦点和关闭行为，但不会创建 AppKit `NSPopover` 或独立的系统弹层窗口。SDK 当前没有导出 `SystemPopover`。子 Surface 设计建议和各平台支持缺口见[原生呈现研究](../.scratch/native-presentation/spec.md)。
+
 ## 子内容与原生状态
 
 原生组合父组件在发布提交前检查子类型，例如 AvatarGroup 消费 Avatar，ButtonGroup 消费 Button，ResizablePanelGroup 消费 ResizablePanel，Settings 消费 SettingPage → SettingGroup → SettingItem → SettingField。错误子类型或属性拒绝候选提交并保留旧树。
@@ -125,4 +129,4 @@ Plot 坐标为逻辑像素，径向与圆弧角度为弧度。原生 line/area/r
 
 ## 验证
 
-`bun run ci` 运行生成契约、TypeScript 检查/测试及 Rust 检查。适配器旁的原生集成测试覆盖状态标识、过期请求、组合边界、菜单路由、停靠持久化和数值/工作量限制。真实 website 交互与呈现检查独立于确定性 TestAppContext 渲染，原生测量要求见[性能分析](performance-analysis.md)。
+`bun run ci` 运行生成契约、TypeScript 检查/测试及 Rust 检查。审计与发布构建独立运行，见[持续集成](ci.md)。适配器旁的原生集成测试覆盖状态标识、过期请求、组合边界、菜单路由、停靠持久化和数值/工作量限制。真实 website 交互与呈现检查独立于确定性 TestAppContext 渲染，原生测量要求见[性能分析](performance-analysis.md)。

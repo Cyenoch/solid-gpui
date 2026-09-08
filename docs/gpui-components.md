@@ -42,6 +42,15 @@ Some upstream types are parts of another control, not independent screen element
 
 The complete pinned upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`. It includes constructor descriptors and internal/conditional types separately from the 138 ordinary public rendering interfaces.
 
+## Popover presentation scope
+
+`Popover` renders inside its current GPUI window and cannot extend beyond that
+window's boundary. It supports native GPUI focus and dismissal behavior, but does
+not create an AppKit `NSPopover` or a separate system popup window. The SDK does
+not currently export `SystemPopover`. See the
+[native presentation research](../.scratch/native-presentation/spec.md) for the
+proposed child-Surface design and platform support gaps.
+
 ## Children and native state
 
 Native compound parents enforce their child type before publishing a commit. For example, AvatarGroup consumes Avatar, ButtonGroup consumes Button, ResizablePanelGroup consumes ResizablePanel, and Settings consumes SettingPage → SettingGroup → SettingItem → SettingField. A wrong child or invalid prop rejects the candidate commit and preserves the previous tree.
@@ -132,4 +141,4 @@ The bridge rejects non-finite values, invalid ranges, invalid OHLC, cyclic/missi
 
 ## Verification
 
-Run `bun run ci` for the repository's generated contracts, TypeScript checks/tests and Rust checks. Native integration tests live beside the adapters and test state identity, stale requests, composition boundaries, menu routing, docking persistence and numeric/work guards. Real Gallery interaction and presentation checks are separate from deterministic TestAppContext rendering. See `docs/performance-analysis.md` for native measurement requirements.
+Run `bun run ci` for the repository's generated contracts, TypeScript checks/tests and Rust checks. Audits and release builds run separately; see [continuous integration](ci.md). Native integration tests live beside the adapters and test state identity, stale requests, composition boundaries, menu routing, docking persistence and numeric/work guards. Real Gallery interaction and presentation checks are separate from deterministic TestAppContext rendering. See `docs/performance-analysis.md` for native measurement requirements.

@@ -9,6 +9,7 @@ export const referenceDocs = Object.entries(files)
     return {
       id: path.split("/").pop()!.replace(/\.md$/, ""),
       title: source.match(/^# (.+)/m)![1],
+      titleChinese: chinese.match(/^# (.+)/m)![1],
       source,
       sourceChinese: chinese,
     };

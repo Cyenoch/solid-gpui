@@ -1,6 +1,6 @@
-// Modified by solid-gpui: retain the Tokio context when polling response bodies.
-use std::error::Error;
-use std::sync::{LazyLock, OnceLock};
+// Modified by solid-gpui: use upstream Reqwest with pooled redirect policies and Tokio body polling.
+use std::collections::VecDeque;
+use std::sync::{LazyLock, Mutex, OnceLock};
 use std::{borrow::Cow, mem, pin::Pin, task::Poll, time::Duration};
 
 use gpui_util::defer;
@@ -10,19 +10,18 @@ use bytes::{BufMut, Bytes, BytesMut};
 use futures::{AsyncRead, FutureExt as _, TryStreamExt as _};
 use http_client::{RedirectPolicy, RequestTimeout, Url, http};
 use regex::Regex;
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    redirect,
-};
+use reqwest::{header::HeaderValue, redirect};
 
 const DEFAULT_CAPACITY: usize = 4096;
+const MAX_REDIRECT_CLIENTS: usize = 8;
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static REDACT_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"key=[^&]+").unwrap());
 
 pub struct ReqwestClient {
-    client: reqwest::Client,
+    clients: Mutex<VecDeque<(Option<u32>, reqwest::Client)>>,
     proxy: Option<Url>,
     user_agent: Option<HeaderValue>,
+    read_timeout: Option<Duration>,
     handle: tokio::runtime::Handle,
 }
 
@@ -33,7 +32,7 @@ impl ReqwestClient {
     /// reads without a timeout.
     fn builder(read_timeout: Option<Duration>) -> reqwest::ClientBuilder {
         let builder = reqwest::Client::builder()
-            .use_rustls_tls()
+            .tls_backend_preconfigured(http_client_tls::tls_config())
             .connect_timeout(Duration::from_secs(10))
             // Detect and drop connections that have silently gone bad on a
             // flaky path (NAT timeouts, resets) instead of reusing them. A
@@ -51,17 +50,11 @@ impl ReqwestClient {
     }
 
     pub fn new() -> Self {
-        Self::builder(None)
-            .build()
-            .expect("Failed to initialize HTTP client")
-            .into()
+        Self::configured(None, None, None).expect("Failed to initialize HTTP client")
     }
 
     pub fn user_agent(agent: &str) -> anyhow::Result<Self> {
-        let mut map = HeaderMap::new();
-        map.insert(http::header::USER_AGENT, HeaderValue::from_str(agent)?);
-        let client = Self::builder(None).default_headers(map).build()?;
-        Ok(client.into())
+        Self::configured(None, Some(HeaderValue::from_str(agent)?), None)
     }
 
     pub fn proxy_and_user_agent(proxy: Option<Url>, user_agent: &str) -> anyhow::Result<Self> {
@@ -86,37 +79,73 @@ impl ReqwestClient {
         user_agent: &str,
         read_timeout: Option<Duration>,
     ) -> anyhow::Result<Self> {
-        let user_agent = HeaderValue::from_str(user_agent)?;
+        Self::configured(
+            proxy,
+            Some(HeaderValue::from_str(user_agent)?),
+            read_timeout,
+        )
+    }
 
-        let mut map = HeaderMap::new();
-        map.insert(http::header::USER_AGENT, user_agent.clone());
-        let mut client = Self::builder(read_timeout).default_headers(map);
-        let client_has_proxy;
-
-        if let Some(proxy) = proxy.as_ref().and_then(|proxy_url| {
-            reqwest::Proxy::all(proxy_url.clone())
-                .inspect_err(|e| {
-                    log::error!(
-                        "Failed to parse proxy URL '{}': {}",
-                        proxy_url,
-                        e.source().unwrap_or(&e as &_)
-                    )
-                })
-                .ok()
-        }) {
-            // Respect NO_PROXY env var
-            client = client.proxy(proxy.no_proxy(reqwest::NoProxy::from_env()));
-            client_has_proxy = true;
-        } else {
-            client_has_proxy = false;
+    fn configured(
+        proxy: Option<Url>,
+        user_agent: Option<HeaderValue>,
+        read_timeout: Option<Duration>,
+    ) -> anyhow::Result<Self> {
+        if let Some(proxy) = &proxy {
+            anyhow::ensure!(
+                matches!(
+                    proxy.scheme(),
+                    "http" | "https" | "socks4" | "socks4a" | "socks5" | "socks5h"
+                ),
+                "Unsupported proxy scheme: {}",
+                proxy.scheme()
+            );
+        }
+        let handle = tokio::runtime::Handle::try_current().unwrap_or_else(|_| {
+            log::debug!("no tokio runtime found, creating one for Reqwest...");
+            runtime().handle().clone()
+        });
+        let client = Self {
+            clients: Mutex::new(VecDeque::new()),
+            proxy,
+            user_agent,
+            read_timeout,
+            handle,
         };
+        client.client(Some(10))?;
+        Ok(client)
+    }
 
-        let client = client
-            .use_preconfigured_tls(http_client_tls::tls_config())
-            .build()?;
-        let mut client: ReqwestClient = client.into();
-        client.proxy = client_has_proxy.then_some(proxy).flatten();
-        client.user_agent = Some(user_agent);
+    /// Upstream Reqwest configures redirects per client. Reuse connection pools
+    /// per policy, with a bound on the number of caller-selected redirect limits.
+    fn client(&self, redirect_limit: Option<u32>) -> anyhow::Result<reqwest::Client> {
+        let mut clients = self.clients.lock().unwrap();
+        if let Some(index) = clients
+            .iter()
+            .position(|(limit, _)| *limit == redirect_limit)
+        {
+            let entry = clients.remove(index).unwrap();
+            let client = entry.1.clone();
+            clients.push_back(entry);
+            return Ok(client);
+        }
+
+        let mut builder = Self::builder(self.read_timeout).redirect(match redirect_limit {
+            Some(limit) => redirect::Policy::limited(limit as usize),
+            None => redirect::Policy::none(),
+        });
+        if let Some(user_agent) = &self.user_agent {
+            builder = builder.user_agent(user_agent.clone());
+        }
+        if let Some(proxy) = &self.proxy {
+            builder = builder
+                .proxy(reqwest::Proxy::all(proxy.clone())?.no_proxy(reqwest::NoProxy::from_env()));
+        }
+        let client = builder.build()?;
+        if clients.len() == MAX_REDIRECT_CLIENTS {
+            clients.pop_front();
+        }
+        clients.push_back((redirect_limit, client.clone()));
         Ok(client)
     }
 }
@@ -130,21 +159,6 @@ pub fn runtime() -> &'static tokio::runtime::Runtime {
             .build()
             .expect("Failed to initialize HTTP client")
     })
-}
-
-impl From<reqwest::Client> for ReqwestClient {
-    fn from(client: reqwest::Client) -> Self {
-        let handle = tokio::runtime::Handle::try_current().unwrap_or_else(|_| {
-            log::debug!("no tokio runtime found, creating one for Reqwest...");
-            runtime().handle().clone()
-        });
-        Self {
-            client,
-            handle,
-            proxy: None,
-            user_agent: None,
-        }
-    }
 }
 
 // This struct is essentially a re-implementation of
@@ -293,15 +307,18 @@ impl http_client::HttpClient for ReqwestClient {
     > {
         let (parts, body) = req.into_parts();
 
-        let mut request_builder = self.client.request(parts.method, parts.uri.to_string());
+        let redirect_limit = match parts.extensions.get::<RedirectPolicy>() {
+            Some(RedirectPolicy::NoFollow) => None,
+            Some(RedirectPolicy::FollowLimit(limit)) => Some(*limit),
+            Some(RedirectPolicy::FollowAll) => Some(100),
+            None => Some(10),
+        };
+        let client = match self.client(redirect_limit) {
+            Ok(client) => client,
+            Err(error) => return futures::future::ready(Err(error)).boxed(),
+        };
+        let mut request_builder = client.request(parts.method, parts.uri.to_string());
         request_builder = request_builder.headers(parts.headers);
-        if let Some(redirect_policy) = parts.extensions.get::<RedirectPolicy>() {
-            request_builder = request_builder.redirect_policy(match redirect_policy {
-                RedirectPolicy::NoFollow => redirect::Policy::none(),
-                RedirectPolicy::FollowLimit(limit) => redirect::Policy::limited(*limit as usize),
-                RedirectPolicy::FollowAll => redirect::Policy::limited(100),
-            });
-        }
         if let Some(timeout) = parts.extensions.get::<RequestTimeout>() {
             request_builder = request_builder.timeout(timeout.0);
         }
@@ -350,10 +367,93 @@ mod tests {
 
     use futures::AsyncReadExt as _;
     use http_client::{
-        AsyncBody, HttpClient, HttpRequestExt as _, Method, Request as HttpRequest, Url,
+        AsyncBody, HttpClient, HttpRequestExt as _, Method, RedirectPolicy, Request as HttpRequest,
+        Url,
     };
 
     use crate::ReqwestClient;
+
+    #[test]
+    fn test_redirect_policies_preserve_client_configuration() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let address = listener.local_addr().unwrap();
+        let (stop, stopped) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while matches!(
+                stopped.try_recv(),
+                Err(std::sync::mpsc::TryRecvError::Empty)
+            ) {
+                assert!(Instant::now() < deadline, "HTTP test server timed out");
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(1));
+                        continue;
+                    }
+                    Err(error) => panic!("failed to accept HTTP request: {error}"),
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(1)))
+                    .unwrap();
+                let mut reader = BufReader::new(&mut stream);
+                let mut request_line = String::new();
+                reader.read_line(&mut request_line).unwrap();
+                let mut headers = String::new();
+                loop {
+                    let mut line = String::new();
+                    assert_ne!(reader.read_line(&mut line).unwrap(), 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                    headers.push_str(&line.to_ascii_lowercase());
+                }
+                assert!(headers.contains("user-agent: redirect-test\r\n"));
+                drop(reader);
+                let response = if request_line.starts_with("GET /redirect ") {
+                    "HTTP/1.1 302 Found\r\nlocation: /done\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                } else {
+                    assert!(request_line.starts_with("GET /done "));
+                    "HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok"
+                };
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+
+        let client = ReqwestClient::proxy_and_user_agent(None, "redirect-test").unwrap();
+        for (policy, expected_status) in [
+            (Some(RedirectPolicy::NoFollow), Some(302)),
+            (None, Some(200)),
+            (Some(RedirectPolicy::FollowLimit(0)), None),
+            (Some(RedirectPolicy::FollowAll), Some(200)),
+            (Some(RedirectPolicy::NoFollow), Some(302)),
+            (Some(RedirectPolicy::FollowLimit(2)), Some(200)),
+        ] {
+            let mut request = HttpRequest::get(format!("http://{address}/redirect"))
+                .timeout(Duration::from_secs(2));
+            if let Some(policy) = policy {
+                request = request.follow_redirects(policy);
+            }
+            let response = futures::executor::block_on(
+                client.send(request.body(AsyncBody::default()).unwrap()),
+            );
+            match expected_status {
+                Some(status) => {
+                    let mut response = response.unwrap();
+                    assert_eq!(response.status().as_u16(), status);
+                    let mut body = String::new();
+                    futures::executor::block_on(response.body_mut().read_to_string(&mut body))
+                        .unwrap();
+                    assert_eq!(body, if status == 200 { "ok" } else { "" });
+                }
+                None => assert!(response.is_err(), "zero redirects must reject a redirect"),
+            }
+        }
+        stop.send(()).unwrap();
+        server.join().unwrap();
+    }
 
     /// Regression test: `StreamReader::poll_next` used to drop the reader it
     /// `take()`s whenever the reader returned `Poll::Pending`, so the next
@@ -517,10 +617,9 @@ mod tests {
     #[test]
     fn test_invalid_proxy_uri() {
         let proxy = Url::parse("socks://127.0.0.1:20170").unwrap();
-        let client = ReqwestClient::proxy_and_user_agent(Some(proxy), "test").unwrap();
         assert!(
-            client.proxy.is_none(),
-            "An invalid proxy URL should add no proxy to the client!"
-        )
+            ReqwestClient::proxy_and_user_agent(Some(proxy), "test").is_err(),
+            "An invalid proxy URL must not silently bypass the proxy"
+        );
     }
 }

@@ -113,17 +113,23 @@ the website source and workflow to be committed and pushed.
 
 The [Pages workflow](../.github/workflows/pages.yml) handles the full deployment:
 
-- Every push to `main` builds, tests, and publishes the website. Pull requests
+- Pushes to `main` changing website, documentation, branding, SDK, Rust, or build
+  inputs build, test, and publish the website. Pull requests with those changes
   build and test without publishing. Manual runs publish only from `main`.
 - Ubuntu installs the Linux native libraries needed to export SDK bindings,
   the repository's pinned Rust and Bun toolchains, and the matching Web nightly
-  and wasm-bindgen CLI. `bun run website:build` regenerates native bindings,
+  and a checksum-verified, prebuilt wasm-bindgen CLI. Cargo dependency caches
+  include both pinned compilers and are reused across source commits.
+  `bun run website:build` regenerates native bindings,
   builds the WASM host, type-checks the site, and bundles its assets.
 - Assets use `/<repository-name>/`, which is `/solid-gpui/` for this site.
   Only `examples/website/dist` is uploaded. The deploy job receives Pages write
   and OIDC permissions; no personal access token or backend is required.
 - New pull request runs cancel outdated checks. Production runs wait for an
   active deployment to finish. A final HTTP check verifies the published page.
+
+See [continuous integration](ci.md) for path filters, caching, and the separate
+manual native packaging workflows.
 
 For the first publication, push the workflow together with `examples/website`,
 `assets/branding`, the Web host, workspace dependencies, lockfiles, vendored patches, and referenced

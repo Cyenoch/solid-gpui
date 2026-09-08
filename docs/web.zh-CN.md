@@ -51,10 +51,12 @@ Hero 将官方 [vgpu Optimized Black Hole 预览](https://vgpu.sh/preview/optimi
 
 [Pages 工作流](../.github/workflows/pages.yml) 负责完整部署：
 
-- 每次推送到 `main` 都会构建、测试并发布网站。拉取请求只构建和测试；手动运行也仅从 `main` 发布。
+- 修改网站、文档、品牌资源、SDK、Rust 或构建输入后，推送到 `main` 会构建、测试并发布网站。具有这些变更的拉取请求只构建和测试；手动运行也仅从 `main` 发布。
 - Ubuntu 安装导出 SDK 绑定所需的 Linux 原生库、仓库固定的 Rust 和 Bun 工具链，以及匹配的 Web nightly 和 wasm-bindgen CLI。`bun run website:build` 重新生成原生绑定、构建 WASM 宿主、检查网站类型并打包资源。
 - 资源前缀为 `/<repository-name>/`，本站为 `/solid-gpui/`。仅上传 `examples/website/dist`。部署任务获得 Pages 写权限和 OIDC 权限，无需个人访问令牌或后端。
 - 新的拉取请求运行会取消过时检查。生产部署会等待正在执行的部署完成，最后通过 HTTP 检查确认发布页面可访问。
+
+wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。Cargo 依赖缓存包含两个固定编译器，并跨源码提交复用。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.md)。
 
 首次发布时，需要一并推送工作流、`examples/website`、`assets/branding`、Web 宿主、工作区依赖、锁文件、vendor 补丁和引用的文档。只有 YAML 文件无法完成构建。不要提交生成的 `dist`、`target` 或 `src/wasm` 目录。
 

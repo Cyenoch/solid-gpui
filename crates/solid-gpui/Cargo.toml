@@ -46,7 +46,7 @@ quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ashpd = { version = "0.13.13", features = ["settings"] }
+ashpd = { version = "0.13.13", default-features = false, features = ["async-io", "settings"] }
 gpui-platform = { workspace = true, features = ["font-kit", "wayland", "x11"], optional = true }
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }

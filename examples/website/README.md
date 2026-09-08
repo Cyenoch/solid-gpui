@@ -3,8 +3,9 @@
 Pages URL: [cyenoch.github.io/solid-gpui](https://cyenoch.github.io/solid-gpui/).
 The site is awaiting its first deployment; the commands below run it locally.
 Once the website source and [Pages workflow](../../.github/workflows/pages.yml)
-reach `main`, each push builds, tests, and deploys the site automatically.
-Pull requests only build and test. See the
+reach `main`, pushes changing website, documentation, branding, SDK, Rust, or build
+inputs build, test, and deploy the site automatically. Matching pull requests
+only build and test. See the
 [deployment guide](../../docs/web.md#github-pages) for the build environment,
 required source files, and manual redeployment.
 
@@ -12,6 +13,12 @@ A GitHub Pages application rendered by Solid GPUI's Rust WebAssembly host.
 Includes a bilingual landing page, interactive guides, a complete component usage catalog,
 Markdown tables, and GPUI-rendered code highlighting. Page actions copy Markdown,
 open its source, and navigate between entries.
+
+Markdown tables keep aligned headers and rows at every viewport width. Columns
+share the available width equally, with a 220-pixel minimum per column to keep
+prose readable. Wider tables scroll horizontally inside the article instead of
+compressing the final column or switching to stacked records. This shared renderer
+also displays component API tables on Web and desktop.
 
 The browser startup screen is defined in `index.html` and `src/base.css`. Its
 stylesheet loads directly from the document head, so the branded loading state
@@ -87,6 +94,9 @@ bun run website:native:package
 The native Rust package is `website-host`; the packaged executable is
 `solid-gpui-website`, and verified archives are written to `dist/website/`.
 Use `bun run task website-native-profile` for native performance measurements.
+The Website Packages workflow builds the three platform candidates manually for
+release qualification. See [continuous integration](../../docs/ci.md) for the
+automatic checks and cache policy.
 
 The shared `@solid-gpui/router` file-based route tree owns navigation on both platforms.
 Route modules live in `src/routes`; `solidGpuiRouter()` in the shared Vite config
@@ -105,13 +115,33 @@ application-specific native module live in `native`; generated bindings live in
 `src/generated`. Runtime tests cover documented previews and retained navigation;
 `tests/runtime.fixture.tsx` runs the real website through Vite without DOM globals.
 
+## Runtime and development guides
+
+The Guides sidebar publishes these references from the authoritative Markdown
+sources and their `.zh-CN.md` copies:
+
+- [Choose a runtime](../../docs/runtimes.md) at `/docs/reference/runtimes` introduces the runtime and transport choices.
+- [Development workflow](../../docs/hot-reload.md) at `/docs/reference/hot-reload` covers the consuming workspace's QuickJS build profile, captured-state contract, generation lifecycle, and application reload verification.
+- [Troubleshooting](../../docs/troubleshooting.md) at `/docs/reference/troubleshooting` explains nested-route stack errors, rejected state, and failures after activation.
+
+Keep runtime guidance in those sources. `src/documentation.ts` loads the pages
+and `build-highlights.ts` generates code highlighting for both languages during
+the website build. The existing navigation lists these pages; changes to their
+content require no separate article or route-tree entry. Public guides describe
+application-independent contracts and workflows; incident-specific evidence
+belongs in investigation records.
+
 ## Native application migration
 
 The Guides sidebar links to [native application migration](../../docs/native-migration.md)
 at `/docs/reference/native-migration`. Reference pages and their highlighted code
 are loaded from `docs/*.md`. English documents are authoritative; `.zh-CN.md`
-copies are optional. The Chinese locale displays the English source when a
-translation is unavailable, so adding a guide never blocks website startup.
+copies are required for guides published on the website; a missing translation
+fails website startup or build. Each copy must include a localized level-one
+heading. Navigation uses that heading in the selected language unless `Docs.tsx`
+defines a shorter label, which must also have a `locale.zh-CN.ts` translation.
+Guide search includes both language versions. Keep headings, navigation labels,
+and content synchronized when adding or updating a guide.
 The TitleBar/WindowBorder catalog example demonstrates
 edge padding and a bottom border; the native migration fixture also exercises
 application themes, custom window options, percentage sizes, gradients, and

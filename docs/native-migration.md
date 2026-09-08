@@ -326,8 +326,8 @@ Environment: macOS 26.6.2 on Apple Silicon, Bun 1.4.2, Rust 1.98.1.
   Closing both development and production windows exited the host successfully
   and shut down their Bun children.
 
-This is a framework API smoke test, not an RMCL pixel-diff acceptance test.
-RMCL was not modified. Select, dialog, menu, and TextView theme integration is
+These checks exercise framework APIs. Applications need their own visual and
+interaction acceptance tests. Select, dialog, menu, and TextView theme integration is
 covered by the shared native theme implementation and automated checks, but
 their entire state matrix was not visually exercised in this fixture. The
 linked GPUI background primitive supports exactly two gradient stops; additional

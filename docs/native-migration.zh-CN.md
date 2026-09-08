@@ -226,4 +226,4 @@ bun run --cwd examples/native-migration start
 - TSX 标题更新无需输入唤醒窗口；语法错误及同步渲染异常保留上一版 UI，修复后在同一宿主进程恢复。Rust 计数器从 1 增至 2。
 - 生产 JavaScript 包不依赖 Vite，在同一原生宿主运行，显示本地图像与内嵌图标并调用 Rust 服务。关闭开发和生产窗口后，宿主退出并关闭 Bun 子进程。
 
-这些是框架 API 冒烟检查，不是 RMCL 像素差异验收，RMCL 未修改。Select、Dialog、Menu 和 TextView 主题由共享原生实现及自动检查覆盖，但没有对全部状态矩阵进行视觉验证。Linux/Windows 窗口行为与 QuickJS HMR 未在该交付中手动验证。
+这些检查覆盖框架 API，应用仍需执行自身的视觉与交互验收。Select、Dialog、Menu 和 TextView 主题由共享原生实现及自动检查覆盖，但没有对全部状态矩阵进行视觉验证。Linux/Windows 窗口行为与 QuickJS HMR 未在该交付中手动验证。

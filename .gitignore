@@ -10,3 +10,4 @@ target/
 .scratch/protocol-benchmark
 /examples/website/src/wasm/
 *.log
+.file-routing-*/

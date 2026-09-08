@@ -1,0 +1,72 @@
+name: Dependency audit
+
+on:
+  push:
+    branches: [main]
+    paths: &dependency-paths
+      - ".github/workflows/audit.yml"
+      - ".github/actions/setup-rust/**"
+      - ".bun-version"
+      - ".cargo/**"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - "vendor/**/Cargo.toml"
+      - "third_party/**/Cargo.toml"
+      - "examples/**/Cargo.toml"
+      - "rust-toolchain.toml"
+      - "bun.lock"
+      - "package.json"
+      - "packages/*/package.json"
+      - "examples/*/package.json"
+      - "deny.toml"
+      - "LICENSE"
+      - "THIRD-PARTY-NOTICES.md"
+      - "scripts/tasks.ts"
+      - "scripts/third-party-notices.sh"
+  pull_request:
+    paths: *dependency-paths
+  schedule:
+    - cron: "37 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Advisories and dependency notices
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # The notices check uses the last dependency change date.
+
+      - name: Set up pinned Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Set up Rust and registry cache
+        uses: ./.github/actions/setup-rust
+        with:
+          cache-key: audit-macos-15
+          cache-targets: false
+
+      - name: Install pinned cargo-deny
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        with:
+          tool: cargo-deny@0.20.2
+          fallback: none
+
+      - name: Install Bun workspace
+        run: bun install --frozen-lockfile
+
+      - name: Audit dependencies and notices
+        run: bun run audit

@@ -176,7 +176,9 @@ impl ReloadableQuickJs {
                 Ok(state) => state,
                 Err(error) => {
                     previous.resume(false);
-                    return Err(error);
+                    return Err(format!(
+                        "active generation state capture failed; correct its live state or restart after fixing captureState: {error}"
+                    ));
                 }
             }
         };

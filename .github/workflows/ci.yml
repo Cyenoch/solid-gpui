@@ -3,23 +3,45 @@ name: CI
 on:
   push:
     branches: [main]
+    paths: &ci-paths
+      - ".github/**"
+      - ".bun-version"
+      - ".cargo/**"
+      - ".oxfmtrc.json"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig*.json"
+      - "crates/**"
+      - "vendor/**"
+      - "third_party/**"
+      - "packages/**"
+      - "examples/**"
+      - "fixtures/**"
+      - "scripts/**"
   pull_request:
+    paths: *ci-paths
+  workflow_dispatch:
+
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
-  rust:
-    name: Rust format, check, and test
+  checks:
+    name: Rust and Bun checks
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -29,101 +51,13 @@ jobs:
         with:
           bun-version-file: .bun-version
 
-      - name: Install Bun workspace
-        run: bun install --frozen-lockfile
-
-      - name: Cache Cargo registry and target
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            rust-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Check Rust formatting
-        run: bun run task rust-format
-
-      - name: Check and test Rust workspace
-        run: bun run task rust-check
-
-  bun:
-    name: Bun package format, typecheck, and test
-    runs-on: macos-15
-    timeout-minutes: 20
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Set up pinned Bun
-        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version-file: .bun-version
-
-      - name: Cache Bun install packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bun-version', 'bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-${{ runner.arch }}-
+          cache-key: ci-macos-15
 
       - name: Install Bun workspace
         run: bun install --frozen-lockfile
 
-      - name: Check generated protocol bindings
-        run: bun run task protocol-codegen-check
-
-      - name: Cache Cargo for protocol producers and native bindings
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            rust-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Check protocol goldens
-        run: bun run task protocol-golden-check
-
-      - name: Check Bun packages
-        run: bun run task package-ci
-
-      - name: Install cargo-deny and run advisory audit
-        run: |
-          cargo install cargo-deny --locked --version 0.20.2
-          bun run audit
-
-  host-release:
-    name: Host release bundle check
-    runs-on: macos-15
-    timeout-minutes: 60
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Set up pinned Bun
-        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version-file: .bun-version
-
-      - name: Install Bun workspace
-        run: bun install --frozen-lockfile
-
-      - name: Cache release Cargo build
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-release
-          restore-keys: |
-            rust-${{ runner.os }}-${{ runner.arch }}-release-
-
-      - name: Check host release bundle
-        run: bun run task host-release-check
+      - name: Check generated contracts, formatting, types, and tests
+        run: bun run ci

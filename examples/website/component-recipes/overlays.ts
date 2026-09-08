@@ -83,14 +83,14 @@ export const overlaysRecipes = [
     {
       id: "profile",
       title: "Profile details",
-      description: "Show supporting profile information next to the trigger.",
+      description: "Show profile information next to the trigger, within the current window.",
       jsx: '<N.Popover slots={{ trigger: <N.Button label="Alex Chen" variant="link" /> }}><View style={{ gap: 8, padding: 12 }}><N.Avatar name="Alex Chen" /><N.Label text="Alex Chen" secondary="Product designer" /><N.Label text="Building a better workspace." /></View></N.Popover>',
       setup: "",
     },
     {
       id: "appearance",
       title: "Contextual details",
-      description: "Keep a short explanation close to the action it describes.",
+      description: "Keep a short explanation near its action, within the current window.",
       jsx: '<N.Popover anchor="topRight" slots={{ trigger: <N.Button label="Workspace access" outline /> }}><View style={{ padding: 12, gap: 8 }}><N.Label text="Invite-only workspace" /><N.Label text="Only invited members can view these projects." /></View></N.Popover>',
       setup: "",
     },

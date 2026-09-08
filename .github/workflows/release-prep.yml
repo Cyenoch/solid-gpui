@@ -17,6 +17,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
   RELEASE_VERSION: ${{ inputs.version }}
 
@@ -28,30 +29,35 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # The notices check uses the last dependency change date.
 
       - name: Set up pinned Bun
         uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
           bun-version-file: .bun-version
 
-      - name: Cache release Bun installs
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
         with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.bun-version', 'bun.lock') }}-release
-          restore-keys: |
-            bun-${{ runner.os }}-${{ runner.arch }}-release-
+          cache-key: release-prep-macos-15
 
       - name: Install Bun workspace
         run: bun install --frozen-lockfile
 
       - name: Install pinned cargo-deny
-        run: cargo install cargo-deny --locked --version 0.20.2
+        uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
+        with:
+          tool: cargo-deny@0.20.2
+          fallback: none
 
       - name: Synchronize candidate version and frozen locks
         run: bun run task release-prep "$RELEASE_VERSION"
 
-      - name: Run complete candidate CI gate
+      - name: Audit candidate dependencies and notices
+        run: bun run audit
+
+      - name: Run candidate development checks
         run: bun run ci
 
       - name: Pack core candidate (no publish)
@@ -63,12 +69,6 @@ jobs:
       - name: Pack Shiki candidate (no publish)
         run: bun run task shiki-package-pack "$RUNNER_TEMP/solid-gpui-shiki-$RELEASE_VERSION.tgz"
 
-      - name: Verify candidate package tarballs
-        run: |
-          test -s "$RUNNER_TEMP/solid-gpui-core-$RELEASE_VERSION.tgz"
-          test -s "$RUNNER_TEMP/solid-gpui-router-$RELEASE_VERSION.tgz"
-          test -s "$RUNNER_TEMP/solid-gpui-shiki-$RELEASE_VERSION.tgz"
-
       - name: Upload candidate package tarballs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -79,3 +79,4 @@ jobs:
             ${{ runner.temp }}/solid-gpui-shiki-*.tgz
           if-no-files-found: error
           retention-days: 7
+          compression-level: 0

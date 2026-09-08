@@ -1,4 +1,4 @@
-# 使用 Vite 与 Bun 开发原生应用
+# 原生开发与热重载
 
 外部 Bun 用于快速迭代；内嵌 Bun 是 Bun 应用的预期生产打包运行时；QuickJS 是以 Rust 为主应用的界面运行时。定位与当前交付支持的区别见[运行时策略](runtime-strategy.md)。
 
@@ -51,7 +51,7 @@ mountApplication<number>({
 
 ## 状态与失败边界
 
-重载会重新挂载应用，不自动保留各组件信号。`captureState` 返回可 structured clone 的数据，下一代 setup 接收它。网站保留路由、语言和窗口尺寸，组件状态、原生输入与滚动缓存重建。不要跨代保留 Solid owner、Root/router 实例、函数或原生资源。
+重载会重新挂载应用，不自动保留各组件信号。在 Bun 中，`captureState` 返回可 structured clone 的数据，下一代 setup 接收它；QuickJS 使用更严格的 [JSON 契约](#捕获状态)。显式捕获路由、选中项或窗口尺寸等应用数据；组件状态、原生输入与滚动缓存重建。不要跨代保留 Solid owner、Root/router 实例、函数或原生资源。
 
 候选 setup、render 和首帧准备成功后，释放旧 owner 与 root，在相同 surface ID 发布新 epoch。语法错误和同步 setup/render 错误保留旧页面，修复并保存后重试。首次启动失败因没有旧页面而关闭 Vite 并退出。
 
@@ -105,15 +105,49 @@ bun run quickjs:dev # Counter demo in the actual QuickJS engine
 
 其他应用应编译启用 quickjs 的宿主，再执行 `solid-gpui-quickjs-dev src/quickjs.tsx target/debug/my-app`。入口使用 EmbeddedTransport 和 mountApplication。Vite 在 VM 外监听文件，现有 QuickJS 打包器执行与生产一致的平台和不支持导入检查。独立于 UI 协议的 loopback 开发连接传输有界 bundle。QuickJS 内不安装浏览器客户端、WebSocket、fetch 或 Vite ModuleRunner。
 
+### 应用构建配置
+
+在应用的**工作区根目录** `Cargo.toml` 中保持解释器的开发构建优化：
+
+```toml
+[profile.dev.package.rquickjs-sys]
+opt-level = 3
+```
+
+本仓库已有该配置，但 Cargo 不会继承依赖仓库的 profile。未优化的解释器可能在相同 2 MiB JS 栈预算下因深层路由初始化而溢出。修改配置后重新编译并重启宿主；改布局或增加栈预算前，先参见[栈溢出诊断](troubleshooting.zh-CN.md#quickjs-在深层路由上栈溢出)。
+
+### 代际生命周期
+
 构建成功后创建新 VM，保留 Rust 宿主、窗口和服务。旧 VM 在微任务检查点暂停并导出显式 captureState。宿主验证每个候选 Surface 及应用配置，再在前台切换路由。旧 epoch 输入与回复不会调用新一代。原生缓存和组件局部信号重新挂载，替换后重新发送当前窗口观测值。
 
+生命周期请求通过有界 FIFO 按顺序处理：后续捕获不会覆盖 VM 尚未处理的激活指令。控制队列耗尽会显式报错，不会静默丢弃生命周期步骤。
+
+### 捕获状态
+
 QuickJS 捕获状态必须是无环 JSON：普通对象、稠密数组、字符串、布尔值、有限数值和 null。访问器、隐藏属性、symbol、函数、非普通对象、稀疏数组、负零及非有限数被拒绝。预算为 1 MiB、100,000 个访问值、64 层嵌套。未提供捕获值与显式 null 不同。Bun 同 VM HMR 仍使用 structured clone 契约。
+
+应返回专用状态对象，不要直接传递整个运行中的 session。例如用 `type ReloadState = { session: { userId: string | null } }` 声明捕获结构，并在 `captureState` 中显式返回 `{ session: { userId: session.userId ?? null } }`。用 `null` 表示“没有用户”，或省略可选对象字段表示“未提供”。数组不允许空洞或 `undefined` 元素。`captureState` 本身返回 `undefined` 表示未捕获状态，下一代 `setup` 接收 `undefined`；返回 `null` 则保留 `null`。不要通过 `JSON.stringify`/`JSON.parse` 往返清洗整个 session，这会在校验前静默丢弃或改变不支持的值。
+
+校验错误包含字段路径，例如 `$.state[0].session.userId: undefined is not JSON`，其中 `state[0]` 是交接信封中的应用状态。捕获在创建候选前的**旧 VM** 中执行。失败后旧 VM 仍可交互；应修正其运行中的状态，或修改 `captureState` 后重启。仅编辑候选代码无法替换始终返回非法数据的旧捕获函数。
+
+### 激活与恢复
 
 候选准备接受初始 Snapshot 与应用配置。原生副作用放在激活后的 onMount，暂存期间不能任意调用原生命令。有效 loading view 可作为首帧，路由加载可以在激活后完成。准备截止时间三秒，失败或过期候选被丢弃，旧代恢复。重建请求以最新为准，只保留一个待处理 bundle 和一个候选。
 
 候选必须准确描述当前已打开的 Surface 集合。setup 中创建的辅助根应使用稳定显式 Surface ID、共用连接，默认 epoch 来自宿主 generation。在应用 owner 注册清理，在 captureState 中包含辅助界面状态。暂存时开关窗口或改变窗口集合会拒绝候选，不进行部分替换。零窗口 keep-alive 重载保留连接与激活确认序列。
 
 激活后异步错误和原生副作用不回滚。开发 VM 失败时最后原生树仍可见，后续编辑可用最后捕获状态与当前激活元数据恢复。捕获状态只是检查点，不保证保留之后的变化。Rust、配置及原生契约变化仍需重启。
+
+`applied` 只确认激活，不表示异步路由内容已渲染完成。必须等待恢复页面的实际内容并验证交互，不能只检查 loading Snapshot 或一直存在的导航标签。
+
+### 验证应用重载
+
+使用应用自身的原生构建 profile 和真实 QuickJS 宿主进行验收。应用如果解析 TypeScript 包编译后的 `dist` 导出，应先重新构建这些包。
+
+1. 直接启动到深层路由，验证页面特有的内容和一次交互；也从其他页面导航过去。这些初始化路径可能一次创建不同数量的组件树节点。
+2. 修改 `captureState` 覆盖的数据，编辑 TSX 依赖，等待恢复的页面完成加载。检查新一代的路由、捕获值和一次交互。
+3. 引入语法错误或同步准备错误，验证旧代仍可交互；修复后再次重载。重复保存，验证替换顺序与恢复。
+4. 检查激活后的诊断，确认异步路由或原生命令是否失败。这些结果需与 `applied` 确认分别验证。
 
 ## 外部 Bun 运行约束
 

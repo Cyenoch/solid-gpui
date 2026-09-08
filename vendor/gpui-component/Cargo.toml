@@ -24,7 +24,7 @@ gpui_web = { package = "gpui-pre-web", version = "0.3.1" }
 gpui_macros = { package = "gpui-pre-macros", version = "0.3.1" }
 reqwest_client = { package = "gpui-pre-reqwest-client", version = "0.3.1" }
 sum-tree = { package = "gpui-pre-sum-tree", version = "0.3.1" }
-reqwest = { package = "gpui-pre-reqwest", version = "0.12.15", default-features = false }
+reqwest = { version = "0.13.4", default-features = false }
 
 anyhow = "1"
 web-time = "1"
@@ -77,4 +77,3 @@ type_complexity = "allow"
 # Temporarily allow this until we can migrate to the new APIs.
 # https://github.com/longbridge/gpui-kit/pull/2149
 useless_conversion = "allow"
-

@@ -1,5 +1,17 @@
 # Native async composition and accessibility
 
+## SwiftUI and AppKit view hosting
+
+Native Modules currently render GPUI elements and retained GPUI views. They do
+not expose embeddable AppKit views or SwiftUI hosting in either direction.
+Multiple Surfaces currently use separate GPUI windows; they do not establish
+support for multiple GPUI views inside one SwiftUI/AppKit window.
+
+The [native presentation research](../.scratch/native-presentation/spec.md)
+proposes owner-attached system popovers followed by explicit native view hosting.
+It records the required input, accessibility, lifecycle, and layout changes.
+This is a design proposal, not an available SDK capability.
+
 ## Solid async control flow
 
 Import native `Suspense`, `ErrorBoundary`, and `lazy` from

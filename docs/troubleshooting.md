@@ -60,6 +60,53 @@ unavailable. Move those services into Rust Native Modules and call the
 generated clients. The bundler's browser target selects portable dependencies;
 it does not create a browser environment in QuickJS.
 
+## QuickJS overflows the stack on a nested route
+
+First compare the consuming workspace's Cargo profile with this repository.
+Set `[profile.dev.package.rquickjs-sys]` with `opt-level = 3` in the application's
+workspace-root `Cargo.toml`, then rebuild and restart the host. Cargo reads
+profiles from the workspace root and ignores dependency profiles.
+See the [Cargo profiles reference](https://doc.rust-lang.org/cargo/reference/profiles.html).
+
+Interpreter optimization affects native stack usage as well as execution speed.
+With the same 2 MiB JS stack limit, an unoptimized debug build can overflow while
+initializing a nested component tree that succeeds in an optimized build. A
+successful test in this repository does not establish the consuming application's
+build configuration.
+
+Compare direct startup at the affected route, navigation from a simpler route,
+and restoration after reload. Navigation may reuse an existing parent layout;
+startup and reload recreate it. Keep the bundle, captured state, layout, and
+stack limits fixed when comparing build profiles. If the optimized build still
+fails, minimize the route and inspect recursive component creation and reactive
+updates before increasing the stack budget.
+
+## QuickJS rejects captured state
+
+Check the field path in the error, such as `$.state[0].session.userId`.
+`state[0]` contains the value returned by the application's `captureState`.
+Return a dedicated JSON state object with explicit `null` values or omitted
+optional properties. Nested `undefined`, sparse arrays, accessors, and live
+runtime objects cannot cross the VM boundary. Returning `undefined` from
+`captureState` itself means there is no captured value.
+
+Capture runs in the old VM before the candidate is created. Correct its live
+state, or restart the host after fixing a capture function that always returns
+invalid data. A JSON stringify/parse round trip can silently discard data;
+use the [captured-state contract](hot-reload.md#captured-state) to define the
+handoff explicitly.
+
+## QuickJS reports `applied`, then the page fails
+
+`applied` confirms that the host activated a validated candidate. Route loading,
+component initialization triggered by that loading, and asynchronous native
+effects can still fail afterward. These failures are outside the rollback
+boundary; the last published native tree can remain visible after its VM stops.
+
+Inspect the subsequent runtime diagnostic and verify page-specific content plus
+an interaction. A loading view or a persistent navigation label does not prove
+the restored page is usable. See [application reload verification](hot-reload.md#verify-application-reload).
+
 ## Process host exits after renderer failure
 
 Inspect stderr for the renderer error and the host crash-report path. Protocol decode/validation failures are fatal because continuing would lose revision agreement. Application render errors are thrown to the application; Solid GPUI does not invent fallback UI.

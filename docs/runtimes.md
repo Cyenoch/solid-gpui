@@ -73,7 +73,9 @@ node_modules/.bin/solid-gpui-build --runtime quickjs src/app.tsx dist/app.js
 ```
 
 For development against the actual QuickJS engine, build your native host with
-`quickjs` enabled, then run:
+`quickjs` enabled and the
+[interpreter development profile](hot-reload.md#application-build-configuration)
+in your application's workspace-root manifest, then run:
 
 ```sh
 node_modules/.bin/solid-gpui-quickjs-dev src/app.tsx target/debug/my-app

@@ -26,6 +26,7 @@ use crate::{
 
 const MAX_QUEUED_FRAMES: usize = 4096;
 const MAX_QUEUED_BYTES: usize = MAX_FRAME_LENGTH + 4;
+const MAX_QUEUED_CONTROLS: usize = 4;
 const MAX_VM_BYTES: usize = 256 * 1024 * 1024;
 // Gallery's nested Solid components/effects exceed QuickJS's smaller defaults.
 // Keep native callback and teardown headroom outside the bounded JS stack.
@@ -70,7 +71,7 @@ struct Queues {
     failure: Option<String>,
     shutdown: bool,
     finished: bool,
-    control: Option<Control>,
+    controls: VecDeque<Control>,
     paused: bool,
     ready: bool,
     pressured: bool,
@@ -175,19 +176,31 @@ impl QuickJsAdapter {
 
     pub(super) fn capture(&self) -> Result<String, String> {
         let (send, recv) = std::sync::mpsc::sync_channel(1);
-        self.shared.queues.lock().unwrap().control = Some(Control::Capture(send));
-        self.shared.changed.notify_all();
+        self.enqueue_control(Control::Capture(send))?;
         recv.recv_timeout(Duration::from_secs(2))
             .map_err(|_| "reload state capture timed out".to_owned())?
     }
 
     pub(super) fn resume(&self, activate: bool) {
-        self.shared.queues.lock().unwrap().control = Some(if activate {
+        if let Err(error) = self.enqueue_control(if activate {
             Control::Activate
         } else {
             Control::Resume
-        });
+        }) {
+            self.shared.fail(error);
+        }
+    }
+
+    fn enqueue_control(&self, control: Control) -> Result<(), String> {
+        let mut queue = self.shared.queues.lock().unwrap();
+        if queue.controls.len() >= MAX_QUEUED_CONTROLS {
+            return Err("QuickJS reload control capacity exceeded".into());
+        }
+        // Activation must run before a later capture, even if both arrive
+        // before the worker wakes. Never replace an unprocessed lifecycle step.
+        queue.controls.push_back(control);
         self.shared.changed.notify_all();
+        Ok(())
     }
 
     pub(super) fn wait_ready(&self, timeout: Duration) -> Result<(), String> {
@@ -593,7 +606,7 @@ fn drive<'js>(
                 }
             }
         }
-        let control = shared.queues.lock().unwrap().control.take();
+        let control = shared.queues.lock().unwrap().controls.pop_front();
         if let Some(control) = control {
             match control {
                 Control::Capture(reply) => {
@@ -654,8 +667,10 @@ fn drive<'js>(
         }
         {
             let queue = shared.queues.lock().unwrap();
-            if queue.paused && queue.control.is_none() && !queue.shutdown {
-                drop(shared.changed.wait(queue).unwrap());
+            if queue.paused && !queue.shutdown {
+                if queue.controls.is_empty() {
+                    drop(shared.changed.wait(queue).unwrap());
+                }
                 continue;
             }
         }
@@ -736,7 +751,7 @@ fn drive<'js>(
                 .map_err(|error| error.to_string())?;
             let queue = shared.queues.lock().unwrap();
             if shared.stopped.load(Ordering::Acquire)
-                || queue.control.is_some()
+                || !queue.controls.is_empty()
                 || queue.drain
                 || (can_dispatch && !queue.events.values.is_empty())
             {
@@ -813,6 +828,88 @@ mod tests {
             panic!("expected QuickJS commit");
         };
         payload
+    }
+
+    #[test]
+    fn reload_capture_reports_invalid_session_field_and_preserves_the_live_vm() {
+        let entry = Entry::bundle("fixtures/quickjs-reload-state.tsx");
+        let source = std::fs::read(&entry.0).unwrap();
+        let runtime = QuickJsAdapter::launch(
+            "reload-state.js".into(),
+            source.clone(),
+            Some((
+                1,
+                r#"{"state":[],"surfaceId":1,"open":true,"activationSequence":0}"#.into(),
+            )),
+        )
+        .unwrap();
+        runtime.wait_ready(Duration::from_secs(3)).unwrap();
+        let frames = runtime.candidate_frames().unwrap().unwrap();
+        let snapshot = Snapshot::decode(&frames[0]).unwrap();
+        let button = snapshot
+            .nodes
+            .iter()
+            .find(|node| node.kind == KIND_PRESSABLE)
+            .unwrap();
+        runtime.resume(true);
+        // Observe activation before requesting capture from the live generation.
+        assert_eq!(Patch::decode(&receive(&runtime)).unwrap().epoch, 1);
+        let error = runtime.capture().unwrap_err();
+        assert!(
+            error.contains("reload state at $.state[0].session.userId: undefined is not JSON"),
+            "{error}"
+        );
+        assert_ne!(runtime.status(), RuntimeStatus::Failed);
+        runtime
+            .send_event(Event::press(1, 1, 1, 1, button.id, button.listener_id))
+            .unwrap();
+        let patch = Patch::decode(&receive(&runtime)).unwrap();
+        assert_eq!(patch.epoch, 1);
+        let state = runtime.capture().unwrap();
+        let decoded: serde_json::Value = serde_json::from_str(&state).unwrap();
+        assert_eq!(
+            decoded["state"],
+            serde_json::json!([{ "session": { "userId": null } }])
+        );
+        let candidate =
+            QuickJsAdapter::launch("restored-state.js".into(), source, Some((2, state))).unwrap();
+        candidate.wait_ready(Duration::from_secs(3)).unwrap();
+        let frames = candidate.candidate_frames().unwrap().unwrap();
+        let restored = Snapshot::decode(&frames[0]).unwrap();
+        assert_eq!(restored.epoch, 2);
+        assert!(
+            restored
+                .nodes
+                .iter()
+                .any(|node| node.text.as_deref() == Some("Signed out"))
+        );
+        candidate.shutdown().unwrap();
+        runtime.shutdown().unwrap();
+    }
+
+    #[test]
+    fn immediate_capture_observes_activation() {
+        for _ in 0..32 {
+            let runtime = QuickJsAdapter::launch(
+                "activation-order.js".into(),
+                br#"
+                let activated = false;
+                __solidGpuiGeneration.register({
+                    capture: () => JSON.stringify({ activated }),
+                    activate: () => { activated = true; },
+                    retire: () => {}
+                });
+                "#
+                .to_vec(),
+                Some((1, "{}".into())),
+            )
+            .unwrap();
+            runtime.wait_ready(Duration::from_secs(3)).unwrap();
+            runtime.resume(true);
+            let captured = runtime.capture().unwrap();
+            runtime.shutdown().unwrap();
+            assert_eq!(captured, r#"{"activated":true}"#);
+        }
     }
 
     #[test]

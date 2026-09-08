@@ -16,7 +16,7 @@ trap 'rm -rf -- "$work_dir"' EXIT
 
 (
   cd "$repo_root"
-  cargo deny --all-features list --format tsv > "$work_dir/cargo-deny.tsv"
+  cargo deny --all-features list --format json --layout crate > "$work_dir/cargo-deny.json"
   cargo metadata --locked --all-features --format-version 1 > "$work_dir/cargo-metadata.json"
 )
 (
@@ -34,8 +34,7 @@ fi
 [[ -n "$generated_date" ]] || { printf 'unable to determine a stable generation date\n' >&2; exit 1; }
 
 mkdir -p "$(dirname "$output_path")"
-python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.tsv" "$work_dir/cargo-metadata.json" "$work_dir/bun-workspace.txt" "$target" "$generated_date" <<'PY'
-import csv
+python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.json" "$work_dir/cargo-metadata.json" "$work_dir/bun-workspace.txt" "$target" "$generated_date" <<'PY'
 import datetime as dt
 import json
 import os
@@ -48,7 +47,7 @@ from collections import defaultdict
 (
     repo_root,
     output_path,
-    cargo_tsv_path,
+    cargo_licenses_path,
     cargo_metadata_path,
     bun_workspace_path,
     target,
@@ -70,16 +69,12 @@ packages = metadata.get("packages")
 if not isinstance(packages, list):
     raise SystemExit("cargo metadata did not contain a packages array")
 
-# cargo-deny TSV supplies the resolved SPDX identifiers, including license-file
-# resolutions that Cargo metadata cannot classify by itself.
-with pathlib.Path(cargo_tsv_path).open(newline="", encoding="utf-8") as handle:
-    cargo_rows = list(csv.reader(handle, delimiter="\t"))
-if not cargo_rows:
-    raise SystemExit("cargo deny returned no rows")
-license_header = cargo_rows[0]
-if license_header[:1] != ["crate"] or len(license_header) < 2:
-    raise SystemExit("unexpected cargo deny TSV header")
-license_ids = license_header[1:]
+# cargo-deny supplies resolved SPDX identifiers, including license-file
+# resolutions that Cargo metadata cannot classify by itself. Its JSON output
+# preserves unlicensed entries without relying on the TSV table's column count.
+cargo_licenses = json.loads(pathlib.Path(cargo_licenses_path).read_text(encoding="utf-8"))
+if not isinstance(cargo_licenses, dict) or not cargo_licenses:
+    raise SystemExit("cargo deny returned no crate licenses")
 
 metadata_by_name_version = {}
 for package in packages:
@@ -95,14 +90,12 @@ for package in packages:
 rust_third_party = defaultdict(list)
 rust_project_owned = []
 seen_rust = set()
-for row in cargo_rows[1:]:
-    if len(row) != len(license_header):
-        raise SystemExit("cargo deny TSV row has a different number of columns")
-    package_ref = row[0]
+for package_id, license_info in cargo_licenses.items():
     try:
-        name, version = package_ref.rsplit("@", 1)
+        name, version, _source = package_id.split(" ", 2)
     except ValueError as exc:
-        raise SystemExit(f"invalid cargo package reference: {package_ref!r}") from exc
+        raise SystemExit(f"invalid cargo package reference: {package_id!r}") from exc
+    package_ref = f"{name}@{version}"
     package = metadata_by_name_version.get((name, version))
     if package is None:
         raise SystemExit(f"cargo metadata is missing {package_ref}")
@@ -133,9 +126,10 @@ for row in cargo_rows[1:]:
         source_kind = f"other ({source})"
         source_detail = "other"
 
-    licenses = [license_id for license_id, cell in zip(license_ids, row[1:]) if cell]
-    if not licenses:
+    licenses = license_info.get("licenses") if isinstance(license_info, dict) else None
+    if not isinstance(licenses, list) or not licenses or not all(isinstance(item, str) and item for item in licenses):
         raise SystemExit(f"cargo deny returned no SPDX license for {package_ref}")
+    licenses = sorted(set(licenses))
     identity = (name, version, source_kind, tuple(licenses))
     if identity in seen_rust:
         raise SystemExit(f"duplicate cargo deny package row: {package_ref}")

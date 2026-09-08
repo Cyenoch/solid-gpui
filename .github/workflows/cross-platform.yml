@@ -3,7 +3,26 @@ name: Cross-platform host
 on:
   push:
     branches: [main]
+    paths: &host-paths
+      - ".github/workflows/cross-platform.yml"
+      - ".github/actions/setup-rust/**"
+      - ".bun-version"
+      - ".cargo/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "package.json"
+      - "bun.lock"
+      - "crates/**"
+      - "vendor/**"
+      - "third_party/**"
+      - "examples/*/native/**"
+      - "packages/**"
+      - "fixtures/**"
+      - "scripts/**"
   pull_request:
+    paths: *host-paths
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,12 +33,13 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
 
 jobs:
   linux:
     name: Linux host checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check out repository
@@ -36,7 +56,7 @@ jobs:
       - name: Install Linux host build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends \
+          sudo apt-get install --yes --no-install-recommends \
             libfontconfig1-dev \
             libfreetype6-dev \
             libxcb1-dev \
@@ -44,63 +64,39 @@ jobs:
             libxkbcommon-x11-dev \
             pkg-config
 
-      - name: Confirm pinned Rust toolchain
-        run: rustup show active-toolchain
-
-      - name: Cache Linux Cargo registry and target
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            rust-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
+          cache-key: cross-platform-ubuntu-24.04
 
       # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
-      - name: Check Linux workspace
-        run: cargo check --workspace --exclude solid-gpui-bun-sys --locked
-
-      - name: Run Linux Clippy
+      - name: Check Linux workspace with Clippy
         run: cargo clippy --workspace --exclude solid-gpui-bun-sys --all-targets --locked -- -D warnings
 
       - name: Test library and Bun renderer fixtures
-        run: cargo test -p solid-gpui --lib --locked
+        run: cargo test -p solid-gpui -p gpui-pre-reqwest-client --lib --locked
 
       # TODO: Add a bounded Xvfb/Wayland display-backed renderer smoke once the runner
       # compositor, GPU, portal, and font prerequisites are pinned and proven stable.
 
   windows:
     name: Windows host build
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Confirm pinned Rust toolchain
-        run: rustup show active-toolchain
-
-      - name: Cache Windows Cargo registry and target
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      - name: Set up Rust and dependency cache
+        uses: ./.github/actions/setup-rust
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: |
-            rust-${{ runner.os }}-${{ runner.arch }}-
+          cache-key: cross-platform-windows-2022
 
       # Embedded Bun is intentionally excluded: its build script requires macOS JavaScriptCore.
       - name: Check Windows workspace
         run: cargo check --workspace --exclude solid-gpui-bun-sys --locked
 
-      # The hosted Windows image carries the MSVC toolchain and Windows SDK; the release
+      # The hosted Windows image carries the MSVC toolchain and Windows SDK; the
       # build also exercises gpui_windows' fxc.exe shader compiler lookup.
       - name: Build process-mode host
         run: cargo build -p solid-gpui --bin solid-gpui-host --locked

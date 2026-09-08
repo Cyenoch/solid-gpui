@@ -1,5 +1,11 @@
 # 原生异步组合与无障碍
 
+## SwiftUI 与 AppKit 视图承载
+
+Native Module 当前渲染 GPUI 元素和持久 GPUI 视图，没有暴露可嵌入的 AppKit 视图，也不支持与 SwiftUI 双向嵌套。多个 Surface 当前使用独立 GPUI 窗口，这不代表支持在同一个 SwiftUI/AppKit 窗口内放置多个 GPUI 视图。
+
+[原生呈现研究](../.scratch/native-presentation/spec.md)建议先实现依附所属窗口的系统弹层，再建立明确的原生视图承载能力，并记录了输入、无障碍、生命周期和布局所需的改动。这是设计提案，尚未成为 SDK 能力。
+
 ## Solid 异步控制流
 
 从 `@solid-gpui/core/runtime` 导入原生 `Suspense`、`ErrorBoundary` 和 `lazy`。它们使用 Solid 实现与原生子类型，resource 和 transition 共用 Solid owner 与响应式图。
