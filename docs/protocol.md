@@ -308,6 +308,17 @@ runtime commit payloads and applies them on the foreground owner of that
 registry. The registry validates and publishes only complete Snapshot/Patch
 state.
 
+Native Patch application journals modified nodes and child lists instead of
+cloning the entire store. Structural validation and Extension contract validation
+share that rollback scope; revision and native side effects are published only
+after both succeed. A failed validation restores structure, derived text, and the
+previous revision. The resulting internal change set includes changed/deleted
+identities, original/final ancestors, and typed child ownership dependencies.
+Validation, event routes, native instance updates, and cache invalidation consume
+that set. Structural edits may visit shifted siblings and dependency subtrees;
+a local property edit does not copy unrelated nodes. Snapshot bootstrap still
+validates the complete tree. These rules do not alter the v5 wire schema.
+
 On the TypeScript side, `SurfaceRouter` is the only frame decoder and event
 router. It groups one incoming chunk into ordered semantic event batches per
 surface. `HostTree` owns the private `NodeGraph`, transaction journal, dirty

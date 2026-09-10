@@ -25,7 +25,7 @@ const chapters = [
     title: "Signals & updates",
     body: "Use a signal for values that change, such as a counter, a selected item, or a form field. Read it in JSX and the interface updates when its value changes.",
     detail:
-      "Keep state close to the components that use it. Use createMemo for derived values and onCleanup to release timers or subscriptions. Try the counter below to see a signal in action.",
+      "Keep state close to the components that use it. Use createMemo for derived values and onCleanup to release timers or subscriptions. Solid updates the affected bindings; the native host applies their changes atomically. GPUI owns layout and painting, so changing text can also reflow nearby content. Try the counter below.",
     sample: "Counter",
   },
   {

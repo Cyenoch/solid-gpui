@@ -1,6 +1,6 @@
 use gpui::{AnyElement, IntoElement, ParentElement, RenderOnce};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -729,38 +729,50 @@ pub(super) fn revoke_node_events(state: &ExtensionEventState, id: u32) {
 pub(super) fn reconcile_event_routes(
     state: &Rc<ExtensionEventState>,
     store: &crate::tree::NodeStore,
+    changed: Option<&HashSet<u32>>,
 ) {
-    state.routes.borrow_mut().retain(|id, route| {
-        let keep = store.get(*id).is_some_and(|node| {
-            let Some(crate::protocol::HostProperties::Extension(props)) = &node.host_properties
-            else {
-                return false;
-            };
-            route
-                .contract
-                .get()
-                .is_none_or(|old| old == ExtensionContract::from(props))
+    let ids: HashSet<u32> = match changed {
+        Some(ids) => ids.clone(),
+        None => state
+            .routes
+            .borrow()
+            .keys()
+            .copied()
+            .chain(
+                store
+                    .iter()
+                    .filter(|node| node.kind == crate::tree::KIND_EXTENSION)
+                    .map(|node| node.id),
+            )
+            .collect(),
+    };
+    for id in ids {
+        let properties = store.get(id).and_then(|node| {
+            if let Some(crate::protocol::HostProperties::Extension(props)) = &node.host_properties {
+                Some((node.listener_id, props))
+            } else {
+                None
+            }
+        });
+        let keep = state.routes.borrow().get(&id).is_some_and(|route| {
+            properties.is_some_and(|(_, props)| {
+                route
+                    .contract
+                    .get()
+                    .is_none_or(|old| old == ExtensionContract::from(props))
+            })
         });
         if !keep {
-            route.active.set(false);
+            revoke_node_events(state, id);
         }
-        keep
-    });
-    // Seed routes before mount/render so their contract is known even when a
-    // retained subscription outlives the element that originally created it.
-    for node in store.iter() {
-        if let Some(crate::protocol::HostProperties::Extension(props)) = &node.host_properties {
-            let _sink = ExtensionEventSink::new(
-                state.clone(),
-                node.id,
-                node.listener_id,
-                props.event_ids.clone(),
-            );
+        if let Some((listener, props)) = properties {
+            let _sink =
+                ExtensionEventSink::new(state.clone(), id, listener, props.event_ids.clone());
             state
                 .routes
                 .borrow()
-                .get(&node.id)
-                .unwrap()
+                .get(&id)
+                .expect("seeded event route")
                 .contract
                 .set(Some(ExtensionContract::from(props)));
         }

@@ -11,6 +11,7 @@ pub mod runtime;
 #[cfg(feature = "quickjs")]
 pub use runtime::quickjs::{QuickJsAdapter, QuickJsError};
 pub use solid_gpui_macros::{component, native_module, native_type};
+mod profile;
 pub mod protocol;
 mod protocol_tap;
 pub mod renderer;

@@ -698,8 +698,10 @@ impl NativeStateRegistry {
     }
 
     fn route_payload(&mut self, payload: &[u8], cx: &mut Context<Self>) -> Result<(), String> {
-        let message = decode_message(payload)
-            .map_err(|error| format!("rejected renderer commit: {error}"))?;
+        let message = {
+            let _profile = crate::profile::span(crate::profile::Stage::Decode);
+            decode_message(payload).map_err(|error| format!("rejected renderer commit: {error}"))?
+        };
         let surface_id = match &message {
             DecodedMessage::Snapshot(snapshot) => snapshot.surface_id,
             DecodedMessage::Patch(patch) => patch.surface_id,

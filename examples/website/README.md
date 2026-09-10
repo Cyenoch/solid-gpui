@@ -167,3 +167,16 @@ embedded icons. Its native window and process services run on desktop.
 Keep TypeScript's SDK paths aligned with Vite's source aliases, including JSX and
 native subpaths, so application icon types come from one module. Build the WASM
 host before checking or bundling the browser entry.
+
+## Reactive update and performance guidance
+
+The Signals & updates chapter describes local binding updates and atomic native
+commits without promising local-only layout or painting. The Performance analysis
+and Protocol pages import their authoritative Markdown from `docs/`; English and
+explicit `.zh-CN.md` copies are synchronized together.
+
+For a bounded native commit workload with the monitor disabled, follow
+[the commit profiling commands](../../docs/performance-analysis.md#native-commit-attribution).
+The website's profile command additionally exercises the full component host.
+Both use actual host instrumentation; test-platform CPU measurements are separate
+from native presentation and physical input acceptance.

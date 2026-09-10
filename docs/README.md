@@ -14,7 +14,7 @@ Use this order:
 6. [`rust-bridge.md`](rust-bridge.md) — export ordinary Rust logic and native components with generated types.
 7. [`hot-reload.md`](hot-reload.md) — Bun HMR and QuickJS application reload, consumer build profiles, explicit state contracts, and activation/recovery verification.
 8. [`gpui-components.md`](gpui-components.md) — generated native controls and application APIs.
-9. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement and acceptance.
+9. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement, native commit profiling, and acceptance.
 10. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, regressions, and recorded measurements.
 11. [`keyboard-and-menus.md`](keyboard-and-menus.md) — platform shortcuts, window scope, and system menus.
 12. [`distribution.md`](distribution.md) — verified application bundles, native dependencies, and signing for macOS, Windows, and Linux.

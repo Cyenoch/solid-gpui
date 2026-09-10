@@ -174,6 +174,8 @@ Focus/Blur 有意保留双形式：View/Pressable 焦点观察者省略载荷，
 
 Rust NativeStateRegistry 拥有 surface、窗口、焦点、输入和保留状态。CommitPump 是有界交接点，接收 runtime 提交载荷并在 registry 前台 owner 应用，只验证和发布完整 Snapshot/Patch 状态。
 
+原生 Patch 使用被修改节点和子列表的事务日志，不再克隆整个节点存储。结构校验与 Extension 合约校验位于同一回滚范围，全部成功后才发布 revision 并更新原生状态。失败时恢复结构、派生文本与旧 revision。内部变更集合包含修改/删除的身份、原始与最终祖先，以及类型化子节点的归属依赖；校验、事件路由、原生实例更新和缓存失效共同消费该集合。结构变更可以访问被移动的兄弟节点和依赖子树，局部属性更新不复制无关节点。首次 Snapshot 仍完整验证树，v5 线协议不变。
+
 TypeScript SurfaceRouter 是唯一帧解码和事件路由器，将输入 chunk 分组成各 surface 有序语义事件批次。HostTree 拥有私有 NodeGraph、事务日志、脏属性定稿和 Snapshot/Patch 生产；CommandClient 拥有请求 ID、待处理结果与终止拒绝。HostKind 事实模块拥有允许属性、子规则、投射类别和运行值能力。这些模块不向 Solid 组件暴露传输内部或生成协议记录。
 
 ## 6. 一致性与切换

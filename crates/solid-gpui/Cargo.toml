@@ -72,6 +72,10 @@ required-features = ["embedded-bun"]
 name = "solid-gpui-host"
 required-features = ["host"]
 
+[[bin]]
+name = "solid-gpui-profile"
+required-features = ["frame-profile"]
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 reqwest-client = { package = "gpui-pre-reqwest-client", version = "0.3.3", optional = true }
 tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }

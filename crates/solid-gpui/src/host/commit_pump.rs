@@ -14,7 +14,7 @@ const MAX_MESSAGES_PER_TURN: usize = 16;
 const MAX_BYTES_PER_TURN: usize = 1024 * 1024;
 
 enum Message {
-    Payload(Vec<u8>),
+    Payload(Vec<u8>, crate::profile::Span),
     #[cfg(feature = "quickjs")]
     Replacement(Box<crate::runtime::reload::Replacement>),
     Terminated(RuntimeStatus),
@@ -40,8 +40,11 @@ impl CommitPump {
                     match runtime.recv_host_commit() {
                         Ok(Some(crate::transport::HostCommit::Frame(payload))) => {
                             runtime.tap_inbound_payload(&payload);
-                            if futures::executor::block_on(sender.send(Message::Payload(payload)))
-                                .is_err()
+                            if futures::executor::block_on(sender.send(Message::Payload(
+                                payload,
+                                crate::profile::span(crate::profile::Stage::Queue),
+                            )))
+                            .is_err()
                             {
                                 break;
                             }
@@ -101,7 +104,7 @@ impl CommitPump {
         match &message {
             Poll::Ready(Some(message)) => {
                 self.messages_in_turn += 1;
-                if let Message::Payload(payload) = message {
+                if let Message::Payload(payload, _) = message {
                     self.bytes_in_turn += payload.len();
                 }
             }
@@ -122,7 +125,8 @@ impl CommitPump {
         cx.spawn(async move |cx| {
             while let Some(message) = poll_fn(|cx| self.poll_next(cx)).await {
                 match message {
-                    Message::Payload(payload) => {
+                    Message::Payload(payload, queued) => {
+                        drop(queued);
                         let result = registry
                             .update(cx, |registry, cx| registry.route_payload(&payload, cx));
                         if let Err(error) = result {
@@ -182,7 +186,10 @@ mod tests {
             let (mut sender, receiver) = mpsc::channel(32);
             for (index, size) in payload_sizes.iter().enumerate() {
                 sender
-                    .try_send(Message::Payload(vec![index as u8; *size]))
+                    .try_send(Message::Payload(
+                        vec![index as u8; *size],
+                        crate::profile::span(crate::profile::Stage::Queue),
+                    ))
                     .unwrap();
             }
             sender
@@ -198,7 +205,8 @@ mod tests {
             let waker = waker_ref(&wakes);
             let mut cx = Context::from_waker(&waker);
             for (index, size) in payload_sizes.iter().enumerate() {
-                let Poll::Ready(Some(Message::Payload(payload))) = pump.poll_next(&mut cx) else {
+                let Poll::Ready(Some(Message::Payload(payload, _))) = pump.poll_next(&mut cx)
+                else {
                     panic!("accepted commits must arrive before runtime termination");
                 };
                 assert_eq!(payload, vec![index as u8; *size]);

@@ -94,3 +94,39 @@ sample <native-app-pid> 15 1 -file <new-local-output.sample.txt>
 结论应说明触发条件、昂贵工作、改动为何减少工作、验证过的行为约束、原生复现和验收状态、可审阅产物及剩余不确定性。
 
 可复用规则放入相关技能参考，具体窗口尺寸和测量放入事件记录。写明适用条件及反例，替换过时结论，避免未解决与后续已确认结论缺少上下文地并列。
+
+## 原生提交归因
+
+专用诊断宿主关闭 FPS 浮层，使用应用实际的 CommitPump 与 SolidRoot：
+
+```sh
+cargo build --locked -p solid-gpui --bin solid-gpui-profile --features frame-profile
+cargo tree --locked -p solid-gpui --features frame-profile -e normal,build,features
+target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+```
+
+先完成编译并确认依赖特性不含 test-support。原生场景约每秒更新 30 次，总计 360 次，窗口宽度依次为 800→560→1280→800，完成后退出。增加 `--hold` 可在自动阶段结束后检查按钮、输入、实际滚动位移及窄/宽窗口布局；每次测试不超过五分钟。程序调整窗口尺寸不代表真实触控板或操作系统连续缩放验收。
+
+`solid_commit_stages` 输出前台线程各阶段的累计毫秒数，counts 顺序与字段相同。queue 包含通道背压与前台交接等待，不含 runtime reader 收到帧之前的时间；decode 包含线协议防护检查；tree 包含树修改与依赖收集，dependencies 是其子阶段；validate 是 Extension 合约验证。commit 包含树事务、合约校验、原生状态同步与通知，不含 decode 和随后依赖窗口的 Extension 实例更新；commit 的计数也包含命令入队，命令实际执行不在此范围；比较 Snapshot/Patch 成本时要控制负载。extensions 单独记录这些实例更新。render 只包含 SolidRoot 的准备工作与 GPUI 元素构建，不包含后续布局、绘制、GPU 或呈现。嵌套阶段不能与外层相加，区间累计值不是逐提交跟踪或端到端延迟。
+
+同一宿主输出 `[solid-gpui-frame-profile]` 的 CPU draw 与失效/输入到呈现直方图区间。结合有界原生 CPU 采样，区分元素构建、Taffy 布局、文字整形、prepaint 和场景构建；闲置或非活动窗口区间应分开报告。日志器不会主动请求重绘，未启用 frame-profile 或测试插桩时不会读取性能时钟。
+
+JavaScript 场景分别测量同步信号传播与信号到编码帧交付的耗时。后者包括提交构建、编码与微任务调度，在调用 transport.submit 之前截止；它不是 IPC 延迟或纯 Solid runtime 耗时。每次测量必须产生一个内容正确的文本更新操作。纯内存规模测试：
+
+```sh
+bun --conditions=browser scripts/native-commit-profile.ts
+```
+
+确定性原生 CPU 归因实验需要显式运行，并与编译和其他测量分开：
+
+```sh
+cargo test --locked -p solid-gpui --lib snapshot_apply_and_first_draw_scaling_guard -- --ignored --nocapture
+```
+
+Snapshot 和 Patch 分阶段测量均经过实际宿主入口。每个样本释放自己的测试窗口，避免之前的场景累积并干扰后续负载。提交计时在 GPUI 更新回调内部截止，避免把 TestAppContext 随后自动处理 effect 与绘制的时间算入提交。单独 draw 计时包含强制 CPU 绘制和 executor draining，不是生产帧间隔。常规回归检查事务正确性与依赖工作量，不使用依赖机器的毫秒阈值。
+
+### 原生更新与缓存范围
+
+Patch 记录修改节点，并推导原始/最终祖先与类型化子节点的归属依赖。验证成功后发布 revision 和统一变更集合，供事件路由、原生实例、焦点观察器和缓存失效消费。大树中修改一个文本不应克隆整树或验证无关 Extension 合约；结构修改仍可能访问被移位的兄弟节点、变化的子列表及依赖组合。
+
+提交变小不保证布局变便宜。缓存 GPUI Entity 需要原生状态 owner 显式失效。在共享根的面板实验中，只增加 `.cached(style)` 会同时跳过静态面板和变化的计数器：存储已到 Count: 12，渲染内容仍为 Count: 0，因此该实验被撤回。后续区域设计必须连接提交及纯原生输入、滚动、动画和异步内容的失效路径，并验证实际渲染内容后再接受性能收益。尺寸、裁剪和继承文字样式同样属于缓存依赖。

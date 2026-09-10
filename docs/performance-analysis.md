@@ -158,3 +158,88 @@ Put reusable rules in the relevant skill reference and concrete window sizes
 and measurements in the incident record. Include applicability conditions and
 counterexamples. Replace outdated conclusions so unresolved and subsequently
 confirmed claims do not remain side by side without context.
+
+## Native commit attribution
+
+Use the production diagnostic host to measure the actual foreground handoff,
+decoder, transaction, native reconciliation, and GPUI rendering. It disables the
+FPS overlay and uses the same `CommitPump` and `SolidRoot` as applications:
+
+```sh
+cargo build --locked -p solid-gpui --bin solid-gpui-profile --features frame-profile
+cargo tree --locked -p solid-gpui --features frame-profile -e normal,build,features
+target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+```
+
+Finish compilation first and verify that the feature graph excludes `test-support`.
+The default native run performs 360 count updates at approximately 30 updates/s,
+resizes 800 → 560 → 1280 → 800 pixels wide, and exits. Add `--hold` to keep the
+window for manual interaction after the automatic run; close it within five
+minutes. Confirm the final counter, button, editable text, actual scroll
+movement, and narrow/wide geometry. Programmatic resizing does not establish
+physical trackpad or OS live-resize acceptance.
+
+`solid_commit_stages` aggregates elapsed milliseconds and invocation counts on
+the foreground thread. Counts follow the printed stage order. `queue` includes
+channel backpressure and foreground handoff wait; it excludes time before the
+runtime reader receives the frame. `decode` includes the wire guard. `tree`
+includes mutation and dependency collection; `dependencies` is its nested
+subset. `validate` measures Extension contract validation. `commit` includes
+transaction work, validation, native state reconciliation, and notification,
+but excludes decode and subsequent window-owned Extension instance updates.
+Its count also includes command admission; command execution is outside this
+span. Filter the workload when comparing Snapshot/Patch commit costs.
+`extensions` measures those instance updates. `render` measures SolidRoot's
+preparation and GPUI element construction, not the later layout, paint, GPU, or
+presentation stages. Nested stages must not be added to their containing stage.
+The intervals are aggregates, not per-commit traces or end-to-end latency.
+
+The same host emits `[solid-gpui-frame-profile]` intervals with CPU draw and
+invalidation/input-to-presentation histograms. Use those and a bounded native
+CPU sample to distinguish element construction, Taffy layout, text shaping,
+prepaint, and scene building. Report inactive/idle intervals separately. The
+logger does not create redraws and has no clock-reading cost without the
+`frame-profile` feature (or test instrumentation).
+
+The JavaScript fixture measures synchronous signal propagation and signal-to-
+encoded-frame delivery separately. The latter includes commit construction,
+encoding, and microtask scheduling, and stops before transport submission; it
+is not IPC latency or pure Solid runtime cost. Every measured update must emit
+one text operation with the expected value. Its memory-only scaling mode is:
+
+```sh
+bun --conditions=browser scripts/native-commit-profile.ts
+```
+
+For deterministic native CPU attribution, run the opt-in experiment serially:
+
+```sh
+cargo test --locked -p solid-gpui --lib snapshot_apply_and_first_draw_scaling_guard -- --ignored --nocapture
+```
+
+Both Snapshot and Patch stage measurements call the actual host entrypoints.
+Each sample releases its test window so earlier scenes do not accumulate across
+later workloads. Commit timing stops inside the GPUI update callback, before TestAppContext can
+flush effects and automatically draw. The separately timed draw is a forced CPU
+draw with executor draining; it is not a production frame interval. Ordinary
+regressions enforce transaction correctness and dependency work bounds instead
+of machine-specific millisecond thresholds.
+
+### Native update and cache boundaries
+
+A Patch journals changed nodes and derives original/final ancestors and typed
+child ownership dependencies. Successful validation publishes the revision and
+one change set; native routes, instances, focus observers, and cache invalidation
+consume that set. A text update in a large unrelated tree must not clone that
+tree or validate unrelated Extension contracts. Structural edits may still
+visit shifted siblings, changed child lists, and dependent compositions.
+
+A smaller commit does not guarantee a cheaper layout. Cached GPUI Entities need
+explicit invalidation by their native state owner. In the shared-root pane
+experiment, merely wrapping panes in `.cached(style)` suppressed both the static
+pane and the changed counter: the native store reached `Count: 12` while the
+rendered counter stayed at `Count: 0`. That experiment was rejected. Any future
+region design must connect commits **and** native-only input, scrolling,
+animations, and asynchronous content to region invalidation, and verify actual
+rendered content before accepting timing improvements. Bounds, clipping, and
+inherited text styles are additional cache dependencies.

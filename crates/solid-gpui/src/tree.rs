@@ -10,7 +10,12 @@ use crate::protocol::{
     UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE, UPDATE_TEXT, UPDATE_TOOLTIP,
     generated_facts,
 };
+mod transaction;
+#[cfg(test)]
+mod transaction_tests;
 mod validation;
+pub(crate) use transaction::PatchChanges;
+use transaction::{PatchTransaction, PatchUndo};
 use validation::*;
 pub const KIND_VIEW: u32 = generated_facts::NODE_KIND_VIEW;
 pub const KIND_TEXT: u32 = generated_facts::NODE_KIND_TEXT;
@@ -232,7 +237,7 @@ impl NodeStore {
         Ok(())
     }
 
-    fn build_snapshot(&self, snapshot: Snapshot) -> Result<Self, TreeError> {
+    pub(crate) fn build_snapshot(&self, snapshot: Snapshot) -> Result<Self, TreeError> {
         validate_snapshot_revision(self, &snapshot)?;
         let capacity = snapshot.nodes.len();
         let mut nodes: HashMap<u32, StoredNode> = HashMap::with_capacity(capacity);
@@ -334,20 +339,37 @@ impl NodeStore {
     }
 
     pub fn apply_patch(&mut self, patch: Patch) -> Result<(), TreeError> {
+        self.apply_patch_validated(patch, |_, _| Ok::<_, TreeError>(()))
+            .map(|_| ())
+    }
+
+    /// Validate provider contracts before publishing the tree or its revision.
+    /// Dropping the transaction also rolls back when validation unwinds.
+    pub(crate) fn apply_patch_validated<E: From<TreeError>>(
+        &mut self,
+        patch: Patch,
+        validate: impl FnOnce(&Self, &PatchChanges) -> Result<(), E>,
+    ) -> Result<PatchChanges, E> {
         validate_patch_header(self, &patch)?;
-        let mut undo = PatchUndo::default();
+        let mut transaction = PatchTransaction::new(self);
         let mut stats = PatchStats {
             operation_count: patch.operations.len() as u32,
             ..PatchStats::default()
         };
-        let result = self.apply_patch_inner(&patch.operations, &mut undo, &mut stats);
-        if let Err(error) = result {
-            undo.rollback(self);
-            return Err(error);
-        }
-        self.revision = patch.revision;
-        self.last_patch_stats = stats;
-        Ok(())
+        transaction.store.apply_patch_inner(
+            &patch.operations,
+            transaction.undo.as_mut().expect("active transaction"),
+            &mut stats,
+        )?;
+        let changes = {
+            let _profile = crate::profile::span(crate::profile::Stage::Dependencies);
+            transaction.changes()
+        };
+        validate(transaction.store, &changes)?;
+        transaction.store.revision = patch.revision;
+        transaction.store.last_patch_stats = stats;
+        transaction.commit();
+        Ok(changes)
     }
 
     fn apply_patch_inner(
@@ -854,6 +876,7 @@ impl NodeStore {
         debug_assert_eq!(siblings.get(root.index as usize), Some(&id));
         siblings.remove(root.index as usize);
         self.reindex_parent(root.parent_id, root.index as usize);
+        undo.removed.extend(subtree.iter().copied());
         for child in &subtree {
             self.nodes.remove(child);
             self.children.remove(child);
@@ -902,62 +925,6 @@ impl NodeStore {
             current = parent_id;
         }
         Ok(())
-    }
-}
-
-/// Capture pre-transaction values on first mutation, including absent identities.
-/// Repeated edits share one saved value, and derived Text caches participate in
-/// the same journal as structural changes. Rollback never rebuilds the whole tree.
-#[derive(Debug, Default)]
-struct PatchUndo {
-    nodes: HashMap<u32, Option<StoredNode>>,
-    children: HashMap<u32, Option<Vec<u32>>>,
-}
-
-impl PatchUndo {
-    fn capture_node(&mut self, store: &NodeStore, id: u32) {
-        self.nodes
-            .entry(id)
-            .or_insert_with(|| store.nodes.get(&id).cloned());
-    }
-
-    fn capture(&mut self, store: &NodeStore, id: u32) {
-        self.capture_node(store, id);
-        self.children
-            .entry(id)
-            .or_insert_with(|| store.children.get(&id).cloned());
-    }
-
-    fn capture_parent(&mut self, store: &NodeStore, parent: u32, first_changed: usize) {
-        self.capture(store, parent);
-        for &child in store
-            .children
-            .get(&parent)
-            .into_iter()
-            .flatten()
-            .skip(first_changed)
-        {
-            // Only the shifted suffix needs saved indexes. Appending to a wide
-            // parent does not visit or clone its existing sibling nodes.
-            self.capture_node(store, child);
-        }
-    }
-
-    fn rollback(self, store: &mut NodeStore) {
-        for (id, node) in self.nodes {
-            if let Some(node) = node {
-                store.nodes.insert(id, node);
-            } else {
-                store.nodes.remove(&id);
-            }
-        }
-        for (id, children) in self.children {
-            if let Some(children) = children {
-                store.children.insert(id, children);
-            } else {
-                store.children.remove(&id);
-            }
-        }
     }
 }
 

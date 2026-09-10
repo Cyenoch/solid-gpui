@@ -751,6 +751,8 @@ impl SolidRoot {
                 }
             }
         } else {
+            self.focus_observer_dirty
+                .extend(self.focus_observers.keys().copied());
             self.input_states.retain(|id, _| {
                 self.store.get(*id).is_some_and(|node| {
                     matches!(node.host_properties, Some(HostProperties::TextInput(_)))
@@ -775,6 +777,7 @@ impl SolidRoot {
                 .map(|node| node.id)
                 .collect(),
         };
+        self.focus_observer_dirty.extend(ids.iter().copied());
         for id in ids {
             let Some(node) = self.store.get(id) else {
                 continue;
@@ -836,31 +839,16 @@ impl SolidRoot {
         affected: Option<&HashSet<u32>>,
     ) {
         if let Some(ids) = affected {
-            self.selectable_text_selections.retain(|id, selection| {
-                if !ids.contains(id) {
-                    return true;
+            for id in ids {
+                if self
+                    .store
+                    .get(*id)
+                    .is_none_or(|node| node.kind != KIND_TEXT || !node.selectable)
+                {
+                    self.selectable_text_selections.remove(id);
+                    self.selectable_text_layouts.remove(id);
                 }
-                let Some(node) = self.store.get(*id) else {
-                    return false;
-                };
-                if node.kind != KIND_TEXT || !node.selectable {
-                    return false;
-                }
-                let len = node.text_content.as_ref().map_or(0, |text| text.len());
-                Self::clamp_utf8_range(
-                    selection,
-                    node.text_content.as_deref().unwrap_or_default(),
-                    len,
-                );
-                true
-            });
-            self.selectable_text_layouts.retain(|id, _| {
-                !ids.contains(id)
-                    || self
-                        .store
-                        .get(*id)
-                        .is_some_and(|node| node.kind == KIND_TEXT && node.selectable)
-            });
+            }
             if let Some((id, _)) = self.selectable_text_drag_anchor
                 && ids.contains(&id)
                 && !self.selectable_text_selections.contains_key(&id)

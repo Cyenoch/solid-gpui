@@ -20,7 +20,7 @@ const PAINT_CHILD_MODULES: &[&str] = &[
 ];
 const PROTOCOL_CHILD_MODULES: &[&str] = &["wire/mod.rs", "wire/adapter.rs", "guard.rs"];
 
-const TREE_CHILD_MODULES: &[&str] = &["validation.rs"];
+const TREE_CHILD_MODULES: &[&str] = &["validation.rs", "transaction.rs"];
 
 // These are the current intentional parent/sibling edges. A new edge must be
 // reviewed and added here explicitly rather than becoming an accidental cycle.
