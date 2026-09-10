@@ -30,16 +30,17 @@ gpui-component = { workspace = true, optional = true }
 gpui-base = { workspace = true, optional = true }
 gpui-kit-assets = { workspace = true, optional = true }
 chrono = { version = "0.4", optional = true }
+regex = { version = "1", optional = true }
 gpui-platform = { workspace = true, features = ["font-kit"], optional = true }
-gpui-performance = { path = "../gpui-performance", optional = true }
+gpui-fps = { workspace = true, optional = true }
 solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
 rquickjs = { version = "=0.12.2", features = ["array-buffer"], optional = true }
 
 [features]
 default = ["host"]
 host = ["dep:gpui-platform", "dep:reqwest-client"]
-component-runtime = ["dep:gpui-component", "dep:gpui-base", "dep:chrono"]
-gpui-component = ["host", "component-runtime", "dep:gpui-kit-assets", "dep:gpui-performance"]
+component-runtime = ["dep:gpui-component", "dep:gpui-base", "dep:chrono", "dep:regex"]
+gpui-component = ["host", "component-runtime", "dep:gpui-kit-assets", "dep:gpui-fps"]
 frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 quickjs = ["dep:rquickjs"]

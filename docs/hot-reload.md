@@ -25,9 +25,15 @@ entrypoint and Vite configuration run Components and Showcase in a native window
 - `bun run --cwd examples/website build:native`: produce `examples/website/dist-native/main.native.js`.
 - `target/debug/website-host bun --conditions=browser examples/website/dist-native/main.native.js`: run the bundle after building the host.
 
-Saving application code remounts it in the existing window. Changes to Rust,
-the protocol schema, generated native APIs, require restarting the development command and rebuilding the host. Vite configuration
-changes restart its environment; native preparation follows shutdown of the old environment.
+`website:native:dev` and `quickjs:dev` prepare the JavaScript tooling first and
+leave native compilation to Vite's managed session, so an initial Rust error
+does not terminate the watcher before it starts.
+
+Saving application code remounts it in the existing window. With `native`
+configured, Rust changes automatically rebuild the host and its bindings, then
+open a fresh application session. Vite configuration changes restart its
+environment. Protocol schema changes still require the protocol generation and
+package build workflow before restarting development.
 
 ## Application integration
 
@@ -70,6 +76,42 @@ The plugin injects HMR acceptance into the configured entrypoint. Add
 For development aliases to library source, see
 `examples/website/vite.native.config.ts`; applications usually use package exports.
 
+## Managed development sessions
+
+When Vite launches the host, the development server survives compilation,
+initial application loading, and host failures. Diagnostics remain in the
+terminal; fix the error and save a source file to start a fresh session. Closing
+the application window also leaves the watcher available for the next edit.
+Use Ctrl+C to stop development. Failed sessions are not restarted in a loop.
+
+Configure `native` to watch `.rs` files (including `build.rs`), Cargo manifests
+and lockfiles, and workspace `.cargo/config` or `.cargo/config.toml`. Cargo
+metadata includes local path dependencies outside the frontend directory. A
+native change stops the previous runtime before building and exporting bindings;
+new bindings are never hot-updated into the previous host. Rapid edits supersede
+the pending attempt. Shutting down also cancels Cargo's compiler and build-script
+processes. Changes to build-script asset inputs are not automatically watched;
+save a Rust source file to request that rebuild.
+Cargo's resolved output directory is excluded from input watching, including
+custom target directories inside a source package.
+
+`#native` and `@solid-gpui/core/components` resolve to the configured host's
+generated bindings. Motion imports use that same component catalog. Do not edit
+generated bindings or retain a separate component alias pointing at an older SDK.
+A host rebuild closes and reopens native windows; Rust services, component state,
+and HMR checkpoints do not survive a host process replacement.
+
+An explicit `host: { command }` remains an externally built executable: Vite can
+restart it after a source edit but does not infer a Cargo project. Direct
+Rust-owned startup, `host: false`, and caller-provided Vite environments keep
+their existing lifecycle ownership. Start Vite with `native` when it should own
+native rebuilds and recovery. Production builds and direct host launches still
+exit on errors.
+
+The host continues to reject invalid commits and terminate the affected runtime.
+Subsequent Patches may depend on a rejected revision, so recovery starts a fresh
+session rather than dropping a frame. See [native contract diagnostics](troubleshooting.md#native-contract-mismatch).
+
 ## State and failure boundaries
 
 Reloading remounts the application. It does not automatically preserve each
@@ -83,8 +125,9 @@ native resources across generations.
 After the candidate's setup, render, and first-frame preparation succeed, the
 previous owner and root are disposed and a new epoch is published for the same
 surface ID. Syntax errors and synchronous setup/render errors leave the previous
-page mounted; fixing the error and saving again retries the replacement. A failed
-initial launch closes Vite and exits because no previous page exists.
+page mounted; fixing the error and saving again retries the replacement. With a
+Vite-managed host, an initial failure leaves development watching for another edit
+even when no previous page exists.
 
 `onMount` runs after commit. Its errors and asynchronous side effects are outside
 the rollback boundary; I/O failures also have no rollback guarantee. Top-level
@@ -192,6 +235,12 @@ on a nested route that succeeds with the optimized interpreter. See
 before changing layouts or increasing the runtime's stack limit. Rebuild and
 restart the native host after changing the profile.
 
+After changing interpreter dependencies, verify that this profile still matches
+the package resolved in the consuming workspace's Cargo.lock. A Cargo warning
+that a profile package spec matches no packages means that override is inactive.
+Vite can still report `ready` while the UI overflows during initialization; see
+[blank QuickJS windows](troubleshooting.md#vite-is-ready-but-the-quickjs-window-is-blank).
+
 ### Generation lifecycle
 
 A successful build creates a fresh VM while keeping the Rust host, windows, and
@@ -266,7 +315,9 @@ After activation, asynchronous errors and native side effects are not rolled
 back. A failed development VM leaves the last native tree visible; a later edit
 can recover using the last captured UI state and current host activation metadata.
 That state is a checkpoint, not a promise to preserve changes made after it.
-Rust/config/native-contract changes still require a development restart.
+Rust/native-contract changes replace the host when `native` is configured;
+Vite configuration changes restart development. Neither path preserves a VM
+checkpoint across host replacement.
 
 The `applied` diagnostic confirms activation, not completion of asynchronous
 route rendering. Verify the restored page's actual content and an interaction

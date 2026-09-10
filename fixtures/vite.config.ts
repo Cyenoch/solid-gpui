@@ -23,7 +23,17 @@ export default defineConfig({
     solidGpui({
       entry: process.env.SOLID_GPUI_FIXTURE ?? "fixtures/quickjs-counter.tsx",
       runtime,
-      host: { command: resolve(root, "target/debug/solid-gpui-host") },
+      ...(runtime === "quickjs"
+        ? {
+            native: {
+              manifestPath: resolve(root, "Cargo.toml"),
+              package: "solid-gpui",
+              bin: "solid-gpui-host",
+              features: ["quickjs"],
+              output: resolve(root, ".scratch/vite-fixture/native.ts"),
+            },
+          }
+        : { host: { command: resolve(root, "target/debug/solid-gpui-host") } }),
     }),
   ],
   resolve: { alias: fixtureAliases },

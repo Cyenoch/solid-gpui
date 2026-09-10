@@ -1,5 +1,6 @@
 //! A retained native tree with stable node identity and explicit lazy-branch requests.
 use super::data_list::KeySelection;
+use super::icon_source::ComponentIcon;
 use crate::native::{
     ControlledBinding, Event, EventDefinition, NativeChildren, NativeView, ViewCommand,
 };
@@ -23,7 +24,7 @@ pub struct TreeNode {
     pub key: String,
     pub label: String,
     #[serde(default)]
-    pub icon: Option<String>,
+    pub icon: Option<ComponentIcon>,
     #[serde(default)]
     pub disabled: bool,
     #[serde(default)]
@@ -85,7 +86,7 @@ pub struct TreeLoadCompletion {
 }
 #[derive(Clone)]
 struct Decoration {
-    icon: Option<String>,
+    icon: Option<ComponentIcon>,
     expanded: Option<bool>,
     unloaded: bool,
 }
@@ -408,7 +409,7 @@ impl Render for Tree {
             let icon = decorations
                 .get(item.id.as_ref())
                 .and_then(|m| m.icon.as_ref())
-                .map(|path| Icon::default().path(path.clone()))
+                .map(|path| path.native())
                 .unwrap_or_else(|| {
                     Icon::new(if entry.is_folder() {
                         if entry.is_expanded() {

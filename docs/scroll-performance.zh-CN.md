@@ -108,7 +108,7 @@ Kanban 验收后，用户仍在 Overview 库目录复现持续卡顿。这是独
 
 ## 原生 FPS 监视器
 
-初始宿主局部被动覆盖层已替换为可复用 `gpui-performance::PerformanceMonitor` Entity，被动采样活跃 draw，闲置冻结最后读数。节奏定义及闲置限制见[组件 README](../crates/gpui-performance/README.md)，受控比较见[分析指南](performance-analysis.md)。
+当前 HUD 已替换为固定 GPUI Kit 的 `gpui-fps::FpsMonitor` Entity，默认显示实际 presentation 节奏，可切换为重绘能力估计。500 ms 读数更新与历史被动监视器不同，指标定义和受控比较见[分析指南](performance-analysis.md)。
 
 ## VirtualList 内部滚动：owner 保留与范围反馈（2026-09-05）
 

@@ -1,3 +1,4 @@
+use super::icon_source::ComponentIcon;
 use crate::native::{ElementContext, Event, NativeChild, NativeItems, NativeSlot};
 use gpui::{
     App, ElementId, IntoElement, ParentElement, RenderOnce, StyleRefinement, Styled, Window,
@@ -154,7 +155,7 @@ mod exports {
     #[component]
     pub fn sidebar_menu_item(
         label: String,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         #[prop(default)] active: bool,
         #[prop(default)] disabled: bool,
         #[prop(default)] default_open: bool,
@@ -172,9 +173,7 @@ mod exports {
             .default_open(default_open)
             .click_to_open(click_to_open)
             .click_to_toggle(click_to_toggle)
-            .when_some(icon, |v, path| {
-                v.icon(gpui_component::Icon::default().path(path))
-            })
+            .when_some(icon, |v, path| v.icon(path.native()))
             .when(!suffix.is_empty(), |v| v.suffix(move |_, _| suffix.clone()))
             .on_click(move |_, _, _| on_press.emit(()))
             .children(children.into_iter().map(|c| c.map_native(|c| c.0)));

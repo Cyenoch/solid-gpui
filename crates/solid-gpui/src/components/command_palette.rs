@@ -1,4 +1,5 @@
 use super::data_list::{DataQuery, KeySelection};
+use super::icon_source::ComponentIcon;
 use crate::native::{
     ControlledBinding, Event, EventDefinition, NativeChildren, NativeView, ViewCommand,
 };
@@ -18,7 +19,7 @@ pub struct CommandChoice {
     pub key: String,
     pub label: String,
     #[serde(default)]
-    pub icon: Option<String>,
+    pub icon: Option<ComponentIcon>,
     #[serde(default)]
     pub keywords: Vec<String>,
     #[serde(default)]
@@ -93,9 +94,7 @@ impl Command {
                             .keywords(item.keywords.clone())
                             .checked(item.checked)
                             .disabled(item.disabled)
-                            .when_some(item.icon.as_ref(), |v, path| {
-                                v.icon(gpui_component::Icon::default().path(path.clone()))
-                            })
+                            .when_some(item.icon.as_ref(), |v, path| v.icon(path.native()))
                             .when_some(item.shortcut.as_ref(), |v, shortcut| {
                                 let keystroke = gpui::Keystroke::parse(shortcut)
                                     .expect("validated command shortcut");
@@ -106,11 +105,7 @@ impl Command {
                                         .w_full()
                                         .gap_2()
                                         .when_some(icon.as_ref(), |v, path| {
-                                            v.child(
-                                                gpui_component::Icon::default()
-                                                    .path(path.clone())
-                                                    .size_4(),
-                                            )
+                                            v.child(path.native().size_4())
                                         })
                                         .child(label.clone())
                                         .child(gpui::div().ml_auto().child(

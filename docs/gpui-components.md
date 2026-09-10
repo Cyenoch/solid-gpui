@@ -1,8 +1,26 @@
-# gpui-component from Solid
+# GPUI Kit from Solid
 
-The SDK exposes **144 generated JSX components/descriptors and 13 native functions (8 computation, 5 appearance)** from `@solid-gpui/core/components`. The linked native implementation is gpui-component 0.6.0 at `928c3eb776a3d733d9b771f7dea27a6a79242ced`, with the required declarative state seams recorded in `vendor/gpui-component/SOLID-GPUI.md`.
+The SDK exposes generated native components, descriptors, and commands from
+`@solid-gpui/core/components`. The implementation comes from [GPUI Kit](https://github.com/longbridge/gpui-kit)
+at `05433bd8e9e75af2f3aa508141b78ba21bfa6261` (0.6.1 plus subsequent changes).
+Local native state and lifecycle seams are recorded in
+[`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md).
 
-Importing a component selects its real GPUI implementation. Solid owns application data and child composition. Native entities own focus, text editing, scrolling, menu interaction, docking and in-flight native work. Native callbacks read committed data and enqueue events; they do not synchronously execute JS.
+Solid owns application data, routing, and child composition. Native entities own
+focus, editing, scrolling, menus, docking, animation, and in-flight native work.
+Native callbacks enqueue events; they do not synchronously execute Solid JS.
+
+| Kit layer | How Solid GPUI uses it |
+| --- | --- |
+| `gpui-component` | Styled native controls, editor, Carousel, text, charts, and owned window overlays. The crate name stays `gpui-component`. |
+| `gpui-base` | Native interaction/state, unstyled Base controls, transitions, springs, keyframes, stagger, and presence. |
+| `gpui-kit` | Facade and headless interaction helpers in the isolated native integration test package. |
+| `gpui-fps` | Explicitly enabled, per-window performance HUD; see [metric definitions](performance-analysis.md). |
+| `gpui-kit-assets` | Only the default icons used internally by Kit controls. Application icons belong to Iconify. |
+
+Runtime dependencies live in `vendor/gpui-kit`; `references/gpui-kit` is the
+matching pinned upstream checkout. Bun and QuickJS continue to run Solid
+applications. Shell is not linked; it has no role in Solid application state or routing.
 
 ```tsx
 import { createSignal } from "solid-js";
@@ -15,7 +33,94 @@ const [name, setName] = createSignal("");
 
 The generated file is the API reference: `packages/solid-gpui/src/components.ts`. Do not edit it. `bun run task native-codegen` generates SDK and website host bindings from their actual Rust hosts; `bun run task native-codegen-check` verifies them. Custom native components, props, events and commands use the same generator.
 
+With Vite's `native` option, `@solid-gpui/core/components` and Motion resolve their
+component contracts from the configured host's generated bindings. Rust changes
+automatically rebuild that host and replace the development session; see
+[managed development sessions](hot-reload.md#managed-development-sessions).
+
 ## Coverage
+
+### Carousel
+
+`Carousel` retains one native viewport and selection state. Compose keyed
+`CarouselItem` children; uncontrolled selection follows the same item when Solid
+reorders it. Set `selectedIndex` to control selection, and acknowledge
+`onChange({ index, editSeq })` with `ackEditSeq` when applying external values.
+Use `ref.select(index)`, `next()`, `previous()`, or `getSelectedIndex()` for
+imperative navigation. Optional `previous` and `next` slots replace the controls.
+`orientation="vertical"` requires a positive `viewportHeight`; provide a bounded
+width for a horizontal carousel. At most 1024 items are accepted.
+
+```tsx
+import { Carousel, CarouselItem, Label } from "@solid-gpui/core/components";
+<Carousel viewportHeight={160} pagination looping>
+  <CarouselItem accessibilityLabel="Overview"><Label text="Overview" /></CarouselItem>
+  <CarouselItem accessibilityLabel="Details"><Label text="Details" /></CarouselItem>
+</Carousel>;
+```
+
+### Editor selections and language rules
+
+`Editor` enables native `autoClose` and `smartIndent` by default. Its retained
+state supports multiple cursors, directed selections, native insertion, and undo.
+`Input`, `NumberInput`, `Textarea`, and `Editor` expose `getSelections()` and
+`setSelections({ ranges, editSeq })`. Each range has UTF-8 `anchorByte` and
+`headByte` offsets; the first range is active. Multiple ranges require Editor.
+Offsets inside a UTF-8 sequence or CRLF pair, stale edit sequences, and changes
+during IME composition are rejected before any selection changes. The setter
+accepts 1–1024 ranges and merges overlaps using the native editing rules.
+
+Use `useNative().configureEditorLanguage()` to install native bracket pairs,
+auto-closing pairs with `notIn` contexts, and indentation patterns. Configuration
+is application-wide per language; validate/install it before opening the editor.
+Patterns are Rust regular expressions, bounded to 4096 bytes and a 1 MiB compiled
+program. Changing the language rules does not add a syntax grammar.
+
+### Markdown metadata and icon sources
+
+`TextView format="markdown" frontmatter` enables top-level YAML metadata rendering.
+Simple supported scalars render as a description list; compound or unsupported
+YAML uses the native code-block renderer. Frontmatter is opt-in and requires
+Markdown. It is a display extension, not a general-purpose YAML parser.
+
+Component icon slots accept a registered Iconify name or `{ svg: "<svg …>…</svg>" }` through
+`ComponentIcon`. The standalone generated `Icon` uses `source`, for example
+`<Icon source="lucide:check" />`. SVG is validated and retained natively, with
+a 64 KiB source limit. This also works in Button, menu, sidebar, settings, tree,
+command, table, and dock icon slots. The core `Icon name="…"` API and its offline
+Iconify catalog remain available; see [Iconify](iconify.md).
+
+### Native motion and custom controls
+
+`Motion` takes a target `{ x, y, opacity }` and an `animation` discriminated by
+`type`: `transition`, `spring`, or `keyframes`. Omitted target fields mean zero
+offset and full opacity. Sampling and repaint requests stay in GPUI; completion
+emits `onComplete({ playbackId })`. A new `playbackId` restarts keyframes.
+Transitions animate changes from the current target; springs preserve velocity.
+Keyframes accept 2–128 stops, direction and repeat count (`null` repeats).
+Transition/keyframe `stagger` uses `{ index, count, intervalMs, origin }` with
+`origin` equal to `first`, `last`, or `center`. Duration and absolute delay are
+bounded to 60 seconds. Native motion respects the host's reduced-motion setting.
+
+Use the Solid `Presence` helper to retain the child's owner through its exit:
+
+```tsx
+import { Presence } from "@solid-gpui/core/motion";
+import { Label } from "@solid-gpui/core/components";
+<Presence show={open()} durationMs={180} reveal>
+  {() => <Label text="Details" />}
+</Presence>;
+```
+
+Reversing an exit preserves the existing child. Stale completion events cannot
+dispose a newer child; final exit and parent cleanup dispose its resources.
+`NativePresence` is the generated low-level view for applications managing their
+own child lifetime. Application routing continues to belong to `@solid-gpui/router`.
+
+`BaseButton`, `BaseCheckbox`, `BaseSwitch`, and `BaseToggle` provide native keyboard,
+pointer, focus, and accessibility behavior with application-defined children and
+style. Supply `accessibilityLabel`, controlled state and callbacks; BaseCheckbox
+supports `unchecked`, `checked`, and `indeterminate`.
 
 | Native family            | JS entry points                                                                                                                                                                                                                              |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

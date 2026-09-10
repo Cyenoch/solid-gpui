@@ -43,17 +43,34 @@ pub struct TextViewProps {
     pub selection_format: TextSelectionFormat,
     pub max_lines: Option<usize>,
     pub mdx: bool,
+    pub frontmatter: bool,
+}
+fn markdown_extensions(props: &TextViewProps) -> gpui_component::text::MarkdownExtensions {
+    let mut extensions = gpui_component::text::MarkdownExtensions::default();
+    if props.mdx {
+        extensions = extensions.mdx();
+    }
+    if props.frontmatter {
+        extensions = extensions
+            .frontmatter()
+            .plugin(gpui_component::text::FrontmatterPlugin::new());
+    }
+    extensions
 }
 pub struct TextView {
     state: Entity<gpui_component::text::TextViewState>,
     props: TextViewProps,
     event: Event<String>,
+    markdown_extensions: gpui_component::text::MarkdownExtensions,
 }
 #[crate::component]
 impl NativeView for TextView {
     type Props = TextViewProps;
     type Event = String;
     fn validate_props(p: &Self::Props) -> Result<(), String> {
+        if p.frontmatter && p.format != RichTextFormat::Markdown {
+            return Err("frontmatter requires Markdown format".into());
+        }
         if p.max_lines.is_some_and(|n| n == 0 || n > 100000) {
             return Err("maxLines must be 1..100000".into());
         }
@@ -72,7 +89,9 @@ impl NativeView for TextView {
             }
             RichTextFormat::Html => gpui_component::text::TextViewState::html(&props.text, cx),
         });
+        let markdown_extensions = markdown_extensions(&props);
         Self {
+            markdown_extensions,
             state,
             props,
             event,
@@ -87,6 +106,9 @@ impl NativeView for TextView {
                     s.set_content(p.format.into(), &p.text, cx);
                 }
             });
+        }
+        if p.frontmatter != self.props.frontmatter || p.mdx != self.props.mdx {
+            self.markdown_extensions = markdown_extensions(&p);
         }
         self.props = p;
     }
@@ -118,9 +140,7 @@ impl Render for TextView {
         if let Some(lines) = self.props.max_lines {
             v = v.max_lines(lines);
         }
-        if self.props.mdx {
-            v = v.markdown_mdx();
-        }
+        v = v.markdown_extensions(self.markdown_extensions.clone());
         if self.event.is_subscribed() {
             let weak = cx.entity().downgrade();
             v = v.on_link_click(move |url, _, _, cx| {

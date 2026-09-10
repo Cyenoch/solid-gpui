@@ -8,9 +8,9 @@ members = [
     "crates/solid-gpui-macros",
     "crates/solid-gpui-bun-sys",
     "crates/gpui-iconify",
-    "crates/gpui-performance",
+    "crates/solid-gpui-integration-tests",
 ]
-exclude = ["references/zed", "references/gpui-component", "vendor/gpui-component"]
+exclude = ["references/zed", "references/gpui-kit", "vendor/gpui-kit"]
 
 [workspace.package]
 edition = "2024"
@@ -28,9 +28,11 @@ bebop = "3.2.3"
 futures = "0.3"
 gpui = { package = "gpui-pre", version = "0.3.3" }
 gpui-platform = { package = "gpui-pre-platform", version = "0.3.3" }
-gpui-component = { path = "vendor/gpui-component/crates/component" }
-gpui-base = { path = "vendor/gpui-component/crates/base" }
-gpui-kit-assets = { path = "vendor/gpui-component/crates/assets" }
+gpui-component = { path = "vendor/gpui-kit/crates/component" }
+gpui-base = { path = "vendor/gpui-kit/crates/base" }
+gpui-kit-assets = { path = "vendor/gpui-kit/crates/assets" }
+gpui-kit = { path = "vendor/gpui-kit/crates/kit", default-features = false }
+gpui-fps = { path = "vendor/gpui-kit/crates/fps" }
 serde = { version = "1.0", features = ["derive"] }
 skrifa = { version = "0.46.2", default-features = false, features = ["std"] }
 thiserror = "2.0"

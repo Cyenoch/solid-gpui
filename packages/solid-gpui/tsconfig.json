@@ -3,6 +3,10 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@solid-gpui/core/native": ["./src/native.ts"],
+      "@solid-gpui/core/components": ["./src/components.ts"]
+    },
     "jsx": "preserve",
     "jsxImportSource": "@solid-gpui/core",
     "strict": true,

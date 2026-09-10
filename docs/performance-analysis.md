@@ -34,7 +34,7 @@ before collecting measurements.
 
 | Metric                   | What it measures                                         | What it cannot establish                                     |
 | ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------ |
-| Active FPS               | Draw intervals divided by elapsed active time            | Reciprocal CPU cost, display refresh rate, or scanout FPS    |
+| Observed FPS             | Native presentation event cadence in the sample window  | Full-redraw capacity, physical scanout, or idle baseline with the HUD active |
 | CPU draw p50/p95/p99/max | CPU cost of native construction, layout, and painting    | All queueing or input latency, or smoothness by itself       |
 | Input-to-present         | GPUI input to the platform presentation boundary         | Wheel-only latency or the time photons reach the display     |
 | Dirty-to-present         | Invalidation request to the presentation boundary        | Direct comparisons across idle, startup, or resize intervals |
@@ -49,21 +49,48 @@ distributions before reporting a pooled percentile.
 
 ## 3. Compare with and without the live monitor
 
-See [gpui-performance](../crates/gpui-performance/README.md) for the reusable
-component and integration. It samples draws passively and freezes its reading
-and graph during idle periods. Its README defines the sample window, 500 ms
-activity threshold, and inability to distinguish long stalls from idle time.
-Use external profiling and input latency to investigate severe stalls.
+The host uses [gpui-fps](../vendor/gpui-kit/crates/fps/README.md) from the pinned
+GPUI Kit tree. A window retains its monitor entity and drops it on close.
+`ComponentHost::with_performance_monitor(true)` explicitly enables it; the default
+is disabled in every build. The website enables it in its native host.
 
-Application hosts hide the monitor in every build. Enable it explicitly with
-`ComponentHost::with_performance_monitor(true)`. The website opts in in
-`examples/website/native/src/main.rs`; set that argument to `false` and rebuild
-for a comparison without the overlay. No environment variable overrides this
-application policy. Run `bun run task website-native-profile` for interval logging.
+Our headline starts in observed **FPS**, counted from native presentation events.
+Right-click switches to **MAX FPS**, the reciprocal of sampled CPU draw cost,
+capped by the display refresh rate. This estimates full-redraw capacity; it is
+not observed cadence. **FRAME/P95** describe CPU draw timing, **DROP** counts draws
+that exceeded the configured time budget (not compositor-dropped frames), and
+**INV** describes native invalidations. CPU/GPU/memory are platform-dependent
+process samples. Do not infer physical input latency from any of these readings.
 
-The host's `frame-profile` feature enables interval logging. The FPS overlay
-does not start a timer or notification loop. Use the same binary, window,
-input, and dataset in both runs, and retain both measurements.
+The monitor skips its first eight draw samples and excludes marked HUD-only
+readout draws from draw-cost statistics. The visible readout refreshes every
+500 ms, including when content is idle, so the HUD itself can cause presentation
+events. The clock stops after the HUD is no longer rendered. An inactive but still
+rendered window can continue refreshing. This replaces the
+old passive-only HUD; idle cadence with the HUD visible is not a baseline.
+
+Compare the same workload with the overlay disabled and enabled. Change only
+`with_performance_monitor`, rebuild, retain both binary identities and measurements,
+and keep window size, input and data fixed. No environment variable overrides
+this application policy. `frame-profile` and `bun run task website-native-profile`
+retain separate CPU draw, input-to-present and invalidation-to-present interval
+logging. Physical input-to-display acceptance still requires real platform input.
+
+
+For a serial comparison using one diagnostic binary, build it first and run the
+same 360-update, 500-row workload twice. This fixture alone accepts
+`SOLID_GPUI_PROFILE_HUD`; it does not change the application's host policy.
+
+```sh
+cargo build -p solid-gpui --bin solid-gpui-profile --features frame-profile
+SOLID_GPUI_PROFILE_HUD=0 target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+SOLID_GPUI_PROFILE_HUD=1 target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+```
+
+Each run ends after approximately 12 seconds and checks every incremental update,
+including narrow/wide resizes, and rejects a changed final content viewport.
+It exercises native commits and presentation, not
+physical trackpad latency. Keep compilation and other measurements out of the runs.
 
 ## 4. Reproduction matrix and correctness
 
@@ -163,7 +190,7 @@ confirmed claims do not remain side by side without context.
 
 Use the production diagnostic host to measure the actual foreground handoff,
 decoder, transaction, native reconciliation, and GPUI rendering. It disables the
-FPS overlay and uses the same `CommitPump` and `SolidRoot` as applications:
+FPS overlay by default and uses the same `CommitPump` and `SolidRoot` as applications:
 
 ```sh
 cargo build --locked -p solid-gpui --bin solid-gpui-profile --features frame-profile

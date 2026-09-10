@@ -17,6 +17,8 @@ For Bun execution, production uses a bundle without a development server.
 role and the separate QuickJS production target; this ADR describes the
 external Bun development path.
 The embedded one-evaluation runtime in ADR 0002 is unchanged; this development path uses
-an external Bun process. Rust/config changes require restart.
+an external Bun process. Rust/config changes replace the host or development
+environment; [ADR-0019](0019-persistent-native-development-sessions.md) assigns
+automatic native rebuilds and persistent failure recovery to Vite-managed launches.
 
 See [the maintained workflow and failure boundaries](../hot-reload.md).

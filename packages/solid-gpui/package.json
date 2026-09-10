@@ -55,6 +55,11 @@
       "import": "./dist/components.js",
       "default": "./dist/components.js"
     },
+    "./motion": {
+      "types": "./dist/motion.d.ts",
+      "import": "./dist/motion.js",
+      "default": "./dist/motion.js"
+    },
     "./web": {
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js",

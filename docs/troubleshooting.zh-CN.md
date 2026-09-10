@@ -37,6 +37,21 @@ TypeScript 包与原生宿主必须使用相同协议版本。从同一 checkout
 
 关闭或卸载的 surface ID 永久退役。创建新的 surface 和根，不要换一个 generation 复用旧 ID。
 
+## 原生契约不匹配
+
+Extension 的 provider、catalog digest、entry ID 和版本必须与宿主完全匹配。
+目录不匹配时会显示模块名、renderer 与 host 的摘要，以及宿主为该 entry 注册的
+名称。不同目录的 entry ID 可能重新分配，因此显示的宿主名称不一定是 renderer
+尝试使用的组件。缺少适配器则需要检查宿主是否注册了该模块、是否支持相应组件。
+
+先根据 Vite 打印的 host 路径确认实际可执行文件，启用所需 Cargo feature，并在
+该宿主注册模块。配置 `native` 后，保存修正后的 Rust 源码或 Cargo manifest 会
+重建宿主及 bindings；`#native` 和 `@solid-gpui/core/components` 都使用这份输出。
+显式 `host` 配置需要自行重建可执行文件，再保存应用源码启动新的会话。
+
+提交被拒绝后当前会话会结束，Vite 继续等待下一次修改，不会反复重启同一个失败
+程序，也不会继续应用依赖错误 revision 的 Patch。见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
+
 ## 内嵌 Bun 构建失败
 
 内嵌 Bun/JSC 适配器只支持 macOS。进程模式使用 `bun run website:native`。启用 `embedded-bun` 的宿主接受显式应用入口并启动内嵌路径。失败时检查能否获取固定版本 Bun 源码，以及生成的原生构建图是否与仓库补丁匹配。
@@ -46,6 +61,32 @@ TypeScript 包与原生宿主必须使用相同协议版本。从同一 checkout
 QuickJS 宿主使用 `@solid-gpui/core/embedded` 的 `EmbeddedTransport`。`StdioTransport` 属于 Bun 进程或内嵌 stdio 环境，需要 `process.stdin` 和 `process.stdout`。
 
 使用 `bun --bun vite build`（配置 `runtime: "quickjs"`） 将依赖打成一个 ESM 模块。Node/Bun 导入会被拒绝，环境不提供 `process`、`Bun`、文件系统或 `fetch` 等网络 API。将服务移到 Rust Native Module，调用生成客户端。打包器的 browser target 只选择可移植依赖，不会为 QuickJS 创建浏览器环境。
+
+## Vite 已 ready，但 QuickJS 窗口空白
+
+Vite 的 `ready` 和 bundle 大小只证明编译成功，不证明应用已完成渲染。只显示背景的原生窗口，可能仍停留在等待后续更新的初始加载树。
+
+先捕获实际运行时异常，再调整布局。在 `native.windowChrome().then(value => setChrome(value)).catch(...)` 这样的启动链中，catch 不仅接收原生命令失败，也会捕获 `setChrome` 触发的同步渲染异常。笼统的“窗口配置失败”提示可能掩盖主组件创建时的 `Maximum call stack size exceeded`。在 stderr 诊断中保留异常消息和栈，避免记录可能包含应用数据的原生返回值。
+
+若 Cargo 提示 `profile package spec ... did not match any packages`，检查消费工作区实际解析的依赖：
+
+```sh
+cargo tree --locked -i rquickjs-sys
+```
+
+当前 QuickJS feature 使用 `rquickjs-sys`。旧的 `quickjs-jit-sys` 或 `quickjs-jit-core` profile 无法优化它。删除失效条目，按[应用构建配置](hot-reload.zh-CN.md#应用构建配置)设置工作区根 profile，然后重新编译并重启原生宿主。保存 TSX 不能改变原生编译参数；增大栈限制前先执行下文的栈诊断。
+
+对于先渲染加载树的应用，可临时启用协议 tap，区分“原生命令返回成功”和“界面得到更新”：
+
+```sh
+SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
+```
+
+替换为应用实际的可执行文件和 bundle 路径。采集时用单个宿主直接加载出现故障的开发 bundle，不经过重载 supervisor，避免不同运行时代次共用同一个 tap 输出文件。
+
+检查 `snapshot`、带 `success: true` 的命令结果事件，以及后续 `patch` 记录。成功返回却没有 Patch 可以将故障定位到原生命令之后，但不能单独证明原因。不要把它当成所有应用的启动断言：完整界面在首个 Snapshot 中渲染时，本来就不必产生 Patch。仍需检查实际页面内容和一次交互。tap 只记录元数据；完成有界复现后关闭。
+
+一次消费项目回归保持开发 bundle 和 2 MiB JS 栈预算不变：失效的 profile 导致空白窗口、被捕获的栈溢出和缺失的 UI Patch；优化 `rquickjs-sys` 后主界面恢复。对比时固定 bundle、状态和栈预算。
 
 ## QuickJS 在深层路由上栈溢出
 

@@ -93,3 +93,8 @@ Run `bun run task --help` for all tasks; see the
 
 [MIT](LICENSE) for project-owned code.
 [Third-party notices](THIRD-PARTY-NOTICES.md) cover vendored code, fonts, and icons.
+
+Native controls come from the pinned [GPUI Kit integration](docs/gpui-components.md).
+Kit supplies styled controls, Base motion/custom controls and the desktop FPS HUD.
+Its internal control assets are separate from application [Iconify icons](docs/iconify.md).
+GPUI Shell is not part of the host.

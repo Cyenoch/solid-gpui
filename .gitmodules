@@ -2,7 +2,7 @@
 	path = references/zed
 	url = https://github.com/zed-industries/zed.git
 	shallow = true
-[submodule "references/gpui-component"]
-	path = references/gpui-component
-	url = https://github.com/longbridge/gpui-component.git
+[submodule "references/gpui-kit"]
+	path = references/gpui-kit
+	url = https://github.com/longbridge/gpui-kit.git
 	shallow = true

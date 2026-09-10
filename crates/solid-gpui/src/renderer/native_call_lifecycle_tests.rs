@@ -62,8 +62,14 @@ impl NativeModule for Module {
 }
 struct Registry(Arc<Module>);
 impl ExtensionRegistry for Registry {
-    fn resolve(&self, _: [u8; 16], _: [u8; 32], _: u32, _: u32) -> Option<&dyn ExtensionAdapter> {
-        None
+    fn resolve(
+        &self,
+        p: [u8; 16],
+        d: [u8; 32],
+        e: u32,
+        v: u32,
+    ) -> Result<&dyn ExtensionAdapter, ExtensionError> {
+        NoExtensions.resolve(p, d, e, v)
     }
     fn native_module(&self, id: [u8; 16], digest: [u8; 32]) -> Option<Arc<dyn NativeModule>> {
         (id == MODULE_ID && digest == MODULE_DIGEST)

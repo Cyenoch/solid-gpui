@@ -100,6 +100,55 @@ fn exported_contract_rejects_bigint_and_digest_tracks_the_signature() {
 }
 
 #[test]
+fn registry_distinguishes_missing_modules_from_mismatched_native_contracts() {
+    use solid_gpui::{
+        ExtensionError,
+        native::{ComponentDefinition, NativeModules},
+    };
+    let definition = ModuleDefinition::new(
+        "controls",
+        vec![ComponentDefinition::element(
+            "ScrollShadow",
+            vec![],
+            |_: &(), _| gpui::div(),
+        )],
+        vec![],
+    );
+    let id = definition.id();
+    let digest = definition.digest();
+    let registry = NativeModules::new(vec![definition]);
+    assert!(registry.resolve(id, digest, 1, 1).is_ok());
+    let error = registry.resolve(id, [0; 32], 1, 1).err().unwrap();
+    assert!(
+        matches!(&error, ExtensionError::ContractMismatch { module, .. } if module == "controls")
+    );
+    let diagnostic = error.to_string();
+    assert!(diagnostic.contains("renderer catalog"));
+    assert!(diagnostic.contains("host catalog"));
+    assert!(diagnostic.contains("host entry: ScrollShadow"));
+    assert!(
+        registry
+            .resolve(id, digest, 1, 2)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("version 2 is unsupported")
+    );
+    assert!(
+        registry
+            .resolve(id, digest, 2, 1)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("entry 2 is not registered")
+    );
+    assert!(matches!(
+        registry.resolve([0; 16], digest, 1, 1),
+        Err(ExtensionError::AdapterNotFound { .. })
+    ));
+}
+
+#[test]
 fn ambiguous_type_and_command_names_cannot_form_a_contract() {
     #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
     #[ts(rename = "SharedName")]

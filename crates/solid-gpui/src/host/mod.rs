@@ -47,13 +47,10 @@ impl gpui::AssetSource for HostAssets {
         if path.starts_with("icons/") {
             return gpui_kit_assets::Assets.load(path);
         }
-        if let Some(bytes) = crate::icons::load(path) {
-            return Ok(Some(std::borrow::Cow::Borrowed(bytes)));
-        }
-        gpui_iconify::IconAssets.load(path)
+        crate::icons::ApplicationIconAssets.load(path)
     }
     fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
-        let icons = gpui_iconify::IconAssets.list(path)?;
+        let icons = crate::icons::ApplicationIconAssets.list(path)?;
         #[cfg(feature = "gpui-component")]
         let icons = icons
             .into_iter()
@@ -1762,6 +1759,29 @@ mod icon_asset_tests {
         #[cfg(feature = "gpui-component")]
         {
             let native_icons = assets.list("icons/").unwrap();
+            let expected =
+                include_str!("../../../../vendor/gpui-kit/crates/assets/default-icons.txt")
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .count();
+            assert_eq!(
+                native_icons.len(),
+                expected,
+                "only Kit control defaults are installed"
+            );
+            assert!(
+                crate::icons::ApplicationIconAssets
+                    .load("icons/check.svg")
+                    .unwrap()
+                    .is_none()
+            );
+            assert!(
+                crate::icons::ApplicationIconAssets
+                    .list("icons/")
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(!crate::icons::is_registered("icons/check.svg"));
             assert!(
                 !native_icons.is_empty(),
                 "native control icons must be installed"

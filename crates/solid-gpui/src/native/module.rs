@@ -376,13 +376,42 @@ impl ExtensionRegistry for ModuleDefinition {
         digest: [u8; 32],
         entry: u32,
         version: u32,
-    ) -> Option<&dyn ExtensionAdapter> {
-        if provider != self.id || digest != self.digest || version != 1 {
-            return None;
+    ) -> Result<&dyn ExtensionAdapter, crate::ExtensionError> {
+        if provider != self.id {
+            return Err(crate::ExtensionError::AdapterNotFound {
+                provider_id: provider,
+                catalog_digest: digest,
+                entry_id: entry,
+                entry_version: version,
+            });
         }
-        self.components
-            .get(entry.wrapping_sub(1) as usize)
+        let component = self.components.get(entry.wrapping_sub(1) as usize);
+        let mismatch = |reason| crate::ExtensionError::ContractMismatch {
+            module: self.name.clone(),
+            reason,
+        };
+        if digest != self.digest {
+            let hex = |bytes: &[u8]| {
+                bytes
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>()
+            };
+            return Err(mismatch(format!(
+                "renderer catalog {}, host catalog {}; renderer entry {entry} (host entry: {})",
+                hex(&digest),
+                hex(&self.digest),
+                component.map_or("unregistered", |c| c.name),
+            )));
+        }
+        if version != 1 {
+            return Err(mismatch(format!(
+                "entry {entry} version {version} is unsupported; host requires version 1"
+            )));
+        }
+        component
             .map(|c| c as &dyn ExtensionAdapter)
+            .ok_or_else(|| mismatch(format!("entry {entry} is not registered")))
     }
     fn native_module(&self, id: [u8; 16], digest: [u8; 32]) -> Option<Arc<dyn NativeModule>> {
         (id == self.id && digest == self.digest)
@@ -470,8 +499,23 @@ impl NativeModules {
     }
 }
 impl ExtensionRegistry for NativeModules {
-    fn resolve(&self, p: [u8; 16], d: [u8; 32], e: u32, v: u32) -> Option<&dyn ExtensionAdapter> {
-        self.modules.iter().find_map(|m| m.resolve(p, d, e, v))
+    fn resolve(
+        &self,
+        p: [u8; 16],
+        d: [u8; 32],
+        e: u32,
+        v: u32,
+    ) -> Result<&dyn ExtensionAdapter, crate::ExtensionError> {
+        self.modules
+            .iter()
+            .find(|m| m.id == p)
+            .ok_or(crate::ExtensionError::AdapterNotFound {
+                provider_id: p,
+                catalog_digest: d,
+                entry_id: e,
+                entry_version: v,
+            })?
+            .resolve(p, d, e, v)
     }
     fn native_module(&self, id: [u8; 16], digest: [u8; 32]) -> Option<Arc<dyn NativeModule>> {
         self.modules

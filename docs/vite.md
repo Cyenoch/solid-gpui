@@ -108,14 +108,21 @@ solidGpui({
 and `features` are optional Cargo selectors. Cargo's artifact messages determine
 the executable path, including custom target directories; ambiguous binaries are
 rejected. Vite invokes that executable's exporter, atomically writes bindings,
-and resolves `#native` before loading the application. Unchanged output is not
-rewritten. Configure TypeScript `paths` for `#native` to the same generated file.
+and resolves both `#native` and `@solid-gpui/core/components` to that output before
+loading the application. This also keeps Motion on the running host's catalog.
+Unchanged output is not rewritten. Configure TypeScript `paths` for `#native`
+to the same generated file; use its generated types when changing native APIs.
 
 Use either `native` or `host` to select an executable. `native` already selects
 and builds the host. The first Rust build cannot depend on the JS bundle whose
-bindings it is about to export. Change Rust contracts by restarting development;
-Vite configuration restarts close the previous environment before preparing the
-replacement host and bindings.
+bindings it is about to export. During development, Rust source, Cargo manifest,
+lockfile, and workspace Cargo configuration edits rebuild the host and bindings
+automatically, including local path dependencies. Vite stops the old runtime
+before publishing the new bindings, then launches a fresh host. Compilation or
+application startup failures leave the watcher running; fix and save to retry.
+Closing the native window leaves development watching too; Ctrl+C stops it.
+See [managed development sessions](hot-reload.md#managed-development-sessions)
+for watched inputs, state loss on host replacement, and lifecycle ownership.
 
 Native module calls are independent of the bundler. A direct Bun JS application
 can import the host's exported `native.ts` because Bun loads TypeScript modules;
@@ -142,6 +149,10 @@ must have the npm dependencies installed. `command()` returns a regular
 The helper selects Bun's client resolution condition and protocol-safe logging.
 It exports bindings from the current native executable instead of recursively
 building another host. Handle `--export-native` before starting this runtime.
+
+When launched directly by Rust, that Rust process owns its own lifetime and must
+be rebuilt/restarted externally. For automatic native rebuilds and persistent
+failure recovery, launch the application through Vite with `native` configured.
 
 When Vite launches that Rust application, the same helper attaches to the existing
 Vite module channel. It does not start a second Vite server. This helper returns

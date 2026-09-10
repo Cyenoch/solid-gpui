@@ -87,6 +87,12 @@ class Tasks {
   }
 
   private async buildPackages(): Promise<void> {
+    await this.install();
+    await this.nativeCodegen();
+    await this.buildJavaScriptPackages();
+  }
+
+  private async buildJavaScriptPackages(): Promise<void> {
     await this.corePackageBuild();
     await this.buildVitePackage();
     await this.routerPackageBuild();
@@ -100,7 +106,6 @@ class Tasks {
 
   private async buildCorePackage(): Promise<void> {
     await this.install();
-    await this.nativeCodegen();
     await this.buildPackage({
       directory: corePackageDir,
       entrypoints: [
@@ -108,12 +113,13 @@ class Tasks {
         "./src/runtime.ts",
         "./src/native.ts",
         "./src/components.ts",
+        "./src/motion.ts",
         "./src/stdio.ts",
         "./src/embedded.ts",
         "./src/web.ts",
       ],
       conditions: ["browser"],
-      external: ["@solid-gpui/core/native", "bebop", "solid-js", "solid-js/*"],
+      external: ["@solid-gpui/core/native", "@solid-gpui/core/components", "bebop", "solid-js", "solid-js/*"],
     });
   }
 
@@ -397,6 +403,7 @@ class Tasks {
         "scripts/application-build.test.ts",
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
+        "scripts/dev-session.test.ts",
         "scripts/task-contract.test.ts",
         "scripts/release-prep.test.ts",
       ]),
@@ -544,33 +551,27 @@ class Tasks {
   async websiteNative(profile = false): Promise<void> {
     await this.packageBuild();
     await run(["bun", "run", "build:native"], { cwd: websiteDir });
-    await run(
-      [
-        "cargo",
-        "run",
-        "-p",
-        "website-host",
-        ...(profile ? ["--features", "solid-gpui/frame-profile"] : []),
-        "--",
-        "bun",
-        "run",
-        "--conditions=browser",
-        websiteNativeEntry,
-      ],
-      { env: { SOLID_GPUI_PERF_MONITOR: profile ? "1" : "0" } },
-    );
+    await run([
+      "cargo",
+      "run",
+      "-p",
+      "website-host",
+      ...(profile ? ["--features", "solid-gpui/frame-profile"] : []),
+      "--",
+      "bun",
+      "run",
+      "--conditions=browser",
+      websiteNativeEntry,
+    ]);
   }
 
   async websiteNativeDev(): Promise<void> {
-    await this.packageBuild();
-    await run(["bun", "--bun", "vite", "--config", join(websiteDir, "vite.native.config.ts")], {
-      env: { SOLID_GPUI_PERF_MONITOR: "0" },
-    });
+    await this.buildJavaScriptPackages();
+    await run(["bun", "--bun", "vite", "--config", join(websiteDir, "vite.native.config.ts")]);
   }
 
   async quickJsDev(): Promise<void> {
-    await this.packageBuild();
-    await run(["cargo", "build", "-p", "solid-gpui", "--bin", "solid-gpui-host", "--features", "quickjs"]);
+    await this.buildJavaScriptPackages();
     await run(["bun", "--bun", "vite", "--config", join(repoRoot, "fixtures/vite.config.ts")]);
   }
 

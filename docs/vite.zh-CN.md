@@ -96,12 +96,17 @@ solidGpui({
 
 路径相对于 Vite root 解析。`package` 和 `features` 是可选 Cargo 参数。
 插件从 Cargo artifact 消息取得实际可执行文件，包括自定义 target 目录；
-多个候选会报错。随后运行该文件的 exporter，原子写入 bindings，建立 `#native`
-别名，再加载应用。内容未变化时不重写文件。TypeScript `paths` 需要指向同一文件。
+多个候选会报错。随后运行该文件的 exporter，原子写入 bindings，将 `#native`
+和 `@solid-gpui/core/components` 都指向该文件，再加载应用；Motion 也使用同一
+宿主的组件目录。内容未变化时不重写文件。TypeScript 中 `#native` 的 `paths`
+需要指向同一文件；修改原生 API 时使用这里生成的类型。
 
 用 `native` 或 `host` 选择宿主；`native` 已经负责选择和构建。
-首次 Rust 构建不能依赖尚待生成 bindings 的 JS bundle。修改 Rust 契约后重启
-开发；Vite 配置重启会先关闭旧环境，再准备新宿主与 bindings。
+首次 Rust 构建不能依赖尚待生成 bindings 的 JS bundle。开发时，Rust 源码、Cargo
+manifest、lockfile 和工作区 Cargo 配置变化会自动重建宿主与 bindings，也覆盖
+本地路径依赖。Vite 先停止旧 runtime，再发布 bindings 并启动新宿主。编译或首次
+加载失败会继续监听；修复并保存即可重试。关闭原生窗口后也会保留监听，Ctrl+C
+结束开发。监听范围、宿主替换的状态丢失和生命周期归属见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
 
 Native 调用不依赖打包器。直接 Bun JS 应用可以导入宿主导出的 `native.ts`，
 因为 Bun 自身支持加载 TypeScript；无需 Vite 或 `#native` 别名。
@@ -123,6 +128,9 @@ solid_gpui::run_application(app::native_module(), runtime);
 需要设置环境变量时，`command()` 返回普通 `std::process::Command`。
 helper 设置 Bun 的 client condition 和协议日志规则，并从当前原生可执行文件
 导出 bindings，避免递归构建。启动 runtime 前必须处理 `--export-native`。
+
+直接由 Rust 启动时，该 Rust 进程仍需由外部重建和重启。要自动重建原生代码并在
+失败后继续监听，请通过配置了 `native` 的 Vite 启动应用。
 
 由 Vite 启动该 Rust 应用时，同一 helper 会连接既有模块通道，不再启动第二个
 Vite server。它返回 Bun `ProcessAdapter`，不是 QuickJS adapter。

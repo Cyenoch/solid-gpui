@@ -1,8 +1,23 @@
-# 在 Solid 中使用 gpui-component
+# 在 Solid 中使用 GPUI Kit
 
-SDK 从 `@solid-gpui/core/components` 暴露 **144 个生成的 JSX 组件/描述符和 10 个原生函数（8 个计算、2 个外观）**。链接的实现为 gpui-component 0.6.0，提交 `928c3eb776a3d733d9b771f7dea27a6a79242ced`；声明式状态接入点记录在 `vendor/gpui-component/SOLID-GPUI.md`。
+SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与命令。
+实现来自 [GPUI Kit](https://github.com/longbridge/gpui-kit)，固定提交
+`05433bd8e9e75af2f3aa508141b78ba21bfa6261`（0.6.1 及后续变更）。本地状态与生命周期接入点记录在
+[`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md)。
 
-导入组件即选择其真实 GPUI 实现。Solid 拥有应用数据和子内容组合，原生 Entity 拥有焦点、文本编辑、滚动、菜单交互、停靠和在途工作。原生回调读取已提交数据并排队事件，不同步执行 JS。
+Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
+原生回调排队事件，不同步执行 Solid JS。
+
+| Kit 层 | Solid GPUI 的用途 |
+| --- | --- |
+| `gpui-component` | 带样式的原生控件、编辑器、Carousel、文本、图表及窗口弹层；crate 名称仍为 `gpui-component`。 |
+| `gpui-base` | 原生交互与状态、无样式控件、过渡、弹簧、关键帧、交错延迟与 presence。 |
+| `gpui-kit` | 独立原生集成测试包使用的 facade 和无窗口系统交互辅助工具。 |
+| `gpui-fps` | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.md)。 |
+| `gpui-kit-assets` | 仅提供 Kit 控件内部需要的默认图标；应用图标归 Iconify。 |
+
+运行依赖位于 `vendor/gpui-kit`，`references/gpui-kit` 是匹配的固定上游检出。
+Solid 应用继续由 Bun 或 QuickJS 运行；不链接 Shell，它不参与应用状态或路由。
 
 ```tsx
 import { createSignal } from "solid-js";
@@ -15,7 +30,76 @@ const [name, setName] = createSignal("");
 
 生成文件 `packages/solid-gpui/src/components.ts` 是 API 参考，不要手工修改。`bun run task native-codegen` 从真实 Rust 宿主生成 SDK 与 website 绑定，`bun run task native-codegen-check` 验证一致性。自定义组件、属性、事件和命令使用同一生成器。
 
+配置 Vite 的 `native` 后，`@solid-gpui/core/components` 与 Motion 会使用所选
+宿主生成的组件契约。Rust 变化会自动重建宿主并替换开发会话；见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
+
 ## 覆盖范围
+
+### Carousel
+
+`Carousel` 保留一个原生视口和选择状态。使用带稳定身份的 `CarouselItem` 子项；
+非受控选择在 Solid 重排后跟随同一项目。通过 `selectedIndex` 控制选择，
+应用外部值时用 `ackEditSeq` 确认 `onChange({ index, editSeq })`。
+ref 提供 `select(index)`、`next()`、`previous()` 和 `getSelectedIndex()`。
+`previous` / `next` slot 可以替换控制按钮。垂直方向必须设置正数 `viewportHeight`，
+水平方向应有界定的宽度。最多接受 1024 个项目。
+
+```tsx
+import { Carousel, CarouselItem, Label } from "@solid-gpui/core/components";
+<Carousel viewportHeight={160} pagination looping>
+  <CarouselItem accessibilityLabel="Overview"><Label text="Overview" /></CarouselItem>
+  <CarouselItem accessibilityLabel="Details"><Label text="Details" /></CarouselItem>
+</Carousel>;
+```
+
+### 编辑器选择与语言规则
+
+`Editor` 默认启用原生 `autoClose` 和 `smartIndent`，支持多光标、有方向的选择、原生插入和撤销。
+`Input`、`NumberInput`、`Textarea` 和 `Editor` 提供 `getSelections()` 与
+`setSelections({ ranges, editSeq })`。每个范围使用 UTF-8 字节偏移 `anchorByte` / `headByte`；
+首个范围为活动选择，多范围仅适用于 Editor。UTF-8 序列或 CRLF 内部偏移、过期编辑序号、
+IME 组合期间的选择变更都会在修改状态前拒绝。接受 1–1024 个范围，重叠按原生编辑规则合并。
+
+`useNative().configureEditorLanguage()` 可安装括号对、带 `notIn` 上下文的自动闭合对和缩进规则。
+配置按语言在应用内共享，应先配置再打开编辑器。模式使用 Rust 正则表达式，源最多 4096 字节，
+编译程序最多 1 MiB。编辑规则不会添加语法高亮 grammar。
+
+### Markdown 元数据与图标来源
+
+`TextView format="markdown" frontmatter` 启用顶部 YAML 元数据渲染。
+支持的简单标量显示为描述列表，复合或不支持的 YAML 显示为原生代码块。
+此能力必须显式开启且仅适用于 Markdown；它不是通用 YAML 解析器。
+
+组件图标 slot 通过 `ComponentIcon` 接受已注册的 Iconify 名称或 `{ svg: "<svg …>…</svg>" }`。
+生成的独立 `Icon` 使用 `source`，例如 `<Icon source="lucide:check" />`。
+SVG 校验后由原生保留，源文本限制为 64 KiB。Button、菜单、侧栏、设置、树、命令、表格和停靠图标均可使用。
+核心 `Icon name="…"` API 及离线 Iconify 目录仍可使用，参见 [Iconify](iconify.md)。
+
+### 原生动画与自定义控件
+
+`Motion` 接受 `{ x, y, opacity }` 目标和由 `type` 区分的 `transition`、`spring`、`keyframes`。
+省略的偏移为零，不透明度为一。逐帧采样和重绘请求留在 GPUI，完成后发送 `onComplete({ playbackId })`。
+更新 `playbackId` 重播关键帧；过渡从当前目标变化，弹簧保留速度。
+关键帧接受 2–128 个停靠点、播放方向、重复次数（`null` 为无限重复）。
+过渡与关键帧支持 `stagger={{ index, count, intervalMs, origin }}`，
+`origin` 可为 `first`、`last`、`center`。时长及绝对延迟不超过 60 秒，并遵循宿主减少动画设置。
+
+通过 Solid `Presence` helper 将子 owner 保留至退出完成：
+
+```tsx
+import { Presence } from "@solid-gpui/core/motion";
+import { Label } from "@solid-gpui/core/components";
+<Presence show={open()} durationMs={180} reveal>
+  {() => <Label text="Details" />}
+</Presence>;
+```
+
+反转退出会保留原子内容，过期完成事件不能销毁新的子 owner；最终退出和父 owner 清理都会释放资源。
+`NativePresence` 是自行管理子生命周期时使用的底层生成视图。应用路由仍由 `@solid-gpui/router` 拥有。
+
+`BaseButton`、`BaseCheckbox`、`BaseSwitch` 和 `BaseToggle` 提供原生键盘、指针、焦点和无障碍行为，
+应用定义子内容与样式。需提供 `accessibilityLabel`、受控状态和回调；
+BaseCheckbox 支持 `unchecked`、`checked`、`indeterminate`。
 
 | 原生家族   | JS 入口                                                                                                                                                                                                                                      |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,7 +113,7 @@ const [name, setName] = createSignal("");
 | 停靠       | DockArea，布局描述符创建真实原生 TabGroup 与 TilesState 容器                                                                                                                                                                                 |
 | 图表       | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                          |
 | 底层绘图   | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                              |
-| 外观       | useNative().getTheme/setTheme，支持 light、dark、system，应用于原生 Component 和 Base 主题                                                                                                                                                   |
+| 外观       | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                   |
 | 计算       | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                   |
 
 部分上游类型属于其他控件，不是独立屏幕元素：

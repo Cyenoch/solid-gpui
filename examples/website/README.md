@@ -70,6 +70,12 @@ The build generates the WASM module before type checking. Standalone
 Pages owns these browser checks; the SDK package CI gate runs independently of
 website build products.
 
+The reference documentation catalog loads `docs/*.md` and their `.zh-CN.md`
+translations directly through `src/documentation.ts`. Update those sources for
+both website languages. The Troubleshooting guide includes native QuickJS blank
+startup diagnosis, stale Cargo profiles, and protocol-tap interpretation; these
+native runtime checks are separate from the browser's WASM startup checks.
+
 Start the website with the matching SDK bindings and WASM host:
 
 ```sh
@@ -80,6 +86,16 @@ bun run website
 Browser `dev` and `build` both prepare the Rust WASM host and generated SDK
 bindings before invoking Vite. Restart development after changing Rust contracts.
 Direct Vite invocations bypass this synchronization.
+
+Native component dependencies come from `vendor/gpui-kit`; the pinned
+`references/gpui-kit` submodule is used for upstream comparison. The
+[component guide](../../docs/gpui-components.md) describes which GPUI Kit layers
+the host exposes, and is published in both website languages. Carousel, Base
+controls, native motion/presence, editor options, Markdown frontmatter, and SVG
+icon examples use generated contracts. The host embeds only Kit's default control
+icons; application icons use the separate offline Iconify catalog. Shell is not
+part of the native or Web host. FPS is the upstream Kit HUD in the desktop host,
+with definitions in the performance guide.
 
 See [Web host setup and capabilities](../../docs/web.md) for the toolchain,
 browser requirements, architecture, tests, and deployment instructions.
@@ -102,6 +118,13 @@ bun run website:native:package
 All three targets use `@solid-gpui/vite`: native development owns the host and
 Bun ModuleRunner, embedded builds select QuickJS, and browser builds select the
 universal web transform. Native bindings come from the configured Cargo host.
+Native development automatically rebuilds Rust source and Cargo configuration
+changes, including local dependencies, and replaces the host session with matching
+bindings. `#native`, component imports, and Motion use that host's generated catalog.
+Build and application failures leave Vite watching for the next source edit;
+Ctrl+C stops development. Host replacement reopens windows and resets state.
+The [development guide](../../docs/hot-reload.md#managed-development-sessions)
+describes watched inputs and the distinct browser and Rust-owned launch behavior.
 `build:embedded` writes the final self-contained `dist-embedded/app.js`; packaging
 copies that artifact without another bundling pass.
 

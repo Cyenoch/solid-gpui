@@ -1,4 +1,9 @@
 export const componentDescriptionsChinese: Record<string, string> = {
+  "A retained native carousel with keyboard navigation and pagination.": "保留原生状态的轮播，支持键盘导航与分页。",
+  "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates.":
+    "原生动画支持过渡、弹簧和关键帧，无需逐帧更新 JavaScript。",
+  "Retain children until their native exit animation completes.": "保留子内容，直到原生退出动画完成。",
+  "An accessible native control with application-owned visuals.": "由应用定义外观的无障碍原生控件。",
   "Reveal scrollable content with edge fades that disappear at the boundaries.":
     "通过边缘淡出提示可滚动内容，滚动到边界时对应淡出消失。",
   "Show application status and contextual information.": "显示应用状态与上下文信息。",

@@ -24,6 +24,26 @@ Iconify 完整图标库中的名称不会自动可用。无需安装额外的 Ja
 
 ## 可用名称
 
+GPUI Kit 的 `gpui-kit-assets` 是独立的内部控件资源包，通过 `icons/` 提供箭头、勾选、关闭等默认图形。
+宿主只嵌入 `default-icons.txt` 中的资源，Web 也一样，不使用资源 CDN。
+升级 Kit 不会向 `ICON_NAMES` 或应用图标目录添加名称。
+
+应用图标归 `gpui-iconify` 和 `solid_gpui::icons`。内置 SVG 使用 `iconify/` 缓存键，
+注册的应用 SVG 使用 `application-icons/`。`ApplicationIconAssets` 只处理这两个命名空间，不解析 Kit 路径。
+应用通过 `collection:name` 使用图标，不直接使用内部缓存键。
+
+生成组件的图标 slot 同样使用应用目录：
+
+```tsx
+import { Button, Icon } from "@solid-gpui/core/components";
+<Button label="Save" icon="lucide:check" />;
+<Icon source="lucide:check" />;
+```
+
+slot 接受已注册名称或显式 `{ svg: "…" }`，一次校验后保留原生图标，以单色字形着色。
+品牌原色或调色板图标应放在普通子内容中，使用核心 `Icon`。
+应用图标属性拒绝 Kit 内部的 `icons/*.svg` 路径，两个目录之间不做回退。
+
 导入 `ICON_NAMES` 枚举内置目录，使用 `IconName` 为应用的图标选择添加类型。
 常用名称包括 `lucide:search`、`lucide:settings`、`lucide:check`、
 `lucide:moon` 和 `lucide:sun`。

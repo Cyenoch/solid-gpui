@@ -4,6 +4,7 @@ export const componentFamilies = [
   "Attachment AttachmentActions AttachmentContent AttachmentDescription AttachmentGroup AttachmentMedia AttachmentTitle",
   "Avatar AvatarGroup",
   "Breadcrumb BreadcrumbItem",
+  "Carousel CarouselItem",
   "Bubble BubbleContent BubbleGroup BubbleReactions",
   "DescriptionList DescriptionItem DescriptionText",
   "Dialog DialogAction DialogClose DialogContent DialogDescription DialogFooter DialogHeader DialogTitle",

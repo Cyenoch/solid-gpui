@@ -94,3 +94,12 @@ Web and desktop share the application and router in `examples/website`.
 native `file:` URLs, and `data:image/...` URLs. GPUI owns loading and caching;
 no JavaScript fetch is required. See [Images](../../docs/native-composition.md#images)
 for an example, fallback behavior, and custom host setup.
+
+Use `@solid-gpui/core/motion` for native Motion and lifetime-aware Presence.
+With Vite's `native` option, component imports and Motion use bindings exported
+by the selected host. Rust edits automatically rebuild and replace its development
+session; compilation and application failures keep Vite watching for a corrected
+source edit. See [managed development sessions](../../docs/hot-reload.md#managed-development-sessions).
+Component icon props use registered Iconify names or explicit SVG data; GPUI Kit's
+internal assets do not extend the application icon catalog. See the repository's
+`docs/gpui-components.md` and `docs/iconify.md` guides for the generated contracts.

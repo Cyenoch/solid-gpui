@@ -70,12 +70,12 @@ Exact representation can use flat arrays/ranges rather than per-cluster Vec allo
 | [primitive layout](../../crates/solid-gpui/src/renderer/input.rs:80) | Replace x_for_index/closest_index and one-rectangle selection logic with authoritative visual geometry. Store caret affinity beside selection head; preserve controlled value, undo, marked text and UTF-16 commands. |
 | [primitive paint](../../crates/solid-gpui/src/renderer/paint/text_input.rs) | Paint caret/marked range/selection from the same geometry used by hit testing, and scroll to the active visual caret. |
 | [primitive selection movement](../../crates/solid-gpui/src/renderer/input.rs:1501) | Split visual cursor movement from logical grapheme deletion, retaining existing key aliases and shift anchor rules. |
-| [generated editor LineLayout](../../vendor/gpui-component/crates/base/src/input/editor/display_map/text_wrapper.rs:519) | Store shared geometry next to each shaped visual line. Replace position_for_index/closest_index/selection-background calculations; current line-end affinity only represents wrap ambiguity and must be extended for bidi affinity. |
-| [generated editor movement](../../vendor/gpui-component/crates/base/src/input/base/movement.rs:168) | Visual left/right/up/down, selection collapse and focus-scroll policy. |
-| [generated editor paint](../../vendor/gpui-component/crates/base/src/input/base/element.rs:661) | Replace endpoint-based selection rectangles, including search/marked text highlights. |
-| [generated editor IME](../../vendor/gpui-component/crates/base/src/input/base/state.rs:2984) | Route bounds_for_range and character_index_for_point through shared visual geometry; preserve fold/display and masked-text index maps. |
+| [generated editor LineLayout](../../vendor/gpui-kit/crates/base/src/input/editor/display_map/text_wrapper.rs:519) | Store shared geometry next to each shaped visual line. Replace position_for_index/closest_index/selection-background calculations; current line-end affinity only represents wrap ambiguity and must be extended for bidi affinity. |
+| [generated editor movement](../../vendor/gpui-kit/crates/base/src/input/base/movement.rs:168) | Visual left/right/up/down, selection collapse and focus-scroll policy. |
+| [generated editor paint](../../vendor/gpui-kit/crates/base/src/input/base/element.rs:661) | Replace endpoint-based selection rectangles, including search/marked text highlights. |
+| [generated editor IME](../../vendor/gpui-kit/crates/base/src/input/base/state.rs:2984) | Route bounds_for_range and character_index_for_point through shared visual geometry; preserve fold/display and masked-text index maps. |
 
-These are two distinct editors; fixing one does not complete the other. The generated editor already stores logical rows, visible line byte offsets, wrapping indentation and cursor state in [LastLayout](../../vendor/gpui-component/crates/base/src/input/base/layout.rs:16); retain that ownership rather than adding a second editor state model.
+These are two distinct editors; fixing one does not complete the other. The generated editor already stores logical rows, visible line byte offsets, wrapping indentation and cursor state in [LastLayout](../../vendor/gpui-kit/crates/base/src/input/base/layout.rs:16); retain that ownership rather than adding a second editor state model.
 
 ## Executed failing probes
 

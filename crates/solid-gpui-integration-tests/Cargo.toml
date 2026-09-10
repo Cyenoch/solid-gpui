@@ -1,0 +1,12 @@
+[package]
+name = "solid-gpui-integration-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dev-dependencies]
+solid-gpui = { path = "../solid-gpui", features = ["gpui-component", "test-support"] }
+gpui-kit = { workspace = true, features = ["component", "assets", "test-support"] }
+serde_json.workspace = true
+

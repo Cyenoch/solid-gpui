@@ -147,3 +147,62 @@ fn provider_keybindings_restore_baseline_for_replacement_and_close(cx: &mut Test
         assert_eq!(bindings.bindings().count(), 1);
     });
 }
+
+#[gpui::test]
+fn fps_monitor_is_explicit_per_window_and_released_with_its_window(cx: &mut TestAppContext) {
+    let mut profile = ComponentHost::default();
+    cx.update(|app| profile.initialize(app));
+    let open = |profile: &ComponentHost, cx: &mut TestAppContext| {
+        cx.update(|app| {
+            profile
+                .open_window(
+                    WindowOptions::default(),
+                    InMemoryAdapter::new(),
+                    profile.extension_registry(),
+                    app,
+                )
+                .unwrap()
+                .0
+        })
+    };
+    let disabled = open(&profile, cx);
+    let read_monitor = |window: AnyWindowHandle, cx: &mut TestAppContext| {
+        window
+            .update(cx, |root, _, cx| {
+                let root = root.downcast::<Root>().unwrap();
+                let content = root
+                    .read(cx)
+                    .view()
+                    .clone()
+                    .downcast::<ProviderContent>()
+                    .unwrap();
+                content
+                    .read(cx)
+                    .frame_monitor
+                    .as_ref()
+                    .map(Entity::downgrade)
+            })
+            .unwrap()
+    };
+    assert!(read_monitor(disabled, cx).is_none());
+    profile = profile.with_performance_monitor(true);
+    let first = open(&profile, cx);
+    let second = open(&profile, cx);
+    let monitor = read_monitor(first, cx).unwrap();
+    let other = read_monitor(second, cx).unwrap();
+    assert_ne!(monitor.entity_id(), other.entity_id());
+    first
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    cx.run_until_parked();
+    assert!(monitor.upgrade().is_none());
+    assert!(other.upgrade().is_some());
+    second
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    disabled
+        .update(cx, |_, window, _| window.remove_window())
+        .unwrap();
+    cx.run_until_parked();
+    assert!(other.upgrade().is_none());
+}

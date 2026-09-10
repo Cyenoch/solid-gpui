@@ -257,10 +257,10 @@ under that machine load; do not advertise a universal 120 Hz guarantee.
 ## Native FPS monitor
 
 The initial host-local passive overlay has been replaced by the reusable live
-`gpui-performance::PerformanceMonitor` entity. It passively samples active draws,
-freezing the last reading during idle periods. See the [component README](../crates/gpui-performance/README.md)
-for the cadence definition and idle-gap limitations, and [analysis guide](performance-analysis.md)
-for controlled comparisons.
+`gpui-fps::FpsMonitor` entity from the pinned GPUI Kit tree. The current HUD
+starts with observed presentation cadence and can switch to estimated redraw
+capacity. Its 500 ms readout refresh differs from the historical passive monitor.
+See [current definitions and controlled comparisons](performance-analysis.md).
 
 ## VirtualList internal scrolling: owner retention and range feedback (2026-09-05)
 

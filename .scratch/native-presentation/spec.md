@@ -44,7 +44,7 @@ features and is not a production performance qualification.
 
 | Area | Evidence | Consequence |
 | --- | --- | --- |
-| Existing Popover | [`components/popups.rs`](../../crates/solid-gpui/src/components/popups.rs), [`gpui-base/popover.rs`](../../vendor/gpui-component/crates/base/src/popover.rs) | Native GPUI overlay in the current window, with controlled state, focus, Escape, and outside dismissal. Its `NativeSlot` is not an OS view. |
+| Existing Popover | [`components/popups.rs`](../../crates/solid-gpui/src/components/popups.rs), [`gpui-base/popover.rs`](../../vendor/gpui-kit/crates/base/src/popover.rs) | Native GPUI overlay in the current window, with controlled state, focus, Escape, and outside dismissal. Its `NativeSlot` is not an OS view. |
 | Multiple Surfaces | [`surface-host.ts`](../../packages/solid-gpui/src/surface-host.ts), [`renderer.ts`](../../packages/solid-gpui/src/renderer.ts), [`host/mod.rs`](../../crates/solid-gpui/src/host/mod.rs) | Independent trees, routing, teardown, and retired IDs already exist. A native child Surface can reuse this infrastructure. |
 | Surface/window association | `Surface.window`, `NativeStateRegistry.windows: HashMap<WindowId, u32>`, `insert_surface`, `window_closed` in `host/mod.rs` | Currently one registered Surface per GPUI window. Multiple embedded Surfaces within one native window require a structural change. |
 | Popup primitive | [`platform/popup.rs`](../../vendor/gpui/src/platform/popup.rs), `WindowKind::AnchoredPopup` in [`platform.rs`](../../vendor/gpui/src/platform.rs) | Parent-relative logical coordinates, anchor, gravity, constraints, offset, and grab are already modeled. Extend this seam instead of inventing absolute-position JSX commands. |

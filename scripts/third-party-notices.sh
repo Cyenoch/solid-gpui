@@ -103,9 +103,9 @@ for package_id, license_info in cargo_licenses.items():
     source = package.get("source")
     if source is None:
         manifest = pathlib.Path(package["manifest_path"]).resolve()
-        vendored_root = root / "vendor" / "gpui-component"
+        vendored_root = root / "vendor" / "gpui-kit"
         if manifest.is_relative_to(vendored_root):
-            source_kind = "vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches)"
+            source_kind = "vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches)"
             source_detail = "vendored"
         elif manifest.is_relative_to(root / "vendor"):
             provenance = package.get("metadata", {}).get("solid-gpui-vendor", {}).get("source")

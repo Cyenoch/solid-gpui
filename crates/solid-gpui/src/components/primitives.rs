@@ -1,4 +1,5 @@
 //! Small native controls. Events carry semantic values; all interaction remains GPUI-owned.
+use super::icon_source::ComponentIcon;
 use super::validation::{PageButtons, RatingMax};
 use super::{ControlSize, Percentage};
 use crate::native::{Deserialize, Serialize, TS};
@@ -93,7 +94,7 @@ mod exports {
         #[prop(default)] variant: AlertVariant,
         #[prop(default)] banner: bool,
         #[prop(default = true)] visible: bool,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         #[prop(default)] size: ControlSize,
         on_close: Event<()>,
         cx: &mut ElementContext,
@@ -111,9 +112,7 @@ mod exports {
             .with_size(size)
             .when(banner, |v| v.banner())
             .when_some(title, |v, title| v.title(title))
-            .when_some(icon, |v, path| {
-                v.icon(gpui_component::Icon::default().path(path))
-            })
+            .when_some(icon, |v, path| v.icon(path.native()))
             .when(on_close.is_subscribed(), |v| {
                 v.on_close(move |_, _, _| on_close.emit(()))
             })
@@ -122,16 +121,14 @@ mod exports {
     pub fn avatar(
         #[prop(default)] src: Option<String>,
         #[prop(default)] name: Option<String>,
-        #[prop(default)] placeholder: Option<String>,
+        #[prop(default)] placeholder: Option<ComponentIcon>,
         #[prop(default)] size: ControlSize,
     ) -> impl IntoElement + Styled {
         gpui_component::avatar::Avatar::new()
             .with_size(size)
             .when_some(src, |v, src| v.src(src))
             .when_some(name, |v, name| v.name(name))
-            .when_some(placeholder, |v, path| {
-                v.placeholder(gpui_component::Icon::default().path(path))
-            })
+            .when_some(placeholder, |v, path| v.placeholder(path.native()))
     }
     #[component]
     pub fn badge(
@@ -139,7 +136,7 @@ mod exports {
         #[prop(default = 99)] max: u32,
         #[prop(default)] dot: bool,
         #[prop(default)] color: Option<Color>,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         cx: &mut ElementContext,
     ) -> impl IntoElement {
         gpui_component::badge::Badge::new()
@@ -147,9 +144,7 @@ mod exports {
             .when(dot, |v| v.dot())
             .when_some(count, |v, count| v.count(count as usize))
             .when_some(color, |v, c| v.color(c.native()))
-            .when_some(icon, |v, path| {
-                v.icon(gpui_component::Icon::default().path(path))
-            })
+            .when_some(icon, |v, path| v.icon(path.native()))
             .children(cx.children())
     }
     #[component(children = false)]
@@ -354,13 +349,13 @@ mod exports {
     #[component(children = false)]
     pub fn spinner(
         #[prop(default)] color: Option<Color>,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         #[prop(default)] size: ControlSize,
     ) -> impl IntoElement {
         gpui_component::spinner::Spinner::new()
             .with_size(size)
             .when_some(color, |v, c| v.color(c.native()))
-            .when_some(icon, |v, s| v.icon(gpui_component::Icon::default().path(s)))
+            .when_some(icon, |v, s| v.icon(s.native()))
     }
     #[component(children = false)]
     pub fn status_bar(left: NativeSlot, right: NativeSlot) -> impl IntoElement + Styled {
@@ -396,7 +391,7 @@ mod exports {
         #[prop(default)] checked: bool,
         #[prop(default)] disabled: bool,
         #[prop(default)] label: Option<String>,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         #[prop(default)] outline: bool,
         #[prop(default)] tooltip: Option<String>,
         #[prop(default)] size: ControlSize,
@@ -411,7 +406,7 @@ mod exports {
             .when(outline, |v| v.outline())
             .when_some(label, |v, s| v.label(s))
             .when_some(tooltip, |v, s| v.tooltip(s))
-            .when_some(icon, |v, s| v.icon(gpui_component::Icon::default().path(s)))
+            .when_some(icon, |v, s| v.icon(s.native()))
             .when(on_change.is_subscribed(), |v| {
                 v.on_click(move |checked, _, _| on_change.emit(*checked))
             })
@@ -419,12 +414,12 @@ mod exports {
     }
     #[component(children = false)]
     pub fn icon(
-        path: String,
+        source: ComponentIcon,
         #[prop(default)] size: ControlSize,
         #[prop(default)] color: Option<Color>,
     ) -> impl IntoElement + Styled {
-        gpui_component::Icon::default()
-            .path(path)
+        source
+            .native()
             .with_size(size)
             .when_some(color, |v, c| v.text_color(c.native()))
     }

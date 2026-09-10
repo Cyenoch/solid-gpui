@@ -1,4 +1,5 @@
 //! Native DataTable delegates keep data, keys and sorting on the Rust side.
+use super::icon_source::ComponentIcon;
 use super::{
     ControlSize,
     data_list::{PageRequest, PaginationGate},
@@ -95,7 +96,7 @@ pub enum TableValue {
     Number(f64),
     Bool(bool),
     Badge { badge: String },
-    Icon { icon: String, label: String },
+    Icon { icon: ComponentIcon, label: String },
     Progress { progress: f32 },
 }
 impl TableValue {
@@ -460,7 +461,7 @@ impl TableDelegate for Rows {
                 .into_any_element(),
             Some(TableValue::Icon { icon, label }) => gpui_component::h_flex()
                 .gap_2()
-                .child(gpui_component::Icon::default().path(icon.clone()).size_4())
+                .child(icon.native().size_4())
                 .child(label.clone())
                 .into_any_element(),
             Some(TableValue::Progress { progress }) => {

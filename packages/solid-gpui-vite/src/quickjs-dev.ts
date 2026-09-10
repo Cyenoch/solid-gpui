@@ -4,7 +4,8 @@ import { createServer, type Server, type Socket } from "node:net";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { NativeHostOptions } from "./environment.ts";
+import type { NativeHostOptions, StdioConfig } from "./environment.ts";
+import { DevSession, type DevSessionOptions } from "./dev-session.ts";
 
 /** Vite watch builds feed whole applications to the existing QuickJS reload seam. */
 export class QuickJsDevEnvironment extends DevEnvironment {
@@ -14,7 +15,7 @@ export class QuickJsDevEnvironment extends DevEnvironment {
   private child?: ReturnType<typeof Bun.spawn>;
   private watcher?: Awaited<ReturnType<typeof build>> & { close(): Promise<void> };
   private closeTask?: Promise<void>;
-  private startTask?: Promise<void>;
+  private stopTask?: Promise<void>;
   private bundleTask: Promise<void> = Promise.resolve();
   private rejectStartup?: (error: unknown) => void;
   private startupTimeout?: ReturnType<typeof setTimeout>;
@@ -22,37 +23,54 @@ export class QuickJsDevEnvironment extends DevEnvironment {
   private publishTask?: Promise<void>;
   private pending?: Uint8Array;
   private connected?: () => void;
-  private readonly connection = new Promise<void>((resolve) => {
-    this.connected = resolve;
-  });
+  private connection?: Promise<void>;
   private readonly maps = new Map<number, TraceMap>();
   private sent = 0;
+  session?: DevSession;
 
   constructor(
     name: string,
     config: ResolvedConfig,
-    private readonly prepare: () => Promise<NativeHostOptions>,
+    private readonly options: DevSessionOptions,
   ) {
     super(name, config, { hot: false });
   }
 
   override async listen(server: ViteDevServer): Promise<void> {
-    this.startTask = this.start(server);
-    try {
-      await this.startTask;
-    } catch (error) {
-      await server.close();
-      throw error;
-    }
+    if (typeof Bun === "undefined") throw new Error("Native Vite development requires Bun: bun --bun vite");
+    await super.listen(server);
+    this.session = new DevSession(server, this, this.options, {
+      start: (host, signal, ended) => this.start(server, host, signal, ended),
+      stop: () => this.stopSession(),
+    });
+    await this.session.listen();
   }
 
-  private async start(server: ViteDevServer): Promise<void> {
+  private async start(
+    server: ViteDevServer,
+    host: NativeHostOptions,
+    signal: AbortSignal,
+    onExit: (error?: Error) => void,
+  ): Promise<void> {
     try {
-      if (typeof Bun === "undefined") throw new Error("Native Vite development requires Bun: bun --bun vite");
-      const host = await this.prepare();
-      if (this.stopped) return;
+      signal.throwIfAborted();
+      this.stopped = false;
+      this.connection = new Promise<void>((resolve) => {
+        this.connected = resolve;
+      });
+      signal.addEventListener(
+        "abort",
+        () => {
+          this.stopped = true;
+          this.rejectStartup?.(new Error("QuickJS session stopped during startup"));
+          this.connected?.();
+          this.child?.kill();
+          this.socket?.destroy();
+        },
+        { once: true },
+      );
       this.directory = await mkdtemp(join(tmpdir(), "solid-gpui-quickjs-"));
-      if (this.stopped) return;
+      signal.throwIfAborted();
       this.control = createServer((peer) => {
         if (this.socket) {
           peer.destroy();
@@ -88,19 +106,22 @@ export class QuickJsDevEnvironment extends DevEnvironment {
           }
         });
         peer.on("error", (error) => {
-          server.config.logger.error(`Reload connection failed: ${error.message}`);
-          void server.close();
+          onExit(new Error(`Reload connection failed: ${error.message}`));
+        });
+        peer.on("close", () => {
+          if (!signal.aborted) this.rejectStartup?.(new Error("QuickJS reload connection closed during startup"));
         });
       });
       await new Promise<void>((resolve, reject) => {
         this.control!.once("error", reject);
         this.control!.listen(0, "127.0.0.1", resolve);
       });
-      if (this.stopped) return;
+      signal.throwIfAborted();
       const address = this.control.address();
       if (!address || typeof address === "string") throw new Error("Missing QuickJS reload endpoint");
-      const result = await build({
+      const buildConfig: StdioConfig = {
         ...server.config.inlineConfig,
+        __solidGpuiPreparedHost: host,
         root: server.config.root,
         configFile: server.config.configFile || false,
         mode: server.config.mode,
@@ -111,10 +132,11 @@ export class QuickJsDevEnvironment extends DevEnvironment {
           watch: {},
           rolldownOptions: { output: { entryFileNames: "app.js" } },
         },
-      });
+      };
+      const result = await build(buildConfig);
       if (!("on" in result)) throw new Error("QuickJS development requires a Vite build watcher");
       this.watcher = result;
-      if (this.stopped) return;
+      signal.throwIfAborted();
       let ready!: () => void;
       let failed!: (error: unknown) => void;
       const started = new Promise<void>((resolve, reject) => {
@@ -156,22 +178,21 @@ export class QuickJsDevEnvironment extends DevEnvironment {
                   },
                 );
                 void this.child.exited.then((code) => {
-                  if (this.stopped) return;
-                  failed(new Error(`QuickJS host exited with status ${code}`));
-                  process.exitCode = code;
-                  void server.close();
+                  if (signal.aborted) return;
+                  const error = new Error(`QuickJS host exited with status ${code}`);
+                  failed(error);
+                  onExit(code === 0 ? undefined : error);
                 });
                 this.startupTimeout = setTimeout(
                   () => failed(new Error("QuickJS host did not connect within 30 seconds")),
                   30_000,
                 );
-                void this.connection.then(ready);
+                void this.connection!.then(ready);
               } else {
                 this.pending = bytes;
                 this.publishTask ??= this.publish()
                   .catch((error) => {
-                    server.config.logger.error(String(error));
-                    void server.close();
+                    if (!signal.aborted) onExit(error instanceof Error ? error : new Error(String(error)));
                   })
                   .finally(() => {
                     this.publishTask = undefined;
@@ -186,8 +207,7 @@ export class QuickJsDevEnvironment extends DevEnvironment {
           })
           .catch((error) => {
             failed(error);
-            server.config.logger.error(String(error));
-            void server.close();
+            if (!signal.aborted) onExit(error instanceof Error ? error : new Error(String(error)));
           });
       });
       await started;
@@ -216,21 +236,38 @@ export class QuickJsDevEnvironment extends DevEnvironment {
     }
   }
 
-  override async close(): Promise<void> {
-    return (this.closeTask ??= (async () => {
+  private stopSession(): Promise<void> {
+    return (this.stopTask ??= (async () => {
       this.stopped = true;
       this.rejectStartup?.(new Error("QuickJS environment closed during startup"));
       clearTimeout(this.startupTimeout);
       this.connected?.();
-      await this.startTask?.catch(() => {});
-      this.socket?.destroy();
       this.child?.kill();
+      this.socket?.destroy();
       await this.child?.exited;
       await this.watcher?.close();
       await this.bundleTask;
       await this.publishTask;
       await new Promise<void>((resolve) => (this.control ? this.control.close(() => resolve()) : resolve()));
       if (this.directory) await rm(this.directory, { recursive: true, force: true });
+      this.child = undefined;
+      this.socket = undefined;
+      this.control = undefined;
+      this.watcher = undefined;
+      this.directory = undefined;
+      this.pending = undefined;
+      this.connection = undefined;
+      this.bundleTask = Promise.resolve();
+      this.maps.clear();
+      this.sent = 0;
+    })().finally(() => {
+      this.stopTask = undefined;
+    }));
+  }
+
+  override async close(): Promise<void> {
+    return (this.closeTask ??= (async () => {
+      await this.session?.close();
       await super.close();
     })());
   }

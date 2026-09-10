@@ -1,4 +1,6 @@
 //! Optional gpui-component integration. The host and TypeScript bindings use this module.
+mod base_controls;
+mod carousel;
 mod charts;
 mod choices;
 mod command_palette;
@@ -11,8 +13,12 @@ mod extra_elements;
 mod groups;
 #[cfg(feature = "gpui-component")]
 pub mod host;
+mod icon_source;
 mod input;
+mod input_language;
 mod menus;
+mod motion_types;
+mod motion_view;
 mod native_menu;
 mod notifications;
 mod overlays;
@@ -134,6 +140,7 @@ mod controls {
     #[component]
     pub fn button(
         #[prop(default)] label: Option<String>,
+        #[prop(default)] icon: Option<icon_source::ComponentIcon>,
         #[prop(default)] variant: ButtonVariant,
         #[prop(default)] disabled: bool,
         #[prop(default)] loading: bool,
@@ -165,6 +172,9 @@ mod controls {
             .dropdown_caret(dropdown_caret);
         if compact {
             button = button.compact();
+        }
+        if let Some(icon) = icon {
+            button = button.icon(icon.native());
         }
         if outline {
             button = button.outline();
@@ -280,6 +290,8 @@ pub fn initialize(cx: &mut gpui::App) {
 pub fn native_module() -> crate::native::ModuleDefinition {
     input::definitions()
         .into_iter()
+        .chain(carousel::definitions())
+        .chain(motion_view::definitions())
         .chain(value_controls::definitions())
         .chain(pickers::definitions())
         .chain(choices::definitions())
@@ -292,6 +304,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
         .chain(plot::definitions())
         .fold(
             controls::native_module()
+                .include(base_controls::native_module())
                 .include(primitives::native_module())
                 .include(groups::native_module())
                 .include(table_elements::native_module())
@@ -302,6 +315,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
                 .include(popups::native_module())
                 .include(plot_math::native_module())
                 .include(theme::native_module())
+                .include(input_language::native_module())
                 .with_component(rich_text::definition())
                 .with_component(data_list::definition())
                 .with_component(tree_view::definition())
@@ -312,4 +326,5 @@ pub fn native_module() -> crate::native::ModuleDefinition {
                 .with_component(notifications::definition()),
             |module, definition| module.with_component(definition),
         )
+        .with_contract(include_str!("icon_source.rs"))
 }

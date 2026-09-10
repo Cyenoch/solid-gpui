@@ -51,18 +51,31 @@ export function solidGpui(options: SolidGpuiOptions | { readonly target: "web" }
       const output = config.build?.rolldownOptions?.output;
       if (quickjs && Array.isArray(output)) throw new Error("QuickJS requires a single Vite output configuration");
       const native = options.native && normalizePath(resolve(root, options.native.output ?? ".generated/native.ts"));
+      const nativeOptions = options.native && { ...options.native, output: native! };
+      const prepareSession = async (signal?: AbortSignal): Promise<NativeHostOptions> => {
+        const prepared = (config as StdioConfig).__solidGpuiPreparedHost;
+        if (prepared) return prepared;
+        if (!nativeOptions) return options.host || { command: "solid-gpui-host" };
+        const executable = stdio?.nativeHost ?? (await buildNativeHost(nativeOptions, root, signal));
+        await exportNativeBindings(nativeOptions, root, executable, signal);
+        return { command: executable };
+      };
       let preparation: Promise<NativeHostOptions> | undefined;
-      prepare = () =>
-        (preparation ??= (async () => {
-          if (!options.native) return options.host || { command: "solid-gpui-host" };
-          const executable = stdio?.nativeHost ?? (await buildNativeHost(options.native, root));
-          await exportNativeBindings({ ...options.native, output: native! }, root, executable);
-          return { command: executable };
-        })());
+      prepare = () => (preparation ??= prepareSession());
+      const sessionOptions = { native: nativeOptions, prepare: prepareSession };
       // During restart, dev preparation waits until the previous environment closes.
       if (environment.command === "build") await prepare();
       return {
-        ...(native ? { resolve: { alias: [{ find: "#native", replacement: native }] } } : {}),
+        ...(native
+          ? {
+              resolve: {
+                alias: [
+                  { find: "#native", replacement: native },
+                  { find: "@solid-gpui/core/components", replacement: native },
+                ],
+              },
+            }
+          : {}),
         appType: "custom",
         server: {
           open: false,
@@ -110,8 +123,8 @@ export function solidGpui(options: SolidGpuiOptions | { readonly target: "web" }
                     : options.host === false
                       ? createRunnableDevEnvironment(name, config)
                       : quickjs
-                        ? new QuickJsDevEnvironment(name, config, prepare)
-                        : new NativeDevEnvironment(name, config, entry, prepare)),
+                        ? new QuickJsDevEnvironment(name, config, sessionOptions)
+                        : new NativeDevEnvironment(name, config, entry, sessionOptions)),
             },
           },
         },
@@ -123,7 +136,21 @@ export function solidGpui(options: SolidGpuiOptions | { readonly target: "web" }
       }
     },
     async buildStart() {
-      if (!web && this.environment.name === "ssr") await prepare();
+      if (
+        !web &&
+        this.environment.name === "ssr" &&
+        !(this.environment instanceof NativeDevEnvironment) &&
+        !(this.environment instanceof QuickJsDevEnvironment)
+      )
+        await prepare();
+    },
+    hotUpdate({ file }) {
+      const environment = this.environment;
+      if (
+        (environment instanceof NativeDevEnvironment || environment instanceof QuickJsDevEnvironment) &&
+        environment.session?.suppressUpdate(file)
+      )
+        return [];
     },
     transform(code, id) {
       const filename = normalizePath(id.split("?")[0]!);

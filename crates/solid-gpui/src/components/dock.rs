@@ -1,4 +1,5 @@
 //! Native docking owns geometry and pane entities; Solid owns each pane's committed content.
+use super::icon_source::ComponentIcon;
 use super::{
     ButtonVariant, ControlSize,
     dock_layout::*,
@@ -43,7 +44,7 @@ pub struct DockToolbarButton {
     #[serde(default)]
     pub label: Option<String>,
     #[serde(default)]
-    pub icon: Option<String>,
+    pub icon: Option<ComponentIcon>,
     #[serde(default)]
     pub variant: ButtonVariant,
     #[serde(default)]
@@ -361,7 +362,7 @@ impl Panel for JsPane {
                         b = b.label(v.clone());
                     }
                     if let Some(v) = &s.icon {
-                        b = b.icon(gpui_component::Icon::default().path(v.clone()));
+                        b = b.icon(v.native());
                     }
                     if let Some(v) = &s.tooltip {
                         b = b.tooltip(v.clone());

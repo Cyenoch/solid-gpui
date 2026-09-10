@@ -21,6 +21,12 @@ pub(crate) struct Span {
     started: web_time::Instant,
 }
 
+impl Span {
+    /// Finish a measured stage at an explicit boundary, including in uninstrumented builds.
+    #[inline]
+    pub(crate) fn finish(self) {}
+}
+
 pub(crate) fn span(stage: Stage) -> Span {
     #[cfg(not(any(test, feature = "frame-profile")))]
     let _ = stage;

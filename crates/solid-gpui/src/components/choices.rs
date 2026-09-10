@@ -1,5 +1,6 @@
 //! Value-keyed searchable delegates. Filtering is owned work; popup rendering reads native data.
 use super::ControlSize;
+use super::icon_source::ComponentIcon;
 use crate::native::{
     ControlledBinding, Event, EventDefinition, NativeChildren, NativeView, ViewCommand,
 };
@@ -31,7 +32,7 @@ pub struct Choice {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
-    pub icon: Option<String>,
+    pub icon: Option<ComponentIcon>,
 }
 impl SearchableListItem for Choice {
     type Value = String;
@@ -47,7 +48,7 @@ impl SearchableListItem for Choice {
     fn render(&self, _: &mut Window, _: &mut App) -> impl IntoElement {
         let mut row = gpui_component::h_flex().gap_2().overflow_hidden();
         if let Some(path) = &self.icon {
-            row = row.child(gpui_component::Icon::default().path(path.clone()));
+            row = row.child(path.native());
         }
         let mut text = gpui_component::v_flex().overflow_hidden().child(
             gpui::div()

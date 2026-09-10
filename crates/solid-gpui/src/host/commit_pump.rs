@@ -126,7 +126,7 @@ impl CommitPump {
             while let Some(message) = poll_fn(|cx| self.poll_next(cx)).await {
                 match message {
                     Message::Payload(payload, queued) => {
-                        drop(queued);
+                        queued.finish();
                         let result = registry
                             .update(cx, |registry, cx| registry.route_payload(&payload, cx));
                         if let Err(error) = result {

@@ -51,7 +51,7 @@ macro_rules! text_props {
 text_props!(InputProps { size: ControlSize = ControlSize::Medium, bordered: bool = true, aria_label: Option<String> = None, masked: bool = false, cleanable: bool = false, mask_toggle: bool = false });
 text_props!(NumberInputProps { size: ControlSize = ControlSize::Medium, step: f64 = 1., min: Option<f64> = None, max: Option<f64> = None });
 text_props!(TextareaProps { bordered: bool = true, aria_label: Option<String> = None, rows: usize = 2, auto_grow: Option<AutoGrow> = None, soft_wrap: bool = true, searchable: bool = false });
-text_props!(EditorProps { bordered: bool = true, aria_label: Option<String> = None, language: String = String::new(), soft_wrap: bool = true, searchable: bool = true, line_numbers: bool = true, folding: bool = true, indent_guides: bool = true, tab_size: usize = 2, hard_tabs: bool = false, show_whitespaces: bool = false, scroll_beyond_last_line: Option<usize> = None, cursor_surrounding_lines: Option<usize> = None });
+text_props!(EditorProps { bordered: bool = true, aria_label: Option<String> = None, language: String = String::new(), soft_wrap: bool = true, searchable: bool = true, line_numbers: bool = true, folding: bool = true, indent_guides: bool = true, tab_size: usize = 2, hard_tabs: bool = false, show_whitespaces: bool = false, scroll_beyond_last_line: Option<usize> = None, cursor_surrounding_lines: Option<usize> = None, auto_close: bool = true, smart_indent: bool = true });
 
 #[crate::native_type]
 #[derive(Clone, Debug, PartialEq)]
@@ -76,10 +76,16 @@ pub struct InputSubmit {
 #[crate::native_type]
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct InputSelection {
-    pub start_byte: usize,
-    pub end_byte: usize,
+pub struct InputSelections {
+    pub ranges: Vec<InputSelectionRange>,
     pub edit_seq: u32,
+}
+#[crate::native_type]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSelectionRange {
+    pub anchor_byte: usize,
+    pub head_byte: usize,
 }
 
 trait TextMode: Sized + 'static {
@@ -255,47 +261,55 @@ impl<M: TextMode> NativeView for TextControl<M> {
         vec![
             ViewCommand::new("focus", Self::focus),
             ViewCommand::new("replaceValue", Self::replace_value),
-            ViewCommand::new("getSelection", Self::get_selection),
-            ViewCommand::new("setSelection", Self::set_selection),
+            ViewCommand::new("getSelections", Self::get_selections),
+            ViewCommand::new("setSelections", Self::set_selections),
             ViewCommand::new("insert", Self::insert),
         ]
     }
 }
 
 impl<M: TextMode> TextControl<M> {
-    fn get_selection(
+    fn get_selections(
         &mut self,
         (): (),
         _: &mut Window,
         cx: &mut Context<Self>,
-    ) -> Result<InputSelection, String> {
-        let range = self.state.read(cx).selected_range();
-        Ok(InputSelection {
-            start_byte: range.start,
-            end_byte: range.end,
+    ) -> Result<InputSelections, String> {
+        Ok(InputSelections {
+            ranges: self
+                .state
+                .read(cx)
+                .cursor_selections()
+                .map(|selection| InputSelectionRange {
+                    anchor_byte: selection.anchor,
+                    head_byte: selection.head,
+                })
+                .collect(),
             edit_seq: self.edit_seq,
         })
     }
-    fn set_selection(
+    fn set_selections(
         &mut self,
-        selection: InputSelection,
+        selections: InputSelections,
         _: &mut Window,
         cx: &mut Context<Self>,
     ) -> Result<(), String> {
-        if selection.edit_seq != self.edit_seq {
+        if selections.edit_seq != self.edit_seq {
             return Err("selection targets an obsolete edit sequence".into());
         }
-        let value = self.state.read(cx).value().to_string();
-        if selection.start_byte > selection.end_byte
-            || !value.is_char_boundary(selection.start_byte)
-            || !value.is_char_boundary(selection.end_byte)
-        {
-            return Err("selection must contain ordered UTF-8 byte boundaries".into());
+        if selections.ranges.is_empty() || selections.ranges.len() > 1024 {
+            return Err("selections must contain between 1 and 1024 ranges".into());
         }
-        self.state.update(cx, |state, cx| {
-            state.set_selected_range(selection.start_byte..selection.end_byte, cx)
-        });
-        Ok(())
+        let native = selections
+            .ranges
+            .iter()
+            .map(|range| gpui_base::input::DirectedSelection {
+                anchor: range.anchor_byte,
+                head: range.head_byte,
+            })
+            .collect::<Vec<_>>();
+        self.state
+            .update(cx, |state, cx| state.set_cursor_selections(&native, cx))
     }
     fn insert(
         &mut self,
@@ -604,6 +618,12 @@ impl TextMode for Code {
         window: &mut Window,
         cx: &mut Context<gpui_base::input::EditorState>,
     ) {
+        if old.is_none_or(|o| o.auto_close != p.auto_close) {
+            s.set_auto_close(p.auto_close, window, cx);
+        }
+        if old.is_none_or(|o| o.smart_indent != p.smart_indent) {
+            s.set_smart_indent(p.smart_indent, window, cx);
+        }
         if old.is_none_or(|o| o.language != p.language) {
             s.set_highlighter(p.language.clone(), cx);
         }
@@ -808,6 +828,63 @@ mod tests {
         cx.run_until_parked();
         cx.executor().advance_clock(Duration::from_millis(32));
         cx.run_until_parked();
+    }
+
+    #[gpui::test]
+    fn editor_multiple_selections_validate_atomically_and_undo_one_native_edit(
+        cx: &mut TestAppContext,
+    ) {
+        let f = crate::components::test_support::Fixture::<TextControl<Code>>::new(
+            EditorProps {
+                default_value: Some("aé\r\nz".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        f.update(cx, |code, window, cx| {
+            let selections = || InputSelections {
+                ranges: vec![
+                    InputSelectionRange {
+                        anchor_byte: 1,
+                        head_byte: 0,
+                    },
+                    InputSelectionRange {
+                        anchor_byte: 5,
+                        head_byte: 5,
+                    },
+                ],
+                edit_seq: 0,
+            };
+            code.set_selections(selections(), window, cx).unwrap();
+            for invalid in [2, 4, 99] {
+                let mut bad = selections();
+                bad.ranges[1].head_byte = invalid;
+                assert!(code.set_selections(bad, window, cx).is_err());
+                let actual = code.get_selections((), window, cx).unwrap();
+                assert_eq!(
+                    actual
+                        .ranges
+                        .iter()
+                        .map(|r| (r.anchor_byte, r.head_byte))
+                        .collect::<Vec<_>>(),
+                    vec![(1, 0), (5, 5)]
+                );
+            }
+            let mut stale = selections();
+            stale.edit_seq = 99;
+            assert!(code.set_selections(stale, window, cx).is_err());
+            code.state.update(cx, |state, cx| {
+                state.replace_text_in_range(None, "X", window, cx)
+            });
+            assert_eq!(code.state.read(cx).value().as_ref(), "Xé\r\nXz");
+            code.focus((), window, cx).unwrap();
+        });
+        cx.update_window(f.window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .unwrap();
+        cx.dispatch_action(f.window.into(), gpui_component::input::Undo);
+        f.update(cx, |code, _, cx| {
+            assert_eq!(code.state.read(cx).value().as_ref(), "aé\r\nz")
+        });
     }
 
     #[gpui::test]
@@ -1081,10 +1158,12 @@ mod tests {
                 assert_eq!(code.state.read(cx).value().as_ref(), value);
                 assert_eq!(code.state.read(cx).selected_range(), 6..15);
                 assert!(
-                    code.set_selection(
-                        InputSelection {
-                            start_byte: 7,
-                            end_byte: 15,
+                    code.set_selections(
+                        InputSelections {
+                            ranges: vec![InputSelectionRange {
+                                anchor_byte: 7,
+                                head_byte: 15
+                            }],
                             edit_seq: 0
                         },
                         window,

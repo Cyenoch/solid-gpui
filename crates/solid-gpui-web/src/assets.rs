@@ -8,10 +8,10 @@ impl AssetSource for WebAssets {
         if let Some((_, bytes)) = COMPONENT_ICONS.iter().find(|(name, _)| *name == path) {
             return Ok(Some(Cow::Borrowed(bytes)));
         }
-        gpui_iconify::IconAssets.load(path)
+        solid_gpui::icons::ApplicationIconAssets.load(path)
     }
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        let mut entries = gpui_iconify::IconAssets.list(path)?;
+        let mut entries = solid_gpui::icons::ApplicationIconAssets.list(path)?;
         entries.extend(
             COMPONENT_ICONS
                 .iter()

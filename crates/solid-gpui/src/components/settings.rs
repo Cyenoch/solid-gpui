@@ -1,4 +1,5 @@
 //! Native settings navigation with typed page/group/item/field descriptors.
+use super::icon_source::ComponentIcon;
 use super::{
     ControlSize,
     primitives::{GroupBoxVariant, Orientation},
@@ -27,7 +28,7 @@ pub struct SettingPageProps {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
-    pub icon: Option<String>,
+    pub icon: Option<ComponentIcon>,
     #[serde(default)]
     pub default_open: bool,
     #[serde(default = "yes")]
@@ -87,7 +88,7 @@ fn page(p: &SettingPageProps, cx: &mut ElementContext) -> SettingPage {
         page = page.description(v.clone());
     }
     if let Some(v) = &p.icon {
-        page = page.icon(gpui_component::Icon::default().path(v.clone()));
+        page = page.icon(v.native());
     }
     page
 }

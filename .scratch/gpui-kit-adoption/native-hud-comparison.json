@@ -1,0 +1,61 @@
+{
+  "binary_sha256": "ed0bef37a558ec520074aa01d94d5d1f706355c6b915e61affe6c35b84044a4d",
+  "platform": "macOS 26.6.2 arm64",
+  "profile": "dev + optimized gpui-pre/taffy/slotmap, frame-profile, no test-support",
+  "validity": "Both workloads completed with matching final viewport and scale. Window activation differed, so CPU/presentation overhead is not qualified. Initial samples with a changed viewport were discarded.",
+  "runs": {
+    "off": {
+      "completion": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.12324999999987085,
+        "signal_to_frame_p95_ms": 0.23875000000043656,
+        "synchronous_reaction_p95_ms": 0.12275000000045111
+      },
+      "frame_intervals": [
+        "[solid-gpui-frame-profile] viewport=800x600 interval_ms=1035 draws=30 draw_p50_ms=4.891 draw_p95_ms=6.312 invalidation_to_present_p95_ms=13.287 inputs=0 input_to_present_p95_ms=0.000 active=true",
+        "[solid-gpui-frame-profile] viewport=800x600 interval_ms=1017 draws=29 draw_p50_ms=5.526 draw_p95_ms=6.066 invalidation_to_present_p95_ms=33.587 inputs=0 input_to_present_p95_ms=0.000 active=false",
+        "[solid-gpui-frame-profile] viewport=800x600 interval_ms=1034 draws=27 draw_p50_ms=4.702 draw_p95_ms=6.795 invalidation_to_present_p95_ms=41.386 inputs=0 input_to_present_p95_ms=0.000 active=false",
+        "[solid-gpui-frame-profile] viewport=560x600 interval_ms=1033 draws=27 draw_p50_ms=5.759 draw_p95_ms=6.898 invalidation_to_present_p95_ms=41.517 inputs=0 input_to_present_p95_ms=0.000 active=false"
+      ],
+      "activation_states": [
+        "false",
+        "true"
+      ]
+    },
+    "on": {
+      "completion": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.1615829999991547,
+        "signal_to_frame_p95_ms": 0.2572500000005675,
+        "synchronous_reaction_p95_ms": 0.13433400000030815
+      },
+      "frame_intervals": [
+        "[solid-gpui-frame-profile] viewport=800x600 interval_ms=1026 draws=31 draw_p50_ms=5.104 draw_p95_ms=6.803 invalidation_to_present_p95_ms=13.140 inputs=0 input_to_present_p95_ms=0.000 active=true",
+        "[solid-gpui-frame-profile] viewport=800x600 interval_ms=1030 draws=31 draw_p50_ms=6.234 draw_p95_ms=8.172 invalidation_to_present_p95_ms=15.344 inputs=0 input_to_present_p95_ms=0.000 active=true"
+      ],
+      "activation_states": [
+        "true"
+      ]
+    }
+  }
+}

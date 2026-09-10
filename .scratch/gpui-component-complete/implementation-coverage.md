@@ -2,7 +2,7 @@
 
 Baseline: upstream `928c3eb776a3d733d9b771f7dea27a6a79242ced`, local workspace baseline `1bf74901244d8af95d7d547de5a0fb5ce362b2fc` plus this task's changes. The [upstream inventory](upstream-inventory.md) is the requirement snapshot; this file records the implementation mapping. Presence in this table is API/source coverage, not an assertion that every control has received manual hardware acceptance.
 
-The running host currently generates **144 JSX components/descriptors and 10 native functions (8 computations, 2 appearance operations)**. There are no unmatched entries among the **138 ordinary upstream rendering interfaces**. Composite native machinery is mapped to its public owner instead of exported as a draw-nothing JSX alias. The generated [SDK catalog](../../packages/solid-gpui/src/components.ts), [adapter source](../../crates/solid-gpui/src/components/mod.rs), [usage guide](../../docs/gpui-components.md) and [vendor changes](../../vendor/gpui-component/SOLID-GPUI.md) are authoritative.
+The running host currently generates **144 JSX components/descriptors and 10 native functions (8 computations, 2 appearance operations)**. There are no unmatched entries among the **138 ordinary upstream rendering interfaces**. Composite native machinery is mapped to its public owner instead of exported as a draw-nothing JSX alias. The generated [SDK catalog](../../packages/solid-gpui/src/components.ts), [adapter source](../../crates/solid-gpui/src/components/mod.rs), [usage guide](../../docs/gpui-components.md) and [vendor changes](../../vendor/gpui-kit/SOLID-GPUI.md) are authoritative.
 
 ## Rendering interfaces: 138
 

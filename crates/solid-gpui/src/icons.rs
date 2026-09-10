@@ -200,11 +200,56 @@ pub(crate) fn is_registered(name: &str) -> bool {
             .get()
             .is_some_and(|icons| icons.contains_key(name))
 }
-pub(crate) fn load(path: &str) -> Option<&'static [u8]> {
-    APPLICATION_ICONS
-        .get()?
-        .get(path.strip_prefix("application-icons/")?)
-        .map(|icon| icon.svg)
+/// The application icon namespace. Kit assets are intentionally outside this source.
+pub struct ApplicationIconAssets;
+impl gpui::AssetSource for ApplicationIconAssets {
+    fn load(&self, path: &str) -> gpui::Result<Option<std::borrow::Cow<'static, [u8]>>> {
+        if path.starts_with("iconify/") {
+            return gpui_iconify::IconAssets.load(path);
+        }
+        Ok(path
+            .strip_prefix("application-icons/")
+            .and_then(|name| APPLICATION_ICONS.get()?.get(name))
+            .map(|icon| std::borrow::Cow::Borrowed(icon.svg)))
+    }
+    fn list(&self, path: &str) -> gpui::Result<Vec<gpui::SharedString>> {
+        let mut entries = gpui_iconify::IconAssets.list(path)?;
+        if let Some(icons) = APPLICATION_ICONS.get() {
+            entries.extend(
+                icons
+                    .keys()
+                    .map(|name| format!("application-icons/{name}"))
+                    .filter(|key| key.starts_with(path))
+                    .map(Into::into),
+            );
+        }
+        Ok(entries)
+    }
+}
+
+#[cfg(feature = "component-runtime")]
+pub(crate) fn monochrome_asset_path(name: &str) -> Result<gpui::SharedString, String> {
+    if let Some(icon) = gpui_iconify::IconId::from_name(name) {
+        if icon.kind() != gpui_iconify::IconKind::Mono {
+            return Err(
+                "component icon slots require monochrome icons; use core Icon for original colors"
+                    .into(),
+            );
+        }
+        return Ok(icon.cache_key().into());
+    }
+    if let Some(icon) = APPLICATION_ICONS.get().and_then(|icons| icons.get(name)) {
+        if icon.image.is_some() {
+            return Err(
+                "component icon slots require monochrome icons; use core Icon for original colors"
+                    .into(),
+            );
+        }
+        return Ok(format!("application-icons/{name}").into());
+    }
+    Err(format!(
+        "unknown application icon `{name}`; use an installed Iconify name or explicit SVG"
+    ))
 }
 
 /// Export the exact installed catalog alongside an application's native bindings.

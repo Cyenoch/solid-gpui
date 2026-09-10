@@ -108,6 +108,12 @@ for (const rows of native ? [500] : [500, 2_500, 10_000]) {
       console.error(JSON.stringify({ phase: "resize", width }));
     }
   }
+  if (native) {
+    await root.getWindowSize();
+    // Window bounds include platform chrome; compare the content viewport from resize events.
+    assert.equal(viewport?.width, 800, "The platform changed the benchmark viewport; discard this run");
+    assert.equal(viewport?.height, 600, "The platform changed the benchmark viewport; discard this run");
+  }
   assert.equal(appRuns, 1);
   assert.equal(operations, iterations);
   const samples = toFrame.slice(16);
@@ -125,7 +131,6 @@ for (const rows of native ? [500] : [500, 2_500, 10_000]) {
       synchronous_reaction_p95_ms: percentile(reaction.slice(16), 0.95),
     }),
   );
-  if (native) await root.getWindowSize();
   if (!hold) {
     if (native) application.quit();
     else application.dispose();

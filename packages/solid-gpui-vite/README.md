@@ -35,9 +35,14 @@ solidGpui({
 
 The plugin builds the selected Cargo binary, runs its `--export-native` entrypoint,
 and atomically writes `.generated/native.ts` before loading the application.
-`package`, `features`, and `output` are optional native settings. `#native` resolves
-to that output; configure TypeScript's `paths` to match. Restart development after
-Rust changes. Native commands and components use the same contract with direct JS.
+`package`, `features`, and `output` are optional native settings. `#native` and
+`@solid-gpui/core/components` resolve to that output; configure TypeScript's
+`paths` for `#native` to match. Rust source and Cargo configuration edits rebuild
+the host and bindings automatically, including local path dependencies. The old
+session stops before bindings change. Compilation and application failures keep
+Vite watching: fix the error and save to retry. Host replacement reopens windows
+and resets application state. Ctrl+C stops development and its build processes.
+Native commands and components use the same contract with direct JS.
 
 Bun entries use `StdioTransport`; QuickJS entries use `EmbeddedTransport` and
 `runtime: "quickjs"` with a QuickJS-enabled host. QuickJS builds produce one

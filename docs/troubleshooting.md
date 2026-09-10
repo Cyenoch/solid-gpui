@@ -40,6 +40,25 @@ The TypeScript package and native host must use the same protocol version. Rebui
 
 A closed or unmounted surface ID is permanently retired. Create a new surface and root instead of reusing the ID with another generation.
 
+## Native contract mismatch
+
+An Extension must match the host's provider, catalog digest, entry ID, and entry
+version. A catalog mismatch reports the module name, renderer and host catalog
+digests, and the host's name for that entry. Entry IDs can change between
+catalogs, so the reported host entry is not necessarily the renderer's component.
+A missing adapter instead points to an unregistered module or unsupported host.
+
+Use the host path printed by Vite to check which executable is running. Enable
+the required Cargo features and register the module in that host. With `native`
+configured, saving a corrected Rust source or Cargo manifest rebuilds the host
+and its generated bindings. Both `#native` and `@solid-gpui/core/components` use
+those bindings. For an explicit `host` command, rebuild that executable yourself,
+then save application source to start a fresh session.
+
+The rejected session terminates; Vite keeps watching for the next edit. It does
+not keep retrying an unchanged failing executable or continue applying Patches
+after a rejected commit. See [managed development sessions](hot-reload.md#managed-development-sessions).
+
 ## Embedded Bun build fails
 
 The embedded Bun/JSC adapter is macOS-only. Use `bun run website:native` for process
@@ -59,6 +78,56 @@ ambient `process`, `Bun`, filesystem, and network APIs such as `fetch` are
 unavailable. Move those services into Rust Native Modules and call the
 generated clients. The bundler's browser target selects portable dependencies;
 it does not create a browser environment in QuickJS.
+
+## Vite is ready but the QuickJS window is blank
+
+Vite's `ready` and bundle-size messages confirm compilation, not successful
+application rendering. A native window showing only its background can be the
+initial loading tree waiting for a later update.
+
+Check the actual runtime exception before changing layout. In a startup chain
+such as `native.windowChrome().then(value => setChrome(value)).catch(...)`,
+the catch handler receives both command failures and synchronous rendering
+errors triggered by `setChrome`. A generic “window configuration failed” message
+can hide `Maximum call stack size exceeded` during main-component creation.
+Preserve the exception message and stack in stderr diagnostics; avoid logging
+native result payloads that may contain application data.
+
+If Cargo reports `profile package spec ... did not match any packages`, compare
+the profile names with the consuming workspace's resolved dependencies:
+
+```sh
+cargo tree --locked -i rquickjs-sys
+```
+
+The current QuickJS feature uses `rquickjs-sys`. Obsolete `quickjs-jit-sys` or
+`quickjs-jit-core` profiles do not optimize it. Replace those stale entries with
+the workspace-root profile in [Application build configuration](hot-reload.md#application-build-configuration),
+then rebuild and restart the native host. Saving TSX cannot change native
+compiler settings. See the stack diagnosis below before increasing stack limits.
+
+For an application that initially renders a loading tree, an optional protocol
+tap can distinguish successful native replies from a missing UI update:
+
+```sh
+SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
+```
+
+Substitute the application's actual executable and bundle paths. Use one host
+without the reload supervisor for this capture, with the affected development
+bundle, so runtime generations do not share the same tap output file.
+
+Inspect `snapshot`, command-result events with `success: true`, and subsequent
+`patch` records. Successful replies without a Patch can locate the failure after
+the native command; they do not establish its cause. This is not a universal
+startup assertion: an application that renders its complete UI in the first
+Snapshot need not emit a Patch. Verify actual page content and an interaction.
+The tap records metadata only; stop it after the bounded reproduction.
+
+A consumer regression was reproduced with the same development bundle and
+2 MiB JS stack limit: stale profiles produced a blank window, a caught stack
+overflow, and no UI Patch; optimizing `rquickjs-sys` restored main-interface
+rendering. Keep bundle, state, and stack limits fixed for this comparison.
 
 ## QuickJS overflows the stack on a nested route
 
@@ -150,7 +219,6 @@ its release-candidate version is separate from the Solid 1 runtime, and the
 shared transform disables Solid 2 built-in auto-imports. Compiler upgrades
 must preserve reactive updates, owner cleanup, import side effects, and source
 maps in both Vite development and production builds.
-
 
 ## Correlating native command failures
 

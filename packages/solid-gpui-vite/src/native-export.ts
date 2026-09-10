@@ -1,8 +1,7 @@
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { promisify } from "node:util";
+import { runNativeCommand } from "./native-process.ts";
 
 export interface NativeExportOptions {
   readonly manifestPath: string;
@@ -17,6 +16,7 @@ export interface NativeExportOptions {
 export async function buildNativeHost(
   options: Omit<NativeExportOptions, "output" | "check">,
   cwd: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const args = [
     "build",
@@ -27,7 +27,7 @@ export async function buildNativeHost(
     ...(options.bin ? ["--bin", options.bin] : []),
     ...(options.features?.length ? ["--features", options.features.join(",")] : []),
   ];
-  const { stdout, stderr } = await promisify(execFile)("cargo", args, { cwd, maxBuffer: 16 * 1024 * 1024 });
+  const { stdout, stderr } = await runNativeCommand("cargo", args, cwd, signal);
   if (stderr) process.stderr.write(stderr);
   const executables = new Set<string>();
   for (const line of stdout.trim().split("\n")) {
@@ -45,13 +45,11 @@ export async function exportNativeBindings(
   options: NativeExportOptions,
   cwd = process.cwd(),
   executable?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const output = resolve(cwd, options.output);
-  executable ??= await buildNativeHost(options, cwd);
-  const { stdout, stderr } = await promisify(execFile)(executable, ["--export-native"], {
-    cwd,
-    maxBuffer: 16 * 1024 * 1024,
-  });
+  executable ??= await buildNativeHost(options, cwd, signal);
+  const { stdout, stderr } = await runNativeCommand(executable, ["--export-native"], cwd, signal);
   if (stderr) process.stderr.write(stderr);
   const { format } = await import("oxfmt");
   // Rust exports TypeScript regardless of the destination's extension.
@@ -78,7 +76,9 @@ export async function exportNativeBindings(
   await mkdir(dirname(output), { recursive: true });
   const temporary = `${output}.${randomUUID()}.tmp`;
   try {
+    signal?.throwIfAborted();
     await writeFile(temporary, generated, "utf8");
+    signal?.throwIfAborted();
     await rename(temporary, output);
   } finally {
     await rm(temporary, { force: true });

@@ -44,7 +44,8 @@ impl<'a> ExtensionChildSummary<'a> {
         let node = content.child_at(store, index)?;
         let group = match node.host_properties.as_ref() {
             Some(crate::protocol::HostProperties::Extension(p)) => registry
-                .resolve(p.provider_id, p.catalog_digest, p.entry_id, p.entry_version)?
+                .resolve(p.provider_id, p.catalog_digest, p.entry_id, p.entry_version)
+                .ok()?
                 .default_child_group(),
             _ => None,
         };
@@ -82,7 +83,8 @@ impl<'a> ExtensionChildSummary<'a> {
                         props.catalog_digest,
                         props.entry_id,
                         props.entry_version,
-                    )?
+                    )
+                    .ok()?
                     .element_type()
             })
             .collect();
@@ -106,7 +108,7 @@ impl<'a> ExtensionChildSummary<'a> {
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ExtensionError {
     #[error(
-        "no extension adapter for provider {provider_id:?}, catalog {catalog_digest:?}, entry {entry_id} version {entry_version}"
+        "no native adapter for provider {provider_id:x?}, catalog {catalog_digest:x?}, entry {entry_id} version {entry_version}; register the required native module in this host and regenerate its bindings"
     )]
     AdapterNotFound {
         provider_id: [u8; 16],
@@ -114,6 +116,10 @@ pub enum ExtensionError {
         entry_id: u32,
         entry_version: u32,
     },
+    #[error(
+        "native contract mismatch for {module}: {reason}; rebuild the host and regenerate bindings from that executable"
+    )]
+    ContractMismatch { module: String, reason: String },
     #[error("extension node {node_id} has invalid properties: {reason}")]
     InvalidProperties { node_id: u32, reason: String },
     #[error("extension node {node_id} has invalid children: {reason}")]
@@ -134,7 +140,7 @@ pub trait ExtensionRegistry {
         catalog_digest: [u8; 32],
         entry_id: u32,
         entry_version: u32,
-    ) -> Option<&dyn ExtensionAdapter>;
+    ) -> Result<&dyn ExtensionAdapter, ExtensionError>;
 
     /// Resolve a callable module on the foreground; only its owned, thread-safe
     /// implementation and immutable argument bytes move to the background.
@@ -154,12 +160,17 @@ pub struct NoExtensions;
 impl ExtensionRegistry for NoExtensions {
     fn resolve(
         &self,
-        _provider_id: [u8; 16],
-        _catalog_digest: [u8; 32],
-        _entry_id: u32,
-        _entry_version: u32,
-    ) -> Option<&dyn ExtensionAdapter> {
-        None
+        provider_id: [u8; 16],
+        catalog_digest: [u8; 32],
+        entry_id: u32,
+        entry_version: u32,
+    ) -> Result<&dyn ExtensionAdapter, ExtensionError> {
+        Err(ExtensionError::AdapterNotFound {
+            provider_id,
+            catalog_digest,
+            entry_id,
+            entry_version,
+        })
     }
 }
 
@@ -856,7 +867,7 @@ pub(crate) fn render(
             properties.entry_id,
             properties.entry_version,
         )
-        .unwrap_or_else(|| panic!("validated Extension node has no matching adapter"));
+        .expect("validated Extension node adapter");
     let content_node = adapter
         .default_child_group()
         .map(|index| {

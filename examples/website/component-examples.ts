@@ -232,7 +232,7 @@ add(
   "Icon",
   "Display an SVG icon from the host asset collection.",
   componentDescriptionsChinese["Display an SVG icon from the host asset collection."],
-  '<N.Icon path="icons/check.svg" />',
+  '<N.Icon source="lucide:check" />',
 );
 add("Caret", "Draw a caret indicator.", componentDescriptionsChinese["Draw a caret indicator."], "<N.Caret />");
 add(
@@ -341,7 +341,7 @@ add(
   "Build a navigation sidebar with grouped destinations.",
   componentDescriptionsChinese["Build a navigation sidebar with grouped destinations."],
   `<N.Sidebar style={{ height: 280 }} collapsed={collapsed()} slots={{ header: <N.SidebarHeader><N.Label text={collapsed() ? "" : "Workspace"} /><N.SidebarToggleButton collapsed={collapsed()} onPress={() => setCollapsed(!collapsed())} /></N.SidebarHeader>, footer: <N.SidebarFooter><N.Label text={collapsed() ? "" : "Personal account"} /></N.SidebarFooter> }}>
-      <N.SidebarGroup label="Projects"><N.SidebarMenu><N.SidebarMenuItem label="Overview" icon="icons/building-2.svg" active={selected() === "Overview"} onPress={() => setSelected("Overview")} /><N.SidebarMenuItem label="Settings" icon="icons/settings.svg" active={selected() === "Settings"} onPress={() => setSelected("Settings")} /></N.SidebarMenu></N.SidebarGroup>
+      <N.SidebarGroup label="Projects"><N.SidebarMenu><N.SidebarMenuItem label="Overview" icon="lucide:house" active={selected() === "Overview"} onPress={() => setSelected("Overview")} /><N.SidebarMenuItem label="Settings" icon="lucide:settings" active={selected() === "Settings"} onPress={() => setSelected("Settings")} /></N.SidebarMenu></N.SidebarGroup>
       </N.Sidebar>`,
   'const [collapsed, setCollapsed] = createSignal(false); const [selected, setSelected] = createSignal("Overview");',
 );
@@ -590,4 +590,62 @@ add(
   "Search and select rows from a grouped collection.",
   componentDescriptionsChinese["Search and select rows from a grouped collection."],
   '<N.List sections={[{ key: "projects", header: "Projects", items: [{ key: "web", label: "Website" }, { key: "mobile", label: "Mobile app" }] }]} style={{ height: 220 }} />',
+);
+
+add(
+  "Carousel CarouselItem",
+  "A retained native carousel with keyboard navigation and pagination.",
+  componentDescriptionsChinese["A retained native carousel with keyboard navigation and pagination."],
+  '<N.Carousel pagination viewportHeight={140}><N.CarouselItem><N.Label text="Overview" /></N.CarouselItem><N.CarouselItem><N.Label text="Details" /></N.CarouselItem><N.CarouselItem><N.Label text="Next steps" /></N.CarouselItem></N.Carousel>',
+  "",
+);
+
+add(
+  "Motion",
+  "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates.",
+  componentDescriptionsChinese[
+    "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates."
+  ],
+  '<View style={{ gap: 12 }}><N.Button label="Move" onPress={() => setMoved(!moved())} /><N.Motion target={{ x: moved() ? 100 : 0 }} animation={{ type: "spring", responseMs: 350 }}><N.Label text="Native spring" /></N.Motion></View>',
+  "const [moved, setMoved] = createSignal(false);",
+);
+
+add(
+  "NativePresence",
+  "Retain children until their native exit animation completes.",
+  componentDescriptionsChinese["Retain children until their native exit animation completes."],
+  '<View style={{ gap: 12 }}><N.Button label="Toggle details" onPress={() => setShown(!shown())} /><N.NativePresence present={shown()}><N.Label text="Native presence" /></N.NativePresence></View>',
+  "const [shown, setShown] = createSignal(true);",
+);
+
+add(
+  "BaseButton",
+  "An accessible native control with application-owned visuals.",
+  componentDescriptionsChinese["An accessible native control with application-owned visuals."],
+  '<N.BaseButton accessibilityLabel="Save" style={{ padding: 12, backgroundColor: "#1d4ed8", borderRadius: 8 }} onPress={() => setSaved(true)}><N.Label text={saved() ? "Saved" : "Save"} /></N.BaseButton>',
+  "const [saved, setSaved] = createSignal(false);",
+);
+
+add(
+  "BaseCheckbox",
+  "An accessible native control with application-owned visuals.",
+  componentDescriptionsChinese["An accessible native control with application-owned visuals."],
+  '<N.BaseCheckbox accessibilityLabel="Accept terms" state={state()} onChange={setState} style={{ padding: 12, borderWidth: 1, borderColor: "#64748b", borderRadius: 8 }}><N.Label text={state() === "checked" ? "Accepted" : "Accept terms"} /></N.BaseCheckbox>',
+  'const [state, setState] = createSignal<N.BaseCheckState>("unchecked");',
+);
+
+add(
+  "BaseSwitch",
+  "An accessible native control with application-owned visuals.",
+  componentDescriptionsChinese["An accessible native control with application-owned visuals."],
+  '<N.BaseSwitch accessibilityLabel="Notifications" checked={enabled()} onChange={setEnabled} style={{ padding: 12, backgroundColor: enabled() ? "#14532d" : "#334155", borderRadius: 8 }}><N.Label text={enabled() ? "Notifications on" : "Notifications off"} /></N.BaseSwitch>',
+  "const [enabled, setEnabled] = createSignal(false);",
+);
+
+add(
+  "BaseToggle",
+  "An accessible native control with application-owned visuals.",
+  componentDescriptionsChinese["An accessible native control with application-owned visuals."],
+  '<N.BaseToggle accessibilityLabel="Pin" pressed={pinned()} onChange={setPinned} style={{ padding: 12, borderWidth: 1, borderColor: "#64748b", borderRadius: 8 }}><N.Label text={pinned() ? "Pinned" : "Pin"} /></N.BaseToggle>',
+  "const [pinned, setPinned] = createSignal(false);",
 );

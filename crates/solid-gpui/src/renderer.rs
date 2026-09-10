@@ -120,29 +120,24 @@ impl SolidRoot {
                     reason: "event IDs must be non-zero, sorted, and unique".to_owned(),
                 });
             }
-            let adapter = registry
-                .resolve(
-                    properties.provider_id,
-                    properties.catalog_digest,
-                    properties.entry_id,
-                    properties.entry_version,
-                )
-                .ok_or(ExtensionError::AdapterNotFound {
-                    provider_id: properties.provider_id,
-                    catalog_digest: properties.catalog_digest,
-                    entry_id: properties.entry_id,
-                    entry_version: properties.entry_version,
-                })?;
+            let adapter = registry.resolve(
+                properties.provider_id,
+                properties.catalog_digest,
+                properties.entry_id,
+                properties.entry_version,
+            )?;
             if adapter.requires_typed_parent() {
                 let valid_parent = store.get(node.parent_id).is_some_and(|parent| {
                     let resolve = |candidate: &StoredNode| {
                         extension_properties(candidate).ok().and_then(|p| {
-                            registry.resolve(
-                                p.provider_id,
-                                p.catalog_digest,
-                                p.entry_id,
-                                p.entry_version,
-                            )
+                            registry
+                                .resolve(
+                                    p.provider_id,
+                                    p.catalog_digest,
+                                    p.entry_id,
+                                    p.entry_version,
+                                )
+                                .ok()
                         })
                     };
                     if let Some(owner) = resolve(parent) {
@@ -596,7 +591,7 @@ impl SolidRoot {
                     || snapshot.epoch != self.store.epoch();
                 let tree_profile = profile::span(profile::Stage::Tree);
                 let candidate = self.store.build_snapshot(snapshot)?;
-                drop(tree_profile);
+                tree_profile.finish();
                 Self::validate_extension_nodes(
                     self.extension_registry.as_ref(),
                     &candidate,
@@ -632,7 +627,7 @@ impl SolidRoot {
                 let registry = self.extension_registry.as_ref();
                 let tree_profile = profile::span(profile::Stage::Tree);
                 let changes = self.store.apply_patch_validated(patch, |store, changes| {
-                    drop(tree_profile);
+                    tree_profile.finish();
                     Self::validate_extension_nodes(
                         registry,
                         store,

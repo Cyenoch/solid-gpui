@@ -1,4 +1,5 @@
 //! OS menus carry revocable view-scoped action routes; the OS owns each open menu snapshot.
+use super::icon_source::ComponentIcon;
 use super::{menus::MenuSelection, plot::coordinate};
 use crate::native::{ComponentDefinition, Event, NativeChildren, NativeView, ViewCommand};
 use gpui::{
@@ -58,7 +59,7 @@ pub enum NativeMenuEntry {
         #[serde(default)]
         checked: bool,
         #[serde(default)]
-        icon: Option<String>,
+        icon: Option<ComponentIcon>,
     },
     Label {
         label: String,
@@ -145,8 +146,7 @@ fn build(items: &[NativeMenuEntry], owner: u64, generation: u64) -> OsMenu {
             label.clone(),
             *disabled,
             *checked,
-            icon.as_ref()
-                .map(|v| gpui_component::Icon::default().path(v.clone())),
+            icon.as_ref().map(|v| v.native()),
             Some(Box::new(NativePopupAction {
                 owner,
                 generation,

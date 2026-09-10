@@ -12,7 +12,36 @@ Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于
 - `bun run --cwd examples/website build:native`：生成 `examples/website/dist-native/main.native.js`。
 - `target/debug/website-host bun --conditions=browser examples/website/dist-native/main.native.js`：构建宿主后运行 bundle。
 
-保存应用代码会在现有窗口重新挂载。Rust、协议 schema、生成的原生 API 变化需重启开发命令并重建宿主；Vite 配置变化会重启环境，先关闭旧环境，再准备新宿主。
+`website:native:dev` 和 `quickjs:dev` 先准备 JavaScript 工具链，再由 Vite 管理
+原生编译，避免首次 Rust 错误在监听启动前就终止整个开发命令。
+
+保存应用代码会在现有窗口重新挂载。配置 `native` 后，Rust 变化会自动重建宿主与 bindings，再启动新的应用会话；Vite 配置变化会重启环境。协议 schema 变化仍需执行协议生成与包构建流程，再重启开发。
+
+## 开发会话管理
+
+由 Vite 启动的宿主发生编译、首次加载或运行时错误时，开发服务继续监听。
+终端保留诊断，修复并保存源码即可启动新的会话。关闭应用窗口也会保留监听；
+使用 Ctrl+C 结束开发。失败后不会循环重启同一个可执行文件。
+
+配置 `native` 后，自动监听 `.rs`（包括 `build.rs`）、Cargo manifest、lockfile
+以及工作区 `.cargo/config` 或 `.cargo/config.toml`。Cargo metadata 会发现前端
+目录之外的本地路径依赖。原生改动先结束旧 runtime，再构建宿主并导出 bindings；
+新 bindings 不会通过 HMR 进入旧宿主。连续修改会使未完成的旧尝试失效，退出时也会
+清理 Cargo 启动的编译器和 build script 进程。build script 读取的资源文件不在自动
+监听范围内；修改它们后可保存 Rust 源文件来触发构建。
+Cargo 实际的构建输出目录会从输入监听中排除，也支持放在源码包内部的自定义 target 目录。
+
+`#native`、`@solid-gpui/core/components` 与 Motion 使用同一宿主导出的组件目录。
+不要手动修改生成文件，也不要保留指向旧 SDK 的独立组件别名。宿主替换会关闭并重新
+打开窗口，Rust 服务、组件状态和 HMR 检查点随旧进程结束。
+
+显式 `host: { command }` 仍由外部构建，Vite 只在源码修改后重新启动它，不推断
+Cargo 项目。直接由 Rust 启动、`host: false` 和调用方提供的 Vite environment
+仍由调用方管理生命周期；要自动重建和恢复，应由 Vite 配合 `native` 启动。
+生产构建与直接宿主启动仍会在错误时退出。
+
+宿主继续严格拒绝无效提交并终止该 runtime。后续 Patch 可能依赖被拒绝的 revision，
+因此恢复会创建全新会话，不跳过错误帧。见[原生契约不匹配](troubleshooting.zh-CN.md#原生契约不匹配)。
 
 ## 应用集成
 
@@ -53,7 +82,7 @@ mountApplication<number>({
 
 重载会重新挂载应用，不自动保留各组件信号。在 Bun 中，`captureState` 返回可 structured clone 的数据，下一代 setup 接收它；QuickJS 使用更严格的 [JSON 契约](#捕获状态)。显式捕获路由、选中项或窗口尺寸等应用数据；组件状态、原生输入与滚动缓存重建。不要跨代保留 Solid owner、Root/router 实例、函数或原生资源。
 
-候选 setup、render 和首帧准备成功后，释放旧 owner 与 root，在相同 surface ID 发布新 epoch。语法错误和同步 setup/render 错误保留旧页面，修复并保存后重试。首次启动失败因没有旧页面而关闭 Vite 并退出。
+候选 setup、render 和首帧准备成功后，释放旧 owner 与 root，在相同 surface ID 发布新 epoch。语法错误和同步 setup/render 错误保留旧页面，修复并保存后重试。由 Vite 管理宿主时，首次启动失败也会继续监听，修复并保存源码后启动新的会话。
 
 `onMount` 在提交后运行，其错误和异步副作用不在回滚边界内；I/O 失败也不保证回滚。应用顶层副作用发生在候选准备外。资源应在 setup 或组件中创建，通过 `onCleanup` 释放。迟到异步结果应在重建 timer 前检查是否已释放。
 
@@ -116,6 +145,8 @@ opt-level = 3
 
 本仓库已有该配置，但 Cargo 不会继承依赖仓库的 profile。未优化的解释器可能在相同 2 MiB JS 栈预算下因深层路由初始化而溢出。修改配置后重新编译并重启宿主；改布局或增加栈预算前，先参见[栈溢出诊断](troubleshooting.zh-CN.md#quickjs-在深层路由上栈溢出)。
 
+切换解释器依赖后，核对 profile 包名是否仍匹配消费工作区 Cargo.lock 中解析的依赖。Cargo 提示 profile package spec 没有匹配任何包，意味着该覆盖配置未生效。Vite 仍可能显示 `ready`，而界面在初始化时栈溢出；参见[QuickJS 空白窗口排障](troubleshooting.zh-CN.md#vite-已-ready但-quickjs-窗口空白)。
+
 ### 代际生命周期
 
 构建成功后创建新 VM，保留 Rust 宿主、窗口和服务。旧 VM 在微任务检查点暂停并导出显式 captureState。宿主验证每个候选 Surface 及应用配置，再在前台切换路由。旧 epoch 输入与回复不会调用新一代。原生缓存和组件局部信号重新挂载，替换后重新发送当前窗口观测值。
@@ -138,7 +169,7 @@ QuickJS 捕获状态必须是无环 JSON：普通对象、稠密数组、字符�
 
 `SystemPopover` 的 Surface 是临时呈现：旧代关闭弹层，新代按受控状态在激活后重新创建。其原生 ID 不属于候选的持久 Surface 集合。共享表单状态应放在内容工厂之上，并纳入 `captureState`。
 
-激活后异步错误和原生副作用不回滚。开发 VM 失败时最后原生树仍可见，后续编辑可用最后捕获状态与当前激活元数据恢复。捕获状态只是检查点，不保证保留之后的变化。Rust、配置及原生契约变化仍需重启。
+激活后异步错误和原生副作用不回滚。开发 VM 失败时最后原生树仍可见，后续编辑可用最后捕获状态与当前激活元数据恢复。捕获状态只是检查点，不保证保留之后的变化。配置 `native` 后，Rust 与原生契约变化会自动替换宿主；Vite 配置变化会重启开发环境。宿主进程替换不会保留 VM 检查点。
 
 `applied` 只确认激活，不表示异步路由内容已渲染完成。必须等待恢复页面的实际内容并验证交互，不能只检查 loading Snapshot 或一直存在的导航标签。
 

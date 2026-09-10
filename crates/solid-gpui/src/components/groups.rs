@@ -1,4 +1,5 @@
 //! Compound controls receive concrete native children; no render-time JSX callback is needed.
+use super::icon_source::ComponentIcon;
 use super::primitives::Orientation;
 use super::validation::{GridColumns, GridLine, GridSpan, LogicalPixels};
 use super::{ButtonVariant, ControlSize};
@@ -62,7 +63,7 @@ mod exports {
     pub fn accordion_item(
         #[prop(default)] open: bool,
         #[prop(default)] disabled: bool,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         title: NativeSlot,
         on_change: Event<bool>,
         cx: &mut ElementContext,
@@ -74,7 +75,7 @@ mod exports {
                 v.on_toggle_click(move |open, _, _| on_change.emit(*open))
             })
             .when(!title.is_empty(), |v| v.title(title))
-            .when_some(icon, |v, p| v.icon(gpui_component::Icon::default().path(p)))
+            .when_some(icon, |v, p| v.icon(p.native()))
             .children(cx.children())
     }
     #[component]
@@ -176,7 +177,7 @@ mod exports {
     pub fn tab(
         #[prop(default)] label: Option<String>,
         #[prop(default)] aria_label: Option<String>,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         #[prop(default)] variant: TabVariant,
         #[prop(default)] disabled: bool,
         #[prop(default)] selected: bool,
@@ -193,7 +194,7 @@ mod exports {
             .with_size(size)
             .when_some(label, |v, s| v.label(s))
             .when_some(aria_label, |v, s| v.aria_label(s))
-            .when_some(icon, |v, p| v.icon(gpui_component::Icon::default().path(p)))
+            .when_some(icon, |v, p| v.icon(p.native()))
             .when(!prefix.is_empty(), |v| v.prefix(prefix))
             .when(!suffix.is_empty(), |v| v.suffix(suffix))
             .when(on_press.is_subscribed(), |v| {
@@ -250,12 +251,12 @@ mod exports {
     #[component]
     pub fn stepper_item(
         #[prop(default)] disabled: bool,
-        #[prop(default)] icon: Option<String>,
+        #[prop(default)] icon: Option<ComponentIcon>,
         cx: &mut ElementContext,
     ) -> impl IntoElement + Styled {
         stepper::StepperItem::new()
             .disabled(disabled)
-            .when_some(icon, |v, p| v.icon(gpui_component::Icon::default().path(p)))
+            .when_some(icon, |v, p| v.icon(p.native()))
             .children(cx.children())
     }
     #[component]

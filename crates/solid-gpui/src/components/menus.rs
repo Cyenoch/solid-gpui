@@ -1,4 +1,5 @@
 //! Menu data is compiled once per revision; open menus retain native entities.
+use super::icon_source::ComponentIcon;
 use super::{ButtonVariant, ControlSize, popups::PopupAnchor};
 use crate::native::{
     ComponentDefinition, Event, EventDefinition, NativeChildren, NativeSlot, NativeView, TS,
@@ -31,7 +32,7 @@ pub enum MenuItem {
         id: String,
         label: String,
         #[serde(default)]
-        icon: Option<String>,
+        icon: Option<ComponentIcon>,
         #[serde(default)]
         disabled: bool,
         #[serde(default)]
@@ -42,7 +43,7 @@ pub enum MenuItem {
         label: String,
         href: String,
         #[serde(default)]
-        icon: Option<String>,
+        icon: Option<ComponentIcon>,
         #[serde(default)]
         disabled: bool,
     },
@@ -50,7 +51,7 @@ pub enum MenuItem {
         id: String,
         index: usize,
         #[serde(default)]
-        icon: Option<String>,
+        icon: Option<ComponentIcon>,
         #[serde(default)]
         disabled: bool,
         #[serde(default)]
@@ -61,7 +62,7 @@ pub enum MenuItem {
         label: String,
         menu: Box<MenuSpec>,
         #[serde(default)]
-        icon: Option<String>,
+        icon: Option<ComponentIcon>,
         #[serde(default)]
         disabled: bool,
     },
@@ -319,7 +320,7 @@ impl MenuModel {
             };
             native = native.disabled(disabled).checked(checked);
             if let Some(path) = icon {
-                native = native.icon(gpui_component::Icon::default().path(path.clone()));
+                native = native.icon(path.native());
             }
             if !matches!(item, MenuItem::Submenu { .. }) {
                 let id = item.key().unwrap().to_owned();
@@ -415,7 +416,7 @@ macro_rules! dropdown_props {
         pub struct $name {
             pub menu: MenuSpec,
             pub label: Option<String>,
-            pub icon: Option<String>,
+            pub icon: Option<ComponentIcon>,
             pub variant: ButtonVariant,
             pub size: ControlSize,
             pub disabled: bool,
@@ -508,9 +509,7 @@ macro_rules! dropdown_kind {
                     .selected(p.selected)
                     .when(p.outline, |b| b.outline())
                     .when_some(p.label.clone(), |b, label| b.label(label))
-                    .when_some(p.icon.clone(), |b, path| {
-                        b.icon(gpui_component::Icon::default().path(path))
-                    })
+                    .when_some(p.icon.clone(), |b, path| b.icon(path.native()))
                     .child(view.children.slot("trigger"));
                 if $split {
                     NativeSplit::new("split")

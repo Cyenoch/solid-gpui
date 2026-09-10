@@ -25,11 +25,11 @@
       "sha256": "3bb73a6479e9dc011dd9a7fb0df751ccc338ecfeda7b07d5c5e98dda554ed4e8",
       "bytes": 42218
     },
-    "vendor/gpui-component/crates/base/src/input/editor/highlighting.rs": {
+    "vendor/gpui-kit/crates/base/src/input/editor/highlighting.rs": {
       "sha256": "840100e5ff4546c238e17cd0b5189fe4984c631ca66a2dcb33e8fc260cc679d4",
       "bytes": 7812
     },
-    "vendor/gpui-component/crates/base/src/text/node.rs": {
+    "vendor/gpui-kit/crates/base/src/text/node.rs": {
       "sha256": "8773ea2a75a32888c4eec6be734f91c10ea25d9bb1bc55aaa63aaa6d0c4d8070",
       "bytes": 116435
     },

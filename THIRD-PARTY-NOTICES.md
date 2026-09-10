@@ -14,7 +14,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 819 third-party packages and 1423 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 823 third-party packages and 1430 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -195,10 +195,11 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | gpu-allocator | 0.28.0 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor-types | 0.2.0 | Apache-2.0 | registry (crates.io) |
-| gpui-base | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
-| gpui-component | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
-| gpui-component-macros | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
-| gpui-kit-assets | 0.6.0 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-component @ 928c3eb776a3d733d9b771f7dea27a6a79242ced; local patches) |
+| gpui-base | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
+| gpui-component | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
+| gpui-component-macros | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
+| gpui-fps | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
+| gpui-kit-assets | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
 | gpui-pre | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre/0.3.3; local patches) |
 | gpui-pre-apple | 0.3.3 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-collections | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -306,6 +307,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | normpath | 1.5.1 | Apache-2.0 | registry (crates.io) |
 | notify-rust | 4.18.0 | Apache-2.0 | registry (crates.io) |
 | notify-types | 2.1.0 | Apache-2.0 | registry (crates.io) |
+| ntapi | 0.4.3 | Apache-2.0 | registry (crates.io) |
 | num | 0.4.3 | Apache-2.0 | registry (crates.io) |
 | num-bigint | 0.4.8 | Apache-2.0 | registry (crates.io) |
 | num-bigint-dig | 0.9.1 | Apache-2.0 | registry (crates.io) |
@@ -326,6 +328,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | objc2-core-location | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-core-text | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-core-video | 0.3.2 | Apache-2.0 | registry (crates.io) |
+| objc2-io-kit | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-metal | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | Apache-2.0 | registry (crates.io) |
@@ -616,7 +619,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 585 package records.**
+**Total Apache-2.0: 588 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -1045,6 +1048,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | normpath | 1.5.1 | MIT | registry (crates.io) |
 | notify-rust | 4.18.0 | MIT | registry (crates.io) |
 | notify-types | 2.1.0 | MIT | registry (crates.io) |
+| ntapi | 0.4.3 | MIT | registry (crates.io) |
 | nu-ansi-term | 0.50.3 | MIT | registry (crates.io) |
 | num | 0.4.3 | MIT | registry (crates.io) |
 | num-bigint | 0.4.8 | MIT | registry (crates.io) |
@@ -1074,6 +1078,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | objc2-encode | 4.1.0 | MIT | registry (crates.io) |
 | objc2-foundation | 0.2.2 | MIT | registry (crates.io) |
 | objc2-foundation | 0.3.2 | MIT | registry (crates.io) |
+| objc2-io-kit | 0.3.2 | MIT | registry (crates.io) |
 | objc2-metal | 0.3.2 | MIT | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | MIT | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | MIT | registry (crates.io) |
@@ -1253,6 +1258,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | syn | 3.0.5 | MIT | registry (crates.io) |
 | synstructure | 0.13.2 | MIT | registry (crates.io) |
 | sys-locale | 0.3.2 | MIT | registry (crates.io) |
+| sysinfo | 0.37.2 | MIT | registry (crates.io) |
 | system-configuration | 0.7.0 | MIT | registry (crates.io) |
 | system-configuration-sys | 0.6.0 | MIT | registry (crates.io) |
 | taffy | 0.13.0 | MIT | registry (crates.io) |
@@ -1463,7 +1469,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 723 package records.**
+**Total MIT: 726 package records.**
 
 ### MIT-0
 
@@ -1556,6 +1562,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | objc2-core-location | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-core-text | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-core-video | 0.3.2 | Zlib | registry (crates.io) |
+| objc2-io-kit | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-metal | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | Zlib | registry (crates.io) |
@@ -1570,7 +1577,7 @@ The current Cargo inventory contains 819 third-party packages and 1423 package-l
 | zune-jpeg | 0.4.21 | Zlib | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Zlib | registry (crates.io) |
 
-**Total Zlib: 30 package records.**
+**Total Zlib: 31 package records.**
 
 ## Project-owned Rust crates
 
@@ -1579,10 +1586,10 @@ These local Cargo records are project-owned rather than third-party dependencies
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
 | gpui-iconify | 0.0.0 | MIT | local (project-owned) |
-| gpui-performance | 0.3.0 | MIT | local (project-owned) |
 | native-migration-host | 0.3.0 | MIT | local (project-owned) |
 | solid-gpui | 0.3.0 | MIT | local (project-owned) |
 | solid-gpui-bun-sys | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui-integration-tests | 0.3.0 | MIT | local (project-owned) |
 | solid-gpui-macros | 0.3.0 | MIT | local (project-owned) |
 | solid-gpui-web | 0.3.0 | MIT | local (project-owned) |
 | website-host | 0.3.0 | MIT | local (project-owned) |

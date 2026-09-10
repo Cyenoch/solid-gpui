@@ -112,6 +112,7 @@ export function websiteConfig(desktop = false, embedded = false) {
           replacement: resolve(import.meta.dirname, "../../packages/solid-gpui-shiki/src/index.ts"),
         },
         { find: "@solid-gpui/core/native", replacement: source("native.ts") },
+        { find: "@solid-gpui/core/motion", replacement: source("motion.ts") },
         { find: "@solid-gpui/core/components", replacement: source("components.ts") },
         { find: "@solid-gpui/core/runtime", replacement: source("runtime.ts") },
         { find: "@solid-gpui/core/web", replacement: source("web.ts") },

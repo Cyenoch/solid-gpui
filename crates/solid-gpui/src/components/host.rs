@@ -14,11 +14,11 @@ use std::sync::Arc;
 #[path = "frame_profile.rs"]
 mod frame_profile;
 
-use gpui_performance::{MonitorCorner, PerformanceMonitor};
+use gpui_fps::{FpsMonitor, FpsOverlay, FrameRateMode};
 
 struct ProviderContent {
     _appearance: gpui::Subscription,
-    frame_monitor: Option<Entity<PerformanceMonitor>>,
+    frame_monitor: Option<Entity<FpsMonitor>>,
     solid_root: Entity<SolidRoot>,
     #[cfg(feature = "frame-profile")]
     frame_profile: frame_profile::FrameProfile,
@@ -45,7 +45,9 @@ impl Render for ProviderContent {
             .children(notification_layer)
             .children(sheet_layer)
             .children(dialog_layer)
-            .children(self.frame_monitor.clone())
+            .children(self.frame_monitor.as_ref().map(|monitor| {
+                FpsOverlay::new(monitor).offset(gpui::point(gpui::px(56.), gpui::px(8.)))
+            }))
     }
 }
 
@@ -132,8 +134,11 @@ impl HostProfile for ComponentHost {
             .open_window(options, move |window, cx| {
                 let root = cx.new(|_| SolidRoot::with_extensions(runtime, extensions));
                 *solid_root_for_window.borrow_mut() = Some(root.clone());
-                let frame_monitor = monitor_enabled
-                    .then(|| cx.new(|cx| PerformanceMonitor::new(MonitorCorner::TopRight, cx)));
+                let frame_monitor = monitor_enabled.then(|| {
+                    cx.new(|cx| {
+                        FpsMonitor::new(window, cx).frame_rate_mode(FrameRateMode::Observed)
+                    })
+                });
                 let content = cx.new(|cx| ProviderContent {
                     _appearance: cx.observe_window_appearance(window, |_, window, cx| {
                         super::theme::sync_system(window, cx);

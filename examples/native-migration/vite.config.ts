@@ -19,6 +19,7 @@ export default defineConfig({
       { find: "@solid-gpui/core/stdio", replacement: source("packages/solid-gpui/src/stdio.ts") },
       { find: "@solid-gpui/core/runtime", replacement: source("packages/solid-gpui/src/runtime.ts") },
       { find: "@solid-gpui/core/native", replacement: source("packages/solid-gpui/src/native.ts") },
+      { find: "@solid-gpui/core/motion", replacement: source("packages/solid-gpui/src/motion.ts") },
       { find: "@solid-gpui/core/components", replacement: source("packages/solid-gpui/src/components.ts") },
       { find: "@solid-gpui/core", replacement: source("packages/solid-gpui/src/index.ts") },
       { find: "@solid-gpui/router", replacement: source("packages/solid-gpui-router/src/index.ts") },

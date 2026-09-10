@@ -1,3 +1,4 @@
+import { ICON_NAMES } from "../../../packages/solid-gpui/src/index";
 import { chinese } from "../src/locale.zh-CN";
 import { componentVariants } from "../component-variants";
 import { expect, test } from "bun:test";
@@ -93,12 +94,11 @@ test("every exported component has a usage example that type-checks against the 
       ) {
         invalidChildren.push(`${path}: Tag content must inherit its variant foreground; use Text`);
       }
-      if (
-        ts.isStringLiteral(node) &&
-        /^icons\//.test(node.text) &&
-        !ts.sys.fileExists(resolve(root, "../../vendor/gpui-component/crates/assets/assets", node.text))
-      ) {
-        invalidChildren.push(`${path}: missing icon asset ${node.text}`);
+      if (ts.isStringLiteral(node) && /^icons\//.test(node.text)) {
+        invalidChildren.push(`${path}: application examples cannot use Kit's private icon assets`);
+      }
+      if (ts.isStringLiteral(node) && /^lucide:/.test(node.text) && !ICON_NAMES.some((name) => name === node.text)) {
+        invalidChildren.push(`${path}: application icon is not in the Iconify catalog: ${node.text}`);
       }
       ts.forEachChild(node, visit);
     };

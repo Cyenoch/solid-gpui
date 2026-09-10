@@ -2257,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-base"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2266,7 +2266,6 @@ dependencies = [
  "futures",
  "gpui-pre",
  "gpui-pre-macros",
- "gpui-pre-platform",
  "gpui-pre-sum-tree",
  "html5ever",
  "lsp-types",
@@ -2290,7 +2289,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-component"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2314,6 +2313,7 @@ dependencies = [
  "once_cell",
  "paste",
  "raw-window-handle",
+ "regex",
  "resvg 0.45.1",
  "ropey",
  "rust-i18n",
@@ -2331,12 +2331,28 @@ dependencies = [
 
 [[package]]
 name = "gpui-component-macros"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "gpui-fps"
+version = "0.6.1"
+dependencies = [
+ "core-graphics 0.24.0",
+ "gpui-pre",
+ "libc",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "sysinfo 0.37.2",
+ "uuid",
+ "wayland-client",
+ "web-time",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -2351,8 +2367,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpui-kit"
+version = "0.6.1"
+dependencies = [
+ "gpui-base",
+ "gpui-component",
+ "gpui-kit-assets",
+ "gpui-pre",
+ "gpui-pre-platform",
+ "gpui-pre-web",
+]
+
+[[package]]
 name = "gpui-kit-assets"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -2361,13 +2389,6 @@ dependencies = [
  "rust-embed",
  "wasm-bindgen",
  "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "gpui-performance"
-version = "0.3.0"
-dependencies = [
- "gpui-pre",
 ]
 
 [[package]]
@@ -4510,6 +4531,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-io-kit"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33fafba39597d6dc1fb709123dfa8289d39406734be322956a69f0931c73bb15"
+dependencies = [
+ "libc",
+ "objc2-core-foundation",
+]
+
+[[package]]
 name = "objc2-io-surface"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6451,9 +6482,9 @@ dependencies = [
  "futures",
  "gpui-base",
  "gpui-component",
+ "gpui-fps",
  "gpui-iconify",
  "gpui-kit-assets",
- "gpui-performance",
  "gpui-pre",
  "gpui-pre-platform",
  "gpui-pre-reqwest-client",
@@ -6461,6 +6492,7 @@ dependencies = [
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
+ "regex",
  "roxmltree 0.21.1",
  "rquickjs",
  "serde",
@@ -6484,6 +6516,15 @@ dependencies = [
 [[package]]
 name = "solid-gpui-bun-sys"
 version = "0.3.0"
+
+[[package]]
+name = "solid-gpui-integration-tests"
+version = "0.3.0"
+dependencies = [
+ "gpui-kit",
+ "serde_json",
+ "solid-gpui",
+]
 
 [[package]]
 name = "solid-gpui-macros"
@@ -6797,6 +6838,20 @@ dependencies = [
  "ntapi",
  "rayon",
  "windows 0.57.0",
+]
+
+[[package]]
+name = "sysinfo"
+version = "0.37.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16607d5caffd1c07ce073528f9ed972d88db15dd44023fa57142963be3feb11f"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -9037,7 +9092,7 @@ dependencies = [
  "rand 0.8.8",
  "screencapturekit",
  "screencapturekit-sys",
- "sysinfo",
+ "sysinfo 0.31.4",
  "tao-core-video-sys",
  "windows 0.61.3",
  "windows-capture",

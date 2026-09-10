@@ -26,6 +26,30 @@ automatically available. No additional JavaScript icon package is required.
 
 ## Available names
 
+GPUI Kit's `gpui-kit-assets` is a separate internal control bundle. It supplies
+Kit's arrows, checkmarks, close buttons and other default glyphs under `icons/`.
+The host embeds only `default-icons.txt`, including on Web, with no asset CDN.
+Updating Kit does not add names to `ICON_NAMES` or the application's icon catalog.
+
+Application icons belong to `gpui-iconify` and `solid_gpui::icons`. Built-in SVGs
+use `iconify/` cache keys; registered application SVGs use `application-icons/`.
+`ApplicationIconAssets` serves these two namespaces and never resolves Kit paths.
+Applications address icons by `collection:name`, never by these private cache keys.
+
+Generated component icon slots also use the application catalog:
+
+```tsx
+import { Button, Icon } from "@solid-gpui/core/components";
+<Button label="Save" icon="lucide:check" />;
+<Icon source="lucide:check" />;
+```
+
+Slots accept a registered name or explicit `{ svg: "…" }`, validate it once and
+retain the native icon. They tint SVGs as monochrome glyphs. For original brand
+colors or a palette icon, use the core `Icon` in ordinary child content.
+Kit's internal `icons/*.svg` paths are rejected by application-facing icon props;
+there is no fallback between the catalogs.
+
 Import `ICON_NAMES` to enumerate the built-in catalog and `IconName` to type an
 application's icon choices. Common names include `lucide:search`,
 `lucide:settings`, `lucide:check`, `lucide:moon`, and `lucide:sun`.

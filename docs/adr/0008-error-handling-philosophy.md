@@ -23,8 +23,8 @@ each seam:
   `NodeStore::apply_patch` rolls back a failed patch; the commit reader sends
   the error to `fatal_runtime_failure`, which requests runtime termination and exits
   (`crates/solid-gpui/src/renderer.rs` — `SolidRoot::apply_payload`,
-  `crates/solid-gpui/src/renderer/commit_reader.rs` —
-  `SolidRoot::start_commit_reader`, `crates/solid-gpui/src/tree.rs` —
+  `crates/solid-gpui/src/host/commit_pump.rs` —
+  `CommitPump::attach`, `crates/solid-gpui/src/tree.rs` —
   `NodeStore::apply_patch`, `crates/solid-gpui/src/transport.rs` —
   `fatal_runtime_failure`).
 - Image resources are loaded through GPUI's image path/cache path; a missing or
@@ -58,6 +58,11 @@ registered Surfaces because they share the reader/runtime and there is no
 per-Surface protocol resynchronization channel. A consumer that needs fault
 isolation must use separate runtime adapters, not expect one root to recover a
 shared stream.
+
+For Vite-managed development, [ADR-0019](0019-persistent-native-development-sessions.md)
+keeps the outer watcher alive after the host terminates. A later source edit
+starts a fresh session; it does not resume this rejected runtime or weaken the
+commit validation above.
 
 Fatal paths call the adapter's non-waiting `request_shutdown` before exiting.
 Normal application quit waits for full `shutdown` on GPUI's background

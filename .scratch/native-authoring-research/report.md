@@ -2,7 +2,7 @@
 
 Research dates: 2026-09-05 through 2026-09-06. This document preserves the original design exploration. Implementation subsequently completed and [ADR-0016](../../docs/adr/0016-rust-owned-native-modules.md) was adopted. For the current compilable API, see [Rust components and JavaScript calls](../../docs/rust-bridge.md); for runtime implementation and actual acceptance, see the [final audit](runtime-audit.md). The sketches below are not current API documentation.
 
-Baseline: HEAD `4698b0e0b188c34b599ad0275717d17a329c79af` with substantial existing uncommitted changes. Findings describe inspected files, not necessarily that commit alone. Actual dependencies were `gpui-pre 0.3.3`, `gpui-component 0.6.0 @ 928c3eb776a3d733d9b771f7dea27a6a79242ced`, and `ts-rs 12.0.1`. The different Shell implementation in `references/gpui-component` does not establish this bridge's capabilities.
+Baseline: HEAD `4698b0e0b188c34b599ad0275717d17a329c79af` with substantial existing uncommitted changes. Findings describe inspected files, not necessarily that commit alone. Actual dependencies were `gpui-pre 0.3.3`, `gpui-component 0.6.0 @ 928c3eb776a3d733d9b771f7dea27a6a79242ced`, and `ts-rs 12.0.1`. The different Shell implementation in `references/gpui-kit` does not establish this bridge's capabilities.
 
 ## Recommendation
 

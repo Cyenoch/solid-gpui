@@ -219,6 +219,7 @@ export type BarChartProps = {
   interactive?: boolean;
 };
 export type BarGradient = { from: Color; to: Color; chartRange?: boolean };
+export type BaseCheckState = "unchecked" | "checked" | "indeterminate";
 export type BubbleVariant = "filled" | "secondary" | "muted" | "tinted" | "outline" | "ghost" | "destructive";
 export type ButtonVariant =
   | "default"
@@ -248,6 +249,21 @@ export type CandlestickChartProps = {
   xAxis?: boolean;
   grid?: boolean;
 };
+export type CarouselChange = { index: number; editSeq: number };
+export type CarouselItemProps = { accessibilityLabel?: string | null };
+export type CarouselProps = {
+  orientation?: Orientation;
+  selectedIndex?: number | null;
+  defaultSelectedIndex?: number;
+  ackEditSeq?: number | null;
+  looping?: boolean;
+  controls?: boolean;
+  pagination?: boolean;
+  size?: ControlSize;
+  gap?: number;
+  viewportHeight?: number | null;
+  accessibilityLabel?: string;
+};
 export type CategoricalScaleResult = {
   domain: Array<string>;
   domainTicks: Array<number | null>;
@@ -266,7 +282,7 @@ export type Choice = {
   keywords?: Array<string>;
   disabled?: boolean;
   description?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
 };
 export type ChoiceGroup = { key: string; label?: string | null; items: Array<Choice> };
 export type ChoiceQuery = { query: string; requestId: number; dataRevision: number };
@@ -305,7 +321,7 @@ export type ComboboxProps = {
 export type CommandChoice = {
   key: string;
   label: string;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   keywords?: Array<string>;
   shortcut?: string | null;
   disabled?: boolean;
@@ -325,6 +341,7 @@ export type CommandProps = {
   placeholder?: string | null;
 };
 export type CommandSection = { key: string; label?: string | null; items: Array<CommandChoice> };
+export type ComponentIcon = string | { svg: string };
 export type ContextMenuProps = { menu?: MenuSpec };
 export type ControlSize = "xsmall" | "small" | "medium" | "large";
 export type DataQuery = { query: string; requestId: number; dataRevision: number };
@@ -458,7 +475,7 @@ export type DockTitleStyle = { background: Color; foreground: Color };
 export type DockToolbarButton = {
   id: string;
   label?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   variant?: ButtonVariant;
   size?: ControlSize;
   disabled?: boolean;
@@ -472,7 +489,7 @@ export type DockZoomControl = "none" | "menu" | "toolbar" | "both";
 export type DropdownButtonProps = {
   menu?: MenuSpec;
   label?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   variant?: ButtonVariant;
   size?: ControlSize;
   disabled?: boolean;
@@ -484,7 +501,7 @@ export type DropdownButtonProps = {
 export type DropdownMenuProps = {
   menu?: MenuSpec;
   label?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   variant?: ButtonVariant;
   size?: ControlSize;
   disabled?: boolean;
@@ -492,6 +509,16 @@ export type DropdownMenuProps = {
   selected?: boolean;
   outline?: boolean;
   anchor?: PopupAnchor;
+};
+export type EditorAutoClosingPair = { open: string; close: string; notIn?: Array<EditorSyntaxContext> };
+export type EditorBracketPair = { open: string; close: string };
+export type EditorIndentationRules = { increase?: string | null; decrease?: string | null };
+export type EditorLanguageConfig = {
+  language: string;
+  brackets?: Array<EditorBracketPair> | null;
+  autoClosingPairs?: Array<EditorAutoClosingPair> | null;
+  autoCloseBefore?: string | null;
+  indentation?: EditorIndentationRules | null;
 };
 export type EditorProps = {
   value?: string | null;
@@ -514,7 +541,10 @@ export type EditorProps = {
   showWhitespaces?: boolean;
   scrollBeyondLastLine?: number | null;
   cursorSurroundingLines?: number | null;
+  autoClose?: boolean;
+  smartIndent?: boolean;
 };
+export type EditorSyntaxContext = "string" | "comment";
 export type FlowAlignment = "left" | "right" | "center" | "justify";
 export type FlowLabel = { text: string; color?: Color | null; fontSize?: number | null };
 export type FlowLink = { source: number; target: number; value: number };
@@ -541,7 +571,8 @@ export type InputProps = {
   cleanable?: boolean;
   maskToggle?: boolean;
 };
-export type InputSelection = { startByte: number; endByte: number; editSeq: number };
+export type InputSelectionRange = { anchorByte: number; headByte: number };
+export type InputSelections = { ranges: Array<InputSelectionRange>; editSeq: number };
 export type InputSubmit = { secondary: boolean; shift: boolean };
 export type KeySelection = { value?: string | null; editSeq: number; dataRevision: number };
 export type KeyStroke = string;
@@ -588,10 +619,10 @@ export type MenuCheckSide = "left" | "right";
 export type MenuItem =
   | { kind: "separator" }
   | { kind: "label"; label: string }
-  | { kind: "item"; id: string; label: string; icon?: string | null; disabled?: boolean; checked?: boolean }
-  | { kind: "link"; id: string; label: string; href: string; icon?: string | null; disabled?: boolean }
-  | { kind: "element"; id: string; index: number; icon?: string | null; disabled?: boolean; checked?: boolean }
-  | { kind: "submenu"; id: string; label: string; menu: MenuSpec; icon?: string | null; disabled?: boolean };
+  | { kind: "item"; id: string; label: string; icon?: ComponentIcon | null; disabled?: boolean; checked?: boolean }
+  | { kind: "link"; id: string; label: string; href: string; icon?: ComponentIcon | null; disabled?: boolean }
+  | { kind: "element"; id: string; index: number; icon?: ComponentIcon | null; disabled?: boolean; checked?: boolean }
+  | { kind: "submenu"; id: string; label: string; menu: MenuSpec; icon?: ComponentIcon | null; disabled?: boolean };
 export type MenuSelection = { id: string };
 export type MenuSpec = {
   items?: Array<MenuItem>;
@@ -629,20 +660,52 @@ export type ModalButtons = {
 };
 export type ModalCloseReason = "ok" | "cancel" | "dismissed" | "programmatic" | "replaced";
 export type ModalOpenChange = { open: boolean; sessionId: number; reason: ModalCloseReason };
+export type MotionAnimation =
+  | { type: "transition"; durationMs: number; delayMs?: number; easing?: MotionEasing }
+  | { type: "spring"; responseMs: number; damping?: number; travel?: boolean }
+  | {
+      type: "keyframes";
+      frames: Array<MotionKeyframe>;
+      durationMs: number;
+      delayMs?: number;
+      iterations?: number | null;
+      direction?: MotionDirection;
+      easing?: MotionEasing;
+    };
+export type MotionComplete = { playbackId: number };
+export type MotionDirection = "normal" | "reverse" | "alternate" | "alternateReverse";
+export type MotionEasing = "linear" | "ease" | "easeIn" | "easeOut" | "easeInOut";
+export type MotionKeyframe = { offset: number; value: MotionTarget };
 export type MotionMode = "system" | "reduced" | "full";
 export type MotionPreference = { mode: MotionMode; reduced: boolean; source: MotionSource };
+export type MotionProps = {
+  target?: MotionTarget;
+  animation?: MotionAnimation;
+  playbackId?: number;
+  stagger?: MotionStagger | null;
+};
 export type MotionSource =
   | { status: "starting" }
   | { status: "available"; reduced: boolean }
   | { status: "unavailable"; message: string };
+export type MotionStagger = { index: number; count: number; intervalMs: number; origin?: StaggerOrigin };
+export type MotionTarget = { x?: number; y?: number; opacity?: number };
 export type NativeMenuEntry =
   | { kind: "separator" }
-  | { kind: "item"; id: string; label: string; disabled?: boolean; checked?: boolean; icon?: string | null }
+  | { kind: "item"; id: string; label: string; disabled?: boolean; checked?: boolean; icon?: ComponentIcon | null }
   | { kind: "label"; label: string }
   | { kind: "submenu"; label: string; items: Array<NativeMenuEntry>; disabled?: boolean };
 export type NativeMenuPosition = { x: number; y: number };
 export type NativeMenuProps = { items: Array<NativeMenuEntry>; trigger?: NativeMenuTrigger; enabled?: boolean };
 export type NativeMenuTrigger = "contextMenu" | "press" | "manual";
+export type NativePresenceProps = {
+  present?: boolean;
+  generation?: number;
+  durationMs?: number;
+  easing?: MotionEasing;
+  offsetY?: number;
+  reveal?: boolean;
+};
 export type NotificationClosed = { sessionId: number };
 export type NotificationDelivery = "inApp" | "system" | "inAppAndSystem";
 export type NotificationKind = "info" | "success" | "warning" | "error";
@@ -852,6 +915,7 @@ export type PopupAnchor =
   | "rightCenter";
 export type PopupMenuProps = { menu?: MenuSpec };
 export type PopupMouseButton = "left" | "right" | "middle";
+export type PresenceComplete = { present: boolean; generation: number };
 export type RadarChartProps = {
   data: Array<RadarDatum>;
   series: Array<RadarSeries>;
@@ -961,7 +1025,7 @@ export type SettingPageProps = {
   name: string;
   title: string;
   description?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   defaultOpen?: boolean;
   resettable?: boolean;
 };
@@ -1007,6 +1071,7 @@ export type SliderScale = "linear" | "logarithmic";
 export type SliderValue = { kind: "single"; value: number } | { kind: "range"; start: number; end: number };
 export type SortOrder = "none" | "ascending" | "descending";
 export type StackRequest = { rows: Array<{ [key in string]: number | null }>; keys: Array<string> };
+export type StaggerOrigin = "first" | "last" | "center";
 export type TabVariant = "tab" | "pill" | "outline" | "segmented" | "underline";
 export type TableColumn = {
   key: string;
@@ -1039,7 +1104,7 @@ export type TableValue =
   | number
   | boolean
   | { badge: string }
-  | { icon: string; label: string }
+  | { icon: ComponentIcon; label: string }
   | { progress: number };
 export type TagVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info";
 export type TextSelectionFormat = "plain" | "source";
@@ -1051,6 +1116,7 @@ export type TextViewProps = {
   selectionFormat?: TextSelectionFormat;
   maxLines?: number | null;
   mdx?: boolean;
+  frontmatter?: boolean;
 };
 export type TextareaProps = {
   value?: string | null;
@@ -1075,7 +1141,7 @@ export type TreeLoadRequest = { key: string; requestId: number; dataRevision: nu
 export type TreeNode = {
   key: string;
   label: string;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   disabled?: boolean;
   expanded?: boolean | null;
   hasChildren?: boolean;
@@ -1100,14 +1166,14 @@ export type VirtualListProps = {
 export type VisibleRange = { start: number; end: number };
 export type YearRange = { start: number; endExclusive: number };
 export type __NativePropsAccordion = { multiple?: boolean; bordered?: boolean; disabled?: boolean; size?: ControlSize };
-export type __NativePropsAccordionItem = { open?: boolean; disabled?: boolean; icon?: string | null };
+export type __NativePropsAccordionItem = { open?: boolean; disabled?: boolean; icon?: ComponentIcon | null };
 export type __NativePropsAlert = {
   message: string;
   title?: string | null;
   variant?: AlertVariant;
   banner?: boolean;
   visible?: boolean;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   size?: ControlSize;
 };
 export type __NativePropsAttachment = { status?: AttachmentStatus; orientation?: Orientation };
@@ -1120,7 +1186,7 @@ export type __NativePropsAttachmentTitle = { text: string; status?: AttachmentSt
 export type __NativePropsAvatar = {
   src?: string | null;
   name?: string | null;
-  placeholder?: string | null;
+  placeholder?: ComponentIcon | null;
   size?: ControlSize;
 };
 export type __NativePropsAvatarGroup = { limit?: number | null; ellipsis?: boolean; size?: ControlSize };
@@ -1129,7 +1195,35 @@ export type __NativePropsBadge = {
   max?: number;
   dot?: boolean;
   color?: Color | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
+};
+export type __NativePropsBaseButton = {
+  accessibilityLabel: string;
+  disabled?: boolean;
+  selected?: boolean;
+  tabIndex?: number;
+  tabStop?: boolean;
+};
+export type __NativePropsBaseCheckbox = {
+  accessibilityLabel: string;
+  state?: BaseCheckState;
+  disabled?: boolean;
+  tabIndex?: number;
+  tabStop?: boolean;
+};
+export type __NativePropsBaseSwitch = {
+  accessibilityLabel: string;
+  checked?: boolean;
+  disabled?: boolean;
+  tabIndex?: number;
+  tabStop?: boolean;
+};
+export type __NativePropsBaseToggle = {
+  accessibilityLabel: string;
+  pressed?: boolean;
+  disabled?: boolean;
+  tabIndex?: number;
+  tabStop?: boolean;
 };
 export type __NativePropsBreadcrumb = Record<symbol, never>;
 export type __NativePropsBreadcrumbItem = { label: string; disabled?: boolean };
@@ -1139,6 +1233,7 @@ export type __NativePropsBubbleGroup = Record<symbol, never>;
 export type __NativePropsBubbleReactions = { alignment?: MessageAlignment };
 export type __NativePropsButton = {
   label?: string | null;
+  icon?: ComponentIcon | null;
   variant?: ButtonVariant;
   disabled?: boolean;
   loading?: boolean;
@@ -1213,7 +1308,7 @@ export type __NativePropsHoverCard = {
   closeDelayMs?: number;
   appearance?: boolean;
 };
-export type __NativePropsIcon = { path: string; size?: ControlSize; color?: Color | null };
+export type __NativePropsIcon = { source: ComponentIcon; size?: ControlSize; color?: Color | null };
 export type __NativePropsKbd = { stroke: KeyStroke; appearance?: boolean; outline?: boolean };
 export type __NativePropsLabel = {
   text: string;
@@ -1317,7 +1412,7 @@ export type __NativePropsSidebarHeader = Record<symbol, never>;
 export type __NativePropsSidebarMenu = Record<symbol, never>;
 export type __NativePropsSidebarMenuItem = {
   label: string;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   active?: boolean;
   disabled?: boolean;
   defaultOpen?: boolean;
@@ -1326,7 +1421,7 @@ export type __NativePropsSidebarMenuItem = {
 };
 export type __NativePropsSidebarToggleButton = { side?: SidebarSide; collapsed?: boolean };
 export type __NativePropsSkeleton = { secondary?: boolean };
-export type __NativePropsSpinner = { color?: Color | null; icon?: string | null; size?: ControlSize };
+export type __NativePropsSpinner = { color?: Color | null; icon?: ComponentIcon | null; size?: ControlSize };
 export type __NativePropsStatusBar = Record<symbol, never>;
 export type __NativePropsStepper = {
   selectedIndex?: number;
@@ -1335,7 +1430,7 @@ export type __NativePropsStepper = {
   textCenter?: boolean;
   size?: ControlSize;
 };
-export type __NativePropsStepperItem = { disabled?: boolean; icon?: string | null };
+export type __NativePropsStepperItem = { disabled?: boolean; icon?: ComponentIcon | null };
 export type __NativePropsSwitch = {
   checked?: boolean;
   disabled?: boolean;
@@ -1347,7 +1442,7 @@ export type __NativePropsSwitch = {
 export type __NativePropsTab = {
   label?: string | null;
   ariaLabel?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   variant?: TabVariant;
   disabled?: boolean;
   selected?: boolean;
@@ -1369,7 +1464,7 @@ export type __NativePropsToggle = {
   checked?: boolean;
   disabled?: boolean;
   label?: string | null;
-  icon?: string | null;
+  icon?: ComponentIcon | null;
   outline?: boolean;
   tooltip?: string | null;
   size?: ControlSize;
@@ -1394,8 +1489,8 @@ export const Accordion = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AccordionItemRef = {};
@@ -1415,8 +1510,8 @@ export const AccordionItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AlertRef = {};
@@ -1431,8 +1526,8 @@ export const Alert = createNativeComponent<__NativePropsAlert, { onClose?: () =>
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AlertDialogRef = {
@@ -1461,8 +1556,8 @@ export const AlertDialog = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AppMenuBarRef = {};
@@ -1477,8 +1572,8 @@ export const AppMenuBar = createNativeComponent<AppMenuBarProps, { onEvent?: () 
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AreaChartRef = {};
@@ -1493,8 +1588,8 @@ export const AreaChart = createNativeComponent<AreaChartProps, {}, AreaChartRef,
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentRef = {};
@@ -1514,8 +1609,8 @@ export const Attachment = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentActionsRef = {};
@@ -1531,8 +1626,8 @@ export const AttachmentActions = createNativeComponent<__NativePropsAttachmentAc
     children: true,
     providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
     catalogDigest: [
-      26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24,
-      193, 183, 5, 231, 117, 114, 55,
+      55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+      241, 157, 222, 68, 252, 208, 7,
     ],
   },
 );
@@ -1553,8 +1648,8 @@ export const AttachmentContent = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentDescriptionRef = {};
@@ -1574,8 +1669,8 @@ export const AttachmentDescription = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentGroupRef = {};
@@ -1590,8 +1685,8 @@ export const AttachmentGroup = createNativeComponent<__NativePropsAttachmentGrou
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentMediaRef = {};
@@ -1606,8 +1701,8 @@ export const AttachmentMedia = createNativeComponent<__NativePropsAttachmentMedi
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AttachmentTitleRef = {};
@@ -1622,8 +1717,8 @@ export const AttachmentTitle = createNativeComponent<__NativePropsAttachmentTitl
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AvatarRef = {};
@@ -1638,8 +1733,8 @@ export const Avatar = createNativeComponent<__NativePropsAvatar, {}, AvatarRef, 
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type AvatarGroupRef = {};
@@ -1654,8 +1749,8 @@ export const AvatarGroup = createNativeComponent<__NativePropsAvatarGroup, {}, A
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type BadgeRef = {};
@@ -1670,8 +1765,8 @@ export const Badge = createNativeComponent<__NativePropsBadge, {}, BadgeRef, nev
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type BarChartRef = {};
@@ -1686,81 +1781,96 @@ export const BarChart = createNativeComponent<BarChartProps, {}, BarChartRef, ne
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
-export type BreadcrumbRef = {};
-export const Breadcrumb = createNativeComponent<__NativePropsBreadcrumb, {}, BreadcrumbRef, never>({
+export type BaseButtonRef = {};
+export const BaseButton = createNativeComponent<
+  __NativePropsBaseButton,
+  { onPress?: () => void },
+  BaseButtonRef,
+  never
+>({
   entryId: 18,
   entryVersion: 1,
   controlled: null,
   slots: [],
-  props: [],
-  events: [],
+  props: ["accessibilityLabel", "disabled", "selected", "tabIndex", "tabStop"],
+  events: [{ id: 1, name: "press", prop: "onPress" }],
   commands: [],
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
-export type BreadcrumbItemRef = {};
-export const BreadcrumbItem = createNativeComponent<
-  __NativePropsBreadcrumbItem,
-  { onPress?: () => void },
-  BreadcrumbItemRef,
+export type BaseCheckboxRef = {};
+export const BaseCheckbox = createNativeComponent<
+  __NativePropsBaseCheckbox,
+  { onChange?: (value: BaseCheckState) => void },
+  BaseCheckboxRef,
   never
 >({
   entryId: 19,
   entryVersion: 1,
   controlled: null,
   slots: [],
-  props: ["label", "disabled"],
-  events: [{ id: 1, name: "press", prop: "onPress" }],
-  commands: [],
-  children: false,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type BubbleRef = {};
-export const Bubble = createNativeComponent<__NativePropsBubble, {}, BubbleRef, "reactions">({
-  entryId: 20,
-  entryVersion: 1,
-  controlled: null,
-  slots: ["reactions"],
-  props: ["alignment", "variant"],
-  events: [],
+  props: ["accessibilityLabel", "state", "disabled", "tabIndex", "tabStop"],
+  events: [{ id: 1, name: "change", prop: "onChange" }],
   commands: [],
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
-export type BubbleContentRef = {};
-export const BubbleContent = createNativeComponent<__NativePropsBubbleContent, {}, BubbleContentRef, never>({
+export type BaseSwitchRef = {};
+export const BaseSwitch = createNativeComponent<
+  __NativePropsBaseSwitch,
+  { onChange?: (value: boolean) => void },
+  BaseSwitchRef,
+  never
+>({
+  entryId: 20,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: ["accessibilityLabel", "checked", "disabled", "tabIndex", "tabStop"],
+  events: [{ id: 1, name: "change", prop: "onChange" }],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type BaseToggleRef = {};
+export const BaseToggle = createNativeComponent<
+  __NativePropsBaseToggle,
+  { onChange?: (value: boolean) => void },
+  BaseToggleRef,
+  never
+>({
   entryId: 21,
   entryVersion: 1,
   controlled: null,
   slots: [],
-  props: [],
-  events: [],
+  props: ["accessibilityLabel", "pressed", "disabled", "tabIndex", "tabStop"],
+  events: [{ id: 1, name: "change", prop: "onChange" }],
   commands: [],
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
-export type BubbleGroupRef = {};
-export const BubbleGroup = createNativeComponent<__NativePropsBubbleGroup, {}, BubbleGroupRef, never>({
+export type BreadcrumbRef = {};
+export const Breadcrumb = createNativeComponent<__NativePropsBreadcrumb, {}, BreadcrumbRef, never>({
   entryId: 22,
   entryVersion: 1,
   controlled: null,
@@ -1771,13 +1881,82 @@ export const BubbleGroup = createNativeComponent<__NativePropsBubbleGroup, {}, B
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type BreadcrumbItemRef = {};
+export const BreadcrumbItem = createNativeComponent<
+  __NativePropsBreadcrumbItem,
+  { onPress?: () => void },
+  BreadcrumbItemRef,
+  never
+>({
+  entryId: 23,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: ["label", "disabled"],
+  events: [{ id: 1, name: "press", prop: "onPress" }],
+  commands: [],
+  children: false,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type BubbleRef = {};
+export const Bubble = createNativeComponent<__NativePropsBubble, {}, BubbleRef, "reactions">({
+  entryId: 24,
+  entryVersion: 1,
+  controlled: null,
+  slots: ["reactions"],
+  props: ["alignment", "variant"],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type BubbleContentRef = {};
+export const BubbleContent = createNativeComponent<__NativePropsBubbleContent, {}, BubbleContentRef, never>({
+  entryId: 25,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type BubbleGroupRef = {};
+export const BubbleGroup = createNativeComponent<__NativePropsBubbleGroup, {}, BubbleGroupRef, never>({
+  entryId: 26,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type BubbleReactionsRef = {};
 export const BubbleReactions = createNativeComponent<__NativePropsBubbleReactions, {}, BubbleReactionsRef, never>({
-  entryId: 23,
+  entryId: 27,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1787,8 +1966,8 @@ export const BubbleReactions = createNativeComponent<__NativePropsBubbleReaction
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ButtonRef = {};
@@ -1798,12 +1977,13 @@ export const Button = createNativeComponent<
   ButtonRef,
   never
 >({
-  entryId: 24,
+  entryId: 28,
   entryVersion: 1,
   controlled: null,
   slots: [],
   props: [
     "label",
+    "icon",
     "variant",
     "disabled",
     "loading",
@@ -1827,8 +2007,8 @@ export const Button = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ButtonGroupRef = {};
@@ -1838,7 +2018,7 @@ export const ButtonGroup = createNativeComponent<
   ButtonGroupRef,
   never
 >({
-  entryId: 25,
+  entryId: 29,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1848,8 +2028,8 @@ export const ButtonGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CalendarRef = { showDate(request: CivilDate, options?: NativeCallOptions): Promise<null> };
@@ -1859,7 +2039,7 @@ export const Calendar = createNativeComponent<
   CalendarRef,
   never
 >({
-  entryId: 26,
+  entryId: 30,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -1872,13 +2052,13 @@ export const Calendar = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CandlestickChartRef = {};
 export const CandlestickChart = createNativeComponent<CandlestickChartProps, {}, CandlestickChartRef, never>({
-  entryId: 27,
+  entryId: 31,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1888,13 +2068,13 @@ export const CandlestickChart = createNativeComponent<CandlestickChartProps, {},
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CaretRef = {};
 export const Caret = createNativeComponent<__NativePropsCaret, {}, CaretRef, never>({
-  entryId: 28,
+  entryId: 32,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1904,8 +2084,55 @@ export const Caret = createNativeComponent<__NativePropsCaret, {}, CaretRef, nev
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type CarouselRef = {
+  getSelectedIndex(request?: undefined, options?: NativeCallOptions): Promise<number | null>;
+  next(request?: undefined, options?: NativeCallOptions): Promise<boolean>;
+  previous(request?: undefined, options?: NativeCallOptions): Promise<boolean>;
+  select(request: number, options?: NativeCallOptions): Promise<null>;
+};
+export const Carousel = createNativeComponent<
+  Omit<CarouselProps, "ackEditSeq">,
+  { onChange?: (value: CarouselChange) => void },
+  CarouselRef,
+  "previous" | "next"
+>({
+  entryId: 33,
+  entryVersion: 1,
+  controlled: { valueProp: "selectedIndex", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
+  slots: ["previous", "next"],
+  props: null,
+  events: [{ id: 1, name: "change", prop: "onChange" }],
+  commands: [
+    { id: 1, name: "getSelectedIndex" },
+    { id: 2, name: "next" },
+    { id: 3, name: "previous" },
+    { id: 4, name: "select" },
+  ],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type CarouselItemRef = {};
+export const CarouselItem = createNativeComponent<CarouselItemProps, {}, CarouselItemRef, never>({
+  entryId: 34,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: null,
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CheckboxRef = {};
@@ -1915,7 +2142,7 @@ export const Checkbox = createNativeComponent<
   CheckboxRef,
   never
 >({
-  entryId: 29,
+  entryId: 35,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1925,8 +2152,8 @@ export const Checkbox = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ClipboardRef = {};
@@ -1936,7 +2163,7 @@ export const Clipboard = createNativeComponent<
   ClipboardRef,
   never
 >({
-  entryId: 30,
+  entryId: 36,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -1946,13 +2173,13 @@ export const Clipboard = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CollapsibleRef = {};
 export const Collapsible = createNativeComponent<__NativePropsCollapsible, {}, CollapsibleRef, "trigger">({
-  entryId: 31,
+  entryId: 37,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -1962,8 +2189,8 @@ export const Collapsible = createNativeComponent<__NativePropsCollapsible, {}, C
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ColorPickerRef = { setOpen(request: boolean, options?: NativeCallOptions): Promise<null> };
@@ -1973,7 +2200,7 @@ export const ColorPicker = createNativeComponent<
   ColorPickerRef,
   never
 >({
-  entryId: 32,
+  entryId: 38,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -1983,8 +2210,8 @@ export const ColorPicker = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ComboboxRef = {
@@ -2002,7 +2229,7 @@ export const Combobox = createNativeComponent<
   ComboboxRef,
   "empty" | "trigger" | "footer"
 >({
-  entryId: 33,
+  entryId: 39,
   entryVersion: 1,
   controlled: { valueProp: "values", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["empty", "trigger", "footer"],
@@ -2020,8 +2247,8 @@ export const Combobox = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type CommandRef = {
@@ -2040,7 +2267,7 @@ export const Command = createNativeComponent<
   CommandRef,
   "header" | "footer" | "empty"
 >({
-  entryId: 34,
+  entryId: 40,
   entryVersion: 1,
   controlled: { valueProp: "selectedKey", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["header", "footer", "empty"],
@@ -2059,8 +2286,8 @@ export const Command = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ContextMenuRef = {
@@ -2073,7 +2300,7 @@ export const ContextMenu = createNativeComponent<
   ContextMenuRef,
   "trigger"
 >({
-  entryId: 35,
+  entryId: 41,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -2089,8 +2316,8 @@ export const ContextMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DataTableRef = {
@@ -2118,7 +2345,7 @@ export const DataTable = createNativeComponent<
   DataTableRef,
   "empty" | "loading"
 >({
-  entryId: 36,
+  entryId: 42,
   entryVersion: 1,
   controlled: { valueProp: "selection", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["empty", "loading"],
@@ -2146,8 +2373,8 @@ export const DataTable = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DatePickerRef = {
@@ -2160,7 +2387,7 @@ export const DatePicker = createNativeComponent<
   DatePickerRef,
   never
 >({
-  entryId: 37,
+  entryId: 43,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -2173,13 +2400,13 @@ export const DatePicker = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DescriptionItemRef = {};
 export const DescriptionItem = createNativeComponent<__NativePropsDescriptionItem, {}, DescriptionItemRef, "label">({
-  entryId: 38,
+  entryId: 44,
   entryVersion: 1,
   controlled: null,
   slots: ["label"],
@@ -2189,13 +2416,13 @@ export const DescriptionItem = createNativeComponent<__NativePropsDescriptionIte
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DescriptionListRef = {};
 export const DescriptionList = createNativeComponent<__NativePropsDescriptionList, {}, DescriptionListRef, never>({
-  entryId: 39,
+  entryId: 45,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2205,13 +2432,13 @@ export const DescriptionList = createNativeComponent<__NativePropsDescriptionLis
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DescriptionTextRef = {};
 export const DescriptionText = createNativeComponent<__NativePropsDescriptionText, {}, DescriptionTextRef, never>({
-  entryId: 40,
+  entryId: 46,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2221,8 +2448,8 @@ export const DescriptionText = createNativeComponent<__NativePropsDescriptionTex
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DialogRef = {
@@ -2235,7 +2462,7 @@ export const Dialog = createNativeComponent<
   DialogRef,
   "title" | "footer"
 >({
-  entryId: 41,
+  entryId: 47,
   entryVersion: 1,
   controlled: null,
   slots: ["title", "footer"],
@@ -2251,110 +2478,12 @@ export const Dialog = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DialogActionRef = {};
 export const DialogAction = createNativeComponent<__NativePropsDialogAction, {}, DialogActionRef, never>({
-  entryId: 42,
-  entryVersion: 1,
-  controlled: null,
-  slots: [],
-  props: [],
-  events: [],
-  commands: [],
-  children: true,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type DialogCloseRef = {};
-export const DialogClose = createNativeComponent<__NativePropsDialogClose, {}, DialogCloseRef, never>({
-  entryId: 43,
-  entryVersion: 1,
-  controlled: null,
-  slots: [],
-  props: [],
-  events: [],
-  commands: [],
-  children: true,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type DialogContentRef = {};
-export const DialogContent = createNativeComponent<__NativePropsDialogContent, {}, DialogContentRef, never>({
-  entryId: 44,
-  entryVersion: 1,
-  controlled: null,
-  slots: [],
-  props: [],
-  events: [],
-  commands: [],
-  children: true,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type DialogDescriptionRef = {};
-export const DialogDescription = createNativeComponent<__NativePropsDialogDescription, {}, DialogDescriptionRef, never>(
-  {
-    entryId: 45,
-    entryVersion: 1,
-    controlled: null,
-    slots: [],
-    props: [],
-    events: [],
-    commands: [],
-    children: true,
-    providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-    catalogDigest: [
-      26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24,
-      193, 183, 5, 231, 117, 114, 55,
-    ],
-  },
-);
-export type DialogFooterRef = {};
-export const DialogFooter = createNativeComponent<__NativePropsDialogFooter, {}, DialogFooterRef, never>({
-  entryId: 46,
-  entryVersion: 1,
-  controlled: null,
-  slots: [],
-  props: [],
-  events: [],
-  commands: [],
-  children: true,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type DialogHeaderRef = {};
-export const DialogHeader = createNativeComponent<__NativePropsDialogHeader, {}, DialogHeaderRef, never>({
-  entryId: 47,
-  entryVersion: 1,
-  controlled: null,
-  slots: [],
-  props: [],
-  events: [],
-  commands: [],
-  children: true,
-  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
-  catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
-  ],
-});
-export type DialogTitleRef = {};
-export const DialogTitle = createNativeComponent<__NativePropsDialogTitle, {}, DialogTitleRef, never>({
   entryId: 48,
   entryVersion: 1,
   controlled: null,
@@ -2365,8 +2494,106 @@ export const DialogTitle = createNativeComponent<__NativePropsDialogTitle, {}, D
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type DialogCloseRef = {};
+export const DialogClose = createNativeComponent<__NativePropsDialogClose, {}, DialogCloseRef, never>({
+  entryId: 49,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type DialogContentRef = {};
+export const DialogContent = createNativeComponent<__NativePropsDialogContent, {}, DialogContentRef, never>({
+  entryId: 50,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type DialogDescriptionRef = {};
+export const DialogDescription = createNativeComponent<__NativePropsDialogDescription, {}, DialogDescriptionRef, never>(
+  {
+    entryId: 51,
+    entryVersion: 1,
+    controlled: null,
+    slots: [],
+    props: [],
+    events: [],
+    commands: [],
+    children: true,
+    providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+    catalogDigest: [
+      55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+      241, 157, 222, 68, 252, 208, 7,
+    ],
+  },
+);
+export type DialogFooterRef = {};
+export const DialogFooter = createNativeComponent<__NativePropsDialogFooter, {}, DialogFooterRef, never>({
+  entryId: 52,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type DialogHeaderRef = {};
+export const DialogHeader = createNativeComponent<__NativePropsDialogHeader, {}, DialogHeaderRef, never>({
+  entryId: 53,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type DialogTitleRef = {};
+export const DialogTitle = createNativeComponent<__NativePropsDialogTitle, {}, DialogTitleRef, never>({
+  entryId: 54,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DockAreaRef = {
@@ -2393,7 +2620,7 @@ export const DockArea = createNativeComponent<
   DockAreaRef,
   never
 >({
-  entryId: 49,
+  entryId: 55,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2423,8 +2650,8 @@ export const DockArea = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DropdownButtonRef = {
@@ -2437,7 +2664,7 @@ export const DropdownButton = createNativeComponent<
   DropdownButtonRef,
   "trigger"
 >({
-  entryId: 50,
+  entryId: 56,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -2454,8 +2681,8 @@ export const DropdownButton = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type DropdownMenuRef = {
@@ -2468,7 +2695,7 @@ export const DropdownMenu = createNativeComponent<
   DropdownMenuRef,
   "trigger"
 >({
-  entryId: 51,
+  entryId: 57,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -2485,16 +2712,16 @@ export const DropdownMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type EditorRef = {
   focus(request?: undefined, options?: NativeCallOptions): Promise<null>;
-  getSelection(request?: undefined, options?: NativeCallOptions): Promise<InputSelection>;
+  getSelections(request?: undefined, options?: NativeCallOptions): Promise<InputSelections>;
   insert(request: string, options?: NativeCallOptions): Promise<null>;
   replaceValue(request: string, options?: NativeCallOptions): Promise<null>;
-  setSelection(request: InputSelection, options?: NativeCallOptions): Promise<null>;
+  setSelections(request: InputSelections, options?: NativeCallOptions): Promise<null>;
 };
 export const Editor = createNativeComponent<
   Omit<EditorProps, "ackEditSeq">,
@@ -2507,7 +2734,7 @@ export const Editor = createNativeComponent<
   EditorRef,
   never
 >({
-  entryId: 52,
+  entryId: 58,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -2520,21 +2747,21 @@ export const Editor = createNativeComponent<
   ],
   commands: [
     { id: 1, name: "focus" },
-    { id: 2, name: "getSelection" },
+    { id: 2, name: "getSelections" },
     { id: 3, name: "insert" },
     { id: 4, name: "replaceValue" },
-    { id: 5, name: "setSelection" },
+    { id: 5, name: "setSelections" },
   ],
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type FieldRef = {};
 export const Field = createNativeComponent<__NativePropsField, {}, FieldRef, "label" | "description">({
-  entryId: 53,
+  entryId: 59,
   entryVersion: 1,
   controlled: null,
   slots: ["label", "description"],
@@ -2544,13 +2771,13 @@ export const Field = createNativeComponent<__NativePropsField, {}, FieldRef, "la
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type FocusTrapRef = { focus(request?: undefined, options?: NativeCallOptions): Promise<null> };
 export const FocusTrap = createNativeComponent<FocusTrapProps, { onEvent?: () => void }, FocusTrapRef, never>({
-  entryId: 54,
+  entryId: 60,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2560,13 +2787,13 @@ export const FocusTrap = createNativeComponent<FocusTrapProps, { onEvent?: () =>
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type FormRef = {};
 export const Form = createNativeComponent<__NativePropsForm, {}, FormRef, never>({
-  entryId: 55,
+  entryId: 61,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2576,13 +2803,13 @@ export const Form = createNativeComponent<__NativePropsForm, {}, FormRef, never>
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type GroupBoxRef = {};
 export const GroupBox = createNativeComponent<__NativePropsGroupBox, {}, GroupBoxRef, "title">({
-  entryId: 56,
+  entryId: 62,
   entryVersion: 1,
   controlled: null,
   slots: ["title"],
@@ -2592,8 +2819,8 @@ export const GroupBox = createNativeComponent<__NativePropsGroupBox, {}, GroupBo
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type HoverCardRef = {};
@@ -2603,7 +2830,7 @@ export const HoverCard = createNativeComponent<
   HoverCardRef,
   "trigger"
 >({
-  entryId: 57,
+  entryId: 63,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -2613,32 +2840,32 @@ export const HoverCard = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type IconRef = {};
 export const Icon = createNativeComponent<__NativePropsIcon, {}, IconRef, never>({
-  entryId: 58,
+  entryId: 64,
   entryVersion: 1,
   controlled: null,
   slots: [],
-  props: ["path", "size", "color"],
+  props: ["source", "size", "color"],
   events: [],
   commands: [],
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type InputRef = {
   focus(request?: undefined, options?: NativeCallOptions): Promise<null>;
-  getSelection(request?: undefined, options?: NativeCallOptions): Promise<InputSelection>;
+  getSelections(request?: undefined, options?: NativeCallOptions): Promise<InputSelections>;
   insert(request: string, options?: NativeCallOptions): Promise<null>;
   replaceValue(request: string, options?: NativeCallOptions): Promise<null>;
-  setSelection(request: InputSelection, options?: NativeCallOptions): Promise<null>;
+  setSelections(request: InputSelections, options?: NativeCallOptions): Promise<null>;
 };
 export const Input = createNativeComponent<
   Omit<InputProps, "ackEditSeq">,
@@ -2651,7 +2878,7 @@ export const Input = createNativeComponent<
   InputRef,
   "prefix" | "suffix"
 >({
-  entryId: 59,
+  entryId: 65,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["prefix", "suffix"],
@@ -2664,21 +2891,21 @@ export const Input = createNativeComponent<
   ],
   commands: [
     { id: 1, name: "focus" },
-    { id: 2, name: "getSelection" },
+    { id: 2, name: "getSelections" },
     { id: 3, name: "insert" },
     { id: 4, name: "replaceValue" },
-    { id: 5, name: "setSelection" },
+    { id: 5, name: "setSelections" },
   ],
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type KbdRef = {};
 export const Kbd = createNativeComponent<__NativePropsKbd, {}, KbdRef, never>({
-  entryId: 60,
+  entryId: 66,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2688,13 +2915,13 @@ export const Kbd = createNativeComponent<__NativePropsKbd, {}, KbdRef, never>({
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type LabelRef = {};
 export const Label = createNativeComponent<__NativePropsLabel, {}, LabelRef, never>({
-  entryId: 61,
+  entryId: 67,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2704,13 +2931,13 @@ export const Label = createNativeComponent<__NativePropsLabel, {}, LabelRef, nev
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type LineChartRef = {};
 export const LineChart = createNativeComponent<LineChartProps, {}, LineChartRef, never>({
-  entryId: 62,
+  entryId: 68,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2720,13 +2947,13 @@ export const LineChart = createNativeComponent<LineChartProps, {}, LineChartRef,
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type LinkRef = {};
 export const Link = createNativeComponent<__NativePropsLink, { onPress?: () => void }, LinkRef, never>({
-  entryId: 63,
+  entryId: 69,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2736,8 +2963,8 @@ export const Link = createNativeComponent<__NativePropsLink, { onPress?: () => v
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ListRef = {
@@ -2759,7 +2986,7 @@ export const List = createNativeComponent<
   ListRef,
   "empty" | "loading"
 >({
-  entryId: 64,
+  entryId: 70,
   entryVersion: 1,
   controlled: { valueProp: "selectedKey", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["empty", "loading"],
@@ -2781,13 +3008,13 @@ export const List = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ListItemRef = {};
 export const ListItem = createNativeComponent<__NativePropsListItem, { onPress?: () => void }, ListItemRef, "suffix">({
-  entryId: 65,
+  entryId: 71,
   entryVersion: 1,
   controlled: null,
   slots: ["suffix"],
@@ -2797,14 +3024,14 @@ export const ListItem = createNativeComponent<__NativePropsListItem, { onPress?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ListSeparatorItemRef = {};
 export const ListSeparatorItem = createNativeComponent<__NativePropsListSeparatorItem, {}, ListSeparatorItemRef, never>(
   {
-    entryId: 66,
+    entryId: 72,
     entryVersion: 1,
     controlled: null,
     slots: [],
@@ -2814,14 +3041,14 @@ export const ListSeparatorItem = createNativeComponent<__NativePropsListSeparato
     children: true,
     providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
     catalogDigest: [
-      26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24,
-      193, 183, 5, 231, 117, 114, 55,
+      55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+      241, 157, 222, 68, 252, 208, 7,
     ],
   },
 );
 export type MarkerRef = {};
 export const Marker = createNativeComponent<__NativePropsMarker, {}, MarkerRef, "icon" | "content">({
-  entryId: 67,
+  entryId: 73,
   entryVersion: 1,
   controlled: null,
   slots: ["icon", "content"],
@@ -2831,13 +3058,13 @@ export const Marker = createNativeComponent<__NativePropsMarker, {}, MarkerRef, 
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MarkerContentRef = {};
 export const MarkerContent = createNativeComponent<__NativePropsMarkerContent, {}, MarkerContentRef, never>({
-  entryId: 68,
+  entryId: 74,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2847,13 +3074,13 @@ export const MarkerContent = createNativeComponent<__NativePropsMarkerContent, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MarkerIconRef = {};
 export const MarkerIcon = createNativeComponent<__NativePropsMarkerIcon, {}, MarkerIconRef, never>({
-  entryId: 69,
+  entryId: 75,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2863,13 +3090,13 @@ export const MarkerIcon = createNativeComponent<__NativePropsMarkerIcon, {}, Mar
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageRef = {};
 export const Message = createNativeComponent<__NativePropsMessage, {}, MessageRef, "avatar" | "header" | "footer">({
-  entryId: 70,
+  entryId: 76,
   entryVersion: 1,
   controlled: null,
   slots: ["avatar", "header", "footer"],
@@ -2879,13 +3106,13 @@ export const Message = createNativeComponent<__NativePropsMessage, {}, MessageRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageAvatarRef = {};
 export const MessageAvatar = createNativeComponent<__NativePropsMessageAvatar, {}, MessageAvatarRef, never>({
-  entryId: 71,
+  entryId: 77,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2895,13 +3122,13 @@ export const MessageAvatar = createNativeComponent<__NativePropsMessageAvatar, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageContentRef = {};
 export const MessageContent = createNativeComponent<__NativePropsMessageContent, {}, MessageContentRef, never>({
-  entryId: 72,
+  entryId: 78,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2911,13 +3138,13 @@ export const MessageContent = createNativeComponent<__NativePropsMessageContent,
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageFooterRef = {};
 export const MessageFooter = createNativeComponent<__NativePropsMessageFooter, {}, MessageFooterRef, never>({
-  entryId: 73,
+  entryId: 79,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2927,13 +3154,13 @@ export const MessageFooter = createNativeComponent<__NativePropsMessageFooter, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageGroupRef = {};
 export const MessageGroup = createNativeComponent<__NativePropsMessageGroup, {}, MessageGroupRef, never>({
-  entryId: 74,
+  entryId: 80,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2943,13 +3170,13 @@ export const MessageGroup = createNativeComponent<__NativePropsMessageGroup, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageHeaderRef = {};
 export const MessageHeader = createNativeComponent<__NativePropsMessageHeader, {}, MessageHeaderRef, never>({
-  entryId: 75,
+  entryId: 81,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2959,8 +3186,8 @@ export const MessageHeader = createNativeComponent<__NativePropsMessageHeader, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type MessageScrollerRef = {
@@ -2975,7 +3202,7 @@ export const MessageScroller = createNativeComponent<
   MessageScrollerRef,
   never
 >({
-  entryId: 76,
+  entryId: 82,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -2990,8 +3217,29 @@ export const MessageScroller = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type MotionRef = {};
+export const Motion = createNativeComponent<
+  MotionProps,
+  { onComplete?: (value: MotionComplete) => void },
+  MotionRef,
+  never
+>({
+  entryId: 83,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: null,
+  events: [{ id: 1, name: "complete", prop: "onComplete" }],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type NativeMenuRef = { show(request: NativeMenuPosition, options?: NativeCallOptions): Promise<null> };
@@ -3001,7 +3249,7 @@ export const NativeMenu = createNativeComponent<
   NativeMenuRef,
   never
 >({
-  entryId: 77,
+  entryId: 84,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3011,8 +3259,29 @@ export const NativeMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
+  ],
+});
+export type NativePresenceRef = {};
+export const NativePresence = createNativeComponent<
+  NativePresenceProps,
+  { onComplete?: (value: PresenceComplete) => void },
+  NativePresenceRef,
+  never
+>({
+  entryId: 85,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: null,
+  events: [{ id: 1, name: "complete", prop: "onComplete" }],
+  commands: [],
+  children: true,
+  providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
+  catalogDigest: [
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type NotificationRef = { dismiss(request?: undefined, options?: NativeCallOptions): Promise<null> };
@@ -3022,7 +3291,7 @@ export const Notification = createNativeComponent<
   NotificationRef,
   never
 >({
-  entryId: 78,
+  entryId: 86,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3036,16 +3305,16 @@ export const Notification = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type NumberInputRef = {
   focus(request?: undefined, options?: NativeCallOptions): Promise<null>;
-  getSelection(request?: undefined, options?: NativeCallOptions): Promise<InputSelection>;
+  getSelections(request?: undefined, options?: NativeCallOptions): Promise<InputSelections>;
   insert(request: string, options?: NativeCallOptions): Promise<null>;
   replaceValue(request: string, options?: NativeCallOptions): Promise<null>;
-  setSelection(request: InputSelection, options?: NativeCallOptions): Promise<null>;
+  setSelections(request: InputSelections, options?: NativeCallOptions): Promise<null>;
 };
 export const NumberInput = createNativeComponent<
   Omit<NumberInputProps, "ackEditSeq">,
@@ -3058,7 +3327,7 @@ export const NumberInput = createNativeComponent<
   NumberInputRef,
   "prefix" | "suffix"
 >({
-  entryId: 79,
+  entryId: 87,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["prefix", "suffix"],
@@ -3071,16 +3340,16 @@ export const NumberInput = createNativeComponent<
   ],
   commands: [
     { id: 1, name: "focus" },
-    { id: 2, name: "getSelection" },
+    { id: 2, name: "getSelections" },
     { id: 3, name: "insert" },
     { id: 4, name: "replaceValue" },
-    { id: 5, name: "setSelection" },
+    { id: 5, name: "setSelections" },
   ],
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type OtpInputRef = { focus(request?: undefined, options?: NativeCallOptions): Promise<null> };
@@ -3095,7 +3364,7 @@ export const OtpInput = createNativeComponent<
   OtpInputRef,
   never
 >({
-  entryId: 80,
+  entryId: 88,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -3110,8 +3379,8 @@ export const OtpInput = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PaginationRef = {};
@@ -3121,7 +3390,7 @@ export const Pagination = createNativeComponent<
   PaginationRef,
   never
 >({
-  entryId: 81,
+  entryId: 89,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3131,13 +3400,13 @@ export const Pagination = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PieChartRef = {};
 export const PieChart = createNativeComponent<PieChartProps, {}, PieChartRef, never>({
-  entryId: 82,
+  entryId: 90,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3147,13 +3416,13 @@ export const PieChart = createNativeComponent<PieChartProps, {}, PieChartRef, ne
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PlotRef = {};
 export const Plot = createNativeComponent<PlotProps, {}, PlotRef, never>({
-  entryId: 83,
+  entryId: 91,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3163,13 +3432,13 @@ export const Plot = createNativeComponent<PlotProps, {}, PlotRef, never>({
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PlotCrossLineRef = {};
 export const PlotCrossLine = createNativeComponent<PlotCrossLineProps, {}, PlotCrossLineRef, never>({
-  entryId: 84,
+  entryId: 92,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3179,13 +3448,13 @@ export const PlotCrossLine = createNativeComponent<PlotCrossLineProps, {}, PlotC
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PlotDotRef = {};
 export const PlotDot = createNativeComponent<PlotDotProps, {}, PlotDotRef, never>({
-  entryId: 85,
+  entryId: 93,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3195,13 +3464,13 @@ export const PlotDot = createNativeComponent<PlotDotProps, {}, PlotDotRef, never
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PlotTooltipRef = {};
 export const PlotTooltip = createNativeComponent<PlotTooltipProps, {}, PlotTooltipRef, never>({
-  entryId: 86,
+  entryId: 94,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3211,8 +3480,8 @@ export const PlotTooltip = createNativeComponent<PlotTooltipProps, {}, PlotToolt
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PopoverRef = {};
@@ -3222,7 +3491,7 @@ export const Popover = createNativeComponent<
   PopoverRef,
   "trigger"
 >({
-  entryId: 87,
+  entryId: 95,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -3232,8 +3501,8 @@ export const Popover = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type PopupMenuRef = {
@@ -3246,7 +3515,7 @@ export const PopupMenu = createNativeComponent<
   PopupMenuRef,
   never
 >({
-  entryId: 88,
+  entryId: 96,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3262,13 +3531,13 @@ export const PopupMenu = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ProgressRef = {};
 export const Progress = createNativeComponent<__NativePropsProgress, {}, ProgressRef, never>({
-  entryId: 89,
+  entryId: 97,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3278,13 +3547,13 @@ export const Progress = createNativeComponent<__NativePropsProgress, {}, Progres
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ProgressCircleRef = {};
 export const ProgressCircle = createNativeComponent<__NativePropsProgressCircle, {}, ProgressCircleRef, never>({
-  entryId: 90,
+  entryId: 98,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3294,13 +3563,13 @@ export const ProgressCircle = createNativeComponent<__NativePropsProgressCircle,
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type RadarChartRef = {};
 export const RadarChart = createNativeComponent<RadarChartProps, {}, RadarChartRef, never>({
-  entryId: 91,
+  entryId: 99,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3310,8 +3579,8 @@ export const RadarChart = createNativeComponent<RadarChartProps, {}, RadarChartR
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type RadioRef = {};
@@ -3321,7 +3590,7 @@ export const Radio = createNativeComponent<
   RadioRef,
   never
 >({
-  entryId: 92,
+  entryId: 100,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3331,8 +3600,8 @@ export const Radio = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type RadioGroupRef = {};
@@ -3342,7 +3611,7 @@ export const RadioGroup = createNativeComponent<
   RadioGroupRef,
   never
 >({
-  entryId: 93,
+  entryId: 101,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3352,8 +3621,8 @@ export const RadioGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type RatingRef = {};
@@ -3363,7 +3632,7 @@ export const Rating = createNativeComponent<
   RatingRef,
   never
 >({
-  entryId: 94,
+  entryId: 102,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3373,13 +3642,13 @@ export const Rating = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ResizablePanelRef = {};
 export const ResizablePanel = createNativeComponent<ResizablePanelProps, {}, ResizablePanelRef, never>({
-  entryId: 95,
+  entryId: 103,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3389,8 +3658,8 @@ export const ResizablePanel = createNativeComponent<ResizablePanelProps, {}, Res
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ResizablePanelGroupRef = {
@@ -3403,7 +3672,7 @@ export const ResizablePanelGroup = createNativeComponent<
   ResizablePanelGroupRef,
   never
 >({
-  entryId: 96,
+  entryId: 104,
   entryVersion: 1,
   controlled: { valueProp: "sizes", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -3416,13 +3685,13 @@ export const ResizablePanelGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SankeyChartRef = {};
 export const SankeyChart = createNativeComponent<SankeyChartProps, {}, SankeyChartRef, never>({
-  entryId: 97,
+  entryId: 105,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3432,8 +3701,8 @@ export const SankeyChart = createNativeComponent<SankeyChartProps, {}, SankeyCha
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ScrollShadowRef = {
@@ -3446,7 +3715,7 @@ export const ScrollShadow = createNativeComponent<
   ScrollShadowRef,
   never
 >({
-  entryId: 98,
+  entryId: 106,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3459,8 +3728,8 @@ export const ScrollShadow = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ScrollableRef = {
@@ -3473,7 +3742,7 @@ export const Scrollable = createNativeComponent<
   ScrollableRef,
   never
 >({
-  entryId: 99,
+  entryId: 107,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3486,8 +3755,8 @@ export const Scrollable = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SearchableListItemElementRef = {};
@@ -3497,7 +3766,7 @@ export const SearchableListItemElement = createNativeComponent<
   SearchableListItemElementRef,
   never
 >({
-  entryId: 100,
+  entryId: 108,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3507,8 +3776,8 @@ export const SearchableListItemElement = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SelectRef = {
@@ -3522,7 +3791,7 @@ export const Select = createNativeComponent<
   SelectRef,
   "empty"
 >({
-  entryId: 101,
+  entryId: 109,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["empty"],
@@ -3539,13 +3808,13 @@ export const Select = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SeparatorRef = {};
 export const Separator = createNativeComponent<__NativePropsSeparator, {}, SeparatorRef, never>({
-  entryId: 102,
+  entryId: 110,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3555,8 +3824,8 @@ export const Separator = createNativeComponent<__NativePropsSeparator, {}, Separ
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingCustomItemRef = {};
@@ -3566,7 +3835,7 @@ export const SettingCustomItem = createNativeComponent<
   SettingCustomItemRef,
   never
 >({
-  entryId: 103,
+  entryId: 111,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3576,13 +3845,13 @@ export const SettingCustomItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingFieldRef = {};
 export const SettingField = createNativeComponent<SettingFieldProps, { onReset?: () => void }, SettingFieldRef, never>({
-  entryId: 104,
+  entryId: 112,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3592,13 +3861,13 @@ export const SettingField = createNativeComponent<SettingFieldProps, { onReset?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingGroupRef = {};
 export const SettingGroup = createNativeComponent<SettingGroupProps, {}, SettingGroupRef, never>({
-  entryId: 105,
+  entryId: 113,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3608,13 +3877,13 @@ export const SettingGroup = createNativeComponent<SettingGroupProps, {}, Setting
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingItemRef = {};
 export const SettingItem = createNativeComponent<SettingItemProps, {}, SettingItemRef, never>({
-  entryId: 106,
+  entryId: 114,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3624,13 +3893,13 @@ export const SettingItem = createNativeComponent<SettingItemProps, {}, SettingIt
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingPageRef = {};
 export const SettingPage = createNativeComponent<SettingPageProps, {}, SettingPageRef, "titleSuffix">({
-  entryId: 107,
+  entryId: 115,
   entryVersion: 1,
   controlled: null,
   slots: ["titleSuffix"],
@@ -3640,8 +3909,8 @@ export const SettingPage = createNativeComponent<SettingPageProps, {}, SettingPa
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SettingsRef = {
@@ -3655,7 +3924,7 @@ export const Settings = createNativeComponent<
   SettingsRef,
   never
 >({
-  entryId: 108,
+  entryId: 116,
   entryVersion: 1,
   controlled: { valueProp: "selection", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -3672,8 +3941,8 @@ export const Settings = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SheetRef = { isOpen(request?: undefined, options?: NativeCallOptions): Promise<boolean> };
@@ -3683,7 +3952,7 @@ export const Sheet = createNativeComponent<
   SheetRef,
   "title" | "footer"
 >({
-  entryId: 109,
+  entryId: 117,
   entryVersion: 1,
   controlled: null,
   slots: ["title", "footer"],
@@ -3693,13 +3962,13 @@ export const Sheet = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ShimmerTextRef = {};
 export const ShimmerText = createNativeComponent<__NativePropsShimmerText, {}, ShimmerTextRef, never>({
-  entryId: 110,
+  entryId: 118,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3709,13 +3978,13 @@ export const ShimmerText = createNativeComponent<__NativePropsShimmerText, {}, S
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarRef = {};
 export const Sidebar = createNativeComponent<__NativePropsSidebar, {}, SidebarRef, "header" | "footer">({
-  entryId: 111,
+  entryId: 119,
   entryVersion: 1,
   controlled: null,
   slots: ["header", "footer"],
@@ -3725,13 +3994,13 @@ export const Sidebar = createNativeComponent<__NativePropsSidebar, {}, SidebarRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarFooterRef = {};
 export const SidebarFooter = createNativeComponent<__NativePropsSidebarFooter, {}, SidebarFooterRef, never>({
-  entryId: 112,
+  entryId: 120,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3741,13 +4010,13 @@ export const SidebarFooter = createNativeComponent<__NativePropsSidebarFooter, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarGroupRef = {};
 export const SidebarGroup = createNativeComponent<__NativePropsSidebarGroup, {}, SidebarGroupRef, never>({
-  entryId: 113,
+  entryId: 121,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3757,13 +4026,13 @@ export const SidebarGroup = createNativeComponent<__NativePropsSidebarGroup, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarHeaderRef = {};
 export const SidebarHeader = createNativeComponent<__NativePropsSidebarHeader, {}, SidebarHeaderRef, never>({
-  entryId: 114,
+  entryId: 122,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3773,13 +4042,13 @@ export const SidebarHeader = createNativeComponent<__NativePropsSidebarHeader, {
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarMenuRef = {};
 export const SidebarMenu = createNativeComponent<__NativePropsSidebarMenu, {}, SidebarMenuRef, never>({
-  entryId: 115,
+  entryId: 123,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3789,8 +4058,8 @@ export const SidebarMenu = createNativeComponent<__NativePropsSidebarMenu, {}, S
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarMenuItemRef = {};
@@ -3800,7 +4069,7 @@ export const SidebarMenuItem = createNativeComponent<
   SidebarMenuItemRef,
   "suffix"
 >({
-  entryId: 116,
+  entryId: 124,
   entryVersion: 1,
   controlled: null,
   slots: ["suffix"],
@@ -3810,8 +4079,8 @@ export const SidebarMenuItem = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SidebarToggleButtonRef = {};
@@ -3821,7 +4090,7 @@ export const SidebarToggleButton = createNativeComponent<
   SidebarToggleButtonRef,
   never
 >({
-  entryId: 117,
+  entryId: 125,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3831,13 +4100,13 @@ export const SidebarToggleButton = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SkeletonRef = {};
 export const Skeleton = createNativeComponent<__NativePropsSkeleton, {}, SkeletonRef, never>({
-  entryId: 118,
+  entryId: 126,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3847,8 +4116,8 @@ export const Skeleton = createNativeComponent<__NativePropsSkeleton, {}, Skeleto
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SliderRef = {};
@@ -3858,7 +4127,7 @@ export const Slider = createNativeComponent<
   SliderRef,
   never
 >({
-  entryId: 119,
+  entryId: 127,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -3871,13 +4140,13 @@ export const Slider = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SpinnerRef = {};
 export const Spinner = createNativeComponent<__NativePropsSpinner, {}, SpinnerRef, never>({
-  entryId: 120,
+  entryId: 128,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3887,13 +4156,13 @@ export const Spinner = createNativeComponent<__NativePropsSpinner, {}, SpinnerRe
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type StatusBarRef = {};
 export const StatusBar = createNativeComponent<__NativePropsStatusBar, {}, StatusBarRef, "left" | "right">({
-  entryId: 121,
+  entryId: 129,
   entryVersion: 1,
   controlled: null,
   slots: ["left", "right"],
@@ -3903,8 +4172,8 @@ export const StatusBar = createNativeComponent<__NativePropsStatusBar, {}, Statu
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type StepperRef = {};
@@ -3914,7 +4183,7 @@ export const Stepper = createNativeComponent<
   StepperRef,
   never
 >({
-  entryId: 122,
+  entryId: 130,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3924,13 +4193,13 @@ export const Stepper = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type StepperItemRef = {};
 export const StepperItem = createNativeComponent<__NativePropsStepperItem, {}, StepperItemRef, never>({
-  entryId: 123,
+  entryId: 131,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3940,8 +4209,8 @@ export const StepperItem = createNativeComponent<__NativePropsStepperItem, {}, S
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type SwitchRef = {};
@@ -3951,7 +4220,7 @@ export const Switch = createNativeComponent<
   SwitchRef,
   never
 >({
-  entryId: 124,
+  entryId: 132,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -3961,13 +4230,13 @@ export const Switch = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TabRef = {};
 export const Tab = createNativeComponent<__NativePropsTab, { onPress?: () => void }, TabRef, "prefix" | "suffix">({
-  entryId: 125,
+  entryId: 133,
   entryVersion: 1,
   controlled: null,
   slots: ["prefix", "suffix"],
@@ -3977,8 +4246,8 @@ export const Tab = createNativeComponent<__NativePropsTab, { onPress?: () => voi
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TabBarRef = {};
@@ -3988,7 +4257,7 @@ export const TabBar = createNativeComponent<
   TabBarRef,
   "prefix" | "suffix"
 >({
-  entryId: 126,
+  entryId: 134,
   entryVersion: 1,
   controlled: null,
   slots: ["prefix", "suffix"],
@@ -3998,13 +4267,13 @@ export const TabBar = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableRef = {};
 export const Table = createNativeComponent<__NativePropsTable, {}, TableRef, never>({
-  entryId: 127,
+  entryId: 135,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4014,13 +4283,13 @@ export const Table = createNativeComponent<__NativePropsTable, {}, TableRef, nev
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableBodyRef = {};
 export const TableBody = createNativeComponent<__NativePropsTableBody, {}, TableBodyRef, never>({
-  entryId: 128,
+  entryId: 136,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4030,13 +4299,13 @@ export const TableBody = createNativeComponent<__NativePropsTableBody, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableCaptionRef = {};
 export const TableCaption = createNativeComponent<__NativePropsTableCaption, {}, TableCaptionRef, never>({
-  entryId: 129,
+  entryId: 137,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4046,13 +4315,13 @@ export const TableCaption = createNativeComponent<__NativePropsTableCaption, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableCellRef = {};
 export const TableCell = createNativeComponent<__NativePropsTableCell, {}, TableCellRef, never>({
-  entryId: 130,
+  entryId: 138,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4062,13 +4331,13 @@ export const TableCell = createNativeComponent<__NativePropsTableCell, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableFooterRef = {};
 export const TableFooter = createNativeComponent<__NativePropsTableFooter, {}, TableFooterRef, never>({
-  entryId: 131,
+  entryId: 139,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4078,13 +4347,13 @@ export const TableFooter = createNativeComponent<__NativePropsTableFooter, {}, T
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableHeadRef = {};
 export const TableHead = createNativeComponent<__NativePropsTableHead, {}, TableHeadRef, never>({
-  entryId: 132,
+  entryId: 140,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4094,13 +4363,13 @@ export const TableHead = createNativeComponent<__NativePropsTableHead, {}, Table
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableHeaderRef = {};
 export const TableHeader = createNativeComponent<__NativePropsTableHeader, {}, TableHeaderRef, never>({
-  entryId: 133,
+  entryId: 141,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4110,13 +4379,13 @@ export const TableHeader = createNativeComponent<__NativePropsTableHeader, {}, T
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TableRowRef = {};
 export const TableRow = createNativeComponent<__NativePropsTableRow, {}, TableRowRef, never>({
-  entryId: 134,
+  entryId: 142,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4126,13 +4395,13 @@ export const TableRow = createNativeComponent<__NativePropsTableRow, {}, TableRo
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TagRef = {};
 export const Tag = createNativeComponent<__NativePropsTag, {}, TagRef, never>({
-  entryId: 135,
+  entryId: 143,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4142,13 +4411,13 @@ export const Tag = createNativeComponent<__NativePropsTag, {}, TagRef, never>({
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TextRef = {};
 export const Text = createNativeComponent<__NativePropsText, {}, TextRef, never>({
-  entryId: 136,
+  entryId: 144,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4158,8 +4427,8 @@ export const Text = createNativeComponent<__NativePropsText, {}, TextRef, never>
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TextViewRef = {
@@ -4173,7 +4442,7 @@ export const TextView = createNativeComponent<
   TextViewRef,
   never
 >({
-  entryId: 137,
+  entryId: 145,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4187,16 +4456,16 @@ export const TextView = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TextareaRef = {
   focus(request?: undefined, options?: NativeCallOptions): Promise<null>;
-  getSelection(request?: undefined, options?: NativeCallOptions): Promise<InputSelection>;
+  getSelections(request?: undefined, options?: NativeCallOptions): Promise<InputSelections>;
   insert(request: string, options?: NativeCallOptions): Promise<null>;
   replaceValue(request: string, options?: NativeCallOptions): Promise<null>;
-  setSelection(request: InputSelection, options?: NativeCallOptions): Promise<null>;
+  setSelections(request: InputSelections, options?: NativeCallOptions): Promise<null>;
 };
 export const Textarea = createNativeComponent<
   Omit<TextareaProps, "ackEditSeq">,
@@ -4209,7 +4478,7 @@ export const Textarea = createNativeComponent<
   TextareaRef,
   never
 >({
-  entryId: 138,
+  entryId: 146,
   entryVersion: 1,
   controlled: { valueProp: "value", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: [],
@@ -4222,21 +4491,21 @@ export const Textarea = createNativeComponent<
   ],
   commands: [
     { id: 1, name: "focus" },
-    { id: 2, name: "getSelection" },
+    { id: 2, name: "getSelections" },
     { id: 3, name: "insert" },
     { id: 4, name: "replaceValue" },
-    { id: 5, name: "setSelection" },
+    { id: 5, name: "setSelections" },
   ],
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TitleBarRef = {};
 export const TitleBar = createNativeComponent<__NativePropsTitleBar, { onClose?: () => void }, TitleBarRef, never>({
-  entryId: 139,
+  entryId: 147,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4246,8 +4515,8 @@ export const TitleBar = createNativeComponent<__NativePropsTitleBar, { onClose?:
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ToggleRef = {};
@@ -4257,7 +4526,7 @@ export const Toggle = createNativeComponent<
   ToggleRef,
   never
 >({
-  entryId: 140,
+  entryId: 148,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4267,8 +4536,8 @@ export const Toggle = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type ToggleGroupRef = {};
@@ -4278,7 +4547,7 @@ export const ToggleGroup = createNativeComponent<
   ToggleGroupRef,
   never
 >({
-  entryId: 141,
+  entryId: 149,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4288,13 +4557,13 @@ export const ToggleGroup = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TooltipRef = {};
 export const Tooltip = createNativeComponent<__NativePropsTooltip, {}, TooltipRef, "trigger">({
-  entryId: 142,
+  entryId: 150,
   entryVersion: 1,
   controlled: null,
   slots: ["trigger"],
@@ -4304,8 +4573,8 @@ export const Tooltip = createNativeComponent<__NativePropsTooltip, {}, TooltipRe
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type TreeRef = {
@@ -4327,7 +4596,7 @@ export const Tree = createNativeComponent<
   TreeRef,
   "empty"
 >({
-  entryId: 143,
+  entryId: 151,
   entryVersion: 1,
   controlled: { valueProp: "selectedKey", eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq" },
   slots: ["empty"],
@@ -4349,8 +4618,8 @@ export const Tree = createNativeComponent<
   children: false,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type VirtualListRef = {
@@ -4363,7 +4632,7 @@ export const VirtualList = createNativeComponent<
   VirtualListRef,
   never
 >({
-  entryId: 144,
+  entryId: 152,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4376,13 +4645,13 @@ export const VirtualList = createNativeComponent<
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export type WindowBorderRef = {};
 export const WindowBorder = createNativeComponent<__NativePropsWindowBorder, {}, WindowBorderRef, never>({
-  entryId: 145,
+  entryId: 153,
   entryVersion: 1,
   controlled: null,
   slots: [],
@@ -4392,12 +4661,13 @@ export const WindowBorder = createNativeComponent<__NativePropsWindowBorder, {},
   children: true,
   providerId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   catalogDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
 });
 export interface NativeClient0 {
   arcCentroid(request: ArcCentroidRequest, options?: NativeCallOptions): Promise<PlotCoordinate>;
+  configureEditorLanguage(request: EditorLanguageConfig, options?: NativeCallOptions): Promise<null>;
   getMotionPreference(request?: undefined, options?: NativeCallOptions): Promise<MotionPreference>;
   getTheme(request?: undefined, options?: NativeCallOptions): Promise<ThemeState>;
   pieArcs(request: PieRequest, options?: NativeCallOptions): Promise<Array<PlotArcData>>;
@@ -4414,23 +4684,24 @@ export interface NativeClient0 {
 const descriptor0 = {
   moduleId: [33, 84, 240, 222, 90, 144, 85, 111, 58, 12, 212, 208, 10, 14, 46, 196],
   moduleDigest: [
-    26, 56, 9, 167, 96, 46, 222, 195, 240, 181, 43, 121, 120, 108, 185, 79, 31, 197, 89, 64, 238, 59, 119, 31, 24, 193,
-    183, 5, 231, 117, 114, 55,
+    55, 45, 166, 249, 85, 211, 99, 129, 123, 101, 154, 67, 46, 236, 150, 175, 135, 29, 112, 49, 112, 85, 43, 157, 254,
+    241, 157, 222, 68, 252, 208, 7,
   ],
   commands: [
     { id: 1, name: "arcCentroid", input: "ArcCentroidRequest", output: "PlotCoordinate" },
-    { id: 2, name: "getMotionPreference", input: "null", output: "MotionPreference" },
-    { id: 3, name: "getTheme", input: "null", output: "ThemeState" },
-    { id: 4, name: "pieArcs", input: "PieRequest", output: "Array<PlotArcData>" },
-    { id: 5, name: "sankeyLayout", input: "SankeyLayoutRequest", output: "PlotSankeyGraph" },
-    { id: 6, name: "scaleBand", input: "BandScaleRequest", output: "CategoricalScaleResult" },
-    { id: 7, name: "scaleLinear", input: "LinearScaleRequest", output: "LinearScaleResult" },
-    { id: 8, name: "scaleOrdinal", input: "OrdinalScaleRequest", output: "Array<string | null>" },
-    { id: 9, name: "scalePoint", input: "PointScaleRequest", output: "CategoricalScaleResult" },
-    { id: 10, name: "setApplicationTheme", input: "ApplicationTheme", output: "ThemeState" },
-    { id: 11, name: "setMotionPreference", input: "MotionMode", output: "MotionPreference" },
-    { id: 12, name: "setTheme", input: "ThemeMode", output: "ThemeState" },
-    { id: 13, name: "stackSeries", input: "StackRequest", output: "Array<PlotStackSeries>" },
+    { id: 2, name: "configureEditorLanguage", input: "EditorLanguageConfig", output: "null" },
+    { id: 3, name: "getMotionPreference", input: "null", output: "MotionPreference" },
+    { id: 4, name: "getTheme", input: "null", output: "ThemeState" },
+    { id: 5, name: "pieArcs", input: "PieRequest", output: "Array<PlotArcData>" },
+    { id: 6, name: "sankeyLayout", input: "SankeyLayoutRequest", output: "PlotSankeyGraph" },
+    { id: 7, name: "scaleBand", input: "BandScaleRequest", output: "CategoricalScaleResult" },
+    { id: 8, name: "scaleLinear", input: "LinearScaleRequest", output: "LinearScaleResult" },
+    { id: 9, name: "scaleOrdinal", input: "OrdinalScaleRequest", output: "Array<string | null>" },
+    { id: 10, name: "scalePoint", input: "PointScaleRequest", output: "CategoricalScaleResult" },
+    { id: 11, name: "setApplicationTheme", input: "ApplicationTheme", output: "ThemeState" },
+    { id: 12, name: "setMotionPreference", input: "MotionMode", output: "MotionPreference" },
+    { id: 13, name: "setTheme", input: "ThemeMode", output: "ThemeState" },
+    { id: 14, name: "stackSeries", input: "StackRequest", output: "Array<PlotStackSeries>" },
   ],
 };
 export const useNative0 = () => useNativeClient<NativeClient0>(descriptor0);

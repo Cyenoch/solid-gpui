@@ -81,9 +81,15 @@ impl ExtensionRegistry for Registry {
         digest: [u8; 32],
         entry: u32,
         version: u32,
-    ) -> Option<&dyn ExtensionAdapter> {
+    ) -> Result<&dyn ExtensionAdapter, ExtensionError> {
         (provider == PROVIDER && digest == DIGEST && (entry == 1 || entry == 2) && version == 1)
-            .then_some(self)
+            .then_some(self as &dyn ExtensionAdapter)
+            .ok_or(ExtensionError::AdapterNotFound {
+                provider_id: provider,
+                catalog_digest: digest,
+                entry_id: entry,
+                entry_version: version,
+            })
     }
 }
 impl ExtensionAdapter for Registry {
@@ -467,13 +473,20 @@ impl ExtensionRegistry for SlotRegistry {
         digest: [u8; 32],
         entry: u32,
         version: u32,
-    ) -> Option<&dyn ExtensionAdapter> {
+    ) -> Result<&dyn ExtensionAdapter, ExtensionError> {
+        let missing = || ExtensionError::AdapterNotFound {
+            provider_id: provider,
+            catalog_digest: digest,
+            entry_id: entry,
+            entry_version: version,
+        };
         if provider != PROVIDER || digest != DIGEST || version != 1 {
-            return None;
+            return Err(missing());
         }
         self.0
-            .get(entry.checked_sub(1)? as usize)
+            .get(entry.wrapping_sub(1) as usize)
             .map(|adapter| adapter as &dyn ExtensionAdapter)
+            .ok_or_else(missing)
     }
 }
 

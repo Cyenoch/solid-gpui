@@ -36,11 +36,36 @@ artifact paths:
 
 ## 3. 比较开启与关闭监视器
 
-可复用组件与集成见 [gpui-performance](../crates/gpui-performance/README.md)。它被动采样绘制，在闲置时冻结读数和图表。其 README 定义了采样窗口、500 ms 活动阈值，以及无法区分长期停顿和闲置的限制。严重停顿需结合外部分析与输入延迟调查。
+宿主使用固定 GPUI Kit 中的 [gpui-fps](../vendor/gpui-kit/crates/fps/README.md)。
+每个窗口持有自己的 monitor Entity，关闭时释放。通过 `ComponentHost::with_performance_monitor(true)`
+显式开启；所有构建默认关闭，website 原生宿主显式开启。
 
-应用宿主在所有构建中默认隐藏监视器。使用 `ComponentHost::with_performance_monitor(true)` 显式开启。网站在 `examples/website/native/src/main.rs` 中开启；将参数改为 `false` 并重新构建，即可进行无覆盖层对比。环境变量不会覆盖应用策略。使用 `bun run task website-native-profile` 输出区间日志。
+主读数默认是根据原生 presentation 事件计数的 **FPS**。右键切换到 **MAX FPS**，即采样 CPU draw
+成本的倒数，并限制到显示器刷新率。这是完整重绘能力估计，不是实际帧节奏。
+**FRAME/P95** 表示 CPU draw 时间，**DROP** 表示超出时间预算的 draw 比例（不是合成器丢帧率），
+**INV** 表示原生失效。CPU/GPU/内存来自各平台进程采样，均不能替代物理输入延迟。
 
-宿主 `frame-profile` feature 启用区间日志。FPS 覆盖层不会启动定时器或通知循环。两次运行应使用相同二进制、窗口、输入和数据，保留两组结果。
+监视器跳过最初八个 draw 样本，并从绘制成本统计排除标记为仅 HUD 读数更新的 draw。
+可见 HUD 每 500 ms 刷新，包括内容闲置时，因此它自身可能产生 presentation 事件。
+HUD 不再被渲染后会停止读数时钟；失焦但仍在渲染的窗口可能继续刷新。这替换了旧的纯被动 HUD；可见 HUD 的闲置 FPS 不能作为基线。
+
+对比应只改变 `with_performance_monitor`，重新构建并保留两个二进制身份和测量数据，
+固定窗口尺寸、输入和数据集。环境变量不覆盖应用策略。
+`frame-profile` 与 `bun run task website-native-profile` 继续单独记录 CPU draw、
+输入到 presentation、失效到 presentation 区间指标。物理输入到显示验收仍需真实平台输入。
+
+
+同一个诊断二进制可串行对比 360 次更新、500 行数据的负载。只有此诊断入口接受
+`SOLID_GPUI_PROFILE_HUD`，不会改变应用宿主策略。先完成构建，再依次执行：
+
+```sh
+cargo build -p solid-gpui --bin solid-gpui-profile --features frame-profile
+SOLID_GPUI_PROFILE_HUD=0 target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+SOLID_GPUI_PROFILE_HUD=1 target/debug/solid-gpui-profile bun --conditions=browser scripts/native-commit-profile.ts --native
+```
+
+每次约 12 秒，检查所有增量更新并包含窄/宽窗口缩放，最终内容视口被改变时会拒绝该次采样。它覆盖原生提交与 presentation，
+不代表物理触控板延迟。测量期间不要并行编译或运行其他基准。
 
 ## 4. 复现矩阵与正确性
 

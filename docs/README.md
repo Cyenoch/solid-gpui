@@ -10,10 +10,10 @@ Use this order:
 2. [`../CONTEXT.md`](../CONTEXT.md) — shared domain vocabulary and invariants.
 3. [`getting-started.md`](getting-started.md) — build and run a Solid application.
 4. [`protocol.md`](protocol.md) — authoritative framed Bebop v5 contract, bounded decoding, and generated binding workflow.
-5. [`troubleshooting.md`](troubleshooting.md) — runtime and build failures.
+5. [`troubleshooting.md`](troubleshooting.md) — runtime and build failures, including blank QuickJS windows after Vite reports ready and stale Cargo optimization profiles.
 6. [`rust-bridge.md`](rust-bridge.md) — export ordinary Rust logic and native components with generated types.
-7. [`hot-reload.md`](hot-reload.md) — Bun HMR and QuickJS application reload, consumer build profiles, explicit state contracts, and activation/recovery verification.
-8. [`gpui-components.md`](gpui-components.md) — generated native controls and application APIs.
+7. [`hot-reload.md`](hot-reload.md) — Bun HMR and QuickJS application reload, automatic native rebuilds, persistent development sessions, explicit state contracts, and activation/recovery verification.
+8. [`gpui-components.md`](gpui-components.md) — GPUI Kit controls, native motion, editor selections, and application APIs.
 9. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement, native commit profiling, and acceptance.
 10. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, regressions, and recorded measurements.
 11. [`keyboard-and-menus.md`](keyboard-and-menus.md) — platform shortcuts, window scope, and system menus.
@@ -44,6 +44,5 @@ References:
 - [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
-- [GPUI Component Shell](https://longbridge.github.io/gpui-component/shell/) — host-owned rendering and script snapshot reference.
-- [GPUI Component source](../references/gpui-component/) — checked-in source used for implementation comparison.
+- [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source used for implementation comparison.
 - [Zed GPUI source](../references/zed/crates/gpui/) — pinned GPUI implementation reference.
