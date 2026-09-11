@@ -146,6 +146,7 @@ export const chinese: Record<string, string> = {
   Installation: "安装",
   "Component library": "组件库",
   "Development workflow": "开发流程",
+  "Preserve UI state": "保留界面状态",
   Router: "路由",
   "Keyboard & menus": "键盘与菜单",
   "Async & accessibility": "异步与无障碍",

@@ -114,6 +114,9 @@ session rather than dropping a frame. See [native contract diagnostics](troubles
 
 ## State and failure boundaries
 
+Start with [Preserve UI state with captureState](capture-state.md) for a complete
+application example and guidance on restoring forms after native data loads.
+
 Reloading remounts the application. It does not automatically preserve each
 component's signals. Under Bun, `captureState` returns structured-cloneable data
 that the next generation receives in `setup`. QuickJS uses the stricter

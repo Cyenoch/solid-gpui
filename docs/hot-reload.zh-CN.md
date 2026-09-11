@@ -80,6 +80,8 @@ mountApplication<number>({
 
 ## 状态与失败边界
 
+完整应用示例、表单恢复及后端加载注意事项见[使用 captureState 保留界面状态](capture-state.zh-CN.md)。
+
 重载会重新挂载应用，不自动保留各组件信号。在 Bun 中，`captureState` 返回可 structured clone 的数据，下一代 setup 接收它；QuickJS 使用更严格的 [JSON 契约](#捕获状态)。显式捕获路由、选中项或窗口尺寸等应用数据；组件状态、原生输入与滚动缓存重建。不要跨代保留 Solid owner、Root/router 实例、函数或原生资源。
 
 候选 setup、render 和首帧准备成功后，释放旧 owner 与 root，在相同 surface ID 发布新 epoch。语法错误和同步 setup/render 错误保留旧页面，修复并保存后重试。由 Vite 管理宿主时，首次启动失败也会继续监听，修复并保存源码后启动新的会话。

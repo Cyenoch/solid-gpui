@@ -63,6 +63,7 @@ const referenceLabels: Record<string, string> = {
   "system-popover": "System popovers",
   "native-migration": "Native application migration",
   "hot-reload": "Development workflow",
+  "capture-state": "Preserve UI state",
   router: "Router",
   "keyboard-and-menus": "Keyboard & menus",
   "native-composition": "Async & accessibility",

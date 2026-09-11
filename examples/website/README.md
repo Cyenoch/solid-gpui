@@ -75,6 +75,9 @@ translations directly through `src/documentation.ts`. Update those sources for
 both website languages. The Troubleshooting guide includes native QuickJS blank
 startup diagnosis, stale Cargo profiles, and protocol-tap interpretation; these
 native runtime checks are separate from the browser's WASM startup checks.
+The Guides sidebar publishes [Preserve UI state](../../docs/capture-state.md) at
+`/docs/reference/capture-state`, with a complete `captureState`/`setup(previous)`
+example, QuickJS data limits, dirty-draft restoration, and restart boundaries.
 
 Start the website with the matching SDK bindings and WASM host:
 

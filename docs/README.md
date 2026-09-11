@@ -23,6 +23,10 @@ Use this order:
 See [Vite integration](vite.md) for direct JS, JSX/TSX development and builds,
 Bun APIs, native module generation, and Rust-owned Vite startup.
 
+See [Preserve UI state with captureState](capture-state.md) for a complete
+`setup(previous)` example, QuickJS JSON constraints, draft restoration, and the
+difference between UI reload and native host replacement.
+
 Start with [Choose a runtime](runtimes.md) for the development and delivery paths.
 
 See also [runtime strategy](runtime-strategy.md) for external Bun development,
