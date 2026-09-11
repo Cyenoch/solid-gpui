@@ -2,6 +2,9 @@ import { recipeChinese } from "../component-recipes/translations.zh-CN";
 export const chinese: Record<string, string> = {
   Horizontal: "横向",
   Vertical: "纵向",
+  "Virtualized list": "虚拟化列表",
+  "Compose a bounded ScrollShadow directly with a core VirtualList without eager row creation or a duplicate scrollbar.":
+    "将限定尺寸的 ScrollShadow 与核心 VirtualList 直接组合，不预先创建全部行，也不重复显示滚动条。",
   "A content-sized horizontal viewport with a visible scrollbar and dynamic edge fades.":
     "高度随内容变化的横向滚动区域，带可见滚动条与动态边缘淡出。",
   "A bounded vertical viewport with wider fades and room for its scrollbar.":

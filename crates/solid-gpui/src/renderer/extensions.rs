@@ -226,6 +226,9 @@ pub trait ExtensionInstance {
         window: &mut gpui::Window,
         cx: &mut gpui::App,
     );
+    fn scroll_viewport(&self, _cx: &gpui::App) -> Option<crate::native::ScrollViewport> {
+        None
+    }
     fn render(&self, context: ExtensionRenderContext<'_>) -> AnyElement;
     fn build_native(&self, _context: ExtensionRenderContext<'_>) -> Option<Box<dyn std::any::Any>> {
         None
@@ -285,6 +288,7 @@ pub(crate) struct ExtensionEventState {
     pub(crate) epoch: Cell<u32>,
     pub(crate) revision: Cell<u32>,
     routes: RefCell<HashMap<u32, Rc<EventRoute>>>,
+    pub(super) scroll_viewports: RefCell<HashMap<u32, crate::native::ScrollViewport>>,
 }
 
 /// A cloneable event emitter scoped to one retained extension node.
@@ -570,7 +574,19 @@ impl ExtensionContent {
                 .collect(),
         }
     }
+    /// Returns the viewport of exactly one direct child, without materializing it.
+    pub fn scroll_viewport(&self) -> Option<crate::native::ScrollViewport> {
+        let sink = &self.children.sink;
+        if !sink.is_active() || self.len() != 1 {
+            return None;
+        }
+        let groups = sink.route.child_nodes.borrow();
+        let ids = groups.get(self.group.map_or(0, |i| i + 1))?;
+        let id = ids.get(self.item.unwrap_or(0))?;
+        sink.state.scroll_viewports.borrow().get(id).cloned()
+    }
 }
+
 impl RenderOnce for ExtensionContent {
     fn render(self, _: &mut gpui::Window, cx: &mut gpui::App) -> impl IntoElement {
         gpui::div().children(self.elements(cx))
@@ -708,6 +724,7 @@ pub(crate) fn new_event_state(
         epoch: Cell::new(0),
         revision: Cell::new(0),
         routes: RefCell::new(HashMap::new()),
+        scroll_viewports: RefCell::new(HashMap::new()),
     })
 }
 
@@ -726,12 +743,14 @@ pub(crate) fn update_event_state(
 }
 
 pub(super) fn revoke_all_events(state: &ExtensionEventState) {
+    state.scroll_viewports.borrow_mut().clear();
     for (_, route) in state.routes.borrow_mut().drain() {
         route.active.set(false);
     }
 }
 
 pub(super) fn revoke_node_events(state: &ExtensionEventState, id: u32) {
+    state.scroll_viewports.borrow_mut().remove(&id);
     if let Some(route) = state.routes.borrow_mut().remove(&id) {
         route.active.set(false);
     }

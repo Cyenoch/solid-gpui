@@ -45,6 +45,19 @@ export default function Example() {
   return <N.ScrollShadow axis="horizontal" color="#0a0a0a" style={{ width: 280 }}><View style={{ width: 720, flexDirection: "row", paddingBottom: 14 }}>{Array.from({ length: 6 }, (_, i) => <View style={{ width: 120, flexShrink: 0, padding: 12 }}><N.Label text={\`Column \${i + 1}\`} /></View>)}</View></N.ScrollShadow>;
 }`,
   },
+  {
+    component: "ScrollShadow",
+    id: "ScrollShadow--virtual-list",
+    title: "Virtualized list",
+    description:
+      "Compose a bounded ScrollShadow directly with a core VirtualList without eager row creation or a duplicate scrollbar.",
+    source: `import { View, VirtualList } from "@solid-gpui/core";
+import { ScrollShadow, Label } from "@solid-gpui/core/components";
+const data = Array.from({ length: 10000 }, (_, index) => ({ id: index, label: \`Project \${index + 1}\` }));
+export default function Example() {
+  return <ScrollShadow axis="vertical" style={{ height: 240 }}><VirtualList data={data} itemKey={(item) => item.id} estimatedItemSize={32} style={{ widthPercent: 100, heightPercent: 100 }} renderItem={(item) => <View style={{ height: 32, justifyContent: "center", paddingLeft: 12, paddingRight: 14 }}><Label text={item.label} /></View>} /></ScrollShadow>;
+}`,
+  },
   example(
     "primary",
     "Primary",

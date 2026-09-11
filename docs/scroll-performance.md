@@ -132,6 +132,34 @@ empty initial range remained empty after population, and filtering could emit
 an inverted range such as 90..1. The committed range now restarts from the
 initial window when the previous range is empty or beyond the new data.
 
+`ScrollShadow` can decorate one direct, matching-axis core or native VirtualList
+without creating a second scrolling viewport. Native commits publish the child's
+viewport capability; commands and paint read the same retained handle. Moving a
+native list out of the wrapper releases decoration and restores its own scrollbar.
+See [composition and sizing](gpui-components.md#coverage) for the public contract.
+
+The linked GPUI List must preserve unmeasured height hints on first layout and
+width changes. Dropping hints makes the scrollbar describe only measured rows;
+measuring every row would defeat virtualization. Width changes still invalidate
+actual measurements: retained hints are estimates until visible rows are measured
+at the new width. No `measure_all` path is added.
+
+The native composition regression uses 100,000 logical rows with ten committed
+rows, checks bounded visible ranges, wheel and scrollbar navigation, commands,
+resize, and the complete estimated extent. A native 600-by-600, scale-2 Bun smoke
+with variable 32/40-pixel rows reached the final row, resized repeatedly, filtered,
+and recovered from empty data: ten rows were live initially and the observed
+peak was thirteen. Native wheel input visibly advanced the first row from 1 to 13
+while the separate horizontal list stayed fixed. These are work-bound and native
+correctness observations, not CPU frame-time, input-latency, or display-FPS results.
+
+The final strict smoke waited for native layout and range feedback and did not
+catch assertion failures. Filtering to three rows settled at offset zero with
+three live owners; empty data released all owners and restoration remounted the
+first window. Across these command/resize/data transitions, 38 owners were created
+in total and at most 13 were live. The horizontal native list reported range
+`3..10` at `x=360` and reached item 100 through its own command.
+
 ## Capturing sustained lag after the three-column breakpoint
 
 The latest user reproduction is **continuous lag after resizing Kanban into

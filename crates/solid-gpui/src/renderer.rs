@@ -780,6 +780,27 @@ impl SolidRoot {
                 );
             }
         }
+        // Publish capabilities after every child instance has been synchronized.
+        // Commands can then borrow a viewport without re-reading this leased root.
+        let mut viewports = self.extension_event_state.scroll_viewports.borrow_mut();
+        for id in &self.extension_content_dirty {
+            if let Some(state) = self.virtual_lists.get(id) {
+                viewports
+                    .entry(*id)
+                    .or_insert_with(|| crate::native::ScrollViewport::list(state.clone()));
+                continue;
+            }
+            let viewport = self
+                .extension_instances
+                .get(id)
+                .and_then(|mounted| mounted.instance.as_ref())
+                .and_then(|instance| instance.scroll_viewport(cx));
+            if let Some(viewport) = viewport {
+                viewports.insert(*id, viewport);
+            } else {
+                viewports.remove(id);
+            }
+        }
         self.extension_dirty.clear();
         self.extension_content_dirty.clear();
     }

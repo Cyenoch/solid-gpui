@@ -47,7 +47,9 @@ pub use cancellation::NativeCallContext;
 mod json_guard;
 mod module;
 pub use component::*;
+mod scroll;
 pub use module::*;
+pub use scroll::*;
 
 use serde::de::DeserializeOwned;
 use std::{

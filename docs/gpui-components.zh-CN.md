@@ -121,19 +121,15 @@ BaseCheckbox 支持 `unchecked`、`checked`、`indeterminate`。
 - 宿主每个窗口安装一次 Root、NotificationList、文本选择层、模态层及主题。Dialog、Sheet 和 Notification 使用该 Root。
 - Scrollbar 与 ScrollableMask 由 Scrollable 和列表/表格/消息滚动 API 集成，并使用对应原生滚动句柄。FocusTrapContainer 是 FocusTrap 的实现，DropdownMenuPopover 是 DropdownMenu 的实现。
 
-**ScrollShadow** 提供带动态边缘淡出的滚动区域，内部滚动视图、滚动条和淡出共用原生滚动句柄。
-`axis="horizontal"` 控制左右边缘，`axis="vertical"`（默认）控制上下边缘。
-纵向区域需要限定高度，横向区域可由内容决定高度，无需额外嵌套 `Scrollable`。
+**ScrollShadow** 提供带动态边缘淡出的滚动区域。默认情况下它拥有滚动视口、滚动条和原生句柄。它可以改为借用一个**直接子项**的视口：该子项必须是来自 `@solid-gpui/core` 的核心 `VirtualList`，或来自 `@solid-gpui/core/components` 的生成原生 `VirtualList`，且方向必须与 `ScrollShadow` 的轴匹配。此时列表继续拥有自己的原生滚动，`ScrollShadow` 借用该视口来控制淡出、`scrollbarVisibility`、`scrollTo`、`getScrollPosition` 和 `onScroll`；不会创建外层滚动区域或重复滚动条。父视口需要限定尺寸（横向虚拟列表也需要限定高度），直接子项使用 `style={{ widthPercent: 100, heightPercent: 100 }}` 填满视口。
 
-`color` 应匹配周围背景色，默认使用主题背景；`fadeSize` 控制最大淡出范围，默认 24 像素，0 表示关闭淡出。
-接近边界的最后 `fadeSize` 像素内，淡出范围和不透明度随剩余距离逐渐减小。
-起点前缘完全清晰，终点后缘完全清晰；内容完全容纳时既无淡出，也无滚动条。
-原生绘制直接读取滚动几何信息，滚轮、拖动、`scrollTo` 和尺寸变化均无需 JavaScript 滚动订阅即可更新。
-覆盖层不拦截输入，绘制在滚动条下方，同时支持 `onScroll` 和 `getScrollPosition`。
+这种委托范围刻意保持狭窄：只识别一个方向匹配的直接子项。包装器、多个子项、嵌套列表和方向不匹配的子项不会被自动发现，并继续使用独立 `ScrollShadow` 行为。核心 `VirtualList` 的 data/renderItem 形式会虚拟化 Solid owner 和宿主节点；生成的原生 `VirtualList` 子项只虚拟化原生行的绘制，仍会创建所有提供的 Solid 子项。不要把大数据集展开成 JSX 子项；这类工作负载应使用核心 data/renderItem 形式。
 
-`scrollbarVisibility` 默认为 `"always"`，也支持 `"hover"` 和 `"scrolling"`。
-若覆盖式滚动条会挡住内容，请沿滚动条所在边缘预留内边距。
-网站的 Markdown 表格和组件 API 表格在 Web 与桌面端共用横向 `ScrollShadow`。
+`axis="horizontal"` 控制左右边缘，`axis="vertical"`（默认）控制上下边缘。独立的纵向区域需要限定高度；独立的横向区域可以由内容决定高度。无需额外嵌套 `Scrollable`。
+
+`color` 应匹配周围背景色，默认使用主题背景；`fadeSize` 控制最大淡出范围，默认 24 像素，0 表示关闭淡出。接近边界的最后 `fadeSize` 像素内，淡出范围和不透明度随剩余距离逐渐减小。起点前缘完全清晰，终点后缘完全清晰；内容完全容纳时既无淡出，也无滚动条。原生绘制直接读取滚动几何信息，滚轮、拖动、`scrollTo` 和尺寸变化均无需 JavaScript 滚动订阅即可更新。覆盖层不拦截输入，绘制在滚动条下方，同时支持 `onScroll` 和 `getScrollPosition`。
+
+`scrollbarVisibility` 默认为 `"always"`，也支持 `"hover"` 和 `"scrolling"`。若覆盖式滚动条会挡住内容，请沿滚动条所在边缘预留内边距。网站的 Markdown 表格和组件 API 表格在 Web 与桌面端共用横向 `ScrollShadow`。
 
 固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与 138 个普通公共渲染接口分开列出。
 

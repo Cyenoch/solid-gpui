@@ -142,11 +142,28 @@ Some upstream types are parts of another control, not independent screen element
 - The host installs native **Root**, its **NotificationList**, text-selection layer, modal layers and theme once per window. Dialogs, sheets and notifications use that Root.
 - **Scrollbar** and **ScrollableMask** are integrated by Scrollable and the list/table/message-scroller APIs, with the corresponding native scroll handle. **FocusTrapContainer** is the native implementation behind FocusTrap; **DropdownMenuPopover** is behind DropdownMenu.
 
-Use **ScrollShadow** for a scrollable region with dynamic edge fades. It owns an
-internal scroll view and shares its native handle with the scrollbar and fades.
+Use **ScrollShadow** for a scrollable region with dynamic edge fades. By default it owns the scroll viewport, scrollbar, and native handle. A single
+**direct child** may instead be a core `VirtualList` from `@solid-gpui/core` or a
+generated native `VirtualList` from `@solid-gpui/core/components`, provided its
+orientation matches `ScrollShadow`'s axis. In that composition the list keeps
+ownership of its native scrolling and `ScrollShadow` borrows that viewport for
+fades, `scrollbarVisibility`, `scrollTo`, `getScrollPosition`, and `onScroll`;
+there is no outer scroll area or duplicate scrollbar. Bound the parent viewport
+(including height for horizontal virtual lists), and let the direct child fill
+it with `style={{ widthPercent: 100, heightPercent: 100 }}`.
+
+This delegation is deliberately narrow: only exactly one matching-axis direct
+child is recognized. Wrappers, multiple children, nested lists, and mismatched
+orientations are not auto-discovered and retain standalone `ScrollShadow`
+behavior. Core `VirtualList` data/renderItem virtualizes Solid owners and host
+nodes; generated native `VirtualList` children virtualize only native row
+rendering and still create every supplied Solid child. Do not expand a large
+dataset into JSX children; use the core data/renderItem form for that workload.
+
 Set `axis="horizontal"` for left/right edges or `axis="vertical"` (the default)
-for top/bottom edges. Give vertical regions a bounded height; horizontal regions
-can size their height from the content. No nested `Scrollable` is needed.
+for top/bottom edges. A standalone vertical region needs a bounded height;
+standalone horizontal regions can size their height from content. No nested
+`Scrollable` is needed.
 
 `color` matches the surrounding surface (default: theme background), and
 `fadeSize` sets the maximum fade extent in pixels (default: 24; 0 disables fades).

@@ -1,7 +1,8 @@
 //! Scroll handles belong to one mounted native view; only visible rows are built.
 use super::primitives::{Color, Orientation};
 use crate::native::{
-    ComponentDefinition, Event, NativeChildren, NativeSlot, NativeView, ViewCommand,
+    ComponentDefinition, Event, NativeChildren, NativeSlot, NativeView, ScrollDecoration,
+    ScrollViewport, ViewCommand,
 };
 use gpui::{
     AppContext, Context, Entity, FocusHandle, IntoElement, ParentElement, Render, ScrollHandle,
@@ -85,6 +86,8 @@ pub struct Scrollable {
 struct ScrollState {
     children: NativeSlot,
     handle: ScrollHandle,
+    viewport: ScrollViewport,
+    decoration: Option<ScrollDecoration>,
     event: Event<ScrollPosition>,
     last: Rc<RefCell<Option<ScrollPosition>>>,
 }
@@ -132,13 +135,13 @@ fn scroll_commands<V: ScrollView>() -> Vec<ViewCommand<V>> {
                 return Err("scroll positions must be finite and nonnegative".into());
             }
             this.scroll_state()
-                .handle
+                .active_viewport()
                 .set_offset(point(px(-p.x), px(-p.y)));
             cx.notify();
             Ok(())
         }),
         ViewCommand::new("getScrollPosition", |this: &mut V, (): (), _, _| {
-            let p = this.scroll_state().handle.offset();
+            let p = this.scroll_state().active_viewport().offset();
             Ok(ScrollPosition {
                 x: -p.x.as_f32(),
                 y: -p.y.as_f32(),
@@ -154,12 +157,20 @@ impl Render for Scrollable {
 }
 impl ScrollState {
     fn new(event: Event<ScrollPosition>, children: NativeChildren) -> Self {
+        let handle = ScrollHandle::default();
         Self {
             event,
             children: children.content(),
-            handle: ScrollHandle::default(),
+            viewport: ScrollViewport::new(handle.clone(), gpui::Axis::Vertical),
+            handle,
+            decoration: None,
             last: Rc::default(),
         }
+    }
+    fn active_viewport(&self) -> &ScrollViewport {
+        self.decoration
+            .as_ref()
+            .map_or(&self.viewport, ScrollDecoration::viewport)
     }
     fn render_content(
         &self,
@@ -179,21 +190,31 @@ impl ScrollState {
         .id("scroll-area")
         .track_scroll(&self.handle)
         .scrollbar_visible(false);
-        let handle = self.handle.clone();
+        self.render_viewport(props, area, shadow, props.axis == ScrollAxis::Horizontal)
+    }
+    fn render_viewport(
+        &self,
+        props: &ScrollableProps,
+        area: impl IntoElement,
+        shadow: Option<ScrollFade>,
+        auto_height: bool,
+    ) -> gpui::AnyElement {
+        let handle = self.active_viewport().clone();
         let event = self.event.clone();
         let last = self.last.clone();
         div()
             .relative()
             .size_full()
-            .when(props.axis == ScrollAxis::Horizontal, |v| v.h_auto())
+            .when(auto_height, |v| v.h_auto())
             .min_size_0()
             .child(area)
             .when_some(shadow, |v, fade| {
-                let handle = self.handle.clone();
+                let handle = self.active_viewport().clone();
                 v.child(
                     gpui::canvas(
                         |_, _, _| {},
-                        move |bounds, (), window, _| {
+                        move |_, (), window, _| {
+                            let bounds = handle.viewport_bounds();
                             let horizontal = fade.axis == Orientation::Horizontal;
                             let offset = handle.offset();
                             let max = handle.max_offset();
@@ -251,7 +272,7 @@ impl ScrollState {
             })
             .when(!props.hide_scrollbar, |v| {
                 v.child(
-                    Scrollbar::new(&self.handle)
+                    Scrollbar::new(self.active_viewport())
                         .id("scrollbar")
                         .axis(props.axis)
                         .mode(props.scrollbar_visibility.into()),
@@ -347,6 +368,7 @@ pub struct ScrollShadow {
 }
 impl ScrollView for ScrollShadow {
     fn scroll_state(&mut self) -> &mut ScrollState {
+        self.reconcile_viewport();
         &mut self.state
     }
 }
@@ -372,6 +394,7 @@ impl NativeView for ScrollShadow {
         }
     }
     fn update(&mut self, props: Self::Props, _: &mut gpui::Window, cx: &mut Context<Self>) {
+        self.state.decoration = None;
         self.props = props;
         cx.notify();
     }
@@ -381,26 +404,48 @@ impl NativeView for ScrollShadow {
 }
 impl Render for ScrollShadow {
     fn render(&mut self, _: &mut gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.render_content(self.state.children.clone(), cx)
+        self.reconcile_viewport();
+        if self.state.decoration.is_some() {
+            self.state.render_viewport(
+                &self.props.viewport(),
+                div()
+                    .size_full()
+                    .min_size_0()
+                    .children(self.state.children.elements(cx)),
+                Some(self.fade(cx)),
+                false,
+            )
+        } else {
+            self.render_content(self.state.children.clone(), cx)
+        }
     }
 }
 impl ScrollShadow {
-    fn render_content(&self, children: impl IntoElement, cx: &gpui::App) -> gpui::AnyElement {
+    fn reconcile_viewport(&mut self) {
+        self.state.decoration = None;
+        self.state.decoration = self
+            .state
+            .children
+            .scroll_viewport()
+            .filter(|viewport| viewport.axis() == self.props.axis.into())
+            .map(ScrollViewport::decorate);
+    }
+    fn fade(&self, cx: &gpui::App) -> ScrollFade {
         use gpui_component::ActiveTheme;
-        self.state.render_content(
-            &self.props.viewport(),
-            children,
-            Some(ScrollFade {
-                axis: self.props.axis,
-                color: self
-                    .props
-                    .color
-                    .as_ref()
-                    .map(Color::native)
-                    .unwrap_or_else(|| cx.theme().background),
-                size: self.props.fade_size as f32,
-            }),
-        )
+        ScrollFade {
+            axis: self.props.axis,
+            color: self
+                .props
+                .color
+                .as_ref()
+                .map(Color::native)
+                .unwrap_or_else(|| cx.theme().background),
+            size: self.props.fade_size as f32,
+        }
+    }
+    fn render_content(&self, children: impl IntoElement, cx: &gpui::App) -> gpui::AnyElement {
+        self.state
+            .render_content(&self.props.viewport(), children, Some(self.fade(cx)))
     }
 }
 #[crate::native_type]
@@ -487,6 +532,7 @@ pub struct VirtualList {
     ids: Rc<Vec<u32>>,
     sizes: Rc<Vec<gpui::Size<gpui::Pixels>>>,
     handle: gpui_component::VirtualListScrollHandle,
+    viewport: ScrollViewport,
     event: Event<VisibleRange>,
     last: Rc<RefCell<Option<VisibleRange>>>,
 }
@@ -507,6 +553,13 @@ impl NativeView for VirtualList {
     type Event = VisibleRange;
     fn accepts_children() -> bool {
         true
+    }
+    fn scroll_viewport(&self) -> Option<ScrollViewport> {
+        Some(
+            self.viewport
+                .clone()
+                .with_axis(self.props.orientation.into()),
+        )
     }
     fn event_name() -> &'static str {
         "visibleRangeChange"
@@ -541,13 +594,16 @@ impl NativeView for VirtualList {
         let children = children.content();
         let ids = children.node_ids();
         let sizes = Self::sizes(&props, ids.len());
+        let handle = gpui_component::VirtualListScrollHandle::new();
+        let viewport = ScrollViewport::new(handle.base_handle().clone(), props.orientation.into());
         Self {
             props,
             event,
             children,
             ids,
             sizes,
-            handle: gpui_component::VirtualListScrollHandle::new(),
+            handle,
+            viewport,
             last: Rc::default(),
         }
     }
@@ -602,7 +658,7 @@ impl Render for VirtualList {
             }
         });
         div().relative().size_full().min_size_0().child(list).when(
-            !self.props.hide_scrollbar,
+            !self.props.hide_scrollbar && !self.viewport.is_decorated(),
             |v| {
                 v.child(Scrollbar::new(&self.handle).id("list-scrollbar").axis(
                     match self.props.orientation {

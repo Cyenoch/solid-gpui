@@ -1543,14 +1543,15 @@ impl Element for List {
 
         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
 
-        // If the width of the list has changed, invalidate all cached item heights
+        // Width changes invalidate measurements, not the estimates needed for
+        // offscreen scroll geometry. Visible rows replace these hints on layout.
         if state
             .last_layout_bounds
-            .is_none_or(|last_bounds| last_bounds.size.width != bounds.size.width)
+            .is_some_and(|last_bounds| last_bounds.size.width != bounds.size.width)
         {
             let new_items = SumTree::from_iter(
                 state.items.iter().map(|item| ListItem::Unmeasured {
-                    size_hint: None,
+                    size_hint: item.size_hint(),
                     focus_handle: item.focus_handle(),
                 }),
                 (),

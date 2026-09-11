@@ -48,6 +48,11 @@ previews listed in `component-previews.ts` run through the same Rust component
 implementations as the desktop host. Vite compiles their documented TSX at build
 time; the site mounts only the active example. Unverified examples keep their
 usage documentation and an explicit availability note.
+The ScrollShadow catalog includes a direct-child core `VirtualList` example with
+10,000 stable data items. Its parent has bounded height and the child fills both
+dimensions, so the preview demonstrates native scroll ownership and core
+windowing without eagerly creating 10,000 JSX rows; the displayed source is the
+same source used by the preview.
 
 Code highlighting uses `@solid-gpui/shiki`: the Vite catalog loader starts its Bun
 Worker, generates Shiki/Oniguruma results for examples, excerpts, type declarations

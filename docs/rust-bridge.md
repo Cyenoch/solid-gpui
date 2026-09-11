@@ -179,6 +179,15 @@ editors, tree tables, and virtualized lists; each internal state change does not
 need a corresponding JavaScript property. Use batch DTOs or Rust-owned models
 for large datasets and high-frequency input to avoid per-item round trips.
 
+Scrollable native views may expose `NativeView::scroll_viewport()` by returning
+a clone of an owned `native::ScrollViewport` (backed by `ScrollHandle` or
+`ListState`). The host publishes this capability after native commit reconciliation;
+`NativeChildren::content().scroll_viewport()` resolves exactly one direct child
+without rendering rows or re-borrowing the root during commands. A decorator
+retains `ScrollViewport::decorate()`'s lease; the view omits its own scrollbar
+while `is_decorated()` is true. Drop the lease when content or orientation changes
+or the decorator unmounts. Handles stay in Rust and do not enter generated DTOs.
+
 Import built-in components from the main package's subpath:
 
 ```tsx

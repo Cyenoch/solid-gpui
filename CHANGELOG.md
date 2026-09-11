@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Made ScrollShadow borrow a direct, matching-axis VirtualList viewport, sharing native scrolling, fades, commands, and one scrollbar without expanding windowed rows. Preserved unmeasured list height estimates through first layout and width changes.
 - Added an optional embedded QuickJS UI runtime for Rust-led applications, with bounded transport queues, cancellable scheduling, and the existing native protocol/command contract. Bun continues to support Rust-led and Bun-led applications.
 - Made Vite the application bundler through the separate `@solid-gpui/vite` package. Direct JS needs no bundler; JSX/TSX uses one Solid/Oxc transform for Bun and QuickJS builds. Native host startup, bindings, Vite HMR/watch, and Rust-owned development share the same project configuration. Bun retains its runtime APIs; the previous standalone bundler and TSX launchers have been removed.
 - Replaced direct Prettier tooling with Oxfmt, preserving the existing formatting style and check commands; removed an unused generated-file formatter.

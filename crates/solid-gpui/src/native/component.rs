@@ -253,6 +253,9 @@ pub trait NativeView: Render + Sized + 'static {
         Ok(())
     }
     fn unmount(&mut self, _window: &mut Window, _cx: &mut App) {}
+    fn scroll_viewport(&self) -> Option<crate::native::ScrollViewport> {
+        None
+    }
     fn additional_events() -> Vec<EventDefinition> {
         Vec::new()
     }
@@ -723,6 +726,10 @@ impl<V: NativeView> ExtensionInstance for ViewInstance<V> {
             cx.notify();
         });
     }
+    fn scroll_viewport(&self, cx: &App) -> Option<crate::native::ScrollViewport> {
+        self.entity.read(cx).scroll_viewport()
+    }
+
     fn render(&self, _: ExtensionRenderContext<'_>) -> AnyElement {
         self.entity.clone().into_any_element()
     }
