@@ -6,7 +6,7 @@ The inventory is generated from the resolved Cargo graph with all workspace feat
 The archive embeds the project-owned MIT text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.
 Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.
 
-**Generated:** 2026-09-08
+**Generated:** 2026-09-11
 **Generation command:** `bun run task third-party-notices`
 
 The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.
