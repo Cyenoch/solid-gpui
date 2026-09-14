@@ -11,3 +11,4 @@ target/
 /examples/website/src/wasm/
 *.log
 .file-routing-*/
+.DS_Store
