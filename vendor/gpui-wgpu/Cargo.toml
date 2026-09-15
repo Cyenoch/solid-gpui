@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-wgpu"
-version = "0.3.3"
+version = "0.3.5"
 build = false
 publish = true
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `gpui_wgpu` crate (gpui-pre snapshot of zed@5b055fa)"
+description = "Zed's `gpui_wgpu` crate (gpui-pre snapshot of zed@d89e9c2)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -29,7 +29,7 @@ resolver = "2"
 [package.metadata.gpui-pre]
 zed-crate = "gpui_wgpu"
 zed-version = "0.1.0"
-zed-rev = "5b055fa789a8b8d38ac951a6e0cde272f66b4495"
+zed-rev = "d89e9c2124b2786a390c7a451c7488601b4da2e1"
 
 [features]
 default = []
@@ -51,7 +51,7 @@ version = "1.0.86"
 version = "1"
 
 [dependencies.collections]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-collections"
 
 [dependencies.cosmic-text]
@@ -66,12 +66,12 @@ optional = true
 package = "zed-font-kit"
 
 [dependencies.gpui]
-version = "=0.3.3"
+version = "=0.3.5"
 default-features = false
 package = "gpui-pre"
 
 [dependencies.gpui_util]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-util"
 
 [dependencies.itertools]
@@ -144,4 +144,4 @@ level = "allow"
 priority = 0
 
 [package.metadata.solid-gpui-vendor]
-source = "https://crates.io/crates/gpui-pre-wgpu/0.3.3"
+source = "https://crates.io/crates/gpui-pre-wgpu/0.3.5"

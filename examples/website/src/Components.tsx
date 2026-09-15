@@ -17,6 +17,11 @@ import { locale, t } from "./i18n";
 
 type Entry = (typeof catalog)[number];
 type Field = Entry["properties"][number];
+/** A sidebar row: either a group caption or a component page. */
+type NavRow = { kind: "group"; label: string } | { kind: "entry"; entry: Entry };
+/** Documentation dates as one line, shared by the page, its API entries and copied Markdown. */
+const documented = (documentation: Entry["documentation"]) =>
+  `${t("Created")} ${documentation.created} · ${t("Updated")} ${documentation.updated}`;
 export function Components(props: {
   route: string;
   width: number;
@@ -51,6 +56,19 @@ export function Components(props: {
     setError("");
     props.navigate(`/components/${entry.id}`);
   };
+  // The catalog lists whole groups in order, so one pass inserts each caption once.
+  const navigation = createMemo<NavRow[]>(() => {
+    const rows: NavRow[] = [];
+    let group = "";
+    for (const entry of filtered()) {
+      if (entry.group !== group) {
+        group = entry.group;
+        rows.push({ kind: "group", label: group });
+      }
+      rows.push({ kind: "entry", entry });
+    }
+    return rows;
+  });
   const sections = createMemo(() => [
     "Overview",
     "Installation",
@@ -62,7 +80,7 @@ export function Components(props: {
     "Next steps",
   ]);
   const source = () =>
-    `# ${current().name}\n\n${description()}\n\n## Usage\n\n\`\`\`tsx\n${current().source}\`\`\`\n\n` +
+    `# ${current().name}\n\n${documented(current().documentation)}\n\n${description()}\n\n## Usage\n\n\`\`\`tsx\n${current().source}\`\`\`\n\n` +
     current()
       .examples.map(
         (example) => `## ${t(example.title)}\n\n${t(example.description)}\n\n\`\`\`tsx\n${example.source}\n\`\`\``,
@@ -72,7 +90,7 @@ export function Components(props: {
     current()
       .members.map(
         (member) =>
-          `### ${member.name}\n\n` +
+          `### ${member.name}\n\n${documented(member.documentation)}\n\n` +
           [
             ["Properties", member.properties],
             ["Events", member.events],
@@ -134,11 +152,7 @@ export function Components(props: {
             >
               {menuOpen() ? "Close navigation" : "Browse components"}
             </Button>
-          ) : (
-            <Copy size={12} color={colors.muted}>
-              Components
-            </Copy>
-          )
+          ) : null
         }
         {() =>
           !mobile() || menuOpen() ? (
@@ -161,21 +175,30 @@ export function Components(props: {
                 ) : null
               }
               <VirtualList
-                data={filtered()}
-                itemKey={(entry) => entry.id}
+                data={navigation()}
+                itemKey={(row) => (row.kind === "group" ? `group:${row.label}` : row.entry.id)}
                 estimatedItemSize={34}
                 style={{
                   width: mobile() ? props.width - 28 : sidebar() - 48,
-                  height: menuHeight() - (mobile() ? 112 : 64),
+                  height: menuHeight() - (mobile() ? 112 : 48),
                 }}
-                renderItem={(entry) => (
-                  <NavItem
-                    translate={false}
-                    label={entry.name}
-                    active={entry.id === current().id}
-                    onPress={() => navigate(entry)}
-                  />
-                )}
+                renderItem={(row) =>
+                  row.kind === "group" ? (
+                    <View style={{ paddingTop: 18, paddingBottom: 8 }}>
+                      <Copy size={12} color={colors.text} style={{ fontWeight: "bold" }}>
+                        {row.label}
+                      </Copy>
+                    </View>
+                  ) : (
+                    <NavItem
+                      translate={false}
+                      label={row.entry.name}
+                      active={row.entry.id === current().id}
+                      isNew={row.entry.isNew}
+                      onPress={() => navigate(row.entry)}
+                    />
+                  )
+                }
                 emptyState={<Copy>No matching components.</Copy>}
               />
             </View>
@@ -211,6 +234,9 @@ export function Components(props: {
                           </PageHeading>
                           <Copy size={16} color={colors.muted}>
                             {description()}
+                          </Copy>
+                          <Copy size={13} color={colors.muted}>
+                            {documented(current().documentation)}
                           </Copy>
                           <ComponentPreview
                             unavailable={current().previewNote}
@@ -343,6 +369,9 @@ export function Components(props: {
                                 ) : null}
                                 <Copy size={13} color={colors.muted}>
                                   {member.children ? "Accepts child content." : "Does not accept child content."}
+                                </Copy>
+                                <Copy size={13} color={colors.muted}>
+                                  {documented(member.documentation)}
                                 </Copy>
                                 {member.slots.length ? (
                                   <Copy size={13}>

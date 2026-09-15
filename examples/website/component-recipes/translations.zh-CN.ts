@@ -306,4 +306,8 @@ export const recipeChinese: Record<string, string> = {
   "Configure application menus once through the root, then place the menu bar in desktop window chrome.":
     "通过根对象统一配置应用菜单，再将菜单栏放入桌面窗口框架中。",
   "Explain an empty result inside the same collection structure.": "在保留集合结构的同时解释空结果。",
+  "Shared workspace": "共享工作区",
+  "Use unframed media when the empty state is about people.": "当空状态与人相关时，使用无边框的媒体内容。",
+  "No search results": "无搜索结果",
+  "Keep the query and the recovery action beside the empty message.": "在空状态提示旁保留查询条件与恢复操作。",
 };

@@ -14,7 +14,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 823 third-party packages and 1430 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 824 third-party packages and 1433 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -195,36 +195,36 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | gpu-allocator | 0.28.0 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor-types | 0.2.0 | Apache-2.0 | registry (crates.io) |
-| gpui-base | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
-| gpui-component | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
-| gpui-component-macros | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
-| gpui-fps | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
-| gpui-kit-assets | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches) |
-| gpui-pre | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre/0.3.3; local patches) |
-| gpui-pre-apple | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-collections | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-derive-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-http-client | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-http-client-tls | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-linux | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-linux/0.3.3; local patches) |
-| gpui-pre-macos | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-macos/0.3.3; local patches) |
-| gpui-pre-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-media | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-perf | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-platform | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-refineable | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-reqwest-client | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-reqwest-client/0.3.3; local patches) |
-| gpui-pre-scheduler | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-shared-string | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-sum-tree | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-util | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-util-macros | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-web | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-web/0.3.3; local patches) |
-| gpui-pre-wgpu | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-wgpu/0.3.3; local patches) |
-| gpui-pre-windows | 0.3.3 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-windows/0.3.3; local patches) |
-| gpui-pre-zlog | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-ztracing | 0.3.3 | Apache-2.0 | registry (crates.io) |
-| gpui-pre-ztracing-macro | 0.3.3 | Apache-2.0 | registry (crates.io) |
+| gpui-base | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-component | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-component-macros | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-fps | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-kit-assets | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-pre | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre/0.3.5; local patches) |
+| gpui-pre-apple | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-collections | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-derive-refineable | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-http-client | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-http-client-tls | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-linux | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-linux/0.3.5; local patches) |
+| gpui-pre-macos | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-macos/0.3.5; local patches) |
+| gpui-pre-macros | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-media | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-perf | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-platform | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-refineable | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-reqwest-client | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-reqwest-client/0.3.5; local patches) |
+| gpui-pre-scheduler | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-shared-string | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-sum-tree | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-util | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-util-macros | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-web | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-web/0.3.5; local patches) |
+| gpui-pre-wgpu | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-wgpu/0.3.5; local patches) |
+| gpui-pre-windows | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre-windows/0.3.5; local patches) |
+| gpui-pre-zlog | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-ztracing | 0.3.5 | Apache-2.0 | registry (crates.io) |
+| gpui-pre-ztracing-macro | 0.3.5 | Apache-2.0 | registry (crates.io) |
 | half | 2.7.1 | Apache-2.0 | registry (crates.io) |
 | hash32 | 0.3.1 | Apache-2.0 | registry (crates.io) |
 | hashbrown | 0.14.5 | Apache-2.0 | registry (crates.io) |
@@ -331,6 +331,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | objc2-io-kit | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-metal | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | Apache-2.0 | registry (crates.io) |
+| objc2-screen-capture-kit | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | object | 0.37.3 | Apache-2.0 | registry (crates.io) |
 | once_cell | 1.21.4 | Apache-2.0 | registry (crates.io) |
@@ -407,7 +408,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | rustc-hash | 2.1.3 | Apache-2.0 | registry (crates.io) |
 | rustc_version | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | rustix | 1.1.4 | Apache-2.0 | registry (crates.io) |
-| rustls | 0.23.44 | Apache-2.0 | registry (crates.io) |
+| rustls | 0.23.45 | Apache-2.0 | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | Apache-2.0 | registry (crates.io) |
 | rustls-pki-types | 1.15.1 | Apache-2.0 | registry (crates.io) |
 | rustls-platform-verifier | 0.7.0 | Apache-2.0 | registry (crates.io) |
@@ -619,7 +620,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 588 package records.**
+**Total Apache-2.0: 589 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -722,7 +723,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | inotify | 0.11.4 | ISC | registry (crates.io) |
 | inotify-sys | 0.1.8 | ISC | registry (crates.io) |
 | libloading | 0.8.9 | ISC | registry (crates.io) |
-| rustls | 0.23.44 | ISC | registry (crates.io) |
+| rustls | 0.23.45 | ISC | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | ISC | registry (crates.io) |
 | rustls-webpki | 0.103.15 | ISC | registry (crates.io) |
 | untrusted | 0.9.0 | ISC | registry (crates.io) |
@@ -1081,6 +1082,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | objc2-io-kit | 0.3.2 | MIT | registry (crates.io) |
 | objc2-metal | 0.3.2 | MIT | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | MIT | registry (crates.io) |
+| objc2-screen-capture-kit | 0.3.2 | MIT | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | MIT | registry (crates.io) |
 | object | 0.37.3 | MIT | registry (crates.io) |
 | once_cell | 1.21.4 | MIT | registry (crates.io) |
@@ -1188,7 +1190,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | rustc-hash | 2.1.3 | MIT | registry (crates.io) |
 | rustc_version | 0.4.1 | MIT | registry (crates.io) |
 | rustix | 1.1.4 | MIT | registry (crates.io) |
-| rustls | 0.23.44 | MIT | registry (crates.io) |
+| rustls | 0.23.45 | MIT | registry (crates.io) |
 | rustls-native-certs | 0.8.4 | MIT | registry (crates.io) |
 | rustls-pki-types | 1.15.1 | MIT | registry (crates.io) |
 | rustls-platform-verifier | 0.7.0 | MIT | registry (crates.io) |
@@ -1469,7 +1471,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 726 package records.**
+**Total MIT: 727 package records.**
 
 ### MIT-0
 
@@ -1565,6 +1567,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | objc2-io-kit | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-metal | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-quartz-core | 0.3.2 | Zlib | registry (crates.io) |
+| objc2-screen-capture-kit | 0.3.2 | Zlib | registry (crates.io) |
 | objc2-user-notifications | 0.3.2 | Zlib | registry (crates.io) |
 | raw-window-handle | 0.6.2 | Zlib | registry (crates.io) |
 | slotmap | 1.1.1 | Zlib | registry (crates.io) |
@@ -1577,7 +1580,7 @@ The current Cargo inventory contains 823 third-party packages and 1430 package-l
 | zune-jpeg | 0.4.21 | Zlib | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Zlib | registry (crates.io) |
 
-**Total Zlib: 31 package records.**
+**Total Zlib: 32 package records.**
 
 ## Project-owned Rust crates
 

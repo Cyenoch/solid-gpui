@@ -9,7 +9,7 @@ use gpui::{
     App, BorderStyle, Bounds, ClickEvent, CursorStyle, Edges, Element, ElementId, GlobalElementId,
     Half, HighlightStyle, Hitbox, HitboxBehavior, InspectorElementId, IntoElement, LayoutId,
     MouseButton, MouseClickEvent, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, Point,
-    SharedString, StyledText, TextLayout, TextRun, TextStyle, Window, point, px, quad,
+    SharedString, StyledText, TextLayout, TextRun, TextStyle, Window, point, px, quad, size,
 };
 
 use crate::{
@@ -166,7 +166,10 @@ pub(super) struct Inline {
     links: Rc<Vec<(Range<usize>, LinkMark)>>,
     highlights: Vec<(Range<usize>, InlineHighlight)>,
     styled_text: StyledText,
+    /// The resolved style from a parent deferred layout, when there is one.
+    text_style: Option<TextStyle>,
     paint_origin: Option<Point<Pixels>>,
+    selection_bounds: Option<Bounds<Pixels>>,
     selection_source: Option<(Arc<Mutex<InlineState>>, Range<usize>)>,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
 
@@ -208,16 +211,29 @@ impl Inline {
             highlights,
             text: text.clone(),
             styled_text: StyledText::new(text),
+            text_style: None,
             paint_origin: None,
+            selection_bounds: None,
             selection_source: None,
             link_click_handler,
             state,
         }
     }
 
+    /// Use the resolved style captured by a deferred parent layout.
+    pub(super) fn text_style(mut self, text_style: TextStyle) -> Self {
+        self.text_style = Some(text_style);
+        self
+    }
+
     /// Preserve the shared inline-flow baseline through GPUI's element-bound snapping.
     pub(super) fn paint_origin(mut self, origin: Point<Pixels>) -> Self {
         self.paint_origin = Some(origin);
+        self
+    }
+
+    pub(super) fn selection_bounds(mut self, bounds: Bounds<Pixels>) -> Self {
+        self.selection_bounds = Some(bounds);
         self
     }
 
@@ -280,7 +296,35 @@ impl Inline {
             return (is_selectable, true, Some((0..self.text.len()).into()));
         }
 
+        if text_view_state.preserve_inline_selection {
+            let selection = if let Some((source, range)) = &self.selection_source {
+                source
+                    .lock()
+                    .ok()
+                    .and_then(|state| state.selection)
+                    .and_then(|selection| {
+                        let start = selection.start.max(range.start);
+                        let end = selection.end.min(range.end);
+                        (start < end)
+                            .then(|| Selection::new(start - range.start, end - range.start))
+                    })
+            } else {
+                self.state.lock().ok().and_then(|state| state.selection)
+            };
+            return (true, selection.is_some(), selection);
+        }
+
         if let Some(selection) = text_view_state.multi_click_selection() {
+            if selection.kind == TextViewMultiClickKind::Line {
+                return (
+                    true,
+                    true,
+                    selection
+                        .line_bounds
+                        .filter(|row| row.contains(&bounds.center()))
+                        .map(|_| Selection::new(0, self.text.len())),
+                );
+            }
             return (
                 is_selectable,
                 true,
@@ -339,8 +383,19 @@ impl Inline {
                 }
             }
 
-            if point_in_text_selection(pos, char_width, selection_start, selection_end, line_height)
-            {
+            let selection_pos = self
+                .selection_bounds
+                .map_or(pos, |bounds| point(pos.x, bounds.top()));
+            let selection_height = self
+                .selection_bounds
+                .map_or(line_height, |bounds| bounds.size.height);
+            if point_in_text_selection(
+                selection_pos,
+                char_width,
+                selection_start,
+                selection_end,
+                selection_height,
+            ) {
                 if selection.is_none() {
                     selection = Some((offset..offset).into());
                 }
@@ -356,54 +411,56 @@ impl Inline {
         (true, true, selection)
     }
 
+    /// One box per laid-out row, from the row's start to its last character,
+    /// clipped to `mask_bounds`.
+    ///
+    /// Walks the wrapped line layouts rather than every character:
+    /// [`TextLayout::position_for_index`] scans a line's rows and glyphs on
+    /// each call, so a per-character walk cost O(chars × glyphs) for every
+    /// selectable inline on every frame — the largest single cost of painting
+    /// a long chat message while it scrolls.
+    ///
+    /// A row followed by another row (a wrap or a newline) is extended by half
+    /// a line height past its last glyph: the character walk gave that width
+    /// to a character whose successor sits on the next row, and the selection
+    /// geometry was tuned against it.
     fn text_line_bounds(
-        &self,
         text_layout: &TextLayout,
         line_height: Pixels,
         mask_bounds: Bounds<Pixels>,
     ) -> Vec<Bounds<Pixels>> {
-        let mut line_bounds = Vec::new();
-        let mut current_line_y = None;
-        let mut current_bounds: Option<Bounds<Pixels>> = None;
-        let mut offset = 0;
-
-        for c in self.text.chars() {
-            let next_offset = offset + c.len_utf8();
-            let Some(pos) = text_layout.position_for_index(offset) else {
-                offset = next_offset;
-                continue;
-            };
-
-            let mut char_width = line_height.half();
-            if let Some(next_pos) = text_layout.position_for_index(next_offset) {
-                if next_pos.y == pos.y {
-                    char_width = next_pos.x - pos.x;
+        let origin = text_layout.bounds().origin;
+        let lines = text_layout.line_layouts();
+        let row_count: usize = lines
+            .iter()
+            .map(|line| line.wrap_boundaries.len() + 1)
+            .sum();
+        let mut line_bounds = Vec::with_capacity(row_count);
+        let mut row_ix = 0;
+        let mut y = origin.y;
+        for line in &lines {
+            let layout = &line.unwrapped_layout;
+            let mut row_start = 0;
+            let row_ends = line
+                .wrap_boundaries
+                .iter()
+                .map(|boundary| layout.runs[boundary.run_ix].glyphs[boundary.glyph_ix].index)
+                .chain([line.len()]);
+            for row_end in row_ends {
+                let mut width = layout.x_for_index(row_end) - layout.x_for_index(row_start);
+                row_ix += 1;
+                if row_ix < row_count {
+                    width += line_height.half();
                 }
-            }
-
-            let bounds = Bounds::from_corners(pos, point(pos.x + char_width, pos.y + line_height))
-                .intersect(&mask_bounds);
-            if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
-                if current_line_y == Some(pos.y) {
-                    if let Some(current) = current_bounds.as_mut() {
-                        *current = current.union(&bounds);
-                    }
-                } else {
-                    if let Some(current) = current_bounds.take() {
-                        line_bounds.push(current);
-                    }
-                    current_line_y = Some(pos.y);
-                    current_bounds = Some(bounds);
+                let bounds = Bounds::new(point(origin.x, y), size(width, line_height))
+                    .intersect(&mask_bounds);
+                if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
+                    line_bounds.push(bounds);
                 }
+                y += line_height;
+                row_start = row_end;
             }
-
-            offset = next_offset;
         }
-
-        if let Some(current) = current_bounds {
-            line_bounds.push(current);
-        }
-
         line_bounds
     }
 
@@ -509,7 +566,10 @@ impl Element for Inline {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
-        let text_style = window.text_style();
+        let text_style = self
+            .text_style
+            .clone()
+            .unwrap_or_else(|| window.text_style());
         let runs = text_runs(self.text.len(), &text_style, &self.highlights);
 
         self.styled_text = StyledText::new(self.text.clone()).with_runs(runs);
@@ -567,10 +627,6 @@ impl Element for Inline {
         let bounds = Bounds::new(self.paint_origin.unwrap_or(bounds.origin), bounds.size);
         let current_view = window.current_view();
         let hitbox = prepaint;
-        let Ok(mut state) = self.state.lock() else {
-            return;
-        };
-
         let text_layout = self.styled_text.layout().clone();
         self.styled_text
             .paint(global_id, None, bounds, &mut (), &mut (), window, cx);
@@ -578,6 +634,10 @@ impl Element for Inline {
         // layout selections
         let (is_selectable, is_selection, selection) =
             self.layout_selections(&text_layout, &bounds, window, cx);
+
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
 
         state.selection = selection;
         if let Some((source, range)) = &self.selection_source
@@ -612,13 +672,20 @@ impl Element for Inline {
 
         if is_selectable {
             if let Some(text_view_state) = GlobalState::global(cx).text_view_state().cloned() {
-                let text_bounds = self.text_line_bounds(
+                let text_bounds = Self::text_line_bounds(
                     &text_layout,
                     text_layout.line_height(),
                     window.content_mask().bounds,
                 );
                 text_view_state.update(cx, |state, _| {
                     state.selection_adapter.register_inline(text_bounds);
+                    state
+                        .selection_adapter
+                        .register_text_run(crate::TextSelectionRun::new(
+                            self.text.clone(),
+                            text_layout.clone(),
+                            hitbox.bounds,
+                        ));
                 });
             }
 
@@ -628,11 +695,25 @@ impl Element for Inline {
                 let inline_state = self.state.clone();
                 let text = self.text.clone();
                 let text_view_state = GlobalState::global(cx).text_view_state().cloned();
+                let line_bounds = self.selection_bounds;
                 move |event: &MouseDownEvent, phase, window, cx| {
                     if !phase.bubble()
                         || !hitbox.is_hovered(window)
                         || event.button != MouseButton::Left
                     {
+                        return;
+                    }
+
+                    if event.click_count == 3
+                        && let Some(line_bounds) = line_bounds
+                    {
+                        GlobalState::suppress_text_selection(cx);
+                        if let Some(view) = &text_view_state {
+                            view.update(cx, |state, cx| {
+                                state.set_multi_click_line(line_bounds, cx)
+                            });
+                        }
+                        cx.notify(current_view);
                         return;
                     }
 
@@ -757,12 +838,14 @@ fn selection_for_multi_click(
         // Known limitation: a paragraph maps to a single Inline run here. When a
         // paragraph embeds an inline image it is split into multiple Inline runs,
         // so triple-click only selects the run on the clicked side of the image.
-        TextViewMultiClickKind::Paragraph => (!text.is_empty()).then_some(0..text.len()),
+        TextViewMultiClickKind::Paragraph | TextViewMultiClickKind::Line => {
+            (!text.is_empty()).then_some(0..text.len())
+        }
     }
 }
 
 /// Check if a `pos` is within a `bounds`, considering multi-line selections.
-fn point_in_text_selection(
+pub(super) fn point_in_text_selection(
     pos: Point<Pixels>,
     char_width: Pixels,
     selection_start: Point<Pixels>,
@@ -804,15 +887,203 @@ fn point_in_text_selection(
     }
 }
 
+#[cfg(test)]
+mod line_bounds_tests {
+    use super::*;
+    use super::{
+        test_draw::in_prepaint,
+        test_fonts::{BODY, WideMonoTextSystem},
+    };
+    use gpui::{AvailableSpace, TestApp, size};
+
+    /// The character walk this replaced, kept as the oracle: one box per
+    /// character from `position_for_index`, unioned per row.
+    fn by_character(
+        text: &str,
+        text_layout: &TextLayout,
+        line_height: Pixels,
+        mask_bounds: Bounds<Pixels>,
+    ) -> Vec<Bounds<Pixels>> {
+        let mut line_bounds = Vec::new();
+        let mut current_line_y = None;
+        let mut current_bounds: Option<Bounds<Pixels>> = None;
+        let mut offset = 0;
+        for c in text.chars() {
+            let next_offset = offset + c.len_utf8();
+            let Some(pos) = text_layout.position_for_index(offset) else {
+                offset = next_offset;
+                continue;
+            };
+            let mut char_width = line_height.half();
+            if let Some(next_pos) = text_layout.position_for_index(next_offset)
+                && next_pos.y == pos.y
+            {
+                char_width = next_pos.x - pos.x;
+            }
+            let bounds = Bounds::from_corners(pos, point(pos.x + char_width, pos.y + line_height))
+                .intersect(&mask_bounds);
+            if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
+                if current_line_y == Some(pos.y) {
+                    if let Some(current) = current_bounds.as_mut() {
+                        *current = current.union(&bounds);
+                    }
+                } else {
+                    if let Some(current) = current_bounds.take() {
+                        line_bounds.push(current);
+                    }
+                    current_line_y = Some(pos.y);
+                    current_bounds = Some(bounds);
+                }
+            }
+            offset = next_offset;
+        }
+        if let Some(current) = current_bounds {
+            line_bounds.push(current);
+        }
+        line_bounds
+    }
+
+    #[test]
+    fn row_walk_matches_the_character_walk() {
+        let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+        in_prepaint(&mut app, |window, cx| {
+            let style = TextStyle {
+                font_family: BODY.into(),
+                font_size: px(16.).into(),
+                ..Default::default()
+            };
+            let origin = point(px(7.), px(11.));
+            let mask = Bounds::new(point(px(0.), px(0.)), size(px(1000.), px(1000.)));
+            let clipped = Bounds::new(point(px(20.), px(30.)), size(px(50.), px(60.)));
+            for text in [
+                "",
+                "one row",
+                "a long paragraph that wraps onto several rows of eight pixel glyphs",
+                "first line\nsecond line that also wraps around\n\nfourth",
+                "中文与 English 混排的一段文字也会换行",
+                "trailing newline\n",
+            ] {
+                for wrap_width in [40., 100., 1000.] {
+                    let runs = text_runs(text.len(), &style, &[]);
+                    let styled =
+                        StyledText::new(SharedString::from(text.to_string())).with_runs(runs);
+                    let layout = styled.layout().clone();
+                    let mut element = styled.into_any_element();
+                    element.layout_as_root(
+                        size(
+                            AvailableSpace::Definite(px(wrap_width)),
+                            AvailableSpace::MinContent,
+                        ),
+                        window,
+                        cx,
+                    );
+                    element.prepaint_at(origin, window, cx);
+                    let line_height = layout.line_height();
+                    for mask in [mask, clipped] {
+                        let expected = by_character(text, &layout, line_height, mask);
+                        let actual = Inline::text_line_bounds(&layout, line_height, mask);
+                        let context = format!("{text:?} at {wrap_width}px in {mask:?}");
+                        // The character walk placed a wrapped row's first
+                        // character at the end of the row before it: that row's
+                        // box started one glyph in, and a row holding only that
+                        // one glyph had no box at all. The row walk covers every
+                        // row from its start, so it may see more rows, never
+                        // fewer, and agrees on every row the walk could see.
+                        assert!(
+                            actual.len() >= expected.len(),
+                            "rows of {context}: {} < {}",
+                            actual.len(),
+                            expected.len()
+                        );
+                        for (row, expected) in expected.iter().enumerate() {
+                            let actual = actual
+                                .iter()
+                                .find(|actual| actual.top() == expected.top())
+                                .unwrap_or_else(|| panic!("row {row} of {context} is missing"));
+                            assert_eq!(
+                                actual.bottom(),
+                                expected.bottom(),
+                                "row {row} of {context}"
+                            );
+                            assert_eq!(actual.right(), expected.right(), "row {row} of {context}");
+                            assert!(
+                                actual.left() <= expected.left(),
+                                "row {row} of {context} starts at {:?}, after {:?}",
+                                actual.left(),
+                                expected.left()
+                            );
+                        }
+                        for actual in &actual {
+                            assert_eq!(
+                                actual.left(),
+                                origin.x.max(mask.left()),
+                                "left of {context}"
+                            );
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
 /// A platform text system for tests where the `Mono` family shapes twice as
 /// wide as every other family, so a measurement that ignores the family of a
 /// run comes out visibly short.
 #[cfg(test)]
+pub(super) mod test_draw {
+    use gpui::{App, Context, IntoElement, Render, Styled as _, TestApp, Window, canvas, px};
+    use std::{cell::RefCell, rc::Rc};
+
+    struct Probe {
+        body: Option<Box<dyn FnOnce(&mut Window, &mut App)>>,
+    }
+
+    impl Render for Probe {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let body = self.body.take();
+            canvas(
+                move |_, window, cx| {
+                    if let Some(body) = body {
+                        body(window, cx);
+                    }
+                },
+                |_, _, _, _| {},
+            )
+            .w(px(1000.))
+            .h(px(1000.))
+        }
+    }
+
+    /// Runs `f` inside a real prepaint pass and returns its value.
+    ///
+    /// Measuring an inline object lays its GPUI element out through the
+    /// window, which GPUI only permits while a frame is being drawn, so a test
+    /// that builds a real element cannot call the measurement helpers straight
+    /// from `TestAppWindow::update`.
+    pub(crate) fn in_prepaint<R: 'static>(
+        app: &mut TestApp,
+        f: impl FnOnce(&mut Window, &mut App) -> R + 'static,
+    ) -> R {
+        let slot: Rc<RefCell<Option<R>>> = Rc::new(RefCell::new(None));
+        let out = slot.clone();
+        let mut window = app.open_window(|_, _| Probe {
+            body: Some(Box::new(move |window, cx| {
+                *out.borrow_mut() = Some(f(window, cx));
+            })),
+        });
+        window.draw();
+        let value = slot.borrow_mut().take();
+        value.expect("prepaint probe did not run")
+    }
+}
+
+#[cfg(test)]
 pub(super) mod test_fonts {
     use gpui::{
-        Bounds, DevicePixels, Font, FontId, FontMetrics, FontRun, GlyphId, LineLayout, Pixels,
-        PlatformTextSystem, RenderGlyphParams, ShapedGlyph, ShapedRun, Size, TextRenderingMode,
-        point, px, size,
+        Bounds, DevicePixels, Font, FontId, FontMetrics, FontRun, FontWeight, GlyphId, LineLayout,
+        Pixels, PlatformTextSystem, RenderGlyphParams, ShapedGlyph, ShapedRun, Size,
+        TextRenderingMode, point, px, size,
     };
     use std::borrow::Cow;
 
@@ -820,6 +1091,8 @@ pub(super) mod test_fonts {
     pub(crate) const MONO: &str = "Mono";
     const BODY_ID: FontId = FontId(1);
     const MONO_ID: FontId = FontId(2);
+    const BOLD_BODY_ID: FontId = FontId(3);
+    const BOLD_MONO_ID: FontId = FontId(4);
     const UNITS_PER_EM: f32 = 1000.;
 
     pub(crate) struct WideMonoTextSystem;
@@ -827,7 +1100,13 @@ pub(super) mod test_fonts {
     impl WideMonoTextSystem {
         /// Advance of one glyph in `font_id`, in em units.
         fn advance_units(font_id: FontId) -> f32 {
-            if font_id == MONO_ID { 1000. } else { 500. }
+            match font_id {
+                MONO_ID => 1000.,
+                BOLD_MONO_ID => 1250.,
+                BODY_ID => 500.,
+                BOLD_BODY_ID => 750.,
+                _ => 500.,
+            }
         }
 
         /// Width of `text` shaped entirely in `family` at `font_size`.
@@ -847,11 +1126,17 @@ pub(super) mod test_fonts {
         }
 
         fn font_id(&self, descriptor: &Font) -> anyhow::Result<FontId> {
-            Ok(if descriptor.family.as_ref() == MONO {
-                MONO_ID
-            } else {
-                BODY_ID
-            })
+            Ok(
+                match (
+                    descriptor.family.as_ref() == MONO,
+                    descriptor.weight == FontWeight::BOLD,
+                ) {
+                    (true, true) => BOLD_MONO_ID,
+                    (true, false) => MONO_ID,
+                    (false, true) => BOLD_BODY_ID,
+                    (false, false) => BODY_ID,
+                },
+            )
         }
 
         fn font_metrics(&self, _font_id: FontId) -> FontMetrics {
@@ -933,7 +1218,8 @@ pub(super) mod test_fonts {
                 font_size,
                 width: position,
                 ascent: font_size * (metrics.ascent / UNITS_PER_EM),
-                descent: font_size * (metrics.descent / UNITS_PER_EM),
+                // Native backends normalize the signed font metric for shaped lines.
+                descent: font_size * (-metrics.descent / UNITS_PER_EM),
                 runs: shaped_runs,
                 len: text.len(),
             }

@@ -257,6 +257,22 @@ export const compositionRecipes = [
       setup: "",
     },
   ]),
+  ...recipes("Empty EmptyHeader EmptyMedia EmptyTitle EmptyDescription EmptyContent", [
+    {
+      id: "avatar-media",
+      title: "Shared workspace",
+      description: "Use unframed media when the empty state is about people.",
+      jsx: '<N.Empty style={{ height: 220 }}><N.EmptyHeader><N.EmptyMedia><N.AvatarGroup limit={3}><N.Avatar name="Alex Chen" /><N.Avatar name="Sam Rivera" /><N.Avatar name="Taylor Kim" /></N.AvatarGroup></N.EmptyMedia><N.EmptyTitle><N.Label text="Invite your team" /></N.EmptyTitle><N.EmptyDescription><N.Label text="Teammates you invite can review projects and leave comments." /></N.EmptyDescription></N.EmptyHeader><N.EmptyContent><N.Button label="Invite teammates" variant="primary" /></N.EmptyContent></N.Empty>',
+      setup: "",
+    },
+    {
+      id: "search",
+      title: "No search results",
+      description: "Keep the query and the recovery action beside the empty message.",
+      jsx: '<N.Empty style={{ height: 220 }}><N.EmptyHeader><N.EmptyMedia variant="icon"><N.Icon source="lucide:search" /></N.EmptyMedia><N.EmptyTitle><N.Label text="No matches" /></N.EmptyTitle><N.EmptyDescription><N.Label text="Nothing matches this filter. Clear it to see every project." /></N.EmptyDescription></N.EmptyHeader><N.EmptyContent><N.Button label="Clear filter" outline /></N.EmptyContent></N.Empty>',
+      setup: "",
+    },
+  ]),
   ...recipes("WindowBorder", [
     {
       id: "window-0",

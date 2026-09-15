@@ -1,12 +1,7 @@
 //! Serializable dock layout uses stable application pane names, never native entity IDs.
-use super::{
-    plot::{coordinate, length},
-    primitives::Orientation,
-};
-use gpui::{Bounds, Pixels, point, px, size};
-use gpui_component::dock::{
-    DockAreaState, DockPlacement, DockState, PanelInfo, PanelState, TileMeta,
-};
+use super::{plot::length, primitives::Orientation};
+use gpui::px;
+use gpui_component::dock::{DockAreaState, DockPlacement, DockState, PanelInfo, PanelState};
 use std::collections::{BTreeMap, HashSet};
 pub(super) const PANEL_NAME: &str = "solid-gpui-pane";
 pub(super) fn name(v: &str) -> Result<(), String> {
@@ -95,56 +90,11 @@ impl From<DockPlacement> for DockRegion {
     }
 }
 #[crate::native_type]
-#[derive(Clone, Copy, PartialEq)]
-pub struct DockBounds {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
-impl DockBounds {
-    pub(super) fn validate(&self) -> Result<(), String> {
-        coordinate(self.x)?;
-        coordinate(self.y)?;
-        length(self.width)?;
-        length(self.height)?;
-        if self.width < 100. || self.height < 100. {
-            return Err("dock tiles require width and height of at least 100 pixels".into());
-        }
-        Ok(())
-    }
-    pub(super) fn native(self) -> Bounds<Pixels> {
-        Bounds::new(
-            point(px(self.x), px(self.y)),
-            size(px(self.width), px(self.height)),
-        )
-    }
-}
-impl From<Bounds<Pixels>> for DockBounds {
-    fn from(v: Bounds<Pixels>) -> Self {
-        Self {
-            x: v.origin.x.as_f32(),
-            y: v.origin.y.as_f32(),
-            width: v.size.width.as_f32(),
-            height: v.size.height.as_f32(),
-        }
-    }
-}
-#[crate::native_type]
 #[derive(Clone, PartialEq)]
 pub struct DockSplitChild {
     pub layout: DockNode,
     #[serde(default)]
     pub size: Option<f32>,
-}
-#[crate::native_type]
-#[derive(Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct DockTile {
-    pub pane: String,
-    pub bounds: DockBounds,
-    #[serde(default)]
-    pub z_index: u32,
 }
 #[crate::native_type]
 #[derive(Clone, PartialEq)]
@@ -163,9 +113,6 @@ pub enum DockNode {
         panes: Vec<String>,
         #[serde(default)]
         active_index: usize,
-    },
-    Tiles {
-        panes: Vec<DockTile>,
     },
 }
 impl Default for DockNode {
@@ -259,12 +206,6 @@ impl DockLayoutSpec {
                         pane(p, known, used)?;
                     }
                 }
-                DockNode::Tiles { panes } => {
-                    for p in panes {
-                        pane(&p.pane, known, used)?;
-                        p.bounds.validate()?;
-                    }
-                }
             }
             Ok(())
         }
@@ -326,19 +267,6 @@ impl DockNode {
                 children: panes.iter().map(|p| leaf(p, data)).collect(),
                 info: PanelInfo::tabs(*active_index),
             },
-            Self::Tiles { panes } => PanelState {
-                panel_name: "Tiles".into(),
-                children: panes.iter().map(|p| leaf(&p.pane, data)).collect(),
-                info: PanelInfo::tiles(
-                    panes
-                        .iter()
-                        .map(|p| TileMeta {
-                            bounds: p.bounds.native(),
-                            z_index: p.z_index as usize,
-                        })
-                        .collect(),
-                ),
-            },
         }
     }
     pub(super) fn from_native(
@@ -390,22 +318,6 @@ impl DockNode {
                     .map(&mut read_leaf)
                     .collect::<Result<_, _>>()?,
                 active_index: *active_index,
-            }),
-            PanelInfo::Tiles { metas } => Ok(Self::Tiles {
-                panes: v
-                    .children
-                    .iter()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        let meta = metas.get(i).ok_or("tile metadata missing")?;
-                        Ok(DockTile {
-                            pane: read_leaf(c)?,
-                            bounds: meta.bounds.into(),
-                            z_index: u32::try_from(meta.z_index)
-                                .map_err(|_| "tile zIndex overflow")?,
-                        })
-                    })
-                    .collect::<Result<_, String>>()?,
             }),
             PanelInfo::Panel(_) => Err("dock root is not a container".into()),
         }

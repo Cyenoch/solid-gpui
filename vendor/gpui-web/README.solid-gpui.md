@@ -1,6 +1,6 @@
 # Solid GPUI Web platform patch
 
-Source: gpui-pre-web 0.3.3 from crates.io. The upstream Apache-2.0 license is
+Source: gpui-pre-web 0.3.5 from crates.io. The upstream Apache-2.0 license is
 retained in LICENSE-APACHE. This copy adjusts window background handling:
 `set_background_appearance` records the requested appearance and configures the
 existing WGPU renderer's transparency support. `background_appearance` returns

@@ -49,6 +49,7 @@ mod progress;
 mod radio;
 mod radio_group;
 mod resizable;
+mod scroll_bounce;
 mod scrollable_mask;
 mod scrollbar;
 mod select;
@@ -144,6 +145,7 @@ pub use resizable::{
     ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, ResizeHandleContext,
     ResizeHandleRenderer, h_resizable, resizable_panel, v_resizable,
 };
+pub use scroll_bounce::{ScrollBounce, ScrollBounceMotion};
 pub use scrollable_mask::ScrollableMask;
 pub use scrollbar::{
     Scrollbar, ScrollbarAxis, ScrollbarEntrance, ScrollbarHandle, ScrollbarMode, ScrollbarMotion,
@@ -163,8 +165,9 @@ pub use switch::{
 pub use table::{Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow};
 pub use tabs::{Tab, TabStyles, Tabs};
 pub use text::{
-    MarkdownExtensions, MarkdownNode, MarkdownPlugin, SelectionFormat, TableData, Text, TextView,
-    TextViewDefaults, TextViewPlugin, TextViewState, TextViewStyle, html, markdown,
+    InlineElement, InlineRenderContext, MarkdownExtensions, MarkdownNode, MarkdownParseContext,
+    MarkdownPlugin, SelectionFormat, TableData, Text, TextView, TextViewDefaults, TextViewPlugin,
+    TextViewState, TextViewStyle, html, markdown, markdown_ast,
 };
 pub use text_selection::{
     TextSelection, TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint,
@@ -193,6 +196,14 @@ pub use virtual_list::virtual_list;
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
 
 use gpui::App;
+
+/// Returns whether the application is compiled for iOS or Android.
+///
+/// This is a compile-time platform check, not a screen-size or input-device check.
+#[inline]
+pub const fn is_mobile() -> bool {
+    cfg!(any(target_os = "ios", target_os = "android"))
+}
 
 /// Initializes global infrastructure owned by the base layer.
 pub fn init(cx: &mut App) {

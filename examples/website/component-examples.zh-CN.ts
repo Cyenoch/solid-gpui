@@ -12,6 +12,7 @@ export const componentDescriptionsChinese: Record<string, string> = {
   "Group related actions in a single control.": "将相关操作组合为一组按钮。",
   "Reveal related sections without leaving the page.": "展开或收起相关内容。",
   "Display a contextual message and its severity.": "展示提示信息及其重要程度。",
+  "Compose an empty state from media, title, description and actions.": "用媒体、标题、描述与操作组合空状态。",
   "Represent people with photos, names or initials.": "用照片、姓名或首字母表示用户。",
   "Attach a count or status indicator to another element.": "为元素添加数量或状态标记。",
   "Show the current location within a hierarchy.": "展示当前页面在层级中的位置。",

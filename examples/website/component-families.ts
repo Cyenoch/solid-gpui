@@ -8,6 +8,7 @@ export const componentFamilies = [
   "Bubble BubbleContent BubbleGroup BubbleReactions",
   "DescriptionList DescriptionItem DescriptionText",
   "Dialog DialogAction DialogClose DialogContent DialogDescription DialogFooter DialogHeader DialogTitle",
+  "Empty EmptyHeader EmptyMedia EmptyTitle EmptyDescription EmptyContent",
   "Form Field",
   "List ListItem ListSeparatorItem SearchableListItemElement",
   "Marker MarkerContent MarkerIcon",

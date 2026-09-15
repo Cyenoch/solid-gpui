@@ -9,6 +9,7 @@ mod data_list;
 mod data_table;
 mod dock;
 mod dock_layout;
+mod empty_states;
 mod extra_elements;
 mod groups;
 #[cfg(feature = "gpui-component")]
@@ -315,6 +316,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
                 .include(groups::native_module())
                 .include(table_elements::native_module())
                 .include(content::native_module())
+                .include(empty_states::native_module())
                 .include(extra_elements::native_module())
                 .include(sidebar::native_module())
                 .include(overlays::native_module())

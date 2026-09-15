@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-linux"
-version = "0.3.3"
+version = "0.3.5"
 build = false
 publish = true
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `gpui_linux` crate (gpui-pre snapshot of zed@5b055fa)"
+description = "Zed's `gpui_linux` crate (gpui-pre snapshot of zed@d89e9c2)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -36,7 +36,7 @@ ignored = [
 [package.metadata.gpui-pre]
 zed-crate = "gpui_linux"
 zed-version = "0.1.0"
-zed-rev = "5b055fa789a8b8d38ac951a6e0cde272f66b4495"
+zed-rev = "d89e9c2124b2786a390c7a451c7488601b4da2e1"
 
 [features]
 default = [
@@ -99,6 +99,7 @@ optional = true
 version = "0.13"
 features = [
     "async-io",
+    "inhibit",
     "notification",
     "open_uri",
     "file_chooser",
@@ -123,7 +124,7 @@ version = "0.4.1"
 optional = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.collections]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-collections"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.filedescriptor]
@@ -131,25 +132,25 @@ version = "0.8.2"
 optional = true
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.futures]
-version = "0.3.32"
+version = "0.3.34"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui]
-version = "=0.3.3"
+version = "=0.3.5"
 default-features = false
 package = "gpui-pre"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui_util]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-util"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.gpui_wgpu]
-version = "=0.3.3"
+version = "=0.3.5"
 features = ["font-kit"]
 optional = true
 package = "gpui-pre-wgpu"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.http_client]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-http-client"
 
 [target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies.libc]
@@ -305,4 +306,4 @@ level = "allow"
 priority = 0
 
 [package.metadata.solid-gpui-vendor]
-source = "https://crates.io/crates/gpui-pre-linux/0.3.3"
+source = "https://crates.io/crates/gpui-pre-linux/0.3.5"

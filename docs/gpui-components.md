@@ -2,7 +2,7 @@
 
 The SDK exposes generated native components, descriptors, and commands from
 `@solid-gpui/core/components`. The implementation comes from [GPUI Kit](https://github.com/longbridge/gpui-kit)
-at `05433bd8e9e75af2f3aa508141b78ba21bfa6261` (0.6.1 plus subsequent changes).
+at `501c73923280859a5de2b16fe64d4aac960bb040` (0.6.1 plus subsequent changes).
 Local native state and lifecycle seams are recorded in
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md).
 
@@ -32,6 +32,8 @@ const [name, setName] = createSignal("");
 ```
 
 The generated file is the API reference: `packages/solid-gpui/src/components.ts`. Do not edit it. `bun run task native-codegen` generates SDK and website host bindings from their actual Rust hosts; `bun run task native-codegen-check` verifies them. Custom native components, props, events and commands use the same generator.
+
+Every component's documentation records when it was written and when it last changed. The website keeps both dates in `examples/website/component-introduced.ts`, requires them for every generated component, and shows the page's earliest creation and latest update date plus each API Reference entry's own pair — on the page and in the Markdown copied from it. A component is marked **New** in the component navigation while its creation date is inside the badge window (`newBadgeWindowDays`) and not before `newBadgeEpoch`; earlier dates are never marked, so the rule does not relabel an established catalog. Add the current date when you document a new component and bump the update date when you change one.
 
 With Vite's `native` option, `@solid-gpui/core/components` and Motion resolve their
 component contracts from the configured host's generated bindings. Rust changes
@@ -122,20 +124,45 @@ pointer, focus, and accessibility behavior with application-defined children and
 style. Supply `accessibilityLabel`, controlled state and callbacks; BaseCheckbox
 supports `unchecked`, `checked`, and `indeterminate`.
 
+Empty states compose from six parts in one order — `Empty`, `EmptyHeader`,
+`EmptyMedia`, `EmptyTitle`, `EmptyDescription`, `EmptyContent` — and the
+application decides when to show one and owns its actions:
+
+```tsx
+import { Button, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, Icon, Label } from "@solid-gpui/core/components";
+<Empty style={{ height: 240 }}>
+  <EmptyHeader>
+    <EmptyMedia variant="icon"><Icon source="lucide:folder-plus" /></EmptyMedia>
+    <EmptyTitle><Label text="No projects yet" /></EmptyTitle>
+    <EmptyDescription><Label text="Create a project to start tracking work." /></EmptyDescription>
+  </EmptyHeader>
+  <EmptyContent><Button label="New project" variant="primary" /></EmptyContent>
+</Empty>;
+```
+
 | Native family            | JS entry points                                                                                                                                                                                                                              |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Basic controls           | Alert, Avatar/AvatarGroup, Badge, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag |
+| Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag |
 | Editing and choices      | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                           |
-| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                       |
-| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar                                  |
+| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                       |
+| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar                      |
 | Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                 |
 | Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                      |
 | Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                            |
-| Docking                  | DockArea; its layout descriptors create actual native TabGroup and TilesState containers                                                                                                                                                     |
+| Docking                  | DockArea; its layout descriptors create actual native tab groups                                                                                                                                                                             |
 | Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                          |
 | Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                      |
+| Motion and presence      | Motion, NativePresence                                                                                                                                                                                                                       |
 | Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                 |
 | Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                   |
+
+The website publishes one Components navigation group per family above, in the same
+order, with compound parts on their owner's page
+(`examples/website/component-families.ts`). `examples/website/component-groups.ts`
+assigns every catalog page to exactly one family, and the catalog refuses to build for
+a page without a group; the sidebar and each page's previous/next links follow that
+order. Appearance and Computation are runtime APIs rather than components, so they have
+no catalog page.
 
 Some upstream types are parts of another control, not independent screen elements:
 
@@ -180,7 +207,7 @@ available.
 it would otherwise cover content. Markdown and component API tables on the website
 use the same horizontal `ScrollShadow` on Web and desktop.
 
-The complete pinned upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`. It includes constructor descriptors and internal/conditional types separately from the 138 ordinary public rendering interfaces.
+The complete pinned upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`. It includes constructor descriptors and internal/conditional types separately from the ordinary public rendering interfaces — 144 at this pin, after upstream added the six `empty` parts.
 
 ## Popover presentation scope
 
@@ -261,9 +288,9 @@ let dock: DockAreaRef | undefined;
 
 Pane names identify retained native Panel entities; slot indices select children of DockArea. `titleSlot`, `titleSuffixSlot`, toolbar buttons, native menus and JSON `data` are supported. Reordering the pane configuration or updating content/chrome retains its entity and current layout. Closing a pane removes it from the layout; it may stay configured so `addPane` can reopen it. Removing it from `panes` releases its configured native entity. All references in `initialLayout` must name configured panes; update that declaration too when removing a configured pane.
 
-`initialLayout` is applied at mount. Native user interaction subsequently owns geometry. Use `replaceLayout` for an explicit replacement, or `dump`/`load` for a typed snapshot that includes version, pane data, split sizes, active tabs, dock state and tile bounds/stacking order. Loading requires all referenced panes to be configured in the current owner; unknown panes fail before changing the layout.
+`initialLayout` is applied at mount. Native user interaction subsequently owns geometry. Use `replaceLayout` for an explicit replacement, or `dump`/`load` for a typed snapshot that includes version, pane data, split sizes, active tabs and dock state. Loading requires all referenced panes to be configured in the current owner; unknown panes fail before changing the layout.
 
-Ref commands also support add/remove/move, tab selection, zoom, side-dock toggle/resize/collapsibility, tile geometry, bring-to-front, undo and redo. Moves address a pane name or a region, never a persistent native NodeId. A pane moved between containers does not emit Removed. Layout change events carry a revision; obtain a snapshot when needed, rather than serializing the whole layout at every drag step.
+A layout has two container shapes: a split of regions, and a tab group. A panel that carries its own chrome returns `false` from the native `Panel::title_bar` hook, and a tab group holding only that panel draws no title bar above it. Ref commands also support add/remove/move, tab selection, zoom, side-dock toggle/resize/collapsibility. Moves address a pane name or a region, never a persistent native NodeId. A pane moved between containers does not emit Removed. Layout change events carry a revision; obtain a snapshot when needed, rather than serializing the whole layout at every drag step.
 
 ## Menus and overlays
 

@@ -87,7 +87,13 @@ const referenceNavigation = [...referenceDocs].sort(
   (a, b) => (referenceOrder.get(a.id) ?? referenceOrder.size) - (referenceOrder.get(b.id) ?? referenceOrder.size),
 );
 
-export function NavItem(props: { label: string; translate?: boolean; active?: boolean; onPress: () => void }) {
+export function NavItem(props: {
+  label: string;
+  translate?: boolean;
+  active?: boolean;
+  isNew?: boolean;
+  onPress: () => void;
+}) {
   const [hovered, setHovered] = createSignal(false);
   const [focused, setFocused] = createSignal(false);
   return (
@@ -95,29 +101,66 @@ export function NavItem(props: { label: string; translate?: boolean; active?: bo
       focusable
       accessibilityRole="link"
       accessibilitySelected={props.active}
+      accessibilityLabel={props.isNew ? `${props.label} (New)` : props.label}
       onPress={props.onPress}
       onHoverChange={setHovered}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
+      // The press target spans the whole row — a whole sidebar width wide and one
+      // row tall — while the highlight below stays as wide as its label.
       style={{
-        alignSelf: "flex-start",
-        maxWidth: 208,
         flexShrink: 0,
-        padding: 5,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: focused() ? colors.muted : "#00000000",
-        backgroundColor: props.active ? colors.secondary : "#00000000",
+        alignItems: "flex-start",
+        paddingTop: 5,
+        paddingBottom: 5,
       }}
     >
-      <Copy
-        translate={props.translate}
-        size={13}
-        color={props.active || hovered() || focused() ? colors.text : colors.muted}
-        style={{ lineHeight: 20 }}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          // Equal insets around the label: 6 horizontal + the 1 pixel border matches
+          // the 3 vertical + the line box's own leading.
+          paddingTop: 3,
+          paddingBottom: 3,
+          paddingLeft: 6,
+          paddingRight: 6,
+          borderRadius: 6,
+          borderWidth: 1,
+          borderColor: focused() ? colors.muted : "#00000000",
+          backgroundColor: props.active ? colors.secondary : "#00000000",
+        }}
       >
-        {props.label}
-      </Copy>
+        <Copy
+          translate={props.translate}
+          size={13}
+          color={props.active || hovered() || focused() ? colors.text : colors.muted}
+          style={{ lineHeight: 16 }}
+        >
+          {props.label}
+        </Copy>
+        {() =>
+          props.isNew ? (
+            <Copy
+              size={10}
+              color={colors.bg}
+              style={{
+                lineHeight: 15,
+                // The line box centres the font's ascent and descent, which leaves a
+                // cap-height label looking a pixel high; the asymmetric inset re-centres it.
+                paddingTop: 2,
+                paddingLeft: 5,
+                paddingRight: 5,
+                borderRadius: 4,
+                backgroundColor: colors.text,
+              }}
+            >
+              New
+            </Copy>
+          ) : null
+        }
+      </View>
     </Pressable>
   );
 }

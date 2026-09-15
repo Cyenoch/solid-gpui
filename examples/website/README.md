@@ -48,6 +48,30 @@ previews listed in `component-previews.ts` run through the same Rust component
 implementations as the desktop host. Vite compiles their documented TSX at build
 time; the site mounts only the active example. Unverified examples keep their
 usage documentation and an explicit availability note.
+
+`component-introduced.ts` records when each component's documentation was created
+and when it last changed; the catalog refuses to build without a record for every
+export. Seed both dates from the commit that wrote the documentation, add the
+current date when you document a new component, and bump `updated` when you change
+an existing entry — including a change made through an example, a recipe or a
+translation. A component documented on or after `newBadgeEpoch` keeps a localized
+**New** badge in the component navigation and on its page for `newBadgeWindowDays`;
+documentation written earlier is never marked, so the rule never relabels an
+established catalog at once. Component pages show the page's earliest creation date
+and latest update date, each API Reference entry shows its own pair, and both appear
+in the Markdown copied from the page.
+
+`component-groups.ts` assigns every catalog page to one navigation group, in the
+order of the native family table in `docs/gpui-components.md`; the catalog refuses to
+build for a page without a group, for a group member without a page, or for a page
+listed twice. The sidebar prints those group captions in the same order, hides a
+group while the component search leaves it empty, and keeps each group's pages
+alphabetical, so the sidebar and each page's previous/next links follow one order.
+Group captions sit at the sidebar edge in the foreground color; component rows keep
+muted labels, and their highlight hugs the label with even insets on all sides while
+the press target spans the full row width and height.
+Compound parts stay on their owner's page through `component-families.ts`.
+
 The ScrollShadow catalog includes a direct-child core `VirtualList` example with
 10,000 stable data items. Its parent has bounded height and the child fills both
 dimensions, so the preview demonstrates native scroll ownership and core

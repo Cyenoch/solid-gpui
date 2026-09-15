@@ -1,10 +1,10 @@
 # gpui-component implementation coverage
 
-Baseline: upstream `928c3eb776a3d733d9b771f7dea27a6a79242ced`, local workspace baseline `1bf74901244d8af95d7d547de5a0fb5ce362b2fc` plus this task's changes. The [upstream inventory](upstream-inventory.md) is the requirement snapshot; this file records the implementation mapping. Presence in this table is API/source coverage, not an assertion that every control has received manual hardware acceptance.
+Baseline: upstream `928c3eb776a3d733d9b771f7dea27a6a79242ced`; dock/inventory drift since then is recorded in the current pin `501c73923280859a5de2b16fe64d4aac960bb040` (tiles canvas removed, `empty` family added), local workspace baseline `1bf74901244d8af95d7d547de5a0fb5ce362b2fc` plus this task's changes. The [upstream inventory](upstream-inventory.md) is the requirement snapshot; this file records the implementation mapping. Presence in this table is API/source coverage, not an assertion that every control has received manual hardware acceptance.
 
-The running host currently generates **144 JSX components/descriptors and 10 native functions (8 computations, 2 appearance operations)**. There are no unmatched entries among the **138 ordinary upstream rendering interfaces**. Composite native machinery is mapped to its public owner instead of exported as a draw-nothing JSX alias. The generated [SDK catalog](../../packages/solid-gpui/src/components.ts), [adapter source](../../crates/solid-gpui/src/components/mod.rs), [usage guide](../../docs/gpui-components.md) and [vendor changes](../../vendor/gpui-kit/SOLID-GPUI.md) are authoritative.
+The running host currently generates **159 JSX components/descriptors and 10 native functions (8 computations, 2 appearance operations)**. There are no unmatched entries among the **144 ordinary upstream rendering interfaces**. Composite native machinery is mapped to its public owner instead of exported as a draw-nothing JSX alias. The generated [SDK catalog](../../packages/solid-gpui/src/components.ts), [adapter source](../../crates/solid-gpui/src/components/mod.rs), [usage guide](../../docs/gpui-components.md) and [vendor changes](../../vendor/gpui-kit/SOLID-GPUI.md) are authoritative.
 
-## Rendering interfaces: 138
+## Rendering interfaces: 144
 
 | Pinned public interface | JS / host entry | Implementation boundary |
 | --- | --- | --- |
@@ -83,6 +83,12 @@ The running host currently generates **144 JSX components/descriptors and 10 nat
 | composition / `marker::Marker` | `Marker` | Generated JSX entry; native type/state is used by the adapter. |
 | composition / `marker::MarkerIcon` | `MarkerIcon` | Generated JSX entry; native type/state is used by the adapter. |
 | composition / `marker::MarkerContent` | `MarkerContent` | Generated JSX entry; native type/state is used by the adapter. |
+| composition / `empty::Empty` | `Empty` | Generated JSX entry; native type/state is used by the adapter. |
+| composition / `empty::EmptyHeader` | `EmptyHeader` | Generated JSX entry; native type/state is used by the adapter. |
+| composition / `empty::EmptyMedia` | `EmptyMedia` | Generated JSX entry; native type/state is used by the adapter; `variant` selects framed icon or unframed media. |
+| composition / `empty::EmptyTitle` | `EmptyTitle` | Generated JSX entry; native type/state is used by the adapter. |
+| composition / `empty::EmptyDescription` | `EmptyDescription` | Generated JSX entry; native type/state is used by the adapter. |
+| composition / `empty::EmptyContent` | `EmptyContent` | Generated JSX entry; native type/state is used by the adapter. |
 | composition / `message::Message` | `Message` | Generated JSX entry; native type/state is used by the adapter. |
 | composition / `message::MessageGroup` | `MessageGroup` | Generated JSX entry; native type/state is used by the adapter. |
 | composition / `message::MessageAvatar` | `MessageAvatar` | Generated JSX entry; native type/state is used by the adapter. |
@@ -169,7 +175,7 @@ The running host currently generates **144 JSX components/descriptors and 10 nat
 | ScaleLinear / Point / Band / Ordinal | Native scaleLinear, scalePoint, scaleBand, scaleOrdinal commands |
 | Pie / Stack / Sankey | Native pieArcs, arcCentroid, stackSeries, sankeyLayout commands; typed results |
 | NativeMenu | NativeMenu JSX trigger and show command; real OS popup and scoped native action routes |
-| TabGroup / TilesState | DockArea layout tabs/tiles nodes; native drag, focus, resize, menu and undo behavior |
+| TabGroup | DockArea layout tab nodes; native drag, focus, resize, menu and undo behavior. The upstream tiles canvas was removed at the current pin, so no tile layout, state or command remains. |
 | Panel traits / registry / DockAreaState | DockPane configuration and typed DockSnapshot, with stable native pane entities |
 | Scroll/resize/focus entities | Retained per committed control; accessed through typed control ref commands |
 | DivInspector | Conditional native host inspector and native keyboard shortcut |
@@ -178,8 +184,8 @@ The running host currently generates **144 JSX components/descriptors and 10 nat
 
 ## Verification ledger
 
-- Native upstream libraries: **773 gpui-base + 423 gpui-component tests passed**, including close/move split proportions, settings keys, pagination page-jump, native plot and menu behavior.
-- Root component integration: **25 tests passed** before Gallery acceptance; an additional foreground theme contract/invalid-input test covers appearance; exercises invalid publication, actual native child descriptors, stateful controls, owned overlays, geometry, Dock snapshots and menu action lifetime.
-- Five Gallery routes use the generated SDK directly: `/native-controls`, `/native-overlays`, `/native-settings`, `/native-dock`, `/native-charts`. Their route/resize tests and real-window acceptance are recorded below when complete.
+- Native upstream libraries (2026-09-15, after the `501c7392` / `gpui-pre 0.3.5` sync, run in the vendored workspace): **1478 tests passed, 0 failed** across `gpui-base`, `gpui-component`, `gpui-kit` and `gpui-fps`, including close/move split proportions, settings keys, pagination page-jump, native plot and menu behavior. The earlier 773 + 423 counts describe the previous pin.
+- Root testing (2026-09-15): `cargo test --workspace` is green, including **200 passing `solid-gpui` unit tests** (1 ignored) with invalid publication, native child descriptors, stateful controls, owned overlays, geometry, Dock snapshots and menu action lifetime. The website suite (`bun run --cwd examples/website test`) passes 6 tests, including the check that every exported component has type-checking examples against the generated SDK — the new `Empty` parts included. A real-window smoke run of the native website host rendered the showcase page with its stateful controls under `gpui-pre 0.3.5`; visual acceptance of the individual catalog previews remains with the user.
+- The website (`examples/website`) drives the generated SDK directly: `/components/$` renders every catalog entry with its live preview, and `/showcase/workspace|account|collections` compose stateful controls. Web and native smoke runs cover routing and rendering; per-component visual acceptance stays with the user.
 - [Numeric review findings](prop-validation-review.md): bounded Rating/PageButtons/grid columns/spans/pixels implemented before publication; DescriptionItem checks parent column span. Pagination ellipsis now uses a native jump input with constant opening work, including `u32::MAX` page counts.
 - Deterministic GPUI rendering, protocol tests, TypeScript route tests and native GPU interactions are separate evidence. No presentation timing claim follows from library tests.

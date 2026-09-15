@@ -1,9 +1,9 @@
 [package]
 name = "gpui-pre"
-version = "0.3.3"
+version = "0.3.5"
 edition = { workspace = true }
 authors = ["Nathan Sobo <nathan@zed.dev>"]
-description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@5b055fa)"
+description = "Zed's GPU-accelerated UI framework (gpui-pre snapshot of zed@d89e9c2)"
 repository = "https://github.com/zed-industries/zed"
 publish = true
 license = "Apache-2.0"
@@ -19,7 +19,7 @@ ignored-paths = ["src/_ownership_and_data_flow.rs"]
 [package.metadata.gpui-pre]
 zed-crate = "gpui"
 zed-version = "0.2.2"
-zed-rev = "5b055fa789a8b8d38ac951a6e0cde272f66b4495"
+zed-rev = "d89e9c2124b2786a390c7a451c7488601b4da2e1"
 
 [lib]
 path = "src/gpui.rs"
@@ -89,11 +89,10 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 slotmap = { workspace = true }
 smallvec = { workspace = true }
-async-channel = { workspace = true }
 stacksafe = { workspace = true, optional = true }
 strum = { workspace = true }
 sum_tree = { workspace = true }
-taffy = "=0.13.0"
+taffy = "0.13.0"
 thiserror = { workspace = true }
 tracing = { workspace = true }
 gpui_util = { workspace = true }
@@ -111,6 +110,12 @@ ztracing = { workspace = true }
 
 [build-dependencies]
 embed-resource = { version = "3.0", optional = true }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+async-channel = { version = "2.5.0", default-features = false }
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+async-channel = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 getrandom = { version = "0.3.4", features = ["wasm_js"] }

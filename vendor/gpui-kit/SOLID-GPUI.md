@@ -1,6 +1,6 @@
 # Pinned native component source
 
-Vendored from [GPUI Kit](https://github.com/longbridge/gpui-kit) at `05433bd8e9e75af2f3aa508141b78ba21bfa6261` (0.6.1 plus subsequent changes), under Apache-2.0. This checkout contains `base`, `component`, `component-macros`, `assets`, the `kit` facade, and `fps`; the root workspace resolves GPUI to `gpui-pre 0.3.3` in its lockfile.
+Vendored from [GPUI Kit](https://github.com/longbridge/gpui-kit) at `501c73923280859a5de2b16fe64d4aac960bb040` (0.6.1 plus subsequent changes), under Apache-2.0. This checkout contains `base`, `component`, `component-macros`, `assets`, the `kit` facade, and `fps`; the root workspace resolves GPUI to `gpui-pre 0.3.5` in its lockfile.
 
 Consumers use the `solid-gpui` Rust facade and its generated JavaScript module. This source copy supplies the native state/configuration seams that declarative updates require. It is not a second application framework or a set of JS-painted replacement controls.
 
@@ -17,7 +17,8 @@ Consumers use the `solid-gpui` Rust facade and its generated JavaScript module. 
 - **Settings:** page/group/item keys replace index-based identity. SettingsState exposes selection/search; search and reorder retain the intended page/group. Native input field setters and number options refresh when configuration changes.
 - **Pagination:** ellipsis opens a native page-jump input with range validation, instead of allocating every omitted page. Opening a range remains constant work even for `u32::MAX` total pages. Labels are provided in the existing locale set.
 - **Charts and plot:** point-scale indexed lookup preserves repeated category positions. Area/Radar styles stay aligned with their series. Per-bar optional fills retain theme defaults. Pie automatic/per-slice radii remain visible. Band scales preserve nonzero range origins; Plot labels honor their font weight.
-- **Dock:** DockArea exposes retained tab/tiles entities and refreshes panel metadata without replacing the layout. Programmatic tile geometry uses the native undo history. Closing or moving a pane adopts the source region's measured split sizes before editing, preserving the surviving panes' current proportions. The JS bridge implements the real native Panel traits and restores pane handles through an owner-scoped registry.
+- **Dock:** DockArea exposes its retained tab groups and refreshes panel metadata without replacing the layout. Closing or moving a pane adopts the source region's measured split sizes before editing, preserving the surviving panes' current proportions. The JS bridge implements the real native Panel traits and restores pane handles through an owner-scoped registry. Upstream removed the freeform tiles canvas; this copy carries no tiles layout, tile state or tile commands.
+- **Empty states:** `EmptyHeader` also accepts direct children after its named slots, so the binding composes the header's media, title and description in JSX order instead of setting each typed slot. The rendered order and each part's native layout are unchanged.
 
 The bridge validates serialized data and composition before publication, including numeric/work limits. Native snapshots, render tests and real-window acceptance are separate evidence; passing deterministic GPUI tests alone does not establish GPU/presentation behavior.
 
@@ -38,3 +39,8 @@ The bridge validates serialized data and composition before publication, includi
   full style objects in every table/menu data record.
 - `kit` is used by the isolated native integration tests so test-support cannot
   accidentally select the Kit facade in production procedural macros.
+- Composite empty states are exposed as the six `empty` parts. Upstream's
+  `ScrollBounce` (a touch scroll-bounce wrapper for mobile hosts) and the
+  `text_view` inline plugin (a native plugin host) are not bound: no SDK element
+  wraps them, and the desktop host opts into neither. A `Panel::title_bar` hook
+  replaces the removed tiles canvas for a panel that draws its own chrome.

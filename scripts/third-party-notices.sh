@@ -57,6 +57,13 @@ from collections import defaultdict
 root = pathlib.Path(repo_root)
 output = pathlib.Path(output_path)
 
+# The vendored Kit pin has one authority: the provenance note beside the copy.
+kit_provenance = (root / "vendor" / "gpui-kit" / "SOLID-GPUI.md").read_text(encoding="utf-8")
+kit_pin_match = re.search(r"gpui-kit\) at `([0-9a-f]{40})`", kit_provenance)
+if kit_pin_match is None:
+    raise SystemExit("vendor/gpui-kit/SOLID-GPUI.md does not record the upstream revision")
+kit_pin = kit_pin_match.group(1)
+
 if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", generated_date):
     raise SystemExit(f"invalid generation date: {generated_date!r}")
 try:
@@ -105,7 +112,7 @@ for package_id, license_info in cargo_licenses.items():
         manifest = pathlib.Path(package["manifest_path"]).resolve()
         vendored_root = root / "vendor" / "gpui-kit"
         if manifest.is_relative_to(vendored_root):
-            source_kind = "vendored (https://github.com/longbridge/gpui-kit @ 05433bd8e9e75af2f3aa508141b78ba21bfa6261; local patches)"
+            source_kind = f"vendored (https://github.com/longbridge/gpui-kit @ {kit_pin}; local patches)"
             source_detail = "vendored"
         elif manifest.is_relative_to(root / "vendor"):
             provenance = package.get("metadata", {}).get("solid-gpui-vendor", {}).get("source")

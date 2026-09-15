@@ -1,6 +1,6 @@
 # GPUI dependency patch
 
-Source: crates.io `gpui-pre` 0.3.3, copied from the resolved registry source.
+Source: crates.io `gpui-pre` 0.3.5, copied from the resolved registry source.
 The original Apache-2.0 license and upstream provenance are retained.
 
 Local changes:

@@ -346,6 +346,12 @@ add(
   'const [collapsed, setCollapsed] = createSignal(false); const [selected, setSelected] = createSignal("Overview");',
 );
 add(
+  "Empty EmptyHeader EmptyMedia EmptyTitle EmptyDescription EmptyContent",
+  "Compose an empty state from media, title, description and actions.",
+  componentDescriptionsChinese["Compose an empty state from media, title, description and actions."],
+  '<N.Empty style={{ height: 240 }}><N.EmptyHeader><N.EmptyMedia variant="icon"><N.Icon source="lucide:folder-plus" /></N.EmptyMedia><N.EmptyTitle><N.Label text="No projects yet" /></N.EmptyTitle><N.EmptyDescription><N.Label text="Create a project to start tracking work." /></N.EmptyDescription></N.EmptyHeader><N.EmptyContent><N.Button label="New project" variant="primary" /></N.EmptyContent></N.Empty>',
+);
+add(
   "StatusBar TitleBar WindowBorder",
   "Compose the chrome of a native application window.",
   componentDescriptionsChinese["Compose the chrome of a native application window."],

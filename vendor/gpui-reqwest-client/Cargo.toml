@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "gpui-pre-reqwest-client"
-version = "0.3.3"
+version = "0.3.5"
 build = false
 publish = true
 autolib = false
@@ -20,7 +20,7 @@ autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
-description = "Zed's `reqwest_client` crate (gpui-pre snapshot of zed@5b055fa)"
+description = "Zed's `reqwest_client` crate (gpui-pre snapshot of zed@d89e9c2)"
 readme = false
 license = "Apache-2.0"
 repository = "https://github.com/zed-industries/zed"
@@ -29,7 +29,7 @@ resolver = "2"
 [package.metadata.gpui-pre]
 zed-crate = "reqwest_client"
 zed-version = "0.1.0"
-zed-rev = "5b055fa789a8b8d38ac951a6e0cde272f66b4495"
+zed-rev = "d89e9c2124b2786a390c7a451c7488601b4da2e1"
 
 [features]
 test-support = []
@@ -46,14 +46,14 @@ version = "1.0.86"
 version = "1.0"
 
 [dependencies.futures]
-version = "0.3.32"
+version = "0.3.34"
 
 [dependencies.gpui_util]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-util"
 
 [dependencies.http_client]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-http-client"
 
 [dependencies.log]
@@ -87,7 +87,7 @@ features = [
 ]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies.http_client_tls]
-version = "=0.3.3"
+version = "=0.3.5"
 package = "gpui-pre-http-client-tls"
 
 [lints.clippy]
@@ -112,4 +112,4 @@ level = "allow"
 priority = 0
 
 [package.metadata.solid-gpui-vendor]
-source = "https://crates.io/crates/gpui-pre-reqwest-client/0.3.3"
+source = "https://crates.io/crates/gpui-pre-reqwest-client/0.3.5"

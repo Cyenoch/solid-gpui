@@ -26,8 +26,8 @@ readme = "README.md"
 [workspace.dependencies]
 bebop = "3.2.3"
 futures = "0.3"
-gpui = { package = "gpui-pre", version = "0.3.3" }
-gpui-platform = { package = "gpui-pre-platform", version = "0.3.3" }
+gpui = { package = "gpui-pre", version = "0.3.5" }
+gpui-platform = { package = "gpui-pre-platform", version = "0.3.5" }
 gpui-component = { path = "vendor/gpui-kit/crates/component" }
 gpui-base = { path = "vendor/gpui-kit/crates/base" }
 gpui-kit-assets = { path = "vendor/gpui-kit/crates/assets" }

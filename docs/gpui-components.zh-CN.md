@@ -2,7 +2,7 @@
 
 SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与命令。
 实现来自 [GPUI Kit](https://github.com/longbridge/gpui-kit)，固定提交
-`05433bd8e9e75af2f3aa508141b78ba21bfa6261`（0.6.1 及后续变更）。本地状态与生命周期接入点记录在
+`501c73923280859a5de2b16fe64d4aac960bb040`（0.6.1 及后续变更）。本地状态与生命周期接入点记录在
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md)。
 
 Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
@@ -29,6 +29,8 @@ const [name, setName] = createSignal("");
 ```
 
 生成文件 `packages/solid-gpui/src/components.ts` 是 API 参考，不要手工修改。`bun run task native-codegen` 从真实 Rust 宿主生成 SDK 与 website 绑定，`bun run task native-codegen-check` 验证一致性。自定义组件、属性、事件和命令使用同一生成器。
+
+每个组件的文档都记录创建时间与上次更新时间。website 把这两个日期保存在 `examples/website/component-introduced.ts`，要求每个生成的组件都有记录，并在页面上显示该页最早的创建日期与最新的更新日期，以及每个 API Reference 条目自身的一对日期；页面复制的 Markdown 同样包含它们。创建日期位于标记窗口（`newBadgeWindowDays`）内、且不早于 `newBadgeEpoch` 时，组件导航与该组件页会标记 **New**（新增）；更早的日期永不标记，因此启用规则不会把既有目录一次性全部标记为新。为新组件撰写文档时补上当天日期，修改既有文档时更新其更新时间。
 
 配置 Vite 的 `native` 后，`@solid-gpui/core/components` 与 Motion 会使用所选
 宿主生成的组件契约。Rust 变化会自动重建宿主并替换开发会话；见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
@@ -101,20 +103,41 @@ import { Label } from "@solid-gpui/core/components";
 应用定义子内容与样式。需提供 `accessibilityLabel`、受控状态和回调；
 BaseCheckbox 支持 `unchecked`、`checked`、`indeterminate`。
 
+空状态由六个部件按固定顺序组合：`Empty`、`EmptyHeader`、`EmptyMedia`、`EmptyTitle`、
+`EmptyDescription`、`EmptyContent`；何时展示以及其中的操作归应用所有：
+
+```tsx
+import { Button, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, Icon, Label } from "@solid-gpui/core/components";
+<Empty style={{ height: 240 }}>
+  <EmptyHeader>
+    <EmptyMedia variant="icon"><Icon source="lucide:folder-plus" /></EmptyMedia>
+    <EmptyTitle><Label text="暂无项目" /></EmptyTitle>
+    <EmptyDescription><Label text="创建项目后即可开始跟踪工作。" /></EmptyDescription>
+  </EmptyHeader>
+  <EmptyContent><Button label="新建项目" variant="primary" /></EmptyContent>
+</Empty>;
+```
+
 | 原生家族   | JS 入口                                                                                                                                                                                                                                      |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 基础控件   | Alert、Avatar/AvatarGroup、Badge、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag |
+| 基础控件   | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag |
 | 编辑与选择 | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                           |
-| 数据与滚动 | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                       |
-| 组合       | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar                                  |
+| 数据与滚动 | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                       |
+| 组合       | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar                                  |
 | 消息与附件 | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                  |
 | 导航与设置 | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                |
 | 覆盖层     | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                             |
-| 停靠       | DockArea，布局描述符创建真实原生 TabGroup 与 TilesState 容器                                                                                                                                                                                 |
+| 停靠       | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                 |
 | 图表       | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                          |
 | 底层绘图   | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                              |
+| 动画与 Presence | Motion、NativePresence |
 | 外观       | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                   |
 | 计算       | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                   |
+
+网站的组件侧边栏按上表的家族分组，顺序与上表一致，复合部件与宿主共用页面
+（`examples/website/component-families.ts`）。`examples/website/component-groups.ts`
+为每个目录页面指定唯一家族，缺少分组的页面会导致目录构建失败；侧边栏与页面的
+上一页/下一页链接都遵循该顺序。外观与计算属于运行时 API 而非组件，因此没有目录页面。
 
 部分上游类型属于其他控件，不是独立屏幕元素：
 
@@ -131,7 +154,7 @@ BaseCheckbox 支持 `unchecked`、`checked`、`indeterminate`。
 
 `scrollbarVisibility` 默认为 `"always"`，也支持 `"hover"` 和 `"scrolling"`。若覆盖式滚动条会挡住内容，请沿滚动条所在边缘预留内边距。网站的 Markdown 表格和组件 API 表格在 Web 与桌面端共用横向 `ScrollShadow`。
 
-固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与 138 个普通公共渲染接口分开列出。
+固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与普通公共渲染接口分开列出；本固定版本为 144 个，上游新增了 `empty` 的六个部件。
 
 ## Popover 呈现范围
 
@@ -200,9 +223,9 @@ let dock: DockAreaRef | undefined;
 
 pane name 标识保留的原生 Panel Entity，slot index 选择 DockArea 子内容。支持 titleSlot、titleSuffixSlot、工具栏按钮、原生菜单和 JSON data。重排配置或更新内容/装饰保留 Entity 与当前布局。关闭 pane 将其移出布局，但可保留配置供 addPane 重开；从 panes 移除则释放 Entity。initialLayout 中所有引用必须指向已配置 pane，删除配置时同步更新声明。
 
-initialLayout 只在挂载时应用，之后用户原生交互拥有几何。显式替换使用 replaceLayout，持久化使用 dump/load，类型化快照包含版本、pane 数据、分割尺寸、活动标签、dock 状态、tile 边界与堆叠顺序。加载要求所有引用已在当前 owner 配置，未知 pane 会在改变布局前失败。
+initialLayout 只在挂载时应用，之后用户原生交互拥有几何。显式替换使用 replaceLayout，持久化使用 dump/load，类型化快照包含版本、pane 数据、分割尺寸、活动标签与 dock 状态。加载要求所有引用已在当前 owner 配置，未知 pane 会在改变布局前失败。
 
-ref 命令还支持增删移动、标签选择、缩放、侧 dock 切换/缩放/折叠策略、tile 几何、置顶、撤销和重做。移动定位 pane name 或区域，不使用持久原生 NodeId。跨容器移动不发 Removed。布局事件携带 revision，按需取快照，不要每个拖动步骤都序列化完整布局。
+布局只有两种容器形态：区域分割与标签组。自带标题栏的 panel 通过原生 `Panel::title_bar` 返回 `false`，只含该 panel 的标签组不再绘制上方标题栏。ref 命令还支持增删移动、标签选择、缩放、侧 dock 切换/缩放/折叠策略。移动定位 pane name 或区域，不使用持久原生 NodeId。跨容器移动不发 Removed。布局事件携带 revision，按需取快照，不要每个拖动步骤都序列化完整布局。
 
 ## 菜单与覆盖层
 

@@ -6,6 +6,8 @@ import ts from "typescript-api";
 import { resolve } from "node:path";
 import { componentCatalog, componentEntries } from "../component-catalog";
 import { componentExamples } from "../component-examples";
+import { componentGroups } from "../component-groups";
+import { isNewComponent, newBadgeEpoch, parseDocumentationDate } from "../component-introduced";
 
 test("every exported component has a usage example that type-checks against the SDK", () => {
   const catalog = componentEntries();
@@ -118,3 +120,35 @@ test("every exported component has a usage example that type-checks against the 
     errors.map((error) => `${error.file?.fileName}: ${ts.flattenDiagnosticMessageText(error.messageText, "\n")}`),
   ).toEqual([]);
 }, 30_000);
+
+test("component documentation carries a creation date and marks only new work", () => {
+  const entries = componentEntries();
+  const pages = componentCatalog();
+  const today = new Date();
+  for (const entry of entries) {
+    for (const value of [entry.documentation.created, entry.documentation.updated]) {
+      expect(value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(parseDocumentationDate(value).getTime()).toBeLessThanOrEqual(today.getTime());
+    }
+    expect(parseDocumentationDate(entry.documentation.updated).getTime()).toBeGreaterThanOrEqual(
+      parseDocumentationDate(entry.documentation.created).getTime(),
+    );
+  }
+  for (const page of pages) {
+    const created = page.members.map((member) => member.documentation.created).sort();
+    const updated = page.members.map((member) => member.documentation.updated).sort();
+    expect(page.documentation).toEqual({ created: created[0], updated: updated[updated.length - 1] });
+    expect(page.isNew).toBe(page.members.some((member) => member.isNew));
+  }
+  const at = (value: string) => new Date(`${value}T12:00:00`);
+  expect(isNewComponent("2026-09-08", at(newBadgeEpoch))).toBe(false);
+  expect(isNewComponent(newBadgeEpoch, at(newBadgeEpoch))).toBe(true);
+  expect(isNewComponent("2026-09-15", at("2026-10-15"))).toBe(true);
+  expect(isNewComponent("2026-09-15", at("2026-10-16"))).toBe(false);
+  expect(() => isNewComponent("yesterday", at(newBadgeEpoch))).toThrow();
+});
+
+test("component pages are ordered by navigation group", () => {
+  const declared = componentGroups.flatMap((group) => group.members.map((name) => [group.label, name] as const));
+  expect(componentCatalog().map((page) => [page.group, page.name])).toEqual(declared);
+});

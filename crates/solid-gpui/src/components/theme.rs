@@ -215,7 +215,6 @@ pub struct ApplicationThemeColors {
     pub title_bar_border: Option<Color>,
     pub status_bar: Option<Color>,
     pub status_bar_border: Option<Color>,
-    pub tiles: Option<Color>,
     pub warning: Option<Color>,
     pub warning_active: Option<Color>,
     pub warning_hover: Option<Color>,
@@ -600,9 +599,6 @@ fn apply_application(cx: &mut App) {
     }
     if let Some(value) = config.colors.status_bar_border {
         theme.colors.status_bar_border = value.native();
-    }
-    if let Some(value) = config.colors.tiles {
-        theme.colors.tiles = value.native();
     }
     if let Some(value) = config.colors.warning {
         theme.colors.warning = value.native();

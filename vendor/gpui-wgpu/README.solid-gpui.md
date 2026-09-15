@@ -1,6 +1,6 @@
 # Solid GPUI browser transparency patch
 
-Source: gpui-pre-wgpu 0.3.3 from crates.io, Apache-2.0 (LICENSE-APACHE).
+Source: gpui-pre-wgpu 0.3.5 from crates.io, Apache-2.0 (LICENSE-APACHE).
 
 The only local change selects PreMultiplied for transparent BrowserWebGpu
 surfaces. wgpu 29.0.4's browser `Surface::get_capabilities` advertises only Opaque,

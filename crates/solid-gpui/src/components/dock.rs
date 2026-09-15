@@ -7,7 +7,6 @@ use super::{
     overlays::Side,
     plot::length,
     primitives::Color,
-    scroll_views::ScrollbarVisibility,
 };
 use crate::native::{
     ComponentDefinition, Event, EventDefinition, NativeChildren, NativeSlot, NativeView,
@@ -22,9 +21,9 @@ use gpui_component::{
     Disableable, Selectable, Sizable,
     button::{Button, ButtonVariants},
     dock::{
-        self, BasePanel, DockArea as NativeArea, DockEvent, DockSkin, InsertTarget, NodeId,
-        PaneRef, Panel, PanelControl, PanelEvent, PanelId, PanelInfo, PanelState, PanelStyle,
-        TileContext, TilesState, TitleStyle, panel_handle,
+        self, BasePanel, DockArea as NativeArea, DockEvent, DockSkin, InsertTarget, NodeId, Panel,
+        PanelControl, PanelEvent, PanelId, PanelInfo, PanelState, PanelStyle, TitleStyle,
+        panel_handle,
     },
     menu::PopupMenu,
 };
@@ -161,8 +160,6 @@ pub struct DockAreaProps {
     pub panel_style: DockPanelStyle,
     #[serde(default = "yes")]
     pub toggle_button_visible: bool,
-    #[serde(default)]
-    pub tiles_scrollbar: Option<ScrollbarVisibility>,
 }
 #[crate::native_type]
 #[derive(Clone)]
@@ -413,8 +410,6 @@ pub struct DockAddPane {
     pub region: DockRegion,
     #[serde(default)]
     pub size: Option<f32>,
-    #[serde(default)]
-    pub bounds: Option<DockBounds>,
 }
 #[crate::native_type]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -431,10 +426,6 @@ pub enum DockMoveTarget {
         side: Side,
         #[serde(default)]
         size: Option<f32>,
-    },
-    Tile {
-        region: DockRegion,
-        bounds: DockBounds,
     },
 }
 #[crate::native_type]
@@ -455,11 +446,6 @@ pub struct DockResize {
 pub struct DockCollapsible {
     pub region: DockRegion,
     pub collapsible: bool,
-}
-#[crate::native_type]
-pub struct DockSetTileBounds {
-    pub pane: String,
-    pub bounds: DockBounds,
 }
 struct DockArea {
     props: DockAreaProps,
@@ -500,41 +486,6 @@ impl DockArea {
             }
         }
         Err("pane is not in the dock layout".into())
-    }
-    fn tiles(&self, pane: &str, cx: &App) -> Result<(Entity<TilesState>, TileContext), String> {
-        let id = PanelId::from(self.pane(pane)?.entity_id());
-        let (_, node) = self.location(id, cx)?;
-        let state = self
-            .area
-            .read(cx)
-            .tiles_state(node)
-            .ok_or("pane is not on a tiles canvas")?;
-        let tile = state
-            .read(cx)
-            .tiles(cx)
-            .into_iter()
-            .find(|t| t.panel_id() == id)
-            .ok_or("tile is no longer present")?;
-        Ok((state, tile))
-    }
-    fn canvas(&self, region: DockRegion, cx: &App) -> Result<NodeId, String> {
-        let tree = self
-            .area
-            .read(cx)
-            .layout(region.into())
-            .ok_or("dock region does not exist")?;
-        let mut found = None;
-        for node in tree.node_ids() {
-            if matches!(tree.find_node(node).unwrap().kind(), PaneRef::Tiles { .. }) {
-                if found.is_some() {
-                    return Err(
-                        "region contains multiple tile canvases; address a pane instead".into(),
-                    );
-                }
-                found = Some(node);
-            }
-        }
-        found.ok_or("region has no tiles canvas".into())
     }
     fn replace_layout(
         &mut self,
@@ -655,8 +606,6 @@ impl DockArea {
         );
         self.skin
             .set_toggle_button_visible(p.toggle_button_visible, cx);
-        self.skin
-            .set_tiles_scrollbar_mode(p.tiles_scrollbar.map(Into::into), cx);
     }
 }
 impl NativeView for DockArea {
@@ -789,20 +738,11 @@ impl NativeView for DockArea {
                 if let Some(n) = p.size {
                     length(n)?;
                 }
-                if let Some(b) = p.bounds {
-                    b.validate()?;
-                    v.canvas(p.region, cx)?;
-                }
                 if v.location(PanelId::from(pane.entity_id()), cx).is_ok() {
                     return Err("pane is already in the layout; use movePane".into());
                 }
-                v.area.update(cx, |a, cx| match p.bounds {
-                    Some(bounds) => {
-                        a.add_tile_view(panel_handle(pane), p.region.into(), bounds.native(), w, cx)
-                    }
-                    None => {
-                        a.add_panel_view(panel_handle(pane), p.region.into(), p.size.map(px), w, cx)
-                    }
+                v.area.update(cx, |a, cx| {
+                    a.add_panel_view(panel_handle(pane), p.region.into(), p.size.map(px), w, cx)
                 });
                 Ok(())
             }),
@@ -852,13 +792,6 @@ impl NativeView for DockArea {
                             size: size.map(px),
                         }
                     }
-                    DockMoveTarget::Tile { region, bounds } => {
-                        bounds.validate()?;
-                        InsertTarget::Tile {
-                            node: v.canvas(region, cx)?,
-                            bounds: bounds.native(),
-                        }
-                    }
                 };
                 v.area.update(cx, |a, cx| a.move_panel(id, target, w, cx));
                 Ok(())
@@ -887,21 +820,19 @@ impl NativeView for DockArea {
                 }
                 let id = PanelId::from(pane.entity_id());
                 let (_, node) = v.location(id, cx)?;
-                if let Some(group) = v.area.read(cx).tab_group(node) {
-                    let index = group
-                        .read(cx)
-                        .panels()
-                        .iter()
-                        .position(|p| p.panel_id(cx) == id)
-                        .expect("current group member");
-                    group.update(cx, |g, cx| g.select_tab(index, w, cx));
-                    v.area.update(cx, |a, cx| a.set_zoomed_in(node, w, cx));
-                } else {
-                    let (state, _) = v.tiles(&p.pane, cx)?;
-                    if state.read(cx).zoomed_tile() != Some(id) {
-                        state.update(cx, |s, cx| s.toggle_zoom(id, w, cx));
-                    }
-                }
+                let group = v
+                    .area
+                    .read(cx)
+                    .tab_group(node)
+                    .ok_or("pane is not in a tab group")?;
+                let index = group
+                    .read(cx)
+                    .panels()
+                    .iter()
+                    .position(|p| p.panel_id(cx) == id)
+                    .expect("current group member");
+                group.update(cx, |g, cx| g.select_tab(index, w, cx));
+                v.area.update(cx, |a, cx| a.set_zoomed_in(node, w, cx));
                 Ok(())
             }),
             ViewCommand::new("zoomOut", |v, _: (), w, cx| {
@@ -935,32 +866,6 @@ impl NativeView for DockArea {
                 });
                 Ok(())
             }),
-            ViewCommand::new("setTileBounds", |v, p: DockSetTileBounds, _, cx| {
-                p.bounds.validate()?;
-                let (state, tile) = v.tiles(&p.pane, cx)?;
-                if state.update(cx, |s, cx| {
-                    s.set_bounds(tile.panel_id(), p.bounds.native(), cx)
-                }) {
-                    Ok(())
-                } else {
-                    Err("tile is being moved or resized".into())
-                }
-            }),
-            ViewCommand::new("bringTileToFront", |v, p: DockPaneRequest, w, cx| {
-                let (_, tile) = v.tiles(&p.pane, cx)?;
-                tile.bring_to_front(w, cx);
-                Ok(())
-            }),
-            ViewCommand::new("undoTiles", |v, p: DockPaneRequest, _, cx| {
-                let (state, _) = v.tiles(&p.pane, cx)?;
-                state.update(cx, |s, cx| s.undo(cx));
-                Ok(())
-            }),
-            ViewCommand::new("redoTiles", |v, p: DockPaneRequest, _, cx| {
-                let (state, _) = v.tiles(&p.pane, cx)?;
-                state.update(cx, |s, cx| s.redo(cx));
-                Ok(())
-            }),
         ]
     }
 }
@@ -980,7 +885,7 @@ pub(super) fn definition() -> ComponentDefinition {
 mod tests {
     use super::*;
     use crate::{EventPayload, components::test_support::Fixture};
-    use gpui::{TestAppContext, point, size};
+    use gpui::TestAppContext;
     fn p<T: serde::de::DeserializeOwned>(v: &str) -> T {
         crate::native::decode_json(v.as_bytes()).unwrap()
     }
@@ -1002,13 +907,11 @@ mod tests {
         result
     }
     #[gpui::test]
-    fn dock_moves_restore_and_metadata_keep_pane_entities_and_tile_history(
-        cx: &mut TestAppContext,
-    ) {
+    fn dock_moves_restore_and_metadata_keep_pane_entities(cx: &mut TestAppContext) {
         let props: DockAreaProps = p(r#"{"panes":[
             {"name":"a","title":"Alpha","data":{"counter":7},"menu":{"items":[{"kind":"item","id":"first","label":"First"},{"kind":"item","id":"second","label":"Second"}]}},
             {"name":"b","title":"Beta"},{"name":"c","title":"Gamma"}],
-            "initialLayout":{"center":{"kind":"tabs","panes":["a","b"]},"right":{"layout":{"kind":"tiles","panes":[{"pane":"c","bounds":{"x":10,"y":10,"width":200,"height":150}}]},"size":240}}}"#);
+            "initialLayout":{"center":{"kind":"tabs","panes":["a","b"]},"right":{"layout":{"kind":"tabs","panes":["c"]},"size":240}}}"#);
         DockArea::validate_props(&props).unwrap();
         let f = Fixture::<DockArea>::new(props, cx);
         cx.run_until_parked();
@@ -1040,16 +943,15 @@ mod tests {
                 v.location(PanelId::from(a.entity_id()), cx).unwrap().1
             );
             assert_eq!(menu.read(cx).selected_index(), Some(0));
-            let node = v.canvas(DockRegion::Right, cx).unwrap();
+            let (region, node) = v.location(PanelId::from(c.entity_id()), cx).unwrap();
+            assert_eq!(region, DockRegion::Right);
             v.area.update(cx, |a, cx| {
                 a.move_panel(
                     PanelId::from(b.entity_id()),
-                    InsertTarget::Tile {
+                    InsertTarget::Tabs {
                         node,
-                        bounds: gpui::Bounds::new(
-                            point(px(30.), px(50.)),
-                            size(px(220.), px(140.)),
-                        ),
+                        ix: None,
+                        activate: true,
                     },
                     w,
                     cx,
@@ -1063,34 +965,15 @@ mod tests {
                 .any(|e| matches!(e, DockPaneEvent::Removed { .. }))
         );
         f.update(cx, |v, _, cx| {
-            let (state, tile) = v.tiles("b", cx).unwrap();
-            assert!(state.update(cx, |s, cx| {
-                s.set_bounds(
-                    tile.panel_id(),
-                    DockBounds {
-                        x: 80.,
-                        y: 90.,
-                        width: 250.,
-                        height: 180.,
-                    }
-                    .native(),
-                    cx,
-                )
-            }));
+            assert_eq!(
+                v.location(PanelId::from(b.entity_id()), cx).unwrap().0,
+                DockRegion::Right
+            );
+            assert_eq!(
+                v.location(PanelId::from(b.entity_id()), cx).unwrap().1,
+                v.location(PanelId::from(c.entity_id()), cx).unwrap().1
+            );
         });
-        cx.run_until_parked();
-        f.update(cx, |v, _, cx| {
-            assert_eq!(v.tiles("b", cx).unwrap().1.bounds().origin.x, px(80.));
-            let (state, _) = v.tiles("b", cx).unwrap();
-            state.update(cx, |s, cx| s.undo(cx));
-        });
-        cx.run_until_parked();
-        f.update(cx, |v, _, cx| {
-            assert_eq!(v.tiles("b", cx).unwrap().1.bounds().origin.x, px(30.));
-            let (state, _) = v.tiles("b", cx).unwrap();
-            state.update(cx, |s, cx| s.redo(cx));
-        });
-        cx.run_until_parked();
         f.update(cx, |v, w, cx| {
             let saved = v.snapshot(cx).unwrap();
             let json = crate::native::encode_json(&saved).unwrap();
@@ -1099,7 +982,10 @@ mod tests {
                 .unwrap();
             assert_eq!(a.entity_id(), v.panes["a"].entity_id());
             assert_eq!(b.entity_id(), v.panes["b"].entity_id());
-            assert_eq!(v.tiles("b", cx).unwrap().1.bounds().origin.x, px(80.));
+            assert_eq!(
+                v.location(PanelId::from(b.entity_id()), cx).unwrap().0,
+                DockRegion::Right
+            );
             assert_eq!(a.read(cx).data, p::<DockValue>(r#"{"counter":7}"#));
             let before = crate::native::encode_json(&v.snapshot(cx).unwrap()).unwrap();
             let bad: DockLayoutSpec = p(r#"{"center":{"kind":"tabs","panes":["missing"]}}"#);

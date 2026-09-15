@@ -1,6 +1,6 @@
 # Reqwest client dependency patch
 
-Source: crates.io `gpui-pre-reqwest-client` 0.3.3. Original Apache-2.0 license
+Source: crates.io `gpui-pre-reqwest-client` 0.3.5. Original Apache-2.0 license
 and upstream metadata are retained.
 
 The adapter uses upstream `reqwest` 0.13.4 instead of the old `gpui-pre-reqwest`

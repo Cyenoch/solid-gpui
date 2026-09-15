@@ -2,6 +2,8 @@
 
 Pinned dependency: `928c3eb776a3d733d9b771f7dea27a6a79242ced`. Source is `crates/component/src` in Cargo checkout `gpui-component-95ce574d8a0da8b8/928c3eb`. Only `gpui-base` re-exports actually exposed by `gpui-component` and reachable factory results are included. This is an **upstream requirements inventory and bridge-design reference, not proof of JavaScript support or acceptance for any item**.
 
+Current pin note: the enclosing vendor tree moved to `501c73923280859a5de2b16fe64d4aac960bb040`, which adds the six `empty` parts (bringing the count below to 144) and removes the freeform tiles canvas from `dock`. This file still describes the `928c3eb` source it was derived from.
+
 Counting boundary: **138 ordinary public rendering interfaces**, with 136 publicly nameable paths and two public extension-trait factory results. `Text`, `DescriptionText`, and `FieldBuilder` are content adapters, not three independent controls. The `inspector` feature or debug assertions also exposes `DivInspector`, bringing the count to 139. Eighteen composition descriptors, retained states, traits, services, and drawing-data types are listed separately. `SelectListItem`, `h_/v_` factories, and compatibility re-exports are not double-counted. `IconName` variants are named `Icon` content, not additional components.
 
 Source element means native construction with a stable node ID. Retained means host-owned Entities, scroll/focus handles, subscriptions, and async work. Service means window/application commands or registries. Stateless only means no caller-owned Entity is required; it may still use controlled interaction, focus, window keyed state, and animation. Families determine classification, including their child elements.
