@@ -15,10 +15,7 @@ use gpui_base::{
 
 use crate::{
     ActiveTheme as _, Edges, Icon, IconName, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
-    animation::cubic_bezier,
-    button::Button,
-    styled::toast_shadow,
-    v_flex,
+    animation::cubic_bezier, button::Button, styled::toast_shadow, v_flex,
 };
 
 const NOTIFICATION_TRANSITION_DURATION: Duration = Duration::from_millis(400);

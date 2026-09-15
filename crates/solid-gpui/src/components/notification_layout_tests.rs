@@ -11,8 +11,7 @@ use crate::host::HostProfile;
 use crate::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
 use crate::{HostProperties, InMemoryAdapter, Node, Snapshot};
 use gpui::{
-    AnyWindowHandle, Bounds, Pixels, TestAppContext, VisualTestContext, WindowBounds,
-    WindowOptions, px, size,
+    Bounds, Pixels, TestAppContext, VisualTestContext, WindowBounds, WindowOptions, px, size,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -76,7 +75,7 @@ fn drawn_toast(cx: &mut TestAppContext, message: &str) -> VisualTestContext {
             .open_window(options, runtime.clone(), extensions, app)
             .expect("provider window opens")
     });
-    let mut visual = VisualTestContext::from_window(AnyWindowHandle::from(window), cx);
+    let mut visual = VisualTestContext::from_window(window, cx);
     visual.update(|window, cx| {
         let message =
             crate::protocol::decode_message(&notification_snapshot(message).encode().unwrap())
