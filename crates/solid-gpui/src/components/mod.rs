@@ -16,11 +16,17 @@ pub mod host;
 mod icon_source;
 mod input;
 mod input_language;
+#[cfg(test)]
+mod menu_icon_tests;
 mod menus;
 mod motion_types;
 mod motion_view;
 mod native_menu;
+#[cfg(test)]
+mod notification_layout_tests;
 mod notifications;
+#[cfg(test)]
+mod overlay_dialog_tests;
 mod overlays;
 mod pickers;
 mod plot;

@@ -17,6 +17,9 @@ use gpui_base::TestSupportExt as _;
 use std::rc::Rc;
 
 const CONTEXT: &str = "PopupMenu";
+/// Names the leading item icon in the debug-bounds map, so a test can ask a
+/// really-drawn frame how large a menu draws the icon it puts beside a label.
+const MENU_ICON_SELECTOR: &str = "menu-icon";
 
 pub fn init(cx: &mut App) {
     cx.bind_keys([
@@ -1185,7 +1188,14 @@ impl PopupMenu {
             Icon::empty()
         };
 
-        Some(icon.xsmall())
+        // The item label is `text_sm`; an `xsmall` icon reads as a shrunken
+        // glyph next to it, so the leading icon takes the next size step up.
+        Some(
+            div()
+                .debug_selector(|| MENU_ICON_SELECTOR.into())
+                .flex_shrink_0()
+                .child(icon.with_size(Size::Medium)),
+        )
     }
 
     #[inline]

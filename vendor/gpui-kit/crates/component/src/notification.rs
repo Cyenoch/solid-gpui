@@ -6,6 +6,7 @@ use gpui::{
     InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Render, SharedString,
     StatefulInteractiveElement, StyleRefinement, Styled, Subscription, SystemNotification,
     SystemNotificationResponse, WeakEntity, Window, WindowId, div, prelude::FluentBuilder, px,
+    rems,
 };
 use gpui_base::{
     Toast as BaseToast, ToastManager, ToastMotion, ToastOptions, ToastStack, ToastStackState,
@@ -401,7 +402,7 @@ impl Render for Notification {
         let action = self
             .action_builder
             .clone()
-            .map(|builder| builder(self, window, cx).small().mr_3p5());
+            .map(|builder| builder(self, window, cx).small());
 
         let transition_status = self.transition_status;
         let closing = transition_status == ToastTransitionStatus::Ending;
@@ -409,13 +410,36 @@ impl Render for Notification {
             None => self.icon.clone(),
             Some(type_) => Some(type_.icon(cx)),
         };
-        let has_icon = icon.is_some();
         let placement = self.placement.unwrap_or(cx.theme().notification.placement);
+
+        // The card is one row: [icon] [title / message / content] [action] [close].
+        // Every slot beside the copy is a box exactly one body line tall — never
+        // shorter than the controls it holds — so its glyph is centred on the
+        // *first* line whether or not the text wraps. Nothing is absolutely
+        // positioned: the padding is one value on all four sides, the trailing
+        // slots reserve their width up front so a hover cannot reflow the copy,
+        // and the copy stretches to the row so its own inset stays symmetric.
+        let line = {
+            let mut style = window.text_style();
+            style.font_size = rems(0.875).into();
+            style.line_height_in_pixels(window.rem_size())
+        };
+        let slot_height = line.max(px(24.));
+        let slot = move |name: &'static str| {
+            div()
+                .flex()
+                .flex_none()
+                .items_center()
+                .justify_center()
+                .h(slot_height)
+                .debug_selector(move || name.into())
+        };
+        let muted = cx.theme().muted_foreground;
 
         BaseToast::new("notification")
             .transition_status(transition_status)
+            .debug_selector(|| "notification-card".into())
             .h_flex()
-            .group("")
             .occlude()
             .relative()
             .w_full()
@@ -424,18 +448,20 @@ impl Render for Notification {
             .bg(cx.theme().tokens.popover)
             .rounded(cx.theme().radius_lg)
             .shadow(toast_shadow(1.))
-            .py_3p5()
-            .px_4()
+            .p_4()
+            // `h_flex` centres its children; the card aligns them to the top so
+            // the icon and the close button sit on the copy's first line.
+            .items_start()
             .gap_3()
             .refine_style(&self.style)
             .when_some(icon, |this, icon| {
-                this.child(div().absolute().top(px(18.)).left_4().child(icon))
+                this.child(slot("notification-icon").child(icon.size_4()))
             })
             .child(
                 v_flex()
                     .flex_1()
                     .overflow_hidden()
-                    .when(has_icon, |this| this.pl_6())
+                    .debug_selector(|| "notification-copy".into())
                     .when_some(self.title.clone(), |this, title| {
                         this.child(div().text_sm().font_semibold().child(title))
                     })
@@ -444,24 +470,24 @@ impl Render for Notification {
                     })
                     .when_some(content, |this, content| this.child(content)),
             )
-            .when_some(action, |this, action| this.child(action))
+            .when_some(action, |this, action| {
+                this.child(slot("notification-action").child(action))
+            })
             .child(
-                div()
-                    .absolute()
-                    .top_1()
-                    .right_1()
-                    .invisible()
-                    .group_hover("", |this| this.visible())
-                    .child(
-                        Button::new("close")
-                            .icon(IconName::Close)
-                            .ghost()
-                            .xsmall()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                cx.stop_propagation();
-                                this.dismiss(window, cx);
-                            })),
-                    ),
+                // Always painted, in the muted ink, so a reader can see how to
+                // dismiss the card without hunting for a hover state; the ghost
+                // hover fill answers the pointer.
+                slot("notification-close").child(
+                    Button::new("close")
+                        .icon(Icon::new(IconName::Close).text_color(muted))
+                        .ghost()
+                        .small()
+                        .debug_selector(|| "notification-close-button".into())
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.dismiss(window, cx);
+                        })),
+                ),
             )
             .when_some(self.on_click.clone(), |this, on_click| {
                 this.on_click(cx.listener(move |view, event, window, cx| {

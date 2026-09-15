@@ -20,6 +20,13 @@ use crate::{
 };
 
 pub static ANIMATION_DURATION: LazyLock<Duration> = LazyLock::new(|| Duration::from_secs_f64(0.25));
+/// Space a dialog popup keeps from the window's bottom edge.
+const DIALOG_BOTTOM_GAP: Pixels = px(24.);
+/// Room a popup keeps for its own title and footer on a very short window.
+const MIN_POPUP_HEIGHT: Pixels = px(160.);
+/// Names the popup in the debug-bounds map, so a test can ask a really-drawn
+/// frame how tall the popup became.
+const DIALOG_POPUP_SELECTOR: &str = "dialog-popup";
 pub use gpui_base::actions::{Cancel, Confirm};
 
 /// Dialog button props.
@@ -503,6 +510,10 @@ impl RenderOnce for Dialog {
             );
         let y = self.props.margin_top.unwrap_or(view_size.height / 10.) + px(layer_ix as f32 * 16.);
         let x = view_size.width / 2. - self.props.width / 2.;
+        // Content taller than the popup room would push the footer off screen.
+        // Bounding the popup keeps the title and footer in place and leaves the
+        // scrolling to the body region below.
+        let max_height = (view_size.height - y - DIALOG_BOTTOM_GAP).max(MIN_POPUP_HEIGHT);
 
         let base_size = window.text_style().font_size;
         let rem_size = window.rem_size();
@@ -584,6 +595,7 @@ impl RenderOnce for Dialog {
                             .popup(
                                 v_flex()
                                     .id("popup")
+                                    .debug_selector(|| DIALOG_POPUP_SELECTOR.into())
                                     .test_support()
                                     .bg(cx.theme().tokens.background)
                                     .border_1()
@@ -604,6 +616,7 @@ impl RenderOnce for Dialog {
                                     .top(y)
                                     .w(self.props.width)
                                     .when_some(self.props.max_width, |this, w| this.max_w(w))
+                                    .max_h(max_height)
                                     .child(
                                         v_flex()
                                             .flex_1()
