@@ -3,7 +3,9 @@
 //! These tests live beside the adapter instead of inside the vendored card: the
 //! card's geometry is what a reader sees, so it has to be measured from real
 //! paint bounds rather than from the style values that fed it. The card itself
-//! registers the selectors (`vendor/gpui-kit/.../notification.rs`).
+//! registers the selectors (`vendor/gpui-kit/.../notification.rs`) and draws no
+//! dismissal control at all — a toast is dismissed by clicking it or by its own
+//! timer, so the card holds nothing that can go missing from the picture.
 use crate::components::host::ComponentHost;
 use crate::host::HostProfile;
 use crate::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
@@ -18,13 +20,10 @@ use std::time::Duration;
 const CARD: &str = "notification-card";
 const ICON: &str = "notification-icon";
 const COPY: &str = "notification-copy";
-const CLOSE: &str = "notification-close-button";
 /// The inset from the card's own edge to every slot inside it.
 const CARD_INSET: Pixels = px(16.);
 /// The gap between two neighbouring slots.
 const SLOT_GAP: Pixels = px(12.);
-/// The close button's own height (`Button::small`).
-const CLOSE_SIZE: Pixels = px(24.);
 /// The card draws a hairline border around its padding.
 const BORDER: Pixels = px(1.);
 /// Layout rounds to whole pixels, so a glyph may sit half a pixel off centre.
@@ -130,12 +129,10 @@ fn assert_close(actual: Pixels, expected: Pixels, what: &str) {
     );
 }
 
-/// Every inset and gap in the card is the same, and the icon and the close
-/// button stand on the copy's first line. The card used to draw the icon at a
-/// hard-coded offset (18 px down, 16 px in) with the copy padded around it, so
-/// the icon sat below the text as soon as the line height changed — and the
-/// close button was invisible until the card was hovered, which is how a reader
-/// could end up with no way to dismiss a toast at all.
+/// Every inset and gap in the card is the same, and the icon stands on the
+/// copy's line. The card used to draw the icon at a hard-coded offset (18 px
+/// down, 16 px in) with the copy padded around it, so the icon sat below the
+/// text as soon as the line height changed.
 #[gpui::test]
 fn a_single_line_toast_insets_every_slot_by_the_same_amount(cx: &mut TestAppContext) {
     let mut visual = drawn_toast(cx, "已复制链接");
@@ -143,12 +140,11 @@ fn a_single_line_toast_insets_every_slot_by_the_same_amount(cx: &mut TestAppCont
     let card = bounds(&mut visual, CARD);
     let icon = bounds(&mut visual, ICON);
     let copy = bounds(&mut visual, COPY);
-    let close = bounds(&mut visual, CLOSE);
 
     assert_close(left(icon) - left(card), CARD_INSET + BORDER, "left inset");
     assert_close(top(icon) - top(card), CARD_INSET + BORDER, "top inset");
     assert_close(
-        right(card) - right(close),
+        right(card) - right(copy),
         CARD_INSET + BORDER,
         "right inset",
     );
@@ -161,12 +157,11 @@ fn a_single_line_toast_insets_every_slot_by_the_same_amount(cx: &mut TestAppCont
 
     assert_close(top(icon), top(copy), "icon starts with the copy");
     assert!(icon.size.height >= copy.size.height, "{icon:?} vs {copy:?}");
-    assert_close(center_y(close), center_y(copy), "close button is centred");
-    assert_close(close.size.height, CLOSE_SIZE, "close button height");
+    assert_close(center_y(icon), center_y(copy), "icon centres on the copy");
 }
 
-/// A wrapped message keeps the icon and the close button on the first line
-/// instead of centring them on the card.
+/// A wrapped message keeps the icon on the first line instead of centring it on
+/// the card.
 #[gpui::test]
 fn a_wrapped_toast_aligns_its_slots_with_the_first_line(cx: &mut TestAppContext) {
     let mut visual = drawn_toast(
@@ -177,7 +172,6 @@ fn a_wrapped_toast_aligns_its_slots_with_the_first_line(cx: &mut TestAppContext)
     let card = bounds(&mut visual, CARD);
     let icon = bounds(&mut visual, ICON);
     let copy = bounds(&mut visual, COPY);
-    let close = bounds(&mut visual, CLOSE);
 
     assert!(
         copy.size.height > icon.size.height * 1.5,
@@ -185,11 +179,6 @@ fn a_wrapped_toast_aligns_its_slots_with_the_first_line(cx: &mut TestAppContext)
     );
     let first_line = top(copy) + icon.size.height / 2.;
     assert_close(center_y(icon), first_line, "icon centres on the first line");
-    assert_close(
-        center_y(close),
-        first_line,
-        "close centres on the first line",
-    );
     assert!(
         (center_y(icon) - center_y(card)).abs() > px(8.),
         "the icon must not be centred on a multi-line card ({card:?} {icon:?})"

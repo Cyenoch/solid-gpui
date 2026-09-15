@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Aligned three vendored Kit surfaces with the content they draw: a dialog popup bounds its height to the room the window leaves above a 24 px bottom gap so an oversized body scrolls inside it, the notification card is one flex row with a uniform 16 px inset and no absolutely positioned child (its icon and action centre on the first line of wrapped copy), and a popup menu's leading icon draws at `Size::Medium` beside its `text_sm` label. The notification card draws no close control: a toast is dismissed by clicking it, by a middle-click, or by its own timer.
 - Made ScrollShadow borrow a direct, matching-axis VirtualList viewport, sharing native scrolling, fades, commands, and one scrollbar without expanding windowed rows. Preserved unmeasured list height estimates through first layout and width changes.
 - Added an optional embedded QuickJS UI runtime for Rust-led applications, with bounded transport queues, cancellable scheduling, and the existing native protocol/command contract. Bun continues to support Rust-led and Bun-led applications.
 - Made Vite the application bundler through the separate `@solid-gpui/vite` package. Direct JS needs no bundler; JSX/TSX uses one Solid/Oxc transform for Bun and QuickJS builds. Native host startup, bindings, Vite HMR/watch, and Rust-owned development share the same project configuration. Bun retains its runtime APIs; the previous standalone bundler and TSX launchers have been removed.

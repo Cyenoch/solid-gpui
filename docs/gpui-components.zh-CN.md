@@ -210,7 +210,7 @@ PopupMenu、ContextMenu、DropdownMenu 支持带 key 的菜单树及自定义子
 
 NativeMenu 使用系统弹窗实现，无系统后端的平台使用上游绘制实现。contextMenu、press、manual 触发和 show({x,y}) 使用窗口坐标。系统菜单显示打开时快照，后续属性变化在下次打开应用。选择动作作用域绑定挂载视图，卸载即撤销。
 
-Dialog、Sheet 和 Notification 使用原生 owner/session token。旧对话框请求完成不能关闭新对话框，旧 owner 卸载不能移除其他 owner 当前覆盖层。原生覆盖控件保留父动作/焦点行为。通知按当前 key/session 更新，使用原生堆栈与计时器。
+Dialog、Sheet 和 Notification 使用原生 owner/session token。旧对话框请求完成不能关闭新对话框，旧 owner 卸载不能移除其他 owner 当前覆盖层。原生覆盖控件保留父动作/焦点行为。通知按当前 key/session 更新，使用原生堆栈与计时器。卡片是一行 flex——类型图标、正文、可选动作——内边距四边一致，也没有关闭控件：点击卡片、中键点击或到期计时都会关掉它，悬停或键盘聚焦整叠会展开并暂停其中全部计时。
 
 ## 绘图数据与工作量限制
 

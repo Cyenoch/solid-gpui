@@ -283,10 +283,12 @@ export const recipeChinese: Record<string, string> = {
   "Right sheet": "右侧面板",
   "Bottom sheet": "底部面板",
   "Success notification": "成功通知",
-  "Trigger a dismissible in-app message from an explicit action.": "通过明确操作触发可关闭的应用内通知。",
+  "Trigger an in-app message from an explicit action; it leaves on click or after its own timer.":
+    "通过明确操作触发应用内通知；点击即可关闭，或到时间自动消失。",
   "Error notification": "错误通知",
   "Notification action": "通知操作",
-  "Offer a relevant follow-up directly inside the notification.": "在通知内提供相关的后续操作。",
+  "Offer a relevant follow-up inside the notification; it waits until it is answered or clicked away.":
+    "在通知内提供相关的后续操作；它会一直保留到被处理或点击关闭。",
   "Profile details": "个人资料详情",
   "Show supporting profile information next to the trigger.": "在触发元素旁显示辅助个人资料信息。",
   "Show profile information next to the trigger, within the current window.": "在当前窗口内、触发元素旁显示个人资料。",

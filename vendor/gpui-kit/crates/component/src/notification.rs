@@ -16,7 +16,7 @@ use gpui_base::{
 use crate::{
     ActiveTheme as _, Edges, Icon, IconName, Sizable as _, StyledExt, TITLE_BAR_HEIGHT,
     animation::cubic_bezier,
-    button::{Button, ButtonVariants as _},
+    button::Button,
     styled::toast_shadow,
     v_flex,
 };
@@ -412,13 +412,12 @@ impl Render for Notification {
         };
         let placement = self.placement.unwrap_or(cx.theme().notification.placement);
 
-        // The card is one row: [icon] [title / message / content] [action] [close].
+        // The card is one row: [icon] [title / message / content] [action].
         // Every slot beside the copy is a box exactly one body line tall — never
         // shorter than the controls it holds — so its glyph is centred on the
         // *first* line whether or not the text wraps. Nothing is absolutely
-        // positioned: the padding is one value on all four sides, the trailing
-        // slots reserve their width up front so a hover cannot reflow the copy,
-        // and the copy stretches to the row so its own inset stays symmetric.
+        // positioned: the padding is one value on all four sides, and the copy
+        // stretches to the row so its own inset stays symmetric.
         let line = {
             let mut style = window.text_style();
             style.font_size = rems(0.875).into();
@@ -434,8 +433,6 @@ impl Render for Notification {
                 .h(slot_height)
                 .debug_selector(move || name.into())
         };
-        let muted = cx.theme().muted_foreground;
-
         BaseToast::new("notification")
             .transition_status(transition_status)
             .debug_selector(|| "notification-card".into())
@@ -473,22 +470,6 @@ impl Render for Notification {
             .when_some(action, |this, action| {
                 this.child(slot("notification-action").child(action))
             })
-            .child(
-                // Always painted, in the muted ink, so a reader can see how to
-                // dismiss the card without hunting for a hover state; the ghost
-                // hover fill answers the pointer.
-                slot("notification-close").child(
-                    Button::new("close")
-                        .icon(Icon::new(IconName::Close).text_color(muted))
-                        .ghost()
-                        .small()
-                        .debug_selector(|| "notification-close-button".into())
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            cx.stop_propagation();
-                            this.dismiss(window, cx);
-                        })),
-                ),
-            )
             .when_some(self.on_click.clone(), |this, on_click| {
                 this.on_click(cx.listener(move |view, event, window, cx| {
                     view.dismiss(window, cx);
