@@ -47,10 +47,18 @@ Extension 的 provider、catalog digest、entry ID 和版本必须与宿主完�
 先根据 Vite 打印的 host 路径确认实际可执行文件，启用所需 Cargo feature，并在
 该宿主注册模块。配置 `native` 后，保存修正后的 Rust 源码或 Cargo manifest 会
 重建宿主及 bindings；`#native` 和 `@solid-gpui/core/components` 都使用这份输出。
-显式 `host` 配置需要自行重建可执行文件，再保存应用源码启动新的会话。
+显式 `host` 配置同样以 `--export-native` 导出实际目录，不会替换为 SDK 中保存的组件目录。
+需要自行重建该可执行文件，再保存应用源码以重新导出 bindings 并启动会话。
+`native` 是由 Cargo 管理构建的对应方案，两者都不要求应用声明自定义 native 模块。
 
 提交被拒绝后当前会话会结束，Vite 继续等待下一次修改，不会反复重启同一个失败
 程序，也不会继续应用依赖错误 revision 的 Patch。见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
+
+## Windows 宿主栈溢出
+
+GPUI 布局和绘制沿原生元素树递归；Windows 可执行文件默认线程栈可能不足以容纳深层 debug 布局和动画控件。宿主入口在调用线程栈不足时预留 16 MiB 应用线程栈。带 profile 的入口接收工厂，在目标线程构造 profile；应用不需要线程包装。macOS 仍在真正主线程运行。
+
+用 `SOLID_GPUI_LOG=info` 查看实际线程栈预留，通过 `SOLID_GPUI_APP_STACK_BYTES` 对同一页面做不同预算的有界对比；无效预算会使启动失败。显式 `/STACK` 链接选项也是宿主可以选择的预留方式。对比时保持界面内容、动画策略和 Cargo profile 一致，检查启动、切换页面和重复交互。增大预算不能修复无界递归；关闭动画或把全部 Button 换成 Pressable 只是隐藏触发条件，不是可靠的启动契约。
 
 ## 内嵌 Bun 构建失败
 
@@ -112,6 +120,12 @@ SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime qui
 
 检查 stderr 中的渲染错误及宿主崩溃报告路径。协议解码或验证失败是致命错误，继续执行会丢失 revision 一致性。应用渲染错误会抛给应用，Solid GPUI 不会自行生成备用界面。
 
+## 强杀宿主后 Bun 渲染器仍在运行
+
+进程渲染器应使用默认 `StdioTransport`。读取 `process.stdin` 的连接拥有渲染器生命周期：宿主管道关闭后先通知终止监听器，再退出，即使应用定时器仍活跃。正常 EOF 以状态 0 退出，读写错误输出诊断并以状态 1 退出。不轮询父 PID，不发送进程组终止信号，也不影响应用拥有的 detached 服务。
+
+传入自定义流的连接默认由嵌入方管理，除非显式设置 `exitOnHostClose: true`。`dispose()` 不退出进程；只有进程确实需要比宿主活得更久时，才设置 `exitOnHostClose: false`。普通宿主子渲染器不应关闭此策略。
+
 ## 文件、剪贴板或对话框命令被拒绝
 
 命令有大小限制，在跨协议前验证参数。使用非空绝对文件路径，遵守帧和资源限制；平台不支持的图片剪贴板操作应作为显式错误处理。
@@ -130,6 +144,18 @@ SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime qui
 ```
 
 通过 Vite 插件或 Vite 插件 使用共享 Solid/Oxc 通用转换。普通 React 风格 JSX 转换不能生成该渲染器的响应式宿主操作。
+
+遇到 `For`/`Show`/`Index`/`Switch`/`Match` 返回值或子内容类型不兼容时，从 `@solid-gpui/core/runtime` 导入，而不是 `solid-js`。上游声明使用 DOM 元素；runtime 入口使用同一实现并提供原生类型。参见[原生控制流](native-composition.zh-CN.md#solid-异步控制流)。
+
+## 页面空白、被裁剪或滚不到最后一行
+
+先检查 stderr：提交被拒绝不是布局失败。原生数据必须符合生成契约，裸标签应包在 `Text` 内。
+
+布局问题需要检查完整父链，包括路由外壳。`flexGrow` 只参与父级布局，不会给节点本身启用 flex。分配剩余**高度**的容器应显式采用列布局。在有边界的列下，用 `height: 0, flexGrow: 1, minHeight: 0` 限定滚动视口，用 `flexShrink: 0` 保留内容自然高度。核心 `overflow: "scroll"` 支持滚轮，但不会创建可见滚动条；需要滚动条时使用 `Scrollable`。参见可运行的[有边界的页面滚动示例](scroll-performance.zh-CN.md#有边界的页面滚动)。
+
+## Iconify 名称被拒绝
+
+宿主没有打包整个 Iconify 图标库。从 `@solid-gpui/core` 导入 `ICON_NAMES` 查看内置图标。需要其他图标时，在宿主内嵌 SVG 并使用生成的 `applicationIcons` 名称；不要把任意字符串强制转换为 `IconName`。参见[添加应用图标](iconify.zh-CN.md#添加应用图标)。
 
 ## 滚动没有边界或很慢
 

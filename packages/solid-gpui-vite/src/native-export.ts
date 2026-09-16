@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import type { NativeHostOptions } from "./environment.ts";
 import { runNativeCommand } from "./native-process.ts";
 
-export interface NativeExportOptions {
+/** Where a host's exported TypeScript is published. */
+export interface NativeBindingsOptions {
+  readonly output: string;
+  readonly check?: boolean;
+}
+
+export interface NativeExportOptions extends NativeBindingsOptions {
   readonly manifestPath: string;
   readonly package?: string;
   readonly bin?: string;
   readonly features?: readonly string[];
-  readonly output: string;
-  readonly check?: boolean;
 }
 
 /** Cargo's artifact message is authoritative, including custom target directories. */
@@ -40,16 +45,37 @@ export async function buildNativeHost(
   return [...executables][0]!;
 }
 
-/** Query the executable that will run the application, then publish atomically. */
+/** Export the catalog of a host executable Vite does not build. */
+export function exportHostBindings(
+  host: NativeHostOptions,
+  options: NativeBindingsOptions,
+  cwd = process.cwd(),
+  signal?: AbortSignal,
+): Promise<string> {
+  return publishNativeBindings(host.command, host.args ?? [], options, cwd, signal);
+}
+
+/** Build a Cargo host, then query the executable that will run the application. */
 export async function exportNativeBindings(
   options: NativeExportOptions,
   cwd = process.cwd(),
   executable?: string,
   signal?: AbortSignal,
 ): Promise<string> {
-  const output = resolve(cwd, options.output);
   executable ??= await buildNativeHost(options, cwd, signal);
-  const { stdout, stderr } = await runNativeCommand(executable, ["--export-native"], cwd, signal);
+  return publishNativeBindings(executable, [], options, cwd, signal);
+}
+
+/** Query a host, then publish its bindings atomically so no partial file is ever loaded. */
+async function publishNativeBindings(
+  command: string,
+  args: readonly string[],
+  options: NativeBindingsOptions,
+  cwd: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const output = resolve(cwd, options.output);
+  const { stdout, stderr } = await runNativeCommand(command, [...args, "--export-native"], cwd, signal);
   if (stderr) process.stderr.write(stderr);
   const { format } = await import("oxfmt");
   // Rust exports TypeScript regardless of the destination's extension.

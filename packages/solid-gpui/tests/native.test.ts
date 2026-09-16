@@ -57,15 +57,25 @@ function reply(transport: MemoryTransport, command: Command, value: unknown, seq
   );
 }
 
-test("native JSON rejects lossy values, deep data, cycles and unsafe responses", () => {
+test("native JSON omits nested undefined members and rejects lossy values, deep data, cycles and unsafe responses", () => {
   expect(decodeJson(encodeJson({ optional: undefined, text: "中文", nested: [1, null] }))).toEqual({
     text: "中文",
     nested: [1, null],
   });
+  expect(
+    decodeJson(
+      encodeJson({
+        items: [{ key: "a", label: "A", description: undefined, keywords: [], disabled: false }],
+        label: undefined,
+      }),
+    ),
+  ).toEqual({ items: [{ key: "a", label: "A", keywords: [], disabled: false }] });
   const cyclic: { self?: unknown } = {};
   cyclic.self = cyclic;
   let deep: unknown = null;
   for (let i = 0; i < 130; i++) deep = [deep];
+  const sparse: unknown[] = [1];
+  sparse[2] = 3;
   for (const value of [
     NaN,
     Infinity,
@@ -76,7 +86,8 @@ test("native JSON rejects lossy values, deep data, cycles and unsafe responses",
     cyclic,
     deep,
     [undefined],
-    { nested: { no: undefined } },
+    sparse,
+    { nested: [undefined] },
     { callback: () => {} },
     { [Symbol()]: 1 },
     "x".repeat(1_048_577),

@@ -20,5 +20,5 @@
       "@solid-gpui/core/jsx-runtime": ["../packages/solid-gpui/dist/jsx-runtime"]
     }
   },
-  "include": ["quickjs-*.tsx", "vite-counter.tsx", "system-popover*.tsx"]
+  "include": ["quickjs-*.tsx", "vite-counter.tsx", "system-popover*.tsx", "control-flow.tsx"]
 }

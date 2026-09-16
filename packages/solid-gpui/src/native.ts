@@ -57,7 +57,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const MAX_DEPTH = 128;
 
-function jsonValue(value: unknown, depth: number, ancestors: Set<object>, omitUndefined: boolean): unknown {
+function jsonValue(value: unknown, depth: number, ancestors: Set<object>): unknown {
   if (depth > MAX_DEPTH) throw new RangeError("Native JSON exceeds depth 128");
   if (value === null || typeof value === "boolean") return value;
   if (typeof value === "number") {
@@ -80,13 +80,15 @@ function jsonValue(value: unknown, depth: number, ancestors: Set<object>, omitUn
     if (Array.isArray(value)) {
       if (Object.keys(value).some((key) => !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length))
         throw new TypeError("Native JSON arrays cannot have named properties");
-      return Array.from(value, (item) => jsonValue(item, depth + 1, ancestors, false));
+      return Array.from(value, (item) => jsonValue(item, depth + 1, ancestors));
     }
     const result: Record<string, unknown> = Object.create(null);
     for (const key of Object.keys(value)) {
       const item = (value as Record<string, unknown>)[key];
-      if (item === undefined && omitUndefined) continue;
-      result[key] = jsonValue(item, depth + 1, ancestors, false);
+      // An undefined member is absence, not null, at every depth. Array elements
+      // cannot be dropped without shifting their neighbours, so those stay errors.
+      if (item === undefined) continue;
+      result[key] = jsonValue(item, depth + 1, ancestors);
     }
     return result;
   } finally {
@@ -94,9 +96,9 @@ function jsonValue(value: unknown, depth: number, ancestors: Set<object>, omitUn
   }
 }
 
-/** Only the outer DTO may omit optional fields; nested data remains strict JSON. */
+/** Undefined object members are omitted at every depth; array elements must be defined. */
 export function encodeJson(value: unknown): Uint8Array {
-  const bytes = encoder.encode(JSON.stringify(jsonValue(value, 0, new Set(), true)));
+  const bytes = encoder.encode(JSON.stringify(jsonValue(value, 0, new Set())));
   if (bytes.byteLength > MAX_NATIVE_CALL_BYTES) throw new RangeError("Native JSON exceeds 1 MiB");
   return bytes;
 }
@@ -105,7 +107,7 @@ export function decodeJson(bytes: Uint8Array): unknown {
   if (!(bytes instanceof Uint8Array)) throw new TypeError("Native JSON requires bytes");
   if (bytes.byteLength > MAX_NATIVE_CALL_BYTES) throw new RangeError("Native JSON exceeds 1 MiB");
   const value: unknown = JSON.parse(decoder.decode(bytes));
-  jsonValue(value, 0, new Set(), false);
+  jsonValue(value, 0, new Set());
   return value;
 }
 

@@ -14,7 +14,7 @@ use windows::{
         Globalization::GetUserDefaultLocaleName,
         Graphics::{
             Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Direct3D11::*, DirectWrite::*,
-            Dxgi::Common::*, Gdi::LOGFONTW,
+            Dxgi::Common::*,
         },
         System::SystemServices::LOCALE_NAME_MAX_LENGTH,
         UI::WindowsAndMessaging::*,
@@ -1889,11 +1889,14 @@ fn get_system_subpixel_rendering() -> bool {
 
 fn get_system_ui_font_name() -> SharedString {
     unsafe {
-        let mut info: LOGFONTW = std::mem::zeroed();
+        let mut metrics = NONCLIENTMETRICSW {
+            cbSize: std::mem::size_of::<NONCLIENTMETRICSW>() as u32,
+            ..Default::default()
+        };
         let font_family = if SystemParametersInfoW(
-            SPI_GETICONTITLELOGFONT,
-            std::mem::size_of::<LOGFONTW>() as u32,
-            Some(&mut info as *mut _ as _),
+            SPI_GETNONCLIENTMETRICS,
+            metrics.cbSize,
+            Some(&mut metrics as *mut _ as _),
             SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
         )
         .log_err()
@@ -1903,8 +1906,18 @@ fn get_system_ui_font_name() -> SharedString {
             // Segoe UI is the Windows font intended for user interface text strings.
             "Segoe UI".into()
         } else {
-            let font_name = String::from_utf16_lossy(&info.lfFaceName);
-            font_name.trim_matches(char::from(0)).to_owned().into()
+            // `.SystemUIFont` means the Windows UI font, which is what the shell uses for
+            // dialog text: `lfMessageFont` is Segoe UI by default and the locale's UI font
+            // (`Microsoft YaHei UI`, `Microsoft JhengHei UI`, `Yu Gothic UI`,
+            // `Malgun Gothic`) on Chinese, Japanese and Korean systems. Desktop icon
+            // titles are a separate, user-customizable setting.
+            let font_name = String::from_utf16_lossy(&metrics.lfMessageFont.lfFaceName);
+            let font_name = font_name.trim_matches(char::from(0));
+            if font_name.is_empty() {
+                "Segoe UI".into()
+            } else {
+                font_name.to_owned().into()
+            }
         };
         log::info!("Use {} as UI font.", font_family);
         font_family

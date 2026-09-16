@@ -7,6 +7,8 @@ bun run task protocol-codegen
 bun run task protocol-codegen-check
 ```
 
+生成流水线通过 `scripts/normalize-bebop.ts` 规范化 Rust 输出及 TypeScript 的纯类型导入。源码消费者可保持 `verbatimModuleSyntax: true`，不应手改生成导入或在应用中关闭该编译选项。这些源码规范化不会改变线协议字节或 schema 摘要。
+
 公开协议接口是 `packages/solid-gpui/src/protocol/types.ts` 和 `crates/solid-gpui/src/protocol.rs` 中的语义 DTO，生成的 Bebop 类型只留在编解码适配器内。领域校验手写，生成解码只负责结构解析。
 
 Rust 在协议边界使用类型化语义消息：Command 包含 CommandMeta 和 CommandOperation；Event 包含 EventMeta 和 EventPayload，event_kind() 标识载荷家族。可选样式使用封闭枚举，语义缺失用省略/None 表示，不用零值兼容哨兵。

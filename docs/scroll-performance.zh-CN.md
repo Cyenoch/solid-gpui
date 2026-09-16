@@ -15,6 +15,34 @@ GPUI 原生样式映射只支持有限属性，不是 CSS。flexGrow 让子元�
 
 height: 0 是初始 flex 尺寸，不是最终高度。工作区增长到页头/页脚布局后剩余的空间。自动初始尺寸会先测量全部内容，再缩回窗口。不要将此规则用于按内容定尺寸的卡片、标签或固有宽度列，它们的自然尺寸是契约的一部分。
 
+Surface 根是占满窗口的列；普通 `View` 在样式选择 flex 或 grid 之前保留 GPUI 默认布局。`gap`、`alignItems` 和 `justifyContent` 也会启用 flex，未指定方向时使用列布局。
+
+### 有边界的页面滚动
+
+将有边界的视口与自然高度内容分开；固定头尾放在视口外并禁止收缩：
+
+```tsx
+import { Text, View } from "@solid-gpui/core";
+import { Scrollable } from "@solid-gpui/core/components";
+
+<View style={{ heightPercent: 100, flexDirection: "column", minHeight: 0 }}>
+  <View style={{ height: 48, flexShrink: 0 }}>
+    <Text>Settings</Text>
+  </View>
+  <Scrollable style={{ height: 0, flexGrow: 1, minHeight: 0, minWidth: 0 }}>
+    <View style={{ flexDirection: "column", flexShrink: 0, gap: 16, padding: 24 }}>
+      <Text>Page content</Text>
+    </View>
+  </Scrollable>
+</View>;
+```
+
+视口沿用上文的零初始尺寸；内容保持 `flexShrink: 0`，让自然高度完整进入可滚动范围。中间路由与布局包装层要一路维持这个有边界的列布局，直到窗口根。
+
+核心 `View` 的 `overflow: "scroll"` 支持滚轮，但不会创建可见滚动条；需要原生滚动条和滚动命令时使用 `Scrollable`。若 flex 已将内容压缩到视口内，两种 API 都没有可滚动范围。裸标签必须包在 `Text` 内，不能直接放在 `View` 或 `Pressable` 下。
+
+[桌面应用示例](../examples/desktop-app/README.zh-CN.md#有边界的设置页)以路由页面形式运行这个头尾加视口的表单。
+
 ## 复现与回归
 
 原有路由 Gallery 回归随旧应用移除。下方数据是历史证据，不代表当前网站已通过验收。运行保留的原生滚动回归与网站导航检查：

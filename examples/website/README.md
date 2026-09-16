@@ -203,11 +203,18 @@ content require no separate article or route-tree entry. Public guides describe
 application-independent contracts and workflows; incident-specific evidence
 belongs in investigation records.
 
-## Native application migration
+## Reference guide ownership
 
-The Guides sidebar links to [native application migration](../../docs/native-migration.md)
-at `/docs/reference/native-migration`. Reference pages and their highlighted code
-are loaded from `docs/*.md`. English documents are authoritative; `.zh-CN.md`
+Desktop host and titlebar configuration belongs in [Rust integration](../../docs/rust-bridge.md),
+application themes in the [component guide](../../docs/gpui-components.md), layout
+and painting in [native UI composition](../../docs/native-composition.md), scrolling
+in the [scroll guide](../../docs/scroll-performance.md), and icon registration in
+[Iconify](../../docs/iconify.md). Do not add another umbrella article that repeats
+those contracts. The [desktop application example](../desktop-app/README.md)
+contains running instructions and links back to these sources.
+
+Reference pages and their highlighted code are loaded from `docs/*.md`.
+English documents are authoritative; `.zh-CN.md`
 copies are required for guides published on the website; a missing translation
 fails website startup or build. Each copy must include a localized level-one
 heading. Navigation uses that heading in the selected language unless `Docs.tsx`
@@ -215,7 +222,7 @@ defines a shorter label, which must also have a `locale.zh-CN.ts` translation.
 Guide search includes both language versions. Keep headings, navigation labels,
 and content synchronized when adding or updating a guide.
 The TitleBar/WindowBorder catalog example demonstrates
-edge padding and a bottom border; the native migration fixture also exercises
+edge padding and a bottom border; the desktop application example also exercises
 application themes, custom window options, percentage sizes, gradients, and
 embedded icons. Its native window and process services run on desktop.
 

@@ -1,4 +1,4 @@
-# 原生异步组合与无障碍
+# 原生界面组合
 
 ## SwiftUI 与 AppKit 视图承载
 
@@ -8,7 +8,25 @@ Native Module 当前渲染 GPUI 元素和持久 GPUI 视图，没有暴露可嵌
 
 ## Solid 异步控制流
 
-从 `@solid-gpui/core/runtime` 导入原生 `Suspense`、`ErrorBoundary` 和 `lazy`。它们使用 Solid 实现与原生子类型，resource 和 transition 共用 Solid owner 与响应式图。
+从 `@solid-gpui/core/runtime` 导入 `For`、`Index`、`Show`、`Switch`、`Match`、`Suspense`、`ErrorBoundary` 和 `lazy`。它们就是 Solid 自身的实现，只将子内容类型改为原生类型，不额外包组件；resource 和 transition 共用 Solid owner 与响应式图。
+
+`solid-js` 的控制流声明引用 DOM `JSX.Element`，不会随应用的 `jsxImportSource: "@solid-gpui/core"` 改变。应改用 runtime 入口，不要强制转换子内容、将原生 JSX 扩大为 DOM 节点，或为了消除类型错误将响应式列表改为 `.map()`。`For` 重排时保留项目 owner，`Index` 保留位置；`Show` 和 `Match` 的非 keyed 渲染子函数获得 accessor，keyed 子函数获得值，与 Solid 语义一致。
+
+```tsx
+import { Text, View } from "@solid-gpui/core";
+import { createSignal, For, Show } from "@solid-gpui/core/runtime";
+
+function Modes() {
+  const [modes] = createSignal(["Local", "Remote"]);
+  return (
+    <View style={{ flexDirection: "column", gap: 8 }}>
+      <Show when={modes().length > 0} fallback={<Text>No modes</Text>}>
+        <For each={modes()}>{(mode) => <Text>{mode}</Text>}</For>
+      </Show>
+    </View>
+  );
+}
+```
 
 ```tsx
 import { Text } from "@solid-gpui/core";
@@ -24,7 +42,9 @@ function Greeting() {
 export function Page() {
   return (
     <ErrorBoundary fallback={(_error, reset) => <Text onPress={reset}>Retry</Text>}>
-      <Suspense fallback={<Text>Loading</Text>}><Greeting /></Suspense>
+      <Suspense fallback={<Text>Loading</Text>}>
+        <Greeting />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -39,8 +59,7 @@ export function Page() {
 基础原生元素支持 button、text、textbox、checkbox、heading、link、status、alert、group、list、listitem 和 dialog role。generic role 不会创建 AccessKit 节点；需要可访问容器时选择语义 role。
 
 ```tsx
-<View accessibilityRole="status" accessibilityLive="polite"
-      accessibilityValue={status()}>
+<View accessibilityRole="status" accessibilityLive="polite" accessibilityValue={status()}>
   <Text>{status()}</Text>
 </View>
 ```
@@ -51,13 +70,15 @@ export function Page() {
 
 ## 动态效果与文本编辑
 
-生成的原生客户端提供 `getMotionPreference()` 和 `setMotionPreference("system" | "reduced" | "full")`，返回 `mode`、实际 `reduced` 和标为 `starting`、`available` 或 `unavailable` 的来源状态。Gallery 的 Transitions 页面展示三种模式。
+生成的原生客户端提供 `getMotionPreference()` 和 `setMotionPreference("system" | "reduced" | "full")`，返回 `mode`、实际 `reduced` 和标为 `starting`、`available` 或 `unavailable` 的来源状态。
 
 原生宿主以 System 启动，在首个系统值返回前减少装饰动画。macOS NSWorkspace 通知、Windows 10 2004+ UISettings 事件、Linux 标准桌面 Settings Portal 持续更新偏好。订阅属于应用，跨零窗口和 HMR 存活，退出时释放。显式 Reduced/Full 保持效果，同时仍跟踪最新系统值。
 
 来源不可用时选择 System 会返回显式错误并保留旧模式。跟随 System 期间来源失败，保留最后有效值并报告 `unavailable`，不虚构系统偏好。没有受支持 portal 的桌面可以选择显式模式。共同 GPUI 标记刷新所有窗口，供原生和渲染器动态效果消费。原生订阅不会安装浏览器 `matchMedia` 适配器。
 
 基础 TextInput 的左右、Shift+方向键、退格及向前删除按扩展字素簇移动，包括组合重音与 ZWJ emoji。外部选区与 IME 契约仍为 UTF-16，显式范围不会静默扩大到字素边界。撤销与 marked text 规则不变。这不代表完整双向文字视觉光标/选区支持，也不改变独立 gpui-component 编辑器实现。
+
+生成的 Input/Textarea/Editor 导航和删除也使用扩展 Unicode 字素。Rope 分段仅读取所需块及跨块上下文，不复制整个文档。这保护逻辑编辑；完整视觉双向几何仍是独立问题。
 
 ## 应用生命周期与激活
 
@@ -73,7 +94,9 @@ const application = mountApplication({
   setup() {
     return {
       render: () => <Text>Document workspace</Text>,
-      onMount(root) { /* Configure each newly opened window here. */ },
+      onMount(root) {
+        /* Configure each newly opened window here. */
+      },
       onActivate({ reason, urls, root }) {
         // Dispatch validated application URLs to the current document model.
         console.error(`Activation: ${reason}; ${urls.length} URLs`);
@@ -89,15 +112,58 @@ const application = mountApplication({
 
 ## 应用拥有的进度服务
 
-Gallery 的 Native & Platform 页面使用生成的 `WorkspaceScan` 原生视图。真实文件系统 worker 拥有取消 token，视图拥有观察者。改变 `requestId` 会重启路径请求，清空 `path` 会取消，卸载同时取消并移除观察者。回复携带请求 ID，旧进度不会覆盖新请求界面。
+类型化原生命令、取消、截止时间和有界准入见 [Rust 集成](rust-bridge.zh-CN.md#请求取消与截止时间)。
 
-示例最多允许两个存活 worker，统计最多 100,000 项，排队最多 4096 个目录，不跟随符号链接，以 20 Hz 合并到一个最新值槽。文件系统调用离开 GPUI 前台线程。取消在文件系统操作之间协作完成；被阻塞的系统读取在真实退出前仍占用准入许可。错误显示在进度结果中。这是应用服务示例，不是框架文件系统 API。
+## 布局与绘制
+
+以下样式字段由 TypeScript 与 Rust 验证，通过规范 Bebop schema 编码，并由原生渲染器应用：
+
+| 能力       | API                                                                                                |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| 各边内边距 | `paddingTop`、`paddingRight`、`paddingBottom`、`paddingLeft`                                       |
+| 各边边框   | `borderTopWidth` / `borderTopColor`，以及右、下、左对应字段                                        |
+| 独立圆角   | `borderTopLeftRadius`、`borderTopRightRadius`、`borderBottomRightRadius`、`borderBottomLeftRadius` |
+| 换行       | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                   |
+| 比例尺寸   | `widthPercent`、`heightPercent`，50 表示 50%                                                       |
+| 背景渐变   | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                     |
+
+各边与圆角值覆盖简写，显式零值也生效。同一维度的百分比与像素值互斥；百分比相对包含布局块计算。`flexGrow`、`flexShrink`、`minWidth` 和 `maxWidth` 仍用于比例布局。
+
+渐变角度从向上方向顺时针计算，180 表示自上而下。颜色接受 `#RRGGBB` 或 `#RRGGBBAA`，色标位置在 [0, 1] 内严格递增。链接的 GPUI 原语只支持两个色标，更多色标会被明确拒绝。各边颜色通过原始布局盒周围的四条有界原生路径绘制，包含圆角，不增加 flex 子项。
+
+```tsx
+<View style={{ position: "relative", height: 230, overflow: "hidden" }}>
+  <Image source="assets/cover.png" objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
+  <View
+    style={{
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      justifyContent: "flex-end",
+      padding: 20,
+      linearGradient: {
+        angle: 180,
+        stops: [
+          { color: "#13121700", position: 0 },
+          { color: "#131217FF", position: 1 },
+        ],
+      },
+    }}
+  >
+    <Text style={{ color: "#FFFFFF" }}>Instance title</Text>
+  </View>
+</View>
+```
+
+分段按钮可将左按钮右侧圆角和右按钮左侧圆角设为零。宽屏双列摘要可采用允许换行的 flex 行，包含两个 `width: 0, flexGrow: 1, minWidth: 300` 子项及 `gap: 16`；低于两项最小宽度时自动换行。[桌面应用示例](../examples/desktop-app/README.zh-CN.md#首页布局与绘制)展示这些模式和单边分隔线。
+
+分配剩余空间是另一套契约：有界滚动工作区的每层祖先都要显式设置 flex 方向，见[有边界的页面滚动](scroll-performance.zh-CN.md#有边界的页面滚动)。
 
 ## 原生网格
 
-基础样式支持 `gridColumns`、`gridRows`、`gridColumnSpan` 和 `gridRowSpan`，每项取 1–64 的整数。声明轨道选择 GPUI 原生 grid，gap 与对齐不会将其变成 flex。轨道等分且最小值为零。网格轨道声明不能与 `flexDirection` 合用，但网格项可同时设置 span 和自身 flex 布局。Gallery 布局页展示响应式两列/三列网格。
-
-生成的 Input/Textarea/Editor 导航和删除也使用扩展 Unicode 字素。Rope 分段仅读取所需块及跨块上下文，不复制整个文档。这保护逻辑编辑；完整视觉双向几何仍是独立问题。
+基础样式支持 `gridColumns`、`gridRows`、`gridColumnSpan` 和 `gridRowSpan`，每项取 1–64 的整数。声明轨道选择 GPUI 原生 grid，gap 与对齐不会将其变成 flex。轨道等分且最小值为零。网格轨道声明不能与 `flexDirection` 合用，但网格项可同时设置 span 和自身 flex 布局。网格字段可与其他布局字段一样组合独立内边距、边框、圆角和渐变，并在规范 schema 中拥有独立字段编号。
 
 ## 图片
 
@@ -115,7 +181,7 @@ import { Image } from "@solid-gpui/core";
   fallbackSource="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%2394a3b8'/%3E%3C/svg%3E"
   objectFit="cover"
   style={{ width: 320, height: 180, borderRadius: 12 }}
-/>
+/>;
 ```
 
 GPUI 按来源管理异步下载、解码和缓存；更新 `source` 会选择新资源。浏览器请求需满足图片服务器的 CORS 策略。自行创建 GPUI `Application` 的 Rust 应用需通过 `with_http_client` 配置 HTTP 客户端。

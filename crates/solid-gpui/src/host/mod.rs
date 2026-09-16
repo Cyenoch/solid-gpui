@@ -36,6 +36,7 @@ const COMMAND_ENV: &str = "SOLID_GPUI_RENDERER_COMMAND";
 const ARGS_ENV: &str = "SOLID_GPUI_RENDERER_ARGS";
 const LOG_ENV: &str = "SOLID_GPUI_LOG";
 mod commit_pump;
+mod launch;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 use commit_pump::CommitPump;
@@ -1083,16 +1084,30 @@ impl NativeStateRegistry {
 
 /// Run the host with the default, extension-free profile.
 pub fn run_default() {
-    run_with_profile(DefaultHostProfile);
+    run_with_profile(DefaultHostProfile::default);
 }
 
-/// Run the host with a provider profile.
-pub fn run_with_profile<P: HostProfile>(profile: P) {
+/// Run the host with a profile factory.
+///
+/// `profile` builds the profile on the application thread, so a profile that owns
+/// non-`Send` state (an `Rc`-based extension registry, a window-options closure) is
+/// supported; only the factory itself has to be `Send`. The application runs on the
+/// thread GPUI binds as its main thread, with the stack GPUI's recursive layout and paint
+/// passes need on Windows, and on the real main thread everywhere else. Windows hosts
+/// therefore do not size stacks or spawn threads themselves.
+///
+/// `--export-native` builds the factory on the calling thread, prints the native contract
+/// and returns before any runtime is started.
+pub fn run_with_profile<P, F>(profile: F)
+where
+    P: HostProfile,
+    F: FnOnce() -> P + Send + 'static,
+{
     if env::args_os()
         .skip(1)
         .eq([OsString::from("--export-native")])
     {
-        match profile.native_bindings() {
+        match profile().native_bindings() {
             Ok(source) => {
                 print!("{source}");
                 return;
@@ -1147,7 +1162,7 @@ pub fn run_with_profile<P: HostProfile>(profile: P) {
         ),
     );
 
-    run_profile(profile, runtime, log_level);
+    launch::launch_on_app_thread(move || run_profile(profile(), runtime, log_level));
 }
 
 fn image_http_client() -> Result<Arc<dyn gpui::http_client::HttpClient>, String> {
@@ -1223,6 +1238,8 @@ fn run_profile<P: HostProfile>(
     runtime: Arc<dyn RuntimeAdapter>,
     log_level: LogLevel,
 ) {
+    #[cfg(windows)]
+    launch::report_app_stack(log_level);
     let runtime_for_quit = Arc::clone(&runtime);
     let runtime_for_registry = Arc::clone(&runtime);
     let log_level_for_quit = log_level;
@@ -1798,24 +1815,40 @@ mod icon_asset_tests {
 }
 
 /// Run an application's Rust module, exporting the exact linked contract with --export-native.
-pub fn run(module: crate::native::ModuleDefinition) {
-    run_with_profile(application_profile(module));
+///
+/// `module` is a factory because [`crate::native::ModuleDefinition`] owns non-`Send`
+/// component handlers: it is called on the application thread.
+pub fn run(module: impl FnOnce() -> crate::native::ModuleDefinition + Send + 'static) {
+    run_with_profile(move || application_profile(module()));
 }
 
 /// Run an application-owned runtime without interpreting host CLI arguments.
 /// The host owns shutdown and joins the runtime when the application quits.
-pub fn run_application(module: crate::native::ModuleDefinition, runtime: Arc<dyn RuntimeAdapter>) {
-    run_application_with_profile(application_profile(module), runtime);
+///
+/// `module` is a factory because [`crate::native::ModuleDefinition`] owns non-`Send`
+/// component handlers: it is called on the application thread.
+pub fn run_application(
+    module: impl FnOnce() -> crate::native::ModuleDefinition + Send + 'static,
+    runtime: Arc<dyn RuntimeAdapter>,
+) {
+    run_application_with_profile(move || application_profile(module()), runtime);
 }
 
-/// Run an application-owned profile and runtime without parsing CLI arguments.
+/// Run an application-owned profile factory and runtime without parsing CLI arguments.
 /// Protocols, overlays, close handling and runtime shutdown remain host-owned.
-pub fn run_application_with_profile<P: HostProfile>(profile: P, runtime: Arc<dyn RuntimeAdapter>) {
+///
+/// The factory builds the profile on the application thread (see
+/// [`run_with_profile`]), so application hosts never size stacks or spawn threads.
+pub fn run_application_with_profile<P, F>(profile: F, runtime: Arc<dyn RuntimeAdapter>)
+where
+    P: HostProfile,
+    F: FnOnce() -> P + Send + 'static,
+{
     install_panic_hook();
     let log_level = resolve_log_level(env::var(LOG_ENV).ok().as_deref(), |reason| {
         eprintln!("solid-gpui-host: invalid {LOG_ENV}: {reason}; defaulting to error");
     });
-    run_profile(profile, runtime, log_level);
+    launch::launch_on_app_thread(move || run_profile(profile(), runtime, log_level));
 }
 
 fn application_profile(module: crate::native::ModuleDefinition) -> impl HostProfile {

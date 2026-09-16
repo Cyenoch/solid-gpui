@@ -228,3 +228,84 @@ for (const runtime of ["bun", "quickjs"] as const) {
     }
   }, 60000);
 }
+
+test("a configured host supplies its exported component catalog to every session", async () => {
+  const directory = await mkdtemp(join(repo, ".scratch/dev-session-test-"));
+  const root = join(directory, "application");
+  const host = join(directory, "host.ts");
+  const entry = join(root, "app.js");
+  const observations = join(root, "observations.log");
+  const generated = join(root, ".generated/native.ts");
+  let server: ViteDevServer | undefined;
+  let diagnostics = "";
+  const logger = createLogger("silent");
+  logger.error =
+    logger.info =
+    logger.warn =
+      (message) => {
+        diagnostics += message + "\n";
+      };
+  const read = () => readFile(observations, "utf8");
+  const until = async (predicate: () => boolean | Promise<boolean>) => {
+    const deadline = Date.now() + 15000;
+    while (!(await predicate())) {
+      if (Date.now() > deadline) throw new Error(`Session did not settle:\n${diagnostics}\n${await read()}`);
+      await Bun.sleep(25);
+    }
+  };
+  // The application reads the catalog the host exported into the running session.
+  const application = (label: string, close = false) => `import { answer } from "#native";
+    import { answer as componentAnswer } from "@solid-gpui/core/components";
+    import { appendFileSync } from "node:fs";
+    if (answer !== componentAnswer) throw new Error("mixed generated bindings");
+    appendFileSync(${JSON.stringify(observations)}, 'catalog:${label}:' + answer + '\\n');
+    ${close ? "process.exit(0);" : ""}\n`;
+  try {
+    await mkdir(root, { recursive: true });
+    await writeFile(observations, "");
+    await writeFile(join(root, "package.json"), '{"type":"module"}');
+    await writeFile(
+      host,
+      `import { appendFileSync } from "node:fs";
+      if (Bun.argv.includes("--export-native")) {
+        console.log("export const answer = " + process.env.HOST_CATALOG + ";");
+      } else {
+        appendFileSync(${JSON.stringify(observations)}, "session:" + process.env.HOST_CATALOG + "\\n");
+        const child = Bun.spawn(JSON.parse(process.env.SOLID_GPUI_VITE_RUNNER!), {
+          stdin: "pipe", stdout: "inherit", stderr: "inherit"
+        });
+        process.exitCode = await child.exited;
+      }`,
+    );
+    process.env.HOST_CATALOG = "7";
+    await writeFile(entry, application("first"));
+    server = await createServer({
+      root,
+      configFile: false,
+      customLogger: logger,
+      server: { port: 0 },
+      clearScreen: false,
+      plugins: [solidGpui({ entry: "app.js", host: { command: process.execPath, args: [host] } })],
+    });
+    await server.listen();
+    await until(async () => (await read()).includes("catalog:first:7"));
+    expect(await readFile(generated, "utf8")).toContain("answer = 7");
+    expect(diagnostics).toContain("native session ready");
+
+    // A live session keeps the catalog it loaded, even after the host executable is rebuilt.
+    process.env.HOST_CATALOG = "9";
+    await writeFile(entry, application("reload", true));
+    await until(async () => (await read()).includes("catalog:reload:7"));
+    await until(() => diagnostics.includes("application closed"));
+
+    // The next session exports the rebuilt host's catalog instead of reusing the previous one.
+    await writeFile(entry, application("restarted"));
+    await until(async () => (await read()).includes("catalog:restarted:9"));
+    expect(await readFile(generated, "utf8")).toContain("answer = 9");
+    expect(diagnostics).not.toContain("mixed generated bindings");
+  } finally {
+    await server?.close();
+    delete process.env.HOST_CATALOG;
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 60000);

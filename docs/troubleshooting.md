@@ -52,12 +52,32 @@ Use the host path printed by Vite to check which executable is running. Enable
 the required Cargo features and register the module in that host. With `native`
 configured, saving a corrected Rust source or Cargo manifest rebuilds the host
 and its generated bindings. Both `#native` and `@solid-gpui/core/components` use
-those bindings. For an explicit `host` command, rebuild that executable yourself,
-then save application source to start a fresh session.
+those bindings. An explicit `host` command also exports its catalog with
+`--export-native`; it never substitutes the SDK's checked-in component catalog.
+Rebuild that executable yourself, then save application source to export fresh
+bindings and start a new session. `native` is the Cargo-managed equivalent;
+neither option requires application-specific native modules.
 
 The rejected session terminates; Vite keeps watching for the next edit. It does
 not keep retrying an unchanged failing executable or continue applying Patches
 after a rejected commit. See [managed development sessions](hot-reload.md#managed-development-sessions).
+
+## Windows host overflows its stack
+
+GPUI layout and painting recurse through the element tree. The default Windows
+executable stack reservation can be too small for deep debug layouts and animated
+controls. Host entrypoints reserve a 16 MiB application-thread stack on Windows
+when the calling thread has less. Profile-based entrypoints take a factory and
+construct the profile on that thread; no application thread wrapper is required.
+macOS continues running on its real main thread.
+
+Use `SOLID_GPUI_LOG=info` to read the measured thread reservation, and
+`SOLID_GPUI_APP_STACK_BYTES` to compare bounded runs of the same page at different
+budgets. An explicit `/STACK` linker reservation is another host-owned option.
+Keep UI content, motion settings, and Cargo profile identical during comparison;
+check startup, route changes, and repeated interaction. A larger budget cannot
+repair unbounded recursion. Disabling animation or substituting every Button with
+a custom Pressable hides the trigger rather than establishing a safe launch.
 
 ## Embedded Bun build fails
 
@@ -180,6 +200,20 @@ the restored page is usable. See [application reload verification](hot-reload.md
 
 Inspect stderr for the renderer error and the host crash-report path. Protocol decode/validation failures are fatal because continuing would lose revision agreement. Application render errors are thrown to the application; Solid GPUI does not invent fallback UI.
 
+## A killed host leaves the Bun renderer running
+
+Use the default `StdioTransport` for a process renderer. It owns renderer
+lifetime when reading `process.stdin`: host pipe closure notifies termination
+listeners, then exits, even when application timers keep the event loop alive.
+Clean EOF exits with status 0; read/write failure exits with status 1 and a
+diagnostic. There is no parent-PID polling and no process-group kill; detached
+application services are unaffected.
+
+Connections over supplied streams remain embedder-owned unless
+`exitOnHostClose: true` is explicit. `dispose()` never exits the process.
+`exitOnHostClose: false` deliberately opts out for a process that must outlive
+the host. Do not use that option for an ordinary host-owned renderer child.
+
 ## File, clipboard, or dialog command rejects
 
 Commands are bounded and validate arguments before crossing the wire. Use absolute non-empty file paths, stay within documented frame/resource limits, and treat platform-unsupported image clipboard operations as explicit errors.
@@ -199,6 +233,32 @@ Use:
 
 Use the Solid/Oxc universal transform through the [Vite plugin](vite.md). A generic React-style JSX transform cannot generate this
 renderer's reactive host operations.
+
+For `For`/`Show`/`Index`/`Switch`/`Match` return-type or children errors, import
+those components from `@solid-gpui/core/runtime`, not `solid-js`. Solid's upstream
+control-flow declarations use DOM elements; the runtime entry exposes the same
+implementations with native types. See [native control flow](native-composition.md#solid-async-control-flow).
+
+## A page is blank, clipped, or cannot reach its final row
+
+Check stderr first: a rejected commit is not a layout failure. Native data must
+match its generated contract; raw labels belong in `Text`.
+
+For layout failures, check the complete parent chain, including router shells.
+`flexGrow` only participates in the parent's layout; it does not enable flex on
+the node. Explicitly use columns where remaining **height** is distributed.
+Bound the scroll viewport with `height: 0, flexGrow: 1, minHeight: 0` under a
+bounded column, and keep its content naturally sized with `flexShrink: 0`.
+Core `overflow: "scroll"` supports wheel scrolling, but does not create a visible
+scrollbar. Use `Scrollable` when one is needed. See the runnable
+[bounded page recipe](scroll-performance.md#bounded-page-scrolling).
+
+## An Iconify name is rejected
+
+The full Iconify library is not bundled. Import `ICON_NAMES` from
+`@solid-gpui/core` to browse built-ins. For another icon, embed its SVG in the
+host and use the generated `applicationIcons` name; do not cast arbitrary
+strings to `IconName`. See [application icons](iconify.md#add-application-icons).
 
 ## Scrolling is unbounded or slow
 

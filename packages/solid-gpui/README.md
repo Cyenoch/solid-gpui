@@ -21,6 +21,11 @@ Host rendering is transactional: the first update emits a Snapshot and later sig
 
 Write JavaScript directly without a bundler, or use the separate `@solid-gpui/vite` package to compile JSX/TSX with the pinned official Oxc-based Solid universal compiler. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
 
+Import `For`, `Index`, `Show`, `Switch`, and `Match` from
+`@solid-gpui/core/runtime` for native JSX children. They use Solid's existing
+runtime implementations with native element types; direct `solid-js` control-flow
+declarations describe DOM children instead. Native JSX does not accept DOM nodes.
+
 Launch a direct JS application with `solid-gpui-host bun --conditions=browser app.js`
 so the host owns protocol stdio and Solid resolves its client reactive runtime.
 Bun APIs remain available. See [Vite integration](../../docs/vite.md) for both
@@ -50,6 +55,14 @@ mountApplication({
 Use `StdioTransport` from `@solid-gpui/core/stdio` for external Bun.
 Use `EmbeddedTransport` for both Embedded Bun and QuickJS. All surfaces in an application
 share its connection.
+
+The default `StdioTransport` reads the host-owned process stdin. When that pipe
+closes, it notifies termination listeners and exits the renderer, even if
+application timers are still active. Clean EOF exits with status 0; I/O failure
+exits with status 1 and a diagnostic. Application-owned detached services are
+not terminated. `dispose()` only releases the connection. Embedders can pass
+`{ input, output }` streams, or explicitly set `{ exitOnHostClose: false }` when
+their process must outlive its host connection.
 
 ```sh
 bun --bun vite build
@@ -96,8 +109,9 @@ no JavaScript fetch is required. See [Images](../../docs/native-composition.md#i
 for an example, fallback behavior, and custom host setup.
 
 Use `@solid-gpui/core/motion` for native Motion and lifetime-aware Presence.
-With Vite's `native` option, component imports and Motion use bindings exported
-by the selected host. Rust edits automatically rebuild and replace its development
+With Vite's `native` or explicit `host` option, component imports and Motion use
+bindings exported by the selected host. `native` additionally watches Rust edits
+and automatically rebuilds and replaces its development
 session; compilation and application failures keep Vite watching for a corrected
 source edit. See [managed development sessions](../../docs/hot-reload.md#managed-development-sessions).
 Component icon props use registered Iconify names or explicit SVG data; GPUI Kit's

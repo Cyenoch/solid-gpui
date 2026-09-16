@@ -14,7 +14,7 @@
 //     Changes to this file may cause incorrect behavior and will be lost if
 //     the code is regenerated.
 // </auto-generated>
-import { BebopView, BebopRuntimeError, BebopRecord } from "bebop";
+import { BebopView, BebopRuntimeError, type BebopRecord } from "bebop";
 
 export const BEBOP_SCHEMA = new Uint8Array([
   3, 100, 0, 0, 0, 78, 111, 100, 101, 75, 105, 110, 100, 0, 4, 0, 254, 255, 255, 255, 0, 1, 0, 0, 0, 10, 85, 110, 115,

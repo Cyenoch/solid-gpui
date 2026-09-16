@@ -86,6 +86,8 @@ mountApplication<number>({
 
 候选 setup、render 和首帧准备成功后，释放旧 owner 与 root，在相同 surface ID 发布新 epoch。语法错误和同步 setup/render 错误保留旧页面，修复并保存后重试。由 Vite 管理宿主时，首次启动失败也会继续监听，修复并保存源码后启动新的会话。
 
+受管理的 generation 直接使用运行时已捕获的交接状态，不会再次调用退役 generation 的 `captureState`。每个新 Surface（包括激活后才打开的窗口）都必须发布非空首帧。空树或渲染失败会拒绝该次激活，而不是接受空白窗口；异步加载数据时，首帧应保留可见的加载界面。
+
 `onMount` 在提交后运行，其错误和异步副作用不在回滚边界内；I/O 失败也不保证回滚。应用顶层副作用发生在候选准备外。资源应在 setup 或组件中创建，通过 `onCleanup` 释放。迟到异步结果应在重建 timer 前检查是否已释放。
 
 必需的 transport factory 只创建一次应用连接，跨重载保留，最终释放时关闭，自定义 transport 同样如此。替换 generation 使同一 hotKey 的旧句柄失效。手动释放后重开已退役 surface 不属于 HMR 生命周期。

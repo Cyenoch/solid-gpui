@@ -10,13 +10,13 @@ Solid owns application data, routing, and child composition. Native entities own
 focus, editing, scrolling, menus, docking, animation, and in-flight native work.
 Native callbacks enqueue events; they do not synchronously execute Solid JS.
 
-| Kit layer | How Solid GPUI uses it |
-| --- | --- |
-| `gpui-component` | Styled native controls, editor, Carousel, text, charts, and owned window overlays. The crate name stays `gpui-component`. |
-| `gpui-base` | Native interaction/state, unstyled Base controls, transitions, springs, keyframes, stagger, and presence. |
-| `gpui-kit` | Facade and headless interaction helpers in the isolated native integration test package. |
-| `gpui-fps` | Explicitly enabled, per-window performance HUD; see [metric definitions](performance-analysis.md). |
-| `gpui-kit-assets` | Only the default icons used internally by Kit controls. Application icons belong to Iconify. |
+| Kit layer         | How Solid GPUI uses it                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `gpui-component`  | Styled native controls, editor, Carousel, text, charts, and owned window overlays. The crate name stays `gpui-component`. |
+| `gpui-base`       | Native interaction/state, unstyled Base controls, transitions, springs, keyframes, stagger, and presence.                 |
+| `gpui-kit`        | Facade and headless interaction helpers in the isolated native integration test package.                                  |
+| `gpui-fps`        | Explicitly enabled, per-window performance HUD; see [metric definitions](performance-analysis.md).                        |
+| `gpui-kit-assets` | Only the default icons used internally by Kit controls. Application icons belong to Iconify.                              |
 
 Runtime dependencies live in `vendor/gpui-kit`; `references/gpui-kit` is the
 matching pinned upstream checkout. Bun and QuickJS continue to run Solid
@@ -35,12 +35,30 @@ The generated file is the API reference: `packages/solid-gpui/src/components.ts`
 
 Every component's documentation records when it was written and when it last changed. The website keeps both dates in `examples/website/component-introduced.ts`, requires them for every generated component, and shows the page's earliest creation and latest update date plus each API Reference entry's own pair — on the page and in the Markdown copied from it. A component is marked **New** in the component navigation while its creation date is inside the badge window (`newBadgeWindowDays`) and not before `newBadgeEpoch`; earlier dates are never marked, so the rule does not relabel an established catalog. Add the current date when you document a new component and bump the update date when you change one.
 
-With Vite's `native` option, `@solid-gpui/core/components` and Motion resolve their
-component contracts from the configured host's generated bindings. Rust changes
-automatically rebuild that host and replace the development session; see
+With Vite's `native` or explicit `host` option, `@solid-gpui/core/components` and
+Motion resolve their contracts from the configured host's exported bindings.
+`native` also automatically rebuilds Rust changes and replaces the development
+session; an explicit `host` remains externally built. See
 [managed development sessions](hot-reload.md#managed-development-sessions).
 
 ## Coverage
+
+### Asynchronous choice catalogs
+
+`Select` and `Combobox` accept controlled selected keys before those keys appear
+in `items`. The catalog may be empty while loading, or omit the configured value
+after filtering. Unresolved keys do not create synthetic menu entries and do not
+reject the surface. The native control resolves them when matching items arrive;
+catalog-only updates do not emit a user `onChange` event or clear application state.
+Keep the original controlled value rather than conditionally removing the prop.
+Opening a menu or confirming the already committed selection does not emit
+`onChange` or advance `editSeq`; a different selection or explicit clear does.
+
+Group, item, and selected keys must be nonempty and unique (item keys are unique
+across groups). Invalid identities remain errors; do not silently drop duplicate
+items. Optional nested fields such as `description: undefined` are omitted by
+the native DTO encoder. See the Settings route in the
+[desktop application example](../examples/desktop-app/README.md).
 
 ### Carousel
 
@@ -56,8 +74,12 @@ width for a horizontal carousel. At most 1024 items are accepted.
 ```tsx
 import { Carousel, CarouselItem, Label } from "@solid-gpui/core/components";
 <Carousel viewportHeight={160} pagination looping>
-  <CarouselItem accessibilityLabel="Overview"><Label text="Overview" /></CarouselItem>
-  <CarouselItem accessibilityLabel="Details"><Label text="Details" /></CarouselItem>
+  <CarouselItem accessibilityLabel="Overview">
+    <Label text="Overview" />
+  </CarouselItem>
+  <CarouselItem accessibilityLabel="Details">
+    <Label text="Details" />
+  </CarouselItem>
 </Carousel>;
 ```
 
@@ -129,32 +151,50 @@ Empty states compose from six parts in one order — `Empty`, `EmptyHeader`,
 application decides when to show one and owns its actions:
 
 ```tsx
-import { Button, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, Icon, Label } from "@solid-gpui/core/components";
+import {
+  Button,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Icon,
+  Label,
+} from "@solid-gpui/core/components";
 <Empty style={{ height: 240 }}>
   <EmptyHeader>
-    <EmptyMedia variant="icon"><Icon source="lucide:folder-plus" /></EmptyMedia>
-    <EmptyTitle><Label text="No projects yet" /></EmptyTitle>
-    <EmptyDescription><Label text="Create a project to start tracking work." /></EmptyDescription>
+    <EmptyMedia variant="icon">
+      <Icon source="lucide:folder-plus" />
+    </EmptyMedia>
+    <EmptyTitle>
+      <Label text="No projects yet" />
+    </EmptyTitle>
+    <EmptyDescription>
+      <Label text="Create a project to start tracking work." />
+    </EmptyDescription>
   </EmptyHeader>
-  <EmptyContent><Button label="New project" variant="primary" /></EmptyContent>
+  <EmptyContent>
+    <Button label="New project" variant="primary" />
+  </EmptyContent>
 </Empty>;
 ```
 
-| Native family            | JS entry points                                                                                                                                                                                                                              |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag |
-| Editing and choices      | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                           |
-| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                       |
-| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar                      |
-| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                 |
-| Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                      |
-| Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                            |
-| Docking                  | DockArea; its layout descriptors create actual native tab groups                                                                                                                                                                             |
-| Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                          |
-| Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                      |
-| Motion and presence      | Motion, NativePresence                                                                                                                                                                                                                       |
-| Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                 |
-| Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                   |
+| Native family            | JS entry points                                                                                                                                                                                                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag               |
+| Editing and choices      | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                                                                                        |
+| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                 |
+| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar |
+| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                                                                              |
+| Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                                                                                   |
+| Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                                                                                         |
+| Docking                  | DockArea; its layout descriptors create actual native tab groups                                                                                                                                                                                                                                          |
+| Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                                                                                       |
+| Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                                                                                   |
+| Motion and presence      | Motion, NativePresence                                                                                                                                                                                                                                                                                    |
+| Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                                                                              |
+| Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                                                                                |
 
 The website publishes one Components navigation group per family above, in the same
 order, with compound parts on their owner's page
@@ -236,10 +276,84 @@ Lists, tables and trees render visible ranges. Search and load events describe t
 
 `await useNative().setTheme("dark")` changes the application-wide native Component theme and its Base projection; `"light"` and `"system"` are also supported. `getTheme()` reports the selected mode and resolved dark flag. The host follows OS appearance by default. Keep your Solid style tokens synchronized with the same choice, as the Gallery does. Themes are native App globals, so this setting applies to all windows.
 
-`setApplicationTheme` replaces application overrides for colors, typography,
-radii, input backgrounds, and component metrics. Overrides remain applied when
-`setTheme` changes the base appearance. For typed examples, titlebar setup, and
-local icon registration, see [native application migration](native-migration.md).
+### Application theme overrides
+
+`setApplicationTheme` replaces the previous application overrides for colors,
+typography, radii, input backgrounds, and component metrics. Omitted values use
+the selected light or dark base, and overrides remain applied when `setTheme`
+changes the base appearance or the system appearance changes. Invalid colors,
+unknown fields, invalid font names, and invalid lengths are rejected before
+anything is mutated. Native component and Base theme snapshots are updated
+together, as are TextView defaults; rich text resolves inherited native
+typography when it is laid out instead of caching default-black text runs.
+
+```ts
+await useNative().setTheme("dark");
+await useNative().setApplicationTheme({
+  fontSize: 14,
+  lineHeight: 20,
+  radius: 6,
+  radiusLg: 10,
+  colors: {
+    background: "#131217",
+    sidebar: "#0F0E12",
+    foreground: "#ECEAF1",
+    input: "#1B1A20",
+    popover: "#222127",
+    border: "#2C2B33",
+    mutedForeground: "#A09DA9",
+    primary: "#D4688C",
+    primaryHover: "#E07B9E",
+    primaryForeground: "#241219",
+    buttonPrimary: "#D4688C",
+    buttonPrimaryHover: "#E07B9E",
+    buttonPrimaryForeground: "#241219",
+    danger: "#C4574E",
+    ring: "#D4688C",
+  },
+});
+```
+
+`ApplicationThemeColors` covers the linked component library's complete solid
+color token set, including component-specific hover/active/selected states,
+input/focus colors, menu/popover/dialog chrome, overlays, and disabled/muted
+colors. Generic `primary` and button-specific `buttonPrimary` are distinct
+tokens; set both when the application uses one color for both. The
+[desktop application example](../examples/desktop-app/README.md) shares a single
+palette between native tokens and Solid styles.
+
+Leave `fontFamily` unset to keep the native platform's UI font: the framework
+resolves `.SystemUIFont` through the platform text system, and on Windows that is
+the OS message/UI font (`NONCLIENTMETRICS.lfMessageFont`), including localized
+font choices. An explicit application font must still be installed on every
+target where it is selected.
+
+`components` configures shared native metrics for `button`, `input`, `select`,
+`tag`, `menu`, and `dialog`. Each accepts `height`, `fontSize`, `lineHeight`,
+`paddingX`, `paddingY`, and `radius` in logical pixels, applied before
+per-instance styles. Omitted metrics keep the native `ControlSize` recipes.
+`inputBackground` supplies an exact fill and bypasses the native dark-mode
+mixing rule.
+
+```ts
+await useNative().setApplicationTheme({
+  colors: { foreground: "#ECEAF1" },
+  inputBackground: "#1B1A20",
+  components: {
+    button: { height: 32, fontSize: 14, lineHeight: 20, paddingX: 12 },
+    input: { height: 32, fontSize: 14, lineHeight: 20 },
+    select: { height: 32, fontSize: 14, lineHeight: 20 },
+    menu: { height: 30, fontSize: 14 },
+  },
+});
+```
+
+Host-level setup — the profile factory, window options, and titlebar composition —
+belongs to Rust: see [desktop host configuration](rust-bridge.md#desktop-host-configuration)
+and [window options and titlebar](rust-bridge.md#window-options-and-titlebar).
+Application icons are registered in that host before it starts; see
+[Add application icons](iconify.md#add-application-icons).
+
 `getMotionPreference` and `setMotionPreference` expose the `system`, `full`, and
 `reduced` motion modes; see [native composition](native-composition.md).
 

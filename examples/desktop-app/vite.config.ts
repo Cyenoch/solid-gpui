@@ -9,8 +9,8 @@ export default defineConfig({
     solidGpui({
       entry: "src/main.tsx",
       native: {
-        manifestPath: source("examples/native-migration/native/Cargo.toml"),
-        output: source("examples/native-migration/src/native.ts"),
+        manifestPath: source("examples/desktop-app/native/Cargo.toml"),
+        output: source("examples/desktop-app/src/native.ts"),
       },
     }),
   ],

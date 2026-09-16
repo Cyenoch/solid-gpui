@@ -132,6 +132,12 @@ page mounted; fixing the error and saving again retries the replacement. With a
 Vite-managed host, an initial failure leaves development watching for another edit
 even when no previous page exists.
 
+A managed generation receives the handoff already captured by its runtime; it
+does not call the retired generation's `captureState` again. Every new Surface,
+including one opened after activation, must publish a nonempty first tree.
+An empty or failed render rejects that activation rather than accepting a blank
+window. Keep a loading view in the initial render when data arrives asynchronously.
+
 `onMount` runs after commit. Its errors and asynchronous side effects are outside
 the rollback boundary; I/O failures also have no rollback guarantee. Top-level
 application side effects occur outside candidate preparation. Create resources

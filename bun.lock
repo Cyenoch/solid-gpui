@@ -18,8 +18,8 @@
         "vite": "8.2.2",
       },
     },
-    "examples/native-migration": {
-      "name": "@solid-gpui/native-migration",
+    "examples/desktop-app": {
+      "name": "@solid-gpui/desktop-app",
       "dependencies": {
         "@solid-gpui/core": "workspace:*",
         "@solid-gpui/router": "workspace:*",
@@ -292,7 +292,7 @@
 
     "@solid-gpui/core": ["@solid-gpui/core@workspace:packages/solid-gpui"],
 
-    "@solid-gpui/native-migration": ["@solid-gpui/native-migration@workspace:examples/native-migration"],
+    "@solid-gpui/desktop-app": ["@solid-gpui/desktop-app@workspace:examples/desktop-app"],
 
     "@solid-gpui/router": ["@solid-gpui/router@workspace:packages/solid-gpui-router"],
 

@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "examples/website/native",
-    "examples/native-migration/native",
+    "examples/desktop-app/native",
     "crates/solid-gpui",
     "crates/solid-gpui-web",
     "crates/solid-gpui-macros",

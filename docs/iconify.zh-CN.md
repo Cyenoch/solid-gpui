@@ -49,7 +49,7 @@ slot 接受已注册名称或显式 `{ svg: "…" }`，一次校验后保留原�
 `lucide:moon` 和 `lucide:sun`。
 
 ```tsx
-import { For } from "solid-js";
+import { For } from "@solid-gpui/core/runtime";
 import { ICON_NAMES, Icon, View } from "@solid-gpui/core";
 
 export function IconGallery() {
@@ -63,6 +63,8 @@ export function IconGallery() {
 
 SDK 在发送给宿主前验证名称，Rust 也会独立验证内嵌目录。
 未知名称会报错，不会触发下载。请保持 SDK 绑定与宿主构建同步。
+
+例如，`lucide:wrench` 和 `lucide:rotate-cw` 不会因为带 Lucide 前缀就自动可用。选择内置图标前检查 `ICON_NAMES`，或按下文注册对应 SVG 为应用图标。不要将任意字符串强制转换为 `IconName`：类型断言不会改变宿主内嵌的资源。运行时错误会指出被拒绝的名称，并提示这两种目录来源。
 
 ## 尺寸、颜色与布局
 
@@ -118,6 +120,12 @@ register_icons(&[
 ```
 
 选择 `Original` 保留标志的原色，或使用 `Monochrome` 允许着色。
+应保存上游真实资源及其真实名称：注册的名称即使带 `lucide:` 前缀也要有自己的 SVG，
+因为宿主在运行时不下载图标。缺失内嵌文件会导致编译失败；重复或保留名称、格式错误的 XML、
+不支持的 SVG 元素或属性、外部资源及超大目录会导致注册失败。目录不可变，
+限制为最多 256 项、每项 SVG 最大 64 KiB、最多 1024 个元素，viewBox 与固有尺寸也有边界。
+内置图标保持现有允许列表。
+
 `ComponentHost::native_bindings()` 将注册名称导出为带类型的 `applicationIcons` 元组。
 从生成的绑定模块导入它（下面的示例使用 `./native`），将条目传给 `Icon`：
 
@@ -131,9 +139,9 @@ export function BrandIcon() {
 }
 ```
 
-元组按图标名称排序。目录变化后需要重新生成绑定。
+元组按图标名称排序。注册与导出在开发和生产中使用同一可执行文件；目录变化后需要重新生成绑定。
 `registerIconNames` 可供自定义绑定生成器使用，但仅注册 JavaScript 名称不会在宿主中内嵌 SVG。
 
-目录限制与 SVG 验证规则见[原生应用迁移](native-migration.md#offline-application-icons)，
+[桌面应用示例](../examples/desktop-app/README.zh-CN.md#应用图标)在可运行宿主中注册一个应用图标；
 生成绑定的用法见 [Rust 集成](rust-bridge.md)。自定义图标需要在交付的宿主中注册；
 面向浏览器时，也需要在自定义 Web 宿主中注册。

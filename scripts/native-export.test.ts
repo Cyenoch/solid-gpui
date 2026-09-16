@@ -55,3 +55,70 @@ test("Vite exports an actual Rust host before resolving #native, preserves stabl
     await rm(directory, { recursive: true, force: true });
   }
 }, 30000);
+
+test("Vite exports a configured host's catalog before resolving #native and component imports", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "solid-host-export-"));
+  const host = join(directory, "host.js");
+  const entry = join(directory, "app.js");
+  const generated = join(directory, ".generated/native.ts");
+  const hostSource = (answer: number) =>
+    `if (!Bun.argv.includes("--export-native")) {
+    console.error("host must export bindings with --export-native");
+    process.exit(3);
+  }
+  console.log("export const answer = ${answer};");
+`;
+  const buildHost = (output?: string) =>
+    build({
+      configFile: false,
+      root: directory,
+      logLevel: "silent",
+      plugins: [
+        solidGpui({
+          entry: "app.js",
+          host: { command: process.execPath, args: [host], ...(output ? { output } : {}) },
+        }),
+      ],
+      // Local source consumption maps the package name to a file; the catalog alias must win.
+      resolve: { alias: [{ find: "@solid-gpui/core", replacement: join(directory, "core.js") }] },
+    });
+  const runApplication = async () => {
+    const child = Bun.spawn(["bun", join(directory, "dist/app.js")], { stdout: "pipe", stderr: "pipe" });
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    return { code, stdout: stdout.trim(), stderr };
+  };
+  try {
+    await writeFile(host, hostSource(7));
+    await writeFile(
+      entry,
+      `import { answer } from "#native";
+import { answer as catalog } from "@solid-gpui/core/components";
+console.log(\`\${answer}:\${catalog}\`);
+`,
+    );
+    await writeFile(join(directory, "package.json"), '{"type":"module"}');
+    await writeFile(join(directory, "core.js"), "export const core = true;\n");
+    await buildHost();
+    expect(await readFile(generated, "utf8")).toBe("export const answer = 7;\n");
+    const first = await runApplication();
+    expect(first.code, first.stderr).toBe(0);
+    expect(first.stdout).toBe("7:7");
+
+    // A rebuilt host supplies its new catalog, at the default or an overridden output.
+    await writeFile(host, hostSource(9));
+    await buildHost("src/host-catalog.ts");
+    expect(await readFile(join(directory, "src/host-catalog.ts"), "utf8")).toBe("export const answer = 9;\n");
+    expect((await runApplication()).stdout).toBe("9:9");
+
+    // A host without an exporter fails generation; the SDK's checked-in catalog never substitutes.
+    await writeFile(host, 'console.error("missing --export-native support");\nprocess.exit(3);\n');
+    await expect(buildHost()).rejects.toThrow("missing --export-native support");
+    expect(await readFile(generated, "utf8")).toBe("export const answer = 7;\n");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 30000);

@@ -16,6 +16,12 @@ bun run task protocol-codegen
 bun run task protocol-codegen-check
 ```
 
+The generation pipeline normalizes Rust output and TypeScript type-only imports
+in `scripts/normalize-bebop.ts`. Source consumers can keep
+`verbatimModuleSyntax: true`; do not patch generated imports or disable that
+compiler option in applications. These source normalizations do not change wire
+bytes or the schema digest.
+
 The semantic DTOs in
 `packages/solid-gpui/src/protocol/types.ts` and
 `crates/solid-gpui/src/protocol.rs` are the public protocol interface. Generated
@@ -123,13 +129,13 @@ Accessibility carries role, label, description, disabled, checked, selected,
 value, expanded, and heading level. Style contains width/height, flex and
 alignment enums, spacing, colors, opacity, transition, borders, typography,
 positioning, cursor, text alignment, up to two BoxShadow values, and font
-family. The migration fields add per-edge padding, border widths/colors,
+family. Styles also include per-edge padding, border widths/colors,
 per-corner radii, percentage width/height, wrapping, and a bounded two-stop
 linear gradient. Percent and pixel dimensions are mutually exclusive. Gradient
 angles are 0..=360 degrees, stops are strictly increasing in 0..=1, and colors
 are RGBA u32 values. `flexWrap` uses 0=no-wrap, 1=wrap, 2=wrap-reverse; omission
 retains the native default. Edge/corner values override their shorthands,
-including zero. See [native migration](native-migration.md) for the public API.
+including zero. See [layout and paint](native-composition.md#layout-and-paint) for the public API.
 Numeric layout values use f32 on the wire; IDs, enum codes, masks, and
 counts use u32. Semantic validators enforce finite/non-negative ranges and the
 existing enum and ownership rules.

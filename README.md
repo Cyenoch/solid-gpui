@@ -78,12 +78,13 @@ keeps Bun APIs available. Both paths support Rust native modules. Then
 
 ## Go further
 
-| Guide                                                | What you will learn                                                      |
-| ---------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Choose a runtime](docs/runtimes.md)                 | Develop with Bun, embed Bun on macOS, or use QuickJS with Rust services. |
-| [Native application guide](docs/native-migration.md) | Configure windows, titlebars, themes, and application services.          |
-| [Desktop distribution](docs/distribution.md)         | Build, verify, and sign application bundles.                             |
-| [Architecture and protocol](CONTEXT.md)              | Understand ownership, rendering, and the Rust–TypeScript boundary.       |
+| Guide                                                         | What you will learn                                                        |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [Choose a runtime](docs/runtimes.md)                          | Develop with Bun, embed Bun on macOS, or use QuickJS with Rust services.   |
+| [Rust integration](docs/rust-bridge.md)                       | Configure a desktop host, windows, titlebars, and typed native services.   |
+| [Desktop application example](examples/desktop-app/README.md) | Run a complete example with routing, themes, scrolling, and Rust services. |
+| [Desktop distribution](docs/distribution.md)                  | Build, verify, and sign application bundles.                               |
+| [Architecture and protocol](CONTEXT.md)                       | Understand ownership, rendering, and the Rust–TypeScript boundary.         |
 
 For workspace development, use `bun run check` and `bun run test`.
 Run `bun run task --help` for all tasks; see the

@@ -279,6 +279,12 @@ pub struct ComboboxChange {
     pub edit_seq: u32,
     pub data_revision: u32,
 }
+/// Reject malformed identities, not pending ones.
+///
+/// Item keys stay globally unique and nonempty because they are the control's value
+/// identity. A selected key does not have to exist in `groups`: catalogs load
+/// asynchronously and a controlled value may precede or outlive its revision. Such a
+/// value stays unresolved — unselected and unlabeled — until a revision supplies it.
 fn validate(
     groups: &[ChoiceGroup],
     values: &[String],
@@ -300,10 +306,12 @@ fn validate(
             }
         }
     }
-    if values.iter().collect::<HashSet<_>>().len() != values.len()
-        || values.iter().any(|k| !keys.contains(k))
+    // Item keys are nonempty, so an empty selected key can never resolve; a stale one is a
+    // caller bug, not a pending catalog.
+    if values.iter().any(String::is_empty)
+        || values.iter().collect::<HashSet<_>>().len() != values.len()
     {
-        return Err("selected choice keys must be unique and present in items".into());
+        return Err("selected choice keys must be nonempty and unique".into());
     }
     if !height.is_finite()
         || !(24. ..=10000.).contains(&height)
@@ -328,6 +336,10 @@ pub struct Select {
     events: Event<SelectChange>,
     request_id: Rc<Cell<u32>>,
     edit_seq: u32,
+    /// The value this view last applied from props or reported to the application.
+    /// The popup confirms the row under the pointer on every click, including the row
+    /// that is already selected, so an unchanged confirm is not an application edit.
+    committed: Option<String>,
     children: NativeChildren,
     _subscription: Subscription,
 }
@@ -402,6 +414,12 @@ impl NativeView for Select {
         });
         let subscription = cx.subscribe(&state, |this, _, event, _| {
             let gpui_component::select::SelectEvent::Confirm(value) = event;
+            // Re-picking the committed row is not an edit: the application owns the value
+            // and must not see a change for a click that did not move the selection.
+            if *value == this.committed {
+                return;
+            }
+            this.committed = value.clone();
             this.edit_seq = this
                 .edit_seq
                 .checked_add(1)
@@ -419,6 +437,7 @@ impl NativeView for Select {
             events,
             request_id,
             edit_seq: 0,
+            committed: values.first().cloned(),
             children,
             _subscription: subscription,
         }
@@ -433,13 +452,39 @@ impl NativeView for Select {
         if p.items != self.props.items {
             self.data = Arc::new(ChoiceData::new(p.items.clone()));
         }
+        let values = (model_changed || value_changed).then(|| -> Vec<String> {
+            // The controlled prop is authoritative only while it is fresh. An edit the
+            // application has not acknowledged (ackEditSeq below this control's editSeq)
+            // keeps the native selection, so a catalog-only refresh cannot undo the user's
+            // choice. A fresh value is retried against every revision, which is how a key
+            // an earlier catalog could not carry still resolves — and an uncontrolled
+            // control keeps its own selection, with the default seed pending until the
+            // first edit.
+            if let Some(value) = &p.value
+                && (p.ack_edit_seq >= self.edit_seq || self.props.value.is_none())
+            {
+                return vec![value.clone()];
+            }
+            if p.value.is_none() {
+                if value_changed {
+                    return Vec::new();
+                }
+                if self.edit_seq == 0 {
+                    return p.default_value.clone().into_iter().collect();
+                }
+            }
+            self.state
+                .read(cx)
+                .selected_value()
+                .cloned()
+                .into_iter()
+                .collect()
+        });
+        let committed = values
+            .as_ref()
+            .map(|values: &Vec<String>| values.first().cloned());
         self.state.update(cx, |s, cx| {
-            if model_changed || value_changed {
-                let values: Vec<_> = if value_changed {
-                    p.value.clone().into_iter().collect()
-                } else {
-                    s.selected_value().cloned().into_iter().collect()
-                };
+            if let Some(values) = values {
                 let model = Choices::new(
                     self.data.clone(),
                     &s.query(cx),
@@ -462,6 +507,9 @@ impl NativeView for Select {
                 s.set_open(false, cx);
             }
         });
+        if let Some(committed) = committed {
+            self.committed = committed;
+        }
         self.props = p;
     }
     fn commands() -> Vec<ViewCommand<Self>> {
@@ -520,6 +568,9 @@ pub struct Combobox {
     events: Event<ComboboxChange>,
     request_id: Rc<Cell<u32>>,
     edit_seq: u32,
+    /// The values this view last applied from props or reported to the application.
+    /// A repeated change with the same set is not an application edit.
+    committed: Vec<String>,
     children: NativeChildren,
     _subscription: Subscription,
 }
@@ -570,6 +621,7 @@ impl NativeView for Combobox {
         let values = props.values.as_ref().unwrap_or(&props.default_values);
         let selection = model.selection(values);
         let cursor = values.first().and_then(|v| model.position(v));
+        let committed = values.clone();
         let state = cx.new(|cx| {
             let mut s = gpui_component::combobox::ComboboxState::new(model, Vec::new(), window, cx)
                 .multiple(props.multiple)
@@ -589,6 +641,12 @@ impl NativeView for Combobox {
             use gpui_component::combobox::ComboboxEvent;
             match event {
                 ComboboxEvent::Change(values) => {
+                    // A repeated change with the same set is not an edit; the
+                    // acknowledgement protocol must not see a user change for it.
+                    if *values == this.committed {
+                        return;
+                    }
+                    this.committed = values.clone();
                     this.edit_seq = this
                         .edit_seq
                         .checked_add(1)
@@ -611,6 +669,7 @@ impl NativeView for Combobox {
             events,
             request_id,
             edit_seq: 0,
+            committed,
             children,
             _subscription: subscription,
         }
@@ -626,16 +685,26 @@ impl NativeView for Combobox {
         if p.items != self.props.items {
             self.data = Arc::new(ChoiceData::new(p.items.clone()));
         }
+        let values = (model_changed || value_changed).then(|| -> Vec<String> {
+            // Controlled values are authoritative only while they are fresh: an edit the
+            // application has not acknowledged keeps the native selection, so a
+            // catalog-only refresh cannot undo the user's choice. A fresh list is retried
+            // against every revision, which is how a key an earlier catalog could not
+            // carry still resolves. An uncontrolled control reads its own selection,
+            // keeping the default seed pending until the first edit.
+            let mut values = match &p.values {
+                Some(values) if entering || p.ack_edit_seq >= self.edit_seq => values.clone(),
+                None if self.edit_seq == 0 => p.default_values.clone(),
+                _ => self.state.read(cx).selected_values(),
+            };
+            if !p.multiple {
+                values.truncate(1);
+            }
+            values
+        });
+        let committed = values.clone();
         self.state.update(cx, |s, cx| {
-            if model_changed || value_changed {
-                let mut values = if value_changed {
-                    p.values.clone().expect("controlled values")
-                } else {
-                    s.selected_values()
-                };
-                if !p.multiple {
-                    values.truncate(1);
-                }
+            if let Some(values) = values {
                 let model = Choices::new(
                     self.data.clone(),
                     &s.query(cx),
@@ -661,6 +730,9 @@ impl NativeView for Combobox {
                 s.set_open(false, cx);
             }
         });
+        if let Some(committed) = committed {
+            self.committed = committed;
+        }
         self.props = p;
     }
     fn commands() -> Vec<ViewCommand<Self>> {
@@ -725,25 +797,25 @@ pub(crate) fn definitions() -> Vec<crate::native::ComponentDefinition> {
 mod tests {
     use super::*;
     use crate::components::test_support::Fixture;
+    fn item(key: &str, label: &str) -> Choice {
+        Choice {
+            key: key.into(),
+            label: label.into(),
+            keywords: Vec::new(),
+            disabled: false,
+            description: None,
+            icon: None,
+        }
+    }
+    fn catalog(items: &[(&str, &str)]) -> Vec<ChoiceGroup> {
+        vec![ChoiceGroup {
+            key: "g".into(),
+            label: None,
+            items: items.iter().map(|(key, label)| item(key, label)).collect(),
+        }]
+    }
     fn groups(reverse: bool) -> Vec<ChoiceGroup> {
-        let mut items = vec![
-            Choice {
-                key: "a".into(),
-                label: "Alpha".into(),
-                keywords: vec![],
-                disabled: false,
-                description: None,
-                icon: None,
-            },
-            Choice {
-                key: "b".into(),
-                label: "Beta".into(),
-                keywords: vec![],
-                disabled: false,
-                description: None,
-                icon: None,
-            },
-        ];
+        let mut items = vec![item("a", "Alpha"), item("b", "Beta")];
         if reverse {
             items.reverse();
             items[1].label = "Alpha updated".into();
@@ -822,5 +894,339 @@ mod tests {
         multi.update(cx, |v, _, cx| {
             assert_eq!(v.state.read(cx).selected_values(), vec!["a", "b"])
         });
+    }
+    /// A controlled value can name an item the current revision does not carry: the
+    /// catalog is read asynchronously and the stored value may outlive it. The control
+    /// mounts, keeps the value while no revision resolves it, and resolves it again
+    /// whenever a revision supplies the key — without ever reporting a change.
+    #[gpui::test]
+    fn controlled_values_resolve_when_a_later_catalog_supplies_them(cx: &mut gpui::TestAppContext) {
+        let with_mode = catalog(&[("a", "Alpha"), ("m", "Mode")]);
+        let without_mode = catalog(&[("a", "Alpha")]);
+        let pending = SelectProps {
+            value: Some("m".into()),
+            ..Default::default()
+        };
+        Select::validate_props(&pending).expect("a controlled value may precede its catalog");
+        let select = Fixture::<Select>::new(pending, cx);
+        let combobox = Fixture::<Combobox>::new(
+            ComboboxProps {
+                values: Some(vec!["m".into()]),
+                ..Default::default()
+            },
+            cx,
+        );
+        cx.run_until_parked();
+        select.update(cx, |v, _, cx| {
+            assert_eq!(v.state.read(cx).selected_value(), None);
+            assert_eq!(v.state.read(cx).cursor_value(cx), None);
+        });
+        combobox.update(cx, |v, _, cx| {
+            assert!(v.state.read(cx).selected_values().is_empty());
+        });
+        for (items, resolved) in [
+            (with_mode.clone(), true),
+            (without_mode.clone(), false),
+            (with_mode, true),
+        ] {
+            select.update(cx, |v, window, cx| {
+                v.update(
+                    SelectProps {
+                        items: items.clone(),
+                        value: Some("m".into()),
+                        ..Default::default()
+                    },
+                    window,
+                    cx,
+                )
+            });
+            combobox.update(cx, |v, window, cx| {
+                v.update(
+                    ComboboxProps {
+                        items: items.clone(),
+                        values: Some(vec!["m".into()]),
+                        ..Default::default()
+                    },
+                    window,
+                    cx,
+                )
+            });
+            cx.run_until_parked();
+            select.update(cx, |v, _, cx| {
+                let state = v.state.read(cx);
+                assert_eq!(
+                    state.selected_value().map(String::as_str),
+                    resolved.then_some("m")
+                );
+                assert_eq!(state.cursor_value(cx).as_deref(), resolved.then_some("m"));
+            });
+            combobox.update(cx, |v, _, cx| {
+                let expected = if resolved {
+                    vec!["m".to_string()]
+                } else {
+                    vec![]
+                };
+                assert_eq!(v.state.read(cx).selected_values(), expected);
+            });
+        }
+        for runtime in [&select.runtime, &combobox.runtime] {
+            assert!(
+                runtime.take_event().unwrap().is_none(),
+                "resolving a pending value must not report a change"
+            );
+        }
+    }
+    /// A catalog-only refresh must not undo an edit the application has not acknowledged:
+    /// while `ackEditSeq` is below the control's `editSeq` the prop is stale and the native
+    /// selection stands, and the prop governs again once the acknowledgement arrives.
+    #[gpui::test]
+    fn stale_catalog_refreshes_keep_the_unacknowledged_native_selection(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let modes = catalog(&[("a", "Alpha"), ("b", "Beta")]);
+        let select = Fixture::<Select>::new(
+            SelectProps {
+                items: modes.clone(),
+                value: Some("a".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        let combobox = Fixture::<Combobox>::new(
+            ComboboxProps {
+                items: modes.clone(),
+                values: Some(vec!["a".into()]),
+                ..Default::default()
+            },
+            cx,
+        );
+        // A confirmed user edit moves the native selection and advances the edit sequence.
+        select.update(cx, |v, window, cx| {
+            v.state.update(cx, |s, cx| {
+                s.set_selected_value(&"b".to_string(), window, cx)
+            });
+            v.edit_seq += 1;
+        });
+        combobox.update(cx, |v, window, cx| {
+            v.state.update(cx, |s, cx| {
+                s.set_selected_values(&["b".to_string()], window, cx)
+            });
+            v.edit_seq += 1;
+        });
+        // The refreshed catalog still carries the previous value and no acknowledgement.
+        select.update(cx, |v, window, cx| {
+            v.update(
+                SelectProps {
+                    items: modes.clone(),
+                    value: Some("a".into()),
+                    data_revision: 1,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            )
+        });
+        combobox.update(cx, |v, window, cx| {
+            v.update(
+                ComboboxProps {
+                    items: modes.clone(),
+                    values: Some(vec!["a".into()]),
+                    data_revision: 1,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            )
+        });
+        cx.run_until_parked();
+        select.update(cx, |v, _, cx| {
+            assert_eq!(
+                v.state.read(cx).selected_value().map(String::as_str),
+                Some("b")
+            )
+        });
+        combobox.update(cx, |v, _, cx| {
+            assert_eq!(v.state.read(cx).selected_values(), vec!["b"])
+        });
+        // The acknowledgement makes the application's value authoritative again.
+        select.update(cx, |v, window, cx| {
+            v.update(
+                SelectProps {
+                    items: modes.clone(),
+                    value: Some("a".into()),
+                    ack_edit_seq: 1,
+                    data_revision: 1,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            )
+        });
+        combobox.update(cx, |v, window, cx| {
+            v.update(
+                ComboboxProps {
+                    items: modes,
+                    values: Some(vec!["a".into()]),
+                    ack_edit_seq: 1,
+                    data_revision: 1,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            )
+        });
+        cx.run_until_parked();
+        select.update(cx, |v, _, cx| {
+            assert_eq!(
+                v.state.read(cx).selected_value().map(String::as_str),
+                Some("a")
+            )
+        });
+        combobox.update(cx, |v, _, cx| {
+            assert_eq!(v.state.read(cx).selected_values(), vec!["a"])
+        });
+    }
+    /// Clicks down the popup that a trigger click opened and returns the values reported by
+    /// clicks that reached a row. Fixture windows are 500x400 and the trigger sits at the
+    /// top-left, so the rows are the only clickable targets below it.
+    fn popup_row_reports(
+        fixture: &Fixture<Select>,
+        cx: &mut gpui::TestAppContext,
+    ) -> Vec<Option<String>> {
+        let mut visual = gpui::VisualTestContext::from_window(fixture.window.into(), cx);
+        visual.simulate_click(
+            gpui::point(gpui::px(4.), gpui::px(4.)),
+            gpui::Modifiers::none(),
+        );
+        visual.update(|window, cx| {
+            let _ = window.draw(cx).clear(cx);
+        });
+        let mut reported = Vec::new();
+        for step in 0..24 {
+            visual.simulate_click(
+                gpui::point(gpui::px(20.), gpui::px(24. + step as f32 * 4.)),
+                gpui::Modifiers::none(),
+            );
+            visual.update(|window, cx| {
+                let _ = window.draw(cx).clear(cx);
+            });
+            let mut reached = false;
+            while let Some(event) = fixture.runtime.take_event().unwrap() {
+                if let crate::EventPayload::Extension { fields, .. } = event.payload
+                    && let crate::protocol::ExtensionValue::Bytes(bytes) = &fields[0].value
+                {
+                    reported.push(
+                        crate::native::decode_json::<SelectChange>(bytes)
+                            .unwrap()
+                            .value,
+                    );
+                    reached = true;
+                }
+            }
+            if reached {
+                // The popup closed with the confirm; deeper clicks hit nothing.
+                break;
+            }
+        }
+        reported
+    }
+    /// The native popup confirms whichever row sits under the pointer, including the row
+    /// that is already committed. Only a real edit may reach the application's `onChange`.
+    #[gpui::test]
+    fn confirming_the_committed_row_reports_no_change(cx: &mut gpui::TestAppContext) {
+        // Control: the value names a key this catalog does not carry, so the same click is a
+        // genuine edit — which also proves the probe reaches the popup row at all.
+        let control = Fixture::<Select>::new(
+            SelectProps {
+                items: catalog(&[("b", "Beta")]),
+                value: Some("m".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        assert_eq!(
+            popup_row_reports(&control, cx),
+            vec![Some("b".to_string())],
+            "a click on an unselected row must report the new value"
+        );
+        let committed = Fixture::<Select>::new(
+            SelectProps {
+                items: catalog(&[("a", "Alpha")]),
+                value: Some("a".into()),
+                ..Default::default()
+            },
+            cx,
+        );
+        assert!(
+            popup_row_reports(&committed, cx).is_empty(),
+            "re-picking the committed row is not an application edit"
+        );
+    }
+    /// Malformed identities stay rejected; a key that no revision supplies yet does not.
+    #[test]
+    fn choice_validation_rejects_malformed_ids_and_accepts_pending_ones() {
+        let alpha = catalog(&[("a", "Alpha")]);
+        let select = |items: Vec<ChoiceGroup>, value: Option<&str>| SelectProps {
+            items,
+            value: value.map(Into::into),
+            ..Default::default()
+        };
+        Select::validate_props(&select(Vec::new(), Some("m")))
+            .expect("a controlled value may precede the catalog that supplies it");
+        Select::validate_props(&select(alpha.clone(), None))
+            .expect("an unselected control needs no items");
+        Select::validate_props(&select(alpha.clone(), Some("")))
+            .expect_err("an empty selected key can never resolve");
+        let duplicate_group = vec![
+            ChoiceGroup {
+                key: "g".into(),
+                label: None,
+                items: vec![item("a", "Alpha")],
+            },
+            ChoiceGroup {
+                key: "g".into(),
+                label: None,
+                items: vec![item("b", "Beta")],
+            },
+        ];
+        let unnamed_group = vec![ChoiceGroup {
+            key: String::new(),
+            label: None,
+            items: vec![item("a", "Alpha")],
+        }];
+        for items in [
+            catalog(&[("", "Anonymous")]),
+            catalog(&[("a", "Alpha"), ("a", "Alias")]),
+            duplicate_group,
+            unnamed_group,
+        ] {
+            assert!(Select::validate_props(&select(items, None)).is_err());
+        }
+        let combobox = |values: Vec<&str>| ComboboxProps {
+            items: alpha.clone(),
+            values: Some(values.into_iter().map(Into::into).collect()),
+            multiple: true,
+            ..Default::default()
+        };
+        assert!(
+            Combobox::validate_props(&combobox(vec!["a", "a"])).is_err(),
+            "a duplicated selection is malformed even when every key exists"
+        );
+        assert!(
+            Combobox::validate_props(&combobox(vec!["", "a"])).is_err(),
+            "an empty selection entry can never resolve either"
+        );
+        assert!(
+            Combobox::validate_props(&combobox(vec!["a", "m"])).is_ok(),
+            "an item that the catalog does not carry yet stays pending"
+        );
+        // The optional members a caller leaves undefined never reach Rust as keys, so a
+        // catalog entry without them has to decode as plain absence.
+        let decoded: SelectProps = crate::native::decode_json(
+            br#"{"items":[{"key":"g","items":[{"key":"a","label":"Alpha"}]}],"value":"m"}"#,
+        )
+        .expect("an omitted optional member is absence, not malformed data");
+        assert_eq!(decoded.items[0].items[0].description, None);
+        Select::validate_props(&decoded).expect("a controlled value may precede the catalog");
     }
 }

@@ -2,6 +2,7 @@ use super::*;
 use gpui::{Bounds, KeyBinding, TestAppContext, WindowBounds, px, size};
 use solid_gpui::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
 use solid_gpui::{HostProperties, InMemoryAdapter, Node, Snapshot};
+use std::cell::Cell;
 use std::sync::Arc;
 
 fn provider_button_snapshot() -> Snapshot {
@@ -84,6 +85,51 @@ fn profile_wraps_solid_root_with_provider_root_and_renders_extension(cx: &mut Te
         assert_eq!(root.store().surface_id(), 1);
         assert_eq!(root.store().revision(), 1);
         assert!(root.store().get(2).is_some());
+    });
+}
+
+#[gpui::test]
+fn initialize_hook_customizes_the_theme_before_the_first_window(cx: &mut TestAppContext) {
+    let calls = Rc::new(Cell::new(0));
+    let mut profile = ComponentHost::default().with_initialize({
+        let calls = Rc::clone(&calls);
+        move |app| {
+            calls.set(calls.get() + 1);
+            // The shared theme exists by the time the hook runs, and the first frame is
+            // still ahead of it, so a family set here is what the application renders.
+            gpui_component::Theme::global_mut(app).font_family = "Hook Only Font".into();
+        }
+    });
+    let runtime = InMemoryAdapter::new();
+    let extensions = profile.extension_registry();
+    let (window, _) = cx.update(|app| {
+        profile.initialize(app);
+        profile
+            .open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(480.0), px(320.0)),
+                        app,
+                    ))),
+                    ..Default::default()
+                },
+                runtime.clone(),
+                extensions,
+                app,
+            )
+            .expect("provider window opens")
+    });
+    assert_eq!(calls.get(), 1, "the hook runs once per application launch");
+    window
+        .update(cx, |_, window, cx| window.draw(cx).clear(cx))
+        .expect("the first frame draws with the hook applied");
+    cx.update(|app| {
+        assert_eq!(
+            gpui_component::Theme::global(app).font_family.as_ref(),
+            "Hook Only Font",
+            "the first frame reads the family the hook set"
+        );
     });
 }
 

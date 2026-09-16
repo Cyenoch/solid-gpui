@@ -55,7 +55,7 @@ application's icon choices. Common names include `lucide:search`,
 `lucide:settings`, `lucide:check`, `lucide:moon`, and `lucide:sun`.
 
 ```tsx
-import { For } from "solid-js";
+import { For } from "@solid-gpui/core/runtime";
 import { ICON_NAMES, Icon, View } from "@solid-gpui/core";
 
 export function IconGallery() {
@@ -70,6 +70,12 @@ export function IconGallery() {
 The SDK validates names before sending them to the host, and Rust independently
 validates its embedded catalog. Unknown names are errors; they do not trigger a
 download. Keep SDK bindings and the host build synchronized.
+
+For example, `lucide:wrench` and `lucide:rotate-cw` are not implied by the Lucide
+prefix. Check `ICON_NAMES` before choosing a built-in, or register the exact SVG
+as an application icon below. Do not cast an arbitrary string to `IconName`:
+that changes TypeScript's view, not the host's embedded assets. Runtime errors
+identify the rejected name and point to these two catalog paths.
 
 ## Size, color, and layout
 
@@ -110,7 +116,8 @@ export function PlaybackButton() {
 ## Add application icons
 
 For an icon outside the built-in catalog, vendor its SVG and register it in your
-Rust application before starting the runtime and before exporting bindings:
+Rust application before starting the runtime and before exporting native
+bindings:
 
 ```rust
 use solid_gpui::icons::{register_icons, IconColorMode, IconResource};
@@ -125,6 +132,14 @@ register_icons(&[
 ```
 
 Choose `Original` to preserve a logo's colors, or `Monochrome` to allow tinting.
+Vendor the real upstream asset under its real name; a registered `lucide:` name
+still needs its own SVG, because the host never downloads icons at runtime.
+Missing embedded files fail compilation; duplicate or reserved names, malformed
+XML, unsupported SVG elements or attributes, external resources, and oversized
+catalogs fail registration. The catalog is immutable and bounded to 256 entries,
+64 KiB per SVG, and 1024 elements per SVG, with bounded viewBox and intrinsic
+dimensions. Built-in icons keep their existing allowlist.
+
 `ComponentHost::native_bindings()` exports the registered names as the typed
 `applicationIcons` tuple. Import it from your generated bindings module (the
 example below uses `./native`) and pass an entry to `Icon`:
@@ -139,12 +154,13 @@ export function BrandIcon() {
 }
 ```
 
-The tuple is sorted by icon name. Regenerate bindings after changing the
-catalog. `registerIconNames` is available for custom binding generators, but
-registering JavaScript names alone does not embed SVG assets in the host.
+The tuple is sorted by icon name. Registration and export use the same executable
+in development and production. Regenerate bindings after changing the catalog.
+`registerIconNames` is available for custom binding generators, but registering
+JavaScript names alone does not embed SVG assets in the host.
 
-See [Offline application icons](native-migration.md#offline-application-icons)
-for catalog limits and SVG validation, and
+The [desktop application example](../examples/desktop-app/README.md#application-icon)
+registers one application icon in a runnable host; see
 [Rust integration](rust-bridge.md) for generated bindings. Custom icons require
 registration in the host you ship, including a custom Web host when targeting
 the browser.

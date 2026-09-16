@@ -32,7 +32,7 @@ mod app {
 }
 
 fn main() {
-    solid_gpui::run(app::native_module());
+    solid_gpui::run(app::native_module);
 }
 ```
 
@@ -51,16 +51,129 @@ that has already started cannot be forcibly interrupted and occupies capacity
 until it finishes. Long tasks that require cancellation must cooperate;
 detached child tasks are not automatically cancelled with their parent call.
 
+## Desktop host configuration
+
+`solid_gpui::run_application(module_factory, runtime)` runs an application-owned runtime
+with the framework's default profile; the host owns shutdown and joins the runtime
+when the application quits.
+`solid_gpui::run_application_with_profile(profile_factory, runtime)` runs an
+application-owned profile and runtime without parsing host CLI arguments or
+creating a runtime. Both reuse the same host runner as `run`: commit admission,
+native events, protocol handlers, surface ownership, overlays, close handling,
+and final runtime shutdown stay framework-owned.
+
+Host entrypoints own platform startup. Pass a factory that constructs the profile
+on the application thread, because a profile may contain non-`Send` GPUI state;
+the factory and its captures must be `Send + 'static`. Do not create a custom
+thread or add a platform-specific wrapper around the runner.
+
+On Windows the runner reserves 16 MiB of stack for the application thread when
+the calling thread has less, instead of relying on the executable's usual 1 MiB
+initial-thread reservation; layout and paint recurse through the native element
+tree. Other platforms run inline, so macOS keeps AppKit on the real main thread.
+`SOLID_GPUI_APP_STACK_BYTES` overrides the Windows reservation for measurement
+and `SOLID_GPUI_LOG=info` reports the actual application-thread stack; an invalid
+budget fails startup. A reservation is not a promise that every deeply nested
+application fits it. Keep the application's Cargo optimization profiles aligned
+with [development guidance](hot-reload.md#application-build-configuration), and
+follow [Windows host overflows its stack](troubleshooting.md#windows-host-overflows-its-stack)
+when measuring a budget.
+
+```rust
+use solid_gpui::{gpui::*, components::host::ComponentHost};
+
+let profile = || ComponentHost::new(vec![
+    solid_gpui::components::native_module(),
+    app::native_module(),
+])
+.with_window_options(|_, cx| {
+    let mut options = gpui_component::TitleBar::window_options();
+    options.window_bounds = Some(WindowBounds::Windowed(Bounds::centered(
+        None, size(px(1100.), px(720.)), cx,
+    )));
+    options.window_min_size = Some(size(px(960.), px(640.)));
+    options.titlebar.as_mut().unwrap().traffic_light_position =
+        Some(point(px(16.), px(17.)));
+    options
+})
+.with_performance_monitor(false);
+solid_gpui::run_application_with_profile(profile, runtime);
+```
+
+The performance monitor is **off in every build** by default. An application
+opts in with `with_performance_monitor(true)`; environment variables do not
+override that policy.
+
+Use `ComponentHost::with_initialize(|cx| { ... })` for application-specific
+initialization after the component theme exists and before the first window
+opens. This avoids reimplementing and forwarding the whole `HostProfile` trait
+just to configure first-frame native state. A product choosing reduced motion,
+for example, calls `solid_gpui::motion::set(MotionMode::Reduced, cx)` in that hook. Disabling
+motion is an application policy, not a stack-overflow fix.
+
+`useNative().setApplicationTheme` applies application colors, typography, and
+control metrics at runtime; see
+[Application theme overrides](gpui-components.md#application-theme-overrides).
+Icons are registered before the runtime starts; see
+[Add application icons](iconify.md#add-application-icons). The runnable host,
+window configuration, and titlebar composition are in the
+[desktop application example](../examples/desktop-app/README.md).
+
+### Window options and titlebar
+
+`ComponentHost::with_window_options` configures native window defaults before
+renderer open-surface overrides; a custom profile implements
+`HostProfile::window_options` directly. The callback runs for each opened
+surface, and it receives the options the renderer requested, so retain them when
+you only want to change some fields. Explicit open-surface title, kind,
+resizability, and minimum size are applied after the callback.
+
+`gpui_component::TitleBar::window_options()` supplies transparent macOS titlebar
+options and `app_owns_titlebar_drag: true`. Its traffic-light position is the
+top-left of the close button; 17 px centers a 14 px button in a 48 px titlebar.
+The host does not add another Solid titlebar, so render exactly one:
+
+```tsx
+<TitleBar
+  style={{
+    height: 48,
+    padding: 0,
+    paddingLeft: 88,
+    paddingRight: 16,
+    backgroundColor: "#131217",
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderColor: "#2C2B33",
+  }}
+>
+  <View style={{ flexDirection: "row", flexGrow: 1, alignItems: "center" }}>
+    <Text>Application</Text>
+    <Input placeholder="Search" style={{ width: 160 }} />
+  </View>
+</TitleBar>
+```
+
+Style refinements replace the TitleBar's native defaults, including its left
+padding. Fullscreen adds no additional padding. The native TitleBar owns
+blank-area dragging and calls macOS `titlebar_double_click`, respecting the
+system preference. Controls that claim mouse-down do not initiate titlebar drag
+or double-click zoom; core `Pressable` also claims that native default action.
+An application that customizes the titlebar adds the pinned `gpui-component`
+dependency alongside `solid-gpui`.
+
 ## Request cancellation and deadlines
 
 Generated client methods accept a second `NativeCallOptions` argument:
 
 ```tsx
 const controller = new AbortController();
-const result = native.greet({ name: "Ada" }, {
-  signal: controller.signal,
-  timeoutMs: 5_000,
-});
+const result = native.greet(
+  { name: "Ada" },
+  {
+    signal: controller.signal,
+    timeoutMs: 5_000,
+  },
+);
 controller.abort();
 await result;
 ```
@@ -227,6 +340,14 @@ across Surfaces, stale epochs, mismatched contract digests, and invalid targets
 produce explicit errors.
 
 ## Data limits and generation
+
+Optional object members whose value is `undefined` are omitted recursively from
+native component props and command DTOs. For example,
+`{ items: [{ key: "mode", label: "Mode", description: undefined }] }` encodes
+without `description`; application-specific sanitizing wrappers are unnecessary.
+Undefined array elements and sparse arrays are rejected, not converted to
+`null`. This does not relax QuickJS's separate
+[captured-state contract](capture-state.md).
 
 Each DTO is limited to 1 MiB and must contain plain JSON data. Cycles,
 non-finite numbers, integers outside the safe range, BigInt, class instances,

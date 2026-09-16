@@ -11,6 +11,7 @@
     "jsxImportSource": "@solid-gpui/core",
     "strict": true,
     "noEmit": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "types": ["bun-types"]
   },

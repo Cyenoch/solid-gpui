@@ -1,7 +1,12 @@
 import { resolve } from "node:path";
 import { builtinModules } from "node:module";
 import { createRunnableDevEnvironment, normalizePath, type Plugin } from "vite";
-import { buildNativeHost, exportNativeBindings, type NativeExportOptions } from "./native-export.ts";
+import {
+  buildNativeHost,
+  exportHostBindings,
+  exportNativeBindings,
+  type NativeExportOptions,
+} from "./native-export.ts";
 import { createStdioEnvironment, NativeDevEnvironment, type NativeHostOptions } from "./environment.ts";
 import { transformJsx } from "./transform.ts";
 import { quickJsBuild, quickJsEntry } from "./quickjs-build.ts";
@@ -12,8 +17,11 @@ export interface SolidGpuiOptions {
   readonly entry: string;
   readonly runtime?: "bun" | "quickjs";
   readonly native?: Omit<NativeExportOptions, "check" | "output"> & { readonly output?: string };
-  /** An existing host, or false for an application-owned module runner. */
-  readonly host?: NativeHostOptions | false;
+  /**
+   * An existing host executable whose exported catalog supplies component bindings,
+   * or false for an application-owned module runner. `output` defaults to `.generated/native.ts`.
+   */
+  readonly host?: (NativeHostOptions & { readonly output?: string }) | false;
 }
 export type { NativeHostOptions } from "./environment.ts";
 
@@ -50,28 +58,36 @@ export function solidGpui(options: SolidGpuiOptions | { readonly target: "web" }
       entry = normalizePath(resolve(root, options.entry));
       const output = config.build?.rolldownOptions?.output;
       if (quickjs && Array.isArray(output)) throw new Error("QuickJS requires a single Vite output configuration");
-      const native = options.native && normalizePath(resolve(root, options.native.output ?? ".generated/native.ts"));
-      const nativeOptions = options.native && { ...options.native, output: native! };
+      const bindingsPath = (output?: string) => normalizePath(resolve(root, output ?? ".generated/native.ts"));
+      const nativeOptions = options.native && { ...options.native, output: bindingsPath(options.native.output) };
+      const host = options.host || undefined;
+      const hostBindings = host && { host, output: bindingsPath(host.output) };
+      const bindings = nativeOptions?.output ?? hostBindings?.output;
       const prepareSession = async (signal?: AbortSignal): Promise<NativeHostOptions> => {
         const prepared = (config as StdioConfig).__solidGpuiPreparedHost;
         if (prepared) return prepared;
-        if (!nativeOptions) return options.host || { command: "solid-gpui-host" };
-        const executable = stdio?.nativeHost ?? (await buildNativeHost(nativeOptions, root, signal));
-        await exportNativeBindings(nativeOptions, root, executable, signal);
-        return { command: executable };
+        if (nativeOptions) {
+          const executable = stdio?.nativeHost ?? (await buildNativeHost(nativeOptions, root, signal));
+          await exportNativeBindings(nativeOptions, root, executable, signal);
+          return { command: executable };
+        }
+        if (!hostBindings) return { command: "solid-gpui-host" };
+        // A configured host owns its component catalog; its exporter replaces the SDK's checked-in copy.
+        await exportHostBindings(hostBindings.host, { output: hostBindings.output }, root, signal);
+        return { command: hostBindings.host.command, args: hostBindings.host.args };
       };
       let preparation: Promise<NativeHostOptions> | undefined;
       prepare = () => (preparation ??= prepareSession());
-      const sessionOptions = { native: nativeOptions, prepare: prepareSession };
+      const sessionOptions = { native: nativeOptions, bindings, prepare: prepareSession };
       // During restart, dev preparation waits until the previous environment closes.
       if (environment.command === "build") await prepare();
       return {
-        ...(native
+        ...(bindings
           ? {
               resolve: {
                 alias: [
-                  { find: "#native", replacement: native },
-                  { find: "@solid-gpui/core/components", replacement: native },
+                  { find: "#native", replacement: bindings },
+                  { find: "@solid-gpui/core/components", replacement: bindings },
                 ],
               },
             }

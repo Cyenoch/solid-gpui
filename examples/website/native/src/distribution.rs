@@ -22,7 +22,9 @@ fn main() {
     if check {
         check_bundle(runtime.as_ref());
     } else {
-        solid_gpui::run_application(website_host::native_module(), runtime);
+        // The module factory keeps application hosts out of stack and thread policy:
+        // `run_application` owns the application thread.
+        solid_gpui::run_application(website_host::native_module, runtime);
     }
 }
 
@@ -77,18 +79,17 @@ fn check_bundle(runtime: &solid_gpui::QuickJsAdapter) {
                 let Some(HostProperties::Extension(properties)) = &node.host_properties else {
                     continue;
                 };
-                if modules
-                    .resolve(
-                        properties.provider_id,
-                        properties.catalog_digest,
-                        properties.entry_id,
-                        properties.entry_version,
+                if let Err(error) = modules.resolve(
+                    properties.provider_id,
+                    properties.catalog_digest,
+                    properties.entry_id,
+                    properties.entry_version,
+                ) {
+                    return Err(format!(
+                        "Website node {} has a stale native contract: {error}",
+                        node.id
                     )
-                    .is_none()
-                {
-                    return Err(
-                        format!("Website node {} has a stale native contract", node.id).into(),
-                    );
+                    .into());
                 }
                 sdk_present |= properties.provider_id == sdk_id;
             }

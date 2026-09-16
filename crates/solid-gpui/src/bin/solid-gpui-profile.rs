@@ -5,8 +5,8 @@ fn main() {
         Ok("0") | Err(std::env::VarError::NotPresent) => false,
         _ => panic!("SOLID_GPUI_PROFILE_HUD must be 0 or 1"),
     };
-    solid_gpui::host::run_with_profile(
+    solid_gpui::host::run_with_profile(move || {
         solid_gpui::components::host::ComponentHost::new(Vec::new())
-            .with_performance_monitor(monitor),
-    );
+            .with_performance_monitor(monitor)
+    });
 }

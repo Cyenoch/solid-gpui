@@ -106,6 +106,17 @@ class CandidateTransport implements Transport {
     if (this.frames.length === 0) throw new Error("application must render a nonempty initial tree");
   }
 
+  /** Buffer output until the initial tree is verified; a reopened Surface commits like a mount. */
+  hold(): void {
+    this.active = false;
+  }
+
+  /** Release staged output without publishing a tree that never became ready. */
+  discard(): void {
+    this.frames = [];
+    this.bytes = 0;
+  }
+
   activate(): void {
     this.active = true;
     this.flush();
@@ -139,7 +150,9 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
   if (previous && previous.surfaceId !== surfaceId) throw new Error("hot reload cannot change surfaceId");
   const epoch = generation?.epoch ?? (previous?.epoch ?? 0) + 1;
   if (epoch > 0xffff_ffff) throw new Error("application epoch exhausted; restart the host");
-  const saved = previous?.captureState?.();
+  // A managed generation hands its state over; capturing here would run the old
+  // generation's captureState a second time.
+  const saved = handoff === undefined ? previous?.captureState?.() : undefined;
   const state = handoff ? handoff.state[0] : saved === undefined ? undefined : (structuredClone(saved) as State);
   const transport = previous?.transport ?? options.transport();
   const closeTransport = previous?.closeTransport ?? (() => transport.dispose());
@@ -174,7 +187,18 @@ export function mountApplication<State = never>(options: ApplicationOptions<Stat
       if (!root) {
         if (activation.targetSurfaceId <= lastSurfaceId) throw new Error("activation reused a retired Surface");
         openRoot(activation.targetSurfaceId);
-        root!.render(definition!.render);
+        // A Surface opened after activation publishes the same first Snapshot a mount
+        // does, so its frames stay private until that tree is verified. A failed
+        // preparation releases them instead of publishing a tree that never committed.
+        candidate.hold();
+        try {
+          root!.render(definition!.render);
+          candidate.assertReady();
+        } catch (error) {
+          candidate.discard();
+          throw error;
+        }
+        candidate.activate();
         definition?.onMount?.(root!);
       }
       if (disposed) return;

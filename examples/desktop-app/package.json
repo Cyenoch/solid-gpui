@@ -1,12 +1,12 @@
 {
-  "name": "@solid-gpui/native-migration",
+  "name": "@solid-gpui/desktop-app",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun --bun vite",
-    "dev:rust": "cargo run -p native-migration-host",
+    "dev:rust": "cargo run -p desktop-app-host",
     "build": "bun run --bun vite build",
-    "start": "cargo run -p native-migration-host -- --production"
+    "start": "cargo run -p desktop-app-host -- --production"
   },
   "dependencies": {
     "@solid-gpui/core": "workspace:*",

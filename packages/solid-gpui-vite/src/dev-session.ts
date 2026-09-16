@@ -6,6 +6,8 @@ import { isNativeInput, nativeWatchInputs, type NativeWatchInputs } from "./nati
 
 export interface DevSessionOptions {
   readonly native?: NativeExportOptions;
+  /** Generated bindings for the host that runs this session. */
+  readonly bindings?: string;
   readonly prepare: (signal: AbortSignal) => Promise<NativeHostOptions>;
 }
 
@@ -50,7 +52,7 @@ export class DevSession {
   }
 
   private isGenerated(file: string): boolean {
-    const output = this.options.native && resolve(this.server.config.root, this.options.native.output);
+    const output = this.options.bindings && resolve(this.server.config.root, this.options.bindings);
     return !!output && (file === output || file.startsWith(output + "."));
   }
 

@@ -6,7 +6,7 @@ use std::{
 
 static CALLS: AtomicU32 = AtomicU32::new(0);
 
-#[native_module(name = "migration")]
+#[native_module(name = "desktop")]
 mod services {
     use super::*;
     #[command]
@@ -17,13 +17,33 @@ mod services {
 
 fn main() {
     solid_gpui::icons::register_icons(&[solid_gpui::icons::IconResource {
-        name: "migration:brand",
+        name: "desktop:brand",
         svg: include_bytes!("../../assets/brand.svg"),
         color_mode: solid_gpui::icons::IconColorMode::Monochrome,
     }])
     .expect("embedded icon catalog");
 
-    let profile = solid_gpui::components::host::ComponentHost::new(vec![
+    if std::env::args().any(|arg| arg == "--export-native") {
+        use solid_gpui::host::HostProfile;
+        print!("{}", profile().native_bindings().expect("native contract"));
+        return;
+    }
+    let runtime = if std::env::args().any(|arg| arg == "--production") {
+        let mut command = Command::new("bun");
+        command.arg("--conditions=browser").arg("dist/main.js");
+        ProcessAdapter::spawn(command).expect("Bun runtime")
+    } else {
+        solid_gpui::runtime::vite::Vite::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."))
+            .spawn()
+            .expect("Vite runtime")
+    };
+    // The profile is built on the application thread by the host; the icon catalog above
+    // is registered first, on the main thread.
+    solid_gpui::run_application_with_profile(profile, runtime);
+}
+
+fn profile() -> solid_gpui::components::host::ComponentHost {
+    solid_gpui::components::host::ComponentHost::new(vec![
         solid_gpui::components::native_module(),
         services::native_module(),
     ])
@@ -37,20 +57,5 @@ fn main() {
         options.window_min_size = Some(size(px(960.), px(640.)));
         options.titlebar.as_mut().unwrap().traffic_light_position = Some(point(px(16.), px(17.)));
         options
-    });
-    if std::env::args().any(|arg| arg == "--export-native") {
-        use solid_gpui::host::HostProfile;
-        print!("{}", profile.native_bindings().expect("native contract"));
-        return;
-    }
-    let runtime = if std::env::args().any(|arg| arg == "--production") {
-        let mut command = Command::new("bun");
-        command.arg("--conditions=browser").arg("dist/main.js");
-        ProcessAdapter::spawn(command).expect("Bun runtime")
-    } else {
-        solid_gpui::runtime::vite::Vite::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."))
-            .spawn()
-            .expect("Vite runtime")
-    };
-    solid_gpui::run_application_with_profile(profile, runtime);
+    })
 }

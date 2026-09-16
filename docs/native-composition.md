@@ -1,4 +1,4 @@
-# Native async composition and accessibility
+# Native UI composition
 
 ## SwiftUI and AppKit view hosting
 
@@ -14,9 +14,34 @@ records the view-lifetime, input, accessibility, and layout changes it requires.
 
 ## Solid async control flow
 
-Import native `Suspense`, `ErrorBoundary`, and `lazy` from
-`@solid-gpui/core/runtime`. They use Solid's implementations with native child
-types. Resources and transitions use the same Solid owner and reactive graph.
+Import `For`, `Index`, `Show`, `Switch`, `Match`, `Suspense`, `ErrorBoundary`, and
+`lazy` from `@solid-gpui/core/runtime`. These are Solid's own implementations
+with native child types, not wrapper components. Resources and transitions
+share the same Solid owner and reactive graph.
+
+The `solid-js` control-flow declarations refer to DOM `JSX.Element`, even when
+the application uses `jsxImportSource: "@solid-gpui/core"`. Import native control
+flow from the runtime entry instead of casting native children, widening JSX to
+DOM nodes, or replacing reactive lists with `.map()` to silence type errors.
+`For` preserves item ownership across reordering; `Index` preserves positions.
+`Show` and `Match` pass an accessor to non-keyed render children and the value to
+keyed children, matching Solid's normal semantics.
+
+```tsx
+import { Text, View } from "@solid-gpui/core";
+import { createSignal, For, Show } from "@solid-gpui/core/runtime";
+
+function Modes() {
+  const [modes] = createSignal(["Local", "Remote"]);
+  return (
+    <View style={{ flexDirection: "column", gap: 8 }}>
+      <Show when={modes().length > 0} fallback={<Text>No modes</Text>}>
+        <For each={modes()}>{(mode) => <Text>{mode}</Text>}</For>
+      </Show>
+    </View>
+  );
+}
+```
 
 ```tsx
 import { Text } from "@solid-gpui/core";
@@ -32,7 +57,9 @@ function Greeting() {
 export function Page() {
   return (
     <ErrorBoundary fallback={(_error, reset) => <Text onPress={reset}>Retry</Text>}>
-      <Suspense fallback={<Text>Loading</Text>}><Greeting /></Suspense>
+      <Suspense fallback={<Text>Loading</Text>}>
+        <Greeting />
+      </Suspense>
     </ErrorBoundary>
   );
 }
@@ -59,8 +86,7 @@ status, alert, group, list, listitem, and dialog roles. A generic role does not
 create an AccessKit node. Choose a semantic role for an accessible container.
 
 ```tsx
-<View accessibilityRole="status" accessibilityLive="polite"
-      accessibilityValue={status()}>
+<View accessibilityRole="status" accessibilityLive="polite" accessibilityValue={status()}>
   <Text>{status()}</Text>
 </View>
 ```
@@ -84,7 +110,7 @@ actual assistive-technology session.
 The generated native client exposes `getMotionPreference()` and
 `setMotionPreference("system" | "reduced" | "full")`. The returned state includes
 `mode`, effective `reduced`, and a source tagged `starting`, `available`, or
-`unavailable`. Gallery's Transitions page exposes all three modes.
+`unavailable`.
 
 Native hosts start in System mode with decorative motion reduced until the first
 system value resolves. NSWorkspace notifications on macOS, UISettings events on
@@ -107,6 +133,10 @@ are not silently widened to graphemes. Existing undo and marked-text rules apply
 This does not establish full bidirectional visual caret/selection support or
 change the separate gpui-component editor implementation.
 
+Generated Input/Textarea/Editor navigation and deletion also use extended
+Unicode graphemes. Their Rope implementation requests only the chunks needed by
+segmentation, including cross-chunk context, without copying the full document.
+This protects logical editing; complete visual bidi geometry remains separate.
 
 ## Application lifetime and activation
 
@@ -126,7 +156,9 @@ const application = mountApplication({
   setup() {
     return {
       render: () => <Text>Document workspace</Text>,
-      onMount(root) { /* Configure each newly opened window here. */ },
+      onMount(root) {
+        /* Configure each newly opened window here. */
+      },
       onActivate({ reason, urls, root }) {
         // Dispatch validated application URLs to the current document model.
         console.error(`Activation: ${reason}; ${urls.length} URLs`);
@@ -155,18 +187,70 @@ activation test as desktop registration or second-instance acceptance.
 
 ## App-owned progress services
 
-Gallery's Native & Platform page uses the generated `WorkspaceScan` native view.
-A real filesystem worker owns its cancellation token; the view owns its observer.
-Changing `requestId` restarts a path, clearing `path` cancels, and unmount cancels
-and drops the observer. Replies carry the request ID so old progress cannot
-replace a newer request's UI.
+For typed native commands, cancellation, deadlines, and bounded admission,
+see [Rust integration](rust-bridge.md#request-cancellation-and-deadlines).
 
-The example permits two live workers, counts at most 100,000 entries, queues at
-most 4096 directories, never follows symlinks, and coalesces progress into one
-latest-value slot at 20 Hz. Filesystem calls run off the GPUI foreground thread.
-Cancellation is cooperative between filesystem operations: a blocked OS read
-keeps its admission permit until it actually exits. Errors appear in the progress
-result. This is an application service example, not a framework filesystem API.
+## Layout and paint
+
+These style fields are validated in TypeScript and Rust, encoded by the canonical
+Bebop schema, and applied by the native renderer:
+
+| Capability              | API                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| Padding edges           | `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft`                                       |
+| Border edges            | `borderTopWidth`/`borderTopColor`, and corresponding right/bottom/left fields                      |
+| Corner radii            | `borderTopLeftRadius`, `borderTopRightRadius`, `borderBottomRightRadius`, `borderBottomLeftRadius` |
+| Wrapping                | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                   |
+| Proportional dimensions | `widthPercent`, `heightPercent` (50 means 50%)                                                     |
+| Background gradient     | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                     |
+
+Edge and corner values override shorthands, including explicit zero. Percent and
+pixel values for the same dimension are mutually exclusive. Percent dimensions
+are relative to the containing layout block. Existing `flexGrow`, `flexShrink`,
+`minWidth`, and `maxWidth` remain useful for proportional layout.
+
+Gradients use degrees clockwise from up; 180 paints top-to-bottom. Colors accept
+`#RRGGBB` or `#RRGGBBAA`. Stops are strictly increasing positions in [0, 1]. The
+linked GPUI gradient primitive supports exactly two stops; arbitrary multi-stop
+gradients are not included. Per-edge colors use four bounded native paths around
+the original layout box, including corner arcs; they do not introduce flex items.
+
+```tsx
+<View style={{ position: "relative", height: 230, overflow: "hidden" }}>
+  <Image source="assets/cover.png" objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
+  <View
+    style={{
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      justifyContent: "flex-end",
+      padding: 20,
+      linearGradient: {
+        angle: 180,
+        stops: [
+          { color: "#13121700", position: 0 },
+          { color: "#131217FF", position: 1 },
+        ],
+      },
+    }}
+  >
+    <Text style={{ color: "#FFFFFF" }}>Instance title</Text>
+  </View>
+</View>
+```
+
+For segmented controls, set the left button's right radii and the right button's
+left radii to zero. For a two-column summary at arbitrary wide sizes, make each
+row a wrapping flex row containing two `width: 0, flexGrow: 1, minWidth: 300`
+items with `gap: 16`. This keeps two columns and wraps below the two-item minimum.
+The [desktop application example](../examples/desktop-app/README.md#home-route-layout-and-paint)
+demonstrates these patterns and single-edge separators.
+
+Distributing remaining space is a separate contract: a bounded scrolling work
+area needs an explicit flex direction on every ancestor. See
+[bounded page scrolling](scroll-performance.md#bounded-page-scrolling).
 
 ## Native grid
 
@@ -175,12 +259,8 @@ Primitive styles support `gridColumns`, `gridRows`, `gridColumnSpan`, and
 GPUI's native grid; `gap` and alignment apply without switching it to flex.
 Tracks are equal fractions with a zero minimum. Grid track declarations cannot
 combine with `flexDirection`; an item may have a span and its own flex layout.
-The Gallery layout page demonstrates reactive two/three-column grids.
-
-Generated Input/Textarea/Editor navigation and deletion also use extended
-Unicode graphemes. Their Rope implementation requests only the chunks needed by
-segmentation, including cross-chunk context, without copying the full document.
-This protects logical editing; complete visual bidi geometry remains separate.
+Grid fields combine with per-edge padding, borders, corner radii, and gradients,
+and carry distinct canonical-schema field numbers like the other layout fields.
 
 ## Images
 
@@ -206,7 +286,7 @@ import { Image } from "@solid-gpui/core";
   fallbackSource="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%2394a3b8'/%3E%3C/svg%3E"
   objectFit="cover"
   style={{ width: 320, height: 180, borderRadius: 12 }}
-/>
+/>;
 ```
 
 GPUI owns asynchronous download, decoding, and caching by source. Updating

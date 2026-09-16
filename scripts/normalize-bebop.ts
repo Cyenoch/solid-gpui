@@ -16,3 +16,16 @@ if (withClippyAllowance === source) {
   await writeFile(generatedPath, withClippyAllowance);
   console.log(`normalized ${generatedPath}`);
 }
+
+// Bebop 3.2.3 emits this type as a value import, which breaks source consumers
+// using verbatimModuleSyntax. Normalize the pinned generator's import, not callers.
+const generatedTsPath = resolve("packages/solid-gpui/src/protocol/generated/protocol.ts");
+const tsSource = await readFile(generatedTsPath, "utf8");
+const tsNormalized = tsSource.replace(
+  'import { BebopView, BebopRuntimeError, BebopRecord } from "bebop";',
+  'import { BebopView, BebopRuntimeError, type BebopRecord } from "bebop";',
+);
+if (tsNormalized !== tsSource) {
+  await writeFile(generatedTsPath, tsNormalized);
+  console.log(`normalized ${generatedTsPath}`);
+}

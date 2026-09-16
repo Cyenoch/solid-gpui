@@ -52,12 +52,14 @@ impl Render for ProviderContent {
 }
 
 type WindowOptionsFactory = Rc<dyn Fn(WindowOptions, &App) -> WindowOptions>;
+type InitializeHook = Rc<dyn Fn(&mut App)>;
 
 /// Host profile that renders Solid GPUI through gpui-component's root and overlays.
 #[derive(Clone)]
 pub struct ComponentHost {
     modules: Rc<NativeModules>,
     window_options: Option<WindowOptionsFactory>,
+    initialize: Option<InitializeHook>,
     performance_monitor: bool,
 }
 impl ComponentHost {
@@ -65,6 +67,7 @@ impl ComponentHost {
         Self {
             modules: Rc::new(NativeModules::new(modules)),
             window_options: None,
+            initialize: None,
             performance_monitor: false,
         }
     }
@@ -76,6 +79,19 @@ impl ComponentHost {
         configure: impl Fn(WindowOptions, &App) -> WindowOptions + 'static,
     ) -> Self {
         self.window_options = Some(Rc::new(configure));
+        self
+    }
+
+    /// Customize the application after the component theme exists and before the first
+    /// window opens, without implementing a [`HostProfile`] wrapper.
+    ///
+    /// This is the seam for everything the renderer cannot influence in time: the shared
+    /// theme (`gpui_component::Theme`), `cx.set_reduce_motion`, and the native text
+    /// system all have to be configured here to affect the first frame, because
+    /// application theme commands and `App::set_text_style` only take effect on later
+    /// frames.
+    pub fn with_initialize(mut self, initialize: impl Fn(&mut App) + 'static) -> Self {
+        self.initialize = Some(Rc::new(initialize));
         self
     }
 
@@ -118,6 +134,9 @@ impl HostProfile for ComponentHost {
 
     fn initialize(&mut self, cx: &mut App) {
         super::initialize(cx);
+        if let Some(initialize) = &self.initialize {
+            initialize(cx);
+        }
     }
 
     fn open_window(
@@ -179,7 +198,7 @@ impl HostProfile for ComponentHost {
 
 /// Run the provider host binary with the gpui-component profile.
 pub fn run() {
-    crate::host::run_with_profile(ComponentHost::default());
+    crate::host::run_with_profile(ComponentHost::default);
 }
 
 #[cfg(test)]

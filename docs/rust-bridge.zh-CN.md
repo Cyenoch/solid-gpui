@@ -28,7 +28,7 @@ mod app {
 }
 
 fn main() {
-    solid_gpui::run(app::native_module());
+    solid_gpui::run(app::native_module);
 }
 ```
 
@@ -36,16 +36,82 @@ fn main() {
 
 runtime 为宿主模块集合延迟创建，导出 TypeScript 不启动线程。每个 Surface 最多 32 个在途请求，模块集合最多 128 个，超量立即失败。Surface 关闭、epoch 替换和 Root 释放取消托管异步调用。Tokio panic 转为请求错误。已开始的同步阻塞函数无法强制中断，结束前持续占用容量。长期任务必须协作取消，脱离父调用的子任务不会自动取消。
 
+## 桌面宿主配置
+
+`solid_gpui::run_application(module_factory, runtime)` 使用框架默认 profile 运行应用拥有的 runtime，宿主负责关闭并在应用退出时 join 该 runtime。`solid_gpui::run_application_with_profile(profile_factory, runtime)` 运行应用拥有的 profile 和 runtime，不解析宿主命令行，也不创建 runtime。两者都复用 `run` 的宿主运行器：提交准入、原生事件、协议处理、Surface 所有权、覆盖层、窗口关闭和运行时最终关闭仍由框架管理。
+
+宿主入口负责平台启动。传入在应用线程内构造 profile 的工厂，因为 profile 可以包含非 `Send` 的 GPUI 状态；工厂及捕获值须满足 `Send + 'static`。应用无需另建线程，也不要为运行器添加平台启动包装。
+
+Windows 调用线程栈不足时，运行器为应用线程预留 16 MiB，而不是依赖可执行文件通常只有 1 MiB 的初始线程栈；原生布局和绘制会沿元素树递归。其他平台原地执行，macOS 的 AppKit 仍在真正主线程运行。可通过 `SOLID_GPUI_APP_STACK_BYTES` 覆盖 Windows 栈预留做测量，`SOLID_GPUI_LOG=info` 会报告实际应用线程栈大小；无效预算会使启动失败。预留不代表每个任意深度的应用都能容纳。消费工作区应保持[开发优化配置](hot-reload.zh-CN.md#应用构建配置)一致，测量方法见 [Windows 宿主栈溢出](troubleshooting.zh-CN.md#windows-宿主栈溢出)。
+
+```rust
+use solid_gpui::{gpui::*, components::host::ComponentHost};
+
+let profile = || ComponentHost::new(vec![
+    solid_gpui::components::native_module(),
+    app::native_module(),
+])
+.with_window_options(|_, cx| {
+    let mut options = gpui_component::TitleBar::window_options();
+    options.window_bounds = Some(WindowBounds::Windowed(Bounds::centered(
+        None, size(px(1100.), px(720.)), cx,
+    )));
+    options.window_min_size = Some(size(px(960.), px(640.)));
+    options.titlebar.as_mut().unwrap().traffic_light_position =
+        Some(point(px(16.), px(17.)));
+    options
+})
+.with_performance_monitor(false);
+solid_gpui::run_application_with_profile(profile, runtime);
+```
+
+性能监视器在所有构建中**默认关闭**。应用通过 `with_performance_monitor(true)` 显式开启，环境变量不会覆盖该策略。
+
+`ComponentHost::with_initialize(|cx| { ... })` 在组件主题初始化之后、首个窗口创建之前运行，用于配置首帧原生状态，无需重新实现并转发整个 `HostProfile` trait。例如产品选择 reduced motion 时，可在此调用 `solid_gpui::motion::set(MotionMode::Reduced, cx)`。关闭动画是应用策略，不是栈溢出修复。
+
+`useNative().setApplicationTheme` 在运行时设置应用的颜色、排版和控件尺寸，参见[应用主题覆盖](gpui-components.zh-CN.md#应用主题覆盖)。图标在运行时启动前注册，参见[添加应用图标](iconify.zh-CN.md#添加应用图标)。可运行宿主、窗口配置与标题栏组合见[桌面应用示例](../examples/desktop-app/README.zh-CN.md)。
+
+### 窗口选项与标题栏
+
+`ComponentHost::with_window_options` 在渲染器打开 Surface 的覆盖项之前配置原生窗口默认值；自定义 profile 可直接实现 `HostProfile::window_options`。回调会在每个 Surface 打开时执行，并接收渲染器请求的选项，只想修改部分字段时应保留其余选项。显式指定的标题、窗口类型、可调整大小和最小尺寸在回调之后应用。
+
+`gpui_component::TitleBar::window_options()` 提供透明 macOS 标题栏以及 `app_owns_titlebar_drag: true`。红绿灯位置指关闭按钮左上角：17 px 可将 14 px 按钮居中于 48 px 标题栏。宿主不会额外添加 Solid 标题栏，应用只应渲染一个：
+
+```tsx
+<TitleBar
+  style={{
+    height: 48,
+    padding: 0,
+    paddingLeft: 88,
+    paddingRight: 16,
+    backgroundColor: "#131217",
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderColor: "#2C2B33",
+  }}
+>
+  <View style={{ flexDirection: "row", flexGrow: 1, alignItems: "center" }}>
+    <Text>Application</Text>
+    <Input placeholder="Search" style={{ width: 160 }} />
+  </View>
+</TitleBar>
+```
+
+样式设置会覆盖 TitleBar 原生默认值，包括左内边距。全屏不会增加额外内边距。原生 TitleBar 处理空白区域拖拽与 macOS `titlebar_double_click`，遵循系统偏好。接管鼠标按下事件的控件不会触发标题栏拖拽或双击缩放；核心 `Pressable` 也会接管此原生默认动作。自定义标题栏的应用需要在 `solid-gpui` 之外同时依赖固定版本的 `gpui-component`。
+
 ## 请求取消与截止时间
 
 生成客户端方法的第二个参数是 `NativeCallOptions`：
 
 ```tsx
 const controller = new AbortController();
-const result = native.greet({ name: "Ada" }, {
-  signal: controller.signal,
-  timeoutMs: 5_000,
-});
+const result = native.greet(
+  { name: "Ada" },
+  {
+    signal: controller.signal,
+    timeoutMs: 5_000,
+  },
+);
 controller.abort();
 await result;
 ```
@@ -159,6 +225,8 @@ function Editor() {
 方法调用等待当前 Solid 事务生成完整 Patch。卸载将 ref 设为 `undefined` 并拒绝待处理调用。跨 Surface、过期 epoch、契约 digest 不匹配和无效目标都返回显式错误。
 
 ## 数据限制与生成
+
+原生组件 props 和命令 DTO 中，值为 `undefined` 的可选对象字段会递归省略。例如 `{ items: [{ key: "mode", label: "Mode", description: undefined }] }` 编码时不包含 `description`，不需要应用自行清洗。数组中的 `undefined` 和稀疏项仍被拒绝，不会转换为 `null`。这不改变 QuickJS 独立的[捕获状态契约](capture-state.zh-CN.md)。
 
 每个 DTO 限制 1 MiB，必须是普通 JSON 数据。循环、非有限数、安全整数范围外的整数、BigInt、类实例、未知字段和无效枚举均被拒绝。JS 回调、GPUI Entity 和线程对象不跨运行时边界。领域约束应写在 Rust DTO 的 Deserialize 实现中，例如内置 Percentage 的 0–100 验证。
 

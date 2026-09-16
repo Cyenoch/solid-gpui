@@ -93,4 +93,4 @@ objc2-foundation = { version = "0.3", features = ["NSNotification", "NSOperation
 block2 = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62", features = ["Foundation", "UI_ViewManagement"] }
+windows = { version = "0.62", features = ["Foundation", "UI_ViewManagement", "Win32_System_Threading"] }

@@ -135,7 +135,12 @@ export function iconFor(node: HostNodeInternal, props: HostProps): HostPropertie
   if (node.kind !== "Icon") return null;
   const name = props.name;
   if (!isIconName(name)) {
-    throw new TypeError("Icon name must be a built-in or registered application icon");
+    throw new TypeError(
+      `Unknown Icon name ${typeof name === "string" ? JSON.stringify(name) : `(${typeof name})`}. ` +
+        "Use ICON_NAMES from @solid-gpui/core for built-in names, or register the SVG with " +
+        "solid_gpui::icons::register_icons and import its name from the generated applicationIcons catalog. " +
+        "Iconify names are not downloaded at runtime.",
+    );
   }
   const size = props.size ?? 16;
   if (typeof size !== "number" || !Number.isFinite(size) || size <= 0 || !Number.isFinite(Math.fround(size))) {

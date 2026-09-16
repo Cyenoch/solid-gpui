@@ -24,6 +24,44 @@ requires measuring its full content before shrinking it back into the window.
 Do not apply this rule to content-sized cards, labels, or intrinsic columns.
 Their natural size is part of their contract.
 
+The surface root is a full-size column; ordinary `View` nodes keep GPUI defaults
+unless a style selects flex or grid. `gap`, `alignItems`, and `justifyContent`
+also select flex, with a column default when direction is absent.
+
+### Bounded page scrolling
+
+Separate a bounded viewport from naturally sized content. Keep headers and
+footers outside the viewport and prevent them from shrinking:
+
+```tsx
+import { Text, View } from "@solid-gpui/core";
+import { Scrollable } from "@solid-gpui/core/components";
+
+<View style={{ heightPercent: 100, flexDirection: "column", minHeight: 0 }}>
+  <View style={{ height: 48, flexShrink: 0 }}>
+    <Text>Settings</Text>
+  </View>
+  <Scrollable style={{ height: 0, flexGrow: 1, minHeight: 0, minWidth: 0 }}>
+    <View style={{ flexDirection: "column", flexShrink: 0, gap: 16, padding: 24 }}>
+      <Text>Page content</Text>
+    </View>
+  </Scrollable>
+</View>;
+```
+
+The viewport reuses the zero initial size above; its content keeps
+`flexShrink: 0` so the natural height survives into the scrollable range. Repeat
+this bounded column contract through intermediate route and layout wrappers up
+to the window root.
+
+Core `View` with `overflow: "scroll"` supports wheel scrolling but does not
+create a visible scrollbar; use `Scrollable` for native scrollbars and scroll
+commands. Neither API can scroll content that flex layout has already shrunk to
+fit. Bare labels belong in `Text`, not directly under `View` or `Pressable`.
+
+The [desktop application example](../examples/desktop-app/README.md#bounded-settings-page)
+runs this header/footer/viewport form as a routed page.
+
 ## Reproduction and regression
 
 The original routed Gallery regression was removed with the old application.

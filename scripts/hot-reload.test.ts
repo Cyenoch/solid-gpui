@@ -73,16 +73,23 @@ mountApplication<number>({ hotKey: import.meta.url, transport: () => new StdioTr
   const host = join(directory, "host.ts");
   await writeFile(
     host,
-    `const child = Bun.spawn(JSON.parse(process.env.SOLID_GPUI_VITE_RUNNER!), {
-    stdin: 'pipe', stdout: 'inherit', stderr: 'inherit'
-  });
-  console.error('owned-processes:' + process.pid + ',' + child.pid);
-  process.exitCode = await child.exited;`,
+    `if (Bun.argv.includes('--export-native')) {
+    // Vite exports the running host's component catalog before loading the application.
+    console.log('export {};');
+  } else {
+    const child = Bun.spawn(JSON.parse(process.env.SOLID_GPUI_VITE_RUNNER!), {
+      stdin: 'pipe', stdout: 'inherit', stderr: 'inherit'
+    });
+    console.error('owned-processes:' + process.pid + ',' + child.pid);
+    process.exitCode = await child.exited;
+  }`,
   );
   await writeFile(
     config,
+    // `root` keeps the plugin's generated bindings (default `.generated/native.ts`) inside the
+    // fixture instead of the process working directory, which is the repository.
     `import { solidGpui } from '@solid-gpui/vite';
-export default { logLevel: 'error', plugins: [solidGpui({entry: ${JSON.stringify(entry)}, host: { command: 'bun', args: [${JSON.stringify(host)}] }})], resolve: { alias: [
+export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins: [solidGpui({entry: ${JSON.stringify(entry)}, host: { command: 'bun', args: [${JSON.stringify(host)}] }})], resolve: { alias: [
 {find: '@solid-gpui/core/runtime', replacement: '${repo}/packages/solid-gpui/src/runtime.ts'},
 {find: '@solid-gpui/core/stdio', replacement: '${repo}/packages/solid-gpui/src/stdio.ts'},
 {find: '@solid-gpui/core', replacement: '${repo}/packages/solid-gpui/src/index.ts'}

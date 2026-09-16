@@ -278,7 +278,7 @@ class Tasks {
     await run(["bunx", "bebopc", "--config", "packages/solid-gpui/src/protocol/bebop.json", "build"], {
       env: { TERM: "xterm-256color", COLUMNS: "120", LINES: "40" },
     });
-    await run(["bun", "scripts/normalize-bebop-rust.ts"]);
+    await run(["bun", "scripts/normalize-bebop.ts"]);
     await run(["rustfmt", "--edition", "2024", "crates/solid-gpui/src/protocol/generated/protocol.rs"]);
     await run(["bun", "scripts/protocol-schema-meta.ts"]);
     await run([

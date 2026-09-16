@@ -27,7 +27,8 @@ export const componentDescriptionsChinese: Record<string, string> = {
   "Select a value along a continuous range.": "通过滑块选择范围内的数值。",
   "Display or change a rating.": "展示或修改评分。",
   "Navigate between pages of results.": "在多页结果之间导航。",
-  "Choose from labeled, grouped options.": "从可分组的选项中选择。",
+  "Choose from labeled, grouped options. Controlled keys may precede asynchronous options; loading or removing the catalog does not emit a selection change.":
+    "从可分组的选项中选择。受控键可以先于异步选项到达；加载或移除目录不会触发选择变更。",
   "Choose a date from a calendar.": "从日历中选择日期。",
   "Choose and edit a color.": "选择并编辑颜色。",
   "Show progress toward completion.": "展示任务完成进度。",

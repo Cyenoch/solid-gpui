@@ -1400,6 +1400,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "desktop-app-host"
+version = "0.3.0"
+dependencies = [
+ "gpui-component",
+ "solid-gpui",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4062,14 +4070,6 @@ dependencies = [
  "spirv",
  "thiserror 2.0.20",
  "unicode-ident",
-]
-
-[[package]]
-name = "native-migration-host"
-version = "0.3.0"
-dependencies = [
- "gpui-component",
- "solid-gpui",
 ]
 
 [[package]]

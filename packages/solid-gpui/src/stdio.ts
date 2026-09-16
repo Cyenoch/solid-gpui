@@ -89,6 +89,12 @@ function terminatedError(
 
 export type ExitFunction = (code: number) => void;
 
+/**
+ * Explicit termination policy for applications that want a diagnostic line and
+ * a failure status instead of the transport's own host-close handling. A
+ * listener registered here runs before the transport ends the process, so it
+ * replaces that default; a listener may also end the process itself.
+ */
 export function createProcessTerminationHandler(exit: ExitFunction = defaultProcessExit): TransportTerminationListener {
   return (error) => {
     console.error(`solid-gpui: transport terminated: ${error.message}`);
@@ -97,14 +103,37 @@ export function createProcessTerminationHandler(exit: ExitFunction = defaultProc
 }
 
 function defaultProcessExit(code: number): void {
-  const processObject = (globalThis as { process?: { exit?: ExitFunction } }).process;
-  if (processObject?.exit) {
-    processObject.exit(code);
+  const { exit } = processGlobal();
+  if (exit) {
+    exit(code);
     return;
   }
   throw new Error(`solid-gpui: transport terminated with exit code ${code}`);
 }
 
+export interface StdioTransportOptions {
+  /** Frame destination; defaults to `process.stdout`. */
+  readonly output?: ByteOutput;
+  /** Frame source; defaults to `process.stdin`. */
+  readonly input?: ByteInput;
+  /**
+   * End this process when the host connection ends, even while application
+   * timers or polling keep Bun's event loop alive. Defaults to true when the
+   * connection reads the process's own stdin, which is the host pipe of a
+   * renderer child. Pass false only when this process outlives the connection.
+   */
+  readonly exitOnHostClose?: boolean;
+  /** Exit hook; defaults to `process.exit`. */
+  readonly exit?: ExitFunction;
+}
+
+/**
+ * Framed stdio connection to the host. The connection that reads the process's
+ * own stdin also owns the renderer's lifetime: closing the host pipe ends this
+ * process instead of leaving an orphan that application timers keep alive.
+ * Intentionally disposed connections and connections over supplied streams
+ * never end the process; that is the embedder's decision, not the host's.
+ */
 export class StdioTransport implements DisposableTransport {
   private readonly listeners = new Set<TransportListener>();
   private readonly terminationListeners = new Set<TransportTerminationListener>();
@@ -119,12 +148,22 @@ export class StdioTransport implements DisposableTransport {
   private disposed = false;
   private terminated = false;
   private terminationError: TransportTerminatedError | undefined;
+  private readonly input: ByteInput;
+  private readonly output: ByteOutput;
+  private readonly exitOnHostClose: boolean;
+  private readonly exit: ExitFunction;
   private readonly tap: ProtocolTap | undefined;
 
-  constructor(
-    private readonly output: ByteOutput = getDefaultOutput(),
-    private readonly input: ByteInput = getDefaultInput(),
-  ) {
+  constructor(options: StdioTransportOptions = {}) {
+    const stdio = processGlobal();
+    const input = options.input ?? stdio.stdin;
+    const output = options.output ?? stdio.stdout;
+    if (!input) throw new Error("StdioTransport requires a readable stdin");
+    if (!output) throw new Error("StdioTransport requires a writable stdout");
+    this.input = input;
+    this.output = output;
+    this.exit = options.exit ?? defaultProcessExit;
+    this.exitOnHostClose = options.exitOnHostClose ?? input === stdio.stdin;
     this.tap = ProtocolTap.fromEnv();
     this.inputListener = (chunk) => {
       if (this.disposed || this.terminated) return;
@@ -208,7 +247,29 @@ export class StdioTransport implements DisposableTransport {
     this.tap?.dispose();
     const listeners = [...this.terminationListeners];
     this.terminationListeners.clear();
-    for (const listener of listeners) listener(error);
+    try {
+      for (const listener of listeners) listener(error);
+    } finally {
+      this.endHostLifetime(error);
+    }
+  }
+
+  /**
+   * Terminating listeners have already observed the reason; end the process
+   * afterwards so a closed host pipe cannot leave an orphan renderer whose
+   * timers keep the event loop alive. Nothing here touches application-owned
+   * children: detached services are separate processes and outlive the renderer.
+   */
+  private endHostLifetime(error: TransportTerminatedError): void {
+    if (!this.exitOnHostClose) return;
+    // A closed pipe is the host going away, not a renderer failure. Windows can
+    // report the broken pipe as a read error instead of a clean end.
+    if (error.cause?.kind === "eof") {
+      this.exit(0);
+      return;
+    }
+    console.error(`solid-gpui: transport terminated: ${error.message}`);
+    this.exit(1);
   }
 
   private detachListeners(): void {
@@ -240,14 +301,14 @@ function detachOutputListener(
   else output.removeListener?.(event, listener);
 }
 
-function getDefaultInput(): ByteInput {
-  const input = (globalThis as { process?: { stdin?: ByteInput } }).process?.stdin;
-  if (!input) throw new Error("StdioTransport requires a readable stdin");
-  return input;
+interface ProcessGlobal {
+  readonly stdin?: ByteInput;
+  readonly stdout?: ByteOutput;
+  readonly exit?: ExitFunction;
 }
 
-function getDefaultOutput(): ByteOutput {
-  const output = (globalThis as { process?: { stdout?: ByteOutput } }).process?.stdout;
-  if (!output) throw new Error("StdioTransport requires a writable stdout");
-  return output;
+/** Bun and Node expose stdio and process exit here; other runtimes reach the host through a bridge. */
+function processGlobal(): ProcessGlobal {
+  const globals = globalThis as { process?: ProcessGlobal };
+  return globals.process ?? {};
 }

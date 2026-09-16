@@ -290,6 +290,12 @@ pub fn initialize(cx: &mut gpui::App) {
             std::borrow::Cow::Borrowed(include_bytes!("../../fonts/MapleMono-BoldItalic.ttf")),
         ])
         .expect("bundled Maple Mono fonts must be valid");
+    // Only the monospace family is overridden here. `Theme::font_family` intentionally
+    // keeps gpui-component's `.SystemUIFont`, which the platform text systems resolve:
+    // gpui-macos maps it to `.AppleSystemUIFont`, gpui-windows to the OS UI font from
+    // `lfMessageFont` (`Microsoft YaHei UI`, `Microsoft JhengHei UI`, `Yu Gothic UI`,
+    // `Malgun Gothic`, or Segoe UI). Naming a Latin family in the framework default
+    // would push non-Latin text onto the per-glyph fallback path on those systems.
     cx.global_mut::<gpui_component::Theme>().mono_font_family = "Maple Mono".into();
     gpui_component::Theme::sync_base(cx);
 }

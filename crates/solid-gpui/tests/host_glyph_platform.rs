@@ -1,4 +1,4 @@
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use gpui::{IsZero, Point, RenderGlyphParams, font, px};
 
 /// Proves the native platform text path can produce a real glyph bitmap.
@@ -6,7 +6,12 @@ use gpui::{IsZero, Point, RenderGlyphParams, font, px};
 /// The production host must compile `gpui_macos` with `font-kit`; otherwise the
 /// platform falls back to `NoopTextSystem`, whose glyph raster bounds are zero
 /// and whose bitmap is empty even though text layout/underlines still run.
-#[cfg(target_os = "macos")]
+///
+/// On Windows the same probe proves that `.SystemUIFont` resolves through DirectWrite
+/// to the OS UI font reported by `NONCLIENTMETRICS.lfMessageFont`. A family that no
+/// longer resolves fails here instead of silently pushing every glyph onto the fallback
+/// path, which is how a wrong system font setting used to surface.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn native_platform_glyph_raster_probe() {
     let platform = gpui_platform::current_platform(false);
 
@@ -52,6 +57,6 @@ fn native_platform_glyph_raster_probe() {
 // Cargo's default test harness uses worker threads. AppKit platform creation
 // must run on the process main thread, so this target has harness = false.
 fn main() {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     native_platform_glyph_raster_probe();
 }

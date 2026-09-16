@@ -150,8 +150,10 @@ add(
 );
 add(
   "Select Combobox",
-  "Choose from labeled, grouped options.",
-  componentDescriptionsChinese["Choose from labeled, grouped options."],
+  "Choose from labeled, grouped options. Controlled keys may precede asynchronous options; loading or removing the catalog does not emit a selection change.",
+  componentDescriptionsChinese[
+    "Choose from labeled, grouped options. Controlled keys may precede asynchronous options; loading or removing the catalog does not emit a selection change."
+  ],
   '<N.Select items={[{ key: "languages", label: "Language", items: [{ key: "en", label: "English" }, { key: "zh", label: "Chinese" }] }]} placeholder="Select a language" />',
 );
 componentExamples.push({
@@ -361,7 +363,7 @@ add(
   "Scrollable",
   "Keep content within a bounded, keyboard-accessible region.",
   componentDescriptionsChinese["Keep content within a bounded, keyboard-accessible region."],
-  "<N.Scrollable style={{ height: 240 }}>{Array.from({ length: 30 }, (_, i) => <View style={{ padding: 10 }}><N.Label text={`Project ${i + 1}`} /></View>)}</N.Scrollable>",
+  "<N.Scrollable style={{ height: 240 }}>{Array.from({ length: 30 }, (_, i) => <View style={{ padding: 10, flexShrink: 0 }}><N.Label text={`Project ${i + 1}`} /></View>)}</N.Scrollable>",
 );
 add(
   "ScrollShadow",

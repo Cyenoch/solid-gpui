@@ -393,7 +393,10 @@ fn command_variants_keep_u32_and_optional_values() {
             node_id: 1,
         },
         CommandOperation::WriteTextFile {
-            path: "/tmp/file.txt".to_owned(),
+            path: std::env::temp_dir()
+                .join("file.txt")
+                .to_string_lossy()
+                .into_owned(),
             content: "text".to_owned(),
         },
     );

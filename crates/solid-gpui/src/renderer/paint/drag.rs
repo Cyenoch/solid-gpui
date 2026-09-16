@@ -171,15 +171,13 @@ mod tests {
 
     #[test]
     fn outbound_file_drag_payload_preserves_paths_and_directory_metadata() {
-        let missing = "/definitely/not/a/solid-gpui-file";
-        let payload = external_file_drag_payload(&["/tmp".to_owned(), missing.to_owned()]);
+        let directory = std::env::temp_dir();
+        let missing = directory.join("definitely/not/a/solid-gpui-file");
+        let payload = external_file_drag_payload(&[
+            directory.to_string_lossy().into_owned(),
+            missing.to_string_lossy().into_owned(),
+        ]);
         let ExternalDragPayload::Files(paths) = payload;
-        assert_eq!(
-            paths.entries(),
-            &[
-                (std::path::PathBuf::from("/tmp"), true),
-                (std::path::PathBuf::from(missing), false),
-            ]
-        );
+        assert_eq!(paths.entries(), &[(directory, true), (missing, false),]);
     }
 }

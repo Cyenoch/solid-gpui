@@ -33,7 +33,13 @@ export default defineConfig({
               output: resolve(root, ".scratch/vite-fixture/native.ts"),
             },
           }
-        : { host: { command: resolve(root, "target/debug/solid-gpui-host") } }),
+        : {
+            // This host is built separately; Vite exports its catalog before loading the application.
+            host: {
+              command: resolve(root, "target/debug/solid-gpui-host"),
+              output: resolve(root, ".scratch/vite-fixture/native-bun.ts"),
+            },
+          }),
     }),
   ],
   resolve: { alias: fixtureAliases },

@@ -1,7 +1,16 @@
 /// <reference types="vite/client" />
 import { Icon, Image, Text, View, mountApplication, type Root } from "@solid-gpui/core";
-import { Button, Input, Tag, TitleBar, createClient, type ApplicationTheme } from "@solid-gpui/core/components";
-import { createSignal, onCleanup } from "@solid-gpui/core/runtime";
+import {
+  Button,
+  Input,
+  Scrollable,
+  Select,
+  Tag,
+  TitleBar,
+  createClient,
+  type ApplicationTheme,
+} from "@solid-gpui/core/components";
+import { createSignal, For, Show, onCleanup } from "@solid-gpui/core/runtime";
 import { StdioTransport } from "@solid-gpui/core/stdio";
 import { createRootRoute, createRoute, createRouter, RouterProvider, Outlet, Link } from "@solid-gpui/router";
 import { useNative, applicationIcons } from "./native";
@@ -60,7 +69,6 @@ const theme: ApplicationTheme = {
     titleBar: palette.background,
     titleBarBorder: palette.border,
   },
-  fontFamily: ".SystemUIFont",
   fontSize: 14,
   lineHeight: 20,
   radius: 6,
@@ -93,7 +101,7 @@ function Home() {
             gap: 8,
           }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 24 }}>Native migration fixture</Text>
+          <Text style={{ color: "#FFFFFF", fontSize: 24 }}>Desktop application example</Text>
           <Tag>
             <Text>Offline resources</Text>
           </Tag>
@@ -105,7 +113,7 @@ function Home() {
           style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
           onPress={async () => setCalls(await native.serviceCount())}
         >
-          <Text>Start game</Text>
+          <Text>Call Rust service</Text>
         </Button>
         <Button
           variant="primary"
@@ -133,6 +141,57 @@ function Home() {
     </View>
   );
 }
+
+function Settings() {
+  const [loaded, setLoaded] = createSignal(false);
+  const [value, setValue] = createSignal<string | null>("configured");
+  const [changes, setChanges] = createSignal(0);
+  const rows = Array.from({ length: 14 }, (_, index) => index + 1);
+  return (
+    <View style={{ flexDirection: "column", flexShrink: 0, padding: 24, gap: 16 }}>
+      <Text style={{ fontSize: 24 }}>Application integration</Text>
+      <Text>
+        Controlled value: {value() ?? "none"} · User changes: {changes()}
+      </Text>
+      <Button label={loaded() ? "Unload choices" : "Load choices"} onPress={() => setLoaded((ready) => !ready)} />
+      <Select
+        value={value()}
+        placeholder="Choices not loaded"
+        items={
+          loaded()
+            ? [
+                {
+                  key: "modes",
+                  items: [
+                    { key: "configured", label: "Configured mode", description: undefined },
+                    { key: "alternate", label: "Alternate mode" },
+                  ],
+                },
+              ]
+            : []
+        }
+        onChange={(event) => {
+          setValue(event.value ?? null);
+          setChanges((count) => count + 1);
+        }}
+      />
+      <Show when={!loaded()}>
+        <Text>The configured value is retained while choices are unavailable.</Text>
+      </Show>
+      <For each={rows}>
+        {(row) => (
+          <View
+            style={{ flexDirection: "column", flexShrink: 0, gap: 8, padding: 16, backgroundColor: palette.surface }}
+          >
+            <Text>Setting {row}</Text>
+            <Input placeholder={`Value for setting ${row}`} />
+          </View>
+        )}
+      </For>
+      <Text>End of settings — all 14 rows are reachable.</Text>
+    </View>
+  );
+}
 function Shell(props: { onFullscreen: () => void }) {
   return (
     <View
@@ -141,7 +200,7 @@ function Shell(props: { onFullscreen: () => void }) {
         flexDirection: "column",
         backgroundColor: palette.background,
         color: palette.foreground,
-        fontFamily: ".SystemUIFont",
+        minHeight: 0,
         fontSize: 14,
         lineHeight: 20,
       }}
@@ -149,6 +208,7 @@ function Shell(props: { onFullscreen: () => void }) {
       <TitleBar
         style={{
           height: 48,
+          flexShrink: 0,
           padding: 0,
           paddingLeft: 88,
           paddingRight: 16,
@@ -160,7 +220,7 @@ function Shell(props: { onFullscreen: () => void }) {
       >
         <View style={{ flexDirection: "row", flexGrow: 1, alignItems: "center", gap: 16 }}>
           <Icon name={brand} color={palette.primary} size={22} />
-          <Text>Migration fixture</Text>
+          <Text>Desktop app</Text>
           <Link to="/">
             <Text>Home</Text>
           </Link>
@@ -171,12 +231,15 @@ function Shell(props: { onFullscreen: () => void }) {
           <Button label="Fullscreen" onPress={props.onFullscreen} />
         </View>
       </TitleBar>
-      <View style={{ flexGrow: 1, minHeight: 0, overflow: "scroll" }}>
-        <Outlet />
-      </View>
+      <Scrollable style={{ flexDirection: "column", flexGrow: 1, height: 0, minHeight: 0, minWidth: 0 }}>
+        <View style={{ flexDirection: "column", flexShrink: 0, minWidth: 0 }}>
+          <Outlet />
+        </View>
+      </Scrollable>
       <View
         style={{
           height: 40,
+          flexShrink: 0,
           paddingLeft: 24,
           justifyContent: "center",
           borderTopWidth: 1,
@@ -205,7 +268,7 @@ mountApplication<string>({
     const settings = createRoute({
       getParentRoute: () => rootRoute,
       path: "/settings",
-      component: () => <Text style={{ padding: 24 }}>Settings fixture</Text>,
+      component: Settings,
     });
     const router = createRouter({ routeTree: rootRoute.addChildren([home, settings]), initialEntries: [previous] });
     return {

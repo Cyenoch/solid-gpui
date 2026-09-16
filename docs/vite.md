@@ -68,9 +68,20 @@ solid-gpui-host bun --conditions=browser dist/app.js
 ```
 
 `vite` launches the default `solid-gpui-host` executable. For an existing custom
-host, set `host: { command: "/path/to/my-host", args: [] }`. The host must use
-Solid GPUI's host entrypoint or Rust `Vite` helper to accept its managed renderer.
-The executable is not downloaded or compiled implicitly.
+host, set `host: { command: "/path/to/my-host", args: [], output: ".generated/native.ts" }`.
+Vite runs that command with `--export-native` before loading component imports,
+then resolves `#native` and `@solid-gpui/core/components` to the exported file.
+`output` defaults to `.generated/native.ts` relative to Vite's root. This applies
+even when the application declares no custom native module: the built-in controls
+must still use the running host's exact catalog. The executable must implement
+`--export-native` and use Solid GPUI's host entrypoint or Rust `Vite` helper to
+accept its managed renderer. It is not downloaded or compiled implicitly.
+
+`host.args` precede `--export-native`, allowing an interpreted exporter such as
+`{ command: "bun", args: ["host.ts"] }`. Rust host export takes no extra launch
+arguments. The unconfigured default host uses the SDK catalog generated from
+the standard `solid-gpui-host`; keep both on the same revision. `host: false`
+selects no native contract and leaves its resolution to the caller.
 
 Vite owns configuration, aliases, virtual modules, transforms, module watching,
 and builds. Bun development executes Vite's ModuleRunner in the host-owned Bun
@@ -113,9 +124,12 @@ loading the application. This also keeps Motion on the running host's catalog.
 Unchanged output is not rewritten. Configure TypeScript `paths` for `#native`
 to the same generated file; use its generated types when changing native APIs.
 
-Use either `native` or `host` to select an executable. `native` already selects
-and builds the host. The first Rust build cannot depend on the JS bundle whose
-bindings it is about to export. During development, Rust source, Cargo manifest,
+Use either `native` or `host` to select an executable. Both export bindings from
+that executable; `native` additionally builds and watches its Cargo project.
+It does not require declaring an application-specific native module. Use
+`native` for an application-owned Rust host, including one that only registers
+the built-in component module. The first Rust build cannot depend on the JS
+bundle whose bindings it is about to export. During development, Rust source, Cargo manifest,
 lockfile, and workspace Cargo configuration edits rebuild the host and bindings
 automatically, including local path dependencies. Vite stops the old runtime
 before publishing the new bindings, then launches a fresh host. Compilation or
@@ -140,7 +154,7 @@ use solid_gpui::runtime::vite::Vite;
 let runtime = Vite::new("path/to/frontend")
     .config_file("vite.config.ts")
     .spawn()?;
-solid_gpui::run_application(app::native_module(), runtime);
+solid_gpui::run_application(app::native_module, runtime);
 ```
 
 Omit `config_file` for Vite's normal config discovery. The frontend directory

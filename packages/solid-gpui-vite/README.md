@@ -23,8 +23,13 @@ bundling. Bun retains its own APIs, including `Bun.file`, `bun:sqlite`, Workers,
 and Node builtins. Direct JavaScript applications use core without this package.
 
 The default native development host is `solid-gpui-host` on `PATH`. Select an
-existing executable with `host: { command, args }`, or build an application-owned
-Rust host and generate its native bindings:
+existing executable with `host: { command, args?, output? }`. Its `--export-native`
+output supplies `#native` and `@solid-gpui/core/components` in development and
+builds; `output` defaults to `.generated/native.ts`. The executable must already
+exist and support export; Vite never substitutes a stale SDK catalog. Arguments
+are passed before `--export-native`, so an interpreted host can use
+`{ command: "bun", args: ["host.ts"] }`. Rust host export takes no extra launch
+arguments. Alternatively, build and watch an application-owned Cargo host:
 
 ```ts
 solidGpui({
@@ -43,6 +48,11 @@ session stops before bindings change. Compilation and application failures keep
 Vite watching: fix the error and save to retry. Host replacement reopens windows
 and resets application state. Ctrl+C stops development and its build processes.
 Native commands and components use the same contract with direct JS.
+
+Neither `host` nor `native` requires application-specific native modules. A host
+that only registers the built-in controls still supplies its own exact catalog.
+The default unconfigured `solid-gpui-host` uses the matching SDK catalog;
+`host: false` does not select a native contract.
 
 Bun entries use `StdioTransport`; QuickJS entries use `EmbeddedTransport` and
 `runtime: "quickjs"` with a QuickJS-enabled host. QuickJS builds produce one

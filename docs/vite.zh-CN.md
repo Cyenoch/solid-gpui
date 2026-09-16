@@ -63,8 +63,17 @@ solid-gpui-host bun --conditions=browser dist/app.js
 ```
 
 `vite` 默认启动 `solid-gpui-host`。已有自定义宿主可设置
-`host: { command: "/path/to/my-host", args: [] }`。宿主需要使用 Solid GPUI
-宿主入口或 Rust `Vite` helper 接收受管理的 renderer。不会隐式下载或编译宿主。
+`host: { command: "/path/to/my-host", args: [], output: ".generated/native.ts" }`。
+Vite 在加载组件导入前以 `--export-native` 运行该命令，将 `#native` 和
+`@solid-gpui/core/components` 指向导出的文件。`output` 默认是相对 Vite root
+的 `.generated/native.ts`。即使没有自定义 native 模块，内置控件也必须使用实际
+宿主的精确目录。宿主必须实现 `--export-native`，并使用 Solid GPUI 宿主入口或
+Rust `Vite` helper 接收受管理的 renderer。不会隐式下载或编译宿主。
+
+`host.args` 放在 `--export-native` 之前，因此解释型 exporter 可配置为
+`{ command: "bun", args: ["host.ts"] }`。Rust 宿主导出不接受额外启动参数。
+未显式配置的默认宿主使用由标准 `solid-gpui-host` 生成的 SDK 目录，两端必须保持
+相同版本。`host: false` 不选择原生契约，解析由调用方负责。
 
 Vite 管理配置、别名、虚拟模块、转换、监听和构建。Bun 开发时，ModuleRunner
 位于宿主管理的 Bun 子进程中；独立且经过验证的 loopback 通道传递模块与 HMR，
@@ -101,8 +110,10 @@ solidGpui({
 宿主的组件目录。内容未变化时不重写文件。TypeScript 中 `#native` 的 `paths`
 需要指向同一文件；修改原生 API 时使用这里生成的类型。
 
-用 `native` 或 `host` 选择宿主；`native` 已经负责选择和构建。
-首次 Rust 构建不能依赖尚待生成 bindings 的 JS bundle。开发时，Rust 源码、Cargo
+用 `native` 或 `host` 选择宿主；两者都从实际可执行文件导出 bindings，
+`native` 还负责构建和监听 Cargo 项目，不要求声明应用自己的 native 模块。
+只注册内置组件的应用宿主同样可以使用 `native`。首次 Rust 构建不能依赖尚待
+生成 bindings 的 JS bundle。开发时，Rust 源码、Cargo
 manifest、lockfile 和工作区 Cargo 配置变化会自动重建宿主与 bindings，也覆盖
 本地路径依赖。Vite 先停止旧 runtime，再发布 bindings 并启动新宿主。编译或首次
 加载失败会继续监听；修复并保存即可重试。关闭原生窗口后也会保留监听，Ctrl+C
@@ -121,7 +132,7 @@ use solid_gpui::runtime::vite::Vite;
 let runtime = Vite::new("path/to/frontend")
     .config_file("vite.config.ts")
     .spawn()?;
-solid_gpui::run_application(app::native_module(), runtime);
+solid_gpui::run_application(app::native_module, runtime);
 ```
 
 省略 `config_file` 使用 Vite 默认配置发现。前端目录必须安装 npm 依赖。

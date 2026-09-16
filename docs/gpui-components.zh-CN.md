@@ -8,13 +8,13 @@ SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与
 Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
 原生回调排队事件，不同步执行 Solid JS。
 
-| Kit 层 | Solid GPUI 的用途 |
-| --- | --- |
-| `gpui-component` | 带样式的原生控件、编辑器、Carousel、文本、图表及窗口弹层；crate 名称仍为 `gpui-component`。 |
-| `gpui-base` | 原生交互与状态、无样式控件、过渡、弹簧、关键帧、交错延迟与 presence。 |
-| `gpui-kit` | 独立原生集成测试包使用的 facade 和无窗口系统交互辅助工具。 |
-| `gpui-fps` | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.md)。 |
-| `gpui-kit-assets` | 仅提供 Kit 控件内部需要的默认图标；应用图标归 Iconify。 |
+| Kit 层            | Solid GPUI 的用途                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| `gpui-component`  | 带样式的原生控件、编辑器、Carousel、文本、图表及窗口弹层；crate 名称仍为 `gpui-component`。 |
+| `gpui-base`       | 原生交互与状态、无样式控件、过渡、弹簧、关键帧、交错延迟与 presence。                       |
+| `gpui-kit`        | 独立原生集成测试包使用的 facade 和无窗口系统交互辅助工具。                                  |
+| `gpui-fps`        | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.md)。                   |
+| `gpui-kit-assets` | 仅提供 Kit 控件内部需要的默认图标；应用图标归 Iconify。                                     |
 
 运行依赖位于 `vendor/gpui-kit`，`references/gpui-kit` 是匹配的固定上游检出。
 Solid 应用继续由 Bun 或 QuickJS 运行；不链接 Shell，它不参与应用状态或路由。
@@ -32,10 +32,18 @@ const [name, setName] = createSignal("");
 
 每个组件的文档都记录创建时间与上次更新时间。website 把这两个日期保存在 `examples/website/component-introduced.ts`，要求每个生成的组件都有记录，并在页面上显示该页最早的创建日期与最新的更新日期，以及每个 API Reference 条目自身的一对日期；页面复制的 Markdown 同样包含它们。创建日期位于标记窗口（`newBadgeWindowDays`）内、且不早于 `newBadgeEpoch` 时，组件导航与该组件页会标记 **New**（新增）；更早的日期永不标记，因此启用规则不会把既有目录一次性全部标记为新。为新组件撰写文档时补上当天日期，修改既有文档时更新其更新时间。
 
-配置 Vite 的 `native` 后，`@solid-gpui/core/components` 与 Motion 会使用所选
-宿主生成的组件契约。Rust 变化会自动重建宿主并替换开发会话；见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
+配置 Vite 的 `native` 或显式 `host` 后，`@solid-gpui/core/components` 与 Motion
+会使用所选宿主导出的组件契约。`native` 还会自动重建 Rust 变化并替换开发会话，
+显式 `host` 则由外部构建。见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
 
 ## 覆盖范围
+
+### 异步选项目录
+
+`Select` 和 `Combobox` 允许受控选中 key 暂时不在 `items` 中：加载期间目录可为空，过滤后也可能不包含配置值。未解析的 key 不会生成伪造条目，也不会拒绝整个 Surface；匹配项到达后由原生控件解析。仅目录变化不会触发用户 `onChange`，也不会清空应用状态。保留原始受控值，不要按目录是否包含它来移除 prop。
+打开菜单或确认当前已提交的选择不会触发 `onChange`，也不会递增 `editSeq`；选择不同项或显式清空时才会发生变更。
+
+分组和条目 key 仍必须非空且唯一，多选 key 也必须非空且唯一。无效身份仍报错，不应静默删除重复项。`description: undefined` 等嵌套可选字段由原生 DTO 编码器省略。可运行示例的 Settings 路由见[桌面应用示例](../examples/desktop-app/README.zh-CN.md)。
 
 ### Carousel
 
@@ -49,8 +57,12 @@ ref 提供 `select(index)`、`next()`、`previous()` 和 `getSelectedIndex()`。
 ```tsx
 import { Carousel, CarouselItem, Label } from "@solid-gpui/core/components";
 <Carousel viewportHeight={160} pagination looping>
-  <CarouselItem accessibilityLabel="Overview"><Label text="Overview" /></CarouselItem>
-  <CarouselItem accessibilityLabel="Details"><Label text="Details" /></CarouselItem>
+  <CarouselItem accessibilityLabel="Overview">
+    <Label text="Overview" />
+  </CarouselItem>
+  <CarouselItem accessibilityLabel="Details">
+    <Label text="Details" />
+  </CarouselItem>
 </Carousel>;
 ```
 
@@ -107,32 +119,50 @@ BaseCheckbox 支持 `unchecked`、`checked`、`indeterminate`。
 `EmptyDescription`、`EmptyContent`；何时展示以及其中的操作归应用所有：
 
 ```tsx
-import { Button, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, Icon, Label } from "@solid-gpui/core/components";
+import {
+  Button,
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Icon,
+  Label,
+} from "@solid-gpui/core/components";
 <Empty style={{ height: 240 }}>
   <EmptyHeader>
-    <EmptyMedia variant="icon"><Icon source="lucide:folder-plus" /></EmptyMedia>
-    <EmptyTitle><Label text="暂无项目" /></EmptyTitle>
-    <EmptyDescription><Label text="创建项目后即可开始跟踪工作。" /></EmptyDescription>
+    <EmptyMedia variant="icon">
+      <Icon source="lucide:folder-plus" />
+    </EmptyMedia>
+    <EmptyTitle>
+      <Label text="暂无项目" />
+    </EmptyTitle>
+    <EmptyDescription>
+      <Label text="创建项目后即可开始跟踪工作。" />
+    </EmptyDescription>
   </EmptyHeader>
-  <EmptyContent><Button label="新建项目" variant="primary" /></EmptyContent>
+  <EmptyContent>
+    <Button label="新建项目" variant="primary" />
+  </EmptyContent>
 </Empty>;
 ```
 
-| 原生家族   | JS 入口                                                                                                                                                                                                                                      |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 基础控件   | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag |
-| 编辑与选择 | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                           |
-| 数据与滚动 | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                       |
-| 组合       | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar                                  |
-| 消息与附件 | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                  |
-| 导航与设置 | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                |
-| 覆盖层     | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                             |
-| 停靠       | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                 |
-| 图表       | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                          |
-| 底层绘图   | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                              |
-| 动画与 Presence | Motion、NativePresence |
-| 外观       | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                   |
-| 计算       | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                   |
+| 原生家族        | JS 入口                                                                                                                                                                                                                                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 基础控件        | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag               |
+| 编辑与选择      | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                                                                                        |
+| 数据与滚动      | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                 |
+| 组合            | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar |
+| 消息与附件      | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                                                                               |
+| 导航与设置      | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                                                                             |
+| 覆盖层          | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                                                                                          |
+| 停靠            | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                                                                                                |
+| 图表            | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                                                                                       |
+| 底层绘图        | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                                                                                           |
+| 动画与 Presence | Motion、NativePresence                                                                                                                                                                                                                                                                                    |
+| 外观            | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                                                       |
+| 计算            | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                                                                                |
 
 网站的组件侧边栏按上表的家族分组，顺序与上表一致，复合部件与宿主共用页面
 （`examples/website/component-families.ts`）。`examples/website/component-groups.ts`
@@ -177,6 +207,60 @@ ContextMenu 的触发器也放在 slots.trigger，默认子内容是自定义菜
 ## 外观
 
 `await useNative().setTheme("dark")` 更新应用级 Component 主题及其 Base 投射，也支持 light 和 system。getTheme 返回选择模式及实际 dark 标记。宿主默认跟随系统外观。Solid 样式 token 应同步相同选择，主题作为原生 App 全局状态作用于全部窗口。
+
+### 应用主题覆盖
+
+`setApplicationTheme` 替换先前的应用覆盖值，涵盖颜色、排版、圆角、输入背景色和组件尺寸。未指定项使用当前浅色或深色基础主题；`setTheme` 切换基础外观或系统外观变化后，覆盖值仍然保留。无效颜色、未知字段、无效字体名称或无效长度会在任何变更前被拒绝。原生组件与 Base 主题快照一起更新，TextView 默认值同步更新；富文本在布局时解析继承的原生排版，不在内容缓存中保存默认黑色文本片段。
+
+```ts
+await useNative().setTheme("dark");
+await useNative().setApplicationTheme({
+  fontSize: 14,
+  lineHeight: 20,
+  radius: 6,
+  radiusLg: 10,
+  colors: {
+    background: "#131217",
+    sidebar: "#0F0E12",
+    foreground: "#ECEAF1",
+    input: "#1B1A20",
+    popover: "#222127",
+    border: "#2C2B33",
+    mutedForeground: "#A09DA9",
+    primary: "#D4688C",
+    primaryHover: "#E07B9E",
+    primaryForeground: "#241219",
+    buttonPrimary: "#D4688C",
+    buttonPrimaryHover: "#E07B9E",
+    buttonPrimaryForeground: "#241219",
+    danger: "#C4574E",
+    ring: "#D4688C",
+  },
+});
+```
+
+`ApplicationThemeColors` 覆盖所链接组件库的完整纯色 token，包括各组件专用的悬停、激活、选中状态，输入与焦点颜色，菜单、弹层和对话框外观，覆盖层，以及禁用和弱化颜色。通用 `primary` 与按钮专用的 `buttonPrimary` 是不同 token；应用两者使用同一颜色时应同时设置。[桌面应用示例](../examples/desktop-app/README.zh-CN.md)在原生 token 与 Solid 样式之间共享同一份调色板。
+
+不设置 `fontFamily` 可保留原生平台的 UI 字体：框架通过平台文本系统解析 `.SystemUIFont`，在 Windows 上即系统消息/UI 字体（`NONCLIENTMETRICS.lfMessageFont`），包含系统本地化的字体选择。显式指定的应用字体仍须安装在每个选用它的目标平台上。
+
+`components` 配置 `button`、`input`、`select`、`tag`、`menu` 和 `dialog` 的共享原生尺寸。每项接受逻辑像素单位的 `height`、`fontSize`、`lineHeight`、`paddingX`、`paddingY` 和 `radius`，在实例样式之前应用；未指定的尺寸保留原生 `ControlSize` 配置。`inputBackground` 提供精确填充色，跳过原生深色模式混色规则。
+
+```ts
+await useNative().setApplicationTheme({
+  colors: { foreground: "#ECEAF1" },
+  inputBackground: "#1B1A20",
+  components: {
+    button: { height: 32, fontSize: 14, lineHeight: 20, paddingX: 12 },
+    input: { height: 32, fontSize: 14, lineHeight: 20 },
+    select: { height: 32, fontSize: 14, lineHeight: 20 },
+    menu: { height: 30, fontSize: 14 },
+  },
+});
+```
+
+宿主层的配置——profile 工厂、窗口选项和标题栏组合——属于 Rust，见[桌面宿主配置](rust-bridge.zh-CN.md#桌面宿主配置)与[窗口选项与标题栏](rust-bridge.zh-CN.md#窗口选项与标题栏)。应用图标在宿主启动前注册，见[添加应用图标](iconify.zh-CN.md#添加应用图标)。
+
+`getMotionPreference` 和 `setMotionPreference` 暴露 system、full 和 reduced 三种动画模式，见[原生组合](native-composition.zh-CN.md)。
 
 这些短界面操作使用 `CommandDefinition::foreground`；计算和 I/O 继续通过 Tokio。前台命令有类型验证，需要已挂载窗口，不能阻塞窗口。
 

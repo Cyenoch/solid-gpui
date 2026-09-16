@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mountApplication, MemoryTransport, Pressable, Text } from "../src/index";
+import { mountApplication, MemoryTransport, Pressable, Text, type MountedApplication } from "../src/index";
 import { createComponent, createSignal, onCleanup } from "../src/runtime";
 import { encodeFrame } from "../src/protocol";
 import { Envelope } from "../src/protocol/generated/protocol";
@@ -173,3 +173,104 @@ test.each(["quit", "keep-alive"] as const)(
     expect(last?.tag === 4 && last.value.payload?.tag === 14 && last.value.payload.value.quit).toBe(true);
   },
 );
+
+test("a managed generation receives its state handoff without capturing the retired generation again", () => {
+  const scope = globalThis as { __solidGpuiGeneration?: unknown };
+  const previousGeneration = scope.__solidGpuiGeneration;
+  const transport = new MemoryTransport();
+  const hotKey = "test:application-managed-handoff";
+  let captures = 0;
+  const setup = (previous = 0) => {
+    const [count] = createSignal(previous);
+    return {
+      render: () => createComponent(Text, { children: String(count()) }),
+      captureState: () => {
+        captures++;
+        return count();
+      },
+    };
+  };
+  const first = mountApplication<number>({ hotKey, transport: () => transport, setup });
+  scope.__solidGpuiGeneration = {
+    epoch: 2,
+    state: JSON.stringify({ state: [7], surfaceId: 1, open: true, activationSequence: 0 }),
+    register() {},
+  };
+  let second: MountedApplication | undefined;
+  try {
+    second = mountApplication<number>({ hotKey, transport: () => transport, setup });
+    // The handoff is authoritative: the retired generation is not asked again.
+    expect(captures).toBe(0);
+    const snapshots = transport.submitted
+      .map((frame) => Envelope.decode(frame.subarray(4)).body)
+      .filter((body) => body?.tag === 1);
+    const snapshot = snapshots.at(-1);
+    expect(snapshot?.tag === 1 && snapshot.value.epoch).toBe(2);
+    expect(snapshot?.tag === 1 && snapshot.value.nodes?.some((node) => node.text === "7")).toBe(true);
+  } finally {
+    second?.dispose();
+    first.dispose();
+    if (previousGeneration) scope.__solidGpuiGeneration = previousGeneration;
+    else delete scope.__solidGpuiGeneration;
+  }
+});
+
+test("a Surface opened after activation publishes its first Snapshot or reports the failure", () => {
+  const transport = new MemoryTransport();
+  const hotKey = "test:application-reopened-surface";
+  const seen: string[] = [];
+  let empty = false;
+  const mount = () =>
+    mountApplication({
+      hotKey,
+      lastWindowClose: "keep-alive",
+      transport: () => transport,
+      setup: () => ({
+        rootOptions: {
+          onTransportTermination: (error) =>
+            seen.push(error.cause && "detail" in error.cause ? error.cause.detail : error.message),
+        },
+        render: () => (empty ? null : createComponent(Text, { children: "Workspace" })),
+      }),
+    });
+  const activate = (epoch: number, sequence: number, targetSurfaceId: number) =>
+    transport.push(
+      encodeFrame({
+        type: "event",
+        surfaceId: 0,
+        epoch,
+        revision: 0,
+        sequence,
+        nodeId: 0,
+        listenerId: 0,
+        payload: { type: "application-activation", targetSurfaceId, reason: "reopen", urls: [] },
+      }),
+    );
+  let app = mount();
+  activate(1, 1, 1);
+  transport.push(
+    encodeFrame({
+      type: "event",
+      surfaceId: 1,
+      epoch: 1,
+      revision: 1,
+      sequence: 1,
+      nodeId: 0,
+      listenerId: 0,
+      payload: { type: "surface-closed" },
+    }),
+  );
+  expect(app.root).toBeUndefined();
+  empty = true;
+  app = mount();
+  activate(2, 2, 2);
+  // The reopened window is never acknowledged without its first Snapshot.
+  expect(app.root).toBeUndefined();
+  expect(seen).toEqual(["application must render a nonempty initial tree"]);
+  expect(
+    transport.submitted
+      .map((frame) => Envelope.decode(frame.subarray(4)).body)
+      .filter((body) => body?.tag === 1)
+      .map((body) => body?.tag === 1 && body.value.surfaceId),
+  ).toEqual([1]);
+});
