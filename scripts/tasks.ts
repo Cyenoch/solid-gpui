@@ -485,15 +485,18 @@ class Tasks {
     await run(["bun", "pm", "pack", "--filename", destination, "--quiet"], { cwd: directory });
   }
 
+  async nativeCI(): Promise<void> {
+    await this.rustFormat();
+    await this.protocolCodegenCheck();
+    await this.packageBuild();
+    await this.protocolGoldenCheck();
+    await this.rustCheck();
+    await this.nativeCodegenCheck();
+  }
+
   async packageCI(): Promise<void> {
     await this.packageBuild();
-    await Promise.all([
-      this.packageFormat(),
-      this.packageTypecheck(),
-      this.packageTest(),
-      this.packagePackSmoke(),
-      this.nativeCodegenCheck(),
-    ]);
+    await Promise.all([this.packageFormat(), this.packageTypecheck(), this.packageTest(), this.packagePackSmoke()]);
   }
   async format(): Promise<void> {
     await Promise.all([this.rustFormat(), this.packageFormat()]);
@@ -578,11 +581,7 @@ class Tasks {
   }
 
   async ci(): Promise<void> {
-    await this.rustFormat();
-    await this.protocolCodegenCheck();
-    await this.packageBuild();
-    await this.protocolGoldenCheck();
-    await this.rustCheck();
+    await this.nativeCI();
     await this.packageCI();
   }
 
@@ -695,7 +694,8 @@ addTask("shiki-package-pack <output>", "Pack Shiki package", (output) => tasks.s
 addTask("sdk-pack <output>", "Build and pack the matching SDK packages without compiling native hosts", (output) =>
   tasks.sdkPack(output),
 );
-addTask("package-ci", "Run TypeScript package CI suite", () => tasks.packageCI());
+addTask("native-ci", "Run the native, protocol, and Rust CI suite", () => tasks.nativeCI());
+addTask("package-ci", "Run the TypeScript package CI suite", () => tasks.packageCI());
 addTask("rust-format", "Check Rust formatting", () => tasks.rustFormat());
 addTask("rust-compile", "Compile Rust workspace", () => tasks.rustCompile());
 addTask("rust-test", "Run Rust tests", () => tasks.rustTest());

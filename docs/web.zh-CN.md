@@ -15,6 +15,8 @@ bun run website
 
 打开 `http://127.0.0.1:5173/solid-gpui/`。生成的 WASM 绑定位于 `examples/website/src/wasm/`，部署产物位于 `examples/website/dist/`，两者均不提交。浏览器的 `dev` 和 `build` 命令会先执行 `scripts/build-web-host.sh`，从同一份 Rust 源码生成 SDK 绑定并重建 WASM。Rust 或协议变化后重启开发命令；TypeScript/TSX 变化由 Vite 处理。直接调用 Vite 会跳过同步，可能将新组件绑定与旧宿主目录混用。
 
+`build` 由两步组合而成，本地构建始终保持全自动：`build:host` 从当前 Rust 源码重新生成 SDK 绑定与 WASM 宿主，`build:frontend` 依次执行路由生成、类型检查和 Vite 打包。`dev` 以同样方式准备宿主后再启动 Vite。没有任何脚本会复用旧的宿主产物或下载宿主，每次本地构建都会基于工作区重新生成绑定与 WASM 模块。
+
 默认 wasm-bindgen 版本不匹配时，用 `WASM_BINDGEN` 指定匹配的可执行文件。CLI 必须与 `Cargo.lock` 中的 `wasm-bindgen` 版本完全一致，较新的 CLI 不能替代。替换已安装版本时执行：
 
 ```sh
@@ -62,11 +64,23 @@ Hero 将官方 [vgpu Optimized Black Hole 预览](https://vgpu.sh/preview/optimi
 [Pages 工作流](../.github/workflows/pages.yml) 负责完整部署：
 
 - 修改网站、文档、品牌资源、SDK、Rust 或构建输入后，推送到 `main` 会构建、测试并发布网站。具有这些变更的拉取请求只构建和测试；手动运行也仅从 `main` 发布。
-- Ubuntu 安装导出 SDK 绑定所需的 Linux 原生库、仓库固定的 Rust 和 Bun 工具链，以及匹配的 Web nightly 和 wasm-bindgen CLI。`bun run website:build` 重新生成原生绑定、构建 WASM 宿主、检查网站类型并打包资源。
+- Ubuntu 安装导出 SDK 绑定所需的 Linux 原生库、仓库固定的 Rust 和 Bun 工具链，以及匹配的 Web nightly 和经校验和验证的预编译 wasm-bindgen CLI。`build:host` 重新生成原生绑定并构建 WASM 宿主，随后 `build:frontend` 检查网站类型并打包资源，最后运行网站测试。
 - 资源前缀为 `/<repository-name>/`，本站为 `/solid-gpui/`。仅上传 `examples/website/dist`。部署任务获得 Pages 写权限和 OIDC 权限，无需个人访问令牌或后端。
 - 新的拉取请求运行会取消过时检查。生产部署会等待正在执行的部署完成，最后通过 HTTP 检查确认发布页面可访问。
 
-wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。Cargo 依赖缓存包含两个固定编译器，并跨源码提交复用。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.zh-CN.md)。
+### Pages 缓存
+
+该任务使用两个信任模型不同的缓存。
+
+**生成的 WASM 宿主**缓存只保存 `examples/website/src/wasm`，即固定版本 Web nightly 经 wasm-bindgen 产出的绑定。其键是精确输入哈希且不配置 `restore-keys`，因此任何命中都是精确命中：还原的绑定与本次提交将构建的宿主完全一致。键覆盖工作流文件本身、Rust 环境配置动作、固定的工具链与 Bun 版本、Cargo 清单与锁文件、`.cargo/**`、全部 crate、vendored 的 GPUI Kit 与平台源码、第三方占位 crate、`scripts/build-web-host.sh`、生成 SDK 绑定的导出器，以及与该绑定配套提交的 `packages/solid-gpui/src/components.ts`。网站前端源码和 `docs/*.md` 被有意排除：它们只改变网站，不会改变宿主。该产物为数十兆字节，每个不同输入键对应一个条目；GitHub 会回收长期未使用的条目，因此缓存只保留当前使用的输入集合，而不是每次提交各存一份；条目被回收后按冷路径重新构建即可。
+
+命中时任务跳过 Linux 原生库、nightly 安装、Cargo 依赖缓存、wasm-bindgen CLI 和 `build:host`，但绝不跳过路由生成、类型检查、Vite 打包和网站测试，因此热运行仍会校验所有消费宿主的环节。没有对应条目的键——Rust、清单、导出器或生成契约发生变化——会以与无缓存运行相同的固定版本和命令重新构建宿主。`pages-web-host-v1` 是当前产物布局的命名空间；宿主构建新增输入时须提升该命名空间并扩展哈希闭包，确保为其他输入写入的条目绝不被复用。
+
+**Cargo 依赖**缓存是 `.github/actions/setup-rust` 中的 `rust-cache` 条目。它按运行平台和构建用途区分键，跨源码提交复用，任务失败时也会保存，且只在冷路径使用；其中只有编译输入，从不包含生成的绑定。它同样不构成跳过宿主构建的理由：只有精确输入的 WASM 缓存命中才会跳过构建，而该缓存只由已构建宿主、检查并打包网站、通过网站测试的非拉取请求运行写入。任何部分、失败或无关的缓存条目都不能替代该构建。
+
+由于缓存键包含提交的 SDK 绑定，凡改变 `packages/solid-gpui/src/components.ts` 的宿主改动都需一并重新生成并提交；热运行会依据该提交文件检查网站类型。
+
+wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.zh-CN.md)。
 
 首次发布时，需要一并推送工作流、`examples/website`、`assets/branding`、Web 宿主、工作区依赖、锁文件、vendor 补丁和引用的文档。只有 YAML 文件无法完成构建。不要提交生成的 `dist`、`target` 或 `src/wasm` 目录。
 
@@ -85,5 +99,7 @@ bun --conditions=browser test examples/website/tests
 bun run --cwd examples/website typecheck
 bun run website:build
 ```
+
+`bun run website:build` 是本地完整构建：`build:host` 重建宿主与生成的 SDK 绑定，随后 `build:frontend` 执行类型检查和打包。Pages 将这两步分开执行，并且无论 WASM 缓存状态如何，都会运行前端这一步和上述测试。
 
 在真实浏览器中验证首页计数器、文档搜索与输入、代码选择和复制、语言持久化、Hero 背景与路由清理，以及宽窄屏布局。除 Vite 开发模式外，也要验证生产预览。

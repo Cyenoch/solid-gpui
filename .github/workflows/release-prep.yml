@@ -60,27 +60,14 @@ jobs:
       - name: Run candidate development checks
         run: bun run ci
 
-      - name: Pack core candidate (no publish)
-        run: bun run task package-pack "$RUNNER_TEMP/solid-gpui-core-$RELEASE_VERSION.tgz"
-
-      - name: Pack Vite candidate (no publish)
-        run: bun run task vite-package-pack "$RUNNER_TEMP/solid-gpui-vite-$RELEASE_VERSION.tgz"
-
-      - name: Pack router candidate (no publish)
-        run: bun run task router-package-pack "$RUNNER_TEMP/solid-gpui-router-$RELEASE_VERSION.tgz"
-
-      - name: Pack Shiki candidate (no publish)
-        run: bun run task shiki-package-pack "$RUNNER_TEMP/solid-gpui-shiki-$RELEASE_VERSION.tgz"
+      - name: Pack candidate SDK tarballs (no publish)
+        run: bun run task sdk-pack "$RUNNER_TEMP/solid-gpui-sdk"
 
       - name: Upload candidate package tarballs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: solid-gpui-release-prep-${{ inputs.version }}
-          path: |
-            ${{ runner.temp }}/solid-gpui-core-*.tgz
-            ${{ runner.temp }}/solid-gpui-vite-*.tgz
-            ${{ runner.temp }}/solid-gpui-router-*.tgz
-            ${{ runner.temp }}/solid-gpui-shiki-*.tgz
+          path: ${{ runner.temp }}/solid-gpui-sdk/solid-gpui-*.tgz
           if-no-files-found: error
           retention-days: 7
           compression-level: 0

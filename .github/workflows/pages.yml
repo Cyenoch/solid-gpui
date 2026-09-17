@@ -45,31 +45,70 @@ jobs:
       PAGES_BASE_PATH: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      # Only an exact input match may skip host compilation; never add fallback keys.
+      # native-ci separately verifies the committed SDK contract against its hosts.
+      # Extend this closure whenever the host build gains another input.
+      - name: Restore generated WASM host bindings
+        id: web-host
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: examples/website/src/wasm
+          key: >-
+            pages-web-host-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
+            '.github/workflows/pages.yml', '.github/actions/setup-rust/**',
+            '.bun-version', '.cargo/**',
+            'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml',
+            'package.json', 'bun.lock', 'examples/website/package.json',
+            'crates/**', 'vendor/**', 'third_party/**', 'assets/**',
+            'examples/*/native/Cargo.toml',
+            'scripts/build-web-host.sh', 'scripts/native-codegen.ts',
+            'packages/solid-gpui-vite/src/**',
+            'packages/*/package.json',
+            'packages/solid-gpui/src/components.ts'
+            ) }}
+
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - name: Install native binding generator prerequisites
+        if: steps.web-host.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
             libfontconfig1-dev libfreetype6-dev libxcb1-dev \
             libxkbcommon-dev libxkbcommon-x11-dev pkg-config
       - name: Install Web Rust toolchain
+        if: steps.web-host.outputs.cache-hit != 'true'
         run: rustup toolchain install nightly-2026-07-28 --profile minimal --target wasm32-unknown-unknown
       - name: Set up Rust and dependency cache
+        if: steps.web-host.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-rust
         with:
           cache-key: pages-ubuntu-24.04
       - name: Install matching wasm-bindgen
+        if: steps.web-host.outputs.cache-hit != 'true'
         uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         with:
           tool: wasm-bindgen-cli@0.2.121
           fallback: none
-      - name: Build and test
-        run: |
-          bun run website:build
-          bun --conditions=browser test examples/website/tests
+      - name: Build WASM host and generated SDK bindings
+        if: steps.web-host.outputs.cache-hit != 'true'
+        run: bun run --cwd examples/website build:host
+      - name: Type-check and build the website
+        run: bun run --cwd examples/website build:frontend
+      - name: Test the website
+        run: bun --conditions=browser test examples/website/tests
+
+      # Publish artifacts only after build/tests succeed, and never from a PR.
+      - name: Save generated WASM host bindings
+        if: github.event_name != 'pull_request' && steps.web-host.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: examples/website/src/wasm
+          key: ${{ steps.web-host.outputs.cache-primary-key }}
+
       - name: Configure Pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

@@ -4,6 +4,12 @@ Run `bun run --cwd examples/website test` for catalog coverage, TSX contracts,
 SDK type checking, Markdown parsing, startup, and rendering without DOM globals.
 These checks do not establish visual or interaction correctness.
 
+The MemoryTransport navigation test uses the website's universal Vite transform
+and committed SDK bindings without compiling a Rust host. It shares Bun's browser
+Solid instance with the other tests. `native-ci` separately checks generated
+bindings against the actual SDK and website hosts. All eight browser/headless
+tests still run when Pages restores a cached WASM module.
+
 Start the website development server and open
 `/solid-gpui/tests/preview-audit.html#Tooltip`. The development-only harness mounts
 the actual catalog example in the production `ComponentPreview` shell using the

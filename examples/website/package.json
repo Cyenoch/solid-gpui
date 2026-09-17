@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "bash ../../scripts/build-web-host.sh && bun --bun vite --host 127.0.0.1",
-    "build": "bash ../../scripts/build-web-host.sh && bun run typecheck && bun --bun vite build",
+    "build": "bun run build:host && bun run build:frontend",
+    "build:host": "bash ../../scripts/build-web-host.sh",
+    "build:frontend": "bun run typecheck && bun --bun vite build",
     "typecheck": "bun run routes:generate && tsc --noEmit",
     "dev:native": "bun ../../scripts/tasks.ts website-native-dev",
     "generate:native": "solid-gpui prepare --config vite.native.config.ts",

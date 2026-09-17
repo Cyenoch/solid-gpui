@@ -94,14 +94,25 @@ horizontally; collapsed excerpts remain non-selectable with per-line fading.
 Run the website checks with:
 
 ```sh
-bun run website:build
+bun run --cwd examples/website build:host
+bun run --cwd examples/website build:frontend
 bun --conditions=browser test examples/website/tests
 ```
 
-The build generates the WASM module before type checking. Standalone
-`bun run --cwd examples/website typecheck` requires those generated files.
-Pages owns these browser checks; the SDK package CI gate runs independently of
-website build products.
+`bun run website:build` runs the same host and frontend steps locally. The host
+step generates the WASM module and the SDK bindings before type checking.
+Standalone `bun run --cwd examples/website typecheck` requires those generated
+files. Pages owns these browser checks; the SDK package CI gate runs independently
+of website build products.
+
+Pages caches only the generated `src/wasm` bindings, under an exact-input key
+covering the Rust sources, pinned toolchains, and generated SDK contract. A cache
+hit with unchanged Rust inputs skips the native toolchain setup and the host build,
+but the type check, the bundle, and the tests above always run. Regenerate and
+commit `packages/solid-gpui/src/components.ts` with any host change that alters it,
+and bump the `pages-web-host-v1` namespace in
+[the workflow](../../.github/workflows/pages.yml) when the host build gains an
+input. See [the deployment guide](../../docs/web.md#pages-caching).
 
 The reference documentation catalog loads `docs/*.md` and their `.zh-CN.md`
 translations directly through `src/documentation.ts`. Update those sources for
@@ -120,7 +131,11 @@ bun run website
 ```
 
 Browser `dev` and `build` both prepare the Rust WASM host and generated SDK
-bindings before invoking Vite. Restart development after changing Rust contracts.
+bindings before invoking Vite. `build` composes `build:host`, which regenerates
+the SDK bindings and the WASM host, and `build:frontend`, which runs the route
+generator, the type check, and the Vite bundle; `dev` prepares the host and then
+starts Vite. Neither script reuses a previously generated host, so a local build
+is always a full rebuild. Restart development after changing Rust contracts.
 Direct Vite invocations bypass this synchronization.
 
 Native component dependencies come from `vendor/gpui-kit`; the pinned

@@ -22,5 +22,6 @@ runs:
         key: ${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache-key }}
         cache-targets: ${{ inputs.cache-targets }}
         cache-bin: false
-        cache-on-failure: true
+        # Exact cache hits are immutable; do not freeze an incomplete build graph.
+        cache-on-failure: false
         save-if: ${{ github.event_name != 'pull_request' }}

@@ -5,13 +5,13 @@ and release qualification. All workflows can also be started manually.
 
 ## Automatic checks
 
-| Workflow                                                       | Automatic trigger                                                                             | Coverage                                                                                                                                                         |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [CI](../.github/workflows/ci.yml)                              | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | One macOS job runs `bun run ci`: generated contracts, Rust formatting/checks/Clippy/tests, package formatting/types/tests, and package installation smoke tests. |
-| [Cross-platform host](../.github/workflows/cross-platform.yml) | Pull requests and pushes to `main` changing native host or renderer inputs                    | Linux Clippy and library fixtures; Windows workspace checks and a linked process host.                                                                           |
-| [Dependency audit](../.github/workflows/audit.yml)             | Dependency manifests, locks, audit configuration, or notice inputs; Mondays at 03:37 UTC      | Bun and Rust advisories, plus generated third-party notice verification on macOS.                                                                                |
-| [GitHub Pages](../.github/workflows/pages.yml)                 | Website, documentation, branding, SDK, Rust, or build inputs                                  | WASM build, website types and tests; deployments only from `main`.                                                                                               |
-| [Embedded Bun](../.github/workflows/embedded-bun.yml)          | Embedded runtime, host lifecycle, embedding fixtures, or toolchain/dependency inputs          | Rust integration Clippy across all targets and embedding overlay formatting on macOS 15; no Bun compilation.                                                     |
+| Workflow                                                       | Automatic trigger                                                                             | Coverage                                                                                                                                   |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| [CI](../.github/workflows/ci.yml)                              | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | Independent macOS native/protocol checks and Linux SDK package checks; the existing `Rust and Bun checks` status requires both to succeed. |
+| [Cross-platform host](../.github/workflows/cross-platform.yml) | Pull requests and pushes to `main` changing native host or renderer inputs                    | Linux Clippy and library fixtures; Windows workspace checks and a linked process host.                                                     |
+| [Dependency audit](../.github/workflows/audit.yml)             | Dependency manifests, locks, audit configuration, or notice inputs; Mondays at 03:37 UTC      | Bun and Rust advisories, plus generated third-party notice verification on macOS.                                                          |
+| [GitHub Pages](../.github/workflows/pages.yml)                 | Website, documentation, branding, SDK, Rust, or build inputs                                  | WASM build, website types and tests; deployments only from `main`.                                                                         |
+| [Embedded Bun](../.github/workflows/embedded-bun.yml)          | Embedded runtime, host lifecycle, embedding fixtures, or toolchain/dependency inputs          | Rust integration Clippy across all targets and embedding overlay formatting on macOS 15; no Bun compilation.                               |
 
 Changes confined to the website's `docs/*.md` guides run the website workflow.
 Agent notes and reference checkouts do not trigger builds unless a listed build
@@ -21,16 +21,31 @@ filters identical. If branch protection adds required checks, account for
 [path-filtered workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore),
 which do not report a completed check when the entire workflow is skipped.
 
-The macOS CI job checks Rust formatting before compilation and shares package
-generation and Cargo compilation between Rust and Bun checks. Linux Clippy
-already checks all targets, so it does not repeat
-`cargo check` or platform-independent formatting. Windows still checks the
-workspace and links the host to exercise its shader compiler and linker.
-Display and GPU qualification remain separate; see [distribution](distribution.md).
+The macOS job runs `bun run task native-ci`: Rust formatting, generated protocol
+and native contracts, cross-language golden fixtures, default-feature workspace
+compilation, strict QuickJS Clippy, and Rust tests. The Linux SDK job runs
+`bun run task package-ci`: package formatting, types, tests, and packed-consumer
+smoke tests. It installs pinned Rust for the small native-tooling fixtures, not a
+GPUI host. Both jobs start independently; the final `Rust and Bun checks` job
+runs even when a dependency fails or is skipped and accepts only two successful
+results. Keep that aggregate status in branch protection.
 
-Browser website types and tests run in Pages after `bun run website:build` has
-generated the WASM module. The SDK package gate does not require pre-existing
-website build products or repeat those checks. The component example checker
+Local `bun run ci` still composes both gates and shares the memoized package
+build. Do not launch separate package-building task processes against the same
+checkout: their `dist` cleanup is not coordinated. Native binding verification
+belongs to `native-ci`, not the JavaScript-only `package-ci` gate.
+
+The macOS default-feature `cargo check` is intentional: QuickJS Clippy enables a
+different dependency feature set and cannot validate consumers that must compile
+without QuickJS. Linux Clippy already checks all targets with the default feature
+set, so that job does not repeat `cargo check` or platform-independent formatting.
+Windows still checks the workspace and links the host. Display and GPU
+qualification remain separate; see [distribution](distribution.md).
+
+Pages restores an exact-input cache of the generated WASM host or runs
+`build:host` on a miss, then always runs `build:frontend` and browser tests.
+The SDK package gate does not require website build products or repeat those
+checks. The component example checker
 resolves types from the website's tsconfig, so it also works when invoked from
 the repository root with Bun's isolated dependency layout.
 
@@ -63,7 +78,9 @@ Release builds and archives run on demand:
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) runs
   development checks and audits, then builds and smokes the extracted process host.
 - [Release Prep](../.github/workflows/release-prep.yml) synchronizes a candidate
-  version, runs checks and audits, and uploads the core, Vite, router, and Shiki npm package tarballs.
+  version, runs checks and audits, then uses one `sdk-pack` invocation to build
+  and upload the core, Vite, router, and Shiki tarballs. The version-labelled
+  artifact contains `solid-gpui-{core,vite,router,shiki}.tgz`.
 - Run Embedded Bun with its `candidate` input enabled to also rehearse the
   embedded release host. After the lightweight checks, a separate macOS 26 job
   builds Bun and runs the real VM lifecycle tests before the release smoke.
@@ -98,18 +115,31 @@ The shared [Rust setup action](../.github/actions/setup-rust/action.yml) selects
 the pinned toolchain before restoring a
 [Rust dependency cache](https://github.com/Swatinem/rust-cache). Cache keys include
 the runner image, architecture, build purpose, installed compilers, Cargo
-configuration, and dependency manifests/locks. Pages installs its pinned Web
-nightly before computing the key. It does not create a new cache for every commit.
+configuration, and dependency manifests/locks. On a WASM artifact-cache miss,
+Pages installs its pinned Web nightly before computing the Cargo key. Cargo
+dependency caches do not create a new entry for every source commit.
 
-The action prunes workspace build products and incremental state before saving;
-CI also disables Cargo incremental compilation. Pull requests restore caches;
-pushes and manual runs can save them, including successfully compiled dependencies
-from a failed check. Audit jobs cache only the registry. Candidate build caches
-are isolated from development and WASM caches.
+The action prunes local workspace/vendor build products and incremental state
+before saving; CI also disables Cargo incremental compilation. PRs restore
+caches; only successful pushes and manual runs can save them. Exact cache hits
+are immutable: a failed or check-only build must not seed the cache used by full
+compile/test jobs. Native CI and Embedded Bun therefore have separate cache
+namespaces even though both use macOS 15. Audit jobs cache only the registry.
+Candidate build caches are isolated from development and WASM caches.
 
-The lightweight embedded job shares the macOS CI dependency cache and skips SDK
-package builds, native binding generation, LLVM installation, and native graph
-downloads. Its Clippy feature selection still includes `embedded-bun`.
+Pages also caches `examples/website/src/wasm` as a generated artifact. This cache
+has no fallback restore keys: only an exact match of the Rust sources, embedded
+assets, Cargo configuration/locks/manifests, compiler and bindgen selection,
+native exporter inputs, and build workflow can skip host compilation. Ordinary
+website TypeScript and Markdown edits do not invalidate it. A hit skips native
+system packages and Rust/bindgen setup, never frontend compilation, type checks,
+or tests. Save it only after those checks succeed and never from a PR. Keep the
+input list in `pages.yml` current when adding Rust build inputs; see
+[Web deployment](web.md#github-pages).
+
+The lightweight embedded job skips SDK package builds, native binding generation,
+LLVM installation, and native graph downloads. Its isolated Cargo cache contains
+the `embedded-bun` Clippy graph, not the native CI test/link graph.
 
 The manual embedded candidate uses `SOLID_GPUI_BUN_CACHE` outside Cargo's `target` directory to share
 its native build graph across checks, Clippy, and release profiles. Its separate
@@ -127,6 +157,16 @@ installation fallback disabled. Bun keeps setup-bun's executable cache. Its
 package cache is not archived: in the
 [inspected CI run](https://github.com/Cyenoch/solid-gpui/actions/runs/34180146937),
 restoring it took five seconds while an uncached workspace install took four seconds.
+
+Do not equate a cache hit with avoided compilation. The measured baseline restored
+an exact 420 MiB macOS entry but still compiled 412 crates for the first protocol
+example alone. Compare compiler logs and cache size as well as hit rate. Prefer
+separate complete dependency graphs over adding another compiler cache or caching
+every commit's `target` tree; the repository already approached the default cache
+storage limit during the baseline measurement.
+
+See the [optimization research](../.scratch/ci-optimization/research.md) for source
+links, measured baseline, retained coverage, and hosted verification results.
 
 After workflow changes, run `actionlint`, `bun test scripts/task-contract.test.ts`,
 and the relevant [website checks](../examples/website/README.md). Compare cache

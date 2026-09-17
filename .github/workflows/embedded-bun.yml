@@ -63,7 +63,7 @@ jobs:
       - name: Set up Rust and dependency cache
         uses: ./.github/actions/setup-rust
         with:
-          cache-key: ci-macos-15
+          cache-key: embedded-check-macos-15
 
       - name: Install Bun workspace
         run: bun install --frozen-lockfile

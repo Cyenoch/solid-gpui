@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Split native and SDK CI checks while preserving the required aggregate status, isolated complete Cargo build caches from Embedded Bun checks, and stopped caching failed build graphs. Pages reuses exact-input WASM artifacts and keeps all frontend/headless tests without rebuilding native hosts; release preparation packs the SDK once.
 - Corrected native DTO validation to distinguish documentation, literal text, and property names from unsupported `any`/`bigint` types, while checking nested template-literal type interpolations. Native module exports preserve DTO documentation and reject unsupported types through the same binding contract.
 - Fixed strict workspace Clippy failures in component tests, removed obsolete JSX preload arguments from plain JavaScript scroll fixtures, and refreshed the generated dependency notices after tooling inputs changed. CI guidance now distinguishes package tests from the independent notice audit.
 - Consolidated application tooling around one Vite configuration: `solid-gpui prepare`, read-only generated-file checks, `doctor`, Vite-backed Bun tests, and production `preview`. Prepared TypeScript paths and structured native/bundle artifacts replace duplicated consumer path tables; Cargo builds are locked by default and preserve profile, target, exporter, and runtime-host ownership.
