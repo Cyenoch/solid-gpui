@@ -37,13 +37,7 @@ process.stdout.write(transport.submitted[0]!);
 "#;
     let output = std::process::Command::new("bun")
         .current_dir(repo_root)
-        .args([
-            "--conditions=browser",
-            "--preload",
-            "./scripts/solid-jsx.ts",
-            "-e",
-            script,
-        ])
+        .args(["--conditions=browser", "-e", script])
         .output()
         .expect("run TypeScript scroll fixture");
     assert!(
@@ -141,8 +135,6 @@ fn zero_listener_gallery_snapshot() -> Snapshot {
         )
         .args([
             "--conditions=browser",
-            "--preload",
-            "./scripts/solid-jsx.ts",
             "-e",
             r##"
 import { MemoryTransport, View, createRoot } from "./packages/solid-gpui/src/index.ts";

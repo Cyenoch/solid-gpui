@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Fixed strict workspace Clippy failures in component tests, removed obsolete JSX preload arguments from plain JavaScript scroll fixtures, and refreshed the generated dependency notices after tooling inputs changed. CI guidance now distinguishes package tests from the independent notice audit.
 - Consolidated application tooling around one Vite configuration: `solid-gpui prepare`, read-only generated-file checks, `doctor`, Vite-backed Bun tests, and production `preview`. Prepared TypeScript paths and structured native/bundle artifacts replace duplicated consumer path tables; Cargo builds are locked by default and preserve profile, target, exporter, and runtime-host ownership.
 - Published explicit SDK source conditions and `solidGpuiSource()`, plus matching tarball packing without native compilation during JS package builds. Migrated the desktop and website examples and synchronized the English/Chinese onboarding and advanced guides.
 - Track Cargo-declared native inputs, including build-script resources and external directories, after the first build. Testing now shares the application's Vite transforms and Solid resolution, with clear errors for server-build and duplicate-Solid runtimes; the private JSX preload has been removed.

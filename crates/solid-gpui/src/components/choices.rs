@@ -1099,7 +1099,7 @@ mod tests {
             gpui::Modifiers::none(),
         );
         visual.update(|window, cx| {
-            let _ = window.draw(cx).clear(cx);
+            window.draw(cx).clear(cx);
         });
         let mut reported = Vec::new();
         for step in 0..24 {
@@ -1108,7 +1108,7 @@ mod tests {
                 gpui::Modifiers::none(),
             );
             visual.update(|window, cx| {
-                let _ = window.draw(cx).clear(cx);
+                window.draw(cx).clear(cx);
             });
             let mut reached = false;
             while let Some(event) = fixture.runtime.take_event().unwrap() {

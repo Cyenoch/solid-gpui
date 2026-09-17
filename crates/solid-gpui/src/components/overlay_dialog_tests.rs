@@ -15,7 +15,7 @@ use crate::host::HostProfile;
 use crate::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
 use crate::{
     DecodedMessage, InMemoryAdapter, KIND_EXTENSION, KIND_VIEW, Node, Patch, PatchOperation,
-    Snapshot, SolidRoot, Style, UPDATE_PROPERTIES, UPDATE_STYLE,
+    Snapshot, SolidRoot, Style, UPDATE_PROPERTIES,
 };
 use std::sync::Arc;
 
