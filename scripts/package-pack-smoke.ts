@@ -44,6 +44,7 @@ async function run(command: readonly string[], cwd: string, env: Record<string, 
 
 const coreRuntimeSource = `import { MemoryTransport, Text, View, createRoot } from "@solid-gpui/core";
 import { createComponent, createSignal } from "@solid-gpui/core/runtime";
+import { TestHost } from "@solid-gpui/core/testing";
 /** @type {(() => void) | undefined} */
 let increment;
 function App() {
@@ -56,14 +57,14 @@ function App() {
 
 const transport = new MemoryTransport();
 const root = createRoot(transport);
-function submittedFrameCount() {
-  return transport.submitted.length;
-}
+const host = new TestHost(transport);
 root.render(() => createComponent(App, {}));
-if (submittedFrameCount() !== 1) throw new Error("packed core emitted no Snapshot");
+if (!host.surface(1)?.nodes.some((node) => node.text === "Count: 0"))
+  throw new Error("packed testing API could not inspect the initial render");
 increment?.();
 await Promise.resolve();
-if (submittedFrameCount() !== 2) throw new Error("packed core emitted no signal Patch");
+if (!host.surface(1)?.nodes.some((node) => node.text === "Count: 1"))
+  throw new Error("packed testing API failed to replay the signal Patch");
 root.unmount();
 `;
 

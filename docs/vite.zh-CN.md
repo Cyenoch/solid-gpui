@@ -11,12 +11,12 @@ Solid GPUI 支持两种编写方式：直接写 JavaScript 并运行，或者写
 
 过程中会产出三类不同的东西，只有第三类是交付物：
 
-| 产物 | 产出方式 | 内容 |
-| --- | --- | --- |
-| **绑定** | `solid-gpui prepare`（`bun run generate`） | 宿主导出的组件目录、命令与类型，以及生成的 TypeScript 工程。 |
-| **bundle** | `bun --bun vite build` | 供宿主执行的单个 JavaScript 入口模块。构建同时会 prepare 所配置的原生宿主（增量 Cargo 构建），但不会把原生代码写进 bundle，也不产出安装包。 |
-| **原生可执行文件** | Cargo（由插件 `native` 或你自己的构建触发） | 渲染 bundle 的 GPUI 宿主。 |
-| **可分发包** | 你自己的打包脚本 | 可执行文件加 bundle、资源、许可与签名。见[分发](distribution.zh-CN.md)。 |
+| 产物               | 产出方式                                    | 内容                                                                                                                                        |
+| ------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **绑定**           | `solid-gpui prepare`（`bun run generate`）  | 宿主导出的组件目录、命令与类型，以及生成的 TypeScript 工程。                                                                                |
+| **bundle**         | `bun --bun vite build`                      | 供宿主执行的单个 JavaScript 入口模块。构建同时会 prepare 所配置的原生宿主（增量 Cargo 构建），但不会把原生代码写进 bundle，也不产出安装包。 |
+| **原生可执行文件** | Cargo（由插件 `native` 或你自己的构建触发） | 渲染 bundle 的 GPUI 宿主。                                                                                                                  |
+| **可分发包**       | 你自己的打包脚本                            | 可执行文件加 bundle、资源、许可与签名。见[分发](distribution.zh-CN.md)。                                                                    |
 
 ## 不用打包器的 JavaScript
 
@@ -97,8 +97,10 @@ export default defineConfig({
 （解析后的产物记录）。请把 `.solid-gpui/` 排除在版本控制之外；绑定文件可以提交，
 此时用 `solid-gpui prepare --check` 作为 CI 新鲜度门槛。`prepare --check`
 不写入任何内容（它仍会解析并构建宿主以便与实际目录比对），并在任一文件过期时失败；
-`prepare --json` 输出产物记录。所有 CLI 命令都接受
-`--root`、`--config`、`--mode`，`preview` 还接受 `--` 之后的宿主参数。
+`prepare --json` 输出产物记录。工程命令接受 `--root` 和 `--config`。
+`prepare`、`preview` 支持 `--mode`（默认 `production`）；`test --mode`
+默认使用 Vite 的 `development`。`doctor` 不支持选择 Vite mode。
+`preview`、`test` 中 `--` 之后的参数属于宿主或 Bun，不再由本 CLI 解析。
 
 你自己的 `tsconfig.json` 只需继承生成工程：
 
@@ -182,18 +184,18 @@ solidGpui({
 
 ### native 构建选项
 
-| 选项 | 默认值 | 含义 |
-| --- | --- | --- |
-| `manifestPath` | — | 宿主的 Cargo manifest，必填。 |
-| `package`、`bin` | — | Cargo 选择器；manifest 中存在多个二进制时两者都需要。 |
-| `features` | — | Cargo feature，例如 `["quickjs"]`。 |
-| `output` | `.generated/native.ts` | 绑定输出位置，相对 Vite root。 |
-| `profile` | `"dev"` | Cargo profile；接受 `"debug"` 作为别名。 |
-| `target` | — | 交叉构建的 Cargo `--target` triple。 |
-| `locked` | `true` | 传递 `--locked`。仅在确实需要首次解析时设为 `false`。 |
-| `check` | `false` | 校验模式：绑定过期时报错而不写入。 |
-| `watch` | — | 额外触发原生重建的文件或目录。 |
-| `exporter` | — | 当 `target` 无法在本机执行时，用于导出绑定的宿主可执行文件。 |
+| 选项             | 默认值                 | 含义                                                         |
+| ---------------- | ---------------------- | ------------------------------------------------------------ |
+| `manifestPath`   | —                      | 宿主的 Cargo manifest，必填。                                |
+| `package`、`bin` | —                      | Cargo 选择器；manifest 中存在多个二进制时两者都需要。        |
+| `features`       | —                      | Cargo feature，例如 `["quickjs"]`。                          |
+| `output`         | `.generated/native.ts` | 绑定输出位置，相对 Vite root。                               |
+| `profile`        | `"dev"`                | Cargo profile；接受 `"debug"` 作为别名。                     |
+| `target`         | —                      | 交叉构建的 Cargo `--target` triple。                         |
+| `locked`         | `true`                 | 传递 `--locked`。仅在确实需要首次解析时设为 `false`。        |
+| `check`          | `false`                | 校验模式：绑定过期时报错而不写入。                           |
+| `watch`          | —                      | 额外触发原生重建的文件或目录。                               |
+| `exporter`       | —                      | 当 `target` 无法在本机执行时，用于导出绑定的宿主可执行文件。 |
 
 `prepare` 与开发都需要本机可运行的宿主。当 `target` 指向与构建机不同的平台或架构时，
 两者都会拒绝执行并提示：为 prepare/开发宿主去掉 `target`，或传入 `exporter`；
@@ -234,7 +236,7 @@ Native 调用不依赖打包器。直接 Bun JS 应用可以导入宿主导出�
 ```ts
 import { readNativeArtifacts, prepareProject } from "@solid-gpui/vite/artifacts";
 
-const record = await readNativeArtifacts(process.cwd());   // 或 (await prepareProject()).artifacts
+const record = await readNativeArtifacts(process.cwd()); // 或 (await prepareProject()).artifacts
 const executable = record?.native?.executable ?? record?.host?.command;
 ```
 
@@ -243,8 +245,11 @@ const executable = record?.native?.executable ?? record?.host?.command;
 其余为 profile 名本身）。`recordedHostExecutable(record)` 返回 Cargo 实际构建出的宿主，
 是启动或打包你所构建 profile 的权威路径；`expectedExecutablePath(record, profile?)` 只是
 推测另一个 profile 的可执行文件位置，交付前请先验证或先构建该 profile。`@solid-gpui/vite/project` 的
-`previewApplication({ root?, configFile?, args?, env? })` 用已构建的宿主运行已构建的
+`previewApplication({ root?, configFile?, mode?, args?, env? })` 用已构建的宿主运行已构建的
 bundle 且不重建，`solid-gpui preview` 命令与 `preview` 脚本正是它的封装。
+若配置按 mode 选择入口或 native Cargo profile，构建与预览必须使用同一个 mode，
+例如先执行 `vite build --mode release`，再执行 `solid-gpui preview --mode release`。
+预览先按该 mode 解析配置，再检查产物记录，不会静默替换 profile。
 
 ## 测试
 
@@ -261,7 +266,7 @@ import { runTests } from "@solid-gpui/vite/test";
 const exitCode = await runTests({ root: process.cwd(), configFile: "vite.config.ts", args: ["src/app.test.tsx"] });
 ```
 
-`runTests({ root?, configFile?, args? })` 返回进程退出码，并使用应用自己的
+`runTests({ root?, configFile?, mode?, args? })` 返回进程退出码，并使用应用自己的
 `vite.config.ts`：真实的 JSX 转换、alias、`?inline` 资源、去重后的 `solid-js`
 以及原生绑定契约。`args` 原样转发给 `bun test`，因此文件过滤与所有 `bun:test` 标志都可用。
 运行器会自行加入 `browser` condition，测试无需传 `--conditions=browser`。整个测试套件运行在
@@ -269,6 +274,62 @@ const exitCode = await runTests({ root: process.cwd(), configFile: "vite.config.
 因此测试与应用共享同一个响应式图。Bun 测试运行器保持其语义，
 普通单文件测试与 `bun:test` API 照常可用。测试无需导入
 `dist` 私有模块、复制编译器或自建 Vite 流水线。
+
+测试在 Bun 中运行，保留真实 `process.env`、对它的修改以及子进程继承的环境，
+即使应用目标为 QuickJS 也如此。此覆盖仅限测试，不会把 Node/Bun 能力或环境变量
+开放给生产 QuickJS bundle。`mode` 选择应用的 Vite 配置、alias、define 及
+`.env.<mode>` 加载，不切换测试 runtime，也不额外设置 `NODE_ENV`。
+省略时保留 Vite 的 `development` 默认值。可使用 `solid-gpui test --mode staging`
+或 `runTests({ mode: "staging" })`。
+
+### 无需导入私有协议即可检查渲染结果
+
+`@solid-gpui/core/testing` 的 `TestHost` 检查 `MemoryTransport`，把 Snapshot、Patch
+帧重放为按原生顺序排列、与后续修改隔离的树视图：
+
+```tsx
+import { expect, test } from "bun:test";
+import { createRoot, Pressable, Text } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+import { TestHost } from "@solid-gpui/core/testing";
+
+test("press updates the committed text", () => {
+  const host = new TestHost();
+  const root = createRoot(host.transport, { surfaceId: 1 });
+  try {
+    root.render(() => {
+      const [count, setCount] = createSignal(0);
+      return (
+        <Pressable onPress={() => setCount(count() + 1)}>
+          <Text>{count()}</Text>
+        </Pressable>
+      );
+    });
+    const button = host.surface(1)!.nodes.find((node) => node.kind === "Pressable")!;
+    host.dispatch(button, { type: "press" });
+    expect(host.surface(1)!.nodes.some((node) => node.text === "1")).toBe(true);
+  } finally {
+    root.unmount();
+  }
+});
+```
+
+| 接口                                           | 行为                                                                                                                                                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new TestHost(transport?)`                     | 使用传入的 `MemoryTransport`（包括已有帧），或新建一个。                                                                                                                                                         |
+| `surface(id)`                                  | 返回最新提交的 Surface；首个 Snapshot 之前返回 `undefined`。`nodes` 按前序排列，包含合成根节点；节点提供 kind、父节点/有序子节点 ID、文本、输入值、placeholder、无障碍标签和 tooltip。旧视图不会随后续提交变化。 |
+| `commits`                                      | 按提交顺序返回 Snapshot/Patch 的类型、Surface、epoch 和 revision；wire tag 与更新掩码保持私有。                                                                                                                  |
+| `dispatch(node, event)`                        | 发送 `press`、`focus`、`blur`、`input`（`text` 及可选的 UTF-8 字节选区偏移），或 `native`（`eventId`、JSON `value`）。保留所捕获节点的 revision/epoch，可验证过期事件处理。                                      |
+| `nativeProps(node)`                            | 解码 `createNativeComponent` 节点的 JSON DTO props。                                                                                                                                                             |
+| `nativeCalls`                                  | 查看模块函数与组件方法请求：Surface、epoch、节点/请求 ID、模块身份、函数 ID 和原始 `args` 字节。生成的 DTO 调用用 `@solid-gpui/core/native` 的公开 `decodeJson` 解码。                                           |
+| `reply(call, bytes)` / `reject(call, message)` | 经真实事件路径完成对应请求；JSON DTO 回复使用 `encodeJson(value)`。允许乱序回复，但不能重复回复或交给另一 TestHost 回复。                                                                                        |
+
+读取只消费已提交的帧。应用有调度任务时，先等待任务再检查新提交；事件分发之外的
+同步 signal 修改通常需要 `await Promise.resolve()`。Native client 也会等当前
+Solid batch 完成后才提交请求。该辅助接口管理注入事件的序号；不要混用手工编码的
+事件或清空 `transport.submitted`。每个测试使用独立 host，并在清理时卸载 root。
+它不计算原生样式/布局、不绘制像素、不执行 Rust handler，也不模拟平台服务；
+这些行为仍须用真实宿主验证。
 
 ## 从源码消费包
 

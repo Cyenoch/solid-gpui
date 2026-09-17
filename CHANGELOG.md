@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Preserved the real Bun environment in the public test runner without relaxing production QuickJS restrictions, forwarded Vite mode through preview and test CLI/API paths, and added `@solid-gpui/core/testing` for committed-tree inspection, event injection and native-call replies without exposing generated protocol bindings.
 - Split native and SDK CI checks while preserving the required aggregate status, isolated complete Cargo build caches from Embedded Bun checks, and stopped caching failed build graphs. Pages reuses exact-input WASM artifacts and keeps all frontend/headless tests without rebuilding native hosts; release preparation packs the SDK once.
 - Corrected native DTO validation to distinguish documentation, literal text, and property names from unsupported `any`/`bigint` types, while checking nested template-literal type interpolations. Native module exports preserve DTO documentation and reject unsupported types through the same binding contract.
 - Fixed strict workspace Clippy failures in component tests, removed obsolete JSX preload arguments from plain JavaScript scroll fixtures, and refreshed the generated dependency notices after tooling inputs changed. CI guidance now distinguishes package tests from the independent notice audit.

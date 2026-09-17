@@ -20,8 +20,12 @@ Options
   --json           prepare: print the artifact record to stdout
   --root <dir>     project root (default: the working directory)
   --config <file>  Vite config file (default: Vite's own discovery)
-  --mode <mode>    Vite mode (default: production)
+  --mode <mode>    Vite mode for prepare and preview (default: production); test accepts it as well
+                   and keeps Vite's development default when it is omitted. doctor takes no Vite mode
   -h, --help       show this message
+
+Options written before \`--\` configure this tool; everything after \`--\` belongs to the delegated
+command, which keeps its own flag grammar either way.
 
 Every command reads the same vite.config.ts the application uses, so no path is maintained twice.`;
 
@@ -54,7 +58,11 @@ function parseArguments(argv: readonly string[]): ParsedArguments {
       if (equals >= 0) options[name.slice(0, equals)] = name.slice(equals + 1);
       else if (VALUED_OPTIONS.includes(name)) {
         const value = argv[++index];
-        if (value === undefined) throw new Error(`--${name} requires a value`);
+        // A missing value must be reported, but leaving `--mode` to swallow the *next* flag is the
+        // same mistake one token later: `--mode --json` is a missing mode, not a mode named --json.
+        if (value === undefined || value === "-h" || value.startsWith("--")) {
+          throw new Error(`--${name} requires a value`);
+        }
         options[name] = value;
       } else options[name] = true;
       continue;
@@ -160,15 +168,21 @@ async function main(argv: readonly string[]): Promise<number> {
     case "doctor":
       return runDoctor(arguments_);
     case "test":
+      // `mode` is tool configuration, so it never reaches the delegated command: `--mode` before
+      // `--` selects the Vite mode the test pipeline and the test process resolve in.
       return runTests({
         root: project.root,
         configFile: project.configFile,
+        mode: project.mode,
         args: forwardedArguments(argv, arguments_.commandIndex),
       });
     case "preview":
+      // The same mode reaches the config the recorded artifacts are checked against, so a
+      // mode-dependent config selects its own host profile instead of the production one.
       return previewApplication({
         root: project.root,
         configFile: project.configFile,
+        mode: project.mode,
         args: forwardedArguments(argv, arguments_.commandIndex),
       });
     default:

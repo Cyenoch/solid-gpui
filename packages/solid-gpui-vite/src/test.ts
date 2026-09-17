@@ -22,6 +22,13 @@ const preload = fileURLToPath(new URL(`./test-preload${extname(source)}`, import
  * build. Vite resolves Solid through the project root for every importer, so
  * the application, linked SDK sources and renderer share one reactive graph.
  *
+ * Tests keep the environment of the calling process. A QuickJS application's
+ * config inlines `process.env` for its production bundle
+ * (`environments.ssr.keepProcessEnv: false`), which in a test run would hide
+ * `PATH` and every variable a test reads or spawns with, so the test server
+ * resolves the application's config with that inlining switched off. Nothing but
+ * this server is affected: the application's own dev and build configs keep it.
+ *
  * @returns Bun's exit code: 0 when the suite passed.
  */
 export async function runTests(options: RunTestsOptions = {}): Promise<number> {
@@ -32,7 +39,12 @@ export async function runTests(options: RunTestsOptions = {}): Promise<number> {
     throw new Error(`@solid-gpui/vite: the test preload is missing at ${preload}; reinstall or rebuild the package`);
   const configFile = options.configFile && resolve(root, options.configFile);
   const conditions = collectConditions(process.execArgv);
-  const pipeline = await startTestPipeline({ root, configFile, conditions });
+  const pipeline = await startTestPipeline({
+    root,
+    configFile,
+    ...(options.mode ? { mode: options.mode } : {}),
+    conditions,
+  });
   const child = spawn(
     process.execPath,
     [

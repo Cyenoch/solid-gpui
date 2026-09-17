@@ -93,6 +93,11 @@ export async function startTestPipeline(options: TestPipelineOptions): Promise<T
   const config: StdioConfig = {
     root,
     ...(configFile ? { configFile } : {}),
+    // Vite's own default stands when no mode is asked for: a test run must not
+    // invent one. The mode only chooses how the config resolves; the runner adds
+    // no `NODE_ENV` of its own, because tests keep the environment they were
+    // started with.
+    ...(options.mode ? { mode: options.mode } : {}),
     logLevel: "warn",
     clearScreen: false,
     appType: "custom",
@@ -129,7 +134,17 @@ export async function startTestPipeline(options: TestPipelineOptions): Promise<T
         enforce: "post",
         config(resolved) {
           const conditions = customConditions(resolved.resolve?.conditions, options.conditions);
-          return conditions.length === 0 ? {} : { ssr: { resolve: { conditions } } };
+          return {
+            // The application's SSR environment is configured for its production bundle, where a
+            // QuickJS runtime has no ambient environment: `keepProcessEnv: false` makes Vite's
+            // define pass rewrite `process.env` (and `process.env.NODE_ENV`) to `{}` and a static
+            // value, in dev transforms too. A test runs in real Bun with the real environment -
+            // it reads that environment and spawns subprocesses that inherit it - so this server
+            // resolves the application's config with the rewrite switched off. Only this test
+            // server is affected; the application's own dev and build configs keep their setting.
+            environments: { ssr: { keepProcessEnv: true } },
+            ...(conditions.length === 0 ? {} : { ssr: { resolve: { conditions } } }),
+          };
         },
       },
     ],

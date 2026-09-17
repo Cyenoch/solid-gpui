@@ -110,6 +110,7 @@ class Tasks {
       entrypoints: [
         "./src/index.ts",
         "./src/runtime.ts",
+        "./src/testing.ts",
         "./src/native.ts",
         "./src/components.ts",
         "./src/motion.ts",

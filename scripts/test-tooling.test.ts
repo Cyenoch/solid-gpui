@@ -3,8 +3,11 @@ import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { runTests } from "../packages/solid-gpui-vite/src/test.ts";
+import { startTestPipeline, type TestPipeline } from "../packages/solid-gpui-vite/src/test-pipeline.ts";
 
 const fixture = resolve(import.meta.dirname, "../packages/solid-gpui-vite/fixtures/test-app");
+const quickjsFixture = resolve(import.meta.dirname, "../packages/solid-gpui-vite/fixtures/quickjs-app");
+const modeFixture = resolve(import.meta.dirname, "../packages/solid-gpui-vite/fixtures/mode-app");
 const repository = resolve(import.meta.dirname, "..");
 const sdkDirectory = join(repository, "packages/solid-gpui");
 const viteDirectory = join(repository, "packages/solid-gpui-vite");
@@ -111,4 +114,51 @@ test("two runs in one process open no conflicting sockets", async () => {
   expect(code).toBe(0);
   expect(stdout + stderr).toContain("CODES 0,0");
   expect(stdout + stderr).not.toContain("already in use");
+}, 60_000);
+
+test("a QuickJS application's tests read, mutate and spawn with the real environment", async () => {
+  // The fixture asserts this value, PATH, its own mutation and the environment a
+  // subprocess resolves through PATH; the runner is the only one that can set it.
+  const previous = process.env.SOLID_GPUI_FIXTURE_SENTINEL;
+  process.env.SOLID_GPUI_FIXTURE_SENTINEL = "inherited-sentinel";
+  try {
+    expect(await runTests({ root: quickjsFixture })).toBe(0);
+  } finally {
+    if (previous === undefined) delete process.env.SOLID_GPUI_FIXTURE_SENTINEL;
+    else process.env.SOLID_GPUI_FIXTURE_SENTINEL = previous;
+  }
+}, 30_000);
+
+test("a requested mode reaches a real test run, and the default stays development", async () => {
+  const requested = async (mode: string | undefined, expected: string) => {
+    const previous = process.env.SOLID_GPUI_FIXTURE_MODE;
+    process.env.SOLID_GPUI_FIXTURE_MODE = expected;
+    try {
+      return await runTests({ root: modeFixture, ...(mode === undefined ? {} : { mode }) });
+    } finally {
+      if (previous === undefined) delete process.env.SOLID_GPUI_FIXTURE_MODE;
+      else process.env.SOLID_GPUI_FIXTURE_MODE = previous;
+    }
+  };
+  // The fixture's own test reads the mode back out of the config alias, the config
+  // `define` and `import.meta.env`, and fails on any of them disagreeing.
+  expect(await requested(undefined, "development")).toBe(0);
+  expect(await requested("staging", "staging")).toBe(0);
+  const cli = Bun.spawn({
+    cmd: [
+      process.execPath,
+      join(viteDirectory, "src/cli.ts"),
+      "test",
+      "--root",
+      modeFixture,
+      "--mode",
+      "staging",
+      "--",
+      "mode.test.ts",
+    ],
+    env: { ...process.env, SOLID_GPUI_FIXTURE_MODE: "staging" },
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  expect(await cli.exited).toBe(0);
 }, 60_000);

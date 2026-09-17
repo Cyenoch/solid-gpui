@@ -4,6 +4,14 @@ export interface RunTestsOptions {
   readonly root?: string;
   /** Vite config file passed to Vite; omitted lets Vite discover it inside `root`. */
   readonly configFile?: string;
+  /**
+   * Vite mode the config is resolved with, so `defineConfig(({ mode }) => ...)`,
+   * mode-dependent aliases, entries and definitions behave as they do in the
+   * application. Omitted keeps Vite's own default for a test run (`development`).
+   * The mode only chooses how the config resolves: the runner adds no `NODE_ENV`
+   * of its own, so the test process keeps the caller's environment.
+   */
+  readonly mode?: string;
   /** Arguments forwarded verbatim to `bun test`, such as file filters and flags. */
   readonly args?: readonly string[];
 }
@@ -12,6 +20,8 @@ export interface RunTestsOptions {
 export interface TestPipelineOptions {
   readonly root: string;
   readonly configFile?: string;
+  /** Mode the application's Vite config is resolved with; omitted uses Vite's default. */
+  readonly mode?: string;
   /** Node-style resolution conditions applied to Solid and to the spawned test process. */
   readonly conditions: readonly string[];
 }

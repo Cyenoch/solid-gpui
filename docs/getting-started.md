@@ -144,10 +144,10 @@ bun run generate
 `prepare` loads your `vite.config.ts`, builds the configured Cargo host when
 needed, runs its `--export-native` entrypoint, and writes:
 
-| Output                     | Contents                                                                          |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| `.solid-gpui/tsconfig.json` | Generated TypeScript mappings for the selected bindings. Never hand-edit.        |
-| `.generated/native.ts`     | The host's exported component catalog, commands, and types (`native.output`).      |
+| Output                       | Contents                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `.solid-gpui/tsconfig.json`  | Generated TypeScript mappings for the selected bindings. Never hand-edit.                                                                  |
+| `.generated/native.ts`       | The host's exported component catalog, commands, and types (`native.output`).                                                              |
 | `.solid-gpui/artifacts.json` | The resolved artifact record: `root`, `runtime`, `entry`, `outDir`, bindings, tsconfig, host, and (after a build) the emitted bundle path. |
 
 It does not run the application and does not produce the production bundle.
@@ -162,9 +162,10 @@ It does not run the application and does not produce the production bundle.
 - `bun run doctor` reports environment and dependency problems, including Cargo
   profile and patch mismatches and unsupported runtime or target combinations.
 
-`prepare`, `prepare --check`, `doctor`, `preview`, and `test` accept `--root`,
-`--config`, and `--mode` when the defaults do not fit, and `preview` forwards host
-arguments after `--`.
+`prepare`, `prepare --check`, `doctor`, `preview`, and `test` accept `--root` and
+`--config`. `prepare`/`preview` also accept `--mode` (default `production`), and
+`test --mode` defaults to `development`; `doctor` does not support Vite mode
+selection. Arguments after `--` are delegated to the preview host or Bun test runner.
 
 ## 4. Typecheck
 
@@ -194,7 +195,7 @@ bunx solid-gpui test                     # whole suite
 bunx solid-gpui test src/app.test.tsx    # one file
 ```
 
-The command delegates to `runTests({ root?, configFile?, args? })` from
+The command delegates to `runTests({ root?, configFile?, mode?, args? })` from
 `@solid-gpui/vite/test`, which loads the same `vite.config.ts` you develop with, so
 tests see the real JSX transform, aliases, `?inline` assets, and native bindings
 contract instead of a hand-built substitute. It adds the `browser` condition and
@@ -202,6 +203,9 @@ dedupes `solid-js` itself, so you never pass `--conditions=browser`, and one
 reactive graph is shared with the packaged application. Argument handling is
 Bun's: filters and flags are forwarded to `bun test`, so ordinary single-file
 invocations work. Import test APIs from `bun:test`.
+Tests preserve Bun's real `process.env` and subprocess environment even for a
+QuickJS application. Production QuickJS restrictions are unchanged. Pass
+`--mode staging` to select mode-dependent Vite configuration during tests.
 
 ## 7. Build the bundle
 
@@ -235,13 +239,16 @@ example `vite build`, or `solid-gpui prepare && vite build` — when the record 
 the bundle is missing, and it refuses a record whose runtime, bundle, host package,
 binary, profile, or target no longer matches the configuration you point it at
 (pass `--config` for the configuration the artifacts were built with).
-Programmatic callers use `previewApplication({ root?, configFile?, args?, env? })`
+Programmatic callers use `previewApplication({ root?, configFile?, mode?, args?, env? })`
 from `@solid-gpui/vite/project`, and scripts that only need locations read the same
 record through `prepareProject`/`readNativeArtifacts` from
 `@solid-gpui/vite/artifacts` — never `target/<profile>/<bin>` or a hardcoded bundle
 path. An application that selects its transport in Rust (for example a
 `--production` flag that chooses `EmbeddedTransport` instead of `StdioTransport`)
 passes that flag through.
+When the config selects an entry or Cargo profile by mode, pass the same `--mode`
+to build and preview, such as `vite build --mode release` and
+`solid-gpui preview --mode release`.
 
 ## Write the application
 
@@ -336,19 +343,22 @@ root.render(() => createComponent(Counter, {}));
 ## Test without a display
 
 ```ts
-import { MemoryTransport, View, createRoot } from "@solid-gpui/core";
-import { createComponent } from "@solid-gpui/core/runtime";
+import { Text, createRoot } from "@solid-gpui/core";
+import { TestHost } from "@solid-gpui/core/testing";
 
-const transport = new MemoryTransport();
-const root = createRoot(transport);
-root.render(() => createComponent(View, {}));
-console.log(transport.submitted.length); // Snapshot frame
+const host = new TestHost();
+const root = createRoot(host.transport, { surfaceId: 1 });
+root.render(() => Text({ children: "ready" }));
+console.log(host.surface(1)?.nodes.filter((node) => node.text !== null));
 root.unmount();
 ```
 
-Use `MemoryTransport` for framed renderer output and root command contracts, either
-in a `solid-gpui test` file or a plain `bun test` file. Native layout, painting,
-dialogs, and platform window behavior require a display-backed host.
+`TestHost` wraps an optional existing `MemoryTransport`, replays Snapshot/Patch
+updates and provides node inspection, test events, native DTO props and native-call
+replies without private protocol imports. See the [testing interface](vite.md#inspect-renderer-output-without-private-protocol-imports)
+for event and reply examples. Use the application's `solid-gpui test` runner;
+plain JavaScript tests run with `bun --conditions=browser test`. Native layout,
+painting, dialogs and platform window behavior still require a display-backed host.
 
 ## Consume the SDK another way
 

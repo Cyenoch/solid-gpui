@@ -35,6 +35,12 @@
       "import": "./dist/runtime.js",
       "default": "./dist/runtime.js"
     },
+    "./testing": {
+      "solid-gpui-source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
     "./stdio": {
       "solid-gpui-source": "./src/stdio.ts",
       "types": "./dist/stdio.d.ts",

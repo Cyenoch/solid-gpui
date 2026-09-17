@@ -823,3 +823,124 @@ test("preview hands the bundle to the Bun runtime through the host's runner cont
     await rm(directory, { recursive: true, force: true });
   }
 }, 30000);
+
+test("preview follows the mode the config was resolved in, and the CLI and the API pick the same host", async () => {
+  const directory = await fixture("solid-project-preview-mode-");
+  const observation = join(directory, "preview-host.json");
+  const cli = join(repo, "packages/solid-gpui-vite/src/cli.ts");
+  const run = (args: readonly string[]) =>
+    Bun.spawnSync(["bun", cli, ...args], { cwd: repo, stdout: "pipe", stderr: "pipe" });
+  const artifactsFile = join(directory, ".solid-gpui/artifacts.json");
+  try {
+    // The mode decides which Cargo profile this config describes, so the record that matches it and
+    // the host executable that ends up running both follow from the mode preview resolves with.
+    await writeFile(
+      join(directory, "vite.config.ts"),
+      `import { solidGpui } from ${JSON.stringify(plugin)};
+export default ({ mode }) => ({
+  root: import.meta.dirname,
+  plugins: [
+    solidGpui({
+      entry: "app.js",
+      native: {
+        manifestPath: "Cargo.toml",
+        bin: "native-project-host",
+        profile: mode === "release-preview" ? "release" : "dev",
+      },
+    }),
+  ],
+});
+`,
+    );
+    await mkdir(join(directory, "dist"), { recursive: true });
+    await mkdir(join(directory, ".solid-gpui"), { recursive: true });
+    await writeFile(join(directory, "dist/app.js"), "// production bundle\n");
+    // Every profile of the host exists on disk and names itself, so what ran is observed rather
+    // than inferred.
+    for (const [profileDirectory, profile] of [
+      ["debug", "dev"],
+      ["release", "release"],
+    ] as const) {
+      const executable = join(directory, "target", profileDirectory, "native-project-host");
+      await mkdir(dirname(executable), { recursive: true });
+      await writeFile(
+        executable,
+        `#!/usr/bin/env bun
+await Bun.write(${JSON.stringify(observation)}, JSON.stringify({ profile: ${JSON.stringify(profile)}, args: Bun.argv.slice(2) }));
+process.exit(6);
+`,
+      );
+      await chmod(executable, 0o755);
+    }
+
+    await writeFile(
+      artifactsFile,
+      serializeNativeArtifacts({
+        version: 1,
+        root: directory,
+        runtime: "bun",
+        entry: join(directory, "app.js"),
+        outDir: join(directory, "dist"),
+        tsconfig: join(directory, ".solid-gpui/tsconfig.json"),
+        bundle: join(directory, "dist/app.js"),
+        native: {
+          manifestPath: join(directory, "Cargo.toml"),
+          bin: "native-project-host",
+          features: [],
+          profile: "release",
+          profileDirectory: cargoProfileDirectory("release"),
+          locked: true,
+          targetDirectory: join(directory, "target"),
+        },
+      }),
+    );
+    // Without a mode the config resolves in production, which here describes the dev profile: the
+    // mismatch is reported instead of launching a host the record does not describe.
+    const withoutMode = run(["preview", "--root", directory]);
+    expect(withoutMode.exitCode).toBe(1);
+    expect(withoutMode.stderr.toString()).toContain("do not match");
+    expect(await Bun.file(observation).exists()).toBe(false);
+
+    // `--mode` before the separator is this tool's Vite mode and selects the release profile; the
+    // delegated command still owns `--mode` after the separator and receives it verbatim.
+    const previewed = run([
+      "preview",
+      "--root",
+      directory,
+      "--mode",
+      "release-preview",
+      "--",
+      "--mode",
+      "delegated",
+      "--window",
+      "main",
+    ]);
+    expect(previewed.exitCode, previewed.stderr.toString()).toBe(6);
+    expect(JSON.parse(await readFile(observation, "utf8"))).toEqual({
+      profile: "release",
+      args: ["--mode", "delegated", "--window", "main"],
+    });
+
+    // The programmatic entry point resolves the same config in the same mode, so it runs the same
+    // host: a CLI that dropped the mode could not agree with this result.
+    await rm(observation, { force: true });
+    expect(await previewApplication({ root: directory, mode: "release-preview" })).toBe(6);
+    expect(JSON.parse(await readFile(observation, "utf8"))).toEqual({ profile: "release", args: [] });
+
+    // The dev record is what the default (production) mode describes, so the CLI still selects a
+    // host on its own — the other profile's executable.
+    const built = await readNativeArtifacts(directory);
+    if (!built?.native) throw new Error("the fixture should have written a native artifact record");
+    await writeFile(
+      artifactsFile,
+      serializeNativeArtifacts({
+        ...built,
+        native: { ...built.native, profile: "dev", profileDirectory: cargoProfileDirectory("dev") },
+      }),
+    );
+    expect(run(["preview", "--root", directory]).exitCode).toBe(6);
+    expect(JSON.parse(await readFile(observation, "utf8"))).toEqual({ profile: "dev", args: [] });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 30000);

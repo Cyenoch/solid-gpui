@@ -14,12 +14,12 @@ full sequence; this guide covers the option surface and the advanced paths.
 Three different things are produced along the way, and only the third is a
 deliverable:
 
-| Artifact | Produced by | Contains |
-| --- | --- | --- |
-| **Bindings** | `solid-gpui prepare` (`bun run generate`) | The host's exported component catalog, commands, and types, plus the generated TypeScript project. |
-| **Bundle** | `bun --bun vite build` | One JavaScript entry module for the host to execute. The build also prepares the configured native host (an incremental Cargo build), but it emits no native code into the bundle and no installer. |
-| **Native executable** | Cargo, via `native` in the plugin or your own build | The GPUI host that renders the bundle. |
-| **Distributable** | Your packaging script | Executable plus bundle, assets, licences, and signature. See [distribution](distribution.md). |
+| Artifact              | Produced by                                         | Contains                                                                                                                                                                                            |
+| --------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bindings**          | `solid-gpui prepare` (`bun run generate`)           | The host's exported component catalog, commands, and types, plus the generated TypeScript project.                                                                                                  |
+| **Bundle**            | `bun --bun vite build`                              | One JavaScript entry module for the host to execute. The build also prepares the configured native host (an incremental Cargo build), but it emits no native code into the bundle and no installer. |
+| **Native executable** | Cargo, via `native` in the plugin or your own build | The GPUI host that renders the bundle.                                                                                                                                                              |
+| **Distributable**     | Your packaging script                               | Executable plus bundle, assets, licences, and signature. See [distribution](distribution.md).                                                                                                       |
 
 ## JavaScript without a bundler
 
@@ -114,8 +114,10 @@ committed, in which case `solid-gpui prepare --check` is the CI freshness gate.
 `prepare --check` writes nothing (it still resolves and builds the host to compare
 against the real catalog) and fails when either file is stale; `prepare --json`
 prints the artifact record.
-All CLI commands accept `--root`, `--config`, and `--mode`, and `preview` also
-accepts host arguments after `--`.
+Project commands accept `--root` and `--config`. `prepare` and `preview` accept
+`--mode` (default `production`); `test --mode` defaults to Vite's `development`
+mode. `doctor` does not support selecting a Vite mode. For `preview` and `test`,
+arguments after `--` belong to the host or Bun, not to this CLI.
 
 Your own `tsconfig.json` only extends the generated project:
 
@@ -213,18 +215,18 @@ Unchanged output is not rewritten.
 
 ### Native build options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `manifestPath` | — | Cargo manifest of the host. Required. |
-| `package`, `bin` | — | Cargo selectors; required together when a manifest has several binaries. |
-| `features` | — | Cargo features, for example `["quickjs"]`. |
-| `output` | `.generated/native.ts` | Bindings destination, relative to Vite's root. |
-| `profile` | `"dev"` | Cargo profile; `"debug"` is accepted as an alias. |
-| `target` | — | Cargo `--target` triple for a cross build. |
-| `locked` | `true` | Pass `--locked`. Set `false` only for an intentional first resolution. |
-| `check` | `false` | Verification mode: fail instead of writing when bindings are stale. |
-| `watch` | — | Extra files or directories that trigger a native rebuild. |
-| `exporter` | — | Host executable used to export bindings when `target` is not runnable on this machine. |
+| Option           | Default                | Meaning                                                                                |
+| ---------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| `manifestPath`   | —                      | Cargo manifest of the host. Required.                                                  |
+| `package`, `bin` | —                      | Cargo selectors; required together when a manifest has several binaries.               |
+| `features`       | —                      | Cargo features, for example `["quickjs"]`.                                             |
+| `output`         | `.generated/native.ts` | Bindings destination, relative to Vite's root.                                         |
+| `profile`        | `"dev"`                | Cargo profile; `"debug"` is accepted as an alias.                                      |
+| `target`         | —                      | Cargo `--target` triple for a cross build.                                             |
+| `locked`         | `true`                 | Pass `--locked`. Set `false` only for an intentional first resolution.                 |
+| `check`          | `false`                | Verification mode: fail instead of writing when bindings are stale.                    |
+| `watch`          | —                      | Extra files or directories that trigger a native rebuild.                              |
+| `exporter`       | —                      | Host executable used to export bindings when `target` is not runnable on this machine. |
 
 `prepare` and development need a host for the current machine. When `target` names
 a platform or architecture other than the build host, both refuse to execute it and
@@ -278,7 +280,7 @@ Read it instead of reconstructing `target/<profile>/<bin>` or the bundle path:
 ```ts
 import { readNativeArtifacts, prepareProject } from "@solid-gpui/vite/artifacts";
 
-const record = await readNativeArtifacts(process.cwd());   // or: (await prepareProject()).artifacts
+const record = await readNativeArtifacts(process.cwd()); // or: (await prepareProject()).artifacts
 const executable = record?.native?.executable ?? record?.host?.command;
 ```
 
@@ -289,10 +291,14 @@ const executable = record?.native?.executable ?? record?.host?.command;
 authoritative path for launching or packaging the profile you built — while
 `expectedExecutablePath(record, profile?)` only predicts where another profile's
 executable would be; verify it, or run that profile's build, before shipping it.
-`previewApplication({ root?, configFile?, args?, env? })` from
+`previewApplication({ root?, configFile?, mode?, args?, env? })` from
 `@solid-gpui/vite/project` runs the built host against the built bundle without
 rebuilding, which is what the `solid-gpui preview` CLI command and the `preview`
 script do.
+Use the same `--mode` for build and preview when the config selects its entry or
+native Cargo profile by mode, for example `vite build --mode release` followed by
+`solid-gpui preview --mode release`. Preview resolves that mode before checking
+the recorded artifacts; it never silently substitutes another profile.
 
 ## Testing
 
@@ -309,7 +315,7 @@ import { runTests } from "@solid-gpui/vite/test";
 const exitCode = await runTests({ root: process.cwd(), configFile: "vite.config.ts", args: ["src/app.test.tsx"] });
 ```
 
-`runTests({ root?, configFile?, args? })` resolves to the process exit code and
+`runTests({ root?, configFile?, mode?, args? })` resolves to the process exit code and
 uses the application's own `vite.config.ts`: the real JSX transform, aliases,
 `?inline` assets, deduped `solid-js`, and the native bindings contract. `args` are
 forwarded verbatim to `bun test`, so file filters and every `bun:test` flag work.
@@ -320,6 +326,65 @@ loads, so a test and the application share one reactive graph. Bun's test runner
 keeps its normal semantics, so ordinary single-file tests and `bun:test` APIs work
 unchanged. No test needs to
 import a private `dist` module, copy the compiler, or build its own Vite pipeline.
+
+Tests run in Bun and preserve its real `process.env`, including mutations and
+environment inherited by subprocesses, even when the application targets QuickJS.
+This test-only override does not expose Node/Bun capabilities or environment
+variables to a production QuickJS bundle. `mode` selects the application's Vite
+config, aliases, definitions and `.env.<mode>` loading; it does not select another
+test runtime or add a `NODE_ENV` value. Omitting it keeps Vite's `development`
+default. Use `solid-gpui test --mode staging` or `runTests({ mode: "staging" })`.
+
+### Inspect renderer output without private protocol imports
+
+`TestHost` from `@solid-gpui/core/testing` inspects a `MemoryTransport` and replays
+its Snapshot and Patch frames into an ordered, detached tree view:
+
+```tsx
+import { expect, test } from "bun:test";
+import { createRoot, Pressable, Text } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+import { TestHost } from "@solid-gpui/core/testing";
+
+test("press updates the committed text", () => {
+  const host = new TestHost();
+  const root = createRoot(host.transport, { surfaceId: 1 });
+  try {
+    root.render(() => {
+      const [count, setCount] = createSignal(0);
+      return (
+        <Pressable onPress={() => setCount(count() + 1)}>
+          <Text>{count()}</Text>
+        </Pressable>
+      );
+    });
+    const button = host.surface(1)!.nodes.find((node) => node.kind === "Pressable")!;
+    host.dispatch(button, { type: "press" });
+    expect(host.surface(1)!.nodes.some((node) => node.text === "1")).toBe(true);
+  } finally {
+    root.unmount();
+  }
+});
+```
+
+| Interface                                      | Behavior                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new TestHost(transport?)`                     | Uses the supplied `MemoryTransport`, including already-submitted frames, or creates one.                                                                                                                                                                                              |
+| `surface(id)`                                  | Returns the latest committed Surface, or `undefined` before its first Snapshot. `nodes` is preorder, including the synthetic root; each node exposes kind, parent/ordered child IDs, text, input value, placeholder, accessibility label and tooltip. Previous views are not mutated. |
+| `commits`                                      | Ordered Snapshot/Patch metadata: type, Surface, epoch and revision. Wire tags and update masks stay private.                                                                                                                                                                          |
+| `dispatch(node, event)`                        | Sends `press`, `focus`, `blur`, `input` (`text`, optional UTF-8-byte selection offsets), or `native` (`eventId`, JSON `value`). The captured node's revision and epoch are retained, so stale-event behavior remains testable.                                                        |
+| `nativeProps(node)`                            | Decodes the JSON DTO props of a `createNativeComponent` node.                                                                                                                                                                                                                         |
+| `nativeCalls`                                  | Observed module-function and component-method requests: Surface, epoch, node/request IDs, module identity, function ID and opaque `args`. Use the public `decodeJson` from `@solid-gpui/core/native` for generated DTO calls.                                                         |
+| `reply(call, bytes)` / `reject(call, message)` | Settles that exact request through the real event path; JSON DTO replies use `encodeJson(value)`. Responses can arrive out of order; a request cannot be answered twice or through another TestHost.                                                                                  |
+
+Reads consume only already-submitted frames. Await your application's scheduled
+work before inspecting a later commit (a synchronous signal update outside event
+dispatch normally needs `await Promise.resolve()`). Native client calls also defer
+submission until the current Solid batch completes. The helper owns injected
+event sequences; do not mix it with manually encoded events or clear
+`transport.submitted`. Use a fresh host per test and unmount roots in cleanup.
+It does not calculate native styles/layout, paint pixels, execute Rust handlers,
+or emulate platform services; those still require a real host.
 
 ## Consume packages from source
 

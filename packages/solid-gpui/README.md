@@ -124,6 +124,23 @@ See [System popovers](../../docs/system-popover.md) for controlled forms,
 platform support, multi-display placement, and native verification limits.
 Use the generated `Popover` for in-window content, including browser UI.
 
+## Headless application tests
+
+Use `TestHost` from `@solid-gpui/core/testing` with `createRoot(host.transport)`.
+It can also wrap an existing `MemoryTransport`, including already-submitted
+frames. `surface(id)` exposes an ordered committed tree after replaying Snapshot
+and Patch updates; `dispatch` delivers test events, `nativeProps` decodes native
+component DTOs, and `nativeCalls` plus `reply`/`reject` inspect and settle native
+requests without importing the generated protocol. Previous tree views retain
+their revision and epoch for stale-event tests. Unmount roots after each test.
+
+Run TSX tests through `solid-gpui test` so they share the application's Vite
+configuration and one Solid runtime. The test process keeps Bun's environment
+even for QuickJS applications; this does not relax production UI capabilities.
+The [testing guide](../../docs/vite.md#testing) documents the complete interface,
+scheduling and cleanup rules. Native layout/painting and platform services still
+require a real host.
+
 ## Protocol
 
 The renderer speaks the lockstep framed Bebop v5 protocol. Each frame begins

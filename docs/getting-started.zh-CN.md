@@ -105,10 +105,10 @@ bun run generate
 
 `prepare` 读取你的 `vite.config.ts`，按需构建所配置的 Cargo 宿主，执行其 `--export-native` 入口，并写入：
 
-| 产物                         | 内容                                                                        |
-| ---------------------------- | --------------------------------------------------------------------------- |
-| `.solid-gpui/tsconfig.json`  | 针对所选绑定的 TypeScript 映射生成文件，请勿手改。                          |
-| `.generated/native.ts`       | 宿主导出的组件目录、命令与类型（即 `native.output`）。                      |
+| 产物                         | 内容                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `.solid-gpui/tsconfig.json`  | 针对所选绑定的 TypeScript 映射生成文件，请勿手改。                                                                   |
+| `.generated/native.ts`       | 宿主导出的组件目录、命令与类型（即 `native.output`）。                                                               |
 | `.solid-gpui/artifacts.json` | 解析后的产物记录：`root`、`runtime`、`entry`、`outDir`、bindings、tsconfig、host，以及构建后实际产出的 bundle 路径。 |
 
 它不运行应用，也不产出生产 bundle。
@@ -117,7 +117,7 @@ bun run generate
 - `bunx solid-gpui prepare --json` 输出解析后的产物记录而不是叙述性文本。
 - `bun run doctor` 报告环境与依赖问题，包括 Cargo profile/patch 不一致以及不支持的 runtime/target 组合。
 
-当默认值不合适时，`prepare`、`prepare --check`、`doctor`、`preview`、`test` 都接受 `--root`、`--config`、`--mode`；`preview` 还会透传 `--` 之后的宿主参数。
+当默认值不合适时，`prepare`、`prepare --check`、`doctor`、`preview`、`test` 接受 `--root` 和 `--config`。`prepare`/`preview` 还支持 `--mode`（默认 `production`），`test --mode` 默认使用 `development`；`doctor` 不支持选择 Vite mode。`--` 之后的参数交给 preview 宿主或 Bun 测试运行器。
 
 ## 4. 类型检查
 
@@ -140,7 +140,8 @@ bunx solid-gpui test                     # 全量
 bunx solid-gpui test src/app.test.tsx    # 单个文件
 ```
 
-该命令委托给 `@solid-gpui/vite/test` 的 `runTests({ root?, configFile?, args? })`，它加载你开发所用的同一份 `vite.config.ts`，因此测试看到的是真实的 JSX 转换、alias、`?inline` 资源与原生绑定契约，而不是手搭的替身。运行器自行加入 `browser` condition 并去重 `solid-js`，因此无需传 `--conditions=browser`，测试与打包应用共享同一个响应式图。参数处理沿用 Bun 语义：过滤与标志原样转给 `bun test`，普通单文件调用同样可用。测试 API 从 `bun:test` 导入。
+该命令委托给 `@solid-gpui/vite/test` 的 `runTests({ root?, configFile?, mode?, args? })`，它加载你开发所用的同一份 `vite.config.ts`，因此测试看到的是真实的 JSX 转换、alias、`?inline` 资源与原生绑定契约，而不是手搭的替身。运行器自行加入 `browser` condition 并去重 `solid-js`，因此无需传 `--conditions=browser`，测试与打包应用共享同一个响应式图。参数处理沿用 Bun 语义：过滤与标志原样转给 `bun test`，普通单文件调用同样可用。测试 API 从 `bun:test` 导入。
+即使应用目标为 QuickJS，测试也保留 Bun 的真实 `process.env` 和子进程环境，生产 QuickJS 限制不变。测试可传 `--mode staging` 选择按 mode 区分的 Vite 配置。
 
 ## 7. 构建 bundle
 
@@ -158,7 +159,8 @@ Vite 向 `build.outDir`（默认 `dist/`）写入单个生产入口模块：Bun 
 bun run preview          # solid-gpui preview
 ```
 
-`preview` 用已构建的宿主运行 `.solid-gpui/artifacts.json` 记录的 bundle：不重建、不启动 watcher，并以宿主退出码结束。宿主参数放在 `--` 之后。记录或 bundle 缺失时，它会直接给出应执行的命令（例如 `vite build`，或 `solid-gpui prepare && vite build`）；当记录中的 runtime、bundle、宿主包、二进制、profile 或 target 与你指定的配置不一致时它会拒绝运行（对构建产物所用的配置传 `--config`）。编程调用使用 `@solid-gpui/vite/project` 的 `previewApplication({ root?, configFile?, args?, env? })`；只需要路径的脚本通过 `@solid-gpui/vite/artifacts` 的 `prepareProject`/`readNativeArtifacts` 读取同一条记录，而不要硬编码 `target/<profile>/<bin>` 或 bundle 路径。由 Rust 选择 transport 的应用（例如用 `--production` 选择 `EmbeddedTransport` 而不是 `StdioTransport`）把该标志透传进来。
+`preview` 用已构建的宿主运行 `.solid-gpui/artifacts.json` 记录的 bundle：不重建、不启动 watcher，并以宿主退出码结束。宿主参数放在 `--` 之后。记录或 bundle 缺失时，它会直接给出应执行的命令（例如 `vite build`，或 `solid-gpui prepare && vite build`）；当记录中的 runtime、bundle、宿主包、二进制、profile 或 target 与你指定的配置不一致时它会拒绝运行（对构建产物所用的配置传 `--config`）。编程调用使用 `@solid-gpui/vite/project` 的 `previewApplication({ root?, configFile?, mode?, args?, env? })`；只需要路径的脚本通过 `@solid-gpui/vite/artifacts` 的 `prepareProject`/`readNativeArtifacts` 读取同一条记录，而不要硬编码 `target/<profile>/<bin>` 或 bundle 路径。由 Rust 选择 transport 的应用（例如用 `--production` 选择 `EmbeddedTransport` 而不是 `StdioTransport`）把该标志透传进来。
+若配置按 mode 选择入口或 Cargo profile，构建与预览须传相同的 `--mode`，例如 `vite build --mode release` 与 `solid-gpui preview --mode release`。
 
 ## 创建组件
 
@@ -243,17 +245,17 @@ root.render(() => createComponent(Counter, {}));
 ## 无显示环境测试
 
 ```ts
-import { MemoryTransport, View, createRoot } from "@solid-gpui/core";
-import { createComponent } from "@solid-gpui/core/runtime";
+import { Text, createRoot } from "@solid-gpui/core";
+import { TestHost } from "@solid-gpui/core/testing";
 
-const transport = new MemoryTransport();
-const root = createRoot(transport);
-root.render(() => createComponent(View, {}));
-console.log(transport.submitted.length); // Snapshot frame
+const host = new TestHost();
+const root = createRoot(host.transport, { surfaceId: 1 });
+root.render(() => Text({ children: "ready" }));
+console.log(host.surface(1)?.nodes.filter((node) => node.text !== null));
 root.unmount();
 ```
 
-`MemoryTransport` 用于验证带帧渲染输出和根命令契约，可放在 `solid-gpui test` 文件或普通 `bun test` 文件中。原生布局、绘制、对话框和平台窗口行为需要有显示环境的宿主验证。
+`TestHost` 可以包装已有 `MemoryTransport`，重放 Snapshot/Patch，并提供节点检查、测试事件、native DTO props 与 native call 应答，无需导入私有协议。事件和回复用法见[测试接口](vite.zh-CN.md#无需导入私有协议即可检查渲染结果)。使用应用的 `solid-gpui test` 运行器；普通 JavaScript 测试可执行 `bun --conditions=browser test`。原生布局、绘制、对话框和平台窗口行为仍需真实显示宿主验证。
 
 ## 其他消费方式
 

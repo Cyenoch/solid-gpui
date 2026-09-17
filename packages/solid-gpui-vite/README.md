@@ -41,8 +41,9 @@ artifact record). `prepare --check` writes no files and fails when either genera
 still builds the host to compare against the real catalog), `prepare --json` prints
 the record, and `doctor` reports environment and Cargo
 dependency problems. Do not name the script `prepare`: that is an install lifecycle
-hook, and installation must not compile a native host. Every command accepts
-`--root`, `--config`, and `--mode`.
+hook, and installation must not compile a native host. Project commands accept
+`--root` and `--config`. `prepare`/`preview` accept `--mode` (default `production`),
+and `test --mode` defaults to `development`; `doctor` does not select a Vite mode.
 
 Vite owns JSX/TSX compilation, aliases, virtual modules, watching, and production
 bundling. `runtime` is explicit: `"bun"` preserves Bun and Node imports for Bun to
@@ -71,18 +72,18 @@ solidGpui({
 });
 ```
 
-| Native option | Default | Meaning |
-| --- | --- | --- |
-| `manifestPath` | — | Host Cargo manifest. Required. |
-| `package`, `bin` | — | Cargo selectors, required together for a multi-binary manifest. |
-| `features` | — | Cargo features, for example `["quickjs"]`. |
-| `output` | `.generated/native.ts` | Bindings destination. |
-| `profile` | `"dev"` | Cargo profile; `"debug"` is accepted as an alias. |
-| `target` | — | Cargo `--target` triple for a cross build. |
-| `locked` | `true` | Pass `--locked`; set `false` only for an intentional first resolution. |
-| `check` | `false` | Fail instead of writing when bindings are stale. |
-| `watch` | — | Extra files or directories that trigger a native rebuild. |
-| `exporter` | — | Host used to export bindings when `target` cannot run on this machine. |
+| Native option    | Default                | Meaning                                                                |
+| ---------------- | ---------------------- | ---------------------------------------------------------------------- |
+| `manifestPath`   | —                      | Host Cargo manifest. Required.                                         |
+| `package`, `bin` | —                      | Cargo selectors, required together for a multi-binary manifest.        |
+| `features`       | —                      | Cargo features, for example `["quickjs"]`.                             |
+| `output`         | `.generated/native.ts` | Bindings destination.                                                  |
+| `profile`        | `"dev"`                | Cargo profile; `"debug"` is accepted as an alias.                      |
+| `target`         | —                      | Cargo `--target` triple for a cross build.                             |
+| `locked`         | `true`                 | Pass `--locked`; set `false` only for an intentional first resolution. |
+| `check`          | `false`                | Fail instead of writing when bindings are stale.                       |
+| `watch`          | —                      | Extra files or directories that trigger a native rebuild.              |
+| `exporter`       | —                      | Host used to export bindings when `target` cannot run on this machine. |
 
 The plugin builds the selected Cargo binary, runs its `--export-native` entrypoint,
 and atomically writes the bindings before loading the application. Rust sources,
@@ -109,7 +110,13 @@ actually emitted (possibly nested), so read the record after the build. Read it
 instead of reconstructing `target/<profile>/<bin>`:
 
 ```ts
-import { readNativeArtifacts, prepareProject, cargoProfileDirectory, recordedHostExecutable, expectedExecutablePath } from "@solid-gpui/vite/artifacts";
+import {
+  readNativeArtifacts,
+  prepareProject,
+  cargoProfileDirectory,
+  recordedHostExecutable,
+  expectedExecutablePath,
+} from "@solid-gpui/vite/artifacts";
 import { previewApplication } from "@solid-gpui/vite/project";
 ```
 
@@ -119,6 +126,9 @@ so verify it or build that profile before shipping.
 
 `solid-gpui preview` runs the built host against the built bundle recorded there —
 no rebuild, no watcher, host arguments after `--`, and the host's exit status.
+If the config selects its entry or Cargo profile by mode, use the same `--mode`
+for build and preview. The programmatic equivalent is
+`previewApplication({ root?, configFile?, mode?, args?, env? })`.
 
 `solid-gpui test [args...]` delegates to this package's test entrypoint:
 
@@ -128,10 +138,17 @@ import { runTests } from "@solid-gpui/vite/test";
 const exitCode = await runTests({ root: process.cwd(), configFile: "vite.config.ts", args: ["src/app.test.tsx"] });
 ```
 
-`runTests({ root?, configFile?, args? })` uses the application's own
+`runTests({ root?, configFile?, mode?, args? })` uses the application's own
 `vite.config.ts`, so tests see the real JSX transform, aliases, `?inline` assets,
 deduped `solid-js`, and the native bindings contract, with `bun:test` semantics and
 ordinary single-file invocation.
+Tests preserve Bun's real `process.env`, including mutations and subprocess
+inheritance, even when the application targets QuickJS; production QuickJS
+capabilities remain restricted. `mode` selects Vite config/alias/define resolution
+and env-file loading, not a different test runtime. Arguments after `--` belong
+to Bun rather than this CLI. For renderer inspection and event/native-call
+interaction, use `TestHost` from `@solid-gpui/core/testing`; see the
+[testing guide](../../docs/vite.md#testing).
 
 ## Source consumption
 
