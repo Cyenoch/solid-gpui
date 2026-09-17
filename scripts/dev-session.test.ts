@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createLogger, createServer, type ViteDevServer } from "vite";
 import { solidGpui } from "../packages/solid-gpui-vite/src/index.ts";
+import { saveWatchedFile } from "./watch-fixture";
 
 const repo = resolve(import.meta.dir, "..");
 
@@ -148,13 +149,13 @@ for (const runtime of ["bun", "quickjs"] as const) {
           await import(initial);
         }`,
       );
-      await writeFile(entry, "export const broken = ;");
+      await saveWatchedFile(entry, "export const broken = ;");
       const config = join(root, "vite.config.ts");
-      await writeFile(
+      await saveWatchedFile(
         config,
         `import { solidGpui } from ${JSON.stringify(join(repo, "packages/solid-gpui-vite/src/index.ts"))};
-        export default { plugins: [solidGpui({ entry: 'app.js', runtime: '${runtime}',
-          native: { manifestPath: 'native/Cargo.toml', bin: 'session-host' } })] };`,
+      export default { plugins: [solidGpui({ entry: 'app.js', runtime: '${runtime}',
+        native: { manifestPath: 'native/Cargo.toml', bin: 'session-host' } })] };`,
       );
       server = await createServer({
         root,
@@ -169,7 +170,7 @@ for (const runtime of ["bun", "quickjs"] as const) {
 
       await writeFile(source, rust(1));
       await until(() => diagnostics.includes("app.js"));
-      await writeFile(entry, app("initial"));
+      await saveWatchedFile(entry, app("initial"));
       await until(async () => (await read()).includes("render:1:initial"));
       const oldPids = [...(await read()).matchAll(/pid:(\d+)/g)].map((match) => Number(match[1]));
 
@@ -182,17 +183,17 @@ for (const runtime of ["bun", "quickjs"] as const) {
 
       const failures = () => diagnostics.match(/Watching for changes/g)?.length ?? 0;
       const before = failures();
-      await writeFile(entry, app("crash"));
+      await saveWatchedFile(entry, app("crash"));
       await until(() => failures() > before);
       const starts = (await read()).match(/host:/g)?.length;
       await Bun.sleep(250);
       expect((await read()).match(/host:/g)?.length).toBe(starts);
-      await writeFile(entry, app("recovered"));
+      await saveWatchedFile(entry, app("recovered"));
       await until(async () => (await read()).includes("render:2:recovered"));
       expect(diagnostics).not.toContain("mixed native contract");
-      await writeFile(entry, app("close"));
+      await saveWatchedFile(entry, app("close"));
       await until(() => diagnostics.includes("application closed. Watching for changes"));
-      await writeFile(entry, app("reopened"));
+      await saveWatchedFile(entry, app("reopened"));
       await until(async () => (await read()).includes("render:2:reopened"));
       if (runtime === "bun") {
         await writeFile(
@@ -283,7 +284,7 @@ test("a configured host supplies its exported component catalog to every session
       }`,
     );
     process.env.HOST_CATALOG = "7";
-    await writeFile(entry, application("first"));
+    await saveWatchedFile(entry, application("first"));
     server = await createServer({
       root,
       configFile: false,
@@ -299,12 +300,12 @@ test("a configured host supplies its exported component catalog to every session
 
     // A live session keeps the catalog it loaded, even after the host executable is rebuilt.
     process.env.HOST_CATALOG = "9";
-    await writeFile(entry, application("reload", true));
+    await saveWatchedFile(entry, application("reload", true));
     await until(async () => (await read()).includes("catalog:reload:7"));
     await until(() => diagnostics.includes("application closed"));
 
     // The next session exports the rebuilt host's catalog instead of reusing the previous one.
-    await writeFile(entry, application("restarted"));
+    await saveWatchedFile(entry, application("restarted"));
     await until(async () => (await read()).includes("catalog:restarted:9"));
     expect(await readFile(generated, "utf8")).toContain("answer = 9");
     expect(diagnostics).not.toContain("mixed generated bindings");

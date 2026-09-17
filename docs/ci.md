@@ -35,6 +35,12 @@ build. Do not launch separate package-building task processes against the same
 checkout: their `dist` cleanup is not coordinated. Native binding verification
 belongs to `native-ci`, not the JavaScript-only `package-ci` gate.
 
+Watcher fixtures use `scripts/watch-fixture.ts` for distinct application saves.
+Vite's bundled watcher coalesces `change` events within 50ms; fast Linux inotify
+delivery can otherwise merge a test's next edit even after HMR has completed.
+The helper separates synthetic saves by 100ms. It does not change application
+watcher settings, retry failed checks, increase test timeouts, or remove assertions.
+
 The macOS default-feature `cargo check` is intentional: QuickJS Clippy enables a
 different dependency feature set and cannot validate consumers that must compile
 without QuickJS. Linux Clippy already checks all targets with the default feature
@@ -121,7 +127,7 @@ dependency caches do not create a new entry for every source commit.
 
 The action prunes local workspace/vendor build products and incremental state
 before saving; CI also disables Cargo incremental compilation. PRs restore
-caches; only successful pushes and manual runs can save them. Exact cache hits
+caches; only successful jobs on pushes and manual runs can save them. Exact cache hits
 are immutable: a failed or check-only build must not seed the cache used by full
 compile/test jobs. Native CI and Embedded Bun therefore have separate cache
 namespaces even though both use macOS 15. Audit jobs cache only the registry.

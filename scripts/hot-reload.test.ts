@@ -5,6 +5,7 @@ import remapping from "@jridgewell/remapping";
 import { FrameDecoder } from "../packages/solid-gpui/src/protocol";
 import { Envelope, type Snapshot } from "../packages/solid-gpui/src/protocol/generated/protocol";
 import { transformJsx } from "../packages/solid-gpui-vite/src/transform";
+import { saveWatchedFile } from "./watch-fixture";
 
 const repo = resolve(import.meta.dir, "..");
 
@@ -53,21 +54,21 @@ if (db.query('select 42 as value').get().value !== 42 || !await file(import.meta
 db.close(); console.log('Bun APIs available');
 globalThis.__jsxRegistration = 'ready'; export const registration = true;\n`,
   );
-  await writeFile(dependency, view("v1"));
-  await writeFile(
+  await saveWatchedFile(dependency, view("v1"));
+  await saveWatchedFile(
     entry,
     `import { mountApplication } from '@solid-gpui/core';
-import { StdioTransport } from '@solid-gpui/core/stdio';
-import { onCleanup } from '@solid-gpui/core/runtime';
-import { Demo } from './view';
-console.dir({ message: 'structured diagnostic' });
-console.table([{ runtime: 'Bun' }]);
-mountApplication<number>({ hotKey: import.meta.url, transport: () => new StdioTransport(), setup(previous = 0) {
-  const generation = previous + 1;
-  onCleanup(() => console.error('disposed-generation:' + generation));
-  return { render: () => <Demo generation={generation} />, captureState: () => generation };
-}});
-`,
+  import { StdioTransport } from '@solid-gpui/core/stdio';
+  import { onCleanup } from '@solid-gpui/core/runtime';
+  import { Demo } from './view';
+  console.dir({ message: 'structured diagnostic' });
+  console.table([{ runtime: 'Bun' }]);
+  mountApplication<number>({ hotKey: import.meta.url, transport: () => new StdioTransport(), setup(previous = 0) {
+    const generation = previous + 1;
+    onCleanup(() => console.error('disposed-generation:' + generation));
+    return { render: () => <Demo generation={generation} />, captureState: () => generation };
+  }});
+  `,
   );
   const config = join(directory, "vite.config.ts");
   const host = join(directory, "host.ts");
@@ -162,18 +163,18 @@ export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins:
   try {
     await until(() => snapshots.length === 1);
     expect(text()).toBe("v1:1");
-    await writeFile(dependency, view("v2"));
+    await saveWatchedFile(dependency, view("v2"));
     // A snapshot or error can arrive before the current HMR update completes.
     await until(() => snapshots.length === 2 && completedUpdates() === 1);
     expect(text()).toBe("v2:2");
     expect(diagnostics).toContain("disposed-generation:1");
-    await writeFile(dependency, "export const syntax = ;");
+    await saveWatchedFile(dependency, "export const syntax = ;");
     await until(() => /error/i.test(diagnostics) && completedUpdates() === 2);
     expect(snapshots).toHaveLength(2);
-    await writeFile(dependency, "export function Demo() { throw new Error('hot-render-failure'); }");
+    await saveWatchedFile(dependency, "export function Demo() { throw new Error('hot-render-failure'); }");
     await until(() => diagnostics.includes("hot-render-failure") && completedUpdates() === 3);
     expect(snapshots).toHaveLength(2);
-    await writeFile(dependency, view("v3"));
+    await saveWatchedFile(dependency, view("v3"));
     await until(() => snapshots.length === 3 && completedUpdates() === 4);
     expect(text()).toBe("v3:3");
     expect(snapshots.map((snapshot) => [snapshot.surfaceId, snapshot.epoch, snapshot.baseRevision])).toEqual([
@@ -183,7 +184,7 @@ export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins:
     ]);
     expect(child.exitCode).toBeNull();
     expect(outputFailure).toBeUndefined();
-    await writeFile(
+    await saveWatchedFile(
       config,
       (await Bun.file(config).text()).replace("logLevel: 'error'", "clearScreen: false, logLevel: 'error'"),
     );

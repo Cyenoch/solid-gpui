@@ -20,6 +20,8 @@ macOS 作业运行 `bun run task native-ci`：Rust 格式、协议与原生生�
 
 本地 `bun run ci` 仍组合两套检查，并共享记忆化的包构建。不要在同一 checkout 同时启动多个会构建包的 task 进程，它们的 `dist` 清理不相互协调。原生绑定检查归 `native-ci`，不再放在 JavaScript 包的 `package-ci` 中。
 
+Watcher 夹具通过 `scripts/watch-fixture.ts` 发出相互独立的应用保存。Vite 内置 watcher 会合并 50ms 内的 `change` 事件，Linux inotify 交付较快，即使 HMR 已完成，下一次测试写入仍可能被合并。辅助函数将模拟保存间隔设为 100ms，不修改真实应用的 watcher 配置、不重试失败检查、不增加测试超时，也不删除断言。
+
 macOS 的默认特性 `cargo check` 有意保留：QuickJS Clippy 启用了不同的依赖特性集合，不能验证消费者在不启用 QuickJS 时的编译契约。Linux Clippy 已用默认特性检查所有 targets，不重复执行 `cargo check` 或平台无关的格式检查。Windows 仍保留工作区检查与宿主链接。显示和 GPU 验证见[分发指南](distribution.zh-CN.md)。
 
 Pages 精确恢复生成的 WASM 宿主缓存，未命中时执行 `build:host`，随后始终运行 `build:frontend` 和浏览器测试。SDK 包检查不依赖网站已有构建产物，也不重复这些检查。组件示例检查器按网站的 tsconfig 解析类型，因此在 Bun 隔离安装依赖后，从仓库根目录运行也能正确解析。
@@ -58,7 +60,7 @@ bun run task website-package
 
 共享的 [Rust 设置 action](../.github/actions/setup-rust/action.yml) 先选择固定工具链，再恢复 [Rust 依赖缓存](https://github.com/Swatinem/rust-cache)。缓存键包含 runner 镜像、架构、构建用途、已安装编译器、Cargo 配置和依赖清单/锁文件。Pages 在 WASM 成品缓存未命中时，先安装固定 Web nightly，再计算 Cargo 缓存键。Cargo 依赖缓存不为每次源码提交创建新条目。
 
-保存前清理本地工作区/vendor 构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复缓存；只有成功的推送和手动运行才能保存。精确命中的缓存不可修改，失败或仅检查的构建不应占据完整编译/测试作业的缓存。因此原生 CI 与 Embedded Bun 即使同为 macOS 15，也使用独立命名空间。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
+保存前清理本地工作区/vendor 构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复缓存；只有推送或手动运行中成功的作业才能保存。精确命中的缓存不可修改，失败或仅检查的构建不应占据完整编译/测试作业的缓存。因此原生 CI 与 Embedded Bun 即使同为 macOS 15，也使用独立命名空间。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
 
 Pages 另行缓存生成的 `examples/website/src/wasm`，不使用回退恢复键。只有 Rust 源码、嵌入资源、Cargo 配置/锁文件/清单、编译器和 bindgen 选择、原生导出器输入与构建工作流精确匹配时才跳过宿主编译；普通网站 TypeScript 和 Markdown 修改不使其失效。命中时跳过原生系统包及 Rust/bindgen 安装，但绝不跳过前端构建、类型检查或测试。仅在这些检查成功后保存，PR 不写入。新增 Rust 构建输入时同步维护 `pages.yml` 的键输入，参见 [Web 部署](web.zh-CN.md#github-pages)。
 
