@@ -43,6 +43,7 @@ mod executor;
 #[cfg(target_family = "wasm")]
 #[path = "executor_web.rs"]
 mod executor;
+mod type_validation;
 pub use cancellation::NativeCallContext;
 mod json_guard;
 mod module;
@@ -135,10 +136,7 @@ impl Types {
     }
     pub(crate) fn check(&self) -> Result<(), String> {
         for decl in self.declarations.values().chain(self.names.iter()) {
-            if decl
-                .split(|c: char| !c.is_alphanumeric() && c != '_')
-                .any(|s| s == "bigint" || s == "any")
-            {
+            if type_validation::has_unbounded_type(decl) {
                 return Err("native DTOs do not support bigint or any; use bounded values or explicit strings".into());
             }
         }
