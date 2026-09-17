@@ -108,16 +108,16 @@ QuickJS 新代校验保留持久窗口，弹层随旧代释放，待新代激活
 
 ```sh
 bun run task build
-SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
-cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=target/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
+cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs target/system-popover.js
 ```
 
 自动原生生命周期 fixture `fixtures/system-popover-lifecycle.tsx` 连续三轮打开嵌套弹层、卸载并重新挂载触发器，
 每轮检查主窗口的原生命令仍可响应，成功后自动退出。运行时保持测试应用在前台：
 
 ```sh
-SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
-cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover-lifecycle.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=target/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
+cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs target/system-popover-lifecycle.js
 ```
 
 macOS 首次定位回归会遍历当前连接的显示器：

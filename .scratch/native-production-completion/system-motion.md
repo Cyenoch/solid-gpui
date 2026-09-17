@@ -12,11 +12,11 @@ Use installed versions as explicit target dependencies where needed; transitive 
 
 ### macOS
 
-Query `NSWorkspace::sharedWorkspace()` then `accessibilityDisplayShouldReduceMotion() -> bool`, provided by installed objc2-app-kit 0.2.2 with NSWorkspace/NSAccessibility features: [query](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-app-kit-0.2.2/src/generated/NSAccessibility.rs:127).
+Query `NSWorkspace::sharedWorkspace()` then `accessibilityDisplayShouldReduceMotion() -> bool`, provided by installed objc2-app-kit 0.2.2 with NSWorkspace/NSAccessibility features: [query](https://docs.rs/crate/objc2-app-kit/0.2.2/source/src/generated/NSAccessibility.rs#127).
 
-Subscribe to `NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification` ([notification constant](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-app-kit-0.2.2/src/generated/NSAccessibility.rs:147)) on **the workspace's notification center**, not the process default center. [NSWorkspace::notificationCenter](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-app-kit-0.2.2/src/generated/NSWorkspace.rs:44) returns a retained center.
+Subscribe to `NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification` ([notification constant](https://docs.rs/crate/objc2-app-kit/0.2.2/source/src/generated/NSAccessibility.rs#147)) on **the workspace's notification center**, not the process default center. [NSWorkspace::notificationCenter](https://docs.rs/crate/objc2-app-kit/0.2.2/source/src/generated/NSWorkspace.rs#44) returns a retained center.
 
-The installed [NSNotificationCenter block API](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-foundation-0.2.2/src/generated/NSNotification.rs:145) is:
+The installed [NSNotificationCenter block API](https://docs.rs/crate/objc2-foundation/0.2.2/source/src/generated/NSNotification.rs#145) is:
 
 ```rust
 unsafe fn addObserverForName_object_queue_usingBlock(
@@ -28,13 +28,13 @@ unsafe fn addObserverForName_object_queue_usingBlock(
 ) -> Retained<NSObject>;
 ```
 
-Use the main operation queue, keep the center/token/block in an owned macOS subscription, and re-read the property on notification. On drop, call [removeObserver](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-foundation-0.2.2/src/generated/NSNotification.rs:131) on that same center. The notification is for several accessibility display preferences, so coalesce unchanged motion values. GPUI already uses the workspace center for system-wake observation ([native precedent](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-macos-0.3.3/src/platform.rs:1323)).
+Use the main operation queue, keep the center/token/block in an owned macOS subscription, and re-read the property on notification. On drop, call [removeObserver](https://docs.rs/crate/objc2-foundation/0.2.2/source/src/generated/NSNotification.rs#131) on that same center. The notification is for several accessibility display preferences, so coalesce unchanged motion values. GPUI already uses the workspace center for system-wake observation ([native precedent](https://docs.rs/crate/gpui-pre-macos/0.3.3/source/src/platform.rs#1323)).
 
 Keep registration/query/removal on the main thread. The callback should publish a value/invalidation through a channel rather than borrow GPUI App synchronously; native notifications can be reentrant. Required target deps/features: the already-installed matching objc2, objc2-app-kit, objc2-foundation, block2 versions; NSWorkspace, NSAccessibility, NSNotification, NSOperation, NSString and block2 feature gates. Confirm exact feature unification in Cargo rather than importing a different objc2 generation.
 
 ### Windows
 
-`UISettings::new()?`, `AnimationsEnabled() -> windows::core::Result<bool>` ([query](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-0.62.2/src/Windows/UI/ViewManagement/mod.rs:1907)); effective reduced motion is the inverse. Subscribe with:
+`UISettings::new()?`, `AnimationsEnabled() -> windows::core::Result<bool>` ([query](https://docs.rs/crate/windows/0.62.2/source/src/Windows/UI/ViewManagement/mod.rs#1907)); effective reduced motion is the inverse. Subscribe with:
 
 ```rust
 UISettings::AnimationsEnabledChanged(
@@ -43,15 +43,15 @@ UISettings::AnimationsEnabledChanged(
 UISettings::RemoveAnimationsEnabledChanged(token: i64) -> windows::core::Result<()>;
 ```
 
-Exact installed [registration/revocation](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-0.62.2/src/Windows/UI/ViewManagement/mod.rs:2040). The event requires **Windows 10 version 2004 / build 19041** per [Microsoft's primary API documentation](https://learn.microsoft.com/en-us/uwp/api/windows.ui.viewmanagement.uisettings.animationsenabledchanged?view=winrt-26100). Do not infer support on older Windows from successful compilation; registration casts to IUISettings6 and can fail. Windows 11 UTM meets this API floor.
+Exact installed [registration/revocation](https://docs.rs/crate/windows/0.62.2/source/src/Windows/UI/ViewManagement/mod.rs#2040). The event requires **Windows 10 version 2004 / build 19041** per [Microsoft's primary API documentation](https://learn.microsoft.com/en-us/uwp/api/windows.ui.viewmanagement.uisettings.animationsenabledchanged?view=winrt-26100). Do not infer support on older Windows from successful compilation; registration casts to IUISettings6 and can fail. Windows 11 UTM meets this API floor.
 
-Keep UISettings and event token in the application subscription. Event handlers enqueue the newly queried bool; assume callbacks may execute off the GPUI thread. Never capture `Rc<App>` in a WinRT callback. Revoke on teardown and guard a late queued event by watcher generation. Reuse the host's COM/WinRT initialization discipline; GPUI already constructs UISettings for scrollbar preferences ([existing use](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-windows-0.3.3/src/platform.rs:1423)). Declare windows 0.62.2 target features UI_ViewManagement and Foundation explicitly.
+Keep UISettings and event token in the application subscription. Event handlers enqueue the newly queried bool; assume callbacks may execute off the GPUI thread. Never capture `Rc<App>` in a WinRT callback. Revoke on teardown and guard a late queued event by watcher generation. Reuse the host's COM/WinRT initialization discipline; GPUI already constructs UISettings for scrollbar preferences ([existing use](https://docs.rs/crate/gpui-pre-windows/0.3.3/source/src/platform.rs#1423)). Declare windows 0.62.2 target features UI_ViewManagement and Foundation explicitly.
 
 There is also `SPI_GETCLIENTAREAANIMATION` plus `WM_SETTINGCHANGE` in existing Win32 bindings and GPUI handles WM_SETTINGCHANGE. That is an alternative for an explicitly chosen older-Windows baseline, but adding a second hidden fallback is unnecessary for the current Windows 11 target. If required later, implement it as the declared platform backend rather than catching every WinRT error and guessing.
 
 ### Linux
 
-The **installed** ashpd 0.13.13 already implements the standardized preference. Use `ashpd::desktop::settings::Settings::new().await?`, then [reduced_motion query](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ashpd-0.13.13/src/desktop/settings.rs:313):
+The **installed** ashpd 0.13.13 already implements the standardized preference. Use `ashpd::desktop::settings::Settings::new().await?`, then [reduced_motion query](https://docs.rs/crate/ashpd/0.13.13/source/src/desktop/settings.rs#313):
 
 ```rust
 async fn reduced_motion(&self) -> Result<ReducedMotion, Error>;
@@ -60,7 +60,7 @@ async fn receive_reduced_motion_changed(
 ) -> Result<impl Stream<Item = ReducedMotion>, Error>;
 ```
 
-[typed notification stream](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ashpd-0.13.13/src/desktop/settings.rs:348) subscribes to `org.freedesktop.appearance` / `reduced-motion`. `ReducedMotion::ReducedMotion` means true; `NoPreference` means false ([enum and decoding](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ashpd-0.13.13/src/desktop/settings.rs:159)). Unknown integer values decode to no preference, matching the [official Settings portal contract](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html). Missing keys or a missing portal are errors, not the no-preference value.
+[typed notification stream](https://docs.rs/crate/ashpd/0.13.13/source/src/desktop/settings.rs#348) subscribes to `org.freedesktop.appearance` / `reduced-motion`. `ReducedMotion::ReducedMotion` means true; `NoPreference` means false ([enum and decoding](https://docs.rs/crate/ashpd/0.13.13/source/src/desktop/settings.rs#159)). Unknown integer values decode to no preference, matching the [official Settings portal contract](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html). Missing keys or a missing portal are errors, not the no-preference value.
 
 Prefer the lower-level `receive_setting_changed_with_args::<ReducedMotion>(APPEARANCE_NAMESPACE, REDUCED_MOTION_KEY)` when explicit stream decoding errors are needed: the convenience stream filters conversion errors out with `filter_map(t.ok())`. Subscribe **before** the initial read, and process the initial result plus subsequent notifications in one watcher task. The subscription must own the proxy and stream for its full lifetime.
 
@@ -80,7 +80,7 @@ EventTarget::add_event_listener_with_callback("change", callback);
 EventTarget::remove_event_listener_with_callback("change", same_callback);
 ```
 
-Installed web-sys is 0.3.98: [query](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.98/src/features/gen_Window.rs:2217), [matches](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.98/src/features/gen_MediaQueryList.rs:33), [event registration](/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.98/src/features/gen_EventTarget.rs:32). Retain the MediaQueryList and `Closure<dyn FnMut(MediaQueryListEvent)>` in the guard; on teardown remove the listener and then drop the closure. Do not `forget()` a permanent closure. Use Window, MediaQueryList, MediaQueryListEvent, EventTarget feature gates and existing wasm-bindgen version.
+Installed web-sys is 0.3.98: [query](https://docs.rs/crate/web-sys/0.3.98/source/src/features/gen_Window.rs#2217), [matches](https://docs.rs/crate/web-sys/0.3.98/source/src/features/gen_MediaQueryList.rs#33), [event registration](https://docs.rs/crate/web-sys/0.3.98/source/src/features/gen_EventTarget.rs#32). Retain the MediaQueryList and `Closure<dyn FnMut(MediaQueryListEvent)>` in the guard; on teardown remove the listener and then drop the closure. Do not `forget()` a permanent closure. Use Window, MediaQueryList, MediaQueryListEvent, EventTarget feature gates and existing wasm-bindgen version.
 
 This executes in the browser main-thread host, not QuickJS. A worker without Window returns unavailable; do not add matchMedia to the embedded runtime. Main-thread event handlers still enqueue changes instead of reentrantly mutating App. MatchMedia follows browser-exposed OS preference; it does not require DOM rendering.
 

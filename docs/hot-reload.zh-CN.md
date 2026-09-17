@@ -1,6 +1,6 @@
 # 原生开发与热重载
 
-外部 Bun 用于快速迭代；内嵌 Bun 是 Bun 应用的预期生产打包运行时；QuickJS 是以 Rust 为主应用的界面运行时。定位与当前交付支持的区别见[运行时策略](runtime-strategy.md)。
+外部 Bun 用于快速迭代；内嵌 Bun 是 Bun 应用的预期生产打包运行时；QuickJS 是以 Rust 为主应用的界面运行时。定位见[运行时策略](runtime-strategy.zh-CN.md)，当前交付支持见[分发指南](distribution.zh-CN.md#平台状态与当前证据)。
 
 Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于 Oxc 的官方 `@solidjs/compiler` 2.0.0-rc.6 编译 universal JSX，使用 `oxc-transform` 0.148.0 转换 TypeScript。应用运行时仍为 Solid 1.9.15。Bun 执行 Vite RunnableDevEnvironment/ModuleRunner 和应用 JavaScript。GPUI 宿主保留原生窗口，通过现有 stdio 连接接收新 epoch 的 Snapshot。原生模块环境不需要 HTML、DOM 或 WebView。
 

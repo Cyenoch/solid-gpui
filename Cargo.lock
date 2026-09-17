@@ -6534,6 +6534,10 @@ dependencies = [
 [[package]]
 name = "solid-gpui-bun-sys"
 version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "solid-gpui-integration-tests"

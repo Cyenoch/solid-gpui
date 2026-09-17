@@ -10,15 +10,20 @@ capabilities live and how you want to develop and deliver the application.
 
 ## Runtime comparison
 
-|                                | External Bun                  | Embedded Bun                              | QuickJS                                                                             |
-| ------------------------------ | ----------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- |
-| Main purpose                   | Rapid development             | Production packaging for Bun applications | Rust capabilities with JSX/TSX UI                                                   |
-| JavaScript runs in             | A child process               | A dedicated thread inside the native app  | A dedicated thread inside the native app                                            |
-| Files and networking           | Bun services or Rust commands | Bun services or Rust commands             | Rust commands                                                                       |
-| Native UI                      | GPUI                          | GPUI                                      | GPUI                                                                                |
-| Transport                      | Binary stdio                  | Native frame bridge                       | Native frame bridge                                                                 |
-| End-user runtime               | A Bun executable              | Embedded Bun/JSC library                  | QuickJS embedded in the executable                                                  |
-| Current platform qualification | Check the target desktop      | macOS embedding                           | Candidate packages for macOS, Linux, and Windows; desktop qualification is separate |
+|                                | External Bun                  | Embedded Bun                                        | QuickJS                                           |
+| ------------------------------ | ----------------------------- | --------------------------------------------------- | ------------------------------------------------- |
+| Main purpose                   | Rapid development             | Production packaging for Bun applications           | Rust capabilities with JSX/TSX UI                 |
+| JavaScript runs in             | A child process               | A dedicated thread inside the native app            | A dedicated thread inside the native app          |
+| Files and networking           | Bun services or Rust commands | Bun services or Rust commands                       | Rust commands                                     |
+| Native UI                      | GPUI                          | GPUI                                                | GPUI                                              |
+| Transport                      | Binary stdio                  | Native frame bridge                                 | Native frame bridge                               |
+| End-user runtime               | A Bun executable              | One self-contained executable carrying Bun/JSC      | QuickJS embedded in the executable                |
+
+Packaging commands, prerequisites, and per-platform status have one source of
+truth: [distribution](distribution.md#embedded-bun-static-applications) and its
+[platform status](distribution.md#platform-status-and-current-evidence). Windows
+packaging is experimental and Linux stops at native preparation, so a passing
+local build is not release acceptance.
 
 ## Develop with external Bun
 
@@ -34,21 +39,45 @@ through `captureState`; component-local signals and native editing caches remoun
 See [hot reload](hot-reload.md).
 
 Bun may own the application's business logic and services, or it may call Rust
-Native Modules. Production code can use the same application composition with an
-Embedded Bun entrypoint.
+Native Modules. The packaged application keeps the same composition.
 
 ## Package a Bun application with Embedded Bun
 
-Embedded Bun is the production direction when the application needs Bun services.
-It uses `EmbeddedTransport`, and the host must enable the `embedded-bun` Cargo
-feature. The runtime runs in the native process; it does not share mutable JS
-objects with the GPUI thread.
+Embedded Bun is the delivery path when the application needs Bun services. It
+produces one application executable containing the GPUI host, the Bun/JSC
+runtime, and the serialized application with its declared assets and Worker
+entries. The product contract has no sidecars: it needs no Bun or Node
+installation and no JavaScript tree or `node_modules` beside the executable.
 
-The first build compiles a pinned, patched Bun/JSC library and can be substantially
-more work than a UI rebuild. Reuse the supported build cache for later builds.
-Embedding currently targets macOS. The website's existing final archive pipeline
-uses QuickJS; do not mistake that pipeline for Embedded Bun release qualification.
-See [distribution](distribution.md) and [runtime strategy](runtime-strategy.md).
+```sh
+bun run embedded:package --entry <Vite-built JS> --bun <pinned Bun executable> --output <application>
+```
+
+The packager takes the Vite-built entry, serializes it with a Bun executable
+matching the pinned revision, and links it with a native Bun graph built against
+prebuilt WebKit/JSC archives. Vite remains the only application compiler, and Bun
+and Node built-ins stay runtime imports. The pinned serializer is a build-time
+tool: it is never shipped and never needed on the destination machine. The first
+build compiles Bun's native graph and is substantially heavier than a UI rebuild;
+prebuilt WebKit/JSC archives avoid rebuilding JavaScriptCore, and a supported
+build cache plus the extracted native manifest avoid repeating the work.
+
+Declare application Workers and resources with `--workers` and `--assets`.
+Arbitrary paths opened on the destination filesystem are not automatically
+included; embed those application resources or provision them explicitly.
+
+The host starts such an application with
+`EmbeddedBunAdapter::start_packaged(entry)`, where `entry` is the virtual graph
+key the packager emitted — distinct from `start(path)`, which still loads a file
+from disk for development. A packaged session that cannot find its graph fails
+closed instead of evaluating some other file. The application uses
+`EmbeddedTransport` and never shares mutable JS objects with the GPUI thread.
+
+`--check-bundle` is a startup smoke test only: it starts two sessions and
+requires their initial Snapshots. It covers no input, assets, Workers, or
+graphics, and passing it is not platform qualification. Architecture, deployment
+restrictions, and remaining work are in
+[runtime strategy](runtime-strategy.md).
 
 ## Keep application capabilities in Rust with QuickJS
 
@@ -97,7 +126,9 @@ Embedded execution avoids the child-process pipe, but queueing and binary encodi
 still have costs. Both embedded engines exchange owned frames with Rust; native
 commands provide typed results without exposing GPUI handles to JavaScript.
 Pressure pauses event-driven production until the native consumer catches up;
-all pending queues remain bounded.
+all pending queues remain bounded. Loading the application from the executable
+image does not skip parsing or evaluating it, and it does not make the runtime
+free.
 
 Changing runtime does not automatically improve scrolling or frame rate. GPUI
 still performs native layout and painting, and some scrolling never enters JS.

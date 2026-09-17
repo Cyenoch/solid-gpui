@@ -68,10 +68,12 @@ solid-gpui-host bun --conditions=browser dist/app.js
 ```
 
 `vite` launches the default `solid-gpui-host` executable. For an existing custom
-host, set `host: { command: "/path/to/my-host", args: [], output: ".generated/native.ts" }`.
+host, set `host: { command: "./target/debug/my-host", args: [], output: ".generated/native.ts" }`.
 Vite runs that command with `--export-native` before loading component imports,
 then resolves `#native` and `@solid-gpui/core/components` to the exported file.
-`output` defaults to `.generated/native.ts` relative to Vite's root. This applies
+`command` is launched with Vite's root as its working directory, so a relative
+executable path resolves against that root. `output` defaults to
+`.generated/native.ts` relative to Vite's root. This applies
 even when the application declares no custom native module: the built-in controls
 must still use the running host's exact catalog. The executable must implement
 `--export-native` and use Solid GPUI's host entrypoint or Rust `Vite` helper to

@@ -1,6 +1,12 @@
 //! Bun's event loop runs on the host's dedicated owner thread. Cross-thread
 //! callers own only a weak VM door and byte-queue notifications, never JSC
 //! values. This file is compiled inside the pinned Bun source tree.
+//!
+//! A session evaluates either a disk path or, when the entry carries
+//! [`PACKAGED_ENTRY_TAG`], an identity in the executable's embedded module
+//! graph. Both go through the same eval bootstrap, so the byte bridge is
+//! installed before the application module is evaluated; only the import
+//! target and the VM's graph wiring differ.
 
 mod lifecycle;
 
@@ -25,6 +31,36 @@ const FINISHED: u8 = 2;
 const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024 + 4;
 const TURN_FRAMES: usize = 64;
 const TURN_BYTES: usize = 1024 * 1024;
+
+/// Entry kind tag carried by the ABI's entry bytes. `bun_embedded_run` accepts
+/// either a disk path or a bundled-graph identity, and the tag decides which:
+/// a file path can never contain a NUL byte, so the two forms are unambiguous
+/// and a tagged entry can never be answered from the filesystem.
+const PACKAGED_ENTRY_TAG: u8 = 0x00;
+
+/// `SessionEntry` for the ABI boundary; `lifecycle` owns the semantics.
+type Entry<'a> = lifecycle::SessionEntry<'a>;
+
+/// Split the ABI's entry bytes. `None` means the caller sent a tag with no
+/// identity, which is malformed input rather than a disk path.
+fn decode_entry(entry: &[u8]) -> Option<Entry<'_>> {
+    match entry.split_first() {
+        Some((&PACKAGED_ENTRY_TAG, identity)) if !identity.is_empty() => {
+            Some(Entry::Packaged(identity))
+        }
+        Some((&PACKAGED_ENTRY_TAG, _)) => None,
+        _ => Some(Entry::Disk(entry)),
+    }
+}
+
+/// The specifier the bootstrap imports: a disk path for filesystem sessions,
+/// the graph identity for packaged ones.
+fn import_target(entry: Entry<'_>) -> &[u8] {
+    match entry {
+        Entry::Disk(path) => path,
+        Entry::Packaged(identity) => identity,
+    }
+}
 
 /// Borrowed for the whole `bun_embedded_run` call. Callbacks execute only on
 /// the Bun thread, must return promptly, and must not unwind or reenter JS.
@@ -411,11 +447,11 @@ fn install_globals(vm: *mut VirtualMachine) {
     }
 }
 
-fn wrapper_source(entry: &[u8]) -> Box<[u8]> {
+fn wrapper_source(target: &[u8]) -> Box<[u8]> {
     // Rust's quoted UTF-8 string escapes are valid modern JS string escapes
     // (including \u{...}). Reject invalid UTF-8 at the ABI boundary.
-    let entry = std::str::from_utf8(entry).expect("validated UTF-8 entry");
-    let quoted = format!("{:?}", entry);
+    let target = std::str::from_utf8(target).expect("validated UTF-8 entry");
+    let quoted = format!("{:?}", target);
     format!(
         r#"let subscription;
 let ended = false;
@@ -452,11 +488,15 @@ await import({quoted});
     .into_boxed_slice()
 }
 
-fn run(control: &RuntimeControl, entry: &[u8], io: &EmbeddedIoCallbacks) -> crate::Result<u8> {
+fn run(
+    control: &RuntimeControl,
+    entry: Entry<'_>,
+    io: &EmbeddedIoCallbacks,
+) -> Result<u8, lifecycle::SessionFailure> {
     if control.state.terminated.load(Ordering::Acquire) {
         return Ok(0);
     }
-    let mut session = lifecycle::EmbeddedVm::new()?;
+    let mut session = lifecycle::EmbeddedVm::new(entry)?;
     let vm = session.as_ptr();
     // Initialize the one JS-thread owner before publishing a cross-thread
     // target. Host input keeps the loop alive without fabricating a timer.
@@ -491,8 +531,17 @@ fn run(control: &RuntimeControl, entry: &[u8], io: &EmbeddedIoCallbacks) -> crat
         target.vm.request_termination();
     }
 
-    let wrapper = wrapper_source(entry);
-    let entry_path = b"/[eval]";
+    let wrapper = wrapper_source(import_target(entry));
+    // Match Bun's eval entry identity, including a drive-qualified Windows
+    // path. A Unix-rooted synthetic path is not a Windows module identity.
+    let mut cwd_buffer = bun_paths::PathBuffer::uninit();
+    let cwd = bun_core::getcwd_or_exe_dir(&mut cwd_buffer);
+    let entry_path = bun_paths::resolve_path::join::<bun_paths::platform::Auto>(&[
+        cwd.as_bytes(),
+        b"[eval]",
+    ])
+    .to_vec();
+    let entry_path = entry_path.as_slice();
     // Raw accesses avoid carrying an exclusive VM reference across JS, which
     // can reenter any host function and obtain the same VM through TLS.
     unsafe {
@@ -590,6 +639,13 @@ pub extern "C" fn bun_embedded_create() -> *mut RuntimeControl {
 /// `control` is a live create() result, `entry` is readable for `len` bytes,
 /// and `io` plus its context remain valid until this call returns. Call only
 /// once per control, on the process's dedicated embedded Bun owner thread.
+///
+/// The entry bytes are either a UTF-8 disk path, or a UTF-8 bundled-graph
+/// identity preceded by `PACKAGED_ENTRY_TAG`. A packaged session is served
+/// only from the executable's embedded module graph: a missing graph or entry
+/// returns the negative status of `lifecycle::GraphFailure` instead of falling
+/// back to the filesystem. The return value is otherwise 0..=255: the VM's exit
+/// code, or 1 for a failed session and 2 for malformed input.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bun_embedded_run(
     control: *const RuntimeControl,
@@ -602,12 +658,17 @@ pub unsafe extern "C" fn bun_embedded_run(
     }
     let control = unsafe { &*control };
     let entry = unsafe { std::slice::from_raw_parts(entry, len) };
-    if std::str::from_utf8(entry).is_err()
-        || control
-            .state
-            .phase
-            .compare_exchange(CREATED, RUNNING, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
+    let Some(entry) = decode_entry(entry) else {
+        return 2;
+    };
+    if std::str::from_utf8(import_target(entry)).is_err() {
+        return 2;
+    }
+    if control
+        .state
+        .phase
+        .compare_exchange(CREATED, RUNNING, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
     {
         return 2;
     }
@@ -617,7 +678,17 @@ pub unsafe extern "C" fn bun_embedded_run(
     control.state.scheduled.store(false, Ordering::Release);
     match result {
         Ok(code) => i32::from(code),
-        Err(error) => {
+        // The negative statuses are the host's typed diagnosis of a packaged
+        // session that never started. Every one of them fails closed: no VM
+        // was created and no filesystem entry was consulted.
+        Err(lifecycle::SessionFailure::Graph(failure)) => {
+            eprintln!(
+                "embedded Bun packaged session rejected: {}",
+                failure.describe()
+            );
+            failure.status()
+        }
+        Err(lifecycle::SessionFailure::Bun(error)) => {
             eprintln!("embedded Bun failed: {error}");
             1
         }

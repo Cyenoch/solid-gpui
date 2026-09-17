@@ -76,10 +76,11 @@ includes the Rust WASM host and TypeScript checking. It retains Vite's existing
 large-chunk warning.
 
 The repeatable preview harness is documented in
-`examples/website/tests/README.md`. Local visual evidence is in
-`/tmp/website-preview-audit/`: `main-*`, `variants-*`, `narrow-main-*`,
-`narrow-variants-*`, and `interaction-*` contact sheets/screenshots. A blank
-capture during a development-server restart was recaptured before review.
+`examples/website/tests/README.md`. Local visual evidence consists of `main-*`,
+`variants-*`, `narrow-main-*`, `narrow-variants-*`, and `interaction-*` contact
+sheets/screenshots captured into a local temporary directory during the audit;
+they are not checked into the repository. A blank capture during a
+development-server restart was recaptured before review.
 
 Final standalone Chrome/WebGPU checks confirmed complete navigation population,
 ordered rows after scrolling, retained sidebar position when opening Editor, and

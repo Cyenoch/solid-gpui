@@ -23,6 +23,7 @@
     "website:native": "bun run task website-native",
     "website:native:dev": "bun run task website-native-dev",
     "website:native:package": "bun run task website-package",
+    "embedded:package": "bun scripts/bun-static-package.ts",
     "quickjs:dev": "bun run task quickjs-dev"
   },
   "devDependencies": {

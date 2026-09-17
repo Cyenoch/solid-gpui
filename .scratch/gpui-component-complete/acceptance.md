@@ -31,12 +31,15 @@ The window checks found and resolved missing component icon assets, theme initia
 
 ## Evidence from this run
 
-- `/tmp/solid-all-components-delivery-ci.log`: full CI after the final Tree row layout change (exit 0).
-- `/tmp/solid-ui-vendor-final-tests.log`: both vendored native library suites.
-- `/tmp/solid-settings-native-layout-test.log`: actual composed Settings field layouts.
-- `/tmp/solid-textarea-height-test.log`: native three/six-row measurement.
-- `/tmp/solid-renderer-deletion-regression.log`: key renderer and native JS checks.
-- `/tmp/solid-gallery-tree-repro.log` and `/tmp/solid-gallery-tree-repro-fixed.log`: reproducible deletion failure and corrected sequence.
-- `/tmp/solid-native-ui-commits-controls-charts.bin` and `/tmp/solid-native-ui-commits-settings-dock.bin`: captured native-window commit streams.
+Evidence files are named by basename only. They were written to the run's local
+temporary directory and are not checked into the repository.
+
+- `solid-all-components-delivery-ci.log`: full CI after the final Tree row layout change (exit 0).
+- `solid-ui-vendor-final-tests.log`: both vendored native library suites.
+- `solid-settings-native-layout-test.log`: actual composed Settings field layouts.
+- `solid-textarea-height-test.log`: native three/six-row measurement.
+- `solid-renderer-deletion-regression.log`: key renderer and native JS checks.
+- `solid-gallery-tree-repro.log` and `solid-gallery-tree-repro-fixed.log`: reproducible deletion failure and corrected sequence.
+- `solid-native-ui-commits-controls-charts.bin` and `solid-native-ui-commits-settings-dock.bin`: captured native-window commit streams.
 
 Non-fatal tooling notices remain for the upstream `block 0.1.6` future-compatibility report and Babel peer-dependency ranges in the packed-consumer smoke. Advisory scans passed; no new ignore rules were introduced.

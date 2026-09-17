@@ -1,3 +1,451 @@
+diff --git a/scripts/build/bun.ts b/scripts/build/bun.ts
+index ae2fdef..0787a08 100644
+--- a/scripts/build/bun.ts
++++ b/scripts/build/bun.ts
+@@ -19,6 +19,9 @@
+  *   - "link-only": link pre-built artifacts (CI downstream)
+  *   - "rust-and-link": cargo + link; downloads cpp-only's archive (CI)
+  *   - "archive-link": full build on one agent, linked from the cpp-only-style archive; uploads it + libbun_rust.a (CI)
++ *   - "embed-native": codegen + deps + every C/C++ object for a host-owned
++ *     static link. No Rust staticlib, no CLI entry point, no PE resources;
++ *     emits embed-native.json (see scripts/build/embed-native.ts)
+  *
+  * The split modes are for CI where C++ and Rust build in parallel on
+  * separate machines. rust-and-link folds the rust + link steps onto one
+@@ -36,6 +39,7 @@ import { generateDepVersionsHeader } from "./depVersionsHeader.ts";
+ import { allDeps } from "./deps/index.ts";
+ import { lolhtml } from "./deps/lolhtml.ts";
+ import { rustArgon2 } from "./deps/rust-argon2.ts";
++import { emitEmbedNativeProduct } from "./embed-native.ts";
+ import { assert } from "./error.ts";
+ import { bunIncludes, computeFlags, extraFlagsFor, linkDepends, linkerMapOutputs } from "./flags.ts";
+ import { writeIfChanged } from "./fs.ts";
+@@ -191,8 +195,11 @@ export function emitBun(n: Ninja, cfg: Config, sources: Sources): BunOutput {
+   // bundle-modules / generate-jssink edges), so the codegen output set
+   // is forwarded as implicit inputs to order it first.
+   //
+-  // cpp-only: skip rust entirely (runs on a separate CI machine).
+-  let rustObjects: string[] = [];
++  // Vendored Rust path deps must be on disk before ANY cargo invocation
++  // resolves the workspace — including the embedding host's, which consumes
++  // this checkout as a path dependency from *outside* this graph. Resolve them
++  // for every mode that reaches cargo, directly or through the host.
++  let vendorStamps: string[] = [];
+   if (cfg.mode !== "cpp-only") {
+     // lol-html is a direct path dep of `bun_runtime`/`bun_bundler`
+     // (`lol_html = { path = "vendor/lolhtml" }` in the workspace Cargo.toml),
+@@ -205,11 +212,18 @@ export function emitBun(n: Ninja, cfg: Config, sources: Sources): BunOutput {
+     const rustArgon2Dep = resolveDep(n, cfg, rustArgon2, depsByName);
+     assert(rustArgon2Dep !== null, "rust-argon2 resolveDep returned null — should never be skipped");
+     depsByName.set(rustArgon2.name, rustArgon2Dep);
++    vendorStamps = [...lolhtmlDep.outputs, ...rustArgon2Dep.outputs];
++  }
++  // cpp-only: skip rust entirely (runs on a separate CI machine). embed-native:
++  // the host crate graph compiles bun's Rust crates itself, as an rlib in its
++  // own graph — no second staticlib, no second `std`, no second allocator.
++  let rustObjects: string[] = [];
++  if (cfg.mode !== "cpp-only" && cfg.mode !== "embed-native") {
+     rustObjects = emitRust(n, cfg, {
+       codegenInputs: codegen.rustInputs,
+       codegenOrderOnly: codegen.rustOrderOnly,
+       rustSources: sources.rust,
+-      vendorStamps: [...lolhtmlDep.outputs, ...rustArgon2Dep.outputs],
++      vendorStamps,
+     });
+   }
+ 
+@@ -441,6 +455,25 @@ export function emitBun(n: Ninja, cfg: Config, sources: Sources): BunOutput {
+   // cfg.archiveDeps they live in depLibs as .a files instead.
+   const allObjects = [...cxxObjects, ...cObjects, ...depObjects];
+ 
++  // ─── Step 6: embed-native → static embedding product (returns here) ───
++  // The host application owns the final link, so stop here with the object set
++  // and the link policy rather than continuing into the CLI's archive / link /
++  // post-link steps. The manifest this emits is the native product's whole
++  // contract; nothing else about bun-debug's build leaks into the host link.
++  if (cfg.mode === "embed-native") {
++    return emitEmbedNativeProduct(n, cfg, {
++      codegen,
++      deps,
++      objects: allObjects,
++      archives: depLibs,
++      checks: depChecks,
++      ldflags: [...flags.ldflags, ...systemLibs(cfg)],
++      shims: emitShims(n, cfg),
++      rustSources: sources.rust,
++      vendorStamps,
++    });
++  }
++
+   // ─── Step 6: cpp-only / archive-link → archive (cpp-only returns here) ───
+   // CI's build-cpp step: archive all .o into libbun.a, stop. The sibling
+   // build-rust step produces libbun_rust.a independently; build-bun
+diff --git a/scripts/build/config.ts b/scripts/build/config.ts
+--- a/scripts/build/config.ts
++++ b/scripts/build/config.ts
+@@ -21,7 +21,17 @@ export type OS = "linux" | "darwin" | "windows" | "freebsd";
+ export type Arch = "x64" | "aarch64";
+ export type Abi = "gnu" | "musl" | "android";
+ export type BuildType = "Debug" | "Release" | "RelWithDebInfo" | "MinSizeRel";
+-export type BuildMode = "full" | "cpp-only" | "rust-only" | "link-only" | "rust-and-link" | "archive-link";
++export type BuildMode =
++  | "full"
++  | "cpp-only"
++  | "rust-only"
++  | "link-only"
++  | "rust-and-link"
++  | "archive-link"
++  // Static embedding product: the shared codegen/dependency/C++ phases only.
++  // The host application — a separate Rust crate graph that consumes `bun_bin`
++  // as an rlib — owns the final link. See scripts/build/embed-native.ts.
++  | "embed-native";
+ export type WebKitMode = "prebuilt" | "local";
+ 
+ /**
+@@ -305,9 +315,9 @@
+   /**
+-   * Windows cross-compile only: root of an xwin-style splat of the MSVC
++   * Windows target sysroot: root of an xwin-style splat of the MSVC
+    * CRT/STL + Windows SDK laid out like a Visual Studio install
+    * (`VC/Tools/MSVC/<ver>`, `Windows Kits/10`). Passed to clang-cl as
+-   * `/winsysroot` and to lld-link as `/winsysroot:` — the cross equivalent
+-   * of the INCLUDE/LIB env a VS dev shell provides on a Windows host.
+-   * undefined on native Windows builds (VS dev shell supplies the SDK).
++   * `/winsysroot` and to lld-link as `/winsysroot:`. Explicit selection also
++   * applies on Windows so a native build can match prebuilt WebKit's STL ABI.
++   * Undefined on native Windows only when no sysroot was requested.
+    */
+   winsysroot: string | undefined;
+@@ -391,3 +401,3 @@
+   osxDeploymentTarget?: string;
+-  /** Windows sysroot (xwin splat, VS layout). Only used when cross-compiling for os=windows. */
++  /** Windows target sysroot (xwin splat, VS layout), including native builds. */
+   winsysroot?: string;
+@@ -1056,18 +1066,16 @@
+   // ─── Cross-compilation (Windows) ───
+   // Same pattern as Android/FreeBSD, with the MSVC spin: the host LLVM's
+   // clang-cl/lld-link/llvm-lib/llvm-rc are used (tools.ts picks them by
+   // target), and the "sysroot" is an xwin splat of the MSVC CRT/STL +
+   // Windows SDK in Visual Studio layout, passed via /winsysroot instead of
+-  // --sysroot. Building ON Windows needs none of this — the VS dev shell
+-  // provides INCLUDE/LIB.
+-  let winsysroot: string | undefined;
++  // --sysroot. Explicit selection must also override the native VS toolset;
++  // newer STL headers can change the prebuilt WebKit's C++ calling conventions.
++  let winsysroot =
++    windows && partial.winsysroot !== undefined
++      ? resolve(cwd, partial.winsysroot)
++      : undefined;
+   if (windows && host.os !== "windows") {
+-    winsysroot =
+-      partial.winsysroot !== undefined
+-        ? isAbsolute(partial.winsysroot)
+-          ? partial.winsysroot
+-          : resolve(cwd, partial.winsysroot)
+-        : detectWindowsSysroot();
++    winsysroot ??= detectWindowsSysroot();
+     if (winsysroot === undefined) {
+       if (ci || buildkite) {
+         // CI always fetches its own sysroot into the per-build cache (see
+@@ -1116,6 +1124,9 @@
+   let osxSysroot: string | undefined;
+   if (darwin && host.os === "darwin") {
+     ({ osxDeploymentTarget, osxSysroot } = detectMacosSdk(ci));
++    if (partial.macosSdk !== undefined) {
++      osxSysroot = resolveMacosSdkPath(partial.macosSdk, cacheDir, cwd);
++    }
+     if (partial.osxDeploymentTarget !== undefined) osxDeploymentTarget = partial.osxDeploymentTarget;
+   }
+ 
+diff --git a/scripts/build/configure.ts b/scripts/build/configure.ts
+--- a/scripts/build/configure.ts
++++ b/scripts/build/configure.ts
+@@ -278,11 +278,11 @@
+-  // Windows cross-compile: make sure the MSVC CRT + Windows SDK splat is
++  // Explicit Windows sysroot: make sure the MSVC CRT + Windows SDK splat is
+   // usable BEFORE the graph is emitted — emitBun() enumerates its include
+   // dirs (llvm-rc's /I flags) at configure time, so the sysroot must exist
+   // by then, not just before ninja runs. CI fetches a missing sysroot into
+   // the per-build cache; local builds require a provisioned one (the fetch
+   // would be a surprise multi-GB download) and only get the case-alias
+   // fixup + completeness check.
+-  if (cfg.windows && cfg.host.os !== "windows") {
++  if (cfg.windows && cfg.winsysroot !== undefined) {
+     await ensureWindowsSysroot(cfg);
+     mark("ensureWindowsSysroot");
+   }
+@@ -298,8 +298,14 @@ export async function configure(input: ConfigureInput): Promise<ConfigureResult>
+   // perl script from JSC. If perl is missing, codegen fails cryptically.
+   // Check here so the error is at configure time with a clear hint.
+   // rust-only/link-only don't run LUT codegen — skip the check so split-CI
+-  // steps don't require perl on the rust cross-compile box.
+-  if (cfg.mode === "full" || cfg.mode === "cpp-only" || cfg.mode === "archive-link") {
++  // steps don't require perl on the rust cross-compile box. embed-native
++  // compiles the same C/C++ set as `full`, so it needs perl too.
++  if (
++    cfg.mode === "full" ||
++    cfg.mode === "cpp-only" ||
++    cfg.mode === "archive-link" ||
++    cfg.mode === "embed-native"
++  ) {
+     if (findSystemTool("perl") === undefined) {
+       throw new BuildError("perl not found in PATH", {
+         hint: "LUT codegen (create-hash-table.ts) needs perl. Install it: apt install perl / brew install perl",
+diff --git a/scripts/build/rust.ts b/scripts/build/rust.ts
+index 5b7872b..fd11d16 100644
+--- a/scripts/build/rust.ts
++++ b/scripts/build/rust.ts
+@@ -762,6 +762,130 @@ export function cargoBuildInvocation(cfg: Config): CargoInvocation {
+   return { args, env, targetDir, triple };
+ }
+ 
++/**
++ * Emit the Windows `.bin/` shim PE build edge and return its stamps.
++ *
++ * The shim is a freestanding release PE that `bun_install` reaches through
++ * `include_bytes!`, so `bun install` can write a real launcher into
++ * `node_modules/.bin/`. Without this edge the 0-byte placeholder that
++ * `src/install/build.rs` creates for a bare `cargo check` is what ships, and
++ * `embedded_executable_data()` trips its non-empty assertion at runtime.
++ *
++ * Split out of `emitRust` because the static embedding product
++ * (scripts/build/embed-native.ts) links no Rust staticlib but *does* compile
++ * `bun_install` — through the host crate graph — so the real PE has to be in
++ * the shared source-tree path before that graph is built. Same env as the main
++ * build (toolchain forwarding, CARGO_HOME) but no codegen dep: the shim crate's
++ * graph is bun_core/bun_sys/bun_string only.
++ *
++ * Returns the stamps to depend on — empty off Windows.
++ */
++export function emitWindowsShim(n: Ninja, cfg: Config, inputs: RustBuildInputs): string[] {
++  if (!cfg.windows) return [];
++  const { env, targetDir, triple } = cargoBuildInvocation(cfg);
++  const hostWin = cfg.host.os === "windows";
++  const shimDest = windowsShimDestPath(cfg);
++  // Always `--profile shim` (workspace `[profile.shim]`: panic=abort,
++  // opt-level=z, lto, codegen-units=1, strip) regardless of bun's own
++  // profile — a debug bun should still write release shims (matches Zig's
++  // unconditional `.ReleaseFast`).
++  //
++  // `-Zbuild-std=core,compiler_builtins` rebuilds the sysroot for the
++  // freestanding `#![no_std]` crate so LTO can inline across `core`;
++  // `panic_immediate_abort` makes every `panic!`/`unreachable!`/`assert!`
++  // (incl. those buried in `core::fmt`, slice indexing, `Option::unwrap`)
++  // compile to a bare `ud2`/`brk` with no `core::fmt::Arguments` payload —
++  // that machinery is otherwise the bulk of `.text`. Nightly + `rust-src`
++  // are guaranteed by `rust-toolchain.toml`.
++  const shimArgs: string[] = [
++    "-p",
++    "bun_shim_impl",
++    "--bin",
++    "bun_shim_impl",
++    "--features",
++    "shim_standalone",
++    "--target-dir",
++    targetDir,
++    "--target",
++    triple,
++    "--profile",
++    "shim",
++    "--locked",
++    "-Zbuild-std=core,compiler_builtins",
++    "-Zbuild-std-features=compiler-builtins-mem",
++  ];
++  const shimSrc = resolve(targetDir, triple, "shim", "bun_shim_impl.exe");
++  // Same env minus the main build's CARGO_ENCODED_RUSTFLAGS — the shim has
++  // its own panic strategy (abort) so `-Zsanitizer=address` (which assumes
++  // unwind) and `-Clinker-plugin-lto` (the PE is final-linked here, not
++  // deferred to bun's lld link) don't apply, and `-Cforce-frame-pointers` /
++  // `-Ctarget-cpu` cost size we don't want. Replace with a freestanding
++  // flag set:
++  //   - `/ENTRY:shim_main`      — bypass the CRT (`mainCRTStartup`) entirely;
++  //                               the launcher reads argv from TEB→PEB itself.
++  //   - `/SUBSYSTEM:CONSOLE`    — link.exe can't infer subsystem without a
++  //                               recognised entry symbol.
++  //   - `/NODEFAULTLIB`         — don't pull msvcrt/vcruntime/ucrt; the only
++  //                               imports are kernel32 + ntdll (named via
++  //                               `#[link]` on the externs).
++  //
++  // (`-Cforce-unwind-tables=no` would drop `.pdata`, but the
++  // `*-windows-msvc` target spec sets `requires_uwtable: true` so rustc
++  // rejects it. The section is ~3 KiB; not worth a custom target JSON.)
++  const { CARGO_ENCODED_RUSTFLAGS: _, ...shimEnv } = env;
++  shimEnv.CARGO_ENCODED_RUSTFLAGS = [
++    // `panic = "immediate-abort"` is the new (nightly ≥ 2025-12) spelling of
++    // the old `-Zbuild-std-features=panic_immediate_abort`: every panic call
++    // (incl. core::fmt-carrying assert/unreachable/unwrap) compiles to a
++    // bare trap with no `Arguments` payload.
++    "-Zunstable-options",
++    "-Cpanic=immediate-abort",
++    "-Clink-arg=/ENTRY:shim_main",
++    "-Clink-arg=/SUBSYSTEM:CONSOLE",
++    "-Clink-arg=/NODEFAULTLIB",
++    "-Clink-arg=kernel32.lib",
++    "-Clink-arg=ntdll.lib",
++    // Cross-compiling from a unix host: this is the only cargo-driven link
++    // of a *target* artifact, and the linker is lld-link (no MSVC install),
++    // so point it at the xwin splat for the kernel32/ntdll import libs.
++    ...(cfg.winsysroot !== undefined ? [`-Clink-arg=/winsysroot:${cfg.winsysroot}`] : []),
++  ].join("\x1f");
++  // Declared output = per-build-dir stamp; the shared source-tree exe is an
++  // implicit INPUT (see the rust_shim rule comment for why). The exe must
++  // exist before ninja evaluates the graph — pre-create an empty
++  // placeholder the same way `src/install/build.rs` does for bare
++  // `cargo check`, so a fresh checkout doesn't error on a missing input.
++  if (!existsSync(shimDest)) {
++    mkdirSync(dirname(shimDest), { recursive: true });
++    writeFileSync(shimDest, "");
++  }
++  const shimStamp = resolve(targetDir, triple, "shim", "bun_shim_impl.stamp");
++  n.build({
++    outputs: [shimStamp],
++    rule: "rust_shim",
++    inputs: [],
++    // Same staleness signal as the main build (any .rs / Cargo.toml change
++    // re-invokes; cargo's own fingerprinting decides what actually
++    // recompiles). vendorStamps order the lol-html fetch first — the shim
++    // crate doesn't depend on lol-html, but cargo refuses to load the
++    // workspace manifest if any path-dep's `Cargo.toml` is missing.
++    // shimDest: rebuilt when a sibling build dir (other arch/profile)
++    // overwrote the shared exe.
++    implicitInputs: [cfg.cargo, ...inputs.rustSources, ...inputs.vendorStamps, shimDest],
++    vars: {
++      cwd: cfg.cwd,
++      args: quoteArgs(shimArgs, hostWin),
++      shim_src: quote(shimSrc, hostWin),
++      shim_dest: quote(shimDest, hostWin),
++      env: Object.entries(shimEnv)
++        .map(([k, v]) => `--env=${k}=${quote(v, hostWin)}`)
++        .join(" "),
++    },
++  });
++  n.phony("bun-shim", [shimStamp]);
++  return [shimStamp];
++}
++
+ /**
+  * Emit the cargo build step. Returns the output staticlib path as a
+  * one-element array so the link step can spread it alongside the C++
+@@ -780,118 +904,7 @@ export function emitRust(n: Ninja, cfg: Config, inputs: RustBuildInputs): string
+   const tier3 = rustTargetIsTier3(rustTarget(cfg));
+   const { args, env, targetDir, triple } = cargoBuildInvocation(cfg);
+ 
+-  // ─── Windows .bin/ shim PE ───
+-  // Builds `src/install/windows-shim/bun_shim_impl.rs` as a freestanding release PE and wires the artifact into `include_bytes!`. Without this step `include_bytes!` embeds the
+-  // 0-byte placeholder and `bun install` writes empty `.exe`s into
+-  // `node_modules/.bin/`.
+-  //
+-  // Ordered before the main cargo build via `implicitInputs` below so the
+-  // real PE is on disk when `bun_install` compiles. Same env as the main
+-  // build (toolchain forwarding, CARGO_HOME) but no codegen dep — the shim
+-  // crate's graph is bun_core/bun_sys/bun_string only.
+-  const shimInputs: string[] = [];
+-  if (cfg.windows) {
+-    const shimDest = windowsShimDestPath(cfg);
+-    // Always `--profile shim` (workspace `[profile.shim]`: panic=abort,
+-    // opt-level=z, lto, codegen-units=1, strip) regardless of bun's own
+-    // profile — a debug bun should still write release shims (matches Zig's
+-    // unconditional `.ReleaseFast`).
+-    //
+-    // `-Zbuild-std=core,compiler_builtins` rebuilds the sysroot for the
+-    // freestanding `#![no_std]` crate so LTO can inline across `core`;
+-    // `panic_immediate_abort` makes every `panic!`/`unreachable!`/`assert!`
+-    // (incl. those buried in `core::fmt`, slice indexing, `Option::unwrap`)
+-    // compile to a bare `ud2`/`brk` with no `core::fmt::Arguments` payload —
+-    // that machinery is otherwise the bulk of `.text`. Nightly + `rust-src`
+-    // are guaranteed by `rust-toolchain.toml`.
+-    const shimArgs: string[] = [
+-      "-p",
+-      "bun_shim_impl",
+-      "--bin",
+-      "bun_shim_impl",
+-      "--features",
+-      "shim_standalone",
+-      "--target-dir",
+-      targetDir,
+-      "--target",
+-      triple,
+-      "--profile",
+-      "shim",
+-      "--locked",
+-      "-Zbuild-std=core,compiler_builtins",
+-      "-Zbuild-std-features=compiler-builtins-mem",
+-    ];
+-    const shimSrc = resolve(targetDir, triple, "shim", "bun_shim_impl.exe");
+-    // Same env minus the main build's CARGO_ENCODED_RUSTFLAGS — the shim has
+-    // its own panic strategy (abort) so `-Zsanitizer=address` (which assumes
+-    // unwind) and `-Clinker-plugin-lto` (the PE is final-linked here, not
+-    // deferred to bun's lld link) don't apply, and `-Cforce-frame-pointers` /
+-    // `-Ctarget-cpu` cost size we don't want. Replace with a freestanding
+-    // flag set:
+-    //   - `/ENTRY:shim_main`      — bypass the CRT (`mainCRTStartup`) entirely;
+-    //                               the launcher reads argv from TEB→PEB itself.
+-    //   - `/SUBSYSTEM:CONSOLE`    — link.exe can't infer subsystem without a
+-    //                               recognised entry symbol.
+-    //   - `/NODEFAULTLIB`         — don't pull msvcrt/vcruntime/ucrt; the only
+-    //                               imports are kernel32 + ntdll (named via
+-    //                               `#[link]` on the externs).
+-    //
+-    // (`-Cforce-unwind-tables=no` would drop `.pdata`, but the
+-    // `*-windows-msvc` target spec sets `requires_uwtable: true` so rustc
+-    // rejects it. The section is ~3 KiB; not worth a custom target JSON.)
+-    const { CARGO_ENCODED_RUSTFLAGS: _, ...shimEnv } = env;
+-    shimEnv.CARGO_ENCODED_RUSTFLAGS = [
+-      // `panic = "immediate-abort"` is the new (nightly ≥ 2025-12) spelling of
+-      // the old `-Zbuild-std-features=panic_immediate_abort`: every panic call
+-      // (incl. core::fmt-carrying assert/unreachable/unwrap) compiles to a
+-      // bare trap with no `Arguments` payload.
+-      "-Zunstable-options",
+-      "-Cpanic=immediate-abort",
+-      "-Clink-arg=/ENTRY:shim_main",
+-      "-Clink-arg=/SUBSYSTEM:CONSOLE",
+-      "-Clink-arg=/NODEFAULTLIB",
+-      "-Clink-arg=kernel32.lib",
+-      "-Clink-arg=ntdll.lib",
+-      // Cross-compiling from a unix host: this is the only cargo-driven link
+-      // of a *target* artifact, and the linker is lld-link (no MSVC install),
+-      // so point it at the xwin splat for the kernel32/ntdll import libs.
+-      ...(cfg.winsysroot !== undefined ? [`-Clink-arg=/winsysroot:${cfg.winsysroot}`] : []),
+-    ].join("\x1f");
+-    // Declared output = per-build-dir stamp; the shared source-tree exe is an
+-    // implicit INPUT (see the rust_shim rule comment for why). The exe must
+-    // exist before ninja evaluates the graph — pre-create an empty
+-    // placeholder the same way `src/install/build.rs` does for bare
+-    // `cargo check`, so a fresh checkout doesn't error on a missing input.
+-    if (!existsSync(shimDest)) {
+-      mkdirSync(dirname(shimDest), { recursive: true });
+-      writeFileSync(shimDest, "");
+-    }
+-    const shimStamp = resolve(targetDir, triple, "shim", "bun_shim_impl.stamp");
+-    n.build({
+-      outputs: [shimStamp],
+-      rule: "rust_shim",
+-      inputs: [],
+-      // Same staleness signal as the main build (any .rs / Cargo.toml change
+-      // re-invokes; cargo's own fingerprinting decides what actually
+-      // recompiles). vendorStamps order the lol-html fetch first — the shim
+-      // crate doesn't depend on lol-html, but cargo refuses to load the
+-      // workspace manifest if any path-dep's `Cargo.toml` is missing.
+-      // shimDest: rebuilt when a sibling build dir (other arch/profile)
+-      // overwrote the shared exe.
+-      implicitInputs: [cfg.cargo, ...inputs.rustSources, ...inputs.vendorStamps, shimDest],
+-      vars: {
+-        cwd: cfg.cwd,
+-        args: quoteArgs(shimArgs, hostWin),
+-        shim_src: quote(shimSrc, hostWin),
+-        shim_dest: quote(shimDest, hostWin),
+-        env: Object.entries(shimEnv)
+-          .map(([k, v]) => `--env=${k}=${quote(v, hostWin)}`)
+-          .join(" "),
+-      },
+-    });
+-    n.phony("bun-shim", [shimStamp]);
+-    shimInputs.push(shimStamp);
+-  }
++  const shimInputs = emitWindowsShim(n, cfg, inputs);
+ 
+   // ─── Emit build node ───
+   // When the toolchain is rustup-managed and pinned, route through
 diff --git a/src/bun_alloc/lib.rs b/src/bun_alloc/lib.rs
 index fa01c50..cadafc2 100644
 --- a/src/bun_alloc/lib.rs
@@ -105,19 +553,33 @@ index fa01c50..cadafc2 100644
      pub fn remove(&mut self, denormalized_key: &[u8]) -> bool {
          let _guard = self.mutex.lock();
 diff --git a/src/bun_bin/Cargo.toml b/src/bun_bin/Cargo.toml
-index 94839e8..8a0efae 100644
+index 94839e8d..ab3ed68b 100644
 --- a/src/bun_bin/Cargo.toml
 +++ b/src/bun_bin/Cargo.toml
-@@ -13,6 +13,9 @@ name = "bun_rust"
+@@ -8,10 +8,22 @@ edition.workspace = true
+ # set, exactly where `bun-zig.o` used to go. The C entry point (`main`) is
+ # `#[no_mangle] extern "C"` in lib.rs; the clang++ driver provides crt1.o
+ # (`_start` → `main`).
++#
++# `rlib` is the embedding form. A second Rust `staticlib` linked into the host
++# application would bundle its own `std`, panic runtime and allocator; the
++# static embedding product (`emitBun`'s "embed-native" mode) therefore consumes
++# this crate as an rlib inside the host's own crate graph, so rustc reconciles
++# one `std` and the single global allocator below across the whole image.
+ [lib]
+ name = "bun_rust"
  path = "lib.rs"
- crate-type = ["staticlib"]
- 
-+[features]
-+solid-gpui-embed = []
+-crate-type = ["staticlib"]
++crate-type = ["staticlib", "rlib"]
 +
++[features]
++# Embedding host product: drop the CLI entry point (`main`) and the argv /
++# process policy that only belongs to a `bun` executable. The embedded
++# initializer (`bun_embedded_initialize_process`) is always compiled.
++solid-gpui-embed = ["bun_runtime/solid-gpui-embed"]
+ 
  [lints]
  workspace = true
- 
 diff --git a/src/bun_bin/lib.rs b/src/bun_bin/lib.rs
 index 20d6495..3330acf 100644
 --- a/src/bun_bin/lib.rs
@@ -593,6 +1055,43 @@ index 25e3e4f..1e9e54f 100644
      bool isContextThread();
  
      // Active objects are not garbage collected even if inaccessible, e.g. because their activity may result in callbacks being invoked.
+diff --git a/src/jsc/bindings/c-bindings.cpp b/src/jsc/bindings/c-bindings.cpp
+index 1ead598..c828a6f 100644
+--- a/src/jsc/bindings/c-bindings.cpp
++++ b/src/jsc/bindings/c-bindings.cpp
+@@ -1092,7 +1092,14 @@ struct BlobHeader {
+ 
+ #if OS(DARWIN)
+ 
+-extern "C" BlobHeader __attribute__((section("__BUN,__bun"))) BUN_COMPILED = { 0, 0 };
++// `used`/`retain`/`weak`: a native embedding host supplies this section with a
++// strong definition of its own (Rust `#[no_mangle]` in `__BUN,__bun`), and its
++// link may not reference the reader from a live path. `retain` keeps the section
++// under `-dead_strip`; `weak` makes this 8-byte placeholder the fallback that a
++// strong definition overrides, so `Bun__getStandaloneModuleGraphMachoLength()`
++// addresses the real payload while a bun-only build with no such definition
++// keeps working unchanged.
++extern "C" BlobHeader __attribute__((section("__BUN,__bun"), used, retain, weak)) BUN_COMPILED = { 0, 0 };
+ 
+ extern "C" uint64_t* Bun__getStandaloneModuleGraphMachoLength()
+ {
+@@ -1132,10 +1139,15 @@ static bool initializePESection()
+     PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)hModule + dosHeader->e_lfanew);
+     if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) return false;
+ 
++    // Name is an 8-byte NUL-padded field, and sections are scanned in table
++    // order. A `.bun` prefix match also hits bun's own `.bunblt` builtin-module
++    // blob, so an image where that section precedes ours reads the wrong bytes
++    // as the payload length. Require the exact name.
++    static constexpr char BUN_SECTION_NAME[IMAGE_SIZEOF_SHORT_NAME] = { '.', 'b', 'u', 'n' };
+     PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+ 
+     for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
+-        if (strncmp((char*)sectionHeader->Name, ".bun", 4) == 0) {
++        if (memcmp(sectionHeader->Name, BUN_SECTION_NAME, IMAGE_SIZEOF_SHORT_NAME) == 0) {
+             // Found the .bun section
+             // Section format: 8 bytes size (uint64_t) + data
+             BYTE* sectionData = (BYTE*)hModule + sectionHeader->VirtualAddress;
 diff --git a/src/jsc/event_loop.rs b/src/jsc/event_loop.rs
 index be2b578..40c742f 100644
 --- a/src/jsc/event_loop.rs
@@ -838,9 +1337,10 @@ index 1e45ac9..2ef2466 100644
                          core::ptr::NonNull::new(merged_config).expect("heap::alloc is non-null"),
                      );
 diff --git a/src/runtime/cli/mod.rs b/src/runtime/cli/mod.rs
+index a72798d..d115a70 100644
 --- a/src/runtime/cli/mod.rs
 +++ b/src/runtime/cli/mod.rs
-@@ -1093,6 +1093,25 @@
+@@ -1093,6 +1093,25 @@ pub mod command {
          Tag::AutoCommand
      }
  
@@ -867,7 +1367,7 @@ diff --git a/src/runtime/cli/mod.rs b/src/runtime/cli/mod.rs
      /// `Context::set_global`. Shared by `create_context_data` and the
      /// standalone-graph fast path in `start()`.
 diff --git a/src/runtime/jsc_hooks.rs b/src/runtime/jsc_hooks.rs
-index 248e0bf..9bd6616 100644
+index 248e0bfe..4a3819bc 100644
 --- a/src/runtime/jsc_hooks.rs
 +++ b/src/runtime/jsc_hooks.rs
 @@ -664,7 +664,13 @@ unsafe fn configure_debugger(
@@ -885,6 +1385,17 @@ index 248e0bf..9bd6616 100644
      RUNTIME_STATE.with(|c| c.set(ptr::null_mut()));
      // Free the per-thread `TRANSPILE_PRINTER`. Workers lazy-init their own
      // copy in `transpile_file` / `transpile_virtual_module`; without this
+@@ -4942,7 +4948,9 @@ pub(crate) fn resolve_embedded_file_to_buf(
+     extname: &[u8],
+     out_buf: &mut [u8],
+ ) -> Option<usize> {
+-    if input_path.is_empty() {
++    // A statically embedded host never materializes native graph resources,
++    // including renamed libraries and requests made by Worker VMs.
++    if cfg!(feature = "solid-gpui-embed") || input_path.is_empty() {
+         return None;
+     }
+ 
 diff --git a/src/runtime/lib.rs b/src/runtime/lib.rs
 index b07914c..b2dddfe 100644
 --- a/src/runtime/lib.rs
@@ -899,10 +1410,22 @@ index b07914c..b2dddfe 100644
  pub mod cli;
  pub mod shell;
 diff --git a/src/runtime/node/node_process.rs b/src/runtime/node/node_process.rs
-index df6df1b..7026f04 100644
+index df6df1bd..8c22e545 100644
 --- a/src/runtime/node/node_process.rs
 +++ b/src/runtime/node/node_process.rs
-@@ -68,7 +68,10 @@ pub(crate) extern "C" fn get_exec_argv(global: &JSGlobalObject) -> JSValue {
+@@ -61,6 +61,11 @@ pub(crate) extern "C" fn get_exec_argv(global: &JSGlobalObject) -> JSValue {
+     Bun__Process__getExecArgv(global)
+ }
+ 
++/// Private builtin binding: this image owns an application, not Bun's CLI.
++pub(crate) fn is_embedded_host(_global: &JSGlobalObject) -> JSValue {
++    JSValue::from(cfg!(feature = "solid-gpui-embed"))
++}
++
+ // ───────────────────────────── exit ─────────────────────────────
+ 
+ // @190n: this may need to be noreturn
+@@ -68,7 +73,10 @@ pub(crate) extern "C" fn get_exec_argv(global: &JSGlobalObject) -> JSValue {
  pub(crate) extern "C" fn exit(global_object: &JSGlobalObject, code: u8) {
      let vm = global_object.bun_vm().as_mut();
      vm.exit_handler.exit_code = code;
@@ -914,3 +1437,258 @@ index df6df1b..7026f04 100644
          // @190n: we may need to use requestTerminate or throwTerminationException
          // instead to terminate the worker sooner
          worker.exit();
+diff --git a/src/jsc/bindings/JSNodePerformanceHooksHistogram.cpp b/src/jsc/bindings/JSNodePerformanceHooksHistogram.cpp
+--- a/src/jsc/bindings/JSNodePerformanceHooksHistogram.cpp
++++ b/src/jsc/bindings/JSNodePerformanceHooksHistogram.cpp
+@@ -21,6 +21,7 @@
+ #include <JavaScriptCore/HeapAnalyzer.h>
+ #include <JavaScriptCore/PropertyName.h>
+ #include <chrono>
++#include <limits>
+ #include <hdr/hdr_histogram.h>
+ #include <wtf/MonotonicTime.h>
+ 
+@@ -184,13 +185,13 @@
+ double JSNodePerformanceHooksHistogram::getMean() const
+ {
+-    if (!m_histogramData.histogram) return NAN;
++    if (!m_histogramData.histogram) return std::numeric_limits<double>::quiet_NaN();
+     return hdr_mean(m_histogramData.histogram);
+ }
+ 
+ double JSNodePerformanceHooksHistogram::getStddev() const
+ {
+-    if (!m_histogramData.histogram) return NAN;
++    if (!m_histogramData.histogram) return std::numeric_limits<double>::quiet_NaN();
+     return hdr_stddev(m_histogramData.histogram);
+ }
+ 
+ int64_t JSNodePerformanceHooksHistogram::getPercentile(double percentile) const
+diff --git a/src/js/node/child_process.ts b/src/js/node/child_process.ts
+index ed70f054..b0486d7c 100644
+--- a/src/js/node/child_process.ts
++++ b/src/js/node/child_process.ts
+@@ -781,6 +781,14 @@ function fork(modulePath, args = [], options) {
+   options.execPath = options.execPath || process.execPath;
+   validateArgumentNullCheck(options.execPath, "options.execPath");
+ 
++  if (options.execPath === process.execPath && $rust("node_process.rs", "is_embedded_host")) {
++    throw $ERR_INVALID_ARG_VALUE(
++      "options.execPath",
++      options.execPath,
++      "must name a separate JavaScript interpreter; the embedded host has no Bun CLI entry point",
++    );
++  }
++
+   // Prepare arguments for fork:
+   let execArgv = options.execArgv || process.execArgv;
+   validateArgumentsNullCheck(execArgv, "options.execArgv");
+diff --git a/src/runtime/Cargo.toml b/src/runtime/Cargo.toml
+index 69f0e223..7da16ebc 100644
+--- a/src/runtime/Cargo.toml
++++ b/src/runtime/Cargo.toml
+@@ -110,3 +110,4 @@ bun_css_jsc.workspace = true
+ 
+ [features]
+ default = []
++solid-gpui-embed = []
+diff --git a/src/runtime/ffi/ffi_body.rs b/src/runtime/ffi/ffi_body.rs
+index 1a1ec085..829e9e59 100644
+--- a/src/runtime/ffi/ffi_body.rs
++++ b/src/runtime/ffi/ffi_body.rs
+@@ -1457,6 +1457,21 @@ impl FFI {
+             return Ok(invalid_options_arg(global));
+         };
+ 
++        if cfg!(feature = "solid-gpui-embed")
++            && bun_options_types::standalone_path::is_bun_standalone_file_path(name_slice.slice())
++        {
++            let error = SystemError {
++                code: bun_core::String::clone_utf8(b"ERR_DLOPEN_FAILED").into(),
++                message: bun_core::String::clone_utf8(
++                    b"Native library extraction is unavailable in an embedded application",
++                )
++                .into(),
++                syscall: bun_core::String::clone_utf8(b"dlopen").into(),
++                ..Default::default()
++            };
++            return Ok(error.to_error_instance(global));
++        }
++
+         let mut filepath_buf = bun_paths::path_buffer_pool::get();
+         let name: &[u8] = 'brk: {
+             let ext: &[u8] = match () {
+diff --git a/src/codegen/generate-js2native.ts b/src/codegen/generate-js2native.ts
+index a4caebe5..5bec2a52 100644
+--- a/src/codegen/generate-js2native.ts
++++ b/src/codegen/generate-js2native.ts
+@@ -76,6 +76,8 @@ const rustIdentifierPaths: Record<string, string> = {
+   "node_http_binding.rs": "runtime/node/node_http_binding.rs",
+   "node_net_binding.rs": "runtime/node/node_net_binding.rs",
+   "node_os.rs": "runtime/node/node_os.rs",
++  // The #[path]-mapped Rust module is `node::process`, not `node::node_process`.
++  "node_process.rs": "runtime/node/process.rs",
+   "node_quic_binding.rs": "runtime/node/node_quic_binding.rs",
+   "node_util_binding.rs": "runtime/node/node_util_binding.rs",
+   "node_zlib_binding.rs": "runtime/node/node_zlib_binding.rs",
+diff --git a/scripts/build/flags.ts b/scripts/build/flags.ts
+index 184aa86f..9d588213 100644
+--- a/scripts/build/flags.ts
++++ b/scripts/build/flags.ts
+@@ -774,8 +774,8 @@ export const defines: Flag[] = [
+   {
+     // slash(): path becomes a C string literal — `\U` would be a unicode escape.
+     flag: c => `BUN_DYNAMIC_JS_LOAD_PATH=\\"${slash(join(c.buildDir, "js"))}\\"`,
+-    when: c => c.debug && !c.ci,
+-    desc: "Hot-reload built-in JS from build dir (dev convenience)",
++    when: c => c.debug && !c.ci && c.mode !== "embed-native",
++    desc: "Hot-reload built-in JS for development CLI builds, never embedded products",
+   },
+   {
+     // Standard define that disables assert() in libc headers. CMake adds
+@@ -949,9 +949,9 @@
+     // the VS-manifest payload xwin downloads carries an ancient arm64 UCRT
+     // with broken printf formatting).
+     flag: c => quote(`/libpath:${ucrtServicingLibDir(c)!}`, false),
+-    when: c => c.windows && c.host.os !== "windows",
+-    desc: "Windows cross-compile: serviced Universal CRT static libs (SDK NuGet) override the splat's",
++    when: c => c.windows && c.winsysroot !== undefined,
++    desc: "Windows sysroot: serviced Universal CRT static libs (SDK NuGet) override the splat's",
+   },
+   {
+     // Windows cross-compile: these ldflags go after /link, straight to
+     // lld-link, which doesn't see the compile-side `/winsysroot` from
+diff --git a/scripts/build/codegen.ts b/scripts/build/codegen.ts
+index 7aa6c223..239084a3 100644
+--- a/scripts/build/codegen.ts
++++ b/scripts/build/codegen.ts
+@@ -743,7 +743,13 @@ function emitJsModules({ n, cfg, sources, o, dirStamp }: Ctx): void {
+       desc: "JS modules (bundle-modules)",
+       // Note: arg is BUILD_PATH (buildDir), not CODEGEN_PATH. The script
+       // derives CODEGEN_DIR = join(BUILD_PATH, "codegen") internally.
+-      args: shJoin(cfg, ["run", script, debugFlag(cfg), cfg.buildDir]),
++      args: shJoin(cfg, [
++        "run",
++        script,
++        debugFlag(cfg),
++        cfg.buildDir,
++        ...(cfg.mode === "embed-native" || cfg.ci ? ["--embed-modules"] : []),
++      ]),
+     },
+   });
+ 
+diff --git a/src/codegen/bundle-modules.ts b/src/codegen/bundle-modules.ts
+--- a/src/codegen/bundle-modules.ts
++++ b/src/codegen/bundle-modules.ts
+@@ -22,20 +22,21 @@ import { define } from "./replacements";
+ 
+ const BASE = path.join(import.meta.dir, "../js");
+ const debug = process.argv[2] === "--debug=ON";
++const embedModules = !debug || process.argv.includes("--embed-modules");
+ const CMAKE_BUILD_ROOT = process.argv[3];
+ 
+ const timeString = 'Bundled "src/js" for ' + (debug ? "development" : "production");
+ console.time(timeString);
+ 
+ if (!CMAKE_BUILD_ROOT) {
+-  console.error("Usage: bun bundle-modules.ts --debug=[OFF|ON] <CMAKE_WORK_DIR>");
++  console.error("Usage: bun bundle-modules.ts --debug=[OFF|ON] <CMAKE_WORK_DIR> [--embed-modules]");
+   process.exit(1);
+ }
+ 
+ globalThis.CMAKE_BUILD_ROOT = CMAKE_BUILD_ROOT;
+ const bundleBuiltinFunctions = require("./bundle-functions").bundleBuiltinFunctions;
+ 
+-const TMP_DIR = path.join(CMAKE_BUILD_ROOT, "tmp_modules");
++const TMP_DIR = path.resolve(CMAKE_BUILD_ROOT, "tmp_modules");
+ const CODEGEN_DIR = path.join(CMAKE_BUILD_ROOT, "codegen");
+ const JS_DIR = path.join(CMAKE_BUILD_ROOT, "js");
+ 
+@@ -211,8 +212,9 @@
+ // directory caching stuff breaks this sometimes. CLI rules
++// Relative inputs avoid repeating the build root beyond Windows' command-line limit.
+ const config_cli = [
+   process.execPath,
+   "build",
+-  ...bundledEntryPoints,
++  ...bundledEntryPoints.map(entrypoint => "./" + path.relative(TMP_DIR, entrypoint)),
+   ...(debug ? [] : ["--minify-syntax", "--keep-names"]),
+   "--root",
+   TMP_DIR,
+@@ -232,7 +234,7 @@
+ verbose("running: ", config_cli);
+ const out = Bun.spawnSync({
+   cmd: config_cli,
+-  cwd: process.cwd(),
++  cwd: TMP_DIR,
+   env: process.env,
+   stdio: ["pipe", "pipe", "pipe"],
+ });
+@@ -407,8 +409,8 @@ writeIfNotChanged(
+ // WebCoreJSBuiltins.cpp's internalCombinedSource is the span at offset 0; the
+ // internal modules follow at known offsets.
+ //
+-// In debug builds the module sources are read from disk (BUN_DYNAMIC_JS_LOAD_PATH),
+-// so every module offset/length is 0. The functions span is still real in debug.
++// Development CLI builds may read module sources from disk. Embedded and CI
++// products must carry real module spans even when debug assertions are enabled.
+ const moduleSpans: { enumName: string; offset: number; length: number }[] = [];
+ let blob: Buffer;
+ {
+@@ -416,7 +418,7 @@ let blob: Buffer;
+   let offset = chunks[0].length;
+   for (const id of layoutOrder(moduleList.slice(0, nativeStartIndex), outputs)) {
+     const enumName = idToEnumName(id);
+-    if (debug) {
++    if (!embedModules) {
+       moduleSpans.push({ enumName, offset: 0, length: 0 });
+       continue;
+     }
+diff --git a/src/jsc/web_worker.rs b/src/jsc/web_worker.rs
+index 3778bc99..42f6e900 100644
+--- a/src/jsc/web_worker.rs
++++ b/src/jsc/web_worker.rs
+@@ -1294,8 +1294,9 @@ unsafe fn resolve_entry_point_specifier<'s>(
+ ) -> Option<&'s [u8]> {
+     // SAFETY: per fn contract; read-only field.
+     if let Some(graph) = unsafe { (*parent).standalone_module_graph } {
+-        if graph.find(str).is_some() {
+-            return Some(str);
++        if let Some(canonical_path) = graph.find(str) {
++            // Native Windows separators must not escape into the module loader.
++            return Some(canonical_path);
+         }
+ 
+         // Since `bun build --compile` renames files to `.js` by default, we
+diff --git a/scripts/build/winsysroot.ts b/scripts/build/winsysroot.ts
+--- a/scripts/build/winsysroot.ts
++++ b/scripts/build/winsysroot.ts
+@@ -173,10 +173,10 @@
+  * the case aliases the LLVM toolchain needs. Fetches the sysroot with xwin
+  * when it's missing — CI only; local builds get a clear error instead of a
+  * surprise multi-GB download into a directory they configured themselves.
+- * No-op for native Windows builds.
++ * Native Windows uses this path when a sysroot was explicitly selected.
+  */
+ export async function ensureWindowsSysroot(cfg: Config): Promise<void> {
+-  if (!cfg.windows || cfg.host.os === "windows" || cfg.winsysroot === undefined) return;
++  if (!cfg.windows || cfg.winsysroot === undefined) return;
+   const dest = cfg.winsysroot;
+ 
+   if (!isCompleteWindowsSysroot(dest, cfg.arch)) {
+@@ -198,12 +198,11 @@
+  * Directory holding the serviced UCRT static libs for the target arch (see
+  * UCRT_SERVICING_VERSION). The link adds it as /libpath: ahead of the
+- * winsysroot so these win over the splat's stale copies. Undefined for
+- * native-Windows builds (they link the locally installed, already-serviced
+- * SDK).
++ * winsysroot so these win over the splat's stale copies. Undefined when
++ * the native Windows SDK is used without an explicit sysroot.
+  */
+ export function ucrtServicingLibDir(cfg: Config): string | undefined {
+-  if (!cfg.windows || cfg.host.os === "windows") return undefined;
++  if (!cfg.windows || cfg.winsysroot === undefined) return undefined;
+   return join(cfg.cacheDir, `ucrt-servicing-${UCRT_SERVICING_VERSION}`, msArchName(cfg.arch));
+ }
+ 
+ /** Fetch the serviced UCRT libs from the Microsoft.Windows.SDK.CPP NuGet. */

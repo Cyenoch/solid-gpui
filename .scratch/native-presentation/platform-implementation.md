@@ -229,13 +229,13 @@ separately. This internal implementation note changes no public API or website
 capability claim; public guide and website synchronization belongs to the
 production change in the parent task.
 
-[win-window]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-windows-0.3.3/src/window.rs
-[win-platform]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-windows-0.3.3/src/platform.rs
-[win-events]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-windows-0.3.3/src/events.rs
-[win-display]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-windows-0.3.3/src/display.rs
-[x-window]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/x11/window.rs
-[x-client]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/x11/client.rs
-[x-display]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/x11/display.rs
-[wl-window]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/wayland/window.rs
-[wl-client]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/wayland/client.rs
-[wl-serial]: /Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-linux-0.3.3/src/linux/wayland/serial.rs
+[win-window]: https://docs.rs/crate/gpui-pre-windows/0.3.3/source/src/window.rs
+[win-platform]: https://docs.rs/crate/gpui-pre-windows/0.3.3/source/src/platform.rs
+[win-events]: https://docs.rs/crate/gpui-pre-windows/0.3.3/source/src/events.rs
+[win-display]: https://docs.rs/crate/gpui-pre-windows/0.3.3/source/src/display.rs
+[x-window]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/x11/window.rs
+[x-client]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/x11/client.rs
+[x-display]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/x11/display.rs
+[wl-window]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/wayland/window.rs
+[wl-client]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/wayland/client.rs
+[wl-serial]: https://docs.rs/crate/gpui-pre-linux/0.3.3/source/src/linux/wayland/serial.rs

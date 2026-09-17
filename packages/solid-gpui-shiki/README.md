@@ -126,7 +126,7 @@ From this repository:
 bun run task package-build
 cargo run -p solid-gpui --bin solid-gpui-host -- \
   bun --conditions=browser packages/solid-gpui-shiki/examples/code-block.ts
-bun run task shiki-package-pack /tmp/solid-gpui-shiki.tgz
+bun run task shiki-package-pack target/solid-gpui-shiki.tgz
 ```
 
 The example uses ordinary functions and needs no JSX compilation. It exercises

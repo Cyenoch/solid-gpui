@@ -68,7 +68,7 @@ It uses the existing default host feature set; QuickJS applications compile thei
 host with `quickjs` enabled. This check verifies archive assembly from the same
 built binary, not reproducible compilation on different machines.
 
-Local logs are `/tmp/solid-gpui-final-{package-ci,pack-smoke,rust-test,clippy,protocol,gallery-audit,audit,host-release}.log`.
+Local logs are `solid-gpui-final-{package-ci,pack-smoke,rust-test,clippy,protocol,gallery-audit,audit,host-release}.log`, written to the run's local temporary directory and not checked into the repository.
 Independent reviews found and helped resolve UTF-8 stream-state, Headers
 validation, source/dist graph identity, and production runtime-selection defects;
 no reported supported-contract finding remains open.
@@ -87,7 +87,7 @@ Follow-up validation passed:
 - Protocol: byte hashes of all eight generated outputs match before and after regeneration with Oxfmt. This verifies the migrated working files, not a comparison against HEAD. Protocol goldens pass four Rust tests and both TypeScript/Rust producer-consumer directions.
 - Audit: Bun reports no vulnerabilities across 147 packages; Cargo advisories pass with all workspace features under the existing exception policy, and regenerated notices match exactly.
 
-Logs are `/tmp/solid-gpui-oxfmt-{package-ci,format,protocol-codegen,protocol-golden,audit}.log`.
+Logs are `solid-gpui-oxfmt-{package-ci,format,protocol-codegen,protocol-golden,audit}.log`, written to the run's local temporary directory and not checked into the repository.
 
 ## Limits
 

@@ -47,10 +47,10 @@ HUD switched observed FPS to MAX capacity. The window closed afterwards. Synthet
 scroll did not establish content displacement; physical trackpad acceptance is
 not claimed. Windows/Linux real windows were not tested.
 
-Browser screenshots are available in the session artifacts:
+Browser screenshots were written to the session's browser-artifacts directory, outside the repository:
 
-- Carousel after navigation: `/Users/jgbingzi/.t3/userdata/browser-artifacts/browser-screenshot-127-0-0-1-mtvig4w7-cb07341d.png`
-- Presence after exit: `/Users/jgbingzi/.t3/userdata/browser-artifacts/browser-screenshot-127-0-0-1-mtviivp0-a45286c5.png`
+- Carousel after navigation: `browser-artifacts/browser-screenshot-127-0-0-1-mtvig4w7-cb07341d.png`
+- Presence after exit: `browser-artifacts/browser-screenshot-127-0-0-1-mtviivp0-a45286c5.png`
 
 ## Bounded native measurement
 

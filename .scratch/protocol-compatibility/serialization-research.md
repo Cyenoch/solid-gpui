@@ -428,6 +428,6 @@ Cap'n Proto encodes a segment tree, with language evolution based on field ordin
 
 ## 11. Local Toolchain Feasibility
 
-- The current workstation has `/opt/homebrew/bin/protoc`, reporting `libprotoc 36.0`.
+- The current workstation has a `protoc` executable on `PATH`, reporting `libprotoc 36.0`.
 - `foryc`, `bebopc`, `flatc`, `thrift`, and `capnp` are not currently on PATH. Spikes for Fory, Bebop, FlatBuffers, Thrift, and Cap'n Proto require additional installation captured in a reproducible build/tooling contract.
 - The repository's current manifests contain only `@msgpack/msgpack` and `rmp-serde`, with no protobuf, Fory, Bebop, FlatBuffers, Thrift, or Cap'n Proto runtime. This supports refactoring the DTO boundary first and running a separate v4 codec spike; it does not support introducing one of these as an implicit dependency now.

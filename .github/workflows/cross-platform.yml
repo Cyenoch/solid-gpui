@@ -96,7 +96,7 @@ jobs:
       - name: Check Windows workspace
         run: cargo check --workspace --exclude solid-gpui-bun-sys --locked
 
-      # The hosted Windows image carries the MSVC toolchain and Windows SDK; the
-      # build also exercises gpui_windows' fxc.exe shader compiler lookup.
+      # The debug build exercises the Windows host, not release-only fxc shader
+      # generation. Release qualification requires a separate release build.
       - name: Build process-mode host
         run: cargo build -p solid-gpui --bin solid-gpui-host --locked

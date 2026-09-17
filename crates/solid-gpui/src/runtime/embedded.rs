@@ -19,6 +19,11 @@ const COMMIT_HIGH_WATER: usize = 32;
 const INPUT_READY: u32 = 1;
 const OUTPUT_DRAIN: u32 = 2;
 
+/// The ABI selects the entry kind with a leading NUL byte: a tagged entry is a
+/// bundled module-graph identity, an untagged one is a disk path. Mirrors
+/// `solid_gpui_bun_sys::PACKAGED_ENTRY_TAG`.
+const PACKAGED_ENTRY_TAG: u8 = 0x00;
+
 #[derive(Default)]
 struct Frames {
     frames: VecDeque<Vec<u8>>,
@@ -106,6 +111,31 @@ pub enum EmbeddedBunError {
     ThreadStart,
     #[error("another embedded Bun session is active; shut it down before starting a new session")]
     SessionActive,
+    #[error("embedded Bun packaged entry is not a graph identity: {0}")]
+    InvalidGraphEntry(String),
+}
+
+/// Diagnose a negative session status. Packaged graph failures are the only
+/// negative statuses: VM exit codes occupy `0..=255`, so the two never
+/// collide, and a packaged session that fails here never evaluated anything and
+/// never consulted the filesystem.
+#[cfg(feature = "embedded-bun")]
+fn graph_failure(status: i32) -> Option<&'static str> {
+    use solid_gpui_bun_sys::packaged_graph_status as graph;
+    match status {
+        graph::UNAVAILABLE => Some("this executable exposes no usable bundled module graph"),
+        graph::MALFORMED => Some("the bundled module graph is corrupt"),
+        graph::NOT_VIRTUAL => Some("the packaged entry is not a virtual module-graph path"),
+        graph::MISSING => Some("the bundled module graph has no such entry"),
+        graph::BYTECODE => Some("the bundled module graph carries precompiled bytecode"),
+        graph::NATIVE_LIBRARY => Some("the bundled module graph embeds a native library"),
+        _ => None,
+    }
+}
+
+#[cfg(not(feature = "embedded-bun"))]
+fn graph_failure(_status: i32) -> Option<&'static str> {
+    None
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -124,40 +154,69 @@ impl EmbeddedBunAdapter {
     /// Start a session on the process-scoped engine thread. All application
     /// surfaces share this session. `shutdown` waits for complete VM teardown
     /// and releases admission for the next session.
+    ///
+    /// `entry` is the application path the host will `import()`, canonicalized
+    /// so the module loader sees the same identity the host resolved.
     pub fn start(entry: impl AsRef<Path>) -> Result<Arc<Self>, EmbeddedBunError> {
         let entry = entry.as_ref();
         let entry = std::fs::canonicalize(entry)
             .map_err(|_| EmbeddedBunError::MissingEntry(entry.to_path_buf()))?;
-        #[cfg(not(feature = "embedded-bun"))]
-        {
-            let _ = entry;
-            Err(EmbeddedBunError::FeatureDisabled)
+        Self::admit(entry.as_os_str().as_encoded_bytes().to_vec())
+    }
+
+    /// Start a session whose application is served from the executable's
+    /// embedded module graph.
+    ///
+    /// `entry` is the graph key the packager emitted, including its virtual
+    /// root (`/$bunfs/root/index.js`, or `B:/~BUN/root/index.js` on Windows).
+    /// The runtime resolves nothing for it on disk: if the executable has no
+    /// graph, or no such entry, the session fails closed and reports a
+    /// `packaged_graph_status` through the commit/status path instead of
+    /// evaluating some other file.
+    pub fn start_packaged(entry: &str) -> Result<Arc<Self>, EmbeddedBunError> {
+        if entry.is_empty() || entry.contains('\0') {
+            return Err(EmbeddedBunError::InvalidGraphEntry(entry.to_owned()));
         }
-        #[cfg(feature = "embedded-bun")]
-        {
-            let engine = engine::owner()?;
-            if engine.active.swap(true, Ordering::AcqRel) {
-                return Err(EmbeddedBunError::SessionActive);
-            }
-            let state = Arc::new(State {
-                commits: Mutex::new(Frames::default()),
-                commit_ready: Condvar::new(),
-                events: Mutex::new(Frames::default()),
-                shutdown_requested: AtomicBool::new(false),
-                runtime_status: Mutex::new(None),
-                terminated: Condvar::new(),
-                commits_seen: AtomicUsize::new(0),
-                control: engine::Control::new(),
-            });
-            if engine.sender.send((entry, Arc::clone(&state))).is_err() {
-                engine.active.store(false, Ordering::Release);
-                return Err(EmbeddedBunError::ThreadStart);
-            }
-            Ok(Arc::new(Self {
-                state,
-                tap: ProtocolTap::from_env(),
-            }))
+        let mut bytes = Vec::with_capacity(entry.len() + 1);
+        bytes.push(PACKAGED_ENTRY_TAG);
+        bytes.extend_from_slice(entry.as_bytes());
+        Self::admit(bytes)
+    }
+
+    /// Take the process-wide session slot and hand the entry to the owner
+    /// thread. `entry` is already in the ABI's byte form, because only the
+    /// entry's kind decides whether a filesystem path or a graph identity will
+    /// be evaluated.
+    #[cfg(feature = "embedded-bun")]
+    fn admit(entry: Vec<u8>) -> Result<Arc<Self>, EmbeddedBunError> {
+        let engine = engine::owner()?;
+        if engine.active.swap(true, Ordering::AcqRel) {
+            return Err(EmbeddedBunError::SessionActive);
         }
+        let state = Arc::new(State {
+            commits: Mutex::new(Frames::default()),
+            commit_ready: Condvar::new(),
+            events: Mutex::new(Frames::default()),
+            shutdown_requested: AtomicBool::new(false),
+            runtime_status: Mutex::new(None),
+            terminated: Condvar::new(),
+            commits_seen: AtomicUsize::new(0),
+            control: engine::Control::new(),
+        });
+        if engine.sender.send((entry, Arc::clone(&state))).is_err() {
+            engine.active.store(false, Ordering::Release);
+            return Err(EmbeddedBunError::ThreadStart);
+        }
+        Ok(Arc::new(Self {
+            state,
+            tap: ProtocolTap::from_env(),
+        }))
+    }
+
+    #[cfg(not(feature = "embedded-bun"))]
+    fn admit(entry: Vec<u8>) -> Result<Arc<Self>, EmbeddedBunError> {
+        let _ = entry;
+        Err(EmbeddedBunError::FeatureDisabled)
     }
 
     pub fn commit_count(&self) -> usize {
@@ -165,6 +224,9 @@ impl EmbeddedBunAdapter {
     }
 
     /// A status is published only after the session VM has been destroyed.
+    /// A negative status describes a packaged session that never started (the
+    /// negative graph statuses of the embedding ABI); VM exit codes are
+    /// `0..=255`.
     pub fn runtime_status(&self) -> Option<i32> {
         *self.state.runtime_status.lock().unwrap()
     }
@@ -214,9 +276,12 @@ impl EmbeddedBunAdapter {
         if !self.state.shutdown_requested.load(Ordering::Acquire)
             && let Some(status) = self.runtime_status().filter(|status| *status != 0)
         {
-            return Err(ProtocolError::Io(std::io::Error::other(format!(
-                "embedded Bun runtime exited with status {status}"
-            ))));
+            return Err(ProtocolError::Io(std::io::Error::other(match graph_failure(status) {
+                Some(reason) => {
+                    format!("embedded Bun packaged session could not start: {reason}")
+                }
+                None => format!("embedded Bun runtime exited with status {status}"),
+            })));
         }
         Ok(CommitPoll::Ended)
     }
@@ -290,9 +355,15 @@ impl RuntimeAdapter for EmbeddedBunAdapter {
         if self.state.shutdown_requested.load(Ordering::Acquire) {
             RuntimeStatus::Shutdown
         } else if let Some(status) = self.runtime_status() {
-            RuntimeStatus::Exited {
-                code: Some(status),
-                signal: None,
+            // A negative status is a packaged session that never started, not a
+            // VM exit code: report it as a failure rather than an exit.
+            if status < 0 {
+                RuntimeStatus::Failed
+            } else {
+                RuntimeStatus::Exited {
+                    code: Some(status),
+                    signal: None,
+                }
             }
         } else {
             RuntimeStatus::Running
@@ -342,7 +413,9 @@ mod engine {
         }
     }
 
-    type Session = (PathBuf, Arc<State>);
+    /// A session's entry in the ABI's byte form, plus the state the callbacks
+    /// borrow until the VM is torn down.
+    type Session = (Vec<u8>, Arc<State>);
     pub(super) struct Engine {
         pub(super) sender: mpsc::Sender<Session>,
         pub(super) active: Arc<AtomicBool>,
@@ -365,9 +438,10 @@ mod engine {
                                 write_commit,
                                 read_event,
                             };
-                            let entry = entry.as_os_str().as_encoded_bytes();
                             // State, entry and callbacks outlive the synchronous call,
                             // which tears down the VM before releasing borrowed IO.
+                            // A negative status is a packaged graph failure; the
+                            // runtime reported it before creating a VM.
                             let status = unsafe {
                                 bun_embedded_run(
                                     state.control.0,

@@ -1,10 +1,10 @@
 # Stateful gpui-component adapters: pinned source and implementation contract
 
-Source baseline: `928c3eb776a3d733d9b771f7dea27a6a79242ced`, read from `/Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb`. This is source research, not implemented or compiled adapter code. `C/` below means `crates/component/src/`; `B/` means `crates/base/src/` at that exact baseline. Many public state types in C are re-exports of B types. The snippets below use the real public API at this revision; DTO constructors/conversions such as `into_native`/`TableDto::sort` are local adapter functions to implement from the displayed DTO shapes, not upstream symbols. Imports, identical `NativeView` glue and conversion boilerplate are omitted. Explicitly named **native additions** do not exist yet and must not be reported as supported.
+Source baseline: `928c3eb776a3d733d9b771f7dea27a6a79242ced`, read from the upstream `longbridge/gpui-kit` repository at that commit (Cargo git dependency). This is source research, not implemented or compiled adapter code. `C/` below means `crates/component/src/`; `B/` means `crates/base/src/` at that exact baseline. Many public state types in C are re-exports of B types. The snippets below use the real public API at this revision; DTO constructors/conversions such as `into_native`/`TableDto::sort` are local adapter functions to implement from the displayed DTO shapes, not upstream symbols. Imports, identical `NativeView` glue and conversion boilerplate are omitted. Explicitly named **native additions** do not exist yet and must not be reported as supported.
 
 ## 1. Shared bridge: retained native entity, data-only DTOs
 
-The real bridge files are [native/component.rs](/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:97) and [components/input.rs](/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/input.rs:1). `crates/solid-gpui/src/native/input.rs` does not exist. `NativeView::mount(props, Event<E>, window, cx)` creates one entity per mounted Host Node; `update` mutates it; `ViewCommand::new(name, fn)` exposes typed asynchronous commands. `ComponentDefinition::view` accepts **no JS children** and currently declares one named event per retained view. Use a typed event union or extend this seam for named event channels/slots; do not pretend JS render closures can execute inside `render_item`. [bridge]
+The real bridge files are [native/component.rs](../../crates/solid-gpui/src/native/component.rs#L97) and [components/input.rs](../../crates/solid-gpui/src/components/input.rs#L1). `crates/solid-gpui/src/native/input.rs` does not exist. `NativeView::mount(props, Event<E>, window, cx)` creates one entity per mounted Host Node; `update` mutates it; `ViewCommand::new(name, fn)` exposes typed asynchronous commands. `ComponentDefinition::view` accepts **no JS children** and currently declares one named event per retained view. Use a typed event union or extend this seam for named event channels/slots; do not pretend JS render closures can execute inside `render_item`. [bridge]
 
 The immutable DTO bytes cross JS/runtime threads. GPUI `Entity`, `Window`, `App`, subscriptions, delegates, render closures, `Rc`, `RefCell`, scroll/focus handles and IME state remain on the foreground GPUI thread. JS sends item data, stable keys, controlled values and command arguments. Native emits keys plus the data revision that resolved the index. A deferred callback must capture the key from the model generation producing the callback, rather than resolve the old index against newly supplied items. Background work receives owned immutable data and a generation; apply results through `WeakEntity::update`/`cx.update` only if owner, epoch and generation still match. [domain][bridge][command-state]
 
@@ -568,34 +568,34 @@ Research snippets have not been compiled. For implementation acceptance, one nat
 
 All C/B files below are from the fixed source commit above; exact line anchors identify the owning implementation, including cases where comments disagree with defaults.
 
-[domain]: /Users/jgbingzi/workspace/sp/solid-gpui/CONTEXT.md
-[bridge]: /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/native/component.rs:97
-[existing-input]: /Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui/src/components/input.rs:1
-[input-kinds]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/editor/mod.rs:1
-[input-state]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/base/state.rs:113
-[input-rope]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/base/rope_ext.rs:189
-[input-defaults]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/base/state.rs:595
-[input-modes]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/base/state.rs:4975
-[input-widget]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/input/input.rs:174
-[multiline-widgets]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/input/textarea.rs:14
-[number-widget]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/input/number_input.rs:21
-[number]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/number_input.rs:24
-[editor-extra]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/input/editor/diagnostics.rs:98
-[otp]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/otp_input.rs:10
-[slider]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/slider.rs:14
-[calendar]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/calendar.rs:12
-[date-picker]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/time/date_picker.rs:73
-[color]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/color_picker.rs:92
-[select]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/select.rs:156
-[combobox]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/combobox.rs:160
-[searchable]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/searchable_list/delegate.rs:8
-[searchable-vec]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/searchable_list/vec.rs:74
-[command]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/command/command.rs:82
-[command-state]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/command/state.rs:141
-[list]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/list/list.rs:38
-[list-delegate]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/list/delegate.rs:11
-[tree]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/base/src/tree.rs:38
-[table-delegate]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/table/delegate.rs:18
-[table-state]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/table/state.rs:189
-[table-ui]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/table/data_table.rs:104
-[table-column]: /Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/crates/component/src/table/column.rs:9
+[domain]: ../../CONTEXT.md
+[bridge]: ../../crates/solid-gpui/src/native/component.rs#L97
+[existing-input]: ../../crates/solid-gpui/src/components/input.rs#L1
+[input-kinds]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/editor/mod.rs#L1
+[input-state]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L113
+[input-rope]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/rope_ext.rs#L189
+[input-defaults]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L595
+[input-modes]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/base/state.rs#L4975
+[input-widget]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/input/input.rs#L174
+[multiline-widgets]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/input/textarea.rs#L14
+[number-widget]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/input/number_input.rs#L21
+[number]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/number_input.rs#L24
+[editor-extra]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/input/editor/diagnostics.rs#L98
+[otp]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/otp_input.rs#L10
+[slider]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/slider.rs#L14
+[calendar]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/calendar.rs#L12
+[date-picker]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/time/date_picker.rs#L73
+[color]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/color_picker.rs#L92
+[select]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/select.rs#L156
+[combobox]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/combobox.rs#L160
+[searchable]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/searchable_list/delegate.rs#L8
+[searchable-vec]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/searchable_list/vec.rs#L74
+[command]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/command/command.rs#L82
+[command-state]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/command/state.rs#L141
+[list]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/list/list.rs#L38
+[list-delegate]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/list/delegate.rs#L11
+[tree]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/base/src/tree.rs#L38
+[table-delegate]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/table/delegate.rs#L18
+[table-state]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/table/state.rs#L189
+[table-ui]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/table/data_table.rs#L104
+[table-column]: https://github.com/longbridge/gpui-kit/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/crates/component/src/table/column.rs#L9

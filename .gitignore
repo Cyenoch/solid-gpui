@@ -12,3 +12,4 @@ target/
 *.log
 .file-routing-*/
 .DS_Store
+.xwin-cache/

@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/oven-sh/bun.git",
+  "revision": "34cbb9a40b4bd1bd767d134a7065e66c2432a676",
+  "toolchain": "nightly-2026-07-20",
+  "ninjaVersion": "1.13.0"
+}

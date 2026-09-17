@@ -130,8 +130,8 @@ Build the SDK, then run the editable, nested fixture:
 
 ```sh
 bun run task build
-SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
-cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover.tsx SOLID_GPUI_FIXTURE_OUTPUT=target/system-popover.js bun --bun vite build --config fixtures/vite.config.ts
+cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs target/system-popover.js
 ```
 
 The automatic lifecycle fixture opens nested popovers, unmounts/remounts their
@@ -139,8 +139,8 @@ trigger three times, checks a native owner command after each mount, and exits.
 Keep it in the foreground while it runs:
 
 ```sh
-SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=/tmp/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
-cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs /tmp/system-popover-lifecycle.js
+SOLID_GPUI_FIXTURE=fixtures/system-popover-lifecycle.tsx SOLID_GPUI_FIXTURE_OUTPUT=target/system-popover-lifecycle.js bun --bun vite build --config fixtures/vite.config.ts
+cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs target/system-popover-lifecycle.js
 ```
 
 On macOS, run the first-placement regression against all attached displays:

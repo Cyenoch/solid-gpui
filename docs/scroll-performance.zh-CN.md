@@ -105,8 +105,10 @@ Gallery 列表必须填满 320 像素 flex-column 视口。原生 VirtualList �
 测量真实输入与呈现：
 
 ```sh
-bun run task website-native-profile 2> /tmp/solid-gpui-frame-profile.log
+bun run task website-native-profile 2> target/solid-gpui-frame-profile.log
 ```
+
+日志写入构建步骤生成的、已忽略的 `target/` 目录。
 
 可选 frame-profile 启用原生 profiler，按区间报告样本数、draw p50/p95、失效到呈现 p95、输入到呈现 p95，以及视口和活动窗口状态。不注入输入、不调度重绘、不逐滚轮记录。直方图按观测差分，跨缩放区间丢弃。输入样本为零不提供延迟证据。呈现指 GPUI 提交边界，不是物理屏幕扫描。
 
@@ -136,7 +138,7 @@ Kanban 验收后，用户仍在 Overview 库目录复现持续卡顿。这是独
 
 保留改动使用 block flow 布置页面章节、库分类和目录项，以显式 margin 保持间距。水平图标/文字/箭头仍为 flex，说明高度保持固有值。这些外层垂直栈不分配剩余空间，无需 flex 重复测量后代固有尺寸。
 
-相邻 1280×600 CPU 运行中，原版内容 p95 8.478 ms，修改后 4.462 ms（8 次预热后 48 个计时滚轮帧）。保留窗口 800→1280→800→1280→1680 缩放后 p95 3.917–4.128 ms。产物为 `/tmp/solid-gpui-overview-control-final.log`、`/tmp/solid-gpui-overview-block-final.log`、`/tmp/solid-gpui-overview-block-resize.log`。这是 CPU 证据，不保证原生呈现。用户后来确认重载诊断窗口的滚动和缩放流畅，完成 Overview 验收。1264×759 活跃区间 draw p95 4.477–7.741 ms，输入到呈现 4.772–11.223 ms。排除无输入闲置区间；这些是区间分位数，不是合并分位数或匹配视口前后对比。原始证据 `/tmp/solid-gpui-profile-app.log`。
+相邻 1280×600 CPU 运行中，原版内容 p95 8.478 ms，修改后 4.462 ms（8 次预热后 48 个计时滚轮帧）。保留窗口 800→1280→800→1280→1680 缩放后 p95 3.917–4.128 ms。产物为本地采集文件 `solid-gpui-overview-control-final.log`、`solid-gpui-overview-block-final.log`、`solid-gpui-overview-block-resize.log`（写在机器临时目录下，未纳入版本库）。这是 CPU 证据，不保证原生呈现。用户后来确认重载诊断窗口的滚动和缩放流畅，完成 Overview 验收。1264×759 活跃区间 draw p95 4.477–7.741 ms，输入到呈现 4.772–11.223 ms。排除无输入闲置区间；这些是区间分位数，不是合并分位数或匹配视口前后对比。原始证据为本地采集文件 `solid-gpui-profile-app.log`（同样未纳入版本库）。
 
 设计规则：区分流式文档和 flex 空间分配。独立垂直章节用 block flow 加 margin，确需对齐或弹性分配时用 flex。不要全局替换 flex、添加无失效机制的几何缓存，或为达标限制多行文字。比较相邻受控运行，机器其他负载影响绝对值。
 
@@ -155,7 +157,7 @@ Kanban 验收后，用户仍在 Overview 库目录复现持续卡顿。这是独
 
 普通 Gallery CPU 循环使用已提交行内真实合成位移，不覆盖 Bun 往返或原生 vsync。初始 p50/p95 3.207/3.506 ms，后续候选 4.485/11.166 和 5.619/9.815 ms。后来发现多个 UnityShaderCompiler 各占约 90–95% CPU，因此无法证明可比 CPU 改善，也未停止无关进程。确定性收益是减少行创建并只发一次稳定范围通知。
 
-产物：`/tmp/list-identity-red.log`、`/tmp/list-identity-green.log`、`/tmp/list-range-red.log`、`/tmp/list-core-tests.log`、`/tmp/list-host-tests.log`、`/tmp/list-scroll-baseline.log`、`/tmp/list-scroll-candidate-repeat.log`。自动滚轮当时仍不移动内容。重建诊断应用后，用户按要求进行内部滚动和缩放并确认流畅。这是体验验收，与受污染 CPU 对比独立。稳定规则记录在 solid-gpui 技能应用参考。
+产物为本地采集文件（写在机器临时目录下，未纳入版本库）：`list-identity-red.log`、`list-identity-green.log`、`list-range-red.log`、`list-core-tests.log`、`list-host-tests.log`、`list-scroll-baseline.log`、`list-scroll-candidate-repeat.log`。自动滚轮当时仍不移动内容。重建诊断应用后，用户按要求进行内部滚动和缩放并确认流畅。这是体验验收，与受污染 CPU 对比独立。稳定规则记录在 solid-gpui 技能应用参考。
 
 ## 嵌套 VirtualList 滚轮边界（2026-09-05）
 

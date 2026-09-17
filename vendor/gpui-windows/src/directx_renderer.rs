@@ -1693,11 +1693,15 @@ pub(crate) mod shader_resources {
 
     #[cfg(debug_assertions)]
     use windows::{
-        Win32::Graphics::Direct3D::{
-            Fxc::{D3DCOMPILE_DEBUG, D3DCOMPILE_SKIP_OPTIMIZATION, D3DCompileFromFile},
-            ID3DBlob,
+        Win32::{
+            Foundation::E_FAIL,
+            Graphics::Direct3D::{
+                D3D_INCLUDE_TYPE,
+                Fxc::{D3DCOMPILE_DEBUG, D3DCOMPILE_SKIP_OPTIMIZATION, D3DCompile},
+                ID3DBlob, ID3DInclude, ID3DInclude_Impl,
+            },
         },
-        core::{HSTRING, PCSTR},
+        core::{PCSTR, s},
     };
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -1794,17 +1798,50 @@ pub(crate) mod shader_resources {
     }
 
     #[cfg(debug_assertions)]
+    struct EmbeddedShaderIncludes;
+
+    #[cfg(debug_assertions)]
+    impl ID3DInclude_Impl for EmbeddedShaderIncludes {
+        fn Open(
+            &self,
+            _include_type: D3D_INCLUDE_TYPE,
+            filename: &PCSTR,
+            _parent_data: *const std::ffi::c_void,
+            data: *mut *mut std::ffi::c_void,
+            bytes: *mut u32,
+        ) -> windows::core::Result<()> {
+            // D3DCompile supplies a NUL-terminated name and valid output pointers.
+            let source: &[u8] = match unsafe { filename.as_bytes() } {
+                b"alpha_correction.hlsl" => include_bytes!("alpha_correction.hlsl"),
+                _ => return Err(E_FAIL.into()),
+            };
+            // The API exposes a mutable pointer, but consumes the static source
+            // read-only. Its lifetime extends beyond every Open/Close pair.
+            unsafe {
+                *data = source.as_ptr().cast_mut().cast();
+                *bytes = source.len() as u32;
+            }
+            Ok(())
+        }
+
+        fn Close(&self, _data: *const std::ffi::c_void) -> windows::core::Result<()> {
+            // Embedded source bytes are owned by the executable, not the compiler.
+            Ok(())
+        }
+    }
+
+    #[cfg(debug_assertions)]
     pub(super) fn build_shader_blob(entry: ShaderModule, target: ShaderTarget) -> Result<ID3DBlob> {
         unsafe {
-            use windows::Win32::Graphics::{
-                Direct3D::ID3DInclude, Hlsl::D3D_COMPILE_STANDARD_FILE_INCLUDE,
-            };
-
-            let shader_name = if matches!(entry, ShaderModule::EmojiRasterization) {
-                "color_text_raster.hlsl"
-            } else {
-                "shaders.hlsl"
-            };
+            let (shader_name, source): (PCSTR, &[u8]) =
+                if matches!(entry, ShaderModule::EmojiRasterization) {
+                    (
+                        s!("color_text_raster.hlsl"),
+                        include_bytes!("color_text_raster.hlsl"),
+                    )
+                } else {
+                    (s!("shaders.hlsl"), include_bytes!("shaders.hlsl"))
+                };
 
             let entry = format!(
                 "{}_{}\0",
@@ -1821,22 +1858,18 @@ pub(crate) mod shader_resources {
 
             let mut compile_blob = None;
             let mut error_blob = None;
-            let shader_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join(&format!("src/{}", shader_name))
-                .canonicalize()?;
+            let includes = EmbeddedShaderIncludes;
+            let include_handler = ID3DInclude::new(&includes);
 
             let entry_point = PCSTR::from_raw(entry.as_ptr());
             let target_cstr = PCSTR::from_raw(target.as_ptr());
 
-            // really dirty trick because winapi bindings are unhappy otherwise
-            let include_handler = &std::mem::transmute::<usize, ID3DInclude>(
-                D3D_COMPILE_STANDARD_FILE_INCLUDE as usize,
-            );
-
-            let ret = D3DCompileFromFile(
-                &HSTRING::from(shader_path.to_str().unwrap()),
+            let ret = D3DCompile(
+                source.as_ptr().cast(),
+                source.len(),
+                shader_name,
                 None,
-                include_handler,
+                &*include_handler,
                 entry_point,
                 target_cstr,
                 D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
@@ -1875,6 +1908,31 @@ pub(crate) mod shader_resources {
                 ShaderModule::SubpixelSprite => "subpixel_sprite",
                 ShaderModule::PolychromeSprite => "polychrome_sprite",
                 ShaderModule::EmojiRasterization => "emoji_rasterization",
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    fn embedded_shaders_compile_without_source_files() {
+        for module in [
+            ShaderModule::Quad,
+            ShaderModule::Shadow,
+            ShaderModule::Underline,
+            ShaderModule::PathRasterization,
+            ShaderModule::PathSprite,
+            ShaderModule::MonochromeSprite,
+            ShaderModule::SubpixelSprite,
+            ShaderModule::PolychromeSprite,
+            ShaderModule::EmojiRasterization,
+        ] {
+            for target in [ShaderTarget::Vertex, ShaderTarget::Fragment] {
+                let shader = RawShaderBytes::new(module, target)
+                    .unwrap_or_else(|error| panic!("{module:?}/{target:?}: {error:#}"));
+                assert!(
+                    shader.as_bytes().starts_with(b"DXBC"),
+                    "{module:?}/{target:?}"
+                );
             }
         }
     }

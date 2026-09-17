@@ -3,10 +3,21 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const BUN_REVISION: &str = "34cbb9a40b4bd1bd767d134a7065e66c2432a676";
-const BUN_TOOLCHAIN: &str = "nightly-2026-07-20";
-const BUN_REPOSITORY: &str = "https://github.com/oven-sh/bun.git";
-const NINJA_VERSION: &str = "1.13.0";
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BuildConfig {
+    revision: String,
+    toolchain: String,
+    repository: String,
+    ninja_version: String,
+}
+
+fn build_config() -> &'static BuildConfig {
+    static CONFIG: std::sync::LazyLock<BuildConfig> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!("bun-build.json")).expect("invalid pinned Bun build config")
+    });
+    &CONFIG
+}
 
 fn run(command: &mut Command, label: &str) {
     command
@@ -19,7 +30,7 @@ fn run(command: &mut Command, label: &str) {
         .env_remove("RUSTFLAGS")
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .env_remove("CARGO_MAKEFLAGS")
-        .env("RUSTUP_TOOLCHAIN", BUN_TOOLCHAIN)
+        .env("RUSTUP_TOOLCHAIN", &build_config().toolchain)
         .env("CARGO", "cargo");
     let status = command
         .stdin(Stdio::null())
@@ -75,11 +86,11 @@ fn find_ninja(out_dir: &Path) -> PathBuf {
                 "--no-input",
                 "--target",
                 install_root.to_str().unwrap_or(""),
-                &format!("ninja=={NINJA_VERSION}"),
+                &format!("ninja=={}", build_config().ninja_version),
             ]),
             "installing pinned Ninja",
         );
-        fs::write(&marker, NINJA_VERSION)
+        fs::write(&marker, &build_config().ninja_version)
             .unwrap_or_else(|error| panic!("recording Ninja install failed: {error}"));
     }
     let path = install_root.join("bin/ninja");
@@ -97,7 +108,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
                 "clone",
                 "--filter=blob:none",
                 "--no-checkout",
-                BUN_REPOSITORY,
+                &build_config().repository,
                 source.to_str().unwrap_or(""),
             ]),
             "cloning pinned Bun source",
@@ -108,7 +119,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         source.to_str().unwrap_or(""),
         "cat-file",
         "-t",
-        BUN_REVISION,
+        &build_config().revision,
     ]))
     .as_deref()
         != Some("commit")
@@ -120,7 +131,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
                 "fetch",
                 "--depth=1",
                 "origin",
-                BUN_REVISION,
+                &build_config().revision,
             ]),
             "fetching pinned Bun revision",
         );
@@ -131,7 +142,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
             source.to_str().unwrap_or(""),
             "checkout",
             "--detach",
-            BUN_REVISION,
+            &build_config().revision,
         ]),
         "checking out pinned Bun revision",
     );
@@ -141,7 +152,7 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
             source.to_str().unwrap_or(""),
             "reset",
             "--hard",
-            BUN_REVISION,
+            &build_config().revision,
         ]),
         "resetting pinned Bun source",
     );
@@ -153,15 +164,13 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         Command::new("git").args(["-C", source.to_str().unwrap_or(""), "rev-parse", "HEAD"]),
         "verifying Bun revision",
     );
-    if actual != BUN_REVISION {
-        panic!("Bun source revision drifted: expected {BUN_REVISION}, got {actual}");
-    }
+    assert_eq!(actual, build_config().revision, "Bun source revision drifted");
     source
 }
 
 fn build_embedded_library(out_dir: &Path) -> PathBuf {
     if env::var("CARGO_CFG_TARGET_OS").ok().as_deref() != Some("macos") {
-        panic!("embedded Bun library build currently requires macOS JavaScriptCore");
+        panic!("direct embedded Bun builds currently support macOS only; use the static application packager for other targets");
     }
 
     let source = checkout_bun(out_dir);
@@ -198,6 +207,11 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
         source.join("src/runtime/embedded/lifecycle.rs"),
     )
     .expect("copying embedded lifecycle");
+    fs::copy(
+        overlays.join("build/embed-native.ts"),
+        source.join("scripts/build/embed-native.ts"),
+    )
+    .expect("copying embedded native build product");
 
     let build_dir = out_dir.join("bun-build");
     let bun = output(
@@ -212,6 +226,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
             "scripts/build.ts",
             "--profile=debug-no-asan",
             "--configure-only",
+            "--webkit=prebuilt",
             "--build-dir",
             build_dir.to_str().unwrap_or(""),
         ]),
@@ -234,7 +249,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
     let embed_target = build_dir.join("embed-target");
     let codegen = build_dir.join("codegen");
     let mut cargo_command = Command::new("rustup");
-    cargo_command.args(["run", BUN_TOOLCHAIN, "cargo"]);
+    cargo_command.args(["run", &build_config().toolchain, "cargo"]);
     cargo_command
         .current_dir(&source)
         .args([
@@ -303,9 +318,11 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
 
 fn main() {
     println!("cargo:rerun-if-changed=bun_embed.patch");
+    println!("cargo:rerun-if-changed=bun-build.json");
     println!("cargo:rerun-if-changed=embedded");
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CACHE");
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CHECK_ONLY");
+    println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_LINK_MANIFEST");
     if env::var_os("CARGO_FEATURE_EMBEDDED_BUN").is_none() {
         return;
     }
@@ -315,6 +332,23 @@ fn main() {
         Ok("1") => return,
         Err(env::VarError::NotPresent) => {}
         _ => panic!("SOLID_GPUI_BUN_CHECK_ONLY must be unset or 1"),
+    }
+    if let Some(path) = env::var_os("SOLID_GPUI_BUN_LINK_MANIFEST") {
+        let path = PathBuf::from(path);
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(&path).expect("reading static Bun link manifest"),
+        )
+        .expect("parsing static Bun link manifest");
+        assert_eq!(manifest["schemaVersion"].as_u64(), Some(1));
+        assert_eq!(
+            manifest["target"].as_str(),
+            Some(env::var("TARGET").expect("Cargo target").as_str()),
+            "static Bun link manifest target does not match Cargo"
+        );
+        println!("cargo:rerun-if-changed={}", path.display());
+        // The application root links the native manifest and Bun's rlibs in
+        // one rustc invocation. No separate Rust staticlib or dylib is linked.
+        return;
     }
     let out_dir = PathBuf::from(
         env::var_os("SOLID_GPUI_BUN_CACHE")

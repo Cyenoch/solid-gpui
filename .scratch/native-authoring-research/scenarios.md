@@ -6,9 +6,9 @@ Date: 2026-09-06. Scope: read-only source investigation; this file is the only a
 
 Actual Cargo dependency: `gpui-pre 0.3.3`; `gpui-component` revision `928c3eb776a3d733d9b771f7dea27a6a79242ced` (`Cargo.toml:32-34`, `Cargo.lock:2277`). The native sources cited below are from that Cargo checkout, not an unpinned upstream branch.
 
-Absolute dependency prefix:
+Dependency source prefix (the same checkout, pinned upstream):
 
-`/Users/jgbingzi/.cargo/git/checkouts/gpui-component-95ce574d8a0da8b8/928c3eb/`
+`https://github.com/longbridge/gpui-component/blob/928c3eb776a3d733d9b771f7dea27a6a79242ced/`
 
 | Evidence | Source below that prefix |
 | --- | --- |
@@ -24,7 +24,7 @@ Absolute dependency prefix:
 
 GPUI source prefix:
 
-`/Users/jgbingzi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gpui-pre-0.3.3/`
+`https://docs.rs/crate/gpui-pre/0.3.3/source/`
 
 `src/app/context.rs:355` exposes `subscribe_in`: typed subscriptions receive the subscriber, emitter, event, `Window`, and `Context`. The subscription internally uses weak entities. Retain the returned Subscription in the component; do not detach it into an unrelated lifetime.
 

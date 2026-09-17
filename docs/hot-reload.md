@@ -3,7 +3,8 @@
 External Bun is the rapid iteration runtime. Embedded Bun is the intended
 production packaging runtime for Bun-based applications; QuickJS is the UI
 runtime for Rust-led applications. See [runtime strategy](runtime-strategy.md)
-for the distinction between these roles and current delivery support.
+for runtime roles and [distribution](distribution.md#platform-status-and-current-evidence)
+for current delivery support.
 
 Vite 8 handles the module graph, file watching, HMR, and production bundling.
 The plugin compiles universal JSX with the official Oxc-based

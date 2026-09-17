@@ -79,12 +79,63 @@ check startup, route changes, and repeated interaction. A larger budget cannot
 repair unbounded recursion. Disabling animation or substituting every Button with
 a custom Pressable hides the trigger rather than establishing a safe launch.
 
+## Windows debug startup fails while creating DirectWriteTextSystem
+
+`Error creating DirectWriteTextSystem` with `os error 3` can indicate missing
+debug shaders, not missing fonts. Rebuild with the current renderer: it embeds
+the HLSL modules and `alpha_correction.hlsl` and compiles them from memory.
+Changing the working directory or copying JavaScript cannot fix an older EXE.
+Release builds require the SDK shader compiler at build time.
+
+Diagnose the underlying initialization error; a CPU-feature warning or breakpoint
+exit code alone does not identify the cause.
+
+## Static Embedded Bun fails loading a debug builtin
+
+If a debug executable searches the build machine's `build/.../js` directory for
+`node:worker_threads`, rebuild through the current static packager. Its patch
+disables disk reload and generates embedded builtin source with `--embed-modules`.
+Both are required; disabling `BUN_DYNAMIC_JS_LOAD_PATH` alone leaves invalid
+module spans. Do not copy builtin JS beside the executable or disable assertions.
+
+Windows GUI-subsystem settings do not suppress native assertion dialogs. Stop
+a failing candidate and inspect its error or debugger stack before relaunching.
+
+## Static Embedded Bun loses environment or Worker paths on Windows
+
+- **`os.tmpdir()` contains `undefined\temp`:** set the parent environment's
+  `TEMP`/`TMP` and rebuild with the current embedding overlay. The VM must import
+  inherited variables through `load_process()` before application execution;
+  disabling `.env` loading is not a substitute. Do not hardcode a temporary path.
+- **A declared Worker fails with `ENOENT`:** declare its entry with `--workers`
+  and resolve it against `import.meta.dirname`, not the process working directory.
+  Use the current patch, which passes the graph's canonical key to the loader
+  instead of a native-separator spelling of that key.
+
 ## Embedded Bun build fails
 
-The embedded Bun/JSC adapter is macOS-only. Use `bun run website:native` for process
-mode. An embedded host built with `embedded-bun` accepts an explicit application entry and
-launches the embedded path; if that task fails, verify the pinned Bun source can
-be fetched and that the generated native graph matches the checked-in patch.
+Use the [static application packager](distribution.md#embedded-bun-static-applications)
+for Windows. Direct builds of the `embedded-bun` Cargo feature remain macOS-only.
+Start with the [packaging prerequisites](distribution.md#static-packaging-prerequisites)
+and `bun install --frozen-lockfile`; the serializer, patched native source and
+prebuilt WebKit must match the pinned revision and target.
+
+| Symptom | Remedy |
+| --- | --- |
+| Windows release cannot find `fxc.exe` | Install the Windows SDK compiler or set `GPUI_FXC_PATH`. Release shaders require DXBC, not DXIL or debug shader substitution. |
+| ARM64 debug cannot find `libcmtd.lib` or `libcpmtd.lib` | Include Microsoft's matching `Microsoft.VC.14.44.17.14.CRT.ARM64.Desktop.debug.base.vsix` in the SDK splat. Verify the official package checksum; keep debug/release CRT libraries separate. |
+| `wasi.initialize is not a function` on Windows ARM64 | The pinned Solid compiler lacks a native ARM64 binding, and its WASM fallback needs a WASI API unavailable in the pinned driver Bun. Build Vite inputs on a supported compiler host, then package the resulting JS. Use the current lazy JSX preload for plain TypeScript commands. |
+| `ENAMETOOLONG` during builtin generation | Rebuild with the current embedding patch, which passes relative module inputs from an explicit working directory. |
+| Source extraction fails with Win32 error `1314` | The build account cannot create required symlinks. Have the build-host administrator provision that capability before retrying extraction; runtime users do not need it. |
+
+## Windows ARM64 release exits with `0xC0000409`
+
+Inspect the stack using the matching PDB; this code alone does not distinguish
+an assertion, stack failure or missing dependency. For the JSC clock-comparison
+assertion, use original MSVC 14.44 headers/libraries with `--winsysroot` to match
+the prebuilt WebKit ABI. MSVC 14.51 changes the relevant `std::partial_ordering`
+return convention. Do not disable assertions or change clock behavior to hide
+the mismatch; diagnose other fail-fast stacks on their own evidence.
 
 ## QuickJS cannot resolve a service or transport
 
@@ -130,7 +181,7 @@ For an application that initially renders a loading tree, an optional protocol
 tap can distinguish successful native replies from a missing UI update:
 
 ```sh
-SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
+SOLID_GPUI_TAP=target/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
 ```
 
 Substitute the application's actual executable and bundle paths. Use one host

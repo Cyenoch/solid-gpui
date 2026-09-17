@@ -63,10 +63,11 @@ solid-gpui-host bun --conditions=browser dist/app.js
 ```
 
 `vite` 默认启动 `solid-gpui-host`。已有自定义宿主可设置
-`host: { command: "/path/to/my-host", args: [], output: ".generated/native.ts" }`。
+`host: { command: "./target/debug/my-host", args: [], output: ".generated/native.ts" }`。
 Vite 在加载组件导入前以 `--export-native` 运行该命令，将 `#native` 和
-`@solid-gpui/core/components` 指向导出的文件。`output` 默认是相对 Vite root
-的 `.generated/native.ts`。即使没有自定义 native 模块，内置控件也必须使用实际
+`@solid-gpui/core/components` 指向导出的文件。`command` 以 Vite root
+作为工作目录启动，因此相对可执行文件路径按该 root 解析。`output` 默认是相对
+Vite root 的 `.generated/native.ts`。即使没有自定义 native 模块，内置控件也必须使用实际
 宿主的精确目录。宿主必须实现 `--export-native`，并使用 Solid GPUI 宿主入口或
 Rust `Vite` helper 接收受管理的 renderer。不会隐式下载或编译宿主。
 

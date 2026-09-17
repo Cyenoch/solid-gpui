@@ -1,15 +1,29 @@
 #![allow(clippy::disallowed_methods, reason = "build scripts are exempt")]
 
+use shader_compilation::compile_shaders;
+
 fn main() {
-    #[cfg(target_os = "windows")]
-    {
-        // Compile HLSL shaders
-        #[cfg(not(debug_assertions))]
-        compile_shaders();
+    // Shader generation follows the target cargo compiles for, not the host this
+    // script runs on: `cfg(target_os = "windows")` in a build script means the
+    // host, so Windows cross-compiled from another host would skip the shaders
+    // that `directx_renderer.rs` requires.
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS")
+        .expect("cargo sets CARGO_CFG_TARGET_OS when it runs a build script");
+    if target_os != "windows" {
+        return;
     }
+
+    // `directx_renderer.rs` selects embedded bytecode with the target's
+    // `cfg(not(debug_assertions))`; cargo reports that profile setting to build
+    // scripts as CARGO_CFG_DEBUG_ASSERTIONS, whereas this script's own
+    // `debug_assertions` follows whichever profile compiled the script.
+    if std::env::var_os("CARGO_CFG_DEBUG_ASSERTIONS").is_some() {
+        return;
+    }
+
+    compile_shaders();
 }
 
-#[cfg(all(target_os = "windows", not(debug_assertions)))]
 mod shader_compilation {
     use std::{
         fs,
@@ -19,14 +33,20 @@ mod shader_compilation {
     };
 
     pub fn compile_shaders() {
-        let shader_path =
-            PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("src/shaders.hlsl");
-        let out_dir = std::env::var("OUT_DIR").unwrap();
+        println!("cargo:rerun-if-env-changed=GPUI_FXC_PATH");
+        println!("cargo:rerun-if-env-changed=PATH");
+        let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+        let shader_path = manifest_dir.join("src/shaders.hlsl");
+        let emoji_shader_path = manifest_dir.join("src/color_text_raster.hlsl");
+        // Both sources above `#include` this file, so the compiled bytecode
+        // depends on its contents as well.
+        let include_path = manifest_dir.join("src/alpha_correction.hlsl");
+        for path in [&shader_path, &emoji_shader_path, &include_path] {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
 
-        println!("cargo:rerun-if-changed={}", shader_path.display());
-
-        // Check if fxc.exe is available
         let fxc_path = find_fxc_compiler();
+        let out_dir = std::env::var("OUT_DIR").unwrap();
 
         // Define all modules
         let modules = [
@@ -40,7 +60,7 @@ mod shader_compilation {
             "polychrome_sprite",
         ];
 
-        let rust_binding_path = format!("{}/shaders_bytes.rs", out_dir);
+        let rust_binding_path = format!("{out_dir}/shaders_bytes.rs");
         if Path::new(&rust_binding_path).exists() {
             fs::remove_file(&rust_binding_path)
                 .expect("Failed to remove existing Rust binding file");
@@ -54,21 +74,20 @@ mod shader_compilation {
                 &rust_binding_path,
             );
         }
-
-        {
-            let shader_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-                .join("src/color_text_raster.hlsl");
-            compile_shader_for_module(
-                "emoji_rasterization",
-                &out_dir,
-                &fxc_path,
-                shader_path.to_str().unwrap(),
-                &rust_binding_path,
-            );
-        }
+        compile_shader_for_module(
+            "emoji_rasterization",
+            &out_dir,
+            &fxc_path,
+            emoji_shader_path.to_str().unwrap(),
+            &rust_binding_path,
+        );
     }
 
     /// Locate `binary` in the newest installed Windows SDK.
+    ///
+    /// Reading the SDK's registry keys and executing the returned `fxc.exe` are
+    /// Windows-host capabilities, so this item exists only on that host.
+    #[cfg(windows)]
     pub fn find_latest_windows_sdk_binary(
         binary: &str,
     ) -> Result<Option<PathBuf>, Box<dyn std::error::Error>> {
@@ -113,10 +132,14 @@ mod shader_compilation {
 
     /// You can set the `GPUI_FXC_PATH` environment variable to specify the path to the fxc.exe compiler.
     fn find_fxc_compiler() -> String {
-        // Check environment variable
-        if let Ok(path) = std::env::var("GPUI_FXC_PATH")
-            && Path::new(&path).exists()
-        {
+        if let Some(path) = std::env::var_os("GPUI_FXC_PATH") {
+            let path = path
+                .into_string()
+                .expect("GPUI_FXC_PATH must be valid UTF-8");
+            assert!(
+                Path::new(&path).is_file(),
+                "GPUI_FXC_PATH must name a compiler file: {path}"
+            );
             return path;
         }
 
@@ -127,15 +150,30 @@ mod shader_compilation {
             .output()
             && output.status.success()
         {
-            let path = String::from_utf8_lossy(&output.stdout);
-            return path.trim().to_string();
+            let paths = String::from_utf8_lossy(&output.stdout);
+            if let Some(path) = paths
+                .lines()
+                .map(str::trim)
+                .find(|path| Path::new(path).is_file())
+            {
+                return path.to_owned();
+            }
         }
 
+        #[cfg(windows)]
         if let Ok(Some(path)) = find_latest_windows_sdk_binary("fxc.exe") {
             return path.to_string_lossy().into_owned();
         }
 
-        panic!("Failed to find fxc.exe");
+        let target = std::env::var("TARGET").unwrap_or_else(|_| "unknown".to_string());
+        let host = std::env::var("HOST").unwrap_or_else(|_| "unknown".to_string());
+        println!(
+            "cargo::error=fxc.exe not found for the Windows release shader build (target {target}, host {host}).\n\
+             cargo::error=Release builds embed DXBC bytecode compiled at build time; debug builds compile the embedded HLSL at runtime and need no compiler.\n\
+             cargo::error=Searched GPUI_FXC_PATH, PATH, and the newest installed Windows SDK.\n\
+             cargo::error=Prerequisite: run the release build on a Windows host with the Windows SDK installed, or set GPUI_FXC_PATH to an fxc.exe that this host can execute."
+        );
+        process::exit(1);
     }
 
     fn compile_shader_for_module(
@@ -237,6 +275,3 @@ mod shader_compilation {
             .expect("Failed to write Rust binding file");
     }
 }
-
-#[cfg(all(target_os = "windows", not(debug_assertions)))]
-use shader_compilation::compile_shaders;

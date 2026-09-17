@@ -210,8 +210,10 @@ experiments were reverted.
 For actual native input and presentation measurements, run:
 
 ```sh
-bun run task website-native-profile 2> /tmp/solid-gpui-frame-profile.log
+bun run task website-native-profile 2> target/solid-gpui-frame-profile.log
 ```
+
+The log lands in the gitignored `target/` directory that the build steps create.
 
 The optional `frame-profile` Cargo feature enables GPUI's native profiler.
 It reports interval sample counts, draw p50/p95, invalidation-to-present p95,
@@ -297,15 +299,18 @@ need flex's repeated intrinsic size passes through the nested descendants.
 Adjacent 1280x600 CPU runs measured content p95 8.478 ms for the original and
 4.462 ms for the change (48 measured wheel frames after 8 warmups). Retained
 800 -> 1280 -> 800 -> 1280 -> 1680 resize measured Overview content p95
-3.917-4.128 ms. Artifacts: `/tmp/solid-gpui-overview-control-final.log`,
-`/tmp/solid-gpui-overview-block-final.log`,
-`/tmp/solid-gpui-overview-block-resize.log`. This is CPU evidence, not a
+3.917-4.128 ms. Artifacts, recorded as local captures under the machine's
+temporary directory and not checked in:
+`solid-gpui-overview-control-final.log`,
+`solid-gpui-overview-block-final.log`,
+`solid-gpui-overview-block-resize.log`. This is CPU evidence, not a
 native presentation guarantee. The user subsequently confirmed smooth scrolling
 and resizing in the reloaded diagnostic window, completing Overview acceptance.
 The corresponding active intervals at 1264x759 recorded draw p95 4.477-7.741 ms
 and input-to-present p95 4.772-11.223 ms. Exclude idle intervals with no input;
 these are interval percentiles, not one pooled percentile or a matched-viewport
-before/after comparison. Raw evidence: `/tmp/solid-gpui-profile-app.log`.
+before/after comparison. Raw evidence: the local capture
+`solid-gpui-profile-app.log`, likewise not checked in.
 
 Design rule: distinguish a flowing document from a flex allocation problem.
 Use block flow with margins for independent vertical sections; use flex where
@@ -352,9 +357,10 @@ near 90–95% CPU each, so these measurements do not establish a comparable CPU
 improvement. No unrelated process was stopped. The deterministic improvements
 are fewer row constructions and one stable range notification.
 
-Artifacts: `/tmp/list-identity-red.log`, `/tmp/list-identity-green.log`,
-`/tmp/list-range-red.log`, `/tmp/list-core-tests.log`, `/tmp/list-host-tests.log`,
-`/tmp/list-scroll-baseline.log`, `/tmp/list-scroll-candidate-repeat.log`.
+Artifacts, recorded as local captures under the machine's temporary directory and
+not checked in: `list-identity-red.log`, `list-identity-green.log`,
+`list-range-red.log`, `list-core-tests.log`, `list-host-tests.log`,
+`list-scroll-baseline.log`, `list-scroll-candidate-repeat.log`.
 Native automated wheel still did not visibly move content. The diagnostic app
 was rebuilt and loaded for user trackpad verification. The user then confirmed
 smooth scrolling after being asked to scroll internally and resize. This is user

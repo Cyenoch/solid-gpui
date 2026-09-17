@@ -4,6 +4,36 @@
 #[cfg(feature = "embedded-bun")]
 use std::ffi::c_void;
 
+/// The entry bytes handed to `bun_embedded_run` describe either a disk path or
+/// a packaged module-graph identity, and this tag selects which: a tagged entry
+/// is `[PACKAGED_ENTRY_TAG, identity…]`. No OS path can contain a NUL byte, so
+/// the two forms are unambiguous, and a tagged entry is served only from the
+/// executable's embedded module graph; it never falls back to the filesystem.
+///
+/// The identity is the graph key emitted by the packager, including the virtual
+/// root: `/$bunfs/root/index.js`, or `B:/~BUN/root/index.js` on Windows.
+#[cfg(feature = "embedded-bun")]
+pub const PACKAGED_ENTRY_TAG: u8 = 0x00;
+
+/// Statuses `bun_embedded_run` returns for a packaged session that could not
+/// start. Exit codes are `0..=255`, so each of these is unambiguous, and the
+/// session failed closed: no VM was created and no filesystem entry was read.
+#[cfg(feature = "embedded-bun")]
+pub mod packaged_graph_status {
+    /// This executable exposes no usable embedded module graph.
+    pub const UNAVAILABLE: i32 = -1;
+    /// The image has graph data, but it is not a valid serialized graph.
+    pub const MALFORMED: i32 = -2;
+    /// The packaged entry is not a virtual module-graph path.
+    pub const NOT_VIRTUAL: i32 = -3;
+    /// The graph is present but holds no such entry.
+    pub const MISSING: i32 = -4;
+    /// The graph carries precompiled bytecode or module info.
+    pub const BYTECODE: i32 = -5;
+    /// The graph embeds a native library that would be extracted at runtime.
+    pub const NATIVE_LIBRARY: i32 = -6;
+}
+
 #[cfg(feature = "embedded-bun")]
 #[repr(C)]
 pub struct BunIoCallbacks {
@@ -19,6 +49,11 @@ unsafe extern "C" {
     pub fn bun_embedded_create() -> *mut c_void;
     /// Call only on the process-scoped engine owner thread, once per control.
     /// Entry bytes, IO table and context must remain valid until return.
+    ///
+    /// `entry` is a disk path, or [`PACKAGED_ENTRY_TAG`] followed by a bundled
+    /// module-graph identity. The return value is the VM's exit code (`0..=255`),
+    /// 2 for malformed input, or one of [`packaged_graph_status`]'s negative
+    /// statuses when a packaged entry could not be served from the graph.
     pub fn bun_embedded_run(
         control: *mut c_void,
         entry: *const u8,

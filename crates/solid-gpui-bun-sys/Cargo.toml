@@ -12,3 +12,7 @@ build = "build.rs"
 [features]
 default = []
 embedded-bun = []
+
+[build-dependencies]
+serde_json.workspace = true
+serde = { workspace = true, features = ["derive"] }

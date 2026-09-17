@@ -60,9 +60,38 @@ GPUI 布局和绘制沿原生元素树递归；Windows 可执行文件默认线�
 
 用 `SOLID_GPUI_LOG=info` 查看实际线程栈预留，通过 `SOLID_GPUI_APP_STACK_BYTES` 对同一页面做不同预算的有界对比；无效预算会使启动失败。显式 `/STACK` 链接选项也是宿主可以选择的预留方式。对比时保持界面内容、动画策略和 Cargo profile 一致，检查启动、切换页面和重复交互。增大预算不能修复无界递归；关闭动画或把全部 Button 换成 Pressable 只是隐藏触发条件，不是可靠的启动契约。
 
+## Windows debug 启动时无法创建 DirectWriteTextSystem
+
+`Error creating DirectWriteTextSystem` 搭配 `os error 3` 可能表示缺少 debug 着色器，而非字体。使用当前渲染器重新构建：它嵌入 HLSL 模块和 `alpha_correction.hlsl`，并从内存编译。切换工作目录或复制 JavaScript 不能修复旧 EXE。Release 构建需要在构建时使用 SDK 着色器编译器。
+
+应诊断底层初始化错误；CPU 特性警告或断点退出码本身不能确定原因。
+
+## 静态内嵌 Bun 无法加载 debug 内置模块
+
+若 debug EXE 到构建机器的 `build/.../js` 目录查找 `node:worker_threads`，使用当前静态打包器重新构建。其补丁同时关闭磁盘热加载，并通过 `--embed-modules` 生成内嵌源码；仅关闭 `BUN_DYNAMIC_JS_LOAD_PATH` 仍会留下无效的模块范围。不要把内置 JS 复制到 EXE 旁边或关闭断言。
+
+Windows GUI 子系统设置不能屏蔽原生断言弹窗。候选失败后先停止，检查错误或调试器堆栈，再决定是否重新启动。
+
+## 静态内嵌 Bun 在 Windows 上丢失环境或 Worker 路径
+
+- **`os.tmpdir()` 出现 `undefined\temp`：** 设置父进程的 `TEMP`/`TMP`，并用当前内嵌覆盖源码重新构建。VM 必须在执行应用前通过 `load_process()` 导入继承环境；关闭 `.env` 加载不能替代它，也不要写死临时目录。
+- **已声明的 Worker 报 `ENOENT`：** 通过 `--workers` 声明入口，并相对 `import.meta.dirname` 定位，而非相对工作目录。使用当前补丁，向加载器传递图内规范化键，而非该键的原生分隔符写法。
+
 ## 内嵌 Bun 构建失败
 
-内嵌 Bun/JSC 适配器只支持 macOS。进程模式使用 `bun run website:native`。启用 `embedded-bun` 的宿主接受显式应用入口并启动内嵌路径。失败时检查能否获取固定版本 Bun 源码，以及生成的原生构建图是否与仓库补丁匹配。
+Windows 使用[静态应用打包器](distribution.zh-CN.md#内嵌-bun-静态应用)；直接构建 `embedded-bun` Cargo feature 仍只支持 macOS。先检查[打包前置条件](distribution.zh-CN.md#静态打包前置条件)，并运行 `bun install --frozen-lockfile`；序列化器、带补丁的原生源码和预编译 WebKit 必须匹配固定版本与目标。
+
+| 症状 | 处理方式 |
+| --- | --- |
+| Windows release 找不到 `fxc.exe` | 安装 Windows SDK 编译器或设置 `GPUI_FXC_PATH`。Release 着色器需要 DXBC，不能替换成 DXIL 或 debug 着色器。 |
+| ARM64 debug 找不到 `libcmtd.lib` 或 `libcpmtd.lib` | 在 SDK splat 中加入微软匹配的 `Microsoft.VC.14.44.17.14.CRT.ARM64.Desktop.debug.base.vsix`，核对官方包校验和；不要混用 debug/release CRT 库。 |
+| Windows ARM64 报 `wasi.initialize is not a function` | 固定的 Solid 编译器没有原生 ARM64 binding，其 WASM 路径需要固定版本驱动 Bun 尚未提供的 WASI API。先在编译器支持的宿主生成 Vite 输入，再打包所得 JS；纯 TypeScript 命令使用当前延迟加载 JSX 编译器的 preload。 |
+| 内置模块生成报 `ENAMETOOLONG` | 用当前内嵌补丁重新构建；补丁从明确的工作目录传入相对模块路径。 |
+| 源码解压报 Win32 错误 `1314` | 构建账户无法创建所需符号链接。由构建宿主管理员准备该能力后再重试；运行应用的用户不需要此能力。 |
+
+## Windows ARM64 release 以 `0xC0000409` 退出
+
+使用匹配的 PDB 检查堆栈；单凭退出码不能区分断言、栈故障或依赖缺失。若是 JSC 时钟比较断言，通过 `--winsysroot` 使用原始 MSVC 14.44 头文件和库，以匹配预编译 WebKit 的 ABI；MSVC 14.51 改变了相关 `std::partial_ordering` 返回约定。不要关闭断言或修改时钟行为来隐藏不匹配；其他 fail-fast 堆栈仍应依据各自证据诊断。
 
 ## QuickJS 无法解析服务或传输
 
@@ -87,7 +116,7 @@ cargo tree --locked -i rquickjs-sys
 对于先渲染加载树的应用，可临时启用协议 tap，区分“原生命令返回成功”和“界面得到更新”：
 
 ```sh
-SOLID_GPUI_TAP=/tmp/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
+SOLID_GPUI_TAP=target/solid-gpui-startup.jsonl ./target/debug/my-app --runtime quickjs dist/app.js
 ```
 
 替换为应用实际的可执行文件和 bundle 路径。采集时用单个宿主直接加载出现故障的开发 bundle，不经过重载 supervisor，避免不同运行时代次共用同一个 tap 输出文件。
