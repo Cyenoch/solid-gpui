@@ -23,13 +23,17 @@ Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于
 终端保留诊断，修复并保存源码即可启动新的会话。关闭应用窗口也会保留监听；
 使用 Ctrl+C 结束开发。失败后不会循环重启同一个可执行文件。
 
-配置 `native` 后，自动监听 `.rs`（包括 `build.rs`）、Cargo manifest、lockfile
-以及工作区 `.cargo/config` 或 `.cargo/config.toml`。Cargo metadata 会发现前端
+配置 `native` 后，自动监听可达的本地 Cargo 包、`.rs`（包括 `build.rs`）、Cargo manifest、
+lockfile、工作区 `.cargo/config` 或 `.cargo/config.toml`、声明的 build script 输入、
+声明的原生资源，以及你额外加入的 `native.watch` 文件或目录。Cargo metadata 会发现前端
 目录之外的本地路径依赖。原生改动先结束旧 runtime，再构建宿主并导出 bindings；
 新 bindings 不会通过 HMR 进入旧宿主。连续修改会使未完成的旧尝试失效，退出时也会
-清理 Cargo 启动的编译器和 build script 进程。build script 读取的资源文件不在自动
-监听范围内；修改它们后可保存 Rust 源文件来触发构建。
-Cargo 实际的构建输出目录会从输入监听中排除，也支持放在源码包内部的自定义 target 目录。
+清理 Cargo 启动的编译器和 build script 进程。Cargo 无法自行声明的输入（例如 `include_bytes!`
+读取的生成资源）用 `native.watch` 作为通用兜底。
+`.solid-gpui/`、Cargo 实际构建输出目录（含源码包内部的自定义 target 目录）、Vite 构建输出
+目录与 `node_modules/` 永不触发重建，因此重建不会因自身输出而循环。
+
+应用模块仍走普通 Vite HMR；Rust 重建路径替换整个会话，状态保留遵循下文规则，而不是 HMR 检查点。
 
 `#native`、`@solid-gpui/core/components` 与 Motion 使用同一宿主导出的组件目录。
 不要手动修改生成文件，也不要保留指向旧 SDK 的独立组件别名。宿主替换会关闭并重新
@@ -45,7 +49,7 @@ Cargo 项目。直接由 Rust 启动、`host: false` 和调用方提供的 Vite 
 
 ## 应用集成
 
-安装 `@solid-gpui/core` 和 Vite 8，创建配置：
+安装 `@solid-gpui/core` 与 Vite 8，并加入 `@solid-gpui/vite`——由于这些包尚未发布到 registry，请使用 `bun run task sdk-pack <dir>` 打出的 tarball——然后创建配置：
 
 ```ts
 import { defineConfig } from "vite";
@@ -56,7 +60,8 @@ export default defineConfig({
 });
 ```
 
-运行 `bun --bun vite` 启动配置的宿主和 Bun ModuleRunner。通过 `native` 构建应用自己的 Rust 宿主并生成 `#native`，或用 `host` 选择已有可执行文件。Rust 应用通过 `solid_gpui::runtime::vite::Vite` 使用同一配置。Vite 是唯一应用打包器，Bun 和 QuickJS 执行 JavaScript；直接 JS、JSX/TSX 和 native 模块的边界见 [Vite 集成](vite.zh-CN.md)。
+添加 `generate` 脚本并在安装依赖后运行一次：它构建所配置的宿主、导出 bindings，并写出你的
+`tsconfig.json` 所继承的生成工程。随后运行 `bun --bun vite` 启动配置的宿主和 Bun ModuleRunner。通过 `native` 构建应用自己的 Rust 宿主并生成 `#native`，或用 `host` 选择已有可执行文件。Rust 应用通过 `solid_gpui::runtime::vite::Vite` 使用同一配置。完整顺序见[入门](getting-started.zh-CN.md)，选项面见 [Vite 集成](vite.zh-CN.md)。
 
 ```tsx
 import { mountApplication, Text } from "@solid-gpui/core";
@@ -97,10 +102,16 @@ mountApplication<number>({
 配置 `solidGpui({ entry: "src/app.tsx", runtime: "bun" })`，使用 Vite 构建。Bun API 保留给 Bun runtime 执行：
 
 ```sh
-bun --bun vite build
+bun run build      # bun --bun vite build
+bun run preview    # solid-gpui preview：用已构建宿主运行已构建 bundle
 ```
 
-Bun 入口使用 StdioTransport，由现有宿主和 `bun --conditions=browser dist/app.js` 运行。内嵌 Bun 使用 EmbeddedTransport，要求 embedded-bun feature，并应提供导入共享应用组合的独立入口。
+构建同时会 prepare 所配置的原生宿主，因此不会交付 bindings 不匹配的 bundle。`preview` 读取
+`.solid-gpui/artifacts.json`，在不重建、不启动 watcher 的情况下用已构建宿主运行 bundle，`--`
+之后的宿主参数会透传，并以宿主退出码结束。等价的手写命令是：Bun 入口配合已有宿主执行
+`bun --conditions=browser <bundle>`，QuickJS 宿主执行 `<host> --runtime quickjs <bundle>`。
+
+Bun 入口使用 StdioTransport。内嵌 Bun 使用 EmbeddedTransport，要求 embedded-bun feature，并应提供导入共享应用组合的独立入口。
 
 以 Rust 为主、使用 QuickJS 的应用采用内嵌传输和共享组件的独立入口：
 
@@ -121,6 +132,8 @@ mountApplication({
 bun --bun vite build # solidGpui({ entry: "src/quickjs.tsx", runtime: "quickjs" })
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs dist/app.js
 ```
+
+`solid-gpui preview` 会用 `.solid-gpui/artifacts.json` 记录的宿主与 bundle 完成同样的事。
 
 通用宿主命令运行核心宿主组件。使用自定义 Native Module 或可选 gpui-component 集成的应用，应启动启用对应模块与 feature 的自身宿主。
 

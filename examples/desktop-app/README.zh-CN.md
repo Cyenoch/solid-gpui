@@ -9,11 +9,11 @@
 - 一个原生窗口承载路由器驱动的 SolidJS 树：标题栏外壳加上 Home 与 Settings 两个路由。
 - `desktop-app-host`（Rust）配置原生窗口与标题栏选项，在窗口打开前注册内嵌品牌图标，并暴露带 `serviceCount` 命令的 `desktop` 原生模块。
 - `@solid-gpui/vite` 构建该宿主并把 bindings 导出到 `src/native.ts`，TypeScript 由此获得组件目录和 `serviceCount` 的签名。
-- 渲染不依赖网络：封面图在运行时从磁盘读取，品牌图标编译进可执行文件。
+- 渲染完全离线：封面图由 Vite 以内联方式写入 bundle（`?inline`），品牌图标编译进可执行文件。
 
 ## 运行示例
 
-使用仓库固定版本的 Bun 和 Rust 工具链。各平台构建前提见[快速开始](../../docs/getting-started.zh-CN.md)。
+使用仓库固定版本的 Bun 和 Rust 工具链。各平台构建前提见[构建环境](../../docs/distribution.zh-CN.md#构建环境)。
 
 共享 SDK 需要在仓库根目录安装并构建一次——`@solid-gpui/vite` 解析到构建产物 `dist/`，workspace 包也按名称链接：
 
@@ -23,18 +23,28 @@ bun run build                 # workspace 包与二进制
 bun run --cwd examples/desktop-app dev
 ```
 
-`dev` 会启动 Vite、构建宿主、重新生成 `src/native.ts` 并打开窗口；保存 TSX 文件会在原地重载页面。
+`dev` 会启动 Vite、构建宿主、导出绑定并打开窗口；保存 TSX 文件会在原地重载页面。
 
 在本目录中也可以使用同一组命令：
 
 ```sh
-bun run dev        # 由 Vite 构建并启动宿主，再把应用提供给宿主
-bun run dev:rust   # 宿主优先：由宿主自己启动 Vite
-bun run build      # 生成 dist/main.js
-bun run start      # 用 --production 让宿主运行 dist/main.js
+bun run generate          # solid-gpui prepare：构建宿主并导出 src/native.ts
+bun run check:generated   # src/native.ts 或 .solid-gpui/ 过期时失败
+bun run doctor            # 环境与 Cargo profile/patch 报告
+bun run typecheck         # tsc --noEmit
+bun run test              # solid-gpui test，使用本示例自己的 Vite 配置
+bun run dev               # 由 Vite 构建并启动宿主，再把应用提供给宿主
+bun run dev:rust          # 宿主优先：由宿主自己启动 Vite
+bun run build             # 生成 dist/main.js 并 prepare 宿主
+bun run preview           # solid-gpui preview：用已构建宿主运行已构建 bundle
 ```
 
-`dev` 与 `dev:rust` 从两端进入同一套开发环境：要么 Vite 启动宿主，要么宿主启动 Vite。生产模式下宿主在本目录运行，`bun dist/main.js` 因此能解析到 `assets/cover.png`。
+`tsconfig.json` 继承生成的 `.solid-gpui/tsconfig.json`，其中携带 `#native` 与
+`@solid-gpui/core/components` 映射，因此本示例不再手工维护 `paths`；`vite.config.ts`
+使用 `solidGpuiSource()` 处理工作区源码别名。不要把生成器命名为 `prepare`：Bun 会在安装期间运行根包的
+`prepare` 脚本，而安装过程绝不能编译宿主。
+
+`dev` 与 `dev:rust` 从两端进入同一套开发环境：要么 Vite 启动宿主，要么宿主启动 Vite。生产模式下宿主在本目录运行，bundle 因此能相对该目录解析到 `assets/cover.png`。
 
 ## 示例展示的内容
 
@@ -48,32 +58,29 @@ Settings 路由由固定表头、可滚动的 14 行表单和固定表尾组成�
 
 ### 应用图标
 
-`native/src/main.rs` 把 `assets/brand.svg` 编译进二进制并注册为 `desktop:brand`；生成的 `applicationIcons` 导出让标题栏的 `<Icon>` 能使用该名称。图标在窗口打开前注册，运行时不需要任何文件。见[添加应用图标](../../docs/iconify.zh-CN.md#添加应用图标)。
+`native/src/main.rs` 把 `assets/brand.svg` 编译进二进制并注册为 `desktop:brand`；生成的 `applicationIcons` 记录让标题栏的 `<Icon>` 以 `applicationIcons["desktop:brand"]` 取用该名称，不再依赖注册顺序。图标在窗口打开前注册，运行时不需要任何文件。见[添加应用图标](../../docs/iconify.zh-CN.md#添加应用图标)。
 
 ## 文件职责
 
 | 路径                            | 职责                                                                                 |
 | ------------------------------- | ------------------------------------------------------------------------------------ |
 | `src/main.tsx`                  | 应用入口：主题、路由器、标题栏外壳、Home 与 Settings 路由、`mountApplication` 配置。 |
-| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应重新生成。                                           |
-| `native/src/main.rs`            | Rust 宿主：窗口配置与标题栏、内嵌图标、`desktop` 原生模块、开发/生产运行时选择。     |
+| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应运行 `bun run generate`。                             |
+| `src/integration.test.tsx`      | 在 `bun run test` 下渲染真实应用树，覆盖内联封面资源与已注册图标。                     |
+| `native/src/main.rs`            | Rust 宿主：窗口配置与标题栏、内嵌图标、`desktop` 原生模块，以及 `dev:rust` 与 `preview` 共用的 `solid_gpui::runtime::vite::Vite` 启动路径。 |
 | `native/Cargo.toml`             | `desktop-app-host` crate 清单，workspace 成员。                                      |
-| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及指向 SDK 源码的绝对别名。                     |
-| `assets/cover.png`              | 运行时从磁盘读取的封面图，必须随应用一起分发。                                       |
+| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及 `solidGpuiSource()` 的工作区源码别名。        |
+| `.solid-gpui/`                  | 生成的 TypeScript 工程与产物记录。不提交；由 `generate` 与 `build` 重新生成。          |
+| `assets/cover.png`              | 以 `?inline` 导入的封面图，由 Vite 内联进 bundle，无需运行时文件。                    |
 | `assets/brand.svg`              | 编译进可执行文件的品牌图标。                                                         |
-| `tsconfig.json`、`package.json` | 类型检查与上面的脚本。                                                               |
+| `tsconfig.json`、`package.json` | 类型检查、生成工程的 `extends` 与上面的脚本。                                        |
 
-Vite 每次准备会话都会重新生成 `src/native.ts`，也可以单独生成：
-
-```sh
-cargo run --manifest-path native/Cargo.toml -- --export-native > src/native.ts
-```
-
-（`--export-native` 直接打印 bindings；插件还会额外格式化。）
+Vite 每次准备会话都会导出 `src/native.ts`；单独生成用 `bun run generate`，用
+`bun run check:generated` 可在文件过期时失败而不是写入。
 
 ## 打包
 
-分发 `desktop-app-host`、`dist/main.js` 和 `assets/cover.png`，保留相对路径，并以本目录作为宿主工作目录。此示例启动外部 Bun 进程，因此 `PATH` 中必须能找到 `bun`。品牌图标已内嵌，两种图像都不需要网络请求。原生依赖、应用包和签名见[桌面分发](../../docs/distribution.zh-CN.md)。
+分发 `desktop-app-host` 与构建出的 bundle，并以本目录作为宿主工作目录。两种图像都已内嵌——封面经 `?inline`、品牌图标在可执行文件内——因此都不需要运行时文件或网络请求。`bun run preview` 会用 `.solid-gpui/artifacts.json` 记录的已构建宿主运行已构建 bundle，打包脚本也应从该记录读取可执行文件与 bundle 路径，而不是自行拼接。此示例启动外部 Bun 进程，因此 `PATH` 中必须能找到 `bun`。原生依赖、应用包和签名见[桌面分发](../../docs/distribution.zh-CN.md)。
 
 ## 延伸阅读
 

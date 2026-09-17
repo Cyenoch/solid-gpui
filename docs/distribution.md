@@ -18,6 +18,27 @@ nor Node, a repository checkout, nor a JavaScript bundle beside the executable.
 Rust owns native services and rendering;
 the same website composition also runs through Bun during development.
 
+## What you ship
+
+Three artifacts have three owners, and only the last one is a deliverable:
+
+- **Bundle** — the output of `bun --bun vite build`: one JavaScript entry module
+  for the host to execute. It contains no native code and no installer.
+- **Native executable** — the GPUI host built by Cargo for a target and profile.
+  `bun run generate` (`solid-gpui prepare`) and a Vite build both build one for the
+  build host; a cross-target executable comes from the same manifest with an
+  explicit `target`. `.solid-gpui/artifacts.json` records the executable and bundle
+  paths, and `solid-gpui preview` runs the two together on the build host.
+- **Distributable** — executable plus bundle plus assets, metadata, licences, and a
+  signature, assembled by your own packaging script. No build command in this guide
+  produces one.
+
+Platform capability follows the same split: this repository verifies the QuickJS
+website package on the targets recorded below, while the Embedded Bun static
+packager remains experimental and claims no supported or verified target. A passing
+local build of your own application is evidence for your application, not a
+qualification of another platform.
+
 ## Build environment
 
 Install the Bun version pinned in `.bun-version` and use rustup with the toolchain
@@ -194,31 +215,65 @@ checkout, and no separate Bun. Windows ARM64 release has the most coverage; sign
 broader installation policy, every other release target, and broader desktop and
 physical-device coverage remain open. Repository CI does not yet build or verify a
 static application package. A successful build alone does not prove that the result
-is releasable.
+is releasable. No target is currently claimed as supported or verified; the
+[platform status table](#platform-status-and-current-evidence) below is the only
+qualification evidence, and an unsupported triple fails early with the supported
+matrix.
 
-`bun scripts/bun-static-package.ts` (npm script `embedded:package`) is the driver: it
-prepares a patched checkout of the pinned Bun revision, builds Bun's native graph
-against prebuilt WebKit, serializes the Vite-built application entry with the pinned
-Bun serializer, and compiles the application's Rust crate graph against that native
-graph. It writes the executable to `--output` and prints its SHA-256.
+Three routes reach the same driver. An application uses the public CLI or the
+library; this repository uses the script.
+
+| Route | Use |
+| --- | --- |
+| `solid-gpui embedded package [flags]` | Public CLI shipped with `@solid-gpui/vite`. |
+| `packageEmbeddedApplication({ sdkRoot, ... })` from `@solid-gpui/vite/embedded` | Library API for a build script; returns the packaging report. |
+| `bun packages/solid-gpui-vite/src/embedded/command.ts [flags]` (npm script `embedded:package`) | This repository's checkout-local entry, same flags plus `--sdk-root`. |
+
+A consumer passes `sdkRoot` explicitly: an SDK checkout that owns the pinned
+Bun/Rust backend. That is the supported seam — no consumer imports repository-private
+files, and the driver is never copied. The library accepts
+`{ sdkRoot, entry, output, bun, target?, profile?, application?, assets?, workers?, baseExecutable?, cacheDir?, sourceCheckout?, ninja?, macosSdk?, deploymentTarget?, winsysroot?, prepareOnly? }`,
+where `application` is the application-owned Cargo input:
+`{ manifest, package, features?, main? }`. `manifest` is the application manifest
+(package or workspace root), `package` is its package name, `features` adds that
+package's features, and `main` is a Rust entry `include!`d into the generated bin
+crate.
+
+The driver prepares a patched checkout of the pinned Bun revision, builds Bun's
+native graph against prebuilt WebKit, serializes the Vite-built application entry
+with the pinned Bun serializer, and compiles the application's Rust crate graph
+against that native graph. It writes the executable to `--output` and returns a
+report: the output path and its SHA-256, the graph SHA-256, the Rust triple and
+graph target, the profile, the native manifest when one was extracted, the typed
+`entry` identity (`role: "application"`, source, identity), and every
+`workers` identity. The run prints those identities as `Entry:` and `Worker:` lines
+naming the virtual graph keys. Generated Rust exposes `BUN_EMBEDDED_ENTRY` and
+`BUN_EMBEDDED_WORKERS`. The application reports its own exit code with
+`completeEmbedded(code)` from `@solid-gpui/core/embedded`, guarded by
+`supportsEmbeddedCompletion()`; the host reads it through
+`EmbeddedBunAdapter::result()`, which carries the full `u32` even though the VM exit
+status is only a byte.
 
 ### Static packaging inputs
 
 A host-native build, with the serializer built from the pinned revision:
 
 ```sh
-bun scripts/bun-static-package.ts \
+solid-gpui embedded package \
   --entry "$PWD/dist/app/index.js" \
   --bun "$PINNED_BUN" \
   --output "$PWD/dist/app/solid-gpui-embedded-app"
 ```
 
-Cross-building a Windows x64 executable from macOS adds the target and the
+The same flags work through the checkout-local entry
+`bun packages/solid-gpui-vite/src/embedded/command.ts` (npm script
+`bun run embedded:package`, which adds `--sdk-root`) when the build runs inside the SDK
+checkout. Cross-building a Windows x64 executable from macOS adds the target and the
 same-revision target-platform Bun; set `WINDOWS_SYSROOT` to your prepared SDK/CRT
 directory:
 
 ```sh
-bun scripts/bun-static-package.ts \
+solid-gpui embedded package \
   --entry "$PWD/dist/app/index.js" \
   --bun "$PINNED_BUN" \
   --base-executable "$PINNED_BUN_WINDOWS_X64" \
@@ -235,7 +290,7 @@ bun scripts/bun-static-package.ts \
 | `--target <triple>` | Rust triple; defaults to the host triple of the pinned `nightly-2026-07-20` toolchain. Supported: `aarch64-`/`x86_64-apple-darwin`, `x86_64-`/`aarch64-pc-windows-msvc`, and `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`. Anything else is rejected. |
 | `--profile debug\|release` | Defaults to `release`; `debug` selects Bun's `debug-no-asan` native profile and Cargo's `dev` profile. |
 | `--source <dir>`, `--cache <dir>` | Reuse an existing checkout of the pinned revision, and choose where the prepared checkout is kept (default `target/bun-static`). The cache name derives from the pin, the embedding patch, and the overlay sources, so a changed pin always rebuilds. |
-| `--main <file>` | Replace the default application `main`; see [Default application entry](#default-application-entry). |
+| `--manifest <file>`, `--package <name>`, `--main <file>`, `--feature <name>` | Application-owned Cargo input: the manifest to build (package or workspace root), its package name, the Rust entry `include!`d into the generated bin crate (`--main` is required alongside `--manifest`; on its own it replaces the default entry), and repeatable `--feature` values added to that package. Without them the driver builds the default host entry. |
 | `--assets <file>`, `--workers <entry>` | Repeatable. `--assets` values become `--asset` arguments and `--workers` values become extra serializer entry points. Declare every resource and Worker the application loads at run time; a `new Worker` or computed import is not discovered automatically. |
 | `--base-executable <file>` | Same-revision Bun for the target platform, required whenever `--target` is not this host's platform and architecture; otherwise the serializer would need a base executable the pin does not cover and stops instead. |
 | `--macos-sdk <dir>`, `--deployment-target <version>`, `--winsysroot <dir>` | Forwarded to Bun's build script as `--macos-sdk=`, `--osx-deployment-target=`, and `--winsysroot=`. |
@@ -263,6 +318,20 @@ access; caches never skip version or patch validation.
   `--macos-sdk`; one older than the `13.0` minimum deployment target is refused, and
   `--deployment-target` records your choice. A non-darwin build host also needs an
   explicitly supplied macOS SDK; that cross-host path has not been qualified.
+  Observed host combination (2026-09-17, this workstation): Bun's build system
+  prefers Homebrew `/opt/homebrew/opt/llvm@21/bin/clang++` over `PATH`, and stock
+  LLVM 21 rejects the `stack_protector_ignore` attribute the macOS 27 SDK places in
+  `os/trace_base.h` with `-Werror,-Wunknown-attributes` (59 errors in
+  `src/jsc/bindings/c-bindings.cpp`), so the native embed library cannot be built
+  with that SDK on this machine. Overrides, no code change: the packager's existing
+  `--macos-sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+  --deployment-target 26.5`, and, for anything that configures Bun itself (for
+  example `cargo build/test --features embedded-bun`, which runs
+  `crates/solid-gpui-bun-sys/build.rs`), the `SOLID_GPUI_BUN_MACOS_SDK` and
+  `SOLID_GPUI_BUN_DEPLOYMENT_TARGET` environment variables. Ninja 1.13.0 must be on
+  `PATH` (this repository's `target/bun-tools/bin/ninja`). Treat this as a
+  build-host toolchain requirement — pinned LLVM plus a matching SDK — with those
+  explicit knobs; it makes no claim about operating-system support.
 - **Windows:** build natively with MSVC, or cross-compile from macOS with LLVM's
   `clang-cl` and `lld-link` plus an xwin-style splat of the MSVC CRT/STL and Windows
   SDK passed through `--winsysroot`/`WINDOWS_SYSROOT` (pinned SDK `10.0.26100`, CRT
@@ -341,11 +410,14 @@ objects, archives, link policy, and compiler settings instead of building its ow
 embedding library; direct `embedded-bun` library builds remain macOS-only. The graph
 becomes an image section (`__BUN,__bun` at 16 KiB alignment on macOS, `.bun` on
 Windows) that survives dead stripping and is read straight from the mapped image, so
-nothing is unpacked at run time. The five-function C ABI
-(`bun_embedded_create`, `bun_embedded_run`, `bun_embedded_wake`,
-`bun_embedded_terminate`, `bun_embedded_destroy`) is unchanged: a packaged entry is
+nothing is unpacked at run time. The six-function C ABI
+(`bun_embedded_create`, `bun_embedded_run`, `bun_embedded_result`,
+`bun_embedded_wake`, `bun_embedded_terminate`, `bun_embedded_destroy`) keeps the
+same contract: a packaged entry is
 tagged apart from a disk path, so `start_packaged(entry)` never falls back to the
 filesystem and a session that cannot start fails closed with a negative status.
+`bun_embedded_result` is additive and reads the application's declared completion
+(`{ present, code }`) without changing the run status.
 
 ### Default application entry
 

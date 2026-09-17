@@ -1,0 +1,7 @@
+# api-surface-v1
+# name	kind
+completeEmbedded	value
+EmbeddedCompletionUnsupportedError	both
+EmbeddedResult	type
+EmbeddedTransport	both
+supportsEmbeddedCompletion	value

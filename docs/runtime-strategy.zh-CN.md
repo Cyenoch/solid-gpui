@@ -18,7 +18,7 @@
 
 ## 内嵌 Bun 静态产物
 
-`bun scripts/bun-static-package.ts`（即 `bun run embedded:package`）为每个目标生成一个应用可执行文件：GPUI 宿主、Bun/JSC 运行时，以及序列化后的应用及其声明的资源和 Worker 入口，全部位于同一个原生镜像中。它不需要另行提供 Bun 或 Node 可执行文件、JavaScript 目录树、`node_modules` 或 Bun/JSC 动态库。固定版本的序列化器是**构建期**输入，不是运行时依赖；操作系统库及其他目标/配置特有的原生依赖仍需验证。Windows 打包仍为实验性，Linux 仅到原生准备：各目标验证范围见[平台状态](distribution.zh-CN.md#平台状态与当前证据)，命令、前置条件与发布步骤见[分发指南](distribution.zh-CN.md#内嵌-bun-静态应用)。
+`solid-gpui embedded package`（公开 CLI）、`@solid-gpui/vite/embedded` 的 `packageEmbeddedApplication`，以及本仓库 checkout 内的入口（`bun packages/solid-gpui-vite/src/embedded/command.ts`，npm 脚本 `embedded:package`）是同一驱动的三条入口。它为每个目标生成一个应用可执行文件：GPUI 宿主、Bun/JSC 运行时，以及序列化后的应用及其声明的资源和 Worker 入口，全部位于同一个原生镜像中。它不需要另行提供 Bun 或 Node 可执行文件、JavaScript 目录树、`node_modules` 或 Bun/JSC 动态库。消费方显式传入 `sdkRoot`（拥有固定 Bun/Rust 后端的 SDK checkout）与自己的 Cargo 输入（`application.manifest`、`.package`、`.features`、`.main`），因此不会复制任何仓库私有文件。固定版本的序列化器是**构建期**输入，不是运行时依赖；操作系统库及其他目标/配置特有的原生依赖仍需验证。该工作流整体保持实验性：没有任何目标被声明为受支持或已验证，唯一的验证证据是分发指南中的[平台状态表](distribution.zh-CN.md#平台状态与当前证据)。Windows 打包仍为实验性，Linux 仅到原生准备：命令、前置条件与发布步骤见[分发指南](distribution.zh-CN.md#内嵌-bun-静态应用)。
 
 ### 单一镜像，单一依赖图
 
@@ -39,7 +39,7 @@ Solid 应用仍由 Vite 编译。随后打包器用固定版本的 Bun 序列化
 
 ### 启动 API 与会话生命周期
 
-应用通过 `EmbeddedBunAdapter::start_packaged(entry)` 启动打包会话，`entry` 是打包器生成的图键。它与 `start(path)` 有意分离：后者会规范化文件系统入口，保持开发路径不变。启动失败的会话不会静默回退到其他文件：若可执行文件没有可用图，或没有该入口，会话会失败，并通过 commit/status 路径报告负的 `packaged_graph_status`（`UNAVAILABLE`、`MALFORMED`、`NOT_VIRTUAL`、`MISSING`、`BYTECODE`、`NATIVE_LIBRARY`），此时不会执行任何代码。打包标识沿用未变的五函数 C ABI（`bun_embedded_create`/`run`/`wake`/`terminate`/`destroy`），通过既有入口指针加长度参数传递，并用一个标签字节区分图键与文件系统路径；没有新增第二个 ABI 函数、图安装调用或第二套传输。
+应用通过 `EmbeddedBunAdapter::start_packaged(entry)` 启动打包会话，`entry` 是打包器生成的图键。它与 `start(path)` 有意分离：后者会规范化文件系统入口，保持开发路径不变。启动失败的会话不会静默回退到其他文件：若可执行文件没有可用图，或没有该入口，会话会失败，并通过 commit/status 路径报告负的 `packaged_graph_status`（`UNAVAILABLE`、`MALFORMED`、`NOT_VIRTUAL`、`MISSING`、`BYTECODE`、`NATIVE_LIBRARY`），此时不会执行任何代码。打包标识沿用六函数 C ABI（`bun_embedded_create`/`run`/`result`/`wake`/`terminate`/`destroy`），通过既有入口指针加长度参数传递，并用一个标签字节区分图键与文件系统路径；新增的函数只读取应用声明的完成结果，因此没有第二套图安装调用或传输。
 
 生命周期就是[通信基线](#通信基线)中已记录的内嵌生命周期：每个进程一个常驻 Bun owner 线程、同时只有一个活动会话、每个会话一个全新 VM，`shutdown` 会等待完全拆除后才允许下一个会话。图单例在 VM 初始化之前被采用，并在拆除后继续存在；会话状态则不会保留。
 
@@ -87,7 +87,7 @@ Bun 应用使用外部 Bun 与 Vite 开发，再通过内嵌 Bun 打包。必须
 
 把应用嵌入镜像不改变这一边界：JavaScript 仍与 Rust 交换具有独立所有权的帧，打包会话使用与开发会话相同的适配器、队列与背压规则。背压必须传到渲染调度器；仅更换适配器或再加一层队列无法实现有界的内嵌生产。任何模式都不在 JavaScript 和 GPUI 线程之间直接共享存活的 JS 对象、Solid owner、闭包或 GPUI 句柄；引擎内部 Rust 绑定与跨线程共享 VM 值是不同概念。
 
-权威传输约束见[协议指南](protocol.md)和 [ADR-0017](adr/0017-runtime-engines.md)。研究建议不能在尚未实现时替换这些契约。
+权威传输约束见[协议指南](protocol.zh-CN.md)和 [ADR-0017](adr/0017-runtime-engines.md)。研究建议不能在尚未实现时替换这些契约。
 
 ## 性能解释
 
@@ -95,7 +95,7 @@ Bun 应用使用外部 Bun 与 Vite 开发，再通过内嵌 Bun 打包。必须
 
 内嵌 Bun 首次构建会从固定源码编译 Bun 原生构建图，但复用预编译 WebKit/JSC 归档而非重建 JavaScriptCore；受支持的构建缓存与提取出的原生清单可避免重复该工作。构建成本不等于应用启动时间，也不能替代固定版本校验：版本、补丁与目标变体检查仍会执行。参见 [ADR-0002](adr/0002-embedded-bun-runtime.md)。
 
-目前这些定位尚未建立受控的三运行时性能对比。应使用相同界面、负载、release 配置和原生宿主，按[性能流程](performance-analysis.md)分别记录启动到内容、总进程内存、JS 工作、传输成本和原生输入到呈现延迟。
+目前这些定位尚未建立受控的三运行时性能对比。应使用相同界面、负载、release 配置和原生宿主，按[性能流程](performance-analysis.zh-CN.md)分别记录启动到内容、总进程内存、JS 工作、传输成本和原生输入到呈现延迟。
 
 ## 设计研究
 

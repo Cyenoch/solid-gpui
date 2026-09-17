@@ -52,7 +52,7 @@ cargo test -p solid-gpui --lib renderer::scroll_tests -- --nocapture
 bun run task website-navigation-check
 ```
 
-当前网站测量应启动 `bun run task website-native-profile` 并遵循[性能分析](performance-analysis.md)。根据测量机器选择时间预算；确定性原生测试不测量 GPU 呈现。
+当前网站测量应启动 `bun run task website-native-profile` 并遵循[性能分析](performance-analysis.zh-CN.md)。根据测量机器选择时间预算；确定性原生测试不测量 GPU 呈现。
 
 仍需在原生应用中持续滚动导航/内容，滚动后点击、缩放、切路由和主题。基准通过不等于可见应用验收。
 
@@ -128,7 +128,7 @@ bun run task website-native-profile 2> target/solid-gpui-frame-profile.log
 bun run task website-navigation-check
 ```
 
-它验证路由切换保留侧栏和增量更新，不测原生滚动或呈现。当前 Showcase 按[性能分析](performance-analysis.md)在宽窄窗口用真实输入验证 Collections 列表。CPU 测量和原生验收分开，闲置区间或并发构建不算滚动证据。
+它验证路由切换保留侧栏和增量更新，不测原生滚动或呈现。当前 Showcase 按[性能分析](performance-analysis.zh-CN.md)在宽窄窗口用真实输入验证 Collections 列表。CPU 测量和原生验收分开，闲置区间或并发构建不算滚动证据。
 
 ## Overview：流式章节不应累积 flex 测量
 
@@ -146,7 +146,7 @@ Kanban 验收后，用户仍在 Overview 库目录复现持续卡顿。这是独
 
 ## 原生 FPS 监视器
 
-当前 HUD 已替换为固定 GPUI Kit 的 `gpui-fps::FpsMonitor` Entity，默认显示实际 presentation 节奏，可切换为重绘能力估计。500 ms 读数更新与历史被动监视器不同，指标定义和受控比较见[分析指南](performance-analysis.md)。
+当前 HUD 已替换为固定 GPUI Kit 的 `gpui-fps::FpsMonitor` Entity，默认显示实际 presentation 节奏，可切换为重绘能力估计。500 ms 读数更新与历史被动监视器不同，指标定义和受控比较见[分析指南](performance-analysis.zh-CN.md)。
 
 ## VirtualList 内部滚动：owner 保留与范围反馈（2026-09-05）
 

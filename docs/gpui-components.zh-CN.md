@@ -13,7 +13,7 @@ Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点
 | `gpui-component`  | 带样式的原生控件、编辑器、Carousel、文本、图表及窗口弹层；crate 名称仍为 `gpui-component`。 |
 | `gpui-base`       | 原生交互与状态、无样式控件、过渡、弹簧、关键帧、交错延迟与 presence。                       |
 | `gpui-kit`        | 独立原生集成测试包使用的 facade 和无窗口系统交互辅助工具。                                  |
-| `gpui-fps`        | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.md)。                   |
+| `gpui-fps`        | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.zh-CN.md)。                   |
 | `gpui-kit-assets` | 仅提供 Kit 控件内部需要的默认图标；应用图标归 Iconify。                                     |
 
 运行依赖位于 `vendor/gpui-kit`，`references/gpui-kit` 是匹配的固定上游检出。
@@ -87,7 +87,7 @@ IME 组合期间的选择变更都会在修改状态前拒绝。接受 1–1024 
 组件图标 slot 通过 `ComponentIcon` 接受已注册的 Iconify 名称或 `{ svg: "<svg …>…</svg>" }`。
 生成的独立 `Icon` 使用 `source`，例如 `<Icon source="lucide:check" />`。
 SVG 校验后由原生保留，源文本限制为 64 KiB。Button、菜单、侧栏、设置、树、命令、表格和停靠图标均可使用。
-核心 `Icon name="…"` API 及离线 Iconify 目录仍可使用，参见 [Iconify](iconify.md)。
+核心 `Icon name="…"` API 及离线 Iconify 目录仍可使用，参见 [Iconify](iconify.zh-CN.md)。
 
 ### 原生动画与自定义控件
 
@@ -190,7 +190,7 @@ import {
 
 `Popover` 在当前 GPUI 窗口内渲染，不能越过窗口边界。它支持原生 GPUI 焦点和关闭行为，但不会创建 AppKit `NSPopover` 或独立的系统弹层窗口。
 
-需要超出所属窗口时，从 `@solid-gpui/core` 导入 `SystemPopover`。它通过内容工厂创建独立的所属 Surface，并共享 Solid 上下文。API、多显示器行为、平台支持及原生验收限制见[系统弹层](system-popover.md)。
+需要超出所属窗口时，从 `@solid-gpui/core` 导入 `SystemPopover`。它通过内容工厂创建独立的所属 Surface，并共享 Solid 上下文。API、多显示器行为、平台支持及原生验收限制见[系统弹层](system-popover.zh-CN.md)。
 
 ## 子内容与原生状态
 
@@ -317,7 +317,7 @@ PopupMenu、ContextMenu、DropdownMenu 支持带 key 的菜单树及自定义子
 
 NativeMenu 使用系统弹窗实现，无系统后端的平台使用上游绘制实现。contextMenu、press、manual 触发和 show({x,y}) 使用窗口坐标。系统菜单显示打开时快照，后续属性变化在下次打开应用。选择动作作用域绑定挂载视图，卸载即撤销。
 
-Dialog、Sheet 和 Notification 使用原生 owner/session token。旧对话框请求完成不能关闭新对话框，旧 owner 卸载不能移除其他 owner 当前覆盖层。原生覆盖控件保留父动作/焦点行为。通知按当前 key/session 更新，使用原生堆栈与计时器。卡片是一行 flex——类型图标、正文、可选动作——内边距四边一致，也没有关闭控件：点击卡片、中键点击或到期计时都会关掉它，悬停或键盘聚焦整叠会展开并暂停其中全部计时。
+Dialog、Sheet 和 Notification 使用原生 owner/session token。旧对话框请求完成不能关闭新对话框，旧 owner 卸载不能移除其他 owner 当前覆盖层。原生覆盖控件保留父动作/焦点行为。`Dialog` 接受 `showFooter?: boolean`（默认 `true`）：`showFooter={false}` 不再绘制原生 OK 表尾，适合自己管理动作的对话框；需要自定义表尾时传 `slots={{ footer: … }}`，slot 始终优先，两种情况都不需要空的 JSX 节点。`AlertDialog` 与 `Sheet` 不变；AlertDialog 的表尾就是它的动作集合。通知按当前 key/session 更新，使用原生堆栈与计时器。卡片是一行 flex——类型图标、正文、可选动作——内边距四边一致，也没有关闭控件：点击卡片、中键点击或到期计时都会关掉它，悬停或键盘聚焦整叠会展开并暂停其中全部计时。
 
 ## 绘图数据与工作量限制
 
@@ -329,4 +329,4 @@ Plot 坐标为逻辑像素，径向与圆弧角度为弧度。原生 line/area/r
 
 ## 验证
 
-`bun run ci` 运行生成契约、TypeScript 检查/测试及 Rust 检查。审计与发布构建独立运行，见[持续集成](ci.md)。适配器旁的原生集成测试覆盖状态标识、过期请求、组合边界、菜单路由、停靠持久化和数值/工作量限制。真实 website 交互与呈现检查独立于确定性 TestAppContext 渲染，原生测量要求见[性能分析](performance-analysis.md)。
+`bun run ci` 运行生成契约、TypeScript 检查/测试及 Rust 检查。审计与发布构建独立运行，见[持续集成](ci.zh-CN.md)。适配器旁的原生集成测试覆盖状态标识、过期请求、组合边界、菜单路由、停靠持久化和数值/工作量限制。真实 website 交互与呈现检查独立于确定性 TestAppContext 渲染，原生测量要求见[性能分析](performance-analysis.zh-CN.md)。

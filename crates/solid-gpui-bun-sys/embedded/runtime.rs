@@ -12,7 +12,7 @@ mod lifecycle;
 
 use std::cell::RefCell;
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use bun_event_loop::ConcurrentTask::ConcurrentTask;
@@ -37,6 +37,28 @@ const TURN_BYTES: usize = 1024 * 1024;
 /// a file path can never contain a NUL byte, so the two forms are unambiguous
 /// and a tagged entry can never be answered from the filesystem.
 const PACKAGED_ENTRY_TAG: u8 = 0x00;
+
+/// The application's declared completion, as it crosses the C ABI.
+///
+/// `solid_gpui_bun_sys::EmbeddedResult` mirrors this layout. The application's
+/// result is a full 32-bit value and is deliberately independent of the VM's
+/// own exit status: `ExitHandler::exit_code` is one byte, and a real process
+/// result such as a Windows UAC cancellation (1223) must not be truncated.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct EmbeddedResult {
+    /// 1 when the application declared a completion, 0 otherwise.
+    pub present: u32,
+    /// The declared code; 0 when absent.
+    pub code: u32,
+}
+
+/// Outcome of one `complete` call from JavaScript.
+enum Completion {
+    Stored,
+    Duplicate,
+    Closed,
+}
 
 /// `SessionEntry` for the ABI boundary; `lifecycle` owns the semantics.
 type Entry<'a> = lifecycle::SessionEntry<'a>;
@@ -86,6 +108,12 @@ struct ControlState {
     scheduled: AtomicBool,
     terminated: AtomicBool,
     phase: AtomicU8,
+    // The application's declared completion, packed into one word:
+    // `(1 << 32) | code`. A single atomic store means a host that polls
+    // `bun_embedded_result` can never observe presence without the code it
+    // describes, and `compare_exchange` from 0 makes a second declaration
+    // impossible instead of silently replacing the first.
+    result: AtomicU64,
     // The mutex protects publication only. Clone the weak target and release
     // the guard before posting/terminating; teardown can race either action.
     target: Mutex<Option<Target>>,
@@ -242,6 +270,48 @@ fn register_delivery(global: &JSGlobalObject, frame: &CallFrame) -> JsResult<JSV
     // Data may have arrived before the wrapper registered this callback.
     control.schedule(false);
     Ok(JSValue::UNDEFINED)
+}
+
+/// Records the application's completion result.
+///
+/// The code is a non-negative integer in `u32` range: the VM's own exit status
+/// is one byte, so an application that reports a real process result (a Windows
+/// UAC cancellation, for example 1223) would otherwise be truncated. A second
+/// declaration is refused rather than silently overwriting the first.
+#[bun_jsc::host_fn]
+fn complete(global: &JSGlobalObject, frame: &CallFrame) -> JsResult<JSValue> {
+    let Some(value) = frame.arguments().first().copied() else {
+        return Err(global
+            .throw_invalid_arguments(format_args!("native completion requires a result code")));
+    };
+    if !value.is_uint32_as_any_int() {
+        return Err(global.throw_invalid_arguments(format_args!(
+            "native completion requires a non-negative 32-bit integer result code"
+        )));
+    }
+    let code = value.to_u32();
+    let outcome = JS_STATE.with(|slot| {
+        let slot = slot.borrow();
+        let Some(state) = slot.as_ref() else {
+            return Completion::Closed;
+        };
+        match state.control.result.compare_exchange(
+            0,
+            (1u64 << 32) | u64::from(code),
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => Completion::Stored,
+            Err(_) => Completion::Duplicate,
+        }
+    });
+    match outcome {
+        Completion::Stored => Ok(JSValue::UNDEFINED),
+        Completion::Duplicate => Err(global.throw(format_args!(
+            "native completion was already declared for this session"
+        ))),
+        Completion::Closed => Err(global.throw(format_args!("native session is closed"))),
+    }
 }
 
 #[bun_jsc::host_fn]
@@ -426,10 +496,11 @@ fn install_globals(vm: *mut VirtualMachine) {
     // SAFETY: this is the current owner-thread VM, before running the entry.
     let global = unsafe { (*vm).global() };
     let target = global.to_js_value();
-    let functions: [(&'static str, bun_jsc::JSHostFn, u32); 3] = [
+    let functions: [(&'static str, bun_jsc::JSHostFn, u32); 4] = [
         ("__solid_gpui_write", __jsc_host_write_commit, 1),
         ("__solid_gpui_register", __jsc_host_register_delivery, 1),
         ("__solid_gpui_activate_input", __jsc_host_activate_input, 0),
+        ("__solid_gpui_complete", __jsc_host_complete, 1),
     ];
     for (name, function, arity) in functions {
         target.put(
@@ -469,6 +540,9 @@ globalThis.__solidGpuiHost = Object.freeze({{
     subscription = current;
     globalThis.__solid_gpui_activate_input();
     return () => {{ if (subscription === current) subscription = undefined; }};
+  }},
+  complete(code) {{
+    return globalThis.__solid_gpui_complete(code);
   }},
 }});
 globalThis.__solid_gpui_register((kind, frame) => {{
@@ -536,11 +610,9 @@ fn run(
     // path. A Unix-rooted synthetic path is not a Windows module identity.
     let mut cwd_buffer = bun_paths::PathBuffer::uninit();
     let cwd = bun_core::getcwd_or_exe_dir(&mut cwd_buffer);
-    let entry_path = bun_paths::resolve_path::join::<bun_paths::platform::Auto>(&[
-        cwd.as_bytes(),
-        b"[eval]",
-    ])
-    .to_vec();
+    let entry_path =
+        bun_paths::resolve_path::join::<bun_paths::platform::Auto>(&[cwd.as_bytes(), b"[eval]"])
+            .to_vec();
     let entry_path = entry_path.as_slice();
     // Raw accesses avoid carrying an exclusive VM reference across JS, which
     // can reenter any host function and obtain the same VM through TLS.
@@ -630,6 +702,7 @@ pub extern "C" fn bun_embedded_create() -> *mut RuntimeControl {
             scheduled: AtomicBool::new(false),
             terminated: AtomicBool::new(false),
             phase: AtomicU8::new(CREATED),
+            result: AtomicU64::new(0),
             target: Mutex::new(None),
         }),
     }))
@@ -693,6 +766,36 @@ pub unsafe extern "C" fn bun_embedded_run(
             1
         }
     }
+}
+
+/// # Safety
+/// `control` came from `bun_embedded_create` and has not been destroyed; `out`
+/// is writable for one [`EmbeddedResult`]. Callable before, during, or after
+/// `run`: the values are plain atomics owned by the control allocation, so a
+/// host may poll it or read it once the session has settled.
+///
+/// This is the application's declared completion, not the VM's exit status. The
+/// ABI's status is one byte; a result such as a Windows UAC cancellation (1223)
+/// is preserved here in full. `present == 1` means the application declared a
+/// completion through the embedded bridge's `complete`, and `code` then holds
+/// what it declared.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn bun_embedded_result(
+    control: *const RuntimeControl,
+    out: *mut EmbeddedResult,
+) -> i32 {
+    if control.is_null() || out.is_null() {
+        return 2;
+    }
+    let control = unsafe { &*control };
+    let declared = control.state.result.load(Ordering::Acquire);
+    unsafe {
+        out.write(EmbeddedResult {
+            present: u32::from(declared >> 32 != 0),
+            code: (declared & 0xffff_ffff) as u32,
+        });
+    }
+    0
 }
 
 /// # Safety

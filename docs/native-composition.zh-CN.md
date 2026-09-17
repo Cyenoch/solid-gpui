@@ -4,7 +4,7 @@
 
 Native Module 当前渲染 GPUI 元素和持久 GPUI 视图，没有暴露可嵌入的 AppKit 视图，也不支持与 SwiftUI 双向嵌套。多个 Surface 当前使用独立 GPUI 窗口，这不代表支持在同一个 SwiftUI/AppKit 窗口内放置多个 GPUI 视图。
 
-[SystemPopover](system-popover.md) 现已提供依附所属窗口的独立原生窗口，并共享 Solid 上下文。SwiftUI/AppKit 嵌入仍是独立的后续提案；[原生呈现研究](../.scratch/native-presentation/spec.md)记录其所需的视图生命周期、输入、无障碍和布局改动。
+[SystemPopover](system-popover.zh-CN.md) 现已提供依附所属窗口的独立原生窗口，并共享 Solid 上下文。SwiftUI/AppKit 嵌入仍是独立的后续提案；[原生呈现研究](../.scratch/native-presentation/spec.md)记录其所需的视图生命周期、输入、无障碍和布局改动。
 
 ## Solid 异步控制流
 
@@ -52,7 +52,7 @@ export function Page() {
 
 在边界的子组件内创建 resource，让边界拥有其错误与清理。transition 在资源等待时保留已解析内容。脱离挂载的 Suspense 内容在重新附着前仍留在 Solid 宿主图中；空的原生提交不会释放它。传输失败仍回滚失败提交。根卸载会拒绝待处理原生请求并释放 owner。
 
-`createResource` 不自动取消被替代的 fetcher。需要停止过期工作时传入请求级 signal，并在 owner 清理时 abort。参见[请求取消](rust-bridge.md)。生产 Bun 和真实 QuickJS fixture `fixtures/quickjs-async.tsx` 通过二进制原生提交与回复验证资源加载、嵌套 Suspense、lazy、transition、错误重试及释放。
+`createResource` 不自动取消被替代的 fetcher。需要停止过期工作时传入请求级 signal，并在 owner 清理时 abort。参见[请求取消](rust-bridge.zh-CN.md)。生产 Bun 和真实 QuickJS fixture `fixtures/quickjs-async.tsx` 通过二进制原生提交与回复验证资源加载、嵌套 Suspense、lazy、transition、错误重试及释放。
 
 ## 无障碍语义
 
@@ -160,6 +160,28 @@ const application = mountApplication({
 分段按钮可将左按钮右侧圆角和右按钮左侧圆角设为零。宽屏双列摘要可采用允许换行的 flex 行，包含两个 `width: 0, flexGrow: 1, minWidth: 300` 子项及 `gap: 16`；低于两项最小宽度时自动换行。[桌面应用示例](../examples/desktop-app/README.zh-CN.md#首页布局与绘制)展示这些模式和单边分隔线。
 
 分配剩余空间是另一套契约：有界滚动工作区的每层祖先都要显式设置 flex 方向，见[有边界的页面滚动](scroll-performance.zh-CN.md#有边界的页面滚动)。
+
+### Row 与 Column
+
+`Row` 与 `Column` 是 `@solid-gpui/core` 导出的 `View` 预设。它们显式设置 flex 方向，因此布局不再依赖
+`gap` 或对齐带来的隐式 flex，并提供了更易读的简写：
+
+```tsx
+import { Column, Row, Text } from "@solid-gpui/core";
+
+<Column gap={12} padding={24} align="center">
+  <Text>Title</Text>
+  <Row gap={8} justify="space-between">
+    <Text>Left</Text>
+    <Text>Right</Text>
+  </Row>
+</Column>;
+```
+
+它们接受全部 `View` prop（`RowProps`/`ColumnProps`，两者都扩展 `FlexContainerProps`），并额外支持
+`gap`、`align`、`justify`、`padding`，分别映射到 `gap`、`alignItems`、`justifyContent`、`padding`。
+简写会覆盖对应的 `style` 字段；你自己写的 `style.flexDirection` 优先于预设（例如 `"row-reverse"`）；
+简写不会下发到宿主元素。原始 `View` 语义不变，包括仅设置 `gap` 或对齐时仍然隐式启用 flex 且方向为列。
 
 ## 原生网格
 

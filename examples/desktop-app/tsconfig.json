@@ -1,4 +1,5 @@
 {
+  "extends": "./.solid-gpui/tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",

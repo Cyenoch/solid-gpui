@@ -1,8 +1,5 @@
-use solid_gpui::{ProcessAdapter, gpui::*, native_module};
-use std::{
-    process::Command,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use solid_gpui::{gpui::*, native_module};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 static CALLS: AtomicU32 = AtomicU32::new(0);
 
@@ -28,15 +25,9 @@ fn main() {
         print!("{}", profile().native_bindings().expect("native contract"));
         return;
     }
-    let runtime = if std::env::args().any(|arg| arg == "--production") {
-        let mut command = Command::new("bun");
-        command.arg("--conditions=browser").arg("dist/main.js");
-        ProcessAdapter::spawn(command).expect("Bun runtime")
-    } else {
-        solid_gpui::runtime::vite::Vite::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."))
-            .spawn()
-            .expect("Vite runtime")
-    };
+    let runtime = solid_gpui::runtime::vite::Vite::new(concat!(env!("CARGO_MANIFEST_DIR"), "/.."))
+        .spawn()
+        .expect("application runtime");
     // The profile is built on the application thread by the host; the icon catalog above
     // is registered first, on the main thread.
     solid_gpui::run_application_with_profile(profile, runtime);

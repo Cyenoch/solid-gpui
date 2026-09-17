@@ -10,14 +10,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "types": ["bun-types", "vite/client"],
-    "paths": {
-      "@solid-gpui/shiki": ["../../packages/solid-gpui-shiki/src/index.ts"],
-      "@solid-gpui/core": ["../../packages/solid-gpui/src/index.ts"],
-      "@solid-gpui/core/runtime": ["../../packages/solid-gpui/src/runtime.ts"],
-      "@solid-gpui/core/web": ["../../packages/solid-gpui/src/web.ts"],
-      "@solid-gpui/core/*": ["../../packages/solid-gpui/src/*"],
-      "@solid-gpui/router": ["../../packages/solid-gpui-router/src/index.ts"]
-    }
+    "customConditions": ["solid-gpui-source"]
   },
   "include": ["src", "vite.config.ts", "tests/preview-audit.tsx"]
 }

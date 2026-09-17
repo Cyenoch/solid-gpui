@@ -131,7 +131,7 @@ Command 携带 surfaceId、epoch、afterRevision、requestId、nodeId、数值 k
 
 生成载荷 union 使用 u32 pair、f32、文本、字符串 pair、OpenSurface、FileDialogOpen、通知、菜单、快捷键、剪贴板图片和关闭确认等类型化记录。解码验证载荷变体与命令类型匹配，以及 root/node 所有权。
 
-`OpenPopup` 要求已挂载锚点（node ID 至少为 2）、每轴 1–16384 的内容尺寸、0–11 的 placement 和 0–1024 的有限 gap。成功后返回新子 Surface ID。`ClosePopup` 在所属 Surface 与 epoch 内引用原始打开请求，因此子 ID 尚未返回时也能取消；重复取消幂等。参见[系统弹层](system-popover.md)。
+`OpenPopup` 要求已挂载锚点（node ID 至少为 2）、每轴 1–16384 的内容尺寸、0–11 的 placement 和 0–1024 的有限 gap。成功后返回新子 Surface ID。`ClosePopup` 在所属 Surface 与 epoch 内引用原始打开请求，因此子 ID 尚未返回时也能取消；重复取消幂等。参见[系统弹层](system-popover.zh-CN.md)。
 
 命令结果以 Event 返回 request ID、command code、node ID、success、可选错误和 CommandValue。值标签为 1=number、2=pair、3=boolean、4=text、5=paths、6=file text、7=image、8=bounds、9=window state、10=scroll offset。文件、图片、剪贴板、路径、菜单、通知和快捷键限制在发布到 JS 前检查。
 

@@ -1,6 +1,7 @@
 import { solidGpuiRouter } from "../../packages/solid-gpui-router/src/vite";
 import { componentVariants } from "./component-variants";
 import { solidGpui } from "../../packages/solid-gpui-vite/src/index.ts";
+import { solidGpuiSource } from "../../packages/solid-gpui-vite/src/source.ts";
 import { browserPreviewNames } from "./component-previews";
 import { componentExamples } from "./component-examples";
 import { componentCatalog } from "./component-catalog";
@@ -10,12 +11,12 @@ import { defineConfig } from "vite";
 import { resolve } from "node:path";
 import { readdirSync } from "node:fs";
 import { transformJsx } from "../../packages/solid-gpui-vite/src/transform.ts";
-const source = (path: string) => resolve(import.meta.dirname, "../../packages/solid-gpui/src", path);
 export function websiteConfig(desktop = false, embedded = false) {
   return defineConfig({
     root: import.meta.dirname,
     base: process.env.PAGES_BASE_PATH ?? "/solid-gpui/",
     plugins: [
+      solidGpuiSource({ root: import.meta.dirname, exclude: desktop && !embedded ? undefined : [] }),
       solidGpuiRouter(),
       desktop
         ? solidGpui({
@@ -97,26 +98,10 @@ export function websiteConfig(desktop = false, embedded = false) {
     ],
     resolve: {
       alias: [
-        {
-          find: "@solid-gpui/router",
-          replacement: resolve(import.meta.dirname, "../../packages/solid-gpui-router/src/index.ts"),
-        },
         ...(desktop
           ? [{ find: "./HeroVisual", replacement: resolve(import.meta.dirname, "src/HeroVisual.native.tsx") }]
           : []),
-        { find: "@solid-gpui/core/stdio", replacement: source("stdio.ts") },
-        { find: "@solid-gpui/core/embedded", replacement: source("embedded.ts") },
         { find: "assert", replacement: "assert/" },
-        {
-          find: "@solid-gpui/shiki",
-          replacement: resolve(import.meta.dirname, "../../packages/solid-gpui-shiki/src/index.ts"),
-        },
-        { find: "@solid-gpui/core/native", replacement: source("native.ts") },
-        { find: "@solid-gpui/core/motion", replacement: source("motion.ts") },
-        { find: "@solid-gpui/core/components", replacement: source("components.ts") },
-        { find: "@solid-gpui/core/runtime", replacement: source("runtime.ts") },
-        { find: "@solid-gpui/core/web", replacement: source("web.ts") },
-        { find: "@solid-gpui/core", replacement: source("index.ts") },
       ],
     },
     build: {

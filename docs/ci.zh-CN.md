@@ -16,7 +16,7 @@ GitHub Actions 分别执行开发检查、依赖审计、网站部署和发布�
 路径过滤器保存在各工作流中，YAML 锚点保持 push 与 PR 的过滤器一致。
 添加分支保护的必需检查时，应考虑[路径过滤规则](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore)：整个工作流被跳过时不会上报已完成的检查。
 
-macOS CI 作业先检查 Rust 格式，再让 Rust 与 Bun 检查共享包生成和 Cargo 编译。Linux Clippy 已检查所有 targets，因此不重复执行 `cargo check` 或与平台无关的格式检查。Windows 仍保留工作区检查与宿主链接，以覆盖着色器编译器和链接器。显示和 GPU 验证见[分发指南](distribution.md)。
+macOS CI 作业先检查 Rust 格式，再让 Rust 与 Bun 检查共享包生成和 Cargo 编译。Linux Clippy 已检查所有 targets，因此不重复执行 `cargo check` 或与平台无关的格式检查。Windows 仍保留工作区检查与宿主链接，以覆盖着色器编译器和链接器。显示和 GPU 验证见[分发指南](distribution.zh-CN.md)。
 
 浏览器网站的类型检查和测试由 Pages 执行，先通过 `bun run website:build` 生成 WASM 模块。SDK 包检查不依赖网站已有构建产物，也不重复这些检查。组件示例检查器按网站的 tsconfig 解析类型，因此在 Bun 隔离安装依赖后，从仓库根目录运行也能正确解析。
 

@@ -1,5 +1,17 @@
 # 故障排查
 
+## `@solid-gpui/*` 无法从 registry 解析
+
+SDK 包尚未发布到 npm，因此 `bun add @solid-gpui/core` 没有可解析的目标。请从同一份固定 checkout 打出配套 tarball 再安装：
+
+```sh
+bun run task sdk-pack ../sdk-tarballs     # 在 SDK checkout 中
+bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
+bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+```
+
+请确保所有 `@solid-gpui/*` 包来自同一次 `sdk-pack`，使 SDK 处于同一修订。`solid-gpui` Rust crate 同样从该 checkout 以 path 或 git 依赖消费，而不是来自 registry。只有在正式发布之后，按名称安装才是正确做法；其余步骤不变。若要直接基于 SDK 源码运行，请使用显式的 [solid-gpui-source 条件](vite.zh-CN.md#从源码消费包)。
+
 ## 任务 CLI 无法解析包
 
 安装仓库锁定的工作区依赖后，在仓库根目录执行：
@@ -11,6 +23,34 @@ bun run task --help
 
 不要在 `packages/solid-gpui` 中安装；仓库只有根目录的 `bun.lock`。排查依赖前，先确认 `bun --version` 与 `.bun-version` 一致。
 
+## 绑定过期或缺失
+
+运行生成器，并把检查加入 CI：
+
+```sh
+bun run generate          # solid-gpui prepare
+bun run check:generated   # solid-gpui prepare --check
+```
+
+`prepare` 解析你的 `vite.config.ts`，按需构建所配置的宿主，导出其 bindings，并写入绑定文件以及
+`.solid-gpui/tsconfig.json`、`.solid-gpui/artifacts.json`。`--check` 不写入任何文件，在任一生成
+文件过期时失败（它仍会构建宿主以便与实际目录比对），适合作为 CI 门槛或提交前钩子。不要手改 `.solid-gpui/` 或生成的绑定：组件目录必须来自
+实际运行的宿主，而“编号变化但测试名称不变”正是基于名称的测试无法发现的失败模式。若产物与你启动
+的宿主不一致，用 `bun run doctor` 查看当前生效的 Cargo 依赖、profile 与 patch 要求。
+
+## 安装依赖时试图编译宿主
+
+`package.json` 中名为 `prepare` 的脚本是安装期生命周期钩子：Bun 会在 `bun install` 期间运行它
+（已在 1.4.2 验证），因此把生成器命名为 `prepare` 会让安装过程编译原生宿主。请命名为 `generate`
+或其他名字，并在安装后显式运行。
+
+## CLI 拒绝运行交叉编译的宿主
+
+`solid-gpui prepare` 与开发都会执行它导出的宿主，因此把 `native.target` 指向其他平台或架构会被
+拒绝，而不是运行异构二进制。为 prepare/开发宿主去掉 `target`，或传入 `native.exporter` 指定能在
+本机导出 bindings 的宿主可执行文件。交叉编译产物由 Cargo 在打包时生成，其路径来自
+`.solid-gpui/artifacts.json`，而不是重新拼出的命令行。
+
 ## 信号变化但没有发出 Patch
 
 从 `@solid-gpui/core/runtime` 导入响应式原语，不要使用面向服务器的 Solid 入口。在传给 `root.render` 的创建函数中构建应用：
@@ -20,6 +60,18 @@ root.render(() => createComponent(App, {}));
 ```
 
 进入根节点之前创建的宿主节点没有 surface owner，会被拒绝。
+
+## 测试或脚本渲染空白
+
+在非 client 解析下导入 `@solid-gpui/core`、`@solid-gpui/core/runtime` 或渲染器现在会直接报错，而不是渲染空树：
+
+- 服务端构建：`@solid-gpui/core: solid-js resolved to its server build, so signals never notify the native renderer. Resolve Solid's client build (Bun: --conditions=browser, Vite: resolve.conditions) or run tests through @solid-gpui/vite/test, which sets it for you.`
+- 重复 Solid：`@solid-gpui/core: two copies of solid-js are loaded, so signals created by one copy never notify the other. Deduplicate solid-js (Vite: resolve.dedupe: ["solid-js"]) so the application and the SDK share one reactive graph.`
+
+应用测试请使用 `bun run test`（`solid-gpui test`）：运行器会自行加入 `browser` condition 并去重 Solid。
+Vite 开发与构建也会自行设置 condition，且 `solidGpui()` 会设置 `resolve.dedupe: ["solid-js"]`，因此出现重复
+通常意味着某个依赖自带了 `solid-js`，而不是缺少 dedupe 条目。只有绕过两者的原生 `bun test` 或 `bun run` 才需要手动传
+`--conditions=browser`。
 
 ## 出现 `host operation is not associated with a root`
 
@@ -165,6 +217,7 @@ SOLID_GPUI_TAP=target/solid-gpui-startup.jsonl ./target/debug/my-app --runtime q
 
 ```json
 {
+  "extends": "./.solid-gpui/tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "@solid-gpui/core"
@@ -172,9 +225,32 @@ SOLID_GPUI_TAP=target/solid-gpui-startup.jsonl ./target/debug/my-app --runtime q
 }
 ```
 
-通过 Vite 插件或 Vite 插件 使用共享 Solid/Oxc 通用转换。普通 React 风格 JSX 转换不能生成该渲染器的响应式宿主操作。
+生成工程携带与 Vite 别名一致的 `#native` 和 `@solid-gpui/core/components` 映射，因此更换宿主后
+请重新运行 `bun run generate`，而不是手工修改 `paths`。
+
+通过 [Vite 插件](vite.zh-CN.md)使用共享 Solid/Oxc 通用转换。普通 React 风格 JSX 转换不能生成该渲染器的响应式宿主操作。
 
 遇到 `For`/`Show`/`Index`/`Switch`/`Match` 返回值或子内容类型不兼容时，从 `@solid-gpui/core/runtime` 导入，而不是 `solid-js`。上游声明使用 DOM 元素；runtime 入口使用同一实现并提供原生类型。参见[原生控制流](native-composition.zh-CN.md#solid-异步控制流)。
+
+## QuickJS 应用缺少 DOM 或资源类型
+
+使用随包发布的 ambient 类型，不要手写声明：
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": ["@solid-gpui/core/quickjs"]
+  }
+}
+```
+
+它声明了定时器、`performance.now()`、`console`、UTF-8 文本编解码、`self`、原生路由所需的
+URL/事件/取消/Headers 与无 body `Response` 原语、`import.meta.url`，以及 `declare module "*?inline"`
+（默认导出 `string`），因此内联 PNG 导入无需本地 `.d.ts` 即可通过类型检查。它有意不声明
+`fetch`/`Request`、文件系统或 socket API、`requestAnimationFrame`、`import.meta.hot` 以及任何
+Node/Bun API：此时编译错误是真实的，因为引擎确实不提供该能力。QuickJS 工程的生成
+`.solid-gpui/tsconfig.json` 已包含该入口；切换 runtime 后请重新运行 `bun run generate`。
 
 ## 页面空白、被裁剪或滚不到最后一行
 
@@ -188,7 +264,7 @@ SOLID_GPUI_TAP=target/solid-gpui-startup.jsonl ./target/debug/my-app --runtime q
 
 ## 滚动没有边界或很慢
 
-沿路由包装层检查整条 flex 父链，再检查填满窗口的工作区是否从不必要的内容派生 flex basis 开始。真实 Gallery 回归、校准后的 CPU 预算和原生验收要求见[原生滚动性能](scroll-performance.md)。
+沿路由包装层检查整条 flex 父链，再检查填满窗口的工作区是否从不必要的内容派生 flex basis 开始。真实 Gallery 回归、校准后的 CPU 预算和原生验收要求见[原生滚动性能](scroll-performance.zh-CN.md)。
 
 ## 升级依赖后工具失效
 

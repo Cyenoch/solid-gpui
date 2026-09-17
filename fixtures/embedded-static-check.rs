@@ -1,4 +1,6 @@
-// Compile with bun-static-package.ts --main to check a packaged counter without a test runner.
+// Compile with `solid-gpui embedded package --main <this file>` (or the
+// checkout-local `bun run embedded:package --main <this file>`) to check a
+// packaged counter without a test runner.
 use solid_gpui::runtime::embedded::{CommitPoll, EmbeddedBunAdapter};
 use solid_gpui::{DecodedMessage, Event, NodeStore, RuntimeAdapter, Snapshot};
 use std::error::Error;

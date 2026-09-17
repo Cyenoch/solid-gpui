@@ -1,5 +1,14 @@
 # api-surface-v1
 # name	kind
 NativeHostOptions	type
+pluginSourceMappings	value
+SDK_PACKAGES	value
+sdkPackage	value
+SdkPackageInfo	type
+sdkSource	value
+SdkSource	type
+SdkSourceOptions	type
 solidGpui	value
 SolidGpuiOptions	type
+solidGpuiSource	value
+SOURCE_CONDITION	value

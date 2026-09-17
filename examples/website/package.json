@@ -7,6 +7,8 @@
     "build": "bash ../../scripts/build-web-host.sh && bun run typecheck && bun --bun vite build",
     "typecheck": "bun run routes:generate && tsc --noEmit",
     "dev:native": "bun ../../scripts/tasks.ts website-native-dev",
+    "generate:native": "solid-gpui prepare --config vite.native.config.ts",
+    "preview:native": "solid-gpui preview --config vite.native.config.ts",
     "build:native": "bun --bun vite build --config vite.native.config.ts",
     "build:embedded": "bun --bun vite build --config vite.embedded.config.ts",
     "test": "bun --conditions=browser test tests",

@@ -36,22 +36,43 @@ Rust WebAssembly host.
 - **Tools for complete apps.** [Routing](packages/solid-gpui-router),
   [code highlighting](docs/shiki.md), and [Vite development and builds](docs/vite.md).
 
-## Try it locally
+## Build an application
 
-Install [Bun](.bun-version), the pinned [Rust toolchain](rust-toolchain.toml), and
-your platform's [native build dependencies](docs/distribution.md#build-environment).
+The SDK is not on a public registry yet. Build matching tarballs from one pinned
+checkout (this repository), then install them into your application. Use
+[Bun](.bun-version) 1.4.2 or newer, and add the pinned
+[Rust toolchain](rust-toolchain.toml) plus your platform's
+[native build dependencies](docs/distribution.md#build-environment) when the
+application builds a Rust host.
 
 ```sh
-git clone https://github.com/Cyenoch/solid-gpui.git
-cd solid-gpui
+# In the SDK checkout
 bun install --frozen-lockfile
-bun run website:native
+bun run task sdk-pack ../sdk-tarballs   # solid-gpui-core/-vite/-router/-shiki.tgz
+
+# In your application
+bun init
+bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
+bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
 ```
 
-For native hot reload, run `bun run website:native:dev`. For the browser version,
-follow the [Web setup guide](docs/web.md), then run `bun run website`.
+Point `vite.config.ts` at your entry and native host, extend the generated
+TypeScript project, and run one sequence:
 
-## A small example
+```sh
+bun run generate     # solid-gpui prepare: build the host, export bindings, write .solid-gpui/tsconfig.json
+bun run typecheck    # tsc --noEmit
+bun run dev          # bun --bun vite, with Rust rebuilds and JS HMR
+bun run test         # solid-gpui test, through the application's own Vite config
+bun run build        # bun --bun vite build: the production bundle
+bun run preview      # solid-gpui preview: the built host against the built bundle
+```
+
+Do not name a script `prepare`: package installation must not compile a native
+host. [`docs/getting-started.md`](docs/getting-started.md) is the authoritative
+version of this sequence. It also states the `[patch.crates-io]` and profile
+requirements your Cargo workspace root must carry, and which step produces which
+artifact — bindings, bundle, native executable, or distributable.
 
 ```tsx
 import { Pressable, Text, View } from "@solid-gpui/core";
@@ -73,22 +94,42 @@ export function Counter() {
 
 Write JS directly without a bundler, or use [@solid-gpui/vite](docs/vite.md) to
 compile JSX/TSX. Bun and QuickJS execute the resulting JavaScript; selecting Bun
-keeps Bun APIs available. Both paths support Rust native modules. Then
-[mount your application](docs/getting-started.md#mount-a-root) in a GPUI host.
+keeps Bun APIs available. The runtime is chosen explicitly at build time and is
+never converted: a QuickJS build rejects Bun/Node imports instead of substituting
+an engine. Both paths support Rust native modules.
+
+## Run this repository
+
+```sh
+git clone https://github.com/Cyenoch/solid-gpui.git
+cd solid-gpui
+bun install --frozen-lockfile
+bun run website:native
+```
+
+That builds and launches the shared website on the desktop. For native hot reload
+run `bun run website:native:dev`; for the browser version follow the
+[Web setup guide](docs/web.md) and run `bun run website`. Platform build
+dependencies are in [`docs/distribution.md`](docs/distribution.md#build-environment).
+
+The [desktop application example](examples/desktop-app/README.md) is a smaller
+application to copy: one window, two routes, an application icon, and a Rust
+command. Workspace development uses `bun run check` and `bun run test`;
+`bun run task --help` lists every task.
 
 ## Go further
 
-| Guide                                                         | What you will learn                                                        |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [Choose a runtime](docs/runtimes.md)                          | Develop with Bun, embed Bun on macOS, or use QuickJS with Rust services.   |
-| [Rust integration](docs/rust-bridge.md)                       | Configure a desktop host, windows, titlebars, and typed native services.   |
-| [Desktop application example](examples/desktop-app/README.md) | Run a complete example with routing, themes, scrolling, and Rust services. |
-| [Desktop distribution](docs/distribution.md)                  | Build, verify, and sign application bundles.                               |
-| [Architecture and protocol](CONTEXT.md)                       | Understand ownership, rendering, and the Rust–TypeScript boundary.         |
+| Guide                                                         | What you will learn                                                          |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Getting started](docs/getting-started.md)                    | The one external-consumer sequence, from install to production preview.       |
+| [Choose a runtime](docs/runtimes.md)                          | Develop with external Bun, embed Bun, or use QuickJS with Rust services.      |
+| [Rust integration](docs/rust-bridge.md)                       | Configure a desktop host, windows, titlebars, and typed native services.      |
+| [Vite integration](docs/vite.md)                              | Plugin options, artifact lookup, testing, and source consumption.             |
+| [Desktop application example](examples/desktop-app/README.md) | Run a complete application with routing, themes, scrolling, and Rust services. |
+| [Desktop distribution](docs/distribution.md)                  | Bundle versus executable versus distributable, and per-target status.        |
+| [Architecture and protocol](CONTEXT.md)                       | Understand ownership, rendering, and the Rust–TypeScript boundary.            |
 
-For workspace development, use `bun run check` and `bun run test`.
-Run `bun run task --help` for all tasks; see the
-[documentation index](docs/README.md) for the full guides.
+See the [documentation index](docs/README.md) for the full guide list.
 
 ## License
 

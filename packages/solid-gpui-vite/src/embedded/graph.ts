@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 /**
  * Serializes an already-built application entry (Vite JS output) into Bun's
  * standalone module graph and emits the Rust source that carries it in the
@@ -20,6 +19,9 @@
  *   section length prefix, trailer, offsets record, module record count and
  *   stride, every string pointer, the entry identity, and forbidden graph
  *   contents (JSC bytecode, native addons).
+ * - Every declared worker entry is resolved to the same graph key the runtime
+ *   will use, and that key must exist in the serialized graph. Applications
+ *   receive these identities instead of reconstructing them from file names.
  * - The emitted Rust file declares the graph section as an immutable static so
  *   the runtime maps the payload straight from the executable image. Nothing is
  *   unpacked to disk or copied at build or run time.
@@ -28,37 +30,16 @@
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
-import { parseArgs } from "node:util";
-
-/**
- * Canonical pinned Bun build inputs. Owned by the sys crate so that the
- * serializer revision and the native build never drift apart.
- */
-const BUN_BUILD_CONFIG = join(import.meta.dirname, "../crates/solid-gpui-bun-sys/bun-build.json");
-
-/**
- * Reads the pinned Bun revision.
- *
- * The graph payload carries no format version, so a payload produced by any
- * other Bun build is accepted silently by the runtime. The revision is
- * therefore read from the same file the native build consumes and enforced.
- */
-async function pinnedBunRevision(): Promise<string> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await readFile(BUN_BUILD_CONFIG, "utf8"));
-  } catch (error) {
-    fail(`${BUN_BUILD_CONFIG} could not be read: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (parsed === null || typeof parsed !== "object" || !("revision" in parsed)) {
-    fail(`${BUN_BUILD_CONFIG} does not declare a bun revision`);
-  }
-  const revision = parsed.revision;
-  if (typeof revision !== "string" || !/^[0-9a-f]{40}$/.test(revision)) {
-    fail(`${BUN_BUILD_CONFIG} does not declare a 40-character hexadecimal bun revision`);
-  }
-  return revision;
-}
+import { fail } from "./errors.ts";
+import { readPinnedBunBuild } from "./sdk.ts";
+import {
+  embeddedEntryPointIdentity,
+  embeddedSourceRoot,
+  embeddedWorkerIdentity,
+  type EmbeddedGraphTarget,
+  type EmbeddedGraphTargetSpec,
+  graphTargetSpec,
+} from "./targets.ts";
 
 /** `StandaloneModuleGraph::TRAILER`. */
 const GRAPH_TRAILER = new TextEncoder().encode("\n---- Bun! ----\n");
@@ -68,64 +49,6 @@ const GRAPH_OFFSETS_SIZE = 32;
 const GRAPH_FILE_SIZE = 52;
 /** Extensions that can only be satisfied by loading native code from disk. */
 const NATIVE_EXTENSIONS = [".node", ".dll", ".so", ".dylib"] as const;
-
-export type EmbeddedGraphTarget = "bun-windows-x64" | "bun-windows-arm64" | "bun-darwin-arm64" | "bun-darwin-x64";
-
-type TargetSpec = {
-  /** Host platform whose Bun binary is the compile base unless one is supplied. */
-  readonly host: string;
-  readonly container: "pe" | "macho";
-  /**
-   * Machine type the image's own header must declare: `IMAGE_FILE_MACHINE_*`
-   * for PE, `CPU_TYPE_*` for Mach-O.
-   *
-   * The graph key prefix distinguishes Windows from POSIX but *not* x64 from
-   * arm64, so without this the serializer's own output — and therefore the
-   * compile base behind it — would be accepted for either architecture.
-   */
-  readonly machine: number;
-  /** Human-readable spelling of `machine`, for diagnostics. */
-  readonly machineName: string;
-  /** `StandaloneModuleGraph` key prefix written into every graph file name. */
-  readonly prefix: string;
-  /** Attribute value for the generated `#[unsafe(link_section = ...)]`. */
-  readonly linkSection: string;
-};
-
-const TARGETS: Record<EmbeddedGraphTarget, TargetSpec> = {
-  "bun-windows-x64": {
-    host: "win32-x64",
-    container: "pe",
-    machine: 0x8664,
-    machineName: "x64",
-    prefix: "B:/~BUN/root/",
-    linkSection: ".bun",
-  },
-  "bun-windows-arm64": {
-    host: "win32-arm64",
-    container: "pe",
-    machine: 0xaa64,
-    machineName: "arm64",
-    prefix: "B:/~BUN/root/",
-    linkSection: ".bun",
-  },
-  "bun-darwin-x64": {
-    host: "darwin-x64",
-    container: "macho",
-    machine: 0x0100_0007,
-    machineName: "x86_64",
-    prefix: "/$bunfs/root/",
-    linkSection: "__BUN,__bun",
-  },
-  "bun-darwin-arm64": {
-    host: "darwin-arm64",
-    container: "macho",
-    machine: 0x0100_000c,
-    machineName: "arm64",
-    prefix: "/$bunfs/root/",
-    linkSection: "__BUN,__bun",
-  },
-};
 
 /**
  * `CompiledModuleGraphFile::loader` discriminants, from the canonical
@@ -191,7 +114,25 @@ export type EmbeddedGraph = {
   readonly files: readonly EmbeddedGraphFile[];
 };
 
+/** What an entry does in the packaged application. */
+export type EmbeddedEntryRole = "application" | "worker";
+
+/**
+ * One packaged entry point and the identity the runtime resolves it by.
+ *
+ * `source` is the file the serializer consumed; `identity` is the key inside
+ * the executable's module graph. Applications pass `identity` unchanged to the
+ * runtime, and never derive it from a file name.
+ */
+export type EmbeddedEntryIdentity = {
+  readonly role: EmbeddedEntryRole;
+  readonly source: string;
+  readonly identity: string;
+};
+
 export type PackageEmbeddedGraphOptions = {
+  /** SDK checkout that owns the pinned Bun revision. */
+  readonly sdkRoot: string;
   /** Absolute path to the pinned-revision Bun executable used as serializer. */
   readonly bun: string;
   /** Absolute path to the built application entry (Vite output, already JS). */
@@ -202,7 +143,11 @@ export type PackageEmbeddedGraphOptions = {
   readonly outDir: string;
   /** Absolute paths embedded into the graph as resources, with their relative paths preserved. */
   readonly assets?: readonly string[];
-  /** Absolute paths to additional entry points (worker scripts) embedded into the graph. */
+  /**
+   * Absolute paths to additional entry points (worker scripts) embedded into
+   * the graph. Each one is resolved to its graph identity and verified to
+   * exist in the serialized graph.
+   */
   readonly workers?: readonly string[];
   /**
    * Absolute path to a target-platform Bun executable used as the compile base.
@@ -219,8 +164,16 @@ export type PackageEmbeddedGraphOptions = {
 export type PackagedEmbeddedGraph = {
   /** Absolute path to the generated Rust include source. */
   readonly rustSource: string;
-  /** Graph identity of the packaged entry, for `EmbeddedBunAdapter::start_packaged`. */
-  readonly entry: string;
+  /** Absolute path to the generated section bytes. */
+  readonly sectionBytes: string;
+  /** Application entry point, for `EmbeddedBunAdapter::start_packaged`. */
+  readonly entry: EmbeddedEntryIdentity;
+  /** Worker entry points, in the order they were declared. */
+  readonly workers: readonly EmbeddedEntryIdentity[];
+  /** Every packaged entry, application entry first. */
+  readonly entries: readonly EmbeddedEntryIdentity[];
+  /** The validated graph the identities were resolved against. */
+  readonly graph: EmbeddedGraph;
   /**
    * SHA-256 of the serialized graph payload, without its 8-byte length header.
    *
@@ -236,27 +189,6 @@ export type PackagedEmbeddedGraph = {
 const RUST_SOURCE_NAME = "bun-embedded-graph.rs";
 /** Name of the generated section bytes inside `outDir`. */
 const SECTION_BYTES_NAME = "bun-embedded-graph.bin";
-
-class EmbeddedGraphError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "EmbeddedGraphError";
-  }
-}
-
-function fail(message: string): never {
-  throw new EmbeddedGraphError(message);
-}
-
-function targetSpec(target: string): TargetSpec {
-  const spec = (TARGETS as Record<string, TargetSpec | undefined>)[target];
-  if (spec === undefined) {
-    fail(
-      `unsupported embedded graph target ${JSON.stringify(target)}; expected one of ${Object.keys(TARGETS).join(", ")}`,
-    );
-  }
-  return spec;
-}
 
 // --- little-endian readers over untrusted bytes -----------------------------
 
@@ -425,7 +357,7 @@ function machoImage(image: Uint8Array): ContainerView {
  * that ignored the target machine — would be accepted as a valid product.
  */
 export function extractGraphPayload(image: Uint8Array, target: EmbeddedGraphTarget): Uint8Array {
-  const spec = targetSpec(target);
+  const spec = graphTargetSpec(target);
   const container = spec.container === "pe" ? "PE" : "Mach-O";
   const view = spec.container === "pe" ? peImage(image) : machoImage(image);
   if (view.machine !== spec.machine) {
@@ -520,23 +452,6 @@ function enumName(names: Record<number, string>, value: number, what: string): s
   return name;
 }
 
-/**
- * Validates a serialized standalone module graph payload and returns its parsed
- * records.
- *
- * The pinned serializer does not bounds-check its own pointers when it reads the
- * graph back (`slice_to` only debug-asserts), so every length and offset is
- * re-validated here against the declared byte count.
- *
- * Rejects, rather than silently embedding:
- * - truncated or non-terminated payloads (trailer, offsets, string pointers),
- * - graph keys outside the target runtime's prefix (a graph serialized for
- *   another platform would never resolve at runtime),
- * - JSC bytecode and its module-info blob, which the runtime mutates in place
- *   and which version-locks the graph to one engine build,
- * - native addons (`.node`, `.so`, `.dll`, `.dylib`, `napi` loader), which the
- *   runtime can only satisfy by writing the module to a temporary file.
- */
 type GraphRecord = {
   readonly name: string;
   readonly contents: GraphPointer;
@@ -642,7 +557,7 @@ function readGraphLayout(payload: Uint8Array): GraphLayout {
  *   runtime can only satisfy by writing the module to a temporary file.
  */
 export function parseStandaloneGraph(payload: Uint8Array, target: EmbeddedGraphTarget): EmbeddedGraph {
-  const spec = targetSpec(target);
+  const spec = graphTargetSpec(target);
   const layout = readGraphLayout(payload);
 
   const files: EmbeddedGraphFile[] = [];
@@ -766,13 +681,68 @@ async function verifySerializerRevision(bun: string, revision: string): Promise<
   }
 }
 
+/**
+ * Resolves every declared entry to its graph key and verifies the graph
+ * carries it.
+ *
+ * The identities are derived by the same rule the serializer keys entries with,
+ * then checked against the serialized graph, so an application never has to
+ * reconstruct a key from a bundled file name and a mistyped entry fails at
+ * package time instead of at run time.
+ */
+function resolveEntryIdentities(
+  graph: EmbeddedGraph,
+  entry: string,
+  workers: readonly string[],
+): { entry: EmbeddedEntryIdentity; workers: EmbeddedEntryIdentity[]; entries: EmbeddedEntryIdentity[] } {
+  const keys = new Set(graph.files.map((file) => file.name));
+  const applicationEntry = {
+    role: "application" as const,
+    source: entry,
+    identity: embeddedEntryPointIdentity(graph.target, basename(entry)),
+  };
+  if (graph.entry !== applicationEntry.identity) {
+    fail(
+      `graph entry point is ${JSON.stringify(graph.entry)} but ${JSON.stringify(applicationEntry.identity)} was expected for ` +
+        `${JSON.stringify(entry)}; refusing to return an identity that does not correspond to the packaged application entry`,
+    );
+  }
+  const sourceRoot = embeddedSourceRoot([entry, ...workers]);
+  const workerEntries = workers.map((source) => {
+    const identity = embeddedWorkerIdentity(graph.target, source, sourceRoot);
+    if (!keys.has(identity)) {
+      fail(
+        `worker entry ${JSON.stringify(source)} resolves to graph key ${JSON.stringify(identity)}, which the serialized graph ` +
+          `does not contain. Every worker must be its own entry point passed to the serializer, not a file imported by the ` +
+          `application. Graph keys: ${[...keys].join(", ")}`,
+      );
+    }
+    if (identity === applicationEntry.identity) {
+      fail(
+        `worker entry ${JSON.stringify(source)} duplicates the application entry identity ${JSON.stringify(identity)}`,
+      );
+    }
+    return { role: "worker" as const, source, identity };
+  });
+  const duplicates = new Set<string>();
+  for (const worker of workerEntries) {
+    if (duplicates.has(worker.identity)) fail(`worker entry ${JSON.stringify(worker.source)} was declared twice`);
+    duplicates.add(worker.identity);
+  }
+  return { entry: applicationEntry, workers: workerEntries, entries: [applicationEntry, ...workerEntries] };
+}
+
 function renderRustSource(
   graph: EmbeddedGraph,
-  inner: TargetSpec,
+  identity: EmbeddedEntryIdentity,
+  workers: readonly EmbeddedEntryIdentity[],
+  inner: EmbeddedGraphTargetSpec,
   sectionLength: number,
   sectionBytesName: string,
+  sdkRoot: string,
 ): string {
-  const header = `// @generated by scripts/bun-embedded-bundle.ts -- do not edit.
+  const workerList = workers.map((worker) => `    ${JSON.stringify(worker.identity)},`).join("\n");
+  const header = `// @generated by @solid-gpui/vite/embedded -- do not edit.
 //
 // Embedded Bun standalone module graph (${graph.target}).
 //
@@ -802,6 +772,8 @@ ${
 // The static is included by the final application crate, so it is emitted into
 // that crate's object file and cannot be dropped by archive extraction;
 // \`#[used]\` keeps it through dead stripping.
+//
+// Generated from the SDK checkout ${sdkRoot}.
 `;
 
   const body = `/// Graph identity of the packaged application entry point.
@@ -809,7 +781,17 @@ ${
 /// This is a key in the embedded module graph, not a filesystem path: pass it
 /// unchanged to the embedded runtime, which resolves it without touching the
 /// filesystem.
-pub const BUN_EMBEDDED_ENTRY: &str = ${JSON.stringify(graph.entry)};
+pub const BUN_EMBEDDED_ENTRY: &str = ${JSON.stringify(identity.identity)};
+
+/// Graph identities of the packaged worker entry points, in declaration order.
+///
+/// These are module-graph keys, not filesystem paths. A worker installed in the
+/// application is started from this identity (for example
+/// \`Worker::new(identity)\`); nothing resolves the worker from disk.
+#[allow(dead_code)]
+pub const BUN_EMBEDDED_WORKERS: &[&str] = &[
+${workerList}
+];
 
 ${
   inner.container === "pe"
@@ -860,7 +842,7 @@ export async function packageEmbeddedGraph(options: PackageEmbeddedGraphOptions)
   const outDir = requireAbsoluteFile(options.outDir, "outDir");
   const assets = (options.assets ?? []).map((asset, index) => requireAbsoluteFile(asset, `assets[${index}]`));
   const workers = (options.workers ?? []).map((worker, index) => requireAbsoluteFile(worker, `workers[${index}]`));
-  const spec = targetSpec(options.target);
+  const spec = graphTargetSpec(options.target);
 
   let baseExecutable: string | undefined;
   if (options.baseExecutable !== undefined) {
@@ -872,7 +854,7 @@ export async function packageEmbeddedGraph(options: PackageEmbeddedGraphOptions)
     );
   }
 
-  await verifySerializerRevision(bun, await pinnedBunRevision());
+  await verifySerializerRevision(bun, (await readPinnedBunBuild(options.sdkRoot)).revision);
   await mkdir(outDir, { recursive: true });
 
   // The serializer keys the entry point after the output file's basename, with
@@ -895,6 +877,12 @@ export async function packageEmbeddedGraph(options: PackageEmbeddedGraphOptions)
     "--conditions=browser",
     "--outfile",
     intermediate,
+    // The source root is passed explicitly so every additional entry point is
+    // keyed relative to a directory the packager chose, which is what lets it
+    // state each worker's graph identity instead of deriving one after the
+    // fact. It is the same root the serializer would derive from the entries.
+    "--root",
+    embeddedSourceRoot([entry, ...workers]),
     ...assets.flatMap((asset) => ["--asset", asset]),
     ...(baseExecutable === undefined ? [] : ["--compile-executable-path", baseExecutable]),
   ];
@@ -907,20 +895,24 @@ export async function packageEmbeddedGraph(options: PackageEmbeddedGraphOptions)
     await run(command, work);
     const payload = extractGraphPayload(await readFile(executable), options.target);
     const graph = parseStandaloneGraph(payload, options.target);
-
-    const expectedEntry = `${spec.prefix}${entryName}`;
-    if (graph.entry !== expectedEntry) {
-      fail(
-        `graph entry point is ${JSON.stringify(graph.entry)} but ${JSON.stringify(expectedEntry)} was expected for ` +
-          `${JSON.stringify(entry)}; refusing to return an identity that does not correspond to the packaged application entry`,
-      );
-    }
-
-    return await writeEmbeddedGraphArtifacts(graph, payload, outDir);
+    const identities = resolveEntryIdentities(graph, entry, workers);
+    return await writeEmbeddedGraphArtifacts({ graph, identities, payload, outDir, sdkRoot: options.sdkRoot });
   } finally {
     await rm(work, { recursive: true, force: true });
   }
 }
+
+export type WriteEmbeddedGraphOptions = {
+  readonly graph: EmbeddedGraph;
+  readonly identities: {
+    readonly entry: EmbeddedEntryIdentity;
+    readonly workers: readonly EmbeddedEntryIdentity[];
+    readonly entries: readonly EmbeddedEntryIdentity[];
+  };
+  readonly payload: Uint8Array;
+  readonly outDir: string;
+  readonly sdkRoot: string;
+};
 
 /**
  * Writes the Rust include source and the section bytes for a validated graph.
@@ -928,11 +920,8 @@ export async function packageEmbeddedGraph(options: PackageEmbeddedGraphOptions)
  * Separate from serialization so that an already-serialized payload can be
  * emitted without running the pinned serializer again.
  */
-export async function writeEmbeddedGraphArtifacts(
-  graph: EmbeddedGraph,
-  payload: Uint8Array,
-  outDir: string,
-): Promise<PackagedEmbeddedGraph> {
+export async function writeEmbeddedGraphArtifacts(options: WriteEmbeddedGraphOptions): Promise<PackagedEmbeddedGraph> {
+  const { graph, identities, payload, outDir } = options;
   if (payload.length !== graph.payloadLength) {
     fail(`payload is ${payload.length} bytes but the parsed graph declares ${graph.payloadLength}`);
   }
@@ -947,43 +936,27 @@ export async function writeEmbeddedGraphArtifacts(
   section.set(payload, 8);
 
   const rustSource = join(outDir, RUST_SOURCE_NAME);
-  await writeFile(join(outDir, SECTION_BYTES_NAME), section);
-  await writeFile(rustSource, renderRustSource(graph, targetSpec(graph.target), section.length, SECTION_BYTES_NAME));
-  return { rustSource, entry: graph.entry, graphSha256: createHash("sha256").update(payload).digest("hex") };
-}
-
-if (import.meta.main) {
-  try {
-    const { values } = parseArgs({
-      options: {
-        bun: { type: "string" },
-        entry: { type: "string" },
-        target: { type: "string" },
-        "out-dir": { type: "string" },
-        asset: { type: "string", multiple: true },
-        worker: { type: "string", multiple: true },
-        "base-executable": { type: "string" },
-      },
-      allowPositionals: false,
-    });
-    if (values.bun === undefined) fail("--bun is required");
-    if (values.entry === undefined) fail("--entry is required");
-    if (values.target === undefined) fail("--target is required");
-    if (values["out-dir"] === undefined) fail("--out-dir is required");
-    // CLI input is validated against the supported target table by packageEmbeddedGraph.
-    const target = values.target as EmbeddedGraphTarget;
-    const result = await packageEmbeddedGraph({
-      bun: values.bun,
-      entry: values.entry,
-      target,
-      outDir: values["out-dir"],
-      assets: values.asset,
-      workers: values.worker,
-      baseExecutable: values["base-executable"],
-    });
-    console.log(JSON.stringify(result));
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+  const sectionBytes = join(outDir, SECTION_BYTES_NAME);
+  await writeFile(sectionBytes, section);
+  await writeFile(
+    rustSource,
+    renderRustSource(
+      graph,
+      identities.entry,
+      identities.workers,
+      graphTargetSpec(graph.target),
+      section.length,
+      SECTION_BYTES_NAME,
+      options.sdkRoot,
+    ),
+  );
+  return {
+    rustSource,
+    sectionBytes,
+    entry: identities.entry,
+    workers: identities.workers,
+    entries: identities.entries,
+    graph,
+    graphSha256: createHash("sha256").update(payload).digest("hex"),
+  };
 }

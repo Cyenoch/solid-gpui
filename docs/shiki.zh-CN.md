@@ -4,8 +4,10 @@
 
 ## 安装与初始化
 
+SDK 包尚未发布到公共 registry；请安装由同一份固定 checkout 执行 `bun run task sdk-pack <dir>` 打出的 tarball（见[入门](getting-started.zh-CN.md#1-安装)）：
+
 ```sh
-bun add @solid-gpui/shiki @solid-gpui/core solid-js
+bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
 ```
 
 在挂载前，为应用或显式拥有生命周期的功能创建一个服务：
@@ -19,7 +21,7 @@ const highlighter = await createBunHighlighter({
 });
 ```
 
-与应用其余部分共用 Solid GPUI JSX 转换和 Bun `--conditions=browser` 设置。在应用入口处理初始化失败，在渲染组件外使用 Solid GPUI `ErrorBoundary` 展示高亮错误。
+与应用其余部分共用 Solid GPUI JSX 转换：Vite 开发与构建会自行设置解析条件，`solid-gpui test` 会为测试选择 Solid 客户端构建，因此只有绕过两者的原生 `bun test` 或 `bun run` 才需要 `--conditions=browser`。在应用入口处理初始化失败，在渲染组件外使用 Solid GPUI `ErrorBoundary` 展示高亮错误。
 
 ## 渲染代码
 
@@ -43,7 +45,7 @@ function App() {
 
 代码、语言和主题属性均为响应式。组件取消被替代的请求，忽略迟到结果。等待结果时，使用周围文本样式显示当前源码。结果主题提供前景和背景颜色，布局与字体来自 `style`。
 
-组件默认支持选择。所有文本片段构成一个原生段落，选择与复制可以跨 token 边界。原始 Unicode 和换行符保持不变。这是只读代码块，限制为 64 KiB UTF-8 源码及 4,096 个合并后的片段，不是虚拟化编辑器。
+组件默认支持选择。所有文本片段构成一个原生段落，选择与复制可以跨 token 边界和换行。原始 Unicode 和换行符保持不变。这是只读代码块，限制为 64 KiB UTF-8 源码及 4,096 个合并后的片段，不是虚拟化编辑器。
 
 ## 构建时高亮
 

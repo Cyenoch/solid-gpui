@@ -86,6 +86,10 @@ No tokenizer or Oniguruma WASM is sent to the browser. Vite must run under Bun
 (the `dev` and `build` scripts enforce this). New static snippets belong in
 `src/snippets.ts` and `build-highlights.ts`; missing results are explicit errors.
 Markdown fences retain their declared language, including plain text.
+Expanded code blocks keep the complete source in one selectable paragraph, with
+line numbers in a separate non-selectable gutter. Drag selection crosses tokens,
+blank lines, and line breaks without including line numbers. Long lines scroll
+horizontally; collapsed excerpts remain non-selectable with per-line fading.
 
 Run the website checks with:
 
@@ -142,14 +146,26 @@ preview and displayed source come from the same modules in `src/showcase`.
 bun run website:native
 bun run website:native:dev
 bun run --cwd examples/website dev:native
+bun run --cwd examples/website generate:native   # solid-gpui prepare --config vite.native.config.ts
 bun run --cwd examples/website build:native
+bun run --cwd examples/website preview:native    # solid-gpui preview --config vite.native.config.ts
 bun run --cwd examples/website build:embedded
 bun run website:native:package
 ```
 
 All three targets use `@solid-gpui/vite`: native development owns the host and
 Bun ModuleRunner, embedded builds select QuickJS, and browser builds select the
-universal web transform. Native bindings come from the configured Cargo host.
+universal web transform. Native bindings come from the configured Cargo host in
+`vite.native.config.ts`, which `generate:native`, `dev:native`, `build:native`,
+`preview:native`, and the root tasks all share. The shared config adds
+`solidGpuiSource({ root })` in place of the removed hand-written SDK aliases; it
+still carries the aliases the site needs itself, such as the native `HeroVisual`
+swap and the browser `assert` shim.
+
+The website keeps its own `tsconfig.json` with
+`"customConditions": ["solid-gpui-source"]` rather than extending the generated
+`.solid-gpui/tsconfig.json`: the browser typecheck and build must not require a
+native host build, and the source condition selects the SDK sources directly.
 Native development automatically rebuilds Rust source and Cargo configuration
 changes, including local dependencies, and replaces the host session with matching
 bindings. `#native`, component imports, and Motion use that host's generated catalog.
@@ -157,8 +173,18 @@ Build and application failures leave Vite watching for the next source edit;
 Ctrl+C stops development. Host replacement reopens windows and resets state.
 The [development guide](../../docs/hot-reload.md#managed-development-sessions)
 describes watched inputs and the distinct browser and Rust-owned launch behavior.
-`build:embedded` writes the final self-contained `dist-embedded/app.js`; packaging
-copies that artifact without another bundling pass.
+`preview:native` runs the built host against the built bundle recorded in
+`.solid-gpui/artifacts.json` without rebuilding.
+
+`build:embedded` writes the QuickJS bundle to `dist-embedded/app.js`, and
+`bun run website:native:package` embeds that file in the Rust executable with
+`include_bytes!` through the `distribution` Cargo feature
+(`SOLID_GPUI_WEBSITE_BUNDLE`, one bundling pass, no second compiler). That is the
+website's release pipeline and it is separate from the experimental Embedded Bun
+static packager described in
+[distribution](../../docs/distribution.md#embedded-bun-static-applications), which
+links a Bun/JSC runtime and an application module graph into one executable; the
+website package does not use it.
 
 The native Rust package is `website-host`; the packaged executable is
 `solid-gpui-website`, and verified archives are written to `dist/website/`.
@@ -189,12 +215,14 @@ application-specific native module live in `native`; generated bindings live in
 The Guides sidebar publishes these references from the authoritative Markdown
 sources and their `.zh-CN.md` copies:
 
+- [Installation](../../docs/getting-started.md) at `/docs/reference/getting-started` is the authoritative external-consumer sequence: install, prepare, typecheck, develop, test, build, and production preview, with the Cargo requirements and the generated project.
+- [Distribution](../../docs/distribution.md) at `/docs/reference/distribution` separates the bundle, the native executable, and the distributable, and records verified versus experimental target capability.
 - [Iconify](../../docs/iconify.md) at `/docs/reference/iconify` covers the built-in offline catalog, Solid usage, styling, and application icon registration.
-- [Vite integration](../../docs/vite.md) at `/docs/reference/vite` covers direct JS, JSX/TSX builds, Bun APIs, native modules, and Rust-owned development.
-- [Choose a runtime](../../docs/runtimes.md) at `/docs/reference/runtimes` introduces the runtime and transport choices.
-- [Development workflow](../../docs/hot-reload.md) at `/docs/reference/hot-reload` covers the consuming workspace's QuickJS build profile, captured-state contract, generation lifecycle, and application reload verification.
+- [Vite integration](../../docs/vite.md) at `/docs/reference/vite` covers direct JS, JSX/TSX builds, Bun APIs, native modules, the published test runner, artifact lookup, and Rust-owned development.
+- [Choose a runtime](../../docs/runtimes.md) at `/docs/reference/runtimes` introduces the runtime and transport choices, including the experimental Embedded Bun packager.
+- [Development workflow](../../docs/hot-reload.md) at `/docs/reference/hot-reload` covers the consuming workspace's QuickJS build profile, captured-state contract, native rebuild watching, generation lifecycle, and application reload verification.
 - [System popovers](../../docs/system-popover.md) at `/docs/reference/system-popover` documents the core API, editable and nested native Surfaces, multi-display placement, and platform acceptance limits. This capability needs a desktop host; its example is published as source without a browser preview.
-- [Troubleshooting](../../docs/troubleshooting.md) at `/docs/reference/troubleshooting` explains nested-route stack errors, rejected state, and failures after activation.
+- [Troubleshooting](../../docs/troubleshooting.md) at `/docs/reference/troubleshooting` explains stale bindings, install-hook mistakes, cross-target refusals, wrong Solid resolution, nested-route stack errors, rejected state, and failures after activation.
 
 Keep runtime guidance in those sources. `src/documentation.ts` loads the pages
 and `build-highlights.ts` generates code highlighting for both languages during
@@ -226,9 +254,11 @@ edge padding and a bottom border; the desktop application example also exercises
 application themes, custom window options, percentage sizes, gradients, and
 embedded icons. Its native window and process services run on desktop.
 
-Keep TypeScript's SDK paths aligned with Vite's source aliases, including JSX and
-native subpaths, so application icon types come from one module. Build the WASM
-host before checking or bundling the browser entry.
+Do not hand-maintain the SDK subpath mappings: `solidGpuiSource()` in the shared
+Vite config and `customConditions: ["solid-gpui-source"]` in `tsconfig.json` both
+derive from the same package exports, so JSX, the runtime
+entry, native subpaths, and application icon types resolve to one module. Build the
+WASM host before checking or bundling the browser entry.
 
 ## Reactive update and performance guidance
 

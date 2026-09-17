@@ -18,49 +18,63 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": {
+      "solid-gpui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./runtime": {
+      "solid-gpui-source": "./src/runtime.ts",
       "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.js",
       "default": "./dist/runtime.js"
     },
     "./stdio": {
+      "solid-gpui-source": "./src/stdio.ts",
       "types": "./dist/stdio.d.ts",
       "import": "./dist/stdio.js",
       "default": "./dist/stdio.js"
     },
     "./embedded": {
+      "solid-gpui-source": "./src/embedded.ts",
       "types": "./dist/embedded.d.ts",
       "import": "./dist/embedded.js",
       "default": "./dist/embedded.js"
     },
     "./jsx-runtime": {
+      "solid-gpui-source": "./src/jsx-runtime.ts",
       "types": "./dist/jsx-runtime.d.ts"
     },
+    "./quickjs": {
+      "solid-gpui-source": "./src/quickjs.d.ts",
+      "types": "./src/quickjs.d.ts"
+    },
     "./native": {
+      "solid-gpui-source": "./src/native.ts",
       "types": "./dist/native.d.ts",
       "import": "./dist/native.js",
       "default": "./dist/native.js"
     },
     "./components": {
+      "solid-gpui-source": "./src/components.ts",
       "types": "./dist/components.d.ts",
       "import": "./dist/components.js",
       "default": "./dist/components.js"
     },
     "./motion": {
+      "solid-gpui-source": "./src/motion.ts",
       "types": "./dist/motion.d.ts",
       "import": "./dist/motion.js",
       "default": "./dist/motion.js"
     },
     "./web": {
+      "solid-gpui-source": "./src/web.ts",
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js",
       "default": "./dist/web.js"
@@ -74,8 +88,5 @@
   },
   "peerDependencies": {
     "solid-js": "^1.9.10"
-  },
-  "devDependencies": {
-    "@solid-gpui/router": "workspace:*"
   }
 }

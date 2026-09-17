@@ -95,8 +95,6 @@ export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins:
 {find: '@solid-gpui/core', replacement: '${repo}/packages/solid-gpui/src/index.ts'}
 ] } };`,
   );
-  const preloadEntry = join(directory, "preload.tsx");
-  await writeFile(preloadEntry, "import { Demo } from './view'; console.log(typeof Demo);\n");
   await writeFile(
     join(directory, "tsconfig.json"),
     JSON.stringify({
@@ -112,15 +110,6 @@ export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins:
       },
     }),
   );
-  const preload = Bun.spawn(
-    ["bun", "--conditions=browser", "--preload", join(repo, "scripts/solid-jsx.ts"), preloadEntry],
-    { cwd: repo, stdout: "pipe", stderr: "pipe" },
-  );
-  const [preloadCode, preloadOutput, preloadErrors] = await Promise.all([
-    preload.exited,
-    new Response(preload.stdout).text(),
-    new Response(preload.stderr).text(),
-  ]);
   const child = Bun.spawn(["bun", "--bun", "vite", "--config", config], {
     cwd: repo,
     env: process.env,
@@ -171,8 +160,6 @@ export default { root: ${JSON.stringify(directory)}, logLevel: 'error', plugins:
     }
   };
   try {
-    expect(preloadCode, preloadErrors).toBe(0);
-    expect(preloadOutput.trim()).toBe("Bun APIs available\nfunction");
     await until(() => snapshots.length === 1);
     expect(text()).toBe("v1:1");
     await writeFile(dependency, view("v2"));

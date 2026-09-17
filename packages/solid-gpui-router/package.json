@@ -18,20 +18,25 @@
   "main": "./dist/index.js",
   "files": [
     "dist",
+    "src",
+    "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": {
+      "solid-gpui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./generator": {
+      "solid-gpui-source": "./src/generator.ts",
       "types": "./dist/generator.d.ts",
       "import": "./dist/generator.js",
       "default": "./dist/generator.js"
     },
     "./vite": {
+      "solid-gpui-source": "./src/vite.ts",
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js",
       "default": "./dist/vite.js"
@@ -55,6 +60,9 @@
     "vite": "8.2.2"
   },
   "peerDependenciesMeta": {
+    "@solid-gpui/core": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     }

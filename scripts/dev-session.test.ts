@@ -85,6 +85,11 @@ for (const runtime of ["bun", "quickjs"] as const) {
         join(native, "Cargo.toml"),
         '[package]\nname="session-host"\nversion="0.0.0"\nedition="2024"\n[dependencies]\nsession-contract={path="../../contract"}\n[workspace]\n',
       );
+      // Cargo builds with --locked by default, so the fixture ships the lockfile a consumer commits.
+      await writeFile(
+        join(native, "Cargo.lock"),
+        'version = 4\n\n[[package]]\nname = "session-contract"\nversion = "0.0.0"\n\n[[package]]\nname = "session-host"\nversion = "0.0.0"\ndependencies = [\n "session-contract",\n]\n',
+      );
       await writeFile(source, "pub const VERSION: u32 = ;");
       await writeFile(
         join(native, "src/main.rs"),

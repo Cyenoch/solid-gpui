@@ -1,5 +1,24 @@
 # Troubleshooting
 
+## `@solid-gpui/*` does not resolve from a registry
+
+The SDK packages are not published to npm yet, so `bun add @solid-gpui/core` has
+nothing to resolve. Pack matching tarballs from one pinned checkout and install
+those:
+
+```sh
+bun run task sdk-pack ../sdk-tarballs     # in the SDK checkout
+bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
+bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+```
+
+Keep every `@solid-gpui/*` package from one `sdk-pack` run so the SDK is a single
+revision. The `solid-gpui` Rust crate is likewise consumed from that checkout as a
+path or git dependency rather than from a registry. Installing a package by name
+becomes correct only once publication happens; the rest of the sequence does not
+change. To run against SDK sources directly instead, use the explicit
+[solid-gpui-source condition](vite.md#consume-packages-from-source).
+
 ## The task CLI cannot resolve a package
 
 Run commands from the repository root after installing the committed workspace
@@ -14,6 +33,42 @@ Do not install from `packages/solid-gpui`; the repository has one root
 `bun.lock`. Verify `bun --version` matches `.bun-version` before investigating
 dependency resolution.
 
+## Bindings are stale or missing
+
+Run the generator and add its check to CI:
+
+```sh
+bun run generate          # solid-gpui prepare
+bun run check:generated   # solid-gpui prepare --check
+```
+
+`prepare` resolves your `vite.config.ts`, builds the configured host when needed,
+exports its bindings, and writes the bindings file plus `.solid-gpui/tsconfig.json`
+and `.solid-gpui/artifacts.json`. `--check` writes no files and fails when either
+generated file is stale — it still builds the host to compare against the real
+catalog — which is what a CI gate or a pre-commit hook should run. Never hand-edit
+`.solid-gpui/` or the generated bindings: the component catalog must be the running
+host's own, and a renumbered catalog with unchanged test names is exactly the
+failure a name-based test cannot catch. If the outputs disagree with the host you
+launched, `bun run doctor` reports the active Cargo dependencies, profiles, and
+patch requirements.
+
+## Package installation tries to compile the host
+
+A `package.json` script named `prepare` is an install lifecycle hook: Bun runs it
+during `bun install` (verified on 1.4.2), so naming the generator `prepare` makes
+installation build a native host. Name it `generate` (or anything else) and run it
+explicitly after installing.
+
+## The CLI refuses to run a cross-compiled host
+
+`solid-gpui prepare` and development execute the host they export, so a
+`native.target` naming another platform or architecture is rejected instead of
+running a foreign binary. Drop `target` for the prepare/development host, or pass
+`native.exporter` to name a host executable that can export bindings on this
+machine. Cross-compiled artifacts are built by Cargo for packaging, and their paths
+come from `.solid-gpui/artifacts.json` rather than a rebuilt command line.
+
 ## A signal changes but no Patch is emitted
 
 Import reactive primitives from `@solid-gpui/core/runtime`, not a server-targeted Solid entry. Create the application inside the producer passed to `root.render`:
@@ -23,6 +78,27 @@ root.render(() => createComponent(App, {}));
 ```
 
 Creating host nodes before entering the root has no surface owner and is rejected.
+
+## Tests or scripts render nothing
+
+Importing `@solid-gpui/core`, `@solid-gpui/core/runtime`, or the renderer under a
+non-client resolution now throws instead of rendering an empty tree:
+
+- Server build: `@solid-gpui/core: solid-js resolved to its server build, so signals
+  never notify the native renderer. Resolve Solid's client build (Bun:
+  --conditions=browser, Vite: resolve.conditions) or run tests through
+  @solid-gpui/vite/test, which sets it for you.`
+- Duplicate Solid: `@solid-gpui/core: two copies of solid-js are loaded, so signals
+  created by one copy never notify the other. Deduplicate solid-js (Vite:
+  resolve.dedupe: ["solid-js"]) so the application and the SDK share one reactive
+  graph.`
+
+Use `bun run test` (`solid-gpui test`) for application tests: the runner adds the
+`browser` condition and dedupes Solid itself. Vite development and builds set their
+own conditions, and `solidGpui()` sets `resolve.dedupe: ["solid-js"]`, so a duplicate
+usually means a dependency ships its own `solid-js` copy rather than a missing
+dedupe entry. `--conditions=browser` is only needed for raw `bun test` or `bun run`
+invocations that bypass both.
 
 ## `host operation is not associated with a root`
 
@@ -275,12 +351,17 @@ Use:
 
 ```json
 {
+  "extends": "./.solid-gpui/tsconfig.json",
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "@solid-gpui/core"
   }
 }
 ```
+
+The generated project carries the `#native` and `@solid-gpui/core/components`
+mappings that match the Vite aliases, so re-run `bun run generate` after changing
+the host instead of editing `paths` by hand.
 
 Use the Solid/Oxc universal transform through the [Vite plugin](vite.md). A generic React-style JSX transform cannot generate this
 renderer's reactive host operations.
@@ -289,6 +370,29 @@ For `For`/`Show`/`Index`/`Switch`/`Match` return-type or children errors, import
 those components from `@solid-gpui/core/runtime`, not `solid-js`. Solid's upstream
 control-flow declarations use DOM elements; the runtime entry exposes the same
 implementations with native types. See [native control flow](native-composition.md#solid-async-control-flow).
+
+## A QuickJS application has no DOM or asset types
+
+Use the published ambient types instead of hand-writing declarations:
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": ["@solid-gpui/core/quickjs"]
+  }
+}
+```
+
+They declare the timers, `performance.now()`, `console`, UTF-8 text codecs, `self`,
+the router's URL/event/abort/header and bodyless `Response` primitives,
+`import.meta.url`, and `declare module "*?inline"` with a default `string` export, so
+an inline PNG import type-checks without a local `.d.ts`. They deliberately declare
+no `fetch`/`Request`, filesystem or socket API, `requestAnimationFrame`,
+`import.meta.hot`, or Node/Bun API: a compile error there is real, because the
+engine does not provide the capability. The prepared `.solid-gpui/tsconfig.json`
+adds the entry for a QuickJS project; re-run `bun run generate` after changing the
+runtime.
 
 ## A page is blank, clipped, or cannot reach its final row
 

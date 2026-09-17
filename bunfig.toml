@@ -1,5 +1,3 @@
-preload = ["./scripts/solid-jsx.ts"]
-
 [test]
 # Rust builds vendor Bun's own tests under target/; never discover them at the repo root.
 pathIgnorePatterns = ["target/**"]

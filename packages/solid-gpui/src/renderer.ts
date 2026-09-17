@@ -1,6 +1,8 @@
 import { generationHost, afterGenerationActivation } from "./generation";
 import type { NativeCallOptions } from "./native-call";
 import { createRoot as createSolidRoot, createSignal, runWithOwner, type Owner } from "solid-js";
+// The renderer is worthless without a client Solid instance to observe signals.
+import { assertSolidRuntime } from "./runtime-guard";
 import { COMMAND_OPEN_POPUP, COMMAND_CLOSE_POPUP, type CommandPayload } from "./protocol";
 import type { HostTree } from "./renderer/host-tree";
 import { createRenderer, type Renderer } from "solid-js/universal";
@@ -300,6 +302,8 @@ export function createRoot(transport: Transport, options: RootOptions = {}): Roo
 }
 
 export function createRootWithRouter(router: SurfaceRouter, options: RootOptions = {}, startRouter = false): Root {
+  // Every root, however it was created, needs a Solid instance it can observe.
+  assertSolidRuntime();
   const surfaceId = options.surfaceId ?? nextSurfaceId++;
   const epoch = options.epoch ?? generationHost()?.epoch ?? 1;
   let closed = false;

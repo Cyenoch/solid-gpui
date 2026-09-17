@@ -1,6 +1,6 @@
 # 应用性能分析
 
-本流程供开发者和代理使用。先确认用户动作执行了预期工作，再测量性能。通用规则见 [GPUI 性能技能](../.agents/skills/gpui-performance/SKILL.md)，Solid 应用约定见 [solid-gpui 技能](../.agents/skills/solid-gpui/SKILL.md)，历史事件与数据见[滚动性能](scroll-performance.md)。
+本流程供开发者和代理使用。先确认用户动作执行了预期工作，再测量性能。通用规则见 [GPUI 性能技能](../.agents/skills/gpui-performance/SKILL.md)，Solid 应用约定见 [solid-gpui 技能](../.agents/skills/solid-gpui/SKILL.md)，历史事件与数据见[滚动性能](scroll-performance.zh-CN.md)。
 
 ## 1. 标识测量环境
 

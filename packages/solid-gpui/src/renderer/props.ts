@@ -138,7 +138,8 @@ export function iconFor(node: HostNodeInternal, props: HostProps): HostPropertie
     throw new TypeError(
       `Unknown Icon name ${typeof name === "string" ? JSON.stringify(name) : `(${typeof name})`}. ` +
         "Use ICON_NAMES from @solid-gpui/core for built-in names, or register the SVG with " +
-        "solid_gpui::icons::register_icons and import its name from the generated applicationIcons catalog. " +
+        "solid_gpui::icons::register_icons and read its name from the generated applicationIcons catalog " +
+        '(for example applicationIcons["prefix:name"]). ' +
         "Iconify names are not downloaded at runtime.",
     );
   }

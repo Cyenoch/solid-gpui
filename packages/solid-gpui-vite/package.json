@@ -8,19 +8,55 @@
     "url": "https://github.com/Cyenoch/solid-gpui.git"
   },
   "type": "module",
+  "bin": {
+    "solid-gpui": "./dist/cli.js"
+  },
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": {
+      "solid-gpui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./dev": {
+      "solid-gpui-source": "./src/dev.ts",
       "types": "./dist/dev.d.ts",
       "import": "./dist/dev.js"
+    },
+    "./project": {
+      "solid-gpui-source": "./src/project.ts",
+      "types": "./dist/project.d.ts",
+      "import": "./dist/project.js"
+    },
+    "./artifacts": {
+      "solid-gpui-source": "./src/artifacts.ts",
+      "types": "./dist/artifacts.d.ts",
+      "import": "./dist/artifacts.js"
+    },
+    "./test": {
+      "solid-gpui-source": "./src/test.ts",
+      "types": "./dist/test.d.ts",
+      "import": "./dist/test.js"
+    },
+    "./embedded": {
+      "solid-gpui-source": "./src/embedded.ts",
+      "types": "./dist/embedded.d.ts",
+      "import": "./dist/embedded.js"
+    },
+    "./source": {
+      "solid-gpui-source": "./src/source.ts",
+      "types": "./dist/source.d.ts",
+      "import": "./dist/source.js"
+    },
+    "./doctor": {
+      "solid-gpui-source": "./src/doctor.ts",
+      "types": "./dist/doctor.d.ts",
+      "import": "./dist/doctor.js"
     }
   },
   "engines": {
@@ -38,5 +74,10 @@
   "peerDependencies": {
     "@solid-gpui/core": "^0.3.0",
     "vite": "^8.2.2"
+  },
+  "peerDependenciesMeta": {
+    "@solid-gpui/core": {
+      "optional": true
+    }
   }
 }

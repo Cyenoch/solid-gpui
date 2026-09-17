@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use solid_gpui::runtime::embedded::{CommitPoll, EmbeddedBunAdapter};
+use solid_gpui::runtime::embedded::{CommitPoll, EmbeddedBunAdapter, EmbeddedResult};
 use solid_gpui::{Event, RuntimeAdapter, Snapshot};
 
 fn counter_entry() -> PathBuf {
@@ -354,6 +354,96 @@ setInterval(() => {{}}, 1000);
         "process.exit must end the VM, keeping the host alive"
     );
     stop(&runtime);
+
+    // A declared completion is a full 32-bit result and is independent of the
+    // VM's one-byte exit status: 1223 must survive as 1223, not become 199.
+    let completion = Script::new(
+        "completion",
+        &format!("{WRITE_FRAME}\n__solidGpuiHost.complete(1223); frame(21); process.exit(7);"),
+    );
+    let runtime = completion.start();
+    assert_eq!(number(&runtime), 21);
+    stop(&runtime);
+    assert_eq!(
+        runtime.result(),
+        Some(EmbeddedResult { code: 1223 }),
+        "the application's declared result must cross the ABI without truncation"
+    );
+    assert_eq!(
+        runtime.runtime_status(),
+        Some(7),
+        "the declared result must not replace the VM's own exit status"
+    );
+
+    // A second declaration is refused rather than silently replacing the first.
+    let duplicate = Script::new(
+        "completion-duplicate",
+        &format!(
+            "{WRITE_FRAME}\n__solidGpuiHost.complete(1);\ntry {{ __solidGpuiHost.complete(2); }} catch {{ frame(31); }}\nprocess.exit(0);"
+        ),
+    );
+    let runtime = duplicate.start();
+    assert_eq!(
+        number(&runtime),
+        31,
+        "a second completion declaration must throw"
+    );
+    stop(&runtime);
+    assert_eq!(runtime.result(), Some(EmbeddedResult { code: 1 }));
+
+    // A session that declares nothing has no result, whatever it exits with.
+    let undeclared = Script::new(
+        "no-completion",
+        &format!("{WRITE_FRAME}\nframe(22); process.exit(0);"),
+    );
+    let runtime = undeclared.start();
+    assert_eq!(number(&runtime), 22);
+    stop(&runtime);
+    assert_eq!(runtime.result(), None);
+
+    // The application-facing path: the published client module's completion API
+    // reaches the same runtime state the adapter reports, so the TS validation
+    // and the native record cannot drift apart. It imports the built package the
+    // way a packaged application does.
+    let client = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/solid-gpui/dist/embedded.js");
+    let source = format!(
+        r#"import {{ EmbeddedTransport, completeEmbedded, supportsEmbeddedCompletion }} from {:?};
+const transport = new EmbeddedTransport();
+const frame = new Uint8Array(8);
+new DataView(frame.buffer).setUint32(0, 4, true);
+new DataView(frame.buffer).setUint32(4, 41, true);
+transport.submit(frame);
+if (!supportsEmbeddedCompletion()) throw new Error('the host does not accept a typed completion result');
+let invalid = false;
+try {{ completeEmbedded(-1); }} catch (error) {{ invalid = error instanceof TypeError; }}
+if (!invalid) throw new Error('an out-of-range completion must be rejected before it reaches the host');
+completeEmbedded({{ code: 1223 }});
+let duplicate = false;
+try {{ completeEmbedded({{ code: 0 }}); }} catch {{ duplicate = true; }}
+if (!duplicate) throw new Error('a second completion must be refused');
+process.exit(0);
+"#,
+        client.as_os_str().to_string_lossy()
+    );
+    let public_api = Script::new("completion-public-api", &source);
+    let runtime = public_api.start();
+    assert_eq!(number(&runtime), 41);
+    // The script declares its result and exits by itself. Shutting the session
+    // down here would terminate the VM mid-script, so the host waits for the
+    // natural end before reading what the application declared.
+    loop {
+        match runtime.recv_commit_timeout(std::time::Duration::from_secs(20)) {
+            Ok(CommitPoll::Commit(_)) => continue,
+            Ok(CommitPoll::Ended) => break,
+            other => panic!("the published completion script did not end: {other:?}"),
+        }
+    }
+    assert_eq!(
+        runtime.result(),
+        Some(EmbeddedResult { code: 1223 }),
+        "the published completion API must reach the host's typed result"
+    );
 
     let runtime = network.start();
     stop(&runtime); // Termination may arrive before VM publication.

@@ -74,6 +74,9 @@ struct State {
     events: Mutex<Frames>,
     shutdown_requested: AtomicBool,
     runtime_status: Mutex<Option<i32>>,
+    /// The completion the application declared, published with the status once
+    /// the session has settled.
+    result: Mutex<Option<EmbeddedResult>>,
     #[cfg(feature = "embedded-bun")]
     terminated: Condvar,
     commits_seen: AtomicUsize,
@@ -99,6 +102,16 @@ impl State {
         #[cfg(feature = "embedded-bun")]
         self.control.terminate();
     }
+}
+
+/// Converts the ABI's completion record into the host's typed view.
+///
+/// `present` is the ABI's explicit presence flag, not a sentinel code: a
+/// session that declared the result `0` still has a result, and one that never
+/// declared a completion has none regardless of what its exit status was.
+#[cfg(feature = "embedded-bun")]
+fn declared_result(raw: solid_gpui_bun_sys::BunEmbeddedResult) -> Option<EmbeddedResult> {
+    (raw.present == 1).then_some(EmbeddedResult { code: raw.code })
 }
 
 #[derive(Debug, Error)]
@@ -143,6 +156,19 @@ pub enum CommitPoll {
     Commit(Vec<u8>),
     Timeout,
     Ended,
+}
+
+/// The application's declared completion of an embedded session.
+///
+/// This is not the VM's exit status. `RuntimeStatus::Exited` reports what the
+/// VM exited with, which the operating system limits to one byte; an application
+/// that reports a real process result — a Windows UAC cancellation is 1223 —
+/// declares it through `@solid-gpui/core/embedded`'s completion API, and the
+/// host reads the full 32-bit value here. A session that never declared one has
+/// no result, and its outcome is only the VM exit status.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EmbeddedResult {
+    pub code: u32,
 }
 
 pub struct EmbeddedBunAdapter {
@@ -199,6 +225,7 @@ impl EmbeddedBunAdapter {
             events: Mutex::new(Frames::default()),
             shutdown_requested: AtomicBool::new(false),
             runtime_status: Mutex::new(None),
+            result: Mutex::new(None),
             terminated: Condvar::new(),
             commits_seen: AtomicUsize::new(0),
             control: engine::Control::new(),
@@ -229,6 +256,15 @@ impl EmbeddedBunAdapter {
     /// `0..=255`.
     pub fn runtime_status(&self) -> Option<i32> {
         *self.state.runtime_status.lock().unwrap()
+    }
+
+    /// The completion the application declared, if it declared one.
+    ///
+    /// Independent of [`Self::runtime_status`]: an application can report a
+    /// result and still exit with whatever status its VM ended on, and a session
+    /// that never declared a result reports `None` even though it exited.
+    pub fn result(&self) -> Option<EmbeddedResult> {
+        *self.state.result.lock().unwrap()
     }
 
     /// Finish the host-to-JS stream after delivering its queued events. JS
@@ -276,12 +312,14 @@ impl EmbeddedBunAdapter {
         if !self.state.shutdown_requested.load(Ordering::Acquire)
             && let Some(status) = self.runtime_status().filter(|status| *status != 0)
         {
-            return Err(ProtocolError::Io(std::io::Error::other(match graph_failure(status) {
-                Some(reason) => {
-                    format!("embedded Bun packaged session could not start: {reason}")
-                }
-                None => format!("embedded Bun runtime exited with status {status}"),
-            })));
+            return Err(ProtocolError::Io(std::io::Error::other(
+                match graph_failure(status) {
+                    Some(reason) => {
+                        format!("embedded Bun packaged session could not start: {reason}")
+                    }
+                    None => format!("embedded Bun runtime exited with status {status}"),
+                },
+            )));
         }
         Ok(CommitPoll::Ended)
     }
@@ -442,7 +480,7 @@ mod engine {
                             // which tears down the VM before releasing borrowed IO.
                             // A negative status is a packaged graph failure; the
                             // runtime reported it before creating a VM.
-                            let status = unsafe {
+                            let exit_status = unsafe {
                                 bun_embedded_run(
                                     state.control.0,
                                     entry.as_ptr(),
@@ -451,8 +489,23 @@ mod engine {
                                 )
                             };
                             state.events.lock().unwrap().closed = true;
-                            let mut result = state.runtime_status.lock().unwrap();
-                            *result = Some(status);
+                            // Read the application's declared completion while the
+                            // control allocation is still owned by this session, and
+                            // publish it alongside the status so a host that observed
+                            // either sees both.
+                            let mut declared = BunEmbeddedResult::default();
+                            let declared_ok =
+                                unsafe { bun_embedded_result(state.control.0, &mut declared) } == 0;
+                            let mut result = state.result.lock().unwrap();
+                            *result = if declared_ok {
+                                declared_result(declared)
+                            } else {
+                                None
+                            };
+                            drop(result);
+                            let mut status = state.runtime_status.lock().unwrap();
+                            *status = Some(exit_status);
+                            drop(status);
                             worker_active.store(false, Ordering::Release);
                             state.commits.lock().unwrap().closed = true;
                             state.commit_ready.notify_all();
@@ -508,6 +561,43 @@ mod engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The declared completion is a full 32-bit value and is present only when
+    /// the application declared it. Both halves matter: a truncating host view
+    /// would report 199 for a Windows UAC cancellation (1223), and a
+    /// presence-by-nonzero rule would lose an application that completes with 0.
+    #[cfg(feature = "embedded-bun")]
+    #[test]
+    fn declared_completion_preserves_full_u32_and_presence() {
+        assert_eq!(
+            declared_result(solid_gpui_bun_sys::BunEmbeddedResult {
+                present: 1,
+                code: 1223,
+            }),
+            Some(EmbeddedResult { code: 1223 })
+        );
+        assert_eq!(
+            declared_result(solid_gpui_bun_sys::BunEmbeddedResult {
+                present: 1,
+                code: 0,
+            }),
+            Some(EmbeddedResult { code: 0 })
+        );
+        assert_eq!(
+            declared_result(solid_gpui_bun_sys::BunEmbeddedResult {
+                present: 1,
+                code: u32::MAX,
+            }),
+            Some(EmbeddedResult { code: u32::MAX })
+        );
+        assert_eq!(
+            declared_result(solid_gpui_bun_sys::BunEmbeddedResult {
+                present: 0,
+                code: 1223,
+            }),
+            None
+        );
+    }
 
     #[test]
     fn commit_backpressure_accepts_last_frame_and_drains_once() {

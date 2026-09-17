@@ -33,7 +33,9 @@ Use external Bun for the shortest iteration loop. In this repository:
 bun run website:native:dev
 ```
 
-Vite watches application dependencies and replaces the application inside the
+For your own application, follow [Getting started](getting-started.md): install the
+packages, run `bun run generate`, then develop with `bun --bun vite`. Vite watches
+application dependencies and replaces the application inside the
 existing native window. Keep state such as the current route and search query
 through `captureState`; component-local signals and native editing caches remount.
 See [hot reload](hot-reload.md).
@@ -50,8 +52,24 @@ entries. The product contract has no sidecars: it needs no Bun or Node
 installation and no JavaScript tree or `node_modules` beside the executable.
 
 ```sh
-bun run embedded:package --entry <Vite-built JS> --bun <pinned Bun executable> --output <application>
+solid-gpui embedded package \
+  --entry <Vite-built JS> \
+  --bun <pinned Bun executable> \
+  --output <application> \
+  --manifest <application Cargo.toml> --package <application crate>
 ```
+
+`solid-gpui embedded package` comes from `@solid-gpui/vite`. The library form is
+`packageEmbeddedApplication({ sdkRoot, entry, output, bun, application, assets, workers, ... })`
+from `@solid-gpui/vite/embedded`; it takes an explicit `sdkRoot` naming the SDK
+checkout that owns the pinned Bun/Rust backend, so a consumer never imports
+repository-private files or copies the toolchain. This repository runs the same
+driver as `bun run embedded:package`. `application.manifest`/`application.package`
+select an application-owned Cargo manifest and crate, `application.features` adds
+its features, and `application.main` replaces the generated Rust entry. The result
+reports the executable and its digests, the Rust triple and graph target, the
+typed `entry` identity with `role: "application"`, and every worker identity, so a
+packaging script never re-derives them.
 
 The packager takes the Vite-built entry, serializes it with a Bun executable
 matching the pinned revision, and links it with a native Bun graph built against
@@ -71,8 +89,16 @@ The host starts such an application with
 key the packager emitted — distinct from `start(path)`, which still loads a file
 from disk for development. A packaged session that cannot find its graph fails
 closed instead of evaluating some other file. The application uses
-`EmbeddedTransport` and never shares mutable JS objects with the GPUI thread.
+`EmbeddedTransport` and never shares mutable JS objects with the GPUI thread. An
+application reports its own exit code with `completeEmbedded(code)` from
+`@solid-gpui/core/embedded` (guarded by `supportsEmbeddedCompletion()`), which the
+host exposes as `EmbeddedBunAdapter::result()`; the full code survives even though
+the VM exit status is only a byte.
 
+Embedded packaging is experimental. The
+[platform status table](distribution.md#platform-status-and-current-evidence) is
+the only qualification evidence: no target is currently claimed as supported or
+verified, and an unsupported triple fails early with the supported matrix.
 `--check-bundle` is a startup smoke test only: it starts two sessions and
 requires their initial Snapshots. It covers no input, assets, Workers, or
 graphics, and passing it is not platform qualification. Architecture, deployment

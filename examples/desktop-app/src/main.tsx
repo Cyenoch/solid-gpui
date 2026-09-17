@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
-import { Icon, Image, Text, View, mountApplication, type Root } from "@solid-gpui/core";
+import { Column, Icon, Image, Row, Text, View, mountApplication, type Root } from "@solid-gpui/core";
 import {
   Button,
+  Dialog,
   Input,
   Scrollable,
   Select,
@@ -14,10 +15,9 @@ import { createSignal, For, Show, onCleanup } from "@solid-gpui/core/runtime";
 import { StdioTransport } from "@solid-gpui/core/stdio";
 import { createRootRoute, createRoute, createRouter, RouterProvider, Outlet, Link } from "@solid-gpui/router";
 import { useNative, applicationIcons } from "./native";
+import cover from "../assets/cover.png?inline";
 
-const cover = "assets/cover.png";
-
-const [brand] = applicationIcons;
+const brand = applicationIcons["desktop:brand"];
 const palette = {
   background: "#131217",
   sidebar: "#0F0E12",
@@ -78,8 +78,9 @@ const theme: ApplicationTheme = {
 function Home() {
   const native = useNative();
   const [calls, setCalls] = createSignal(0);
+  const [detailsOpen, setDetailsOpen] = createSignal(false);
   return (
-    <View style={{ padding: 24, gap: 20 }}>
+    <Column style={{ padding: 24, gap: 20 }}>
       <View style={{ height: 230, position: "relative", borderRadius: 12, overflow: "hidden" }}>
         <Image source={cover} objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
         <View
@@ -107,7 +108,7 @@ function Home() {
           </Tag>
         </View>
       </View>
-      <View style={{ flexDirection: "row", gap: 0 }}>
+      <Row style={{ gap: 0 }}>
         <Button
           variant="primary"
           style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
@@ -121,8 +122,17 @@ function Home() {
         >
           <Text>⌄</Text>
         </Button>
-      </View>
+      </Row>
       <Text>Rust service calls: {calls()}</Text>
+      <Button label="Show build details" onPress={() => setDetailsOpen(true)} />
+      <Show when={detailsOpen()}>
+        <Dialog open title="Native DX" showFooter={false} onOpenChange={(event) => setDetailsOpen(event.open)}>
+          <Column style={{ gap: 12 }}>
+            <Text>One project configuration prepares bindings, builds the UI, and previews its native host.</Text>
+            <Button label="Close details" onPress={() => setDetailsOpen(false)} />
+          </Column>
+        </Dialog>
+      </Show>
       <Input placeholder="Native input" />
       <View style={{ gap: 16 }}>
         {[
@@ -138,7 +148,7 @@ function Home() {
           </View>
         ))}
       </View>
-    </View>
+    </Column>
   );
 }
 

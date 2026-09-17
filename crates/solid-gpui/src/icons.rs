@@ -253,6 +253,7 @@ pub(crate) fn monochrome_asset_path(name: &str) -> Result<gpui::SharedString, St
 }
 
 /// Export the exact installed catalog alongside an application's native bindings.
+/// The catalog is keyed by icon name, so callers never depend on registration order.
 pub fn typescript() -> String {
     let Some(icons) = APPLICATION_ICONS.get() else {
         return String::new();
@@ -260,7 +261,7 @@ pub fn typescript() -> String {
     let names =
         serde_json::to_string(&icons.keys().collect::<Vec<_>>()).expect("icon names serialize");
     format!(
-        "\nimport {{ registerIconNames }} from \"@solid-gpui/core\";\nexport const applicationIcons = registerIconNames({names} as const);\n"
+        "\nimport {{ registerIconNames }} from \"@solid-gpui/core\";\n/** Application icons by name, e.g. `applicationIcons[\"prefix:name\"]`. */\nexport const applicationIcons = registerIconNames({names} as const);\n"
     )
 }
 

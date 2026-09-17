@@ -1,0 +1,25 @@
+# Application-owned Cargo workspace for the embedded custom-host fixture.
+#
+# It exists so the packager's manifest merge stays honest: this workspace
+# declares its own patches (the same vendored gpui crates the SDK patches, at
+# paths resolved from *this* manifest) and its own profiles, and the packager
+# must merge them with the SDK's into the one crate graph the embedded link
+# requires. It is never a member of the SDK workspace.
+[workspace]
+resolver = "2"
+members = ["host"]
+
+[profile.dev]
+debug = 1
+
+# The fixture's own value for a package the SDK also configures: the merge must
+# keep both, with the application's value winning for the keys it sets.
+[profile.dev.package.gpui-pre]
+opt-level = 3
+
+[profile.release.package.taffy]
+opt-level = 3
+
+[patch.crates-io]
+gpui-pre = { path = "../../vendor/gpui" }
+gpui-pre-macos = { path = "../../vendor/gpui-macos" }

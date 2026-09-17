@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { createGenerationSession } from "./generation-session";
-import type { FileRouterOptions } from "./generator";
+import { createGenerationSession } from "./generation-session.ts";
+import type { FileRouterOptions } from "./generator.ts";
 
-export type { FileRouterOptions } from "./generator";
+export type { FileRouterOptions } from "./generator.ts";
 
 /** Generate typed native routes before universal JSX compilation. */
 export function solidGpuiRouter(options: FileRouterOptions = {}): Plugin {

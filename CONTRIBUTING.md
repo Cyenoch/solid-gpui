@@ -18,7 +18,10 @@ bun run check
 `scripts/tasks.ts` is the only development and release task graph. The root
 `package.json` exposes common aliases; advanced commands use
 `bun run task <command>`. Keep one root `bun.lock` and do not add package-local
-locks or duplicate package scripts.
+locks or duplicate package scripts. `bun run task sdk-pack <output>` builds and
+packs all four packages once when you need installable tarballs of the SDK, and
+`bun run task native-codegen` is the explicit native-binding generation step
+(`package-build` is JavaScript-only).
 
 Use `Bun.spawn()` with argument arrays for portable subprocesses and Bun APIs
 such as `Bun.Archive` when they replace platform utilities directly. Keep Bash
@@ -46,8 +49,10 @@ bun run task package-test
 bun run task rust-check
 ```
 
-Run `bun run example` for the interactive native counter or
-`bun run example:smoke` for its bounded automated startup check. For renderer
+`package-test` covers the TypeScript packages, including the Vite plugin and its
+QuickJS cases. For an interactive desktop loop, run
+`bun run --cwd examples/desktop-app dev`, or `bun run quickjs:dev` for the
+fixture counter under the real QuickJS engine. For renderer
 changes, prove a signal produces a Patch. For host changes, run the relevant
 process or embedded counter path. Add only tests that protect an observable
 contract or invariant.
@@ -72,3 +77,16 @@ explicitly requires it.
 ## Documentation
 
 Keep `README.md`, `CONTEXT.md`, and `docs/protocol.md` aligned with the code. Architectural decisions belong in `docs/adr/`; issue work lives under `.scratch/` according to `docs/agents/issue-tracker.md`.
+
+`docs/getting-started.md` is the authoritative external-consumer sequence:
+install, prepare, typecheck, develop, test, build, and preview. Keep advanced
+integration, runtime, and packaging detail in its own guide and link it instead
+of extending the happy path. Do not document a command that the task graph or a
+published CLI does not implement.
+
+English documents are authoritative. Every guide published on the website needs
+a `.zh-CN.md` copy with a localized level-one heading; the website loads
+`docs/*.md` directly through `examples/website/src/documentation.ts` and fails
+without the translation. Update both copies in the same change, and keep the
+navigation labels in `examples/website/src/Docs.tsx` and their Chinese
+translations in `examples/website/src/locale.zh-CN.ts` in step.

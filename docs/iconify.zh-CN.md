@@ -126,22 +126,24 @@ register_icons(&[
 限制为最多 256 项、每项 SVG 最大 64 KiB、最多 1024 个元素，viewBox 与固有尺寸也有边界。
 内置图标保持现有允许列表。
 
-`ComponentHost::native_bindings()` 将注册名称导出为带类型的 `applicationIcons` 元组。
-从生成的绑定模块导入它（下面的示例使用 `./native`），将条目传给 `Icon`：
+`ComponentHost::native_bindings()` 将注册名称导出为带类型的 `applicationIcons` 记录，以注册名称为键。
+从生成的绑定模块导入它（下面的示例使用 `./native`），按注册名称取用：
 
 ```tsx
 import { Icon } from "@solid-gpui/core";
 import { applicationIcons } from "./native";
 
-const [brand] = applicationIcons;
+const brand = applicationIcons["desktop:brand"];
 export function BrandIcon() {
   return <Icon name={brand} size={32} accessibilityLabel="Application logo" />;
 }
 ```
 
-元组按图标名称排序。注册与导出在开发和生产中使用同一可执行文件；目录变化后需要重新生成绑定。
+该记录以名称为键且不可变，因此名称与注册顺序无关；需要全部应用图标时用 `Object.keys`/`Object.values`
+遍历，生成的 `ApplicationIconCatalog<T>` 类型会拒绝未知键。
+注册与导出在开发和生产中使用同一可执行文件；目录变化后需要重新生成绑定。
 `registerIconNames` 可供自定义绑定生成器使用，但仅注册 JavaScript 名称不会在宿主中内嵌 SVG。
 
 [桌面应用示例](../examples/desktop-app/README.zh-CN.md#应用图标)在可运行宿主中注册一个应用图标；
-生成绑定的用法见 [Rust 集成](rust-bridge.md)。自定义图标需要在交付的宿主中注册；
+生成绑定的用法见 [Rust 集成](rust-bridge.zh-CN.md)。自定义图标需要在交付的宿主中注册；
 面向浏览器时，也需要在自定义 Web 宿主中注册。

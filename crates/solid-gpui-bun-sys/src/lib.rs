@@ -44,6 +44,27 @@ pub struct BunIoCallbacks {
     pub read_event: unsafe extern "C" fn(*mut c_void, *mut u8, usize) -> usize,
 }
 
+/// The application's declared completion result, as it crosses the embedding
+/// ABI.
+///
+/// This is not the VM's exit status. `bun_embedded_run` reports a byte, which is
+/// what an OS process exit code can carry; an application that reports a real
+/// process result — a Windows UAC cancellation is 1223 — declares it through the
+/// embedded bridge's `complete` instead, and the host reads the full 32-bit
+/// value here. The embedded runtime mirrors this layout in its own
+/// `EmbeddedResult`, because that module is compiled inside the pinned Bun tree
+/// and cannot depend on this crate. The `Bun` prefix mirrors `BunIoCallbacks`,
+/// so the host crate may keep its own `EmbeddedResult` name for the typed view.
+#[cfg(feature = "embedded-bun")]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BunEmbeddedResult {
+    /// 1 when the application declared a completion, 0 otherwise.
+    pub present: u32,
+    /// The declared code; 0 when absent.
+    pub code: u32,
+}
+
 #[cfg(feature = "embedded-bun")]
 unsafe extern "C" {
     pub fn bun_embedded_create() -> *mut c_void;
@@ -60,6 +81,9 @@ unsafe extern "C" {
         len: usize,
         io: *const BunIoCallbacks,
     ) -> i32;
+    /// Reads the application's declared completion into `out`; returns 0 on
+    /// success and 2 for a null argument.
+    pub fn bun_embedded_result(control: *mut c_void, out: *mut BunEmbeddedResult) -> i32;
     /// Thread-safe notifications: bit 0 = input, bit 1 = output capacity.
     pub fn bun_embedded_wake(control: *mut c_void, flags: u32);
     /// Thread-safe, including before `run` has published its VM handle.

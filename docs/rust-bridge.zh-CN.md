@@ -234,4 +234,4 @@ function Editor() {
 
 可运行示例 `examples/website/native/src/lib.rs` 声明 BuildBadge 和 analyze_workspace，website TSX 使用生成组件与 Promise 客户端。设计依据见 [ADR-0016](adr/0016-rust-owned-native-modules.md)。
 
-`@solid-gpui/vite` 从 Cargo 的实际可执行文件导出 bindings。由 Rust 启动 Vite 时使用当前宿主；直接 Bun JS 也能导入生成文件，无需打包器，Native Contract 不变。配置与生命周期见 [Vite 集成](vite.md)。
+`@solid-gpui/vite` 从 Cargo 的实际可执行文件导出 bindings。由 Rust 启动 Vite 时使用当前宿主；直接 Bun JS 也能导入生成文件，无需打包器，Native Contract 不变。配置与生命周期见 [Vite 集成](vite.zh-CN.md)。

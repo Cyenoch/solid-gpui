@@ -1,4 +1,4 @@
-import { createRouteGenerator } from "./generator-engine";
+import { createRouteGenerator } from "./generator-engine.ts";
 import type { GeneratorEvent } from "@tanstack/router-generator";
 
 const generator = createRouteGenerator(JSON.parse(process.argv[2]!));

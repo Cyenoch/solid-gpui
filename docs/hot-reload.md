@@ -38,7 +38,9 @@ package build workflow before restarting development.
 
 ## Application integration
 
-Install `@solid-gpui/core` and Vite 8, then create a configuration:
+Install `@solid-gpui/core` and Vite 8 with `@solid-gpui/vite` — from the tarballs a
+`bun run task sdk-pack <dir>` run produces, since the packages are not on a registry
+yet — then create a configuration:
 
 ```ts
 import { defineConfig } from "vite";
@@ -49,10 +51,15 @@ export default defineConfig({
 });
 ```
 
-Run `bun --bun vite` to launch the configured host and Bun module runner. Use
-`native` to build an application-owned Rust host and generate `#native`, or `host`
-to select an existing executable. Rust applications can launch the same config
-through `solid_gpui::runtime::vite::Vite`. See [Vite integration](vite.md).
+Add the `generate` script and run it once after installing dependencies; it builds
+the configured host, exports its bindings, and writes the generated TypeScript
+project that your `tsconfig.json` extends. Then run `bun --bun vite` to launch the
+configured host and Bun module runner. Use `native` to build an application-owned
+Rust host and generate `#native`, or `host` to select an existing executable. Rust
+applications can launch the same config through
+`solid_gpui::runtime::vite::Vite`. The full sequence is in
+[Getting started](getting-started.md); the option surface is in
+[Vite integration](vite.md).
 
 ```tsx
 import { mountApplication, Text } from "@solid-gpui/core";
@@ -85,16 +92,22 @@ terminal; fix the error and save a source file to start a fresh session. Closing
 the application window also leaves the watcher available for the next edit.
 Use Ctrl+C to stop development. Failed sessions are not restarted in a loop.
 
-Configure `native` to watch `.rs` files (including `build.rs`), Cargo manifests
-and lockfiles, and workspace `.cargo/config` or `.cargo/config.toml`. Cargo
+Configure `native` to watch the reachable local Cargo packages, `.rs` files
+(including `build.rs`), Cargo manifests and lockfiles, workspace `.cargo/config`
+or `.cargo/config.toml`, declared build-script inputs, declared native assets, and
+any `native.watch` files or directories you add. Cargo
 metadata includes local path dependencies outside the frontend directory. A
 native change stops the previous runtime before building and exporting bindings;
 new bindings are never hot-updated into the previous host. Rapid edits supersede
 the pending attempt. Shutting down also cancels Cargo's compiler and build-script
-processes. Changes to build-script asset inputs are not automatically watched;
-save a Rust source file to request that rebuild.
-Cargo's resolved output directory is excluded from input watching, including
-custom target directories inside a source package.
+processes. `native.watch` is the general escape hatch for inputs Cargo cannot
+declare itself, such as generated assets consumed by `include_bytes!`.
+`.solid-gpui/`, Cargo's resolved output directory (including custom target
+directories inside a source package), the Vite build output directory, and
+`node_modules/` never trigger rebuilds, so a rebuild cannot loop on its own output.
+
+Application modules keep normal Vite HMR; the Rust rebuild path replaces the whole
+session, so state retention follows the rules below rather than HMR checkpoints.
 
 `#native` and `@solid-gpui/core/components` resolve to the configured host's
 generated bindings. Motion imports use that same component catalog. Do not edit
@@ -163,11 +176,19 @@ loaded and updates it when routes are added, edited, renamed, or removed. See th
 Configure `solidGpui({ entry: "src/app.tsx", runtime: "bun" })` and build with Vite:
 
 ```sh
-bun --bun vite build
+bun run build      # bun --bun vite build
+bun run preview    # solid-gpui preview: built host against the built bundle
 ```
 
-A Bun entrypoint uses `StdioTransport`, as above. Run its bundle with an existing
-host and `bun --conditions=browser dist/app.js`. Embedded Bun uses `EmbeddedTransport` and requires the `embedded-bun` feature.
+The build also prepares the configured native host, so it fails early instead of
+shipping a bundle whose bindings do not match. `preview` reads
+`.solid-gpui/artifacts.json`, runs the built host against the built bundle with no
+rebuild and no watcher, forwards host arguments after `--`, and exits with the
+host's status. The equivalent explicit commands are
+`bun --conditions=browser <bundle>` for a Bun entrypoint with an existing host, and
+`<host> --runtime quickjs <bundle>` for a QuickJS-enabled host.
+
+A Bun entrypoint uses `StdioTransport`, as above. Embedded Bun uses `EmbeddedTransport` and requires the `embedded-bun` feature.
 Give it a separate entrypoint importing the shared application composition.
 
 For a Rust-led application using QuickJS, create a separate entrypoint with the
@@ -191,9 +212,10 @@ bun --bun vite build # solidGpui({ entry: "src/quickjs.tsx", runtime: "quickjs" 
 cargo run -p solid-gpui --features quickjs --bin solid-gpui-host -- --runtime quickjs dist/app.js
 ```
 
-The generic host command runs core host components. Applications using custom
-Native Modules or the optional gpui-component integration launch their own host
-with those modules/features enabled.
+`solid-gpui preview` does the same with the host and bundle recorded in
+`.solid-gpui/artifacts.json`. The generic host command runs core host components;
+an application with custom Native Modules or the optional gpui-component
+integration launches its own host with those modules and features enabled.
 
 QuickJS has no ambient Bun/Node services and does not load an application's
 external packages at runtime. Bundle JavaScript dependencies and put services

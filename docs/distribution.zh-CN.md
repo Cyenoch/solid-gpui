@@ -4,6 +4,16 @@
 
 website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust 可执行文件并由 QuickJS 执行，生产包不带内联 source map。用户无需 Bun、Node、仓库 checkout 或旁置 JavaScript bundle。Rust 拥有原生服务和渲染，同一界面组合也可在开发时通过 Bun 执行。
 
+## 交付的是什么
+
+三类产物有三个归属，只有最后一类才是交付物：
+
+- **bundle** —— `bun --bun vite build` 的产物：供宿主执行的单个 JavaScript 入口模块，不含原生代码，也不是安装包。
+- **原生可执行文件** —— Cargo 按目标与 profile 构建的 GPUI 宿主。`bun run generate`（`solid-gpui prepare`）与 Vite 构建都会为构建机生成一个；交叉目标可执行文件由同一 manifest 显式指定 `target` 得到。`.solid-gpui/artifacts.json` 记录可执行文件与 bundle 路径，`solid-gpui preview` 在构建机上把两者一起运行。
+- **可分发包** —— 可执行文件加 bundle、资源、元数据、许可与签名，由你自己的打包脚本组装。本指南中没有任何构建命令会产出它。
+
+平台能力同样如此区分：本仓库在下方记录的目标上验证 QuickJS website 包，而内嵌 Bun 静态打包器仍是实验性的，不声明任何受支持或已验证的目标。你自己应用在本地构建成功，只能说明你的应用，不代表其他平台已通过验证。
+
 ## 构建环境
 
 安装 `.bun-version` 固定的 Bun 和 `rust-toolchain.toml` 指定的 rustup 工具链。从仓库根目录构建，打包任务在构建前按提交的工作区锁安装依赖。在准备发布的操作系统与架构上构建。
@@ -46,7 +56,7 @@ bundle 检查在真实 QuickJS VM 计算交付的 JavaScript，在统一 15 秒�
 
 THIRD-PARTY-NOTICES.md 是依赖清单，不是完整第三方许可文本集合。包中包含该清单及项目 MIT LICENSE；公开分发前仍需汇总并验证完整再分发说明。
 
-Website Packages 工作流在 macOS ARM64、Linux x86-64、Windows x86-64 构建并上传已验证候选包，发布验证时手动触发；普通 PR 执行开发和跨平台宿主检查。触发条件、缓存与其他候选工作流见[持续集成](ci.md)。产物是未签名候选，不是公开发布。检查不证明 Windows/Linux 的显示、GPU、无障碍、输入法、菜单或通知正确性，发布前需真实桌面验证。
+Website Packages 工作流在 macOS ARM64、Linux x86-64、Windows x86-64 构建并上传已验证候选包，发布验证时手动触发；普通 PR 执行开发和跨平台宿主检查。触发条件、缓存与其他候选工作流见[持续集成](ci.zh-CN.md)。产物是未签名候选，不是公开发布。检查不证明 Windows/Linux 的显示、GPU、无障碍、输入法、菜单或通知正确性，发布前需真实桌面验证。
 
 ## macOS
 
@@ -89,25 +99,38 @@ desktop entry 按[Desktop Entry 标准](https://specifications.freedesktop.org/d
 
 ## 内嵌 Bun 静态应用
 
-**实验性。** 目标机器无需旁置 JavaScript、仓库 checkout 或另行安装 Bun。目前 Windows ARM64 release 覆盖最多；签名、更广泛的安装环境策略、桌面与实体设备覆盖，以及所有其他 release 目标仍未完成，仓库 CI 尚未构建或验证静态应用包。仅构建成功不等于可发布。
+**实验性。** 目标机器无需旁置 JavaScript、仓库 checkout 或另行安装 Bun。目前 Windows ARM64 release 覆盖最多；签名、更广泛的安装环境策略、桌面与实体设备覆盖，以及所有其他 release 目标仍未完成，仓库 CI 尚未构建或验证静态应用包。仅构建成功不等于可发布。目前没有任何目标被声明为受支持或已验证；下方[平台状态表](#平台状态与当前证据)是唯一的验证证据，不支持的 triple 会提前失败并列出支持矩阵。
 
-`bun scripts/bun-static-package.ts`（npm 脚本 `embedded:package`）是打包驱动：在缓存目录准备带补丁的固定版本 Bun checkout，用 Bun 自己的构建脚本配合预编译 WebKit 构建原生图，用固定版本 Bun 序列化器序列化已构建的 Vite 入口，再把应用自身的 Rust crate 图与原生图一起编译。最终可执行文件写入 `--output` 并打印其 SHA-256。
+同一驱动有三条入口：应用使用公开 CLI 或库，本仓库使用脚本。
+
+| 入口 | 用途 |
+| --- | --- |
+| `solid-gpui embedded package [flags]` | 随 `@solid-gpui/vite` 发布的公开 CLI。 |
+| `@solid-gpui/vite/embedded` 的 `packageEmbeddedApplication({ sdkRoot, ... })` | 供构建脚本使用的库 API，返回打包报告。 |
+| `bun packages/solid-gpui-vite/src/embedded/command.ts [flags]`（npm 脚本 `embedded:package`） | 本仓库 checkout 内的入口，参数相同并额外接受 `--sdk-root`。 |
+
+消费方需显式传入 `sdkRoot`：即拥有固定 Bun/Rust 后端的 SDK checkout。这是受支持的接缝——消费方不导入仓库私有文件，也不复制该驱动。库参数为
+`{ sdkRoot, entry, output, bun, target?, profile?, application?, assets?, workers?, baseExecutable?, cacheDir?, sourceCheckout?, ninja?, macosSdk?, deploymentTarget?, winsysroot?, prepareOnly? }`，
+其中 `application` 是应用自有的 Cargo 输入：`{ manifest, package, features?, main? }`。
+`manifest` 是应用清单（包或工作区根），`package` 是其包名，`features` 追加该包的 feature，`main` 是被 `include!` 进生成 bin crate 的 Rust 入口。
+
+驱动在缓存目录准备带补丁的固定版本 Bun checkout，用 Bun 自己的构建脚本配合预编译 WebKit 构建原生图，用固定版本 Bun 序列化器序列化已构建的 Vite 入口，再把应用自身的 Rust crate 图与原生图一起编译。可执行文件写入 `--output` 并返回报告：输出路径及其 SHA-256、模块图 SHA-256、Rust triple 与图目标、profile、提取出的原生清单（若有）、类型化的 `entry` 身份（`role: "application"`、来源、身份）以及每个 `workers` 身份。生成的 Rust 暴露 `BUN_EMBEDDED_ENTRY` 与 `BUN_EMBEDDED_WORKERS`。打印结果中这些身份以 `Entry:` 与 `Worker:` 行给出虚拟图键。应用可用 `@solid-gpui/core/embedded` 的 `completeEmbedded(code)` 报告自身退出码（以 `supportsEmbeddedCompletion()` 探测支持），宿主经 `EmbeddedBunAdapter::result()` 读取，即使 VM 退出状态只有一个字节也能保留完整 `u32`。
 
 ### 静态打包输入
 
 在当前宿主上原生构建，序列化器需由固定版本构建：
 
 ```sh
-bun scripts/bun-static-package.ts \
+solid-gpui embedded package \
   --entry "$PWD/dist/app/index.js" \
   --bun "$PINNED_BUN" \
   --output "$PWD/dist/app/solid-gpui-embedded-app"
 ```
 
-在 macOS 上交叉构建 Windows x64 可执行文件时，额外给出目标、同版本的目标平台 Bun 与 sysroot：
+在 SDK checkout 内构建时，本仓库的 `bun packages/solid-gpui-vite/src/embedded/command.ts`（即 `bun run embedded:package`，会自动加上 `--sdk-root`）接受相同参数。在 macOS 上交叉构建 Windows x64 可执行文件时，额外给出目标、同版本的目标平台 Bun 与 sysroot：
 
 ```sh
-bun scripts/bun-static-package.ts \
+solid-gpui embedded package \
   --entry "$PWD/dist/app/index.js" \
   --bun "$PINNED_BUN" \
   --base-executable "$PINNED_BUN_WINDOWS_X64" \
@@ -126,7 +149,7 @@ bun scripts/bun-static-package.ts \
 | `--target <triple>` | 目标 Rust triple，默认取固定 `nightly-2026-07-20` rustup 工具链报告的宿主 triple。支持 `aarch64-`/`x86_64-apple-darwin`、`x86_64-`/`aarch64-pc-windows-msvc` 以及 `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`，其他 triple 直接拒绝。 |
 | `--profile debug\|release` | 默认 `release`。`debug` 使用 Bun 的 `debug-no-asan` 原生配置和 Cargo 的 `dev` 配置。 |
 | `--source <dir>`、`--cache <dir>` | 复用已有的固定版本 checkout 而不重新克隆固定仓库，并指定准备好的 checkout 存放位置（默认 `target/bun-static`）。目录名由固定版本、内嵌补丁与覆盖源码派生，pin 变化必然重建。 |
-| `--main <file>` | 替换默认应用 `main`，见[默认应用入口](#默认应用入口)。 |
+| `--manifest <file>`、`--package <name>`、`--main <file>`、`--feature <name>` | 应用自有的 Cargo 输入：要构建的清单（包或工作区根）、其包名、被 `include!` 进生成 bin crate 的 Rust 入口（`--manifest` 必须与 `--main` 同时给出；单独给出 `--main` 时替换默认入口），以及可重复的 `--feature` 追加到该包。不传时驱动构建默认宿主入口。 |
 | `--assets <file>`、`--workers <entry>` | 可重复。`--assets` 转为 `--asset` 参数，`--workers` 转为序列化器额外入口。运行时加载的每个资源和 Worker 都要在此声明；`new Worker` 或动态计算的 import 不会被自动发现。 |
 | `--base-executable <file>` | 同固定版本的目标平台 Bun。当 `--target` 与本机平台架构不同时必需：否则序列化器需要下载 pin 未覆盖的 base 可执行文件，此时它会直接停止。 |
 | `--macos-sdk <dir>`、`--deployment-target <version>`、`--winsysroot <dir>` | 以 `--macos-sdk=`、`--osx-deployment-target=`、`--winsysroot=` 转发给 Bun 构建脚本。 |
@@ -142,7 +165,7 @@ bun scripts/bun-static-package.ts \
 
 原生部分需要 C/C++ 工具链：LLVM 21.1.x（固定构建接受 `>=21.1.0 <21.2.0` 并自行解析）、cmake 3.24 或更新版本、`git`、用于 LUT 代码生成的 Perl，以及 Bun 构建脚本解析到的平台 SDK（macOS 上即 `brew install llvm@21` 与 Xcode）。准备好的 checkout 会自行安装其 JavaScript 依赖，因此首次运行需要网络。构建产物与准备好的 checkout 会缓存，首次构建远慢于后续，但缓存不会跳过版本与补丁校验。
 
-- **macOS：** 通过 `xcrun` 解析 SDK，可用 `--macos-sdk` 覆盖。低于其最低部署目标（`13.0`）的 SDK 会被拒绝，`--deployment-target` 可记录你选择的部署目标。非 darwin 构建宿主还需要显式提供 macOS SDK；该跨宿主路径尚未验证。
+- **macOS：** 通过 `xcrun` 解析 SDK，可用 `--macos-sdk` 覆盖。低于其最低部署目标（`13.0`）的 SDK 会被拒绝，`--deployment-target` 可记录你选择的部署目标。非 darwin 构建宿主还需要显式提供 macOS SDK；该跨宿主路径尚未验证。已观察到的宿主组合（2026-09-17，本机）：Bun 构建系统优先使用 Homebrew 的 `/opt/homebrew/opt/llvm@21/bin/clang++` 而非 `PATH`，而原版 LLVM 21 会拒绝 macOS 27 SDK 在 `os/trace_base.h` 中使用的 `stack_protector_ignore` 属性，报 `-Werror,-Wunknown-attributes`（`src/jsc/bindings/c-bindings.cpp` 中 59 处错误），因此本机无法用该 SDK 构建原生内嵌库。无需改代码的覆盖方式：打包器使用既有的 `--macos-sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk --deployment-target 26.5`；对于自行配置 Bun 的路径（例如 `cargo build/test --features embedded-bun`，它会运行 `crates/solid-gpui-bun-sys/build.rs`），使用 `SOLID_GPUI_BUN_MACOS_SDK` 与 `SOLID_GPUI_BUN_DEPLOYMENT_TARGET` 环境变量。ninja 1.13.0 必须在 `PATH` 中（本仓库为 `target/bun-tools/bin/ninja`）。请将其视为构建宿主的工具链要求——固定 LLVM 加匹配的 SDK——以及上述显式开关；它不对操作系统支持作任何声明。
 - **Windows：** 可用 MSVC 工具链原生构建，也可在 macOS 上交叉编译：需要 LLVM 的 `clang-cl` 与 `lld-link`，以及 xwin 风格的 MSVC CRT/STL 与 Windows SDK splat，用 `--winsysroot` 或 `WINDOWS_SYSROOT` 指定。交叉构建的 ARM64 debug 还需要 SDK 的 ARM64 debug CRT（`libcmtd.lib`、`libcpmtd.lib`、`libvcruntimed.lib`），部分 xwin splat 会漏掉该载荷：应在 SDK 许可下获取并保留原始库，不能用 release CRT 替代。Bun 构建脚本在其错误信息中给出固定版本的 xwin 命令（SDK `10.0.26100`、CRT `14.44.17.14`）。原生构建先初始化真正的 Visual Studio 开发环境（`VsDevCmd.bat`；ARM64 使用 `-arch=arm64 -host_arch=arm64`），由它提供真实的 `VSINSTALLDIR`、SDK 工具、`INCLUDE` 与 `LIB`；Git for Windows 可能已在 `Git/usr/bin` 提供 Perl，把所需工具加入本次构建进程的 `PATH`，不要修改全局设置或 PowerShell 执行策略。
 - **Linux：** 仅实现 `--prepare-only` 准备方式，含义见[平台状态](#平台状态与当前证据)。
 
@@ -167,7 +190,7 @@ bun scripts/bun-static-package.ts \
 
 打包器让 `solid-gpui-bun-sys` 直接使用准备好的 manifest，该 build script 因此消费其中的 object、archive、链接策略与编译设置，而不再自行编译和链接内嵌库。不经过该驱动的直接 `embedded-bun` 库构建仍只支持 macOS，其他目标会被拒绝。
 
-模块图字节成为最终镜像的一个 section：macOS 为 16 KiB 对齐的 `__BUN,__bun`，Windows 为 `.bun`；它经 dead stripping 保留，且生成在应用 crate 自己的目标文件中，避免归档提取时被丢弃。运行时直接从映射的镜像读取载荷，运行期不落盘、不重写。C ABI 仍为同样的五个函数（`bun_embedded_create`、`bun_embedded_run`、`bun_embedded_wake`、`bun_embedded_terminate`、`bun_embedded_destroy`）；打包入口带标签且与磁盘路径区分，`start_packaged(entry)` 不会回退到文件系统，无法启动的打包会话以负状态码 fail closed。
+模块图字节成为最终镜像的一个 section：macOS 为 16 KiB 对齐的 `__BUN,__bun`，Windows 为 `.bun`；它经 dead stripping 保留，且生成在应用 crate 自己的目标文件中，避免归档提取时被丢弃。运行时直接从映射的镜像读取载荷，运行期不落盘、不重写。C ABI 为六个函数（`bun_embedded_create`、`bun_embedded_run`、`bun_embedded_result`、`bun_embedded_wake`、`bun_embedded_terminate`、`bun_embedded_destroy`）：打包入口带标签且与磁盘路径区分，`start_packaged(entry)` 不会回退到文件系统，无法启动的打包会话以负状态码 fail closed。其中 `bun_embedded_result` 是新增且叠加的，只读取应用声明的完成结果（`{ present, code }`），不改变运行状态。
 
 ### 默认应用入口
 

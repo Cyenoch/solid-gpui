@@ -8,11 +8,14 @@ Appearance	type
 AppearanceStore	type
 ApplicationActivation	type
 ApplicationDefinition	type
+ApplicationIconCatalog	type
 ApplicationOptions	type
 BoxShadow	type
 BoxShadowInput	type
 ClipboardImage	type
 ClipboardImageFormat	type
+Column	value
+ColumnProps	type
 createAppearanceStore	value
 createExtensionElement	value
 createHostElement	value
@@ -35,6 +38,7 @@ ExtensionProperties	type
 ExtensionProps	type
 ExtensionValue	type
 ExternalFileDropHandler	type
+FlexContainerProps	type
 FlexDirection	type
 FocusEvent	type
 FocusHandler	type
@@ -87,6 +91,8 @@ PressHandler	type
 registerIconNames	value
 Root	type
 RootOptions	type
+Row	value
+RowProps	type
 ScrollDeltaKind	type
 ScrollEvent	type
 ScrollHandler	type

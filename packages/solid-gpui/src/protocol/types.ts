@@ -80,10 +80,19 @@ export type ApplicationIconName = string & { readonly [applicationIcon]: true };
 export type IconName = (typeof ICON_NAMES)[number] | ApplicationIconName;
 const applicationIcons = new Set<string>();
 
-/** Register names from the application's embedded Rust catalog before rendering. */
-export function registerIconNames<const T extends readonly string[]>(
-  names: T,
-): { readonly [K in keyof T]: T[K] & ApplicationIconName } {
+/**
+ * Application icons by name. Lookup is keyed, so a consumer never depends on
+ * the order the Rust host registered its catalog in.
+ */
+export type ApplicationIconCatalog<T extends readonly string[]> = {
+  readonly [K in T[number]]: K & ApplicationIconName;
+};
+
+/**
+ * Register names from the application's embedded Rust catalog before rendering.
+ * The returned catalog is keyed by icon name: `applicationIcons["prefix:name"]`.
+ */
+export function registerIconNames<const T extends readonly string[]>(names: T): ApplicationIconCatalog<T> {
   const candidate = new Set(applicationIcons);
   for (const name of names) {
     if (
@@ -97,7 +106,7 @@ export function registerIconNames<const T extends readonly string[]>(
   }
   if (candidate.size > 256) throw new RangeError("Application icon catalog exceeds 256 names");
   for (const name of candidate) applicationIcons.add(name);
-  return Object.freeze([...names]) as unknown as { readonly [K in keyof T]: T[K] & ApplicationIconName };
+  return Object.freeze(Object.fromEntries(names.map((name) => [name, name]))) as unknown as ApplicationIconCatalog<T>;
 }
 export function isIconName(name: unknown): name is IconName {
   return typeof name === "string" && ((ICON_NAMES as readonly string[]).includes(name) || applicationIcons.has(name));

@@ -26,10 +26,39 @@ Import `For`, `Index`, `Show`, `Switch`, and `Match` from
 runtime implementations with native element types; direct `solid-js` control-flow
 declarations describe DOM children instead. Native JSX does not accept DOM nodes.
 
+`@solid-gpui/core/runtime` is the client entry for every reactive helper, taken
+from the one Solid instance the renderer uses:
+
+- primitives and control flow: `createSignal`, `createMemo`, `createEffect`,
+  `createComponent`, `For`, `Index`, `Show`, `Switch`, `Match`, `createRoot`,
+  `batch`, `untrack`;
+- owner and lifecycle: `onMount`, `onCleanup`, `onError`, `catchError`, `getOwner`,
+  `runWithOwner`, `getListener`, `createComputed`, `createReaction`,
+  `createDeferred`, `createUniqueId`;
+- context and children: `createContext`, `useContext`, `children`;
+- arrays and utilities: `mapArray`, `indexArray`, `splitProps`, `createSelector`,
+  `on`, `observable`, `from`;
+- store: `createStore`, `createMutable`, `modifyMutable`, `produce`, `reconcile`,
+  `unwrap`, plus the `Store`, `SetStoreFunction`, and `StoreSetter` types.
+
+Importing the renderer or this entry under a non-client resolution throws with an
+actionable message instead of rendering nothing: Solid resolved to its server build,
+or two copies of `solid-js` are loaded and signals cannot notify the renderer. See
+[troubleshooting](../../docs/troubleshooting.md#tests-or-scripts-render-nothing).
+
 Launch a direct JS application with `solid-gpui-host bun --conditions=browser app.js`
 so the host owns protocol stdio and Solid resolves its client reactive runtime.
-Bun APIs remain available. See [Vite integration](../../docs/vite.md) for both
+Bun APIs remain available. For a JSX/TSX application, `@solid-gpui/vite` compiles
+the bundle, exports native bindings, provides the `solid-gpui` CLI (`prepare`,
+`preview`, `doctor`, `test`), and runs application tests through the same Vite
+configuration; see [Getting started](../../docs/getting-started.md) for the full
+sequence and [Vite integration](../../docs/vite.md) for both
 authoring paths and application-owned native modules.
+
+Packages resolve to their built `dist` by default. Debugging SDK sources requires
+the explicit `solid-gpui-source` condition (`bun --conditions=solid-gpui-source`)
+plus the `solidGpuiSource()` plugin or the generated TypeScript project; Bun ignores
+custom conditions in `bunfig.toml`.
 
 ## Runtime selection
 
@@ -56,6 +85,16 @@ Use `StdioTransport` from `@solid-gpui/core/stdio` for external Bun.
 Use `EmbeddedTransport` for both Embedded Bun and QuickJS. All surfaces in an application
 share its connection.
 
+A DOM-free QuickJS application type-checks with the published ambient types instead
+of its own declarations: set `"lib": ["ES2024"]` and
+`"types": ["@solid-gpui/core/quickjs"]`. The entry declares exactly what the engine
+provides (timers, `performance.now()`, `console`, UTF-8 text codecs, `self`, the
+router's URL/event/abort/headers/bodyless-`Response` primitives, `import.meta.url`,
+and `declare module "*?inline"` for inlined assets) and deliberately omits `fetch`,
+`requestAnimationFrame`, `import.meta.hot`, filesystem/socket access, and every
+Node or Bun API, so an unavailable capability fails at compile time. The prepared
+`.solid-gpui/tsconfig.json` already includes it for a QuickJS project.
+
 The default `StdioTransport` reads the host-owned process stdin. When that pipe
 closes, it notifies termination listeners and exits the renderer, even if
 application timers are still active. Clean EOF exits with status 0; I/O failure
@@ -66,7 +105,7 @@ their process must outlive its host connection.
 
 ```sh
 bun --bun vite build
-solid-gpui-host --runtime quickjs dist/app.js
+solid-gpui preview          # or: solid-gpui-host --runtime quickjs dist/app.js
 ```
 
 Configure `solidGpui({ entry: "app.tsx", runtime: "quickjs" })` in Vite.

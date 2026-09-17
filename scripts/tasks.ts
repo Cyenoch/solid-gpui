@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,7 +88,6 @@ class Tasks {
 
   private async buildPackages(): Promise<void> {
     await this.install();
-    await this.nativeCodegen();
     await this.buildJavaScriptPackages();
   }
 
@@ -126,6 +125,18 @@ class Tasks {
   private async buildVitePackage(): Promise<void> {
     await rm(join(vitePackageDir, "dist"), { recursive: true, force: true });
     const { build } = await import("vite");
+    const manifest: {
+      exports: Record<string, { import?: string }>;
+      bin: Record<string, string>;
+    } = await Bun.file(join(vitePackageDir, "package.json")).json();
+    const publicEntries = Object.values(manifest.exports).flatMap((entry) => (entry.import ? [entry.import] : []));
+    const entries = new Set([
+      "./dist/runner.js",
+      "./dist/quickjs-platform.js",
+      "./dist/test-preload.js",
+      ...publicEntries,
+      ...Object.values(manifest.bin),
+    ]);
     await build({
       configFile: false,
       root: vitePackageDir,
@@ -134,7 +145,9 @@ class Tasks {
         target: "esnext",
         outDir: "dist",
         rolldownOptions: {
-          input: ["index", "dev", "runner", "quickjs-platform"].map((name) => join(vitePackageDir, `src/${name}.ts`)),
+          input: [...entries].map((entry) =>
+            join(vitePackageDir, entry.replace("./dist/", "src/").replace(/\.js$/, ".ts")),
+          ),
           external: (id) => !id.startsWith(".") && !id.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(id),
           output: {
             preserveModules: true,
@@ -144,6 +157,7 @@ class Tasks {
         },
       },
     });
+    for (const executable of Object.values(manifest.bin)) await chmod(join(vitePackageDir, executable), 0o755);
     await run(["bunx", "tsc", "--project", "tsconfig.build.json"], { cwd: vitePackageDir });
   }
 
@@ -355,6 +369,7 @@ class Tasks {
       ".oxfmtrc.json",
       "scripts/**/*.ts",
       "fixtures/*.{ts,tsx,json}",
+      "packages/solid-gpui/*.ts",
       "packages/solid-gpui/src/*.ts",
       "packages/solid-gpui/src/renderer/**/*.ts",
       "packages/solid-gpui/src/protocol/*.ts",
@@ -363,6 +378,7 @@ class Tasks {
       "packages/solid-gpui/tests/**/*.{ts,tsx,js,json}",
       "examples/**/*.{ts,tsx,json}",
       "packages/solid-gpui-vite/src/**/*.{ts,js}",
+      "packages/solid-gpui-vite/fixtures/**/*.{ts,tsx,json}",
       "packages/solid-gpui-router/src/**/*.ts",
       "packages/solid-gpui-router/tests/**/*.{ts,js,json}",
       "package.json",
@@ -391,9 +407,15 @@ class Tasks {
   async packageTest(): Promise<void> {
     await this.packageBuild();
     await Promise.all([
-      run(["bun", "test", "--conditions=browser", "--preload", join(repoRoot, "scripts/solid-jsx.ts")], {
-        cwd: corePackageDir,
-      }),
+      run([
+        "bun",
+        join(vitePackageDir, "dist/cli.js"),
+        "test",
+        "--root",
+        corePackageDir,
+        "--config",
+        "vite.test.config.ts",
+      ]),
       run(["bun", "--conditions=browser", "test"], { cwd: routerPackageDir }),
       run(["bun", "--conditions=browser", "test"], { cwd: shikiPackageDir }),
       run([
@@ -404,6 +426,10 @@ class Tasks {
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
         "scripts/dev-session.test.ts",
+        "scripts/project.test.ts",
+        "scripts/source-doctor.test.ts",
+        "scripts/embedded-packaging.test.ts",
+        "scripts/test-tooling.test.ts",
         "scripts/task-contract.test.ts",
         "scripts/release-prep.test.ts",
       ]),
@@ -439,6 +465,18 @@ class Tasks {
     await this.corePackageBuild();
     await this.shikiPackageBuild();
     await this.packPackage(shikiPackageDir, outputPath);
+  }
+
+  async sdkPack(outputPath: string): Promise<void> {
+    await this.packageBuild();
+    for (const [directory, name] of [
+      [corePackageDir, "core"],
+      [vitePackageDir, "vite"],
+      [routerPackageDir, "router"],
+      [shikiPackageDir, "shiki"],
+    ] as const) {
+      await this.packPackage(directory, join(outputPath, `solid-gpui-${name}.tgz`));
+    }
   }
 
   private async packPackage(directory: string, outputPath: string): Promise<void> {
@@ -654,6 +692,9 @@ addTask("package-pack <output>", "Pack core package", (output) => tasks.packageP
 addTask("vite-package-pack <output>", "Pack Vite package", (output) => tasks.vitePackagePack(output));
 addTask("router-package-pack <output>", "Pack router package", (output) => tasks.routerPackagePack(output));
 addTask("shiki-package-pack <output>", "Pack Shiki package", (output) => tasks.shikiPackagePack(output));
+addTask("sdk-pack <output>", "Build and pack the matching SDK packages without compiling native hosts", (output) =>
+  tasks.sdkPack(output),
+);
 addTask("package-ci", "Run TypeScript package CI suite", () => tasks.packageCI());
 addTask("rust-format", "Check Rust formatting", () => tasks.rustFormat());
 addTask("rust-compile", "Compile Rust workspace", () => tasks.rustCompile());

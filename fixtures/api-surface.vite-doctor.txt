@@ -1,0 +1,10 @@
+# api-surface-v1
+# name	kind
+doctor	value
+DoctorCheck	type
+DoctorCheckId	type
+DoctorConfig	type
+DoctorOptions	type
+DoctorReport	type
+DoctorStatus	type
+formatDoctorReport	value

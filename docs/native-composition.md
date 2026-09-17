@@ -252,6 +252,32 @@ Distributing remaining space is a separate contract: a bounded scrolling work
 area needs an explicit flex direction on every ancestor. See
 [bounded page scrolling](scroll-performance.md#bounded-page-scrolling).
 
+### Row and Column
+
+`Row` and `Column` are `View` presets exported from `@solid-gpui/core`. They set
+the flex direction explicitly, so layout never depends on the implicit flex that
+`gap` or alignment enables, and they expose readable shorthands:
+
+```tsx
+import { Column, Row, Text } from "@solid-gpui/core";
+
+<Column gap={12} padding={24} align="center">
+  <Text>Title</Text>
+  <Row gap={8} justify="space-between">
+    <Text>Left</Text>
+    <Text>Right</Text>
+  </Row>
+</Column>;
+```
+
+They accept every `View` prop (`RowProps`/`ColumnProps`, both extending
+`FlexContainerProps`) plus `gap`, `align`, `justify`, and `padding`, which map to
+`gap`, `alignItems`, `justifyContent`, and `padding`. A shorthand overrides the
+matching `style` field, an explicit `style.flexDirection` of your own wins over the
+preset (for example `"row-reverse"`), and the shorthands are never sent to the host
+element. Raw `View` semantics are unchanged, including that `gap` or alignment
+alone still implies flex with an implicit column.
+
 ## Native grid
 
 Primitive styles support `gridColumns`, `gridRows`, `gridColumnSpan`, and

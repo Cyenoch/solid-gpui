@@ -56,7 +56,9 @@ macro_rules! dialog_props {
         impl Default for $name { fn default() -> Self { Self { open: false, title: None, width: 480., close_button: true, keyboard: true, buttons: ModalButtons::default(), $($field: $default,)* } } }
     }
 }
-dialog_props!(DialogProps { max_width: Option<f32> = None, margin_top: Option<f32> = None, overlay: bool = true, overlay_closable: bool = true });
+// `show_footer` belongs to `Dialog` alone: an `AlertDialog` exists to ask a
+// question with its action buttons, so it always paints a footer.
+dialog_props!(DialogProps { show_footer: bool = true, max_width: Option<f32> = None, margin_top: Option<f32> = None, overlay: bool = true, overlay_closable: bool = true });
 dialog_props!(AlertDialogProps { description: Option<String> = None });
 #[crate::native_type]
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -351,7 +353,6 @@ impl ModalKind for Dialog {
                         .overlay(p.overlay)
                         .overlay_closable(p.overlay_closable)
                         .button_props(p.buttons.native())
-                        .footer(p.buttons.native().render_footer())
                         .child(model.children.content())
                         .on_ok(on_action(view.clone(), session, ModalActionKind::Ok))
                         .on_cancel(on_action(view.clone(), session, ModalActionKind::Cancel));
@@ -367,9 +368,13 @@ impl ModalKind for Dialog {
                     } else if let Some(v) = &p.title {
                         d = d.title(v.clone());
                     }
+                    // A custom footer slot always wins. Without one, the native
+                    // OK/Cancel footer is painted unless `showFooter` disables it.
                     let footer = model.children.slot("footer");
                     if !footer.is_empty() {
                         d = d.footer(footer);
+                    } else if p.show_footer {
+                        d = d.footer(p.buttons.native().render_footer());
                     }
                     d
                 },

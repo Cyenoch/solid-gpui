@@ -1,0 +1,23 @@
+# api-surface-v1
+# name	kind
+assertHostRunsLocally	value
+checkProject	value
+createSolidGpuiProject	value
+loadProject	value
+NativeHostBinding	type
+NativePreparation	type
+outputEntryFileName	value
+PreparedProject	type
+prepareProject	value
+PrepareProjectOptions	type
+previewApplication	value
+PreviewOptions	type
+ProjectConfig	type
+ProjectOptions	type
+PublicationOptions	type
+publishProject	value
+registeredPathMappings	value
+registerSolidGpuiProject	value
+SolidGpuiOptions	type
+SolidGpuiProject	type
+SolidGpuiTarget	type

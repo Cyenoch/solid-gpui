@@ -131,4 +131,4 @@ Tab / Shift-Tab、中文输入组合、剪贴板和撤销以及无障碍遍历�
 缩放和桌面会话。确定性测试与跨平台编译不能代替原生输入和 compositor 验收。
 证据及待验收项见[实施记录](../.scratch/native-presentation/implementation.md)。
 
-SwiftUI / AppKit 视图嵌入是独立阶段，见[原生组合](native-composition.md)。
+SwiftUI / AppKit 视图嵌入是独立阶段，见[原生组合](native-composition.zh-CN.md)。

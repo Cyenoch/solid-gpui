@@ -14,7 +14,7 @@ export type {
   ExtensionProperties,
   ExtensionValue,
 } from "./protocol";
-export { ICON_NAMES, registerIconNames } from "./protocol";
+export { ICON_NAMES, registerIconNames, type ApplicationIconCatalog } from "./protocol";
 import { createMemo, createSignal, mapArray } from "solid-js";
 import { createHostElement } from "./renderer";
 import type {
@@ -151,6 +151,7 @@ export {
   type WindowSize,
   type WindowSizeStore,
 } from "./hooks";
+export { Column, Row, type ColumnProps, type FlexContainerProps, type RowProps } from "./layout";
 
 function hostComponent<Props extends object>(kind: HostKind): (props: Props) => HostNodeInternal {
   return (props: Props): HostNodeInternal => createHostElement(kind, props as HostProps);

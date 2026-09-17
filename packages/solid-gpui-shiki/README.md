@@ -5,7 +5,9 @@ uses one persistent Worker and Shiki 4.4.2's Oniguruma engine. GPUI shapes and
 paints the text; no HTML, DOM or WebView is involved.
 
 ```sh
-bun add @solid-gpui/shiki @solid-gpui/core solid-js
+# SDK packages are not published to a registry yet: pack them from one pinned
+# checkout with `bun run task sdk-pack <dir>` and install the tarballs together.
+bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
 ```
 
 ```tsx
@@ -33,8 +35,11 @@ function App() {
 }
 ```
 
-Compile JSX with the Solid GPUI universal transform and run Bun with
-`--conditions=browser`, as for other Solid GPUI components. Wrap the component
+Compile JSX with the Solid GPUI universal transform. Run the application through the
+host (`solid-gpui-host bun --conditions=browser app.js`) or through Vite; tests run
+with `solid-gpui test`, which selects Solid's client build for you, so
+`--conditions=browser` is only needed for a raw `bun test`/`bun run` invocation that
+bypasses both. Wrap the component
 in `ErrorBoundary` from `@solid-gpui/core/runtime` to present highlighting errors.
 If initialization fails before mounting, handle that rejected promise in the
 application entrypoint. An application that never mounts must dispose its service.

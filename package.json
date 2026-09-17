@@ -23,12 +23,13 @@
     "website:native": "bun run task website-native",
     "website:native:dev": "bun run task website-native-dev",
     "website:native:package": "bun run task website-package",
-    "embedded:package": "bun scripts/bun-static-package.ts",
+    "embedded:package": "bun packages/solid-gpui-vite/src/embedded/command.ts",
     "quickjs:dev": "bun run task quickjs-dev"
   },
   "devDependencies": {
     "@jridgewell/remapping": "2.3.5",
     "@solidjs/compiler": "2.0.0-rc.6",
+    "@solid-gpui/router": "workspace:*",
     "bebop-tools": "3.2.3",
     "bun-types": "1.4.2",
     "commander": "15.0.0",

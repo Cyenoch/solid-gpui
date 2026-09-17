@@ -1,14 +1,22 @@
 import { dirname, resolve, sep } from "node:path";
 import type { DevEnvironment, ViteDevServer } from "vite";
+import { generatedDirectory } from "./artifacts.ts";
 import type { NativeHostOptions } from "./environment.ts";
 import type { NativeExportOptions } from "./native-export.ts";
-import { isNativeInput, nativeWatchInputs, type NativeWatchInputs } from "./native-watch.ts";
+import {
+  externalWatchInputs,
+  isNativeInput,
+  nativeWatchInputs,
+  refreshNativeWatchInputs,
+  type NativeWatchInputs,
+} from "./native-watch.ts";
 
 export interface DevSessionOptions {
   readonly native?: NativeExportOptions;
   /** Generated bindings for the host that runs this session. */
   readonly bindings?: string;
-  readonly prepare: (signal: AbortSignal) => Promise<NativeHostOptions>;
+  /** Build the host and publish bindings; `log` carries Cargo's progress output. */
+  readonly prepare: (signal: AbortSignal, log: (line: string) => void) => Promise<NativeHostOptions>;
 }
 
 interface SessionRuntime {
@@ -24,7 +32,7 @@ export class DevSession {
   private closed = false;
   private controller?: AbortController;
   private task?: Promise<void>;
-  private timer?: ReturnType<typeof setTimeout>;
+  private timer?: NodeJS.Timeout | number;
   private host?: NativeHostOptions;
 
   constructor(
@@ -36,6 +44,10 @@ export class DevSession {
     this.inputs = {
       roots: options.native ? [dirname(resolve(server.config.root, options.native.manifestPath))] : [],
       configuration: [],
+      declared: [],
+      explicit: [],
+      packages: [],
+      fingerprints: [],
     };
   }
 
@@ -52,6 +64,7 @@ export class DevSession {
   }
 
   private isGenerated(file: string): boolean {
+    if (file.startsWith(generatedDirectory(this.server.config.root) + sep)) return true;
     const output = this.options.bindings && resolve(this.server.config.root, this.options.bindings);
     return !!output && (file === output || file.startsWith(output + "."));
   }
@@ -100,9 +113,9 @@ export class DevSession {
         if (this.options.native) {
           this.server.config.logger.info("solid-gpui: rebuilding native host and bindings...");
           this.inputs = await nativeWatchInputs(this.options.native, this.server.config.root, signal);
-          this.server.watcher.add([...this.inputs.roots, ...this.inputs.configuration]);
+          this.server.watcher.add([...this.inputs.roots, ...this.inputs.configuration, ...this.inputs.explicit]);
         }
-        this.host = await this.options.prepare(signal);
+        this.host = await this.prepareHost(signal);
         signal.throwIfAborted();
         this.environment.moduleGraph.invalidateAll();
         await this.runtime.start(this.host, signal, (error) => {
@@ -123,6 +136,20 @@ export class DevSession {
         if (!signal.aborted) this.report(error);
         controller.abort();
         await this.runtime.stop();
+      }
+    }
+  }
+
+  /** Cargo's own inputs are only complete after a build, so watch lists are refreshed per attempt. */
+  private async prepareHost(signal: AbortSignal): Promise<NativeHostOptions> {
+    try {
+      return await this.options.prepare(signal, (line) => this.server.config.logger.info(line));
+    } finally {
+      if (!signal.aborted) {
+        // The first build creates the fingerprints and dep-info the declared inputs come from.
+        this.inputs = await refreshNativeWatchInputs(this.inputs);
+        const external = externalWatchInputs(this.inputs);
+        if (external.length > 0) this.server.watcher.add(external);
       }
     }
   }

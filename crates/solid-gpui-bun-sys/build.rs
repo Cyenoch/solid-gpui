@@ -14,7 +14,8 @@ struct BuildConfig {
 
 fn build_config() -> &'static BuildConfig {
     static CONFIG: std::sync::LazyLock<BuildConfig> = std::sync::LazyLock::new(|| {
-        serde_json::from_str(include_str!("bun-build.json")).expect("invalid pinned Bun build config")
+        serde_json::from_str(include_str!("bun-build.json"))
+            .expect("invalid pinned Bun build config")
     });
     &CONFIG
 }
@@ -164,13 +165,19 @@ fn checkout_bun(out_dir: &Path) -> PathBuf {
         Command::new("git").args(["-C", source.to_str().unwrap_or(""), "rev-parse", "HEAD"]),
         "verifying Bun revision",
     );
-    assert_eq!(actual, build_config().revision, "Bun source revision drifted");
+    assert_eq!(
+        actual,
+        build_config().revision,
+        "Bun source revision drifted"
+    );
     source
 }
 
 fn build_embedded_library(out_dir: &Path) -> PathBuf {
     if env::var("CARGO_CFG_TARGET_OS").ok().as_deref() != Some("macos") {
-        panic!("direct embedded Bun builds currently support macOS only; use the static application packager for other targets");
+        panic!(
+            "direct embedded Bun builds currently support macOS only; use the static application packager for other targets"
+        );
     }
 
     let source = checkout_bun(out_dir);
@@ -221,15 +228,33 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
     if bun.is_empty() {
         panic!("Bun 1.4 is required in PATH to build the pinned embedding library");
     }
+    // Bun's configure prefers a Homebrew LLVM over the host compiler, and the
+    // pinned LLVM rejects attributes that a newer macOS SDK uses — so a machine
+    // whose SDK outruns the pinned LLVM must be able to name the SDK it builds
+    // with. These are the same levers the static packager exposes as
+    // `--macos-sdk` and `--deployment-target`.
+    let mut configure: Vec<String> = [
+        "scripts/build.ts",
+        "--profile=debug-no-asan",
+        "--configure-only",
+        "--webkit=prebuilt",
+        "--build-dir",
+        build_dir.to_str().unwrap_or(""),
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    if let Some(sdk) = env::var_os("SOLID_GPUI_BUN_MACOS_SDK") {
+        configure.push(format!("--macos-sdk={}", PathBuf::from(sdk).display()));
+    }
+    if let Some(version) = env::var_os("SOLID_GPUI_BUN_DEPLOYMENT_TARGET") {
+        configure.push(format!(
+            "--osx-deployment-target={}",
+            version.to_string_lossy()
+        ));
+    }
     run(
-        Command::new(&bun).current_dir(&source).args([
-            "scripts/build.ts",
-            "--profile=debug-no-asan",
-            "--configure-only",
-            "--webkit=prebuilt",
-            "--build-dir",
-            build_dir.to_str().unwrap_or(""),
-        ]),
+        Command::new(&bun).current_dir(&source).args(&configure),
         "configuring pinned Bun native graph",
     );
 
@@ -303,6 +328,7 @@ fn build_embedded_library(out_dir: &Path) -> PathBuf {
             "-Wl,-w",
             "-Wl,-exported_symbol,_bun_embedded_create",
             "-Wl,-exported_symbol,_bun_embedded_run",
+            "-Wl,-exported_symbol,_bun_embedded_result",
             "-Wl,-exported_symbol,_bun_embedded_wake",
             "-Wl,-exported_symbol,_bun_embedded_terminate",
             "-Wl,-exported_symbol,_bun_embedded_destroy",
@@ -323,6 +349,8 @@ fn main() {
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CACHE");
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_CHECK_ONLY");
     println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_LINK_MANIFEST");
+    println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_MACOS_SDK");
+    println!("cargo:rerun-if-env-changed=SOLID_GPUI_BUN_DEPLOYMENT_TARGET");
     if env::var_os("CARGO_FEATURE_EMBEDDED_BUN").is_none() {
         return;
     }
@@ -335,10 +363,9 @@ fn main() {
     }
     if let Some(path) = env::var_os("SOLID_GPUI_BUN_LINK_MANIFEST") {
         let path = PathBuf::from(path);
-        let manifest: serde_json::Value = serde_json::from_slice(
-            &fs::read(&path).expect("reading static Bun link manifest"),
-        )
-        .expect("parsing static Bun link manifest");
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).expect("reading static Bun link manifest"))
+                .expect("parsing static Bun link manifest");
         assert_eq!(manifest["schemaVersion"].as_u64(), Some(1));
         assert_eq!(
             manifest["target"].as_str(),

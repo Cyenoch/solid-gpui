@@ -3,10 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate": "solid-gpui prepare",
+    "check:generated": "solid-gpui prepare --check",
+    "doctor": "solid-gpui doctor",
+    "typecheck": "tsc --noEmit",
+    "test": "solid-gpui test",
     "dev": "bun --bun vite",
     "dev:rust": "cargo run -p desktop-app-host",
     "build": "bun run --bun vite build",
-    "start": "cargo run -p desktop-app-host -- --production"
+    "preview": "solid-gpui preview"
   },
   "dependencies": {
     "@solid-gpui/core": "workspace:*",

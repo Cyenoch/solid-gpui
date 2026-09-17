@@ -6,8 +6,12 @@ Bun Worker. QuickJS is not supported yet.
 
 ## Install and initialize
 
+The SDK packages are not on a public registry yet; install the tarballs packed by
+`bun run task sdk-pack <dir>` from one pinned checkout
+(see [Getting started](getting-started.md#1-install)):
+
 ```sh
-bun add @solid-gpui/shiki @solid-gpui/core solid-js
+bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
 ```
 
 Create one service per application or explicitly owned feature, before mounting:
@@ -21,8 +25,11 @@ const highlighter = await createBunHighlighter({
 });
 ```
 
-Use the same Solid GPUI JSX transform and Bun `--conditions=browser` setting as
-the rest of your application. Handle initialization failure in the application
+Use the same Solid GPUI JSX transform as the rest of your application: Vite
+development and builds set their own resolution conditions, and `solid-gpui test`
+selects Solid's client build for tests, so `--conditions=browser` is only needed for
+a raw `bun test` or `bun run` invocation that bypasses both. Handle initialization
+failure in the application
 entrypoint; wrap rendered components in a Solid GPUI `ErrorBoundary` to display
 highlighting errors.
 
@@ -52,7 +59,7 @@ source with the surrounding text style. The completed theme supplies foreground
 and background; layout and typography come from `style`.
 
 The component is selectable by default. All runs form one native paragraph, so
-selection and copying cross token boundaries. Original Unicode and line endings
+selection and copying cross token boundaries and line breaks. Original Unicode and line endings
 are retained. This is a read-only code block, limited to 64 KiB of UTF-8 source
 and 4,096 coalesced runs. It is not a virtualized editor.
 

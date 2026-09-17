@@ -66,7 +66,7 @@ Hero 将官方 [vgpu Optimized Black Hole 预览](https://vgpu.sh/preview/optimi
 - 资源前缀为 `/<repository-name>/`，本站为 `/solid-gpui/`。仅上传 `examples/website/dist`。部署任务获得 Pages 写权限和 OIDC 权限，无需个人访问令牌或后端。
 - 新的拉取请求运行会取消过时检查。生产部署会等待正在执行的部署完成，最后通过 HTTP 检查确认发布页面可访问。
 
-wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。Cargo 依赖缓存包含两个固定编译器，并跨源码提交复用。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.md)。
+wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。Cargo 依赖缓存包含两个固定编译器，并跨源码提交复用。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.zh-CN.md)。
 
 首次发布时，需要一并推送工作流、`examples/website`、`assets/branding`、Web 宿主、工作区依赖、锁文件、vendor 补丁和引用的文档。只有 YAML 文件无法完成构建。不要提交生成的 `dist`、`target` 或 `src/wasm` 目录。
 

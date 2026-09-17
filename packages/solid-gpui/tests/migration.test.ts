@@ -69,7 +69,7 @@ test("migration styles reject ambiguous sizes and malformed gradients before pub
 });
 
 test("application icons remain explicitly registered and bounded", () => {
-  const [name] = registerIconNames(["migration-test:brand"] as const);
+  const name = registerIconNames(["migration-test:brand"] as const)["migration-test:brand"];
   const transport = new MemoryTransport();
   const root = createRoot(transport);
   root.render(() => createComponent(Icon, { name }));
@@ -77,4 +77,16 @@ test("application icons remain explicitly registered and bounded", () => {
   root.unmount();
   expect(() => registerIconNames(["../escape:icon"])).toThrow();
   expect(() => registerIconNames(["lucide:play"])).toThrow("reserved");
+});
+
+test("application icons are addressed by name, never by catalog position", () => {
+  const catalog = registerIconNames(["order-test:first", "order-test:second"] as const);
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  root.render(() => createComponent(Icon, { name: catalog["order-test:second"], size: 12 }));
+  const envelope = Envelope.decode(transport.submitted[0]!.subarray(4)).body!;
+  if (envelope.tag !== 1) throw new Error("expected Snapshot");
+  const icon = envelope.value.nodes!.find((node) => node.hostProperties?.tag === 6);
+  expect(icon?.hostProperties?.tag === 6 ? icon.hostProperties.value.name : undefined).toBe("order-test:second");
+  root.unmount();
 });

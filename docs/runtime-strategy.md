@@ -32,16 +32,25 @@ ownership and process topology are separate decisions, as recorded in
 
 ## Embedded Bun static product
 
-`bun scripts/bun-static-package.ts` — exposed as `bun run embedded:package` —
-produces one application executable per target: the GPUI host, the Bun/JSC
+`solid-gpui embedded package` (public CLI), `packageEmbeddedApplication` from
+`@solid-gpui/vite/embedded`, and this repository's checkout-local entry
+(`bun packages/solid-gpui-vite/src/embedded/command.ts`, npm script
+`embedded:package`) are three routes to one driver. It produces one application executable per target: the
+GPUI host, the Bun/JSC
 runtime, and the serialized application with its declared assets and Worker
 entries, in a single native image. It needs no separate Bun or Node executable,
-JavaScript tree, `node_modules`, or Bun/JSC shared library. The pinned serializer
+JavaScript tree, `node_modules`, or Bun/JSC shared library. A consumer passes an
+explicit `sdkRoot` (the SDK checkout owning the pinned Bun/Rust backend) and its
+own Cargo input (`application.manifest`, `.package`, `.features`, `.main`), so no
+repository-private file is copied. The pinned serializer
 is a **build-time** input, not a runtime dependency. OS libraries and any other
-target/profile-specific native dependencies still need qualification. Windows
-packaging is experimental and Linux stops at native preparation — see
-[platform status](distribution.md#platform-status-and-current-evidence) for what
-each target has proven, and
+target/profile-specific native dependencies still need qualification. Everything
+in this workflow stays experimental; no target is claimed as supported or verified,
+and the [platform status
+table](distribution.md#platform-status-and-current-evidence) in the distribution
+guide is the only evidence. Windows
+packaging is experimental and Linux stops at native preparation — see that
+section for what each target has proven, and
 [distribution](distribution.md#embedded-bun-static-applications) for commands,
 prerequisites, and release steps.
 
@@ -104,11 +113,19 @@ failing session cannot silently fall back to another file: if the executable has
 no usable graph, or no such entry, the session fails closed with a negative
 `packaged_graph_status` (`UNAVAILABLE`, `MALFORMED`, `NOT_VIRTUAL`, `MISSING`,
 `BYTECODE`, `NATIVE_LIBRARY`) reported through the commit/status path, and
-nothing is evaluated. A packaged identity travels through the unchanged
-five-function C ABI (`bun_embedded_create`/`run`/`wake`/`terminate`/`destroy`) as
+nothing is evaluated. A packaged identity travels through the
+six-function C ABI (`bun_embedded_create`/`run`/`result`/`wake`/`terminate`/`destroy`)
+as
 the existing entry pointer-plus-length parameter with a tag byte distinguishing a
-graph key from a filesystem path; no second ABI function, graph-install call, or
-transport was added.
+graph key from a filesystem path; the added function only reads the application's
+declared completion, so no second graph-install call or
+transport was added. The packager reports the typed entry identity
+(`role: "application"`) and every worker identity, so an application's packaging
+script never has to reconstruct them; generated Rust exposes `BUN_EMBEDDED_ENTRY`
+and `BUN_EMBEDDED_WORKERS`. An application reports its own exit code with
+`completeEmbedded(code)` from `@solid-gpui/core/embedded` (guarded by
+`supportsEmbeddedCompletion()`), and the host reads the full `u32` through
+`EmbeddedBunAdapter::result()` even though the VM exit status carries only a byte.
 
 Lifecycle is the embedded lifecycle documented in the
 [communication baseline](#communication-baseline): one persistent Bun owner

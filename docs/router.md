@@ -15,10 +15,12 @@ Use `@solid-gpui/router` imports and native components when adapting those examp
 
 ## Configure generation
 
-Install the router alongside your existing Solid GPUI application:
+Install the router alongside your existing Solid GPUI application. It is not on a
+public registry yet, so install it from the same `bun run task sdk-pack <dir>` run
+as the rest of the SDK (see [Getting started](getting-started.md#1-install)):
 
 ```sh
-bun add @solid-gpui/router
+bun add ../sdk-tarballs/solid-gpui-router.tgz
 ```
 
 Add `solidGpuiRouter()` before the universal JSX plugin in your Vite configuration:

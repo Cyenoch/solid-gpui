@@ -12,19 +12,58 @@ import {
 import type { Accessor } from "solid-js";
 import type { SolidChild } from "./renderer/types";
 
+// One canonical runtime instance: the renderer, the application and the SDK all
+// read Solid through this module, and the guard rejects a second Solid copy.
+import "./runtime-guard";
+
+/** Lifecycle, ownership, context, scheduling and store helpers, re-exported from the same Solid instance. */
 export {
   batch,
+  catchError,
+  children,
+  createComputed,
+  createContext,
+  createDeferred,
   createEffect,
   createMemo,
+  createReaction,
   createRenderEffect,
-  createRoot,
-  createSignal,
   createResource,
-  useTransition,
-  startTransition,
+  createRoot,
+  createSelector,
+  createSignal,
+  createUniqueId,
+  from,
+  getListener,
+  getOwner,
+  indexArray,
+  mapArray,
+  observable,
+  on,
   onCleanup,
+  onError,
+  onMount,
+  runWithOwner,
+  splitProps,
+  startTransition,
   untrack,
+  useContext,
+  useTransition,
 } from "solid-js";
+export {
+  createMutable,
+  createStore,
+  modifyMutable,
+  produce,
+  reconcile,
+  unwrap,
+  type Part,
+  type SetStoreFunction,
+  type Store,
+  type StoreNode,
+  type StoreSetter,
+} from "solid-js/store";
+export type { Accessor, ChildrenReturn, Context, Owner, Resource, ResourceReturn, Setter, Signal } from "solid-js";
 
 import { solidRenderer } from "./renderer";
 

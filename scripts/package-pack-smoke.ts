@@ -277,7 +277,13 @@ try {
     const manifest = JSON.parse(await packageJson.text()) as {
       readonly dependencies?: Record<string, string>;
       readonly peerDependencies?: Record<string, string>;
+      readonly exports: Record<string, string | { readonly "solid-gpui-source"?: string }>;
     };
+    for (const [specifier, entry] of Object.entries(manifest.exports)) {
+      const source = typeof entry === "object" ? entry["solid-gpui-source"] : undefined;
+      if (source && !files.has(`package/${source.replace(/^\.\//, "")}`))
+        throw new Error(`missing source export ${specifier}: ${source} in packed ${spec.name}`);
+    }
     if (spec.name === "core") {
       if (manifest.dependencies?.["solid-js"] !== undefined) throw new Error("packed core bundles a Solid dependency");
       if (manifest.peerDependencies?.["solid-js"] === undefined)
@@ -315,9 +321,6 @@ try {
           "@solid-gpui/shiki": "file:" + archivePaths.shiki,
           "@solid-gpui/vite": "file:" + archivePaths.vite,
           "solid-js": "1.9.15",
-        },
-        overrides: {
-          "@solid-gpui/core": "file:" + archivePaths.core,
         },
         devDependencies: { "bun-types": "1.4.2", typescript: "7.0.2", vite: "8.2.2" },
       },
@@ -369,6 +372,7 @@ if (router.state.matches.at(-1)?.loaderData?.title !== "Packed file route") thro
   ]);
 
   await run(["bun", "install", "--no-progress"], consumerDir);
+  await run(["cargo", "generate-lockfile", "--offline", "--manifest-path", "native-host/Cargo.toml"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "core-runtime.js"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "router.ts"], consumerDir);
   await run(["bun", "--conditions=browser", "run", "generate-routes.ts"], consumerDir);
@@ -419,6 +423,69 @@ rolldownOptions: { output: { entryFileNames: process.env.SOLID_GPUI_OUTPUT } } }
   await run([...typecheck, "shiki.ts"], consumerDir);
   await run([...typecheck, "native.ts"], consumerDir);
   await run([...typecheck, "--jsx", "preserve", "core-runtime.js", "view.tsx"], consumerDir);
+  await Bun.write(
+    join(consumerDir, "dx.config.ts"),
+    `import { solidGpui } from "@solid-gpui/vite";
+export default { plugins: [solidGpui({ entry: "dx-app.tsx", native: { manifestPath: "native-host/Cargo.toml" } })] };
+`,
+  );
+  await Bun.write(
+    join(consumerDir, "pixel.svg"),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><path d="M0 0h1v1H0z"/></svg>',
+  );
+  await Bun.write(
+    join(consumerDir, "dx-app.tsx"),
+    `import { Column, Text } from "@solid-gpui/core";
+import { createSignal } from "solid-js";
+import { createEffect } from "@solid-gpui/core/runtime";
+import { answer } from "#native";
+import image from "./pixel.svg?inline";
+export const asset = image;
+export function Counter(props: { register: (increment: () => void) => void; observe: (value: number) => void }) {
+  const [value, setValue] = createSignal(answer);
+  props.register(() => setValue(value() + 1));
+  createEffect(() => props.observe(value()));
+  return <Column><Text>{value()}</Text></Column>;
+}
+`,
+  );
+  await Bun.write(
+    join(consumerDir, "dx.test.tsx"),
+    `import { beforeEach, expect, test } from "bun:test";
+import { MemoryTransport, createRoot } from "@solid-gpui/core";
+import { Counter, asset } from "./dx-app";
+let observations: number[];
+beforeEach(() => { observations = []; });
+test("installed tooling preserves JSX, assets, native imports and shared reactivity", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  let increment!: () => void;
+  try {
+    root.render(() => <Counter register={value => { increment = value; }} observe={value => observations.push(value)} />);
+    await Promise.resolve();
+    expect(observations).toEqual([42]);
+    expect(transport.submitted.length).toBe(1);
+    increment();
+    await Promise.resolve();
+    expect(observations).toEqual([42, 43]);
+    expect(transport.submitted.length).toBe(2);
+    expect(asset).toMatch(/^data:image\\/svg\\+xml/);
+  } finally { root.unmount(); }
+});
+`,
+  );
+  await Bun.write(
+    join(consumerDir, "tsconfig.json"),
+    JSON.stringify({
+      extends: "./.solid-gpui/tsconfig.json",
+      compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, types: ["bun-types", "vite/client"] },
+      include: ["dx-app.tsx", "dx.test.tsx"],
+    }),
+  );
+  await run(["bun", "run", "solid-gpui", "prepare", "--config", "dx.config.ts"], consumerDir);
+  await run(["bun", "run", "solid-gpui", "prepare", "--check", "--config", "dx.config.ts"], consumerDir);
+  await run(["bunx", "--no-install", "tsc", "--project", "tsconfig.json"], consumerDir);
+  await run(["bun", "run", "solid-gpui", "test", "--config", "dx.config.ts", "dx.test.tsx"], consumerDir);
   console.log("core, Vite, router and Shiki package tarball consumer smoke passed");
 } finally {
   await rm(temporaryDir, { recursive: true, force: true });

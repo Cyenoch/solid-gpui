@@ -1,6 +1,6 @@
 import { fork } from "node:child_process";
 import type { GeneratorEvent } from "@tanstack/router-generator";
-import type { FileRouterOptions } from "./generator-engine";
+import type { FileRouterOptions } from "./generator-engine.ts";
 
 /** Keep Node build dependencies outside the native runtime's browser conditions. */
 export function createGenerationSession(options: FileRouterOptions) {

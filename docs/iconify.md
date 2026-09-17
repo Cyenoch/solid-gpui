@@ -141,21 +141,25 @@ catalogs fail registration. The catalog is immutable and bounded to 256 entries,
 dimensions. Built-in icons keep their existing allowlist.
 
 `ComponentHost::native_bindings()` exports the registered names as the typed
-`applicationIcons` tuple. Import it from your generated bindings module (the
-example below uses `./native`) and pass an entry to `Icon`:
+`applicationIcons` record, keyed by registered name. Import it from your generated
+bindings module (the example below uses `./native`) and look up the name you
+registered:
 
 ```tsx
 import { Icon } from "@solid-gpui/core";
 import { applicationIcons } from "./native";
 
-const [brand] = applicationIcons;
+const brand = applicationIcons["desktop:brand"];
 export function BrandIcon() {
   return <Icon name={brand} size={32} accessibilityLabel="Application logo" />;
 }
 ```
 
-The tuple is sorted by icon name. Registration and export use the same executable
-in development and production. Regenerate bindings after changing the catalog.
+The record is keyed and frozen, so a name is never coupled to registration order;
+iterate it with `Object.keys`/`Object.values` when you need every application icon,
+and let the generated `ApplicationIconCatalog<T>` type reject an unknown key.
+Registration and export use the same executable in development and production.
+Regenerate bindings after changing the catalog.
 `registerIconNames` is available for custom binding generators, but registering
 JavaScript names alone does not embed SVG assets in the host.
 

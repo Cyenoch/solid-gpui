@@ -1,0 +1,20 @@
+# api-surface-v1
+# name	kind
+artifactsFile	value
+artifactTargetTriple	value
+cargoProfileDirectory	value
+expectedExecutablePath	value
+generatedDirectory	value
+HostArtifacts	type
+NativeArtifacts	type
+NativeBuildOptions	type
+NativeHostArtifacts	type
+normalizeCargoProfile	value
+publishGeneratedFile	value
+readNativeArtifacts	value
+recordedHostExecutable	value
+serializeNativeArtifacts	value
+StaleGeneratedFileError	both
+targetRunsOnHost	value
+tsconfigFile	value
+writeNativeArtifacts	value

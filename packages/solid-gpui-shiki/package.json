@@ -11,21 +11,27 @@
   "main": "./dist/index.js",
   "files": [
     "dist",
+    "src",
     "README.md",
     "LICENSE"
   ],
   "exports": {
     ".": {
+      "solid-gpui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./bun": {
+      "solid-gpui-source": "./src/bun.ts",
       "types": "./dist/bun.d.ts",
       "import": "./dist/bun.js",
       "default": "./dist/bun.js"
     },
-    "./worker": "./dist/worker.js"
+    "./worker": {
+      "solid-gpui-source": "./src/worker.ts",
+      "default": "./dist/worker.js"
+    }
   },
   "engines": {
     "bun": ">=1.4.2"
@@ -36,5 +42,10 @@
   "peerDependencies": {
     "@solid-gpui/core": "^0.3.0",
     "solid-js": "^1.9.10"
+  },
+  "peerDependenciesMeta": {
+    "@solid-gpui/core": {
+      "optional": true
+    }
   }
 }

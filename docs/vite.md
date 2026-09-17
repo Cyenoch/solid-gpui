@@ -5,6 +5,22 @@ or write JSX/TSX and use Vite to compile it. Bun and QuickJS are execution
 runtimes. Vite is the only supported application bundler. There is no direct
 TSX launcher, built-in bundler, or Bun compile path.
 
+`@solid-gpui/vite` is the tooling package. It provides this Vite plugin, the
+`solid-gpui` CLI (`prepare`, `preview`, `doctor`, `test`), the
+`@solid-gpui/vite/test` runner, and the `@solid-gpui/vite/artifacts` and
+`@solid-gpui/vite/project` helpers. [Getting started](getting-started.md) walks the
+full sequence; this guide covers the option surface and the advanced paths.
+
+Three different things are produced along the way, and only the third is a
+deliverable:
+
+| Artifact | Produced by | Contains |
+| --- | --- | --- |
+| **Bindings** | `solid-gpui prepare` (`bun run generate`) | The host's exported component catalog, commands, and types, plus the generated TypeScript project. |
+| **Bundle** | `bun --bun vite build` | One JavaScript entry module for the host to execute. The build also prepares the configured native host (an incremental Cargo build), but it emits no native code into the bundle and no installer. |
+| **Native executable** | Cargo, via `native` in the plugin or your own build | The GPUI host that renders the bundle. |
+| **Distributable** | Your packaging script | Executable plus bundle, assets, licences, and signature. See [distribution](distribution.md). |
+
 ## JavaScript without a bundler
 
 Use `createComponent` and reactive getters instead of JSX:
@@ -41,10 +57,14 @@ ES module: it cannot resolve npm packages or external imports. Direct execution
 does not compile or silently bundle that input. Use Vite when dependencies need
 bundling. QuickJS entries use `EmbeddedTransport` and a `quickjs`-enabled host.
 
-## JSX and TSX with Vite
+## Project setup
 
-Install `@solid-gpui/core` and `solid-js`, plus `@solid-gpui/vite` and Vite 8
-as development dependencies. Native development tooling runs
+`@solid-gpui/core` and `solid-js`, plus `@solid-gpui/vite` and Vite 8 as
+development dependencies. The packages are not on a public registry yet: build
+matching tarballs from one pinned SDK checkout with `bun run task sdk-pack <dir>`
+and install `solid-gpui-core.tgz` / `solid-gpui-vite.tgz` from that run (see
+[Getting started](getting-started.md#1-install)). Install by name only once the
+packages are published; today that resolves nothing. Native development tooling runs
 under Bun 1.4.2 or newer. Set `"type": "module"` in `package.json` and create
 `vite.config.ts`:
 
@@ -58,13 +78,76 @@ export default defineConfig({
 ```
 
 The entry explicitly calls `mountApplication`, using `StdioTransport` for external
-Bun. Set TypeScript `jsx` to `preserve` and `jsxImportSource` to `@solid-gpui/core`.
-Add Vite's client types when using `import.meta.hot`.
+Bun. `runtime` is explicit and is never inferred or converted: `"bun"` keeps Bun
+and Node imports as runtime imports, while `"quickjs"` builds one self-contained
+ES module and rejects them.
+
+`solidGpui()` also sets `resolve.dedupe: ["solid-js"]`, so the SDK and your
+application share one Solid instance; do not add another `solid-js` copy or a
+hand-written dedupe entry. `solidGpuiSource()` is exported from both
+`@solid-gpui/vite/source` and the package root.
+
+Add the scripts once and run the generator after installing dependencies. Do not
+name a `package.json` script `prepare`: Bun runs a root package's `prepare` script
+during install, which must not compile a native host.
+
+```json
+{
+  "scripts": {
+    "generate": "solid-gpui prepare",
+    "check:generated": "solid-gpui prepare --check",
+    "doctor": "solid-gpui doctor",
+    "dev": "bun --bun vite",
+    "build": "bun --bun vite build",
+    "preview": "solid-gpui preview",
+    "test": "solid-gpui test"
+  }
+}
+```
+
+`prepare` writes three generated files: `.solid-gpui/tsconfig.json` (the TypeScript
+project that maps `#native` and `@solid-gpui/core/components` to the bindings the
+plugin actually selects), the bindings file (`native.output`, default
+`.generated/native.ts`), and `.solid-gpui/artifacts.json` (the resolved artifact
+record). Keep `.solid-gpui/` out of version control; the bindings file may be
+committed, in which case `solid-gpui prepare --check` is the CI freshness gate.
+`prepare --check` writes nothing (it still resolves and builds the host to compare
+against the real catalog) and fails when either file is stale; `prepare --json`
+prints the artifact record.
+All CLI commands accept `--root`, `--config`, and `--mode`, and `preview` also
+accepts host arguments after `--`.
+
+Your own `tsconfig.json` only extends the generated project:
+
+```json
+{
+  "extends": "./.solid-gpui/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@solid-gpui/core"
+  },
+  "include": ["src", "vite.config.ts"]
+}
+```
+
+Do not hand-maintain `paths`, `baseUrl`, or `customConditions` for the SDK: the
+generated project and the Vite aliases come from one resolution. Add Vite's client
+types when using `import.meta.hot`.
+
+`solid-gpui doctor` reports environment and dependency problems: the active Cargo
+dependencies, profiles, and `[patch.crates-io]` requirements your workspace root
+must carry, plus unsupported runtime or target combinations. Cargo ignores profile
+settings declared by a dependency, so a consuming workspace root must declare them
+itself; see [application build configuration](hot-reload.md#application-build-configuration)
+and [troubleshooting](troubleshooting.md).
+
+## JSX and TSX with Vite
 
 ```sh
 bun --bun vite
 bun --bun vite build
-solid-gpui-host bun --conditions=browser dist/app.js
+bun run preview          # run the built host against the built bundle
 ```
 
 `vite` launches the default `solid-gpui-host` executable. For an existing custom
@@ -97,8 +180,11 @@ stderr or application-owned files and sockets for other I/O.
 
 Production builds bundle JavaScript dependencies by default and preserve Bun/Node
 builtin imports for Bun to execute. Vite `ssr.external` can keep selected packages
-external when they must ship beside the application. Build success does not package
-native libraries, sign an application, or install the selected runtime.
+external when they must ship beside the application. A build also prepares the
+configured native host, so a change that a `generate` would rebuild is compiled here
+too; with `native` unconfigured it does not build a host at all. Build success does
+not package native libraries, sign an application, or install the selected runtime;
+[distribution](distribution.md) owns that work.
 
 ## Application-owned native modules
 
@@ -123,8 +209,28 @@ the executable path, including custom target directories; ambiguous binaries are
 rejected. Vite invokes that executable's exporter, atomically writes bindings,
 and resolves both `#native` and `@solid-gpui/core/components` to that output before
 loading the application. This also keeps Motion on the running host's catalog.
-Unchanged output is not rewritten. Configure TypeScript `paths` for `#native`
-to the same generated file; use its generated types when changing native APIs.
+Unchanged output is not rewritten.
+
+### Native build options
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `manifestPath` | — | Cargo manifest of the host. Required. |
+| `package`, `bin` | — | Cargo selectors; required together when a manifest has several binaries. |
+| `features` | — | Cargo features, for example `["quickjs"]`. |
+| `output` | `.generated/native.ts` | Bindings destination, relative to Vite's root. |
+| `profile` | `"dev"` | Cargo profile; `"debug"` is accepted as an alias. |
+| `target` | — | Cargo `--target` triple for a cross build. |
+| `locked` | `true` | Pass `--locked`. Set `false` only for an intentional first resolution. |
+| `check` | `false` | Verification mode: fail instead of writing when bindings are stale. |
+| `watch` | — | Extra files or directories that trigger a native rebuild. |
+| `exporter` | — | Host executable used to export bindings when `target` is not runnable on this machine. |
+
+`prepare` and development need a host for the current machine. When `target` names
+a platform or architecture other than the build host, both refuse to execute it and
+tell you to drop `target` for the prepare/development host or to pass `exporter`;
+`--export-native` is never run on a foreign target. Cross-compiled artifacts are
+built by Cargo for packaging, and their paths come from the artifact record.
 
 Use either `native` or `host` to select an executable. Both export bindings from
 that executable; `native` additionally builds and watches its Cargo project.
@@ -133,8 +239,9 @@ It does not require declaring an application-specific native module. Use
 the built-in component module. The first Rust build cannot depend on the JS
 bundle whose bindings it is about to export. During development, Rust source, Cargo manifest,
 lockfile, and workspace Cargo configuration edits rebuild the host and bindings
-automatically, including local path dependencies. Vite stops the old runtime
-before publishing the new bindings, then launches a fresh host. Compilation or
+automatically, including local path dependencies. `native.watch` adds files or
+directories that Cargo cannot infer. Vite stops the old runtime before publishing
+the new bindings, then launches a fresh host. Compilation or
 application startup failures leave the watcher running; fix and save to retry.
 Closing the native window leaves development watching too; Ctrl+C stops it.
 See [managed development sessions](hot-reload.md#managed-development-sessions)
@@ -145,6 +252,114 @@ can import the host's exported `native.ts` because Bun loads TypeScript modules;
 it needs no Vite process or `#native` alias. `createClient(root)` and `useNative()`
 use the same identities, command dispatch, cancellation, and validation in both
 authoring paths. See [Rust bridge](rust-bridge.md).
+
+## Artifacts and project resolution
+
+`.solid-gpui/artifacts.json` is the authoritative record: `root`, `runtime`,
+`entry`, `outDir`, `bindings`, `tsconfig`, `bundle` when one exists, the selected
+`host` (`command`, `args`, `output`), and the `native` build settings
+(`manifestPath`,
+`package`, `bin`, `features`, `profile`, `profileDirectory`, `target`, `locked`,
+`targetDirectory`, `executable`). `outDir` is the configured Vite build output
+directory (absolute) and is the stable identity of where this build's outputs
+belong; `bundle` always lives inside it. `profileDirectory` maps `dev` → `debug`,
+`release` → `release`, and any other profile to its own name; `target` is the
+effective Cargo target, including an implicit `CARGO_BUILD_TARGET` or
+`.cargo/config.toml` `build.target`. `prepare` writes `bundle` as a prediction from
+your Vite configuration (a string `entryFileNames` pattern keeps its placeholders)
+and the production build replaces it with the entry Vite actually emitted, which may
+be nested (an output function, or a pattern such as `assets/[name].js`), so read the
+record after `vite build` when a packaging script or `preview` needs the real path —
+never derive it from the config. Reading requires `root`, `runtime`, `entry`,
+`outDir`, and `tsconfig`; a record written by another version or corrupted fails with
+a message telling you to re-run `solid-gpui prepare`.
+Read it instead of reconstructing `target/<profile>/<bin>` or the bundle path:
+
+```ts
+import { readNativeArtifacts, prepareProject } from "@solid-gpui/vite/artifacts";
+
+const record = await readNativeArtifacts(process.cwd());   // or: (await prepareProject()).artifacts
+const executable = record?.native?.executable ?? record?.host?.command;
+```
+
+`prepareProject` resolves the project and returns the same record as `artifacts`;
+`cargoProfileDirectory(profile)` maps a Cargo profile name to its output directory
+(`dev` → `debug`, `release` → `release`, otherwise the profile name).
+`recordedHostExecutable(record)` returns the host Cargo actually built — the
+authoritative path for launching or packaging the profile you built — while
+`expectedExecutablePath(record, profile?)` only predicts where another profile's
+executable would be; verify it, or run that profile's build, before shipping it.
+`previewApplication({ root?, configFile?, args?, env? })` from
+`@solid-gpui/vite/project` runs the built host against the built bundle without
+rebuilding, which is what the `solid-gpui preview` CLI command and the `preview`
+script do.
+
+## Testing
+
+`solid-gpui test` delegates to `@solid-gpui/vite/test`:
+
+```sh
+bun run test                       # whole suite
+bun run test src/app.test.tsx      # one file
+```
+
+```ts
+import { runTests } from "@solid-gpui/vite/test";
+
+const exitCode = await runTests({ root: process.cwd(), configFile: "vite.config.ts", args: ["src/app.test.tsx"] });
+```
+
+`runTests({ root?, configFile?, args? })` resolves to the process exit code and
+uses the application's own `vite.config.ts`: the real JSX transform, aliases,
+`?inline` assets, deduped `solid-js`, and the native bindings contract. `args` are
+forwarded verbatim to `bun test`, so file filters and every `bun:test` flag work.
+The runner adds the `browser` condition itself, so you never pass
+`--conditions=browser` for tests. One Bun process and one client Solid runtime
+serve the whole suite, and that same runtime is what the packaged application
+loads, so a test and the application share one reactive graph. Bun's test runner
+keeps its normal semantics, so ordinary single-file tests and `bun:test` APIs work
+unchanged. No test needs to
+import a private `dist` module, copy the compiler, or build its own Vite pipeline.
+
+## Consume packages from source
+
+Installed packages resolve to their built `dist` output by default, and ordinary
+use needs nothing else. To debug or iterate on SDK internals, opt in explicitly:
+
+```ts
+import { defineConfig } from "vite";
+import { solidGpui } from "@solid-gpui/vite";
+import { solidGpuiSource } from "@solid-gpui/vite/source";
+
+export default defineConfig({
+  plugins: [solidGpuiSource(), solidGpui({ entry: "src/app.tsx" })],
+});
+```
+
+```sh
+bun --conditions=solid-gpui-source vite      # run, test, or build with source resolution
+```
+
+Bun does not accept custom conditions from `bunfig.toml` (verified on 1.4.2), so
+pass `--conditions=solid-gpui-source` on the command line, for example
+`bun --conditions=solid-gpui-source test`. TypeScript agrees through either
+`"extends": "./.solid-gpui/tsconfig.json"` (the generated project already carries
+the source `paths`) or
+`"customConditions": ["solid-gpui-source"]` with
+`"moduleResolution": "bundler"` or `"nodenext"`.
+
+`@solid-gpui/vite/source` exports `SOURCE_CONDITION`, `SDK_PACKAGES`,
+`solidGpuiSource(options?)` (the plugin), `sdkSource(options?)`, and
+`sdkPackage(name, root?)`. `sdkSource({ root?, packages?, exclude? })` returns the
+resolved table — `aliases` (longest-first, ready for `resolve.alias`), `paths`
+(specifier to absolute source file, the same table `prepare` writes into
+`.solid-gpui/tsconfig.json`), `dedupe`, and `names` — for tooling that cannot use
+conditions at all. `@solid-gpui/core/components` is deliberately excluded from the
+source mappings because the plugin remaps it to the selected host's generated
+bindings; a web-only application that has no native host passes `exclude: []`.
+
+Keep source mode opt-in: a packed consumer and a source consumer must still share
+one reactive graph, and ordinary use stays `dist`-based.
 
 ## Rust-owned Vite development
 
@@ -188,13 +403,39 @@ compiled with the `quickjs` Cargo feature. With native modules, add
 ```sh
 bun --bun vite
 bun --bun vite build
-my-host --runtime quickjs dist/app.js
+bun run preview          # or: <host> --runtime quickjs <bundle>
 ```
 
 Vite builds one self-contained ESM module, initializes the explicit QuickJS UI
 platform, and rejects Bun/Node imports, remaining dynamic imports, and external
 assets. Use inline assets or host-managed files. QuickJS has no ambient Bun API,
-Node services, DOM, or network `fetch`. Put those services in native modules.
+Node services, DOM, or network `fetch`. Put those services in native modules. The
+runtime selection is a build decision: nothing converts a Bun bundle into a QuickJS
+bundle or substitutes one runtime for the other.
+
+A DOM-free QuickJS application type-checks against the published ambient types
+instead of hand-writing its own declarations:
+
+```json
+{
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": ["@solid-gpui/core/quickjs"]
+  }
+}
+```
+
+The entry declares the facilities the engine actually provides — timers
+(`setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `queueMicrotask`),
+`performance.now()`, `console`, UTF-8-only `TextEncoder`/`TextDecoder`, `self`,
+`URL`/`URLSearchParams`/`DOMException`/`Event`/`EventTarget`/`AbortController`/
+`AbortSignal`/`Headers`/`Response` (the bodyless native-router redirect response),
+`import.meta.url`, and `declare module "*?inline"` with a default `string` export
+for inlined assets. It deliberately declares no `fetch`/`Request`, filesystem or
+socket API, no `requestAnimationFrame`, no `import.meta.hot`, and no Node or Bun
+API, so an unavailable capability is a compile error rather than a runtime throw.
+`types: []` plus a hand-written `.d.ts` remains possible, but it loses that check.
+The prepared `.solid-gpui/tsconfig.json` already carries this entry.
 
 Development uses Vite's build watcher, including configured plugins and aliases,
 then sends successful bundles to the existing Rust generation supervisor. It

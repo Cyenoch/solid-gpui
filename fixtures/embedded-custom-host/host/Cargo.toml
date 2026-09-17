@@ -1,0 +1,18 @@
+[package]
+name = "embedded-custom-host"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Application-owned embedded host used by the packager's tests"
+
+[lib]
+name = "embedded_custom_host"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Exercises feature forwarding from the packager into the generated crate.
+counter = []
+
+[dependencies]
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["embedded-bun"] }
