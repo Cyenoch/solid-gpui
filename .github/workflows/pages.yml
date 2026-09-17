@@ -47,15 +47,18 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       # Only an exact input match may skip host compilation; never add fallback keys.
+      # Restore every build:host output so warm and cold frontend inputs agree.
       # native-ci separately verifies the committed SDK contract against its hosts.
       # Extend this closure whenever the host build gains another input.
-      - name: Restore generated WASM host bindings
+      - name: Restore generated host artifacts
         id: web-host
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: examples/website/src/wasm
+          path: &web-host-outputs |
+            examples/website/src/wasm
+            packages/solid-gpui/src/components.ts
           key: >-
-            pages-web-host-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
+            pages-web-host-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
             '.github/workflows/pages.yml', '.github/actions/setup-rust/**',
             '.bun-version', '.cargo/**',
             'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml',
@@ -102,11 +105,11 @@ jobs:
         run: bun --conditions=browser test examples/website/tests
 
       # Publish artifacts only after build/tests succeed, and never from a PR.
-      - name: Save generated WASM host bindings
+      - name: Save generated host artifacts
         if: github.event_name != 'pull_request' && steps.web-host.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: examples/website/src/wasm
+          path: *web-host-outputs
           key: ${{ steps.web-host.outputs.cache-primary-key }}
 
       - name: Configure Pages

@@ -150,8 +150,11 @@ The [Pages workflow](../.github/workflows/pages.yml) handles the full deployment
 
 Two caches with different trust models serve this job.
 
-The **generated WASM host** cache stores only `examples/website/src/wasm`, the
-bindings wasm-bindgen produces from the pinned Web nightly. Its key is an
+The **generated host** cache stores both outputs of `build:host`:
+`examples/website/src/wasm` and `packages/solid-gpui/src/components.ts`.
+Restoring the generated SDK catalog together with WASM keeps warm and cold
+frontend inputs identical, even if the exporter rewrote the checked-out catalog.
+Its key is an
 exact-input hash with no `restore-keys`, so every hit is an exact hit: the
 restored bindings were produced by the same host build this commit would run. The
 key covers the workflow itself, the Rust setup action, the pinned toolchain and
@@ -170,14 +173,14 @@ dependency cache, the wasm-bindgen CLI, and `build:host`. It never skips route
 generation, the type check, the Vite bundle, or the website tests, so a warm run
 still validates everything that consumes the host. A key with no entry - a Rust,
 manifest, exporter, or generated-contract change - rebuilds the host through the
-same pins and commands as an uncached run. `pages-web-host-v1` namespaces the
+same pins and commands as an uncached run. `pages-web-host-v2` namespaces the
 current artifact layout; bump it and extend the hashed closure whenever the host
 build gains an input, so an entry written for other inputs can never be reused.
 
 The **Cargo dependency** cache is the `rust-cache` entry from
 `.github/actions/setup-rust`. It is keyed per runner and build purpose, reused
-across source commits, saved even when a job fails, and used only on the cold
-path. It holds compilation inputs, never the generated bindings. It is also never
+across source commits, saved only by successful non-PR jobs, and used only on the cold
+path. It holds intermediate compilation products, never the generated bindings. It is also never
 a reason to skip the host build: only the exact-input WASM cache hit skips it, and
 that cache is written only by non-pull-request runs that already built the host,
 type-checked and bundled the site, and passed the website tests. No partial,
@@ -185,7 +188,8 @@ failed, or unrelated cache entry substitutes for that build.
 
 Because the key includes the committed SDK bindings, regenerate and commit
 `packages/solid-gpui/src/components.ts` together with any host change that alters
-it; a warm run type-checks the site against the committed file.
+it. The independent native CI job still verifies that the committed catalog is current;
+restoring generated output for Pages does not bypass that freshness check.
 
 See [continuous integration](ci.md) for path filters, caching, and the separate
 manual native packaging workflows.

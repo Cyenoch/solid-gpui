@@ -72,13 +72,13 @@ Hero 将官方 [vgpu Optimized Black Hole 预览](https://vgpu.sh/preview/optimi
 
 该任务使用两个信任模型不同的缓存。
 
-**生成的 WASM 宿主**缓存只保存 `examples/website/src/wasm`，即固定版本 Web nightly 经 wasm-bindgen 产出的绑定。其键是精确输入哈希且不配置 `restore-keys`，因此任何命中都是精确命中：还原的绑定与本次提交将构建的宿主完全一致。键覆盖工作流文件本身、Rust 环境配置动作、固定的工具链与 Bun 版本、Cargo 清单与锁文件、`.cargo/**`、全部 crate、vendored 的 GPUI Kit 与平台源码、第三方占位 crate、`scripts/build-web-host.sh`、生成 SDK 绑定的导出器，以及与该绑定配套提交的 `packages/solid-gpui/src/components.ts`。网站前端源码和 `docs/*.md` 被有意排除：它们只改变网站，不会改变宿主。该产物为数十兆字节，每个不同输入键对应一个条目；GitHub 会回收长期未使用的条目，因此缓存只保留当前使用的输入集合，而不是每次提交各存一份；条目被回收后按冷路径重新构建即可。
+**生成的宿主**缓存同时保存 `build:host` 的两项产物：`examples/website/src/wasm` 和 `packages/solid-gpui/src/components.ts`。将生成的 SDK 目录与 WASM 一起恢复，即使导出器改写了 checkout 中的目录，冷、暖构建也使用相同的前端输入。其键是精确输入哈希且不配置 `restore-keys`，因此任何命中都是精确命中：还原的绑定与本次提交将构建的宿主完全一致。键覆盖工作流文件本身、Rust 环境配置动作、固定的工具链与 Bun 版本、Cargo 清单与锁文件、`.cargo/**`、全部 crate、vendored 的 GPUI Kit 与平台源码、第三方占位 crate、`scripts/build-web-host.sh`、生成 SDK 绑定的导出器，以及与该绑定配套提交的 `packages/solid-gpui/src/components.ts`。网站前端源码和 `docs/*.md` 被有意排除：它们只改变网站，不会改变宿主。每个不同输入键对应一个条目，GitHub 会回收长期未使用的条目，因此缓存只保留当前使用的输入集合，而不是每次提交各存一份；条目被回收后按冷路径重新构建即可。
 
-命中时任务跳过 Linux 原生库、nightly 安装、Cargo 依赖缓存、wasm-bindgen CLI 和 `build:host`，但绝不跳过路由生成、类型检查、Vite 打包和网站测试，因此热运行仍会校验所有消费宿主的环节。没有对应条目的键——Rust、清单、导出器或生成契约发生变化——会以与无缓存运行相同的固定版本和命令重新构建宿主。`pages-web-host-v1` 是当前产物布局的命名空间；宿主构建新增输入时须提升该命名空间并扩展哈希闭包，确保为其他输入写入的条目绝不被复用。
+命中时任务跳过 Linux 原生库、nightly 安装、Cargo 依赖缓存、wasm-bindgen CLI 和 `build:host`，但绝不跳过路由生成、类型检查、Vite 打包和网站测试，因此热运行仍会校验所有消费宿主的环节。没有对应条目的键——Rust、清单、导出器或生成契约发生变化——会以与无缓存运行相同的固定版本和命令重新构建宿主。`pages-web-host-v2` 是当前产物布局的命名空间；宿主构建新增输入时须提升该命名空间并扩展哈希闭包，确保为其他输入写入的条目绝不被复用。
 
-**Cargo 依赖**缓存是 `.github/actions/setup-rust` 中的 `rust-cache` 条目。它按运行平台和构建用途区分键，跨源码提交复用，任务失败时也会保存，且只在冷路径使用；其中只有编译输入，从不包含生成的绑定。它同样不构成跳过宿主构建的理由：只有精确输入的 WASM 缓存命中才会跳过构建，而该缓存只由已构建宿主、检查并打包网站、通过网站测试的非拉取请求运行写入。任何部分、失败或无关的缓存条目都不能替代该构建。
+**Cargo 依赖**缓存是 `.github/actions/setup-rust` 中的 `rust-cache` 条目。它按运行平台和构建用途区分键，跨源码提交复用，只由成功的非 PR 作业保存，且只在冷路径使用；其中只有中间编译产物，从不包含生成的绑定。它同样不构成跳过宿主构建的理由：只有精确输入的宿主缓存命中才会跳过构建，而该缓存只由已构建宿主、检查并打包网站、通过网站测试的非拉取请求运行写入。任何部分、失败或无关的缓存条目都不能替代该构建。
 
-由于缓存键包含提交的 SDK 绑定，凡改变 `packages/solid-gpui/src/components.ts` 的宿主改动都需一并重新生成并提交；热运行会依据该提交文件检查网站类型。
+由于缓存键包含提交的 SDK 绑定，凡改变 `packages/solid-gpui/src/components.ts` 的宿主改动都需一并重新生成并提交。独立的 native CI 仍会验证提交的目录是否最新，为 Pages 恢复生成产物不会绕过这项新鲜度检查。
 
 wasm-bindgen CLI 使用固定版本、经校验和验证的预编译程序。路径过滤、缓存和独立的手动原生打包工作流见[持续集成](ci.zh-CN.md)。
 

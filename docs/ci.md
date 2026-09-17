@@ -133,8 +133,9 @@ compile/test jobs. Native CI and Embedded Bun therefore have separate cache
 namespaces even though both use macOS 15. Audit jobs cache only the registry.
 Candidate build caches are isolated from development and WASM caches.
 
-Pages also caches `examples/website/src/wasm` as a generated artifact. This cache
-has no fallback restore keys: only an exact match of the Rust sources, embedded
+Pages also caches `examples/website/src/wasm` and the generated
+`packages/solid-gpui/src/components.ts` together: both are outputs of `build:host`.
+This cache has no fallback restore keys: only an exact match of the Rust sources, embedded
 assets, Cargo configuration/locks/manifests, compiler and bindgen selection,
 native exporter inputs, and build workflow can skip host compilation. Ordinary
 website TypeScript and Markdown edits do not invalidate it. A hit skips native

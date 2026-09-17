@@ -105,12 +105,14 @@ Standalone `bun run --cwd examples/website typecheck` requires those generated
 files. Pages owns these browser checks; the SDK package CI gate runs independently
 of website build products.
 
-Pages caches only the generated `src/wasm` bindings, under an exact-input key
-covering the Rust sources, pinned toolchains, and generated SDK contract. A cache
+Pages caches both generated host outputs, `src/wasm` and
+`packages/solid-gpui/src/components.ts`, under an exact-input key covering the
+Rust sources, pinned toolchains, and generated SDK contract. Restoring both keeps
+warm and cold frontend inputs identical. A cache
 hit with unchanged Rust inputs skips the native toolchain setup and the host build,
 but the type check, the bundle, and the tests above always run. Regenerate and
 commit `packages/solid-gpui/src/components.ts` with any host change that alters it,
-and bump the `pages-web-host-v1` namespace in
+and bump the `pages-web-host-v2` namespace in
 [the workflow](../../.github/workflows/pages.yml) when the host build gains an
 input. See [the deployment guide](../../docs/web.md#pages-caching).
 

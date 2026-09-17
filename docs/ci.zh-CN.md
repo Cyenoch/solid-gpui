@@ -62,7 +62,7 @@ bun run task website-package
 
 保存前清理本地工作区/vendor 构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复缓存；只有推送或手动运行中成功的作业才能保存。精确命中的缓存不可修改，失败或仅检查的构建不应占据完整编译/测试作业的缓存。因此原生 CI 与 Embedded Bun 即使同为 macOS 15，也使用独立命名空间。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
 
-Pages 另行缓存生成的 `examples/website/src/wasm`，不使用回退恢复键。只有 Rust 源码、嵌入资源、Cargo 配置/锁文件/清单、编译器和 bindgen 选择、原生导出器输入与构建工作流精确匹配时才跳过宿主编译；普通网站 TypeScript 和 Markdown 修改不使其失效。命中时跳过原生系统包及 Rust/bindgen 安装，但绝不跳过前端构建、类型检查或测试。仅在这些检查成功后保存，PR 不写入。新增 Rust 构建输入时同步维护 `pages.yml` 的键输入，参见 [Web 部署](web.zh-CN.md#github-pages)。
+Pages 将 `build:host` 的全部产物一起缓存：`examples/website/src/wasm` 和生成的 `packages/solid-gpui/src/components.ts`，不使用回退恢复键。只有 Rust 源码、嵌入资源、Cargo 配置/锁文件/清单、编译器和 bindgen 选择、原生导出器输入与构建工作流精确匹配时才跳过宿主编译；普通网站 TypeScript 和 Markdown 修改不使其失效。命中时跳过原生系统包及 Rust/bindgen 安装，但绝不跳过前端构建、类型检查或测试。仅在这些检查成功后保存，PR 不写入。新增 Rust 构建输入时同步维护 `pages.yml` 的键输入，参见 [Web 部署](web.zh-CN.md#github-pages)。
 
 轻量内嵌作业不构建 SDK 包、不生成原生绑定、不安装 LLVM，也不下载原生构建图。其独立 Cargo 缓存只承担 `embedded-bun` Clippy 图，不与原生 CI 的测试/链接图竞争。
 
