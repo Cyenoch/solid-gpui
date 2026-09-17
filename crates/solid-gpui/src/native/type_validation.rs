@@ -1,61 +1,115 @@
-/// Detect unsupported value types, excluding documentation, string literals and field names.
+/// Inspect generated type syntax without treating documentation or literal text as types.
 pub(super) fn has_unbounded_type(declaration: &str) -> bool {
-    let mut characters = declaration.char_indices().peekable();
-    let mut field_start = false;
-    while let Some((start, character)) = characters.next() {
-        match character {
-            '\'' | '"' | '`' => {
-                while let Some((_, next)) = characters.next() {
-                    if next == '\\' {
-                        characters.next();
-                    } else if next == character {
-                        break;
-                    }
-                }
-                field_start = false;
+    Scanner { rest: declaration }.code(false, false)
+}
+
+#[derive(Clone)]
+struct Scanner<'a> {
+    rest: &'a str,
+}
+
+impl Scanner<'_> {
+    fn take(&mut self) -> Option<char> {
+        let character = self.rest.chars().next()?;
+        self.rest = &self.rest[character.len_utf8()..];
+        Some(character)
+    }
+
+    fn trivia(&mut self) {
+        loop {
+            self.rest = self.rest.trim_start();
+            if let Some(comment) = self.rest.strip_prefix("/*") {
+                self.rest = comment.find("*/").map_or("", |end| &comment[end + 2..]);
+            } else if let Some(comment) = self.rest.strip_prefix("//") {
+                self.rest = comment
+                    .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                    .map_or("", |end| &comment[end..]);
+            } else {
+                break;
             }
-            '/' if characters.peek().is_some_and(|(_, next)| *next == '*') => {
-                characters.next();
-                let mut star = false;
-                for (_, next) in characters.by_ref() {
-                    if star && next == '/' {
-                        break;
-                    }
-                    star = next == '*';
-                }
+        }
+    }
+
+    fn quoted(&mut self, quote: char) {
+        while let Some(character) = self.take() {
+            if character == '\\' {
+                self.take();
+            } else if character == quote {
+                break;
             }
-            '/' if characters.peek().is_some_and(|(_, next)| *next == '/') => {
-                for (_, next) in characters.by_ref() {
-                    if next == '\n' || next == '\r' {
-                        break;
-                    }
+        }
+    }
+
+    fn property_follows(&self) -> bool {
+        let mut following = self.clone();
+        following.trivia();
+        if following.rest.starts_with('?') {
+            following.take();
+            following.trivia();
+        }
+        following.rest.starts_with([':', '('])
+    }
+
+    fn template(&mut self) -> bool {
+        while let Some(character) = self.take() {
+            match character {
+                '\\' => {
+                    self.take();
                 }
-            }
-            value if identifier(value) => {
-                while characters.peek().is_some_and(|(_, next)| identifier(*next)) {
-                    characters.next();
-                }
-                let end = characters
-                    .peek()
-                    .map_or(declaration.len(), |(index, _)| *index);
-                if matches!(&declaration[start..end], "any" | "bigint") {
-                    let following = declaration[end..].trim_start();
-                    let following = following
-                        .strip_prefix('?')
-                        .unwrap_or(following)
-                        .trim_start();
-                    let property = field_start && following.starts_with(':');
-                    if !property {
+                '`' => break,
+                '$' if self.rest.starts_with('{') => {
+                    self.take();
+                    // An interpolation starts a type, not an object member name.
+                    if self.code(false, true) {
                         return true;
                     }
                 }
-                field_start = &declaration[start..end] == "readonly";
+                _ => {}
             }
-            value if !value.is_whitespace() => field_start = matches!(value, '{' | ';' | ','),
-            _ => {}
+        }
+        false
+    }
+
+    fn code(&mut self, mut field_start: bool, end_brace: bool) -> bool {
+        loop {
+            self.trivia();
+            let start = self.rest;
+            let Some(character) = self.take() else {
+                return false;
+            };
+            match character {
+                '\'' | '"' => {
+                    self.quoted(character);
+                    field_start = false;
+                }
+                '`' => {
+                    if self.template() {
+                        return true;
+                    }
+                    field_start = false;
+                }
+                '{' => {
+                    if self.code(true, true) {
+                        return true;
+                    }
+                    field_start = false;
+                }
+                '}' if end_brace => return false,
+                value if identifier(value) => {
+                    while self.rest.chars().next().is_some_and(identifier) {
+                        self.take();
+                    }
+                    let word = &start[..start.len() - self.rest.len()];
+                    if matches!(word, "any" | "bigint") && !(field_start && self.property_follows())
+                    {
+                        return true;
+                    }
+                    field_start = field_start && word == "readonly";
+                }
+                value => field_start = matches!(value, ';' | ',' | '(' | '['),
+            }
         }
     }
-    false
 }
 
 fn identifier(character: char) -> bool {
@@ -65,6 +119,37 @@ fn identifier(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::has_unbounded_type;
+
+    #[test]
+    fn property_names_and_template_text_are_not_value_types() {
+        for declaration in [
+            "type State = { any /* documentation */ ?: string; readonly bigint: number; }",
+            "type State = { any: { bigint: 'any' }; label: `any bigint`; }",
+            r"type State = `escaped \` any \${bigint}`;",
+            "type State = `any ${'bigint' | `any ${string}`} bigint`;",
+            "type State = { value: `text ${ { any: string } }`; bigint: number; }",
+        ] {
+            assert!(!has_unbounded_type(declaration), "{declaration}");
+        }
+    }
+
+    #[test]
+    fn template_interpolations_and_nested_types_remain_validated() {
+        for declaration in [
+            "type State = `prefix ${any}`;",
+            "type State = `prefix ${Array<bigint>}`;",
+            "type State = `outer ${`inner ${any}`} tail`;",
+            "type State = `prefix ${ { any: bigint } }`;",
+            "type State = `prefix ${string}` | any;",
+            "type State = `prefix ${'/*'} ${bigint}`;",
+            "type State = { values: [string, any]; }",
+            "type State = { values: Array<string | { nested: bigint[] }>; }",
+            "type State<T> = T extends string ? any /* note */ : number;",
+            "type State = { any: any; }",
+        ] {
+            assert!(has_unbounded_type(declaration), "{declaration}");
+        }
+    }
 
     #[test]
     fn documentation_and_serializable_literal_values_are_not_unbounded_types() {

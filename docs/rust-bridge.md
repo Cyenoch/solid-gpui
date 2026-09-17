@@ -264,6 +264,13 @@ symmetric serde rename/tag/content attributes, and enums are supported.
 Independent TypeScript overrides, flattening, skipped fields, and asymmetric
 input/output serialization rules are rejected.
 
+Native binding export rejects TypeScript `any` and `bigint` in DTO types,
+including nested objects, arrays, unions, generic arguments, and template-literal
+type interpolations. Documentation such as “The pending request, if any.”,
+property names such as `any` or `bigint`, and string or template-literal text
+do not trigger this check and remain in the generated bindings. Use bounded
+Rust values or explicit strings for unsupported value types.
+
 An `on_press: Event<()>` parameter generates `onPress?: () => void`;
 `on_change: Event<MyChange>` generates a typed callback. `event.emit(value)`
 sends a Native Event and skips encoding when no listener is subscribed.

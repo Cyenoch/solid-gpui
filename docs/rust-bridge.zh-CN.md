@@ -184,6 +184,8 @@ fn badge(
 
 生成组件支持 `<Badge label="Ready" highlighted />`。Rust 参数转为 camelCase 属性。`#[prop(default)]` 使用 Rust `Default`，`#[prop(default = expression)]` 指定默认表达式。自定义 DTO 使用 `#[native_type]`，支持嵌套结构体、Vec、Option、对称 serde rename/tag/content 及枚举。独立 TypeScript 覆盖、flatten、跳过字段和不对称输入输出序列化会被拒绝。
 
+原生绑定导出会拒绝 DTO 类型中的 TypeScript `any` 和 `bigint`，包括嵌套对象、数组、联合类型、泛型参数及模板字面量的类型插值。文档注释（例如 “The pending request, if any.”）、名为 `any` 或 `bigint` 的属性，以及字符串或模板字面量的文本不会触发此校验，也不会从生成绑定中移除。不受支持的值类型应改用有界 Rust 值或显式字符串。
+
 `on_press: Event<()>` 生成 `onPress?: () => void`，`on_change: Event<MyChange>` 生成类型化回调。`event.emit(value)` 发送 Native Event，没有订阅者时跳过编码。只有 `event.is_subscribed()` 时才安装高频 GPUI handler。事件不提供同步 JavaScript 返回值。
 
 组件默认允许 JS 子内容，用 `cx.children()` 放入原生布局。不消费子内容的组件声明 `children = false`，让宿主在发布树前拒绝无效嵌套。交互后代需要从 `cx.id()` 派生不同 GPUI ID，不要跨实例使用全局固定 ID。

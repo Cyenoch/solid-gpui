@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Corrected native DTO validation to distinguish documentation, literal text, and property names from unsupported `any`/`bigint` types, while checking nested template-literal type interpolations. Native module exports preserve DTO documentation and reject unsupported types through the same binding contract.
 - Fixed strict workspace Clippy failures in component tests, removed obsolete JSX preload arguments from plain JavaScript scroll fixtures, and refreshed the generated dependency notices after tooling inputs changed. CI guidance now distinguishes package tests from the independent notice audit.
 - Consolidated application tooling around one Vite configuration: `solid-gpui prepare`, read-only generated-file checks, `doctor`, Vite-backed Bun tests, and production `preview`. Prepared TypeScript paths and structured native/bundle artifacts replace duplicated consumer path tables; Cargo builds are locked by default and preserve profile, target, exporter, and runtime-host ownership.
 - Published explicit SDK source conditions and `solidGpuiSource()`, plus matching tarball packing without native compilation during JS package builds. Migrated the desktop and website examples and synchronized the English/Chinese onboarding and advanced guides.
@@ -54,6 +55,7 @@
 - Removed obsolete host example suites that exercised deleted application examples.
 
 ### Verification
+
 - The September 17 DX changes pass the 95-test core suite through the public Vite-backed runner, 53 toolchain tests, package type checks and formatting, and repeated clean tarball install/prepare/check/typecheck/test flows. The desktop command chain and desktop/website production previews were exercised; the website build and English/Chinese guide rendering were checked. Native Dialog footer behavior and a real application-owned Embedded Bun executable returning `1223` were verified. Native screenshot/click acceptance was omitted at the user's request; other operating systems and the full release-qualification matrix were not requalified.
 
 - The September 16 integration fixes pass 254 Rust library tests (one ignored), 86 core package tests, 12 Vite/export/build/API tests, four protocol tests, package type checks, and the website build plus eight website tests. A real Windows VM reproduced the 1 MiB native stack overflow; the same host promoted to 16 MiB completed native UI interaction. The Windows Bun desktop application example passed choice/scroll acceptance and its renderer exited 0.68 seconds after abrupt host termination. See the [integration verification record](.scratch/desktop-app/verification.md#integration-verification-2026-09-16) for the Windows toolchain, remaining fixture failures, and platform qualification limits.

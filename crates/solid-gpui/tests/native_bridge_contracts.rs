@@ -191,10 +191,6 @@ fn ambiguous_type_and_command_names_cannot_form_a_contract() {
 #[test]
 fn composed_modules_export_shared_multiline_types_as_valid_typescript() {
     use solid_gpui::native::NativeModules;
-    use std::{
-        io::Write,
-        process::{Command, Stdio},
-    };
     #[native_type]
     struct SharedDto {
         /// A field documented over multiple
@@ -215,6 +211,14 @@ fn composed_modules_export_shared_multiline_types_as_valid_typescript() {
         .typescript()
         .unwrap();
     assert_eq!(source.matches("export type SharedDto").count(), 1);
+    assert_typescript_parses(&source);
+}
+
+fn assert_typescript_parses(source: &str) {
+    use std::{
+        io::Write,
+        process::{Command, Stdio},
+    };
     let mut parser = Command::new("bun")
         .args([
             "-e",
@@ -263,4 +267,102 @@ fn authored_context_is_injected_without_entering_the_wire_contract() {
         module.invoke(1, br#"{"value":"ready"}"#).unwrap(),
         br#""ready""#
     );
+}
+
+#[solid_gpui::native_module]
+mod documented_dtos {
+    use solid_gpui::native_type;
+
+    #[native_type]
+    enum DesktopIntent {
+        #[serde(rename = "any")]
+        Open,
+        #[serde(rename = "bigint")]
+        Close,
+    }
+
+    #[native_type]
+    struct DesktopState {
+        /// The pending request, if any.
+        pending: Option<DesktopIntent>,
+        any: String,
+        bigint: bool,
+    }
+
+    #[command]
+    fn echo(state: DesktopState) -> DesktopState {
+        state
+    }
+}
+
+#[solid_gpui::native_module]
+mod unsupported_any_dtos {
+    use solid_gpui::native::{Deserialize, Serialize, TS};
+    use solid_gpui::native_type;
+
+    // A dependency can implement TS independently of the native_type macro.
+    #[derive(Serialize, Deserialize, TS)]
+    struct UnboundedValue(#[ts(type = "any")] String);
+
+    #[native_type]
+    struct AnyState {
+        value: Option<Vec<UnboundedValue>>,
+    }
+
+    #[command]
+    fn echo_any(state: AnyState) -> AnyState {
+        state
+    }
+}
+
+#[solid_gpui::native_module]
+mod unsupported_bigint_dtos {
+    use solid_gpui::native_type;
+
+    #[native_type]
+    struct BigintState {
+        value: Option<Vec<u64>>,
+    }
+    #[command]
+    fn echo_bigint(state: BigintState) -> BigintState {
+        state
+    }
+}
+
+#[test]
+fn documented_native_dtos_export_complete_bindings_without_losing_documentation() {
+    use solid_gpui::native::NativeModules;
+
+    let definition = documented_dtos::native_module();
+    let source = definition.typescript().unwrap();
+    assert!(source.contains("The pending request, if any."));
+    assert!(source.contains("any: string"));
+    assert!(source.contains("bigint: boolean"));
+    assert!(source.contains("\"any\" | \"bigint\""));
+    assert!(source.contains("Promise<DesktopState>"));
+    assert_typescript_parses(&source);
+
+    let modules = NativeModules::new(vec![definition]);
+    let complete = modules.typescript().unwrap();
+    assert!(complete.contains("export type DesktopIntent"));
+    assert!(complete.contains("export type DesktopState"));
+    assert!(complete.contains("export const createClient ="));
+    assert_typescript_parses(&complete);
+    assert_eq!(modules.typescript_modules().unwrap()[0].1, source);
+}
+
+#[test]
+fn unsupported_native_dtos_fail_individual_and_composed_exports() {
+    use solid_gpui::native::NativeModules;
+
+    for definition in [
+        unsupported_any_dtos::native_module(),
+        unsupported_bigint_dtos::native_module(),
+    ] {
+        let error = definition.typescript().unwrap_err();
+        assert!(error.contains("native DTOs do not support bigint or any"));
+        let modules = NativeModules::new(vec![documented_dtos::native_module(), definition]);
+        assert_eq!(modules.typescript().unwrap_err(), error);
+        assert_eq!(modules.typescript_modules().unwrap_err(), error);
+    }
 }
