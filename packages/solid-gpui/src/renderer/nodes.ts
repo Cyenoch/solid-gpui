@@ -758,6 +758,8 @@ export class NodeGraph {
     this.updatedMasks.clear();
     this.listenerRegistry.clear();
     this.dirtyOrderHead = null;
+    this.syntheticRoot.firstChild = null;
+    this.syntheticRoot.lastChild = null;
     this.children.length = 0;
   }
 

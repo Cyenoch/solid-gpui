@@ -1,9 +1,10 @@
 use crate::{
-    AnyElement, AnyEntity, AnyImageCache, App, Asset, AssetLogger, Bounds, DefiniteLength,
-    DevicePixels, Element, ElementId, Entity, GlobalElementId, Hitbox, Image, ImageCache,
-    InspectorElementId, InteractiveElement, Interactivity, IntoElement, LayoutId, Length,
-    ObjectFit, Pixels, RenderImage, Resource, SharedString, SharedUri, Size, StyleRefinement,
-    Styled, Task, Window, decode_static_image, decode_static_image_from_decoder, px,
+    AnyElement, AnyEntity, AnyImageCache, App, Asset, AssetLogger, AvailableSpace, Bounds,
+    DefiniteLength, DevicePixels, Element, ElementId, Entity, GlobalElementId, Hitbox, Image,
+    ImageCache, InspectorElementId, InteractiveElement, Interactivity, IntoElement, LayoutId,
+    Length, ObjectFit, Pixels, RenderImage, Resource, SharedString, SharedUri, Size,
+    StyleRefinement, Styled, Task, Window, decode_static_image, decode_static_image_from_decoder,
+    px,
 };
 use anyhow::Result;
 
@@ -301,7 +302,6 @@ struct ImgState {
     last_frame_time: Option<Instant>,
     started_loading: Option<(Instant, Task<()>)>,
     retained_managed_frame: Option<ManagedImageFrame>,
-    managed_failed: bool,
 }
 
 /// The image layout state between frames
@@ -345,7 +345,6 @@ impl Element for Img {
                     last_frame_time: None,
                     started_loading: None,
                     retained_managed_frame: None,
-                    managed_failed: false,
                 })
             });
 
@@ -411,14 +410,6 @@ impl Element for Img {
                                 }
                             }
                             None => {}
-                        }
-                        if state.as_ref().is_some_and(|state| state.managed_failed)
-                            && layout_state.replacement.is_none()
-                            && let Some(fallback) = self.style.fallback.as_ref()
-                        {
-                            let mut element = fallback();
-                            replacement_id = Some(element.request_layout(window, cx));
-                            layout_state.replacement = Some(element);
                         }
                     } else {
                         if let Some(state) = &mut state {
@@ -571,6 +562,7 @@ impl Element for Img {
             window,
             cx,
             |_, _, hitbox, window, cx| {
+                let mut replacement_prepainted = false;
                 if let ImageSource::Managed(provider) = &self.source {
                     let visible = bounds.intersects(&window.content_mask().bounds);
                     let request = ImageRequest {
@@ -581,24 +573,34 @@ impl Element for Img {
                         visible,
                     };
                     let result = provider.image(request, window, cx);
-                    let failed = matches!(result, Some(Err(_)));
+                    if matches!(result, Some(Err(_)))
+                        && request_layout.replacement.is_none()
+                        && let Some(fallback) = self.style.fallback.as_ref()
+                    {
+                        let mut replacement = fallback();
+                        replacement.layout_as_root(
+                            bounds.size.map(AvailableSpace::Definite),
+                            window,
+                            cx,
+                        );
+                        replacement.prepaint_at(bounds.origin, window, cx);
+                        request_layout.replacement = Some(replacement);
+                        replacement_prepainted = true;
+                    }
                     request_layout.managed_frame = result
                         .and_then(Result::ok)
                         .filter(|frame| visible && frame.image.frame_count() > 0);
 
                     if let Some(global_id) = global_id {
-                        window.with_element_state::<ImgState, _>(global_id, |state, window| {
+                        window.with_element_state::<ImgState, _>(global_id, |state, _| {
                             let mut state = state.expect("img state should be initialized");
                             state.retained_managed_frame = request_layout.managed_frame.clone();
-                            if state.managed_failed != failed {
-                                state.managed_failed = failed;
-                                cx.notify(window.current_view());
-                            }
                             ((), state)
                         });
                     }
                 }
-                if request_layout.managed_frame.is_none()
+                if !replacement_prepainted
+                    && request_layout.managed_frame.is_none()
                     && let Some(replacement) = &mut request_layout.replacement
                 {
                     replacement.prepaint(window, cx);

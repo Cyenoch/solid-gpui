@@ -29,5 +29,10 @@ Local changes:
   that advances deterministic animation tests instead of mixing simulated time
   with wall-clock elapsed time.
 
+- Keep managed-image frame leases through redraw and select failure fallbacks from
+  the current provider request. Decode failures lay out and prepaint the fallback
+  within the resolved image bounds; replacing a source or resizing to a pending
+  source-set candidate does not inherit a previous request's failure.
+
 The native bidirectional geometry refactor is tracked in
 `../../.scratch/native-production-completion/bidi-implementation.md`.

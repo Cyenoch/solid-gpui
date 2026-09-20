@@ -51,6 +51,7 @@ export function Page() {
 ```
 
 在边界的子组件内创建 resource，让边界拥有其错误与清理。transition 在资源等待时保留已解析内容。脱离挂载的 Suspense 内容在重新附着前仍留在 Solid 宿主图中；空的原生提交不会释放它。传输失败仍回滚失败提交。根卸载会拒绝待处理原生请求并释放 owner。
+根卸载还会释放宿主子节点图，即使应用仍保留已经卸载的 `Root` 句柄。
 
 `createResource` 不自动取消被替代的 fetcher。需要停止过期工作时传入请求级 signal，并在 owner 清理时 abort。参见[请求取消](rust-bridge.zh-CN.md)。生产 Bun 和真实 QuickJS fixture `fixtures/quickjs-async.tsx` 通过二进制原生提交与回复验证资源加载、嵌套 Suspense、lazy、transition、错误重试及释放。
 
@@ -210,7 +211,7 @@ import { Image } from "@solid-gpui/core";
 />;
 ```
 
-`fallbackSource` 仅在选中的主来源失败后尝试，不会在请求等待时显示，并保留图片视口、object fit 和圆角。需要离线工作的打包应用可使用内联备用图片。
+`fallbackSource` 仅在当前选中的主来源加载或解码失败后尝试，不会在请求等待时显示。更改 `source` 或选择不同的 `sourceSet` 候选项不会沿用先前主来源的失败状态。备用图片保留图片视口、object fit 和圆角；需要离线工作的打包应用可使用内联备用图片。
 
 编码输入限制为 32 MiB；任一轴超过 32768 像素或源像素数超过 64 × 1024 × 1024 时拒绝，输出位图最多 16 × 1024 × 1024 像素。原生工作最多同时进行四个抓取和两个解码。相同来源键共享编码输入，相同来源及目标尺寸通过弱索引共享解码结果，但不存在非活跃解码图片缓存：最后一个渲染 owner 释放变体时，其解码像素与 atlas 分配随之释放。每个窗口在替换帧重绘完成前保留之前显示的帧，保证场景重放安全。
 

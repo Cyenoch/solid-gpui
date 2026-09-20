@@ -707,6 +707,191 @@ mod tests {
     }
 
     #[gpui::test]
+    fn changed_primary_does_not_load_new_fallback_until_its_decode_fails(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        const FAILED: &str = "https://images.example/failed.png";
+        const PENDING: &str = "https://images.example/pending.png";
+        const FALLBACK: &str = "https://images.example/fallback.png";
+        let (release, pending) = futures::channel::oneshot::channel::<()>();
+        let pending = futures::lock::Mutex::new(Some(pending));
+        let fallback_fetches = Arc::new(AtomicUsize::new(0));
+        let fetches = fallback_fetches.clone();
+        let fallback_bytes = data_url::DataUrl::process(INLINE_PNG)
+            .unwrap()
+            .decode_to_vec()
+            .unwrap()
+            .0;
+        cx.update(|cx| {
+            cx.set_http_client(gpui::http_client::FakeHttpClient::create(move |request| {
+                let uri = request.uri().to_owned();
+                let pending = if uri == PENDING {
+                    Some(
+                        pending
+                            .try_lock()
+                            .expect("uncontended receiver")
+                            .take()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                };
+                if uri == FALLBACK {
+                    fetches.fetch_add(1, Ordering::SeqCst);
+                }
+                let bytes = fallback_bytes.clone();
+                async move {
+                    if let Some(pending) = pending {
+                        let _ = pending.await;
+                    }
+                    let response = gpui::http_client::Response::builder();
+                    if uri == FAILED {
+                        Ok(response.status(404).body(Vec::new().into()).unwrap())
+                    } else if uri == PENDING {
+                        // The HTTP request succeeds, but the selected primary fails decoding.
+                        Ok(response
+                            .status(200)
+                            .body(b"invalid png".to_vec().into())
+                            .unwrap())
+                    } else {
+                        assert_eq!(uri, FALLBACK);
+                        Ok(response.status(200).body(bytes.into()).unwrap())
+                    }
+                }
+            }))
+        });
+        let window = cx.open_window(gpui::size(gpui::px(200.), gpui::px(200.)), |_, _| {
+            SolidRoot::new(crate::InMemoryAdapter::new())
+        });
+        publish(cx, window, Some(FAILED), Some(INLINE_PNG));
+        assert_eq!(fallback_fetches.load(Ordering::SeqCst), 0);
+
+        publish(cx, window, Some(PENDING), Some(FALLBACK));
+        assert_eq!(fallback_fetches.load(Ordering::SeqCst), 0);
+        cx.update(|cx| {
+            assert!(
+                !cx.global::<Images>()
+                    .sources
+                    .contains_key(&ImageKey::parse(FALLBACK))
+            );
+        });
+
+        release.send(()).unwrap();
+        draw(cx, window);
+        assert_eq!(fallback_fetches.load(Ordering::SeqCst), 1);
+        window
+            .update(cx, |_, window, cx| {
+                let fallback = loaded_pixels(FALLBACK, cx);
+                assert!(window.has_image_atlas_entry(&fallback));
+            })
+            .unwrap();
+    }
+
+    #[gpui::test]
+    fn resized_source_set_does_not_load_fallback_while_new_candidate_is_pending(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        const SMALL: &str = "https://images.example/small.png";
+        const LARGE: &str = "https://images.example/large.png";
+        const FALLBACK: &str = "https://images.example/resize-fallback.png";
+        let (release, pending) = futures::channel::oneshot::channel::<()>();
+        let pending = futures::lock::Mutex::new(Some(pending));
+        let fallback_fetches = Arc::new(AtomicUsize::new(0));
+        let fetches = fallback_fetches.clone();
+        cx.update(|cx| {
+            cx.set_http_client(gpui::http_client::FakeHttpClient::create(move |request| {
+                let uri = request.uri().to_owned();
+                let pending = if uri == LARGE {
+                    Some(
+                        pending
+                            .try_lock()
+                            .expect("uncontended receiver")
+                            .take()
+                            .unwrap(),
+                    )
+                } else {
+                    None
+                };
+                if uri == FALLBACK {
+                    fetches.fetch_add(1, Ordering::SeqCst);
+                }
+                async move {
+                    if let Some(pending) = pending {
+                        let _ = pending.await;
+                    }
+                    Ok(gpui::http_client::Response::builder()
+                        .status(404)
+                        .body(Vec::new().into())
+                        .unwrap())
+                }
+            }))
+        });
+        let window = cx.open_window(gpui::size(gpui::px(400.), gpui::px(400.)), |_, _| {
+            SolidRoot::new(crate::InMemoryAdapter::new())
+        });
+        let commit = |cx: &mut gpui::TestAppContext, width: f32, fallback: &str| {
+            window
+                .update(cx, |root, window, cx| {
+                    let mut node = crate::Node::new(2, 1, 0, crate::tree::KIND_IMAGE);
+                    node.style = Some(Style {
+                        width: Some(width),
+                        height: Some(width),
+                        ..Default::default()
+                    });
+                    node.host_properties = Some(HostProperties::Image(crate::ImageProperties {
+                        source: SMALL.into(),
+                        object_fit: 2,
+                        fallback_source: Some(fallback.into()),
+                        sources: vec![
+                            crate::ImageCandidate {
+                                source: SMALL.into(),
+                                width: 100,
+                                height: 100,
+                            },
+                            crate::ImageCandidate {
+                                source: LARGE.into(),
+                                width: 400,
+                                height: 400,
+                            },
+                        ],
+                    }));
+                    let revision = root.store().revision();
+                    root.apply_decoded_message_in_window(
+                        crate::protocol::DecodedMessage::Snapshot(crate::Snapshot::new(
+                            1,
+                            1,
+                            revision,
+                            revision + 1,
+                            vec![crate::Node::new(1, 0, 0, crate::tree::KIND_VIEW), node],
+                        )),
+                        window,
+                        cx,
+                    )
+                    .unwrap();
+                })
+                .unwrap();
+            draw(cx, window);
+        };
+        commit(cx, 40., INLINE_PNG);
+        commit(cx, 300., FALLBACK);
+        assert_eq!(fallback_fetches.load(Ordering::SeqCst), 0);
+        cx.update(|cx| {
+            assert!(
+                !cx.global::<Images>()
+                    .sources
+                    .contains_key(&ImageKey::parse(FALLBACK))
+            );
+        });
+        release.send(()).unwrap();
+        draw(cx, window);
+        assert_eq!(fallback_fetches.load(Ordering::SeqCst), 1);
+    }
+
+    #[gpui::test]
     fn replacing_primary_releases_fallback_without_eager_loading(cx: &mut gpui::TestAppContext) {
         cx.update(|cx| cx.set_http_client(gpui::http_client::FakeHttpClient::with_404_response()));
         let window = cx.open_window(gpui::size(gpui::px(200.), gpui::px(200.)), |_, _| {

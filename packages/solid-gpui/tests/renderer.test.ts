@@ -358,6 +358,30 @@ test("wide sibling construction and traversal perform bounded index work", () =>
   }
 });
 
+test("disposing a host tree releases both ends of its child chain", () => {
+  const container = new RootContainer({
+    surfaceId: 89,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: () => true,
+  });
+  withRoot(container.tree, () => {
+    for (let index = 0; index < 2; index++) {
+      const parent = hostConfig.createElement("View");
+      hostConfig.insertNode(parent, hostConfig.createElement("View"));
+      hostConfig.insertNode(container.tree.syntheticRoot, parent);
+    }
+    container.tree.commit();
+  });
+
+  container.dispose();
+
+  const root = container.tree.syntheticRoot;
+  expect(childIds(root)).toEqual([]);
+  expect(root.lastChild).toBeNull();
+  expect(root.children).toEqual([]);
+});
+
 test("reparenting detached children preserves unique ownership and rollback restores sibling order", async () => {
   const submitted: Uint8Array[] = [];
   const container = new RootContainer({

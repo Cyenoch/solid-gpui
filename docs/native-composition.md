@@ -69,7 +69,8 @@ Create resources inside the boundary's child component so it owns their errors
 and cleanup. A transition retains resolved content while its resource is pending.
 Detached Suspense content stays in the Solid host graph until attachment; an empty
 native commit does not dispose it. Transport failure still rolls back a failed
-commit. Root unmount rejects pending native requests and disposes owners.
+commit. Root unmount rejects pending native requests, disposes owners, and releases
+the host child graph even when application code keeps the unmounted `Root` handle.
 
 `createResource` does not automatically cancel a superseded fetcher. Pass a
 request-scoped signal when stale work should stop, and abort it on owner cleanup.
@@ -329,9 +330,11 @@ import { Image } from "@solid-gpui/core";
 />;
 ```
 
-`fallbackSource` is tried only after the selected primary fails, not while it is
-pending. It preserves the image viewport, object fit, and corner radius. Use an
-inline fallback for a packaged application that must work offline.
+`fallbackSource` is tried only after the currently selected primary fails to load
+or decode, not while it is pending. Changing `source` or selecting a different
+`sourceSet` candidate does not carry forward an earlier primary's failure. It
+preserves the image viewport, object fit, and corner radius. Use an inline fallback
+for a packaged application that must work offline.
 
 Encoded input is limited to 32 MiB. A source is rejected above 32768 pixels on
 either axis or 64 × 1024 × 1024 source pixels, and a produced bitmap is limited
