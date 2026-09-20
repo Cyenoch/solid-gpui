@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { fileURLToPath } from "node:url";
 import { exportNativeBindings } from "../packages/solid-gpui-vite/src/native-export";
 
+// Pages keys generated SDK bindings on this exporter independently of the WASM producer.
 const root = fileURLToPath(new URL("../", import.meta.url));
 const program = new Command()
   .description("Generate TypeScript from an actual Rust host; no arguments generate SDK and website bindings")
