@@ -5,6 +5,7 @@
 ### Changed
 
 - Released host child links on root teardown. Managed images now select failure fallbacks from the current prepaint request instead of carrying an earlier source's failure into a pending replacement or resized source-set candidate.
+- Released unused NativePlot path slots on primitive replacement.
 - Fixed strict image-test lint failures after integration: removed an unused import and initialized GIF regression frames directly, preserving their disposal, ordering, timing and pixel assertions.
 - Separated exact-input Pages WASM and SDK-binding caches, with independent producers and unchanged full local builds. Removed nested Cargo builds from Rust-hosted QuickJS fixtures while preserving real Vite/VM checks. Split native CI into independent check/test lanes with isolated dependency caches and a fail-closed aggregate; checkout credentials are not retained in these build jobs.
 - Updated `@solidjs/compiler` from `2.0.0-rc.6` to `2.0.0-rc.9`, retaining the latest stable `solid-js` runtime at `1.9.15`. Added a local Windows ARM64 native compiler build/package path using the exact upstream source and `SOLID_COMPILER_NATIVE`, without patching or publishing upstream. Synchronized English/Chinese installation, development and troubleshooting guides and regenerated dependency notices.

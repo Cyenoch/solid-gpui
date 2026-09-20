@@ -352,6 +352,10 @@ inherited text styles are additional cache dependencies.
   fill presence, widths, angles, radii and Sankey control points. Paint still
   supplies current color, gradient, opacity, scale and clip. Origin translation
   reuses tessellation, not a cached scene; translated geometry still costs work.
+  Replacing a primitive releases slots its new kind does not use, even when the
+  primitive count stays unchanged. A dual-path shape becoming a single-path shape
+  releases its spare slot; non-path shapes retain neither slot. Unchanged live
+  slots remain warm.
 
 ### September 2026 CPU comparison
 

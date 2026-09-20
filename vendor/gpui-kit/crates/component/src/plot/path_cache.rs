@@ -103,6 +103,14 @@ impl PathCaches {
         (&mut head[first], &mut tail[0])
     }
 
+    /// Release a slot when its shape no longer paints that path, without
+    /// creating an empty slot if it has never been used.
+    pub fn clear(&mut self, index: usize) {
+        if let Some(slot) = self.slots.get_mut(index) {
+            *slot = PathCache::default();
+        }
+    }
+
     /// Drop caches past the first `len` shapes, so a plot whose series shrank
     /// does not retain geometry it no longer paints.
     pub fn truncate(&mut self, len: usize) {

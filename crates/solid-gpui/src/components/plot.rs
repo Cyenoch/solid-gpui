@@ -630,6 +630,18 @@ enum NativePrimitive {
         fill: gpui::Hsla,
     },
 }
+impl NativePrimitive {
+    fn release_unused_paths(&self, index: usize, caches: &mut PathCaches) {
+        match self {
+            Self::Axis(_) | Self::Grid(_) | Self::Labels(_) | Self::Bar(_) => {
+                caches.clear(2 * index);
+                caches.clear(2 * index + 1);
+            }
+            Self::Line(_) | Self::Arc { .. } => caches.clear(2 * index + 1),
+            Self::Area(_) | Self::RadialLine(_) => {}
+        }
+    }
+}
 #[crate::native_type]
 pub struct PlotProps {
     pub primitives: Vec<PlotPrimitive>,
@@ -663,14 +675,13 @@ impl ChartProps for PlotProps {
 }
 impl Plot for NativePlot {
     fn paint(&mut self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
-        // Path-based shapes reuse the tessellation of an earlier paint while
-        // their geometry stays the same; each frame only moves the cached
-        // paths into place. Primitive i owns cache slots `2i` and `2i + 1`
-        // (fills/strokes pair up, single-path shapes use the even slot), so
-        // replaced or removed primitives rebuild by key or drop their slots.
+        // Each primitive owns slots `2i` and `2i + 1`. Drop slots it no
+        // longer paints when a prop update replaces the kind at index `i`;
+        // paths still in use retain their shape-keyed tessellation.
         let caches = PathCaches::for_paint("native-plot-shapes", window, cx);
         caches.update(cx, |caches, cx| {
             for (ix, p) in self.shapes.iter().enumerate() {
+                p.release_unused_paths(ix, caches);
                 match p {
                     NativePrimitive::Axis(v) => v.paint(&bounds, window, cx),
                     NativePrimitive::Grid(v) => v.paint(&bounds, window),
@@ -883,4 +894,95 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
     .into_iter()
     .map(|d| d.with_contract(include_str!("plot.rs")))
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{Context, Entity, IntoElement, ParentElement, Render, Styled, TestAppContext};
+    use std::{cell::RefCell, rc::Rc};
+
+    struct PlotWindow {
+        plot: Rc<RefCell<NativePlot>>,
+        cache: Rc<RefCell<Option<Entity<PathCaches>>>>,
+    }
+
+    impl Render for PlotWindow {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let plot = self.plot.clone();
+            let cache = self.cache.clone();
+            gpui::div().size_full().child(gpui::canvas(
+                |_, _, _| (),
+                move |bounds, (), window, cx| {
+                    plot.borrow_mut().paint(bounds, window, cx);
+                    *cache.borrow_mut() =
+                        Some(PathCaches::for_paint("native-plot-shapes", window, cx));
+                },
+            ))
+        }
+    }
+
+    fn shapes(json: &str) -> Vec<NativePrimitive> {
+        let props: PlotProps = crate::native::decode_json(json.as_bytes()).unwrap();
+        props.validate().unwrap();
+        props
+            .primitives
+            .into_iter()
+            .map(PlotPrimitive::build)
+            .collect()
+    }
+
+    #[gpui::test]
+    fn paint_releases_replaced_paths_at_a_fixed_primitive_index(cx: &mut TestAppContext) {
+        let plot = Rc::new(RefCell::new(NativePlot {
+            shapes: shapes(
+                r##"{"primitives":[
+                {"kind":"area","points":[{"x":20,"y":50},{"x":80,"y":80},{"x":140,"y":40}],"baseline":120,"curve":"linear","fill":{"kind":"solid","color":"#ff0000"},"stroke":{"kind":"solid","color":"#00ff00"}},
+                {"kind":"area","points":[{"x":40,"y":80},{"x":100,"y":50},{"x":170,"y":90}],"baseline":150,"curve":"linear","fill":{"kind":"solid","color":"#0000ff"},"stroke":{"kind":"solid","color":"#ffffff"}}
+            ]}"##,
+            ),
+        }));
+        let cache = Rc::new(RefCell::new(None));
+        let (view, visual) = cx.add_window_view({
+            let plot = plot.clone();
+            let cache = cache.clone();
+            move |_, _| PlotWindow { plot, cache }
+        });
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        let state = cache.borrow().as_ref().unwrap().clone();
+        let warm_slots = |cx: &mut TestAppContext| {
+            state.update(cx, |caches, _| {
+                (0..4).map(|i| caches.slot(i).is_warm()).collect::<Vec<_>>()
+            })
+        };
+        assert_eq!(warm_slots(visual), [true; 4]);
+
+        visual.update(|_, cx| {
+            view.update(cx, |view, cx| {
+                view.plot.borrow_mut().shapes[0] = shapes(r##"{"primitives":[
+                    {"kind":"line","points":[{"x":20,"y":50},{"x":80,"y":80}],"stroke":{"kind":"solid","color":"#ff0000"}}
+                ]}"##).remove(0);
+                cx.notify();
+            });
+        });
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(
+            warm_slots(visual),
+            [true, false, true, true],
+            "the unused area stroke must be dropped without evicting live paths",
+        );
+
+        visual.update(|_, cx| {
+            view.update(cx, |view, cx| {
+                view.plot.borrow_mut().shapes[0] = NativePrimitive::Labels(PlotLabel::new(vec![]));
+                cx.notify();
+            });
+        });
+        visual.update(|window, cx| window.draw(cx).clear(cx));
+        assert_eq!(
+            warm_slots(visual),
+            [false, false, true, true],
+            "non-path shapes cannot retain prior geometry at the same index",
+        );
+    }
 }
