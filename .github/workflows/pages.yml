@@ -114,7 +114,7 @@ jobs:
         run: bun run --cwd examples/website build:bindings
       - name: Build WASM host
         if: steps.web-wasm.outputs.cache-hit != 'true'
-        run: bun run --cwd examples/website build:wasm
+        run: bash scripts/build-web-wasm.sh
       - name: Type-check and build the website
         run: bun run --cwd examples/website build:frontend
       - name: Test the website
