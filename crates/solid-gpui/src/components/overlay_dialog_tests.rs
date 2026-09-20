@@ -20,7 +20,7 @@ use crate::{
 use std::sync::Arc;
 
 /// The vendored popup names itself in the debug-bounds map.
-const DIALOG_POPUP_SELECTOR: &str = "dialog-popup";
+const DIALOG_POPUP_SELECTOR: &str = "dialog-0";
 /// The bottom gap the vendored popup keeps from the window's edge.
 const DIALOG_BOTTOM_GAP: Pixels = px(24.);
 /// A body no window can show in full, so the popup has to clamp.

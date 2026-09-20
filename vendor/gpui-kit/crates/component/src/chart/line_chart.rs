@@ -4,6 +4,7 @@ use gpui::{
     AnyElement, App, Bounds, ElementId, Hsla, IntoElement, Pixels, Point, SharedString, Window,
     point, px,
 };
+use gpui_base::motion::spring;
 use gpui_component_macros::IntoPlot;
 use num_traits::{Num, ToPrimitive};
 
@@ -13,11 +14,20 @@ use crate::{
         AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, StrokeStyle,
         scale::{Scale, ScaleLinear, ScalePoint, Sealed},
         shape::Line,
-        tooltip::{CrossLine, Dot, Tooltip, TooltipState},
+        tooltip::{CrossLine, Dot, PlotHover, Tooltip, TooltipState},
     },
 };
 
-use super::build_point_x_labels;
+use super::{HOVER_DOT_SIZE, build_point_x_labels, hover_halo_size, pointer_spring};
+
+/// The hover a line chart paints, sampled once per frame in [`Plot::hover`].
+#[derive(Clone, Copy)]
+struct LineHover {
+    /// Where the crosshair and the dot have slid to; the dot follows the line.
+    dot: Point<Pixels>,
+    /// How far the hover has faded in.
+    focus: f32,
+}
 
 #[derive(IntoPlot)]
 pub struct LineChart<T, X, Y>
@@ -37,6 +47,7 @@ where
     grid: bool,
     id: Option<ElementId>,
     name: Option<SharedString>,
+    hover: Option<LineHover>,
 }
 
 impl<T, X, Y> LineChart<T, X, Y>
@@ -60,6 +71,7 @@ where
             grid: true,
             id: None,
             name: None,
+            hover: None,
         }
     }
 
@@ -211,16 +223,25 @@ where
             line = line.dot().dot_size(8.).dot_fill_color(stroke);
         }
 
-        // The stroke is tessellated once and reused while the projected
+        // An identified chart keeps its stroke tessellated across frames;
+        // without an id, sibling charts would share one cache slot and thrash
+        // it. The stroke is tessellated once and reused while the projected
         // points, width and curve style stay the same; each frame only moves
         // it to the plot's origin. Dots stay per-frame quads, colored here.
-        let caches = PathCaches::for_paint("line-chart", window, cx);
-        caches.update(cx, |caches, _| {
-            line.paint_cached(&bounds, caches.slot(0), window);
-            // One line per chart: dropping past the first slot keeps the
-            // cache bounded when a rebuilt chart paints fewer shapes.
-            caches.truncate(1);
-        });
+        // One line per chart: dropping past the first slot keeps the cache
+        // bounded when a rebuilt chart paints fewer shapes.
+        if let Some(caches) = self
+            .id
+            .is_some()
+            .then(|| PathCaches::for_paint("line-chart", window, cx))
+        {
+            caches.update(cx, |caches, _| {
+                line.paint_cached(&bounds, caches.slot(0), window);
+                caches.truncate(1);
+            });
+        } else {
+            line.paint(&bounds, window);
+        }
     }
 
     fn id(&self) -> Option<ElementId> {
@@ -254,6 +275,24 @@ where
         ))
     }
 
+    fn hover(&mut self, hover: Option<&PlotHover>, window: &mut Window, cx: &mut App) {
+        self.hover = hover.and_then(|hover| {
+            // The crosshair and dot slide along the line to the hovered point; on the
+            // first hovered frame they adopt it instead of travelling from where the
+            // last hover ended.
+            let target = *hover.state().dots.first()?;
+            let policy = pointer_spring(cx).with_travel(!hover.is_entering());
+            let dot = point(
+                spring(("line-chart", "x"), target.x, policy, window, cx),
+                spring(("line-chart", "y"), target.y, policy, window, cx),
+            );
+            Some(LineHover {
+                dot,
+                focus: hover.focus(),
+            })
+        });
+    }
+
     fn tooltip(
         &self,
         state: &TooltipState,
@@ -269,22 +308,30 @@ where
         let stroke = self.stroke.unwrap_or(cx.theme().chart_2);
         let name = self.name.clone().unwrap_or_default();
 
+        // Where the hover has slid to this frame; the data point itself, in full
+        // focus, before the first `hover` sample.
+        let (dot, focus) = match self.hover {
+            Some(hover) => (hover.dot, hover.focus),
+            None => (*state.dots.first()?, 1.),
+        };
+
         Some(
             // Follow the cursor; the crosshair and dot stay snapped to the data point.
             Tooltip::new(cursor, bounds.size)
                 .gap(px(8.))
                 // Confine the crosshair to the plot area so it doesn't cross the x-axis.
                 .cross_line(
-                    CrossLine::new(state.cross_line).height(
+                    CrossLine::new(point(dot.x, state.cross_line.y)).height(
                         bounds.size.height.as_f32() - if self.x_axis { AXIS_GAP } else { 0. },
                     ),
                 )
-                .dots(
-                    state
-                        .dots
-                        .iter()
-                        .map(|p| Dot::new(*p).stroke(cx.theme().background).fill(stroke)),
-                )
+                .dots(Some(
+                    Dot::new(dot)
+                        .size(HOVER_DOT_SIZE)
+                        .halo(hover_halo_size(focus))
+                        .stroke(cx.theme().background)
+                        .fill(stroke),
+                ))
                 .title(title)
                 .row(stroke, name, format!("{}", value))
                 .into_any_element(),

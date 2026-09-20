@@ -4,6 +4,7 @@ use gpui::{
     AnyElement, App, Background, Bounds, ElementId, Hsla, IntoElement, Pixels, Point, SharedString,
     Window, point, px,
 };
+use gpui_base::motion::spring;
 use gpui_component_macros::IntoPlot;
 use num_traits::{Num, ToPrimitive};
 
@@ -13,11 +14,22 @@ use crate::{
         AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, StrokeStyle,
         scale::{Scale, ScaleLinear, ScalePoint, Sealed},
         shape::Area,
-        tooltip::{CrossLine, Dot, Tooltip, TooltipState},
+        tooltip::{CrossLine, Dot, PlotHover, Tooltip, TooltipState},
     },
 };
 
-use super::build_point_x_labels;
+use super::{HOVER_DOT_SIZE, build_point_x_labels, hover_halo_size, pointer_spring};
+
+/// The hover an area chart paints, sampled once per frame in [`Plot::hover`].
+#[derive(Clone)]
+struct AreaHover {
+    /// Where the crosshair has slid to along the x axis.
+    x: Pixels,
+    /// Where each series' dot has slid to; the dots follow their series.
+    dots: Vec<Point<Pixels>>,
+    /// How far the hover has faded in.
+    focus: f32,
+}
 
 #[derive(IntoPlot)]
 pub struct AreaChart<T, X, Y>
@@ -37,6 +49,7 @@ where
     x_axis: bool,
     grid: bool,
     id: Option<ElementId>,
+    hover: Option<AreaHover>,
 }
 
 impl<T, X, Y> AreaChart<T, X, Y>
@@ -60,6 +73,7 @@ where
             x_axis: true,
             grid: true,
             id: None,
+            hover: None,
         }
     }
 
@@ -222,51 +236,60 @@ where
         }
 
         // Draw area
-        let caches = PathCaches::for_paint("area-chart", window, cx);
-        caches.update(cx, |caches, cx| {
-            for (i, y_fn) in self.y.iter().enumerate() {
-                let x = x.clone();
-                let y = y.clone();
-                let y_fn = y_fn.clone();
+        let default_stroke = cx.theme().chart_2;
+        let default_fill = default_stroke.opacity(0.4).into();
+        let areas = self.y.iter().enumerate().map(|(i, y_fn)| {
+            let x = x.clone();
+            let y = y.clone();
+            let y_fn = y_fn.clone();
 
-                let fill = self
-                    .fills
-                    .get(i)
-                    .copied()
-                    .flatten()
-                    .unwrap_or_else(|| cx.theme().chart_2.opacity(0.4).into());
+            let fill = self.fills.get(i).copied().flatten().unwrap_or(default_fill);
 
-                let stroke = self
-                    .strokes
-                    .get(i)
-                    .copied()
-                    .flatten()
-                    .unwrap_or(cx.theme().chart_2);
+            let stroke = self
+                .strokes
+                .get(i)
+                .copied()
+                .flatten()
+                .unwrap_or(default_stroke);
 
-                let stroke_style = *self
-                    .stroke_styles
-                    .get(i)
-                    .unwrap_or(self.stroke_styles.first().unwrap_or(&Default::default()));
+            let stroke_style = *self
+                .stroke_styles
+                .get(i)
+                .unwrap_or(self.stroke_styles.first().unwrap_or(&Default::default()));
 
-                let area = Area::new()
-                    .data(self.data.iter().enumerate())
-                    .x(move |(i, _)| x.tick_at(*i))
-                    .y0(height)
-                    .y1(move |(_, d)| y.tick(&y_fn(d)))
-                    .stroke(stroke)
-                    .stroke_style(stroke_style)
-                    .fill(fill);
-
-                // Each series' fill and stroke are tessellated once and
-                // reused while its projected points, baseline and curve style
-                // stay the same; each frame only moves them to the origin.
-                let (fill_cache, line_cache) = caches.slot_pair(i);
-                area.paint_cached(&bounds, fill_cache, line_cache, window);
-            }
-            // Two caches per series: dropping past the painted count keeps
-            // the cache bounded when series are removed.
-            caches.truncate(2 * self.y.len());
+            Area::new()
+                .data(self.data.iter().enumerate())
+                .x(move |(i, _)| x.tick_at(*i))
+                .y0(height)
+                .y1(move |(_, d)| y.tick(&y_fn(d)))
+                .stroke(stroke)
+                .stroke_style(stroke_style)
+                .fill(fill)
         });
+
+        // An identified chart keeps its fills and strokes tessellated across
+        // frames; without an id, sibling charts would share one cache and
+        // thrash it. Each series' fill and stroke are tessellated once and
+        // reused while its projected points, baseline and curve style stay
+        // the same. Two caches per series: truncating past the painted count
+        // keeps the cache bounded when series are removed.
+        if let Some(caches) = self
+            .id
+            .is_some()
+            .then(|| PathCaches::for_paint("area-chart", window, cx))
+        {
+            caches.update(cx, |caches, _| {
+                for (i, area) in areas.enumerate() {
+                    let (fill_cache, line_cache) = caches.slot_pair(i);
+                    area.paint_cached(&bounds, fill_cache, line_cache, window);
+                }
+                caches.truncate(2 * self.y.len());
+            });
+        } else {
+            for area in areas {
+                area.paint(&bounds, window);
+            }
+        }
     }
 
     fn id(&self) -> Option<ElementId> {
@@ -305,6 +328,31 @@ where
         ))
     }
 
+    fn hover(&mut self, hover: Option<&PlotHover>, window: &mut Window, cx: &mut App) {
+        self.hover = hover.map(|hover| {
+            // The crosshair and each series' dot slide to the hovered point; on the
+            // first hovered frame they adopt it instead of travelling from where the
+            // last hover ended.
+            let state = hover.state();
+            let policy = pointer_spring(cx).with_travel(!hover.is_entering());
+            let x = spring(("area-chart", "x"), state.cross_line.x, policy, window, cx);
+            let dots = state
+                .dots
+                .iter()
+                .enumerate()
+                .map(|(i, dot)| {
+                    let id = ElementId::named_usize("area-chart-dot", i);
+                    point(x, spring(id, dot.y, policy, window, cx))
+                })
+                .collect();
+            AreaHover {
+                x,
+                dots,
+                focus: hover.focus(),
+            }
+        });
+    }
+
     fn tooltip(
         &self,
         state: &TooltipState,
@@ -327,21 +375,28 @@ where
                 .unwrap_or(default_color)
         };
 
+        // Where the hover has slid to this frame; the data points themselves, in
+        // full focus, before the first `hover` sample.
+        let (x, dots, focus) = match self.hover.as_ref() {
+            Some(hover) => (hover.x, &hover.dots, hover.focus),
+            None => (state.cross_line.x, &state.dots, 1.),
+        };
+
         // Follow the cursor; the crosshair and dots stay snapped to the data point.
         let mut tooltip = Tooltip::new(cursor, bounds.size)
             .gap(px(8.))
             // Confine the crosshair to the plot area so it doesn't cross the x-axis.
             .cross_line(
-                CrossLine::new(state.cross_line)
+                CrossLine::new(point(x, state.cross_line.y))
                     .height(bounds.size.height.as_f32() - if self.x_axis { AXIS_GAP } else { 0. }),
             )
-            .dots(
-                state
-                    .dots
-                    .iter()
-                    .enumerate()
-                    .map(|(i, p)| Dot::new(*p).stroke(dot_stroke).fill(color(i))),
-            )
+            .dots(dots.iter().enumerate().map(|(i, p)| {
+                Dot::new(*p)
+                    .size(HOVER_DOT_SIZE)
+                    .halo(hover_halo_size(focus))
+                    .stroke(dot_stroke)
+                    .fill(color(i))
+            }))
             .title(title);
 
         // One row per series: swatch + label + value.

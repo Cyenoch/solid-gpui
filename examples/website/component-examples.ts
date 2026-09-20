@@ -610,9 +610,9 @@ add(
 
 add(
   "Motion",
-  "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates.",
+  "Native motion samples transitions, springs, keyframes and sequences without per-frame JavaScript updates.",
   componentDescriptionsChinese[
-    "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates."
+    "Native motion samples transitions, springs, keyframes and sequences without per-frame JavaScript updates."
   ],
   '<View style={{ gap: 12 }}><N.Button label="Move" onPress={() => setMoved(!moved())} /><N.Motion target={{ x: moved() ? 100 : 0 }} animation={{ type: "spring", responseMs: 350 }}><N.Label text="Native spring" /></N.Motion></View>',
   "const [moved, setMoved] = createSignal(false);",
@@ -656,4 +656,42 @@ add(
   componentDescriptionsChinese["An accessible native control with application-owned visuals."],
   '<N.BaseToggle accessibilityLabel="Pin" pressed={pinned()} onChange={setPinned} style={{ padding: 12, borderWidth: 1, borderColor: "#64748b", borderRadius: 8 }}><N.Label text={pinned() ? "Pinned" : "Pin"} /></N.BaseToggle>',
   "const [pinned, setPinned] = createSignal(false);",
+);
+
+add(
+  "Questionnaire QuestionnaireItem QuestionnaireChoice QuestionnaireInput",
+  "Compose native multi-step questions with choice and freeform answers, validation and submission.",
+  componentDescriptionsChinese[
+    "Compose native multi-step questions with choice and freeform answers, validation and submission."
+  ],
+  `<View style={{ gap: 12 }}>
+      <N.Questionnaire shortcuts="letters" onSubmit={result => setSubmitted(result.items.map(item => item.name + ": " + [...(item.answer.choices ?? []), item.answer.freeform ?? ""].filter(Boolean).join(", ")).join("; "))}>
+        <N.QuestionnaireItem name="direction" accessibilityLabel="What should we build next?" description="Choose an option or write your own." required>
+          <N.QuestionnaireChoice value="editor" accessibilityLabel="An editor" description="Native text editing tools." />
+          <N.QuestionnaireChoice value="dashboard" accessibilityLabel="A dashboard" description="Charts and searchable data." />
+          <N.QuestionnaireInput accessibilityLabel="Another direction" placeholder="Your idea…" />
+        </N.QuestionnaireItem>
+        <N.QuestionnaireItem name="platforms" accessibilityLabel="Which platforms do you use?" multiple>
+          <N.QuestionnaireChoice value="desktop" accessibilityLabel="Desktop" />
+          <N.QuestionnaireChoice value="web" accessibilityLabel="Web" />
+        </N.QuestionnaireItem>
+      </N.Questionnaire>
+      <N.Label text={submitted() || "Answers stay native until you submit."} />
+    </View>`,
+  'const [submitted, setSubmitted] = createSignal("");',
+);
+
+add(
+  "InputGroup InputGroupTextarea InputGroupButton InputGroupText",
+  "Share one native frame between an input and aligned text, icons or actions.",
+  componentDescriptionsChinese["Share one native frame between an input and aligned text, icons or actions."],
+  `<View style={{ gap: 12 }}>
+      <N.InputGroup ariaLabel="Website address" slots={{
+        control: <N.Input value={value()} onChange={change => setValue(change.value)} ariaLabel="Domain" placeholder="example.com" />,
+        start: <N.InputGroupText><N.Text value="https://" /></N.InputGroupText>,
+        end: <N.InputGroupButton label="Use" onPress={() => setStatus(value() || "Enter a domain first")} />,
+      }} />
+      <N.Label text={status()} />
+    </View>`,
+  'const [value, setValue] = createSignal(""); const [status, setStatus] = createSignal("Enter a domain.");',
 );

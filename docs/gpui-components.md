@@ -2,7 +2,7 @@
 
 The SDK exposes generated native components, descriptors, and commands from
 `@solid-gpui/core/components`. The implementation comes from [GPUI Kit](https://github.com/longbridge/gpui-kit)
-at `501c73923280859a5de2b16fe64d4aac960bb040` (0.6.1 plus subsequent changes).
+at `0e63ea799766c486022a0cecfda6e48c5183a2d7` (0.6.4 plus subsequent changes).
 Local native state and lifecycle seams are recorded in
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md).
 
@@ -42,6 +42,87 @@ session; an explicit `host` remains externally built. See
 [managed development sessions](hot-reload.md#managed-development-sessions).
 
 ## Coverage
+
+### September 2026 upstream update
+
+The 0.6.4-based pin adds InputGroup and Questionnaire, atomic inline input tokens,
+editor search commands, chained native motion, and streamed-text fades. Their
+Solid contracts are generated from the adapters, not copied from the Rust API.
+The website's executable examples and API tables use those same contracts.
+
+Existing controls also receive upstream fixes: context menus open only for the
+pressed trigger, dialog actions route to their own dialog, switches draw their
+focus ring, and Markdown can decode embedded `data:` images. TextView retains
+shaped paragraphs and highlights across frames. These are native implementation
+changes; applications do not need replacement JSX controls.
+
+Set `PieChart interactive` to enable native slice hit testing, lift/fade motion,
+and value/share tooltips; optional `name` labels the tooltip series. Automatic
+and per-slice radii remain supported. Other interactive charts forward the same
+native hover lifecycle without per-frame JavaScript events.
+
+Application theme overrides use upstream `Theme::update`, keeping solid colors,
+renderable tokens and the Base projection synchronized without discarding
+untouched gradient tokens.
+
+### Input groups
+
+`InputGroup` wraps exactly one retained `Input` in `slots.control`;
+`InputGroupTextarea` does the same for `Textarea`. Use `slots.start`, `end`,
+`top` and `bottom` for aligned addon content. The native group draws the shared
+frame, focus ring and invalid state, and configures the control's appearance.
+The child still owns its editing state, events, ref commands and controlled-value
+acknowledgements. Do not remove its border manually or duplicate its value on the
+group. `InputGroupText` and `InputGroupButton` provide the upstream addon skin.
+
+```tsx
+<InputGroup
+  slots={{
+    control: <Input placeholder="example.com" />,
+    start: (
+      <InputGroupText>
+        <Text value="https://" />
+      </InputGroupText>
+    ),
+    end: <InputGroupButton label="Use" onPress={() => useAddress()} />,
+  }}
+/>
+```
+
+Group `disabled` and `readonly` constrain the retained input engine; clearing
+them restores the child's own settings. `invalid` only changes presentation.
+The aligned slots replace a standalone InputGroupAddon descriptor; the upstream
+InputGroupInput alias is represented by the ordinary retained `Input` child.
+
+### Questionnaire
+
+Compose `QuestionnaireItem` schema children inside `Questionnaire`, with
+`QuestionnaireChoice` choices and an optional `QuestionnaireInput` for freeform
+answers. These children describe questions; the retained native root renders
+the actual upstream progress, title, choices, validation and navigation controls.
+Those internal visual parts are not exported as empty JSX aliases.
+
+Native state owns the current question, answers, validation, focus and keyboard
+shortcuts. Use `onAnswerChange` for application synchronization, `onChange` for
+question navigation, and `onSubmit` for the submitted answers. There is no second
+controlled answer store. Ref commands expose state inspection, answer/input edits,
+navigation, submission, reset, focus, disabled choices and external validation
+errors. `size`, `shortcuts`, `showProgress`, `showActions` and the action-label
+props configure the native presentation. Required questions must validate before
+advancing; optional questions may be skipped.
+
+Keep item `name` and choice `value` stable. Label/description-only schema updates
+preserve compatible keyed answers and the current item. Structural or behavioral
+schema changes rebuild the native flow; do not use schema mutation as an answer
+setter. Use the ref commands for answer edits, or `reset()` for a deliberate
+restart. Schemas are bounded to 256 items and 128 choices per item, with unique
+nonempty identifiers of at most 256 UTF-8 bytes. A single-choice item accepts at
+most one default-selected choice. Each item accepts at most one freeform input.
+The schema must also fit a conservative 1 MiB response budget that reserves
+space for every choice, maximum freeform answer and external validation error,
+including JSON escaping. Large combinations can reach that budget before the
+individual item limits. Freeform editing is capped at 8192 UTF-8 bytes per input;
+oversized commands fail before mutation rather than dropping answer events.
 
 ### Asynchronous choice catalogs
 
@@ -100,12 +181,51 @@ is application-wide per language; validate/install it before opening the editor.
 Patterns are Rust regular expressions, bounded to 4096 bytes and a 1 MiB compiled
 program. Changing the language rules does not add a syntax grammar.
 
+### Inline tokens and search
+
+`Input` and `Textarea` accept atomic `content={{ text, tokens }}` instead of
+`value`. Each snapshot token has `id`, `text`, `label`, and UTF-8 `anchorByte` /
+`headByte` offsets. Ranges must match the token text, lie on grapheme boundaries,
+and not overlap. The native editor handles token navigation, selection, deletion
+and undo as one unit. Tokens are rejected in Editor and masked input modes.
+Plain `value` replacement clears tokens. Controlled content uses the same
+`editSeq` / `ackEditSeq` acknowledgement discipline as text; never supply both
+`content` and `value`.
+
+Use `insertToken({ id, text, label })`, `replaceRangeWithToken({ token: { id, text, label },
+anchorByte, headByte })`, `getTokens()` and `getContent()` on the ref. `onTokenClick`
+reports the token and its current range. The default token skin is native.
+Token documents reserve event capacity: at most 32 KiB of UTF-8 text, 32 KiB
+of combined token identifiers/text/labels, and 256 tokens. Identifiers are at
+most 256 bytes; each token text/label is at most 4096 bytes. After a control
+first carries tokens, its native editor retains the 32 KiB text limit so later
+typing cannot overflow a change event. `onChange.content` is the atomic snapshot
+to echo into controlled `content`; do not reconstruct token ranges from `value`.
+
+`Input`, `Textarea` and `Editor` expose `setSearchQuery({ query, caseInsensitive })`,
+`getSearchSession()`, `nextSearchMatch()`, `previousSearchMatch()`, `closeSearch()`,
+`replaceCurrentSearchMatch({ replacement })` and `replaceAllSearchMatches({ replacement })`.
+Search state and highlights remain native; applications can build search actions
+without replacing the editor. Replacement respects native editability and undo.
+
+Subscribing to `onPaste` intercepts editable paste and reports bounded text,
+image metadata/data and file paths asynchronously. The handler must explicitly
+apply any desired text with the input commands; there is no synchronous JS
+accept/reject callback. With no subscriber, native paste keeps its usual behavior.
+
 ### Markdown metadata and icon sources
 
 `TextView format="markdown" frontmatter` enables top-level YAML metadata rendering.
 Simple supported scalars render as a description list; compound or unsupported
 YAML uses the native code-block renderer. Frontmatter is opt-in and requires
 Markdown. It is a display extension, not a general-purpose YAML parser.
+
+`TextView streamFade` fades appended chunks using the native 350 ms policy.
+Use `streamFade={{ durationMs: 350, staggerMs: 30, easing: "easeOut" }}` for
+word-staggered timing, or `false` to disable it. Each timing value is bounded to
+60 seconds; the native renderer compresses stagger for long updates. Keep the
+same TextView mounted and append to `text`; native state retains earlier text,
+selection and fade progress. Omission leaves the state's current policy alone.
 
 Component icon slots accept a registered Iconify name or `{ svg: "<svg …>…</svg>" }` through
 `ComponentIcon`. The standalone generated `Icon` uses `source`, for example
@@ -117,14 +237,22 @@ Iconify catalog remain available; see [Iconify](iconify.md).
 ### Native motion and custom controls
 
 `Motion` takes a target `{ x, y, opacity }` and an `animation` discriminated by
-`type`: `transition`, `spring`, or `keyframes`. Omitted target fields mean zero
+`type`: `transition`, `spring`, `keyframes`, or `sequence`. Omitted target fields mean zero
 offset and full opacity. Sampling and repaint requests stay in GPUI; completion
-emits `onComplete({ playbackId })`. A new `playbackId` restarts keyframes.
+emits `onComplete({ playbackId })`. A new `playbackId` restarts keyframes or sequences.
 Transitions animate changes from the current target; springs preserve velocity.
 Keyframes accept 2–128 stops, direction and repeat count (`null` repeats).
 Transition/keyframe `stagger` uses `{ index, count, intervalMs, origin }` with
 `origin` equal to `first`, `last`, or `center`. Duration and absolute delay are
 bounded to 60 seconds. Native motion respects the host's reduced-motion setting.
+
+A sequence owns its timeline: `animation={{ type: "sequence", from: { opacity: 0 },
+steps: [{ target: { opacity: 1 }, durationMs: 250 }, { target: { x: 80 },
+durationMs: 400, delayMs: 120, easing: "easeInOut" }] }}`. Supply 1–32 steps;
+each step has its own target, duration and optional delay/easing. `from` defaults
+to zero offset and full opacity. The top-level `target` is ignored for sequences,
+and `stagger` is rejected. Completion fires once after the final step; reduced
+motion jumps to the final target. Changing the animation or `playbackId` replays it.
 
 Use the Solid `Presence` helper to retain the child's owner through its exit:
 
@@ -180,21 +308,21 @@ import {
 </Empty>;
 ```
 
-| Native family            | JS entry points                                                                                                                                                                                                                                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag               |
-| Editing and choices      | Input, Textarea, Editor, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                                                                                        |
-| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                 |
-| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar |
-| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                                                                              |
-| Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                                                                                   |
-| Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                                                                                         |
-| Docking                  | DockArea; its layout descriptors create actual native tab groups                                                                                                                                                                                                                                          |
-| Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                                                                                       |
-| Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                                                                                   |
-| Motion and presence      | Motion, NativePresence                                                                                                                                                                                                                                                                                    |
-| Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                                                                              |
-| Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                                                                                |
+| Native family            | JS entry points                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag                                                     |
+| Editing and choices      | Input, Textarea, Editor, InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                                                               |
+| Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                                       |
+| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, Questionnaire and its compound parts, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar |
+| Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                                                                                                                    |
+| Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                                                                                                                         |
+| Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                                                                                                                               |
+| Docking                  | DockArea; its layout descriptors create actual native tab groups                                                                                                                                                                                                                                                                                |
+| Charts                   | LineChart, AreaChart, BarChart, CandlestickChart, PieChart, RadarChart, SankeyChart                                                                                                                                                                                                                                                             |
+| Low-level drawing        | Plot with axis/grid/labels/line/area/bar/radialLine/arc primitives; PlotTooltip, PlotCrossLine, PlotDot                                                                                                                                                                                                                                         |
+| Motion and presence      | Motion, NativePresence                                                                                                                                                                                                                                                                                                                          |
+| Appearance               | useNative().getTheme/setTheme, setApplicationTheme, getMotionPreference/setMotionPreference; application theme tokens and motion preferences                                                                                                                                                                                                    |
+| Computation              | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal, pieArcs, arcCentroid, stackSeries, sankeyLayout                                                                                                                                                                                                                                      |
 
 The website publishes one Components navigation group per family above, in the same
 order, with compound parts on their owner's page
@@ -247,7 +375,7 @@ available.
 it would otherwise cover content. Markdown and component API tables on the website
 use the same horizontal `ScrollShadow` on Web and desktop.
 
-The complete pinned upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`. It includes constructor descriptors and internal/conditional types separately from the ordinary public rendering interfaces — 144 at this pin, after upstream added the six `empty` parts.
+The historical upstream requirement inventory is `.scratch/gpui-component-complete/upstream-inventory.md`; its counts describe its recorded baseline, not the current catalog. The generated SDK and website catalog are authoritative for the current Solid API, including InputGroup and Questionnaire.
 
 ## Popover presentation scope
 

@@ -50,11 +50,13 @@ Docs deep links refreshable on static hosting.
 
 ## Rendering and ownership
 
-`crates/solid-gpui-web` uses the pinned gpui-pre 0.3.3 Web platform in
+`crates/solid-gpui-web` uses the pinned gpui-pre 0.3.5 Web platform in
 single-threaded mode. It needs no SharedArrayBuffer or cross-origin isolation
 headers. The upstream wasm_thread dependency still requires the pinned nightly
-at compile time. The host embeds licensed Inter, IBM Plex Sans, Lilex, and Noto Sans SC fonts;
-browser system fonts are not available to GPUI's text shaper.
+at compile time. The host embeds licensed Inter, IBM Plex Sans, Maple Mono, and Noto Sans SC fonts;
+browser system fonts are not available to GPUI's text shaper. After registering
+the fonts, the host selects Inter through Kit's `Theme::update`, synchronizing
+Component and Base typography before opening the window.
 
 `start()` asynchronously initializes graphics and opens a window. `submit()`
 accepts one bounded, framed protocol message and applies it to the existing

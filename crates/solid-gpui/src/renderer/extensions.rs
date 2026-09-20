@@ -51,6 +51,13 @@ impl<'a> ExtensionChildSummary<'a> {
         };
         Some(Self::from_node(node, store, registry, group))
     }
+    /// Inspect a named-slot group by its one-based host child index.
+    pub fn slot(&self, index: usize) -> Option<Self> {
+        let (content, store, registry) = self.source?;
+        let parent = store.get(content.parent_id)?;
+        let group = parent.child_at(store, index)?;
+        Some(Self::from_node(group, store, registry, None))
+    }
     /// Count the actual default content, excluding the generated named-slot groups.
     pub fn content_count(&self) -> usize {
         self.element_types.len()
@@ -231,6 +238,13 @@ pub trait ExtensionInstance {
     }
     fn render(&self, context: ExtensionRenderContext<'_>) -> AnyElement;
     fn build_native(&self, _context: ExtensionRenderContext<'_>) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
+    /// The child's built element before its host boundary applies. Compound
+    /// parents that re-wrap children themselves (for example addon parts that
+    /// must stay scan-visible to their native wrapper) use this instead of
+    /// `render`.
+    fn build_element(&self, _context: ExtensionRenderContext<'_>) -> Option<AnyElement> {
         None
     }
     fn invoke(
@@ -539,6 +553,114 @@ impl ExtensionContent {
             );
         }
         crate::native::NativeItems(items)
+    }
+    /// Every direct child as `(element, host boundary)`, built without its
+    /// host boundary so a compound parent can re-wrap it — for example addon
+    /// parts whose native wrappers must stay visible to a scanning parent.
+    /// Core host nodes (views, icons, plain text) render through the ordinary
+    /// node path with an identity boundary; a typed-parent descriptor child
+    /// (no erasable element) is a composition contract error, never a silent
+    /// skip.
+    pub(crate) fn native_parts(
+        &self,
+        cx: &gpui::App,
+    ) -> Vec<crate::native::NativeChild<AnyElement>> {
+        let mut parts = Vec::new();
+        let sink = &self.children.sink;
+        if !sink.is_active() {
+            return parts;
+        }
+        let Some(entity) = self.children.root.upgrade() else {
+            return parts;
+        };
+        let root = entity.read(cx);
+        let Some(mut parent) = root.store().get(sink.node_id) else {
+            return parts;
+        };
+        if let Some(group) = self.group {
+            parent = parent
+                .child_at(root.store(), group)
+                .expect("validated content group");
+        }
+        let identity: std::rc::Rc<dyn Fn(AnyElement) -> AnyElement> =
+            std::rc::Rc::new(|element| element);
+        for node in parent.children(root.store()) {
+            let extension_properties = match node.host_properties.as_ref() {
+                Some(crate::protocol::HostProperties::Extension(properties)) => Some(properties),
+                _ => None,
+            };
+            let Some(properties) = extension_properties else {
+                // A core host node renders with its full ordinary styling;
+                // no native boundary applies beyond that.
+                parts.push(crate::native::NativeChild {
+                    native: root.render_node_for_extension(node, &entity),
+                    boundary: identity.clone(),
+                });
+                continue;
+            };
+            let adapter = root
+                .extension_registry()
+                .resolve(
+                    properties.provider_id,
+                    properties.catalog_digest,
+                    properties.entry_id,
+                    properties.entry_version,
+                )
+                .expect("validated typed child adapter");
+            let content_node = adapter
+                .default_child_group()
+                .map(|index| {
+                    node.child_at(root.store(), index)
+                        .expect("validated slot group")
+                })
+                .unwrap_or(node);
+            let mut children = ChildIterator {
+                root,
+                entity: &entity,
+                nodes: Box::new(content_node.children(root.store())),
+            };
+            let child_sink = ExtensionEventSink::new(
+                root.extension_event_state(),
+                node.id,
+                node.listener_id,
+                properties.event_ids.clone(),
+            );
+            let boundary = native_boundary(
+                node.id,
+                node.observes_layout && node.listener_id != 0,
+                adapter.native_style(),
+                root.style_for_node(node),
+                &entity,
+                child_sink.clone(),
+            );
+            let context = ExtensionRenderContext::new(
+                node.id,
+                node.listener_id,
+                properties,
+                &mut children,
+                root.style_for_node(node),
+                child_sink,
+            );
+            let instance = root
+                .extension_instances
+                .get(&node.id)
+                .and_then(|mounted| mounted.instance.as_ref());
+            // An extension node without an erasable element (an arbitrary
+            // retained view as custom addon content) renders through its
+            // ordinary path with an identity boundary; only typed-parent
+            // descriptors lack one, and publication already rejects those.
+            match instance.and_then(|instance| instance.build_element(context)) {
+                Some(element) => parts.push(crate::native::NativeChild {
+                    native: element,
+                    boundary,
+                }),
+                None => parts.push(crate::native::NativeChild {
+                    native: root.render_node_for_extension(node, &entity),
+                    boundary: identity.clone(),
+                }),
+            }
+        }
+        parts
     }
     pub fn elements(&self, cx: &gpui::App) -> Vec<AnyElement> {
         let sink = &self.children.sink;

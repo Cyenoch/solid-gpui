@@ -6,23 +6,29 @@ use crate::native::{
 };
 use gpui::Window;
 use gpui::{
-    AnyElement, AppContext, Context, Entity, EntityInputHandler, IntoElement, Render, Subscription,
-    Task,
+    AnyElement, App, AppContext, Context, Entity, EntityInputHandler, IntoElement, Render,
+    Subscription, Task,
 };
 use gpui_base::input::{
     EditorMode, InputBaseState, InputMode, InputModeKind, NumberStep, TabSize, TextareaMode,
 };
-use gpui_component::input::{Input as GpuiInput, InputEvent, InputState};
+use gpui_component::input::{
+    InlineToken, InlineTokenSpan, Input as GpuiInput, InputContent, InputEvent, InputGroupControl,
+    InputState,
+};
 use gpui_component::{Disableable, Sizable};
 use std::time::Duration;
 
-trait TextProps: serde::de::DeserializeOwned + crate::native::TS + 'static {
+pub(crate) trait TextProps:
+    serde::de::DeserializeOwned + crate::native::TS + 'static
+{
     fn value(&self) -> &Option<String>;
     fn default_value(&self) -> &Option<String>;
     fn placeholder(&self) -> &Option<String>;
     fn disabled(&self) -> bool;
     fn readonly(&self) -> bool;
     fn ack_edit_seq(&self) -> u32;
+    fn content(&self) -> Option<&InputContentSnapshot>;
 }
 macro_rules! text_props {
     ($name:ident { $($field:ident : $ty:ty = $default:expr),* $(,)? }) => {
@@ -33,10 +39,11 @@ macro_rules! text_props {
             pub value: Option<String>, pub default_value: Option<String>,
             pub placeholder: Option<String>, pub disabled: bool, pub readonly: bool,
             pub ack_edit_seq: u32, pub appearance: bool,
+            pub content: Option<InputContentSnapshot>,
             $(pub $field: $ty,)*
         }
         impl Default for $name {
-            fn default() -> Self { Self { value: None, default_value: None, placeholder: None, disabled: false, readonly: false, ack_edit_seq: 0, appearance: true, $($field: $default,)* } }
+            fn default() -> Self { Self { value: None, default_value: None, placeholder: None, disabled: false, readonly: false, ack_edit_seq: 0, appearance: true, content: None, $($field: $default,)* } }
         }
         impl TextProps for $name {
             fn value(&self) -> &Option<String> { &self.value }
@@ -45,6 +52,7 @@ macro_rules! text_props {
             fn disabled(&self) -> bool { self.disabled }
             fn readonly(&self) -> bool { self.readonly }
             fn ack_edit_seq(&self) -> u32 { self.ack_edit_seq }
+            fn content(&self) -> Option<&InputContentSnapshot> { self.content.as_ref() }
         }
     }
 }
@@ -66,6 +74,11 @@ pub struct AutoGrow {
 pub struct InputChange {
     pub value: String,
     pub edit_seq: u32,
+    /// The full text-plus-token snapshot at commit time, present only for
+    /// controls that carry atomic inline tokens, so a controlled consumer can
+    /// round-trip `content` without a racing `getContent` call.
+    #[serde(default)]
+    pub content: Option<InputContentSnapshot>,
 }
 #[crate::native_type]
 #[derive(Clone, Debug)]
@@ -87,11 +100,122 @@ pub struct InputSelectionRange {
     pub anchor_byte: usize,
     pub head_byte: usize,
 }
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSearchRange {
+    pub anchor_byte: usize,
+    pub head_byte: usize,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSearchQuery {
+    pub query: String,
+    pub case_insensitive: bool,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSearchReplacement {
+    pub replacement: String,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSearchReplaceAll {
+    pub count: usize,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputSearchSession {
+    pub open: bool,
+    pub active: bool,
+    pub replace_mode: bool,
+    pub case_insensitive: bool,
+    pub query: String,
+    pub replacement: String,
+    pub match_count: usize,
+    pub current_match_index: usize,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputTokenSpec {
+    pub id: String,
+    pub text: String,
+    #[serde(default)]
+    pub label: Option<String>,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputTokenRangeSpec {
+    pub token: InputTokenSpec,
+    pub anchor_byte: usize,
+    pub head_byte: usize,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputTokenSpan {
+    pub id: String,
+    pub text: String,
+    pub label: String,
+    pub anchor_byte: usize,
+    pub head_byte: usize,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InputContentSnapshot {
+    pub text: String,
+    pub tokens: Vec<InputTokenSpan>,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputPasteImage {
+    pub format: String,
+    pub byte_length: usize,
+    pub data: Option<String>,
+}
+#[crate::native_type]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct InputPaste {
+    pub text: Option<String>,
+    pub text_truncated: bool,
+    pub image: Option<InputPasteImage>,
+    pub files: Vec<String>,
+}
 
-trait TextMode: Sized + 'static {
+/// A paste payload never exceeds one encoded extension event. Text, file
+/// names, and base64 image data are bounded so the total stays far below the
+/// transport limit; oversized images arrive as metadata only.
+const PASTE_TEXT_LIMIT: usize = 64 * 1024;
+const PASTE_IMAGE_DATA_LIMIT: usize = 192 * 1024;
+const PASTE_FILE_COUNT_LIMIT: usize = 32;
+const PASTE_FILE_BYTES_LIMIT: usize = 32 * 1024;
+const TOKEN_COUNT_LIMIT: usize = 256;
+/// A token-carrying document reserves 32KiB of text plus 32KiB of token
+/// id/text/label metadata. Doubled text (value and content.text), 6x JSON
+/// escaping, and at most 256 token structures stay far below one encoded
+/// native event, so user typing can never overflow `Event::emit`.
+const TOKEN_TEXT_LIMIT: usize = 32 * 1024;
+const TOKEN_METADATA_LIMIT: usize = 32 * 1024;
+
+pub(crate) trait TextMode: Sized + 'static {
     type Mode: InputModeKind;
     type Props: TextProps;
     const SLOTS: &'static [&'static str] = &[];
+    /// The engine's paste hook exists for every mode except the numeric
+    /// field, whose engine rejects pasted text anyway.
+    const SUPPORTS_PASTE: bool = false;
+    /// Atomic inline tokens exist only where the upstream engine defines
+    /// them: the single-line and multi-line plain-text modes.
+    const SUPPORTS_TOKENS: bool = false;
     fn new(
         window: &mut Window,
         cx: &mut Context<InputBaseState<Self::Mode>>,
@@ -107,33 +231,76 @@ trait TextMode: Sized + 'static {
         state: &Entity<InputBaseState<Self::Mode>>,
         props: &Self::Props,
         children: &NativeChildren,
+        events: &Event<InputChange>,
     ) -> AnyElement;
     fn validate(_props: &Self::Props) -> Result<(), String> {
         Ok(())
     }
+    /// Commands for modes whose engine carries atomic inline tokens.
+    fn token_commands() -> Vec<ViewCommand<TextControl<Self>>>
+    where
+        Self: Sized,
+    {
+        Vec::new()
+    }
+    /// The text-plus-token snapshot for change events; `None` where the mode
+    /// carries no tokens.
+    fn content_snapshot(
+        _state: &Entity<InputBaseState<Self::Mode>>,
+        _cx: &App,
+    ) -> Option<InputContentSnapshot>
+    where
+        Self: Sized,
+    {
+        None
+    }
+    /// The typed upstream control this mode contributes to an input group,
+    /// carrying every configured capability. `None` where the upstream group
+    /// does not accept the mode.
+    fn group_control(
+        _state: &Entity<InputBaseState<Self::Mode>>,
+        _props: &Self::Props,
+        _children: &NativeChildren,
+        _events: &Event<InputChange>,
+    ) -> Option<InputGroupControl>
+    where
+        Self: Sized,
+    {
+        None
+    }
 }
-struct SingleLine;
-struct Numeric;
-struct MultiLine;
-struct Code;
+pub(crate) struct SingleLine;
+pub(crate) struct Numeric;
+pub(crate) struct MultiLine;
+pub(crate) struct Code;
 #[cfg(test)]
 type Input = TextControl<SingleLine>;
 
-struct PendingValue {
-    value: String,
+struct PendingDocument {
+    content: InputContent,
     ack_edit_seq: u32,
 }
 
-struct TextControl<M: TextMode> {
+pub(crate) struct TextControl<M: TextMode> {
     state: Entity<InputBaseState<M::Mode>>,
     props: M::Props,
     event: Event<InputChange>,
     edit_seq: u32,
     committed_value: String,
-    pending: Option<PendingValue>,
+    /// The last emitted token snapshot; token-only edits with identical text
+    /// compare against it before suppressing a change event.
+    committed_content: Option<InputContentSnapshot>,
+    pending: Option<PendingDocument>,
     retry_task: Option<Task<()>>,
     _subscription: Subscription,
     children: NativeChildren,
+    /// The frame editing overlay a surrounding input group applies, keyed by
+    /// the owning group's entity id. The group's readonly/disabled joins the
+    /// control's own props; lifting the overlay restores exactly the
+    /// requested values.
+    group_editing: Option<(gpui::EntityId, bool, bool)>,
+    applied_editing: (bool, bool),
+    token_limits_installed: bool,
 }
 
 impl<M: TextMode> NativeView for TextControl<M> {
@@ -147,13 +314,26 @@ impl<M: TextMode> NativeView for TextControl<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let initial = props
-            .value()
-            .as_deref()
-            .or(props.default_value().as_deref())
-            .unwrap_or_default();
+        let content = props
+            .content()
+            .map(|content| build_content(content).expect("validated controlled content"));
         let state = cx.new(|cx| {
-            let mut state = M::new(window, cx).default_value(initial);
+            let mut state = match &content {
+                // A controlled snapshot restores text and its tokens together.
+                Some(content) => {
+                    let mut state = M::new(window, cx);
+                    state.set_value(content.clone(), window, cx);
+                    state
+                }
+                None => {
+                    let initial = props
+                        .value()
+                        .as_deref()
+                        .or(props.default_value().as_deref())
+                        .unwrap_or_default();
+                    M::new(window, cx).default_value(initial)
+                }
+            };
             state.set_placeholder(props.placeholder().clone().unwrap_or_default(), window, cx);
             state.set_disabled(props.disabled(), cx);
             state.set_readonly(props.readonly(), cx);
@@ -161,11 +341,13 @@ impl<M: TextMode> NativeView for TextControl<M> {
             state
         });
         let committed_value = state.read(cx).value().to_string();
+        let committed_content = M::content_snapshot(&state, cx);
         let subscription =
             cx.subscribe_in(&state, window, |this, state, event, _, cx| match event {
                 InputEvent::Change => {
                     let value = state.read(cx).value().to_string();
-                    this.observe_committed_value(value);
+                    let content = M::content_snapshot(state, cx);
+                    this.observe_committed_value(value, content);
                     this.pending = None;
                     this.retry_task.take();
                 }
@@ -178,23 +360,36 @@ impl<M: TextMode> NativeView for TextControl<M> {
                     })
                 }
             });
+        let applied_editing = (props.disabled(), props.readonly());
+        let token_limits_installed = props
+            .content()
+            .is_some_and(|content| !content.tokens.is_empty());
+        if token_limits_installed {
+            state.update(cx, |state, cx| state.set_validator(live_token_limit(), cx));
+        }
         Self {
             state,
             props,
             event,
             edit_seq: 0,
             committed_value,
+            committed_content,
             pending: None,
             retry_task: None,
             _subscription: subscription,
             children,
+            group_editing: None,
+            applied_editing,
+            token_limits_installed,
         }
     }
 
     fn update(&mut self, props: M::Props, window: &mut Window, cx: &mut Context<Self>) {
         self.retry_task.take();
         self.pending = None;
-        let entering_controlled = self.props.value().is_none() && props.value().is_some();
+        let entering_controlled = self.props.value().is_none()
+            && self.props.content().is_none()
+            && (props.value().is_some() || props.content().is_some());
         if self.props.placeholder() != props.placeholder() {
             self.state.update(cx, |state, cx| {
                 state.set_placeholder(props.placeholder().clone().unwrap_or_default(), window, cx)
@@ -210,15 +405,28 @@ impl<M: TextMode> NativeView for TextControl<M> {
             M::sync(state, &props, Some(&self.props), window, cx);
         });
         self.props = props;
-        if let Some(value) = self.props.value() {
-            // Match the underlying single-line InputState normalization, so an
-            // identical normalized echo never resets caret or undo history.
-            self.pending = Some(PendingValue {
-                value: if M::Mode::MULTI_LINE {
-                    value.clone()
-                } else {
-                    value.replace(['\n', '\r'], "")
-                },
+        // The group overlay joins after the control's own values, so a lifted
+        // overlay always falls back to exactly the requested values.
+        self.sync_group_editing(cx);
+        let controlled = self
+            .props
+            .content()
+            .map(|content| build_content(content).expect("validated controlled content"))
+            .or_else(|| {
+                self.props.value().as_ref().map(|value| {
+                    // Match the underlying single-line InputState normalization,
+                    // so an identical normalized echo never resets caret or
+                    // undo history.
+                    InputContent::new(if M::Mode::MULTI_LINE {
+                        value.clone()
+                    } else {
+                        value.replace(['\n', '\r'], "")
+                    })
+                })
+            });
+        if let Some(content) = controlled {
+            self.pending = Some(PendingDocument {
+                content,
                 // Entering controlled mode is an explicit ownership change;
                 // uncontrolled edits may never have had a JS listener to ack.
                 ack_edit_seq: if entering_controlled {
@@ -240,35 +448,153 @@ impl<M: TextMode> NativeView for TextControl<M> {
         M::SLOTS
     }
     fn additional_events() -> Vec<EventDefinition> {
-        vec![
+        let mut events = vec![
             EventDefinition::new::<()>("blur"),
             EventDefinition::new::<()>("focus"),
             EventDefinition::new::<InputSubmit>("submit"),
-        ]
+        ];
+        if M::SUPPORTS_PASTE {
+            events.push(EventDefinition::new::<InputPaste>("paste"));
+        }
+        if M::SUPPORTS_TOKENS {
+            events.push(EventDefinition::new::<InputTokenSpan>("tokenClick"));
+        }
+        events
     }
     fn event_name() -> &'static str {
         "change"
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "value",
+            // Token-carrying controls accept `content` (text plus its tokens)
+            // as an alternate carrier of the same controlled document; the
+            // change event and its editSeq acknowledgement stay identical.
+            value_props: if M::SUPPORTS_TOKENS {
+                &["value", "content"]
+            } else {
+                &["value"]
+            },
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",
         })
     }
     fn commands() -> Vec<ViewCommand<Self>> {
-        vec![
+        let mut commands = vec![
             ViewCommand::new("focus", Self::focus),
             ViewCommand::new("replaceValue", Self::replace_value),
             ViewCommand::new("getSelections", Self::get_selections),
             ViewCommand::new("setSelections", Self::set_selections),
             ViewCommand::new("insert", Self::insert),
-        ]
+            // A custom search UI drives the session without the built-in
+            // panel; every text mode carries the engine for it.
+            ViewCommand::new("setSearchQuery", Self::set_search_query),
+            ViewCommand::new("closeSearch", Self::close_search),
+            ViewCommand::new("nextSearchMatch", Self::next_search_match),
+            ViewCommand::new("previousSearchMatch", Self::previous_search_match),
+            ViewCommand::new(
+                "replaceCurrentSearchMatch",
+                Self::replace_current_search_match,
+            ),
+            ViewCommand::new("replaceAllSearchMatches", Self::replace_all_search_matches),
+            ViewCommand::new("getSearchSession", Self::get_search_session),
+        ];
+        commands.extend(M::token_commands());
+        commands
     }
 }
 
 impl<M: TextMode> TextControl<M> {
+    fn set_search_query(
+        &mut self,
+        query: InputSearchQuery,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), String> {
+        self.state.update(cx, |state, cx| {
+            state.set_search_query(query.query, query.case_insensitive, cx)
+        });
+        Ok(())
+    }
+    fn close_search(
+        &mut self,
+        (): (),
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<(), String> {
+        self.state.update(cx, |state, cx| state.close_search(cx));
+        Ok(())
+    }
+    fn next_search_match(
+        &mut self,
+        (): (),
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<Option<InputSearchRange>, String> {
+        let range = self
+            .state
+            .update(cx, |state, cx| state.next_search_match(cx))
+            .map(|range| InputSearchRange {
+                anchor_byte: range.start,
+                head_byte: range.end,
+            });
+        Ok(range)
+    }
+    fn previous_search_match(
+        &mut self,
+        (): (),
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<Option<InputSearchRange>, String> {
+        let range = self
+            .state
+            .update(cx, |state, cx| state.previous_search_match(cx))
+            .map(|range| InputSearchRange {
+                anchor_byte: range.start,
+                head_byte: range.end,
+            });
+        Ok(range)
+    }
+    fn replace_current_search_match(
+        &mut self,
+        replacement: InputSearchReplacement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<bool, String> {
+        let replaced = self.state.update(cx, |state, cx| {
+            state.replace_current_search_match(&replacement.replacement, window, cx)
+        });
+        Ok(replaced)
+    }
+    fn replace_all_search_matches(
+        &mut self,
+        replacement: InputSearchReplacement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<InputSearchReplaceAll, String> {
+        let count = self.state.update(cx, |state, cx| {
+            state.replace_all_search_matches(&replacement.replacement, window, cx)
+        });
+        Ok(InputSearchReplaceAll { count })
+    }
+    fn get_search_session(
+        &mut self,
+        (): (),
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Result<InputSearchSession, String> {
+        let session = self.state.read(cx).search_session();
+        Ok(InputSearchSession {
+            open: session.open,
+            active: session.is_active(),
+            replace_mode: session.replace_mode,
+            case_insensitive: session.case_insensitive,
+            query: session.query.clone(),
+            replacement: session.replacement.clone(),
+            match_count: session.matcher.matched_ranges().len(),
+            current_match_index: session.matcher.current_match_index(),
+        })
+    }
     fn get_selections(
         &mut self,
         (): (),
@@ -317,7 +643,7 @@ impl<M: TextMode> TextControl<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Result<(), String> {
-        if self.props.disabled() || self.props.readonly() {
+        if !self.state.read(cx).is_editable() {
             return Err("input is not editable".into());
         }
         self.state
@@ -326,11 +652,80 @@ impl<M: TextMode> TextControl<M> {
     }
 
     fn focus(&mut self, (): (), window: &mut Window, cx: &mut Context<Self>) -> Result<(), String> {
-        if self.props.disabled() {
+        if self.props.disabled() || self.group_editing.is_some_and(|(_, disabled, _)| disabled) {
             return Err("disabled input cannot be focused".into());
         }
         self.state.update(cx, |state, cx| state.focus(window, cx));
         Ok(())
+    }
+
+    /// Join the surrounding group's editing overlay with the control's own
+    /// props. Called with a change-guard so repeated group renders converge
+    /// instead of looping notifications.
+    fn sync_group_editing(&mut self, cx: &mut impl AppContext) {
+        let (group_disabled, group_readonly) = self
+            .group_editing
+            .map_or((false, false), |(_, disabled, readonly)| {
+                (disabled, readonly)
+            });
+        let effective = (
+            self.props.disabled() || group_disabled,
+            self.props.readonly() || group_readonly,
+        );
+        if effective == self.applied_editing {
+            return;
+        }
+        self.state.update(cx, |state, cx| {
+            state.set_disabled(effective.0, cx);
+            state.set_readonly(effective.1, cx);
+        });
+        self.applied_editing = effective;
+    }
+
+    /// The surrounding input group applies its disabled/readonly policy to
+    /// the retained engine, not just the frame. The group's entity id owns
+    /// the overlay, so a stale clear from a previous owner can never erase a
+    /// newer group's policy; lifting it restores exactly the control's
+    /// requested values.
+    pub(crate) fn apply_group_editing(
+        &mut self,
+        owner: gpui::EntityId,
+        disabled: bool,
+        readonly: bool,
+        cx: &mut Context<Self>,
+    ) {
+        if self.group_editing == Some((owner, disabled, readonly)) {
+            return;
+        }
+        self.group_editing = Some((owner, disabled, readonly));
+        self.sync_group_editing(cx);
+        cx.notify();
+    }
+
+    /// Drop the overlay when its owner unmounts or the control moves away;
+    /// an owner mismatch is a no-op, protecting a newer group's overlay.
+    pub(crate) fn clear_group_editing(&mut self, owner: gpui::EntityId, cx: &mut impl AppContext) {
+        if !self
+            .group_editing
+            .is_some_and(|(holder, _, _)| holder == owner)
+        {
+            return;
+        }
+        self.group_editing = None;
+        self.sync_group_editing(cx);
+    }
+
+    /// The retained engine entity. An input group reads it for freshness and
+    /// writes to it only through [`Self::apply_group_editing`].
+    pub(crate) fn state(&self) -> &Entity<InputBaseState<M::Mode>> {
+        &self.state
+    }
+
+    /// The typed upstream control this view contributes to an input group,
+    /// with every configured capability; the group restyles it and keeps this
+    /// view's entity observed for fresh rendering.
+    pub(crate) fn group_representation(&self) -> Option<InputGroupControl> {
+        M::group_control(&self.state, &self.props, &self.children, &self.event)
     }
 
     fn replace_value(
@@ -350,8 +745,11 @@ impl<M: TextMode> TextControl<M> {
         Ok(())
     }
 
-    fn observe_committed_value(&mut self, value: String) {
-        if value == self.committed_value {
+    fn observe_committed_value(&mut self, value: String, content: Option<InputContentSnapshot>) {
+        // Token edits can change spans, labels, or removals while the text
+        // stays identical; only a full content comparison may suppress the
+        // change event for token-carrying controls.
+        if value == self.committed_value && content == self.committed_content {
             return;
         }
         self.edit_seq = self
@@ -359,10 +757,12 @@ impl<M: TextMode> TextControl<M> {
             .checked_add(1)
             .expect("native input edit sequence exhausted");
         self.committed_value = value.clone();
+        self.committed_content = content.clone();
         self.pending = None;
         self.event.emit(InputChange {
             value,
             edit_seq: self.edit_seq,
+            content,
         });
     }
 
@@ -384,14 +784,24 @@ impl<M: TextMode> TextControl<M> {
         // Upstream unmark_text may commit preedit without a Change event. Detect
         // that native edit before applying an older external value.
         if !composing && value != self.committed_value {
-            self.observe_committed_value(value);
+            let content = M::content_snapshot(&self.state, cx);
+            self.observe_committed_value(value, content);
             return false;
         }
-        if self
-            .pending
-            .as_ref()
-            .is_some_and(|pending| pending.value == value)
-        {
+        // A pending document is settled only when the native document matches
+        // it completely; token-only updates with identical text must still
+        // apply (labels, ids, removals).
+        let settled = self.pending.as_ref().is_some_and(|pending| {
+            let pending_snapshot = InputContentSnapshot {
+                text: pending.content.text().to_string(),
+                tokens: pending.content.tokens().iter().map(token_span).collect(),
+            };
+            match M::content_snapshot(&self.state, cx) {
+                Some(current) => current == pending_snapshot,
+                None => pending.content.text().as_ref() == value.as_str(),
+            }
+        });
+        if settled {
             self.pending = None;
             return false;
         }
@@ -399,10 +809,28 @@ impl<M: TextMode> TextControl<M> {
             return true;
         }
         let pending = self.pending.take().expect("pending value was checked");
+        let carries_tokens = !pending.content.tokens().is_empty();
         self.state
-            .update(cx, |state, cx| state.set_value(pending.value, window, cx));
+            .update(cx, |state, cx| state.set_value(pending.content, window, cx));
         self.committed_value = self.state.read(cx).value().to_string();
+        self.committed_content = M::content_snapshot(&self.state, cx);
+        if carries_tokens {
+            self.ensure_token_limits(cx);
+        }
         false
+    }
+
+    /// Once a document carries tokens, every later change event encodes the
+    /// text plus their metadata; the live validator holds typing to the
+    /// reserved budget so `Event::emit` can never overflow. Installed once
+    /// and kept: removing tokens leaves the safer cap in place.
+    fn ensure_token_limits(&mut self, cx: &mut Context<Self>) {
+        if self.token_limits_installed {
+            return;
+        }
+        self.state
+            .update(cx, |state, cx| state.set_validator(live_token_limit(), cx));
+        self.token_limits_installed = true;
     }
 
     fn start_retry(&mut self, window: &Window, cx: &mut Context<Self>) {
@@ -424,16 +852,354 @@ impl<M: TextMode> TextControl<M> {
 
 impl<M: TextMode> Render for TextControl<M> {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        M::render(&self.state, &self.props, &self.children)
+        M::render(&self.state, &self.props, &self.children, &self.event)
     }
+}
+
+/// A controlled content snapshot must survive one encoded change event: the
+/// candidate echoes the text twice (value and content.text) with the token
+/// metadata, so the exact encoding is checked before any mutation.
+fn content_event_budget(snapshot: &InputContentSnapshot) -> Result<(), String> {
+    if snapshot.tokens.len() > TOKEN_COUNT_LIMIT {
+        return Err("an input accepts at most 256 inline tokens".into());
+    }
+    if snapshot.text.len() > TOKEN_TEXT_LIMIT {
+        return Err(format!(
+            "content text must not exceed {TOKEN_TEXT_LIMIT} bytes so later edits stay encodable"
+        ));
+    }
+    let metadata: usize = snapshot
+        .tokens
+        .iter()
+        .map(|token| token.id.len() + token.text.len() + token.label.len())
+        .sum();
+    if metadata > TOKEN_METADATA_LIMIT {
+        return Err(format!(
+            "token metadata must not exceed {TOKEN_METADATA_LIMIT} bytes so later edits stay encodable"
+        ));
+    }
+    // The heaviest event this document can ever produce carries the maximum
+    // sequence digits.
+    let candidate = InputChange {
+        value: snapshot.text.clone(),
+        edit_seq: u32::MAX,
+        content: Some(snapshot.clone()),
+    };
+    crate::native::encode_json(&candidate)
+        .map(|_: Vec<u8>| ())
+        .map_err(|_| "controlled content exceeds the encoded native event budget".to_owned())
+}
+
+/// Decode a controlled snapshot into upstream content. Validation is
+/// upstream's own, so a rejected snapshot never partially describes anything.
+fn build_content(snapshot: &InputContentSnapshot) -> Result<InputContent, String> {
+    if snapshot.tokens.len() > TOKEN_COUNT_LIMIT {
+        return Err("an input accepts at most 256 inline tokens".into());
+    }
+    let mut content = InputContent::new(snapshot.text.clone());
+    for token in &snapshot.tokens {
+        let spec = bounded_token(&InputTokenSpec {
+            id: token.id.clone(),
+            text: token.text.clone(),
+            label: Some(token.label.clone()),
+        })?;
+        content = content
+            .with_token(token.anchor_byte..token.head_byte, spec)
+            .map_err(|error| format!("invalid controlled content: {error}"))?;
+    }
+    Ok(content)
+}
+
+fn bounded_token(spec: &InputTokenSpec) -> Result<InlineToken, String> {
+    if spec.id.is_empty() || spec.id.len() > 256 {
+        return Err("token ids must contain 1..256 bytes".into());
+    }
+    if spec.text.is_empty() || spec.text.len() > 4096 {
+        return Err("token text must contain 1..4096 bytes".into());
+    }
+    if spec
+        .label
+        .as_ref()
+        .is_some_and(|label| label.is_empty() || label.len() > 4096)
+    {
+        return Err("token labels must contain 1..4096 bytes".into());
+    }
+    let mut token = InlineToken::new(spec.id.clone(), spec.text.clone());
+    if let Some(label) = &spec.label {
+        token = token.with_label(label.clone());
+    }
+    Ok(token)
+}
+
+fn token_parts(token: &InlineToken, range: std::ops::Range<usize>) -> InputTokenSpan {
+    InputTokenSpan {
+        id: token.id().to_string(),
+        text: token.text().to_string(),
+        label: token.label().to_string(),
+        anchor_byte: range.start,
+        head_byte: range.end,
+    }
+}
+
+fn token_span(span: &InlineTokenSpan) -> InputTokenSpan {
+    token_parts(span.token(), span.range())
+}
+
+fn exclusive_value_and_content(props: &impl TextProps) -> Result<(), String> {
+    if props.value().is_some() && props.content().is_some() {
+        return Err(
+            "value and content are mutually exclusive; content is the value plus its tokens".into(),
+        );
+    }
+    Ok(())
+}
+
+fn reject_content() -> Result<(), String> {
+    Err("inline token content is only supported by Input and Textarea".into())
+}
+
+/// Paste is intercepted only for subscribed controls; the subscriber then owns
+/// paste semantics entirely (upstream handler-returns-true) and applies text
+/// itself through the controlled value or the insert command.
+fn paste_intercepted(events: &Event<InputChange>) -> bool {
+    events.related::<InputPaste>("paste").is_subscribed()
+}
+
+fn paste_payload(item: &gpui::ClipboardItem) -> InputPaste {
+    let mut payload = InputPaste::default();
+    for entry in item.entries() {
+        match entry {
+            gpui::ClipboardEntry::String(text) => {
+                if payload.text.is_none() {
+                    payload.text_truncated = text.text.len() > PASTE_TEXT_LIMIT;
+                    payload.text = Some(truncate_utf8(&text.text, PASTE_TEXT_LIMIT).to_string());
+                }
+            }
+            gpui::ClipboardEntry::Image(image) => {
+                if payload.image.is_none() {
+                    payload.image = Some(InputPasteImage {
+                        format: image_format_name(image.format).into(),
+                        byte_length: image.bytes.len(),
+                        // Base64 must keep the whole encoded event bounded;
+                        // larger images arrive as metadata only.
+                        data: (image.bytes.len() <= PASTE_IMAGE_DATA_LIMIT)
+                            .then(|| base64_encode(&image.bytes)),
+                    });
+                }
+            }
+            gpui::ClipboardEntry::ExternalPaths(paths) => {
+                let mut total = payload.files.iter().map(|f| f.len()).sum::<usize>();
+                for path in &paths.0 {
+                    if payload.files.len() >= PASTE_FILE_COUNT_LIMIT
+                        || total >= PASTE_FILE_BYTES_LIMIT
+                    {
+                        break;
+                    }
+                    let name = path.display().to_string();
+                    if name.len() > PASTE_FILE_BYTES_LIMIT
+                        || total + name.len() > PASTE_FILE_BYTES_LIMIT
+                    {
+                        break;
+                    }
+                    total += name.len();
+                    payload.files.push(name);
+                }
+            }
+        }
+    }
+    payload
+}
+
+fn truncate_utf8(text: &str, limit: usize) -> &str {
+    let mut end = limit.min(text.len());
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+fn image_format_name(format: gpui::ImageFormat) -> &'static str {
+    match format {
+        gpui::ImageFormat::Png => "png",
+        gpui::ImageFormat::Jpeg => "jpeg",
+        gpui::ImageFormat::Webp => "webp",
+        gpui::ImageFormat::Gif => "gif",
+        gpui::ImageFormat::Svg => "svg",
+        gpui::ImageFormat::Bmp => "bmp",
+        gpui::ImageFormat::Tiff => "tiff",
+        gpui::ImageFormat::Ico => "ico",
+        _ => "unknown",
+    }
+}
+
+const BASE64_ALPHABET: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+fn base64_encode(data: &[u8]) -> String {
+    let mut encoded = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let word = (chunk[0] as u32) << 16
+            | (chunk.get(1).copied().unwrap_or(0) as u32) << 8
+            | chunk.get(2).copied().unwrap_or(0) as u32;
+        encoded.push(BASE64_ALPHABET[(word >> 18) as usize & 63] as char);
+        encoded.push(BASE64_ALPHABET[(word >> 12) as usize & 63] as char);
+        encoded.push(if chunk.len() > 1 {
+            BASE64_ALPHABET[(word >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            BASE64_ALPHABET[word as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    encoded
+}
+
+/// The live edit validator for token-carrying documents: typing, pasting,
+/// and every other engine edit path consult it before mutating, holding the
+/// text inside the reserved encoded-event budget.
+fn live_token_limit() -> impl Fn(&str, &mut gpui::App) -> bool + 'static {
+    move |text: &str, _: &mut gpui::App| text.len() <= TOKEN_TEXT_LIMIT
+}
+
+/// The post-edit change event must stay inside one encoded native event. The
+/// candidate over-approximates: the full current token set plus the incoming
+/// token, so the true document is never larger than what is admitted here.
+fn budget_edit(
+    current: &InputContentSnapshot,
+    token: &InlineToken,
+    replace: Option<std::ops::Range<usize>>,
+) -> Result<(), String> {
+    let text = &current.text;
+    let (start, end) = replace.map_or((text.len(), text.len()), |range| (range.start, range.end));
+    if end > text.len()
+        || start > end
+        || !text.is_char_boundary(start)
+        || !text.is_char_boundary(end)
+    {
+        return Err("token range must lie on UTF-8 boundaries inside the document".into());
+    }
+    let mut new_text = String::with_capacity(text.len() - (end - start) + token.text().len());
+    new_text.push_str(&text[..start]);
+    new_text.push_str(token.text());
+    new_text.push_str(&text[end..]);
+    let mut tokens = current.tokens.clone();
+    tokens.push(InputTokenSpan {
+        id: token.id().to_string(),
+        text: token.text().to_string(),
+        label: token.label().to_string(),
+        anchor_byte: 0,
+        head_byte: token.text().len(),
+    });
+    content_event_budget(&InputContentSnapshot {
+        text: new_text,
+        tokens,
+    })
+}
+
+/// Commands for modes whose engine carries atomic inline tokens; token and
+/// content edits are engine-validated and atomic, so a rejected command
+/// leaves the document exactly as it was.
+macro_rules! token_commands {
+    () => {
+        fn token_commands() -> Vec<ViewCommand<TextControl<Self>>> {
+            vec![
+                ViewCommand::new(
+                    "insertToken",
+                    |this: &mut TextControl<Self>,
+                     spec: InputTokenSpec,
+                     window: &mut Window,
+                     cx: &mut Context<TextControl<Self>>| {
+                        let token = bounded_token(&spec)?;
+                        let current = Self::content_snapshot(&this.state, cx)
+                            .expect("token mode carries a content snapshot");
+                        budget_edit(&current, &token, None)?;
+                        let applied = this.state.update(cx, |state, cx| {
+                            state
+                                .replace_with_token(token, window, cx)
+                                .map_err(|error| format!("token edit rejected: {error}"))
+                        });
+                        applied?;
+                        this.ensure_token_limits(cx);
+                        Ok(())
+                    },
+                ),
+                ViewCommand::new(
+                    "replaceRangeWithToken",
+                    |this: &mut TextControl<Self>,
+                     spec: InputTokenRangeSpec,
+                     window: &mut Window,
+                     cx: &mut Context<TextControl<Self>>| {
+                        let token = bounded_token(&spec.token)?;
+                        let current = Self::content_snapshot(&this.state, cx)
+                            .expect("token mode carries a content snapshot");
+                        budget_edit(&current, &token, Some(spec.anchor_byte..spec.head_byte))?;
+                        let applied = this.state.update(cx, |state, cx| {
+                            state
+                                .replace_range_with_token(
+                                    spec.anchor_byte..spec.head_byte,
+                                    token,
+                                    window,
+                                    cx,
+                                )
+                                .map_err(|error| format!("token edit rejected: {error}"))
+                        });
+                        applied?;
+                        this.ensure_token_limits(cx);
+                        Ok(())
+                    },
+                ),
+                ViewCommand::new(
+                    "getTokens",
+                    |this: &mut TextControl<Self>,
+                     (): (),
+                     _: &mut Window,
+                     cx: &mut Context<TextControl<Self>>| {
+                        Ok(this
+                            .state
+                            .read(cx)
+                            .tokens()
+                            .iter()
+                            .map(token_span)
+                            .collect::<Vec<_>>())
+                    },
+                ),
+                ViewCommand::new(
+                    "getContent",
+                    |this: &mut TextControl<Self>,
+                     (): (),
+                     _: &mut Window,
+                     cx: &mut Context<TextControl<Self>>| {
+                        let content = this.state.read(cx).content();
+                        Ok(InputContentSnapshot {
+                            text: content.text().to_string(),
+                            tokens: content.tokens().iter().map(token_span).collect(),
+                        })
+                    },
+                ),
+            ]
+        }
+    };
 }
 
 impl TextMode for SingleLine {
     type Mode = InputMode;
     type Props = InputProps;
     const SLOTS: &'static [&'static str] = &["prefix", "suffix"];
+    const SUPPORTS_PASTE: bool = true;
+    const SUPPORTS_TOKENS: bool = true;
     fn new(window: &mut Window, cx: &mut Context<InputState>) -> InputState {
         InputState::new(window, cx)
+    }
+    fn validate(p: &InputProps) -> Result<(), String> {
+        exclusive_value_and_content(p)?;
+        if let Some(content) = p.content() {
+            build_content(content)?;
+            content_event_budget(content)?;
+        }
+        Ok(())
     }
     fn sync(
         s: &mut InputState,
@@ -446,7 +1212,38 @@ impl TextMode for SingleLine {
             s.set_masked(p.masked, window, cx);
         }
     }
-    fn render(s: &Entity<InputState>, p: &InputProps, children: &NativeChildren) -> AnyElement {
+    fn content_snapshot(state: &Entity<InputState>, cx: &App) -> Option<InputContentSnapshot> {
+        let content = state.read(cx).content();
+        Some(InputContentSnapshot {
+            text: content.text().to_string(),
+            tokens: content.tokens().iter().map(token_span).collect(),
+        })
+    }
+    fn render(
+        s: &Entity<InputState>,
+        p: &InputProps,
+        children: &NativeChildren,
+        events: &Event<InputChange>,
+    ) -> AnyElement {
+        SingleLine::build(s, p, children, events).into_any_element()
+    }
+    fn group_control(
+        s: &Entity<InputState>,
+        p: &InputProps,
+        children: &NativeChildren,
+        events: &Event<InputChange>,
+    ) -> Option<InputGroupControl> {
+        Some(SingleLine::build(s, p, children, events).into())
+    }
+    token_commands!();
+}
+impl SingleLine {
+    fn build(
+        s: &Entity<InputState>,
+        p: &InputProps,
+        children: &NativeChildren,
+        events: &Event<InputChange>,
+    ) -> GpuiInput {
         let mut v = GpuiInput::new(s)
             .disabled(p.disabled)
             .readonly(p.readonly)
@@ -470,7 +1267,22 @@ impl TextMode for SingleLine {
                 };
             }
         }
-        v.into_any_element()
+        let token_click = events.related::<InputTokenSpan>("tokenClick");
+        if token_click.is_subscribed() {
+            v = v.on_token_click(move |event, _, _| {
+                token_click.emit(token_parts(event.token(), event.range()))
+            });
+        }
+        if paste_intercepted(events) {
+            let sink = events.related::<InputPaste>("paste");
+            v = v.on_paste(move |item, _window, _cx| {
+                sink.emit(paste_payload(item));
+                // A subscribed control owns paste semantics; nothing inserts
+                // natively, matching upstream handler-returns-true.
+                true
+            });
+        }
+        v
     }
 }
 impl TextMode for Numeric {
@@ -481,6 +1293,10 @@ impl TextMode for Numeric {
         InputState::new(window, cx)
     }
     fn validate(p: &NumberInputProps) -> Result<(), String> {
+        exclusive_value_and_content(p)?;
+        if p.content().is_some() {
+            reject_content()?;
+        }
         if !p.step.is_finite()
             || p.step <= 0.
             || p.min.is_some_and(|n| !n.is_finite())
@@ -512,6 +1328,7 @@ impl TextMode for Numeric {
         s: &Entity<InputState>,
         p: &NumberInputProps,
         children: &NativeChildren,
+        _events: &Event<InputChange>,
     ) -> AnyElement {
         let mut v = gpui_component::input::NumberInput::new(s)
             .disabled(p.disabled || p.readonly)
@@ -536,6 +1353,8 @@ impl TextMode for Numeric {
 impl TextMode for MultiLine {
     type Mode = TextareaMode;
     type Props = TextareaProps;
+    const SUPPORTS_PASTE: bool = true;
+    const SUPPORTS_TOKENS: bool = true;
     fn new(
         window: &mut Window,
         cx: &mut Context<gpui_base::input::TextareaState>,
@@ -543,6 +1362,11 @@ impl TextMode for MultiLine {
         gpui_base::input::TextareaState::new(window, cx)
     }
     fn validate(p: &TextareaProps) -> Result<(), String> {
+        exclusive_value_and_content(p)?;
+        if let Some(content) = p.content() {
+            build_content(content)?;
+            content_event_budget(content)?;
+        }
         if !(1..=10000).contains(&p.rows)
             || p.auto_grow
                 .as_ref()
@@ -575,11 +1399,40 @@ impl TextMode for MultiLine {
             s.set_searchable(p.searchable, cx);
         }
     }
+    fn content_snapshot(
+        state: &Entity<gpui_base::input::TextareaState>,
+        cx: &App,
+    ) -> Option<InputContentSnapshot> {
+        let content = state.read(cx).content();
+        Some(InputContentSnapshot {
+            text: content.text().to_string(),
+            tokens: content.tokens().iter().map(token_span).collect(),
+        })
+    }
     fn render(
         s: &Entity<gpui_base::input::TextareaState>,
         p: &TextareaProps,
-        _: &NativeChildren,
+        _children: &NativeChildren,
+        events: &Event<InputChange>,
     ) -> AnyElement {
+        MultiLine::build(s, p, events).into_any_element()
+    }
+    fn group_control(
+        s: &Entity<gpui_base::input::TextareaState>,
+        p: &TextareaProps,
+        _children: &NativeChildren,
+        events: &Event<InputChange>,
+    ) -> Option<InputGroupControl> {
+        Some(MultiLine::build(s, p, events).into())
+    }
+    token_commands!();
+}
+impl MultiLine {
+    fn build(
+        s: &Entity<gpui_base::input::TextareaState>,
+        p: &TextareaProps,
+        events: &Event<InputChange>,
+    ) -> gpui_component::input::Textarea {
         let mut v = gpui_component::input::Textarea::new(s)
             .disabled(p.disabled)
             .readonly(p.readonly)
@@ -588,12 +1441,28 @@ impl TextMode for MultiLine {
         if let Some(label) = &p.aria_label {
             v = v.aria_label(label.clone());
         }
-        v.into_any_element()
+        let token_click = events.related::<InputTokenSpan>("tokenClick");
+        if token_click.is_subscribed() {
+            v = v.on_token_click(move |event, _, _| {
+                token_click.emit(token_parts(event.token(), event.range()))
+            });
+        }
+        if paste_intercepted(events) {
+            let sink = events.related::<InputPaste>("paste");
+            v = v.on_paste(move |item, _window, _cx| {
+                sink.emit(paste_payload(item));
+                // A subscribed control owns paste semantics; nothing inserts
+                // natively, matching upstream handler-returns-true.
+                true
+            });
+        }
+        v
     }
 }
 impl TextMode for Code {
     type Mode = EditorMode;
     type Props = EditorProps;
+    const SUPPORTS_PASTE: bool = true;
     fn new(
         window: &mut Window,
         cx: &mut Context<gpui_base::input::EditorState>,
@@ -601,6 +1470,10 @@ impl TextMode for Code {
         gpui_base::input::EditorState::new(window, cx)
     }
     fn validate(p: &EditorProps) -> Result<(), String> {
+        exclusive_value_and_content(p)?;
+        if p.content().is_some() {
+            reject_content()?;
+        }
         if !(1..=16).contains(&p.tab_size)
             || p.cursor_surrounding_lines.is_some_and(|v| v > 10000)
             || p.scroll_beyond_last_line.is_some_and(|v| v > 10000)
@@ -664,7 +1537,8 @@ impl TextMode for Code {
     fn render(
         s: &Entity<gpui_base::input::EditorState>,
         p: &EditorProps,
-        _: &NativeChildren,
+        _children: &NativeChildren,
+        events: &Event<InputChange>,
     ) -> AnyElement {
         let mut v = gpui_component::input::Editor::new(s)
             .h(gpui::relative(1.))
@@ -674,6 +1548,15 @@ impl TextMode for Code {
             .bordered(p.bordered);
         if let Some(label) = &p.aria_label {
             v = v.aria_label(label.clone());
+        }
+        if paste_intercepted(events) {
+            let sink = events.related::<InputPaste>("paste");
+            v = v.on_paste(move |item, _window, _cx| {
+                sink.emit(paste_payload(item));
+                // A subscribed control owns paste semantics; nothing inserts
+                // natively, matching upstream handler-returns-true.
+                true
+            });
         }
         v.into_any_element()
     }
@@ -746,6 +1629,8 @@ mod tests {
                                         (String::from("blur"), 2),
                                         (String::from("focus"), 3),
                                         (String::from("submit"), 4),
+                                        (String::from("paste"), 5),
+                                        (String::from("tokenClick"), 6),
                                     ]
                                     .into(),
                                 ),
@@ -897,7 +1782,11 @@ mod tests {
             fixture.changes().last(),
             Some(&InputChange {
                 value: "abc".into(),
-                edit_seq: 1
+                edit_seq: 1,
+                content: Some(InputContentSnapshot {
+                    text: "abc".into(),
+                    tokens: vec![]
+                })
             })
         );
         let identity = fixture
@@ -970,7 +1859,11 @@ mod tests {
             fixture.changes().last(),
             Some(&InputChange {
                 value: "serverx".into(),
-                edit_seq: 1
+                edit_seq: 1,
+                content: Some(InputContentSnapshot {
+                    text: "serverx".into(),
+                    tokens: vec![]
+                })
             })
         );
     }
@@ -1244,5 +2137,133 @@ mod tests {
             assert_eq!(editor.state.read(cx).value().as_ref(), original);
             assert_eq!(editor.state.read(cx).selected_range(), 0..5);
         });
+    }
+
+    #[gpui::test]
+    fn group_editing_overlay_blocks_focused_edits_and_restores_requested_values(
+        cx: &mut TestAppContext,
+    ) {
+        let fixture = Fixture::new(cx);
+        fixture.update(cx, |input, window, cx| {
+            input.focus((), window, cx).unwrap();
+            // A readonly group overlay blocks editing even while focused...
+            input.apply_group_editing(cx.entity_id(), false, true, cx);
+            assert!(!input.state.read(cx).is_editable());
+            assert!(input.insert("x".into(), window, cx).is_err());
+            // ...and a disabled overlay additionally refuses focus.
+            input.apply_group_editing(cx.entity_id(), true, false, cx);
+            assert!(input.focus((), window, cx).is_err());
+            // Lifting the overlay restores exactly the control's own values.
+            input.apply_group_editing(cx.entity_id(), false, false, cx);
+            input.focus((), window, cx).unwrap();
+            input.insert("typed".into(), window, cx).unwrap();
+        });
+        assert_eq!(fixture.value(cx), "typed");
+        // A props commit while the overlay is up rejoins the overlay; after
+        // it lifts, the control's own readonly prop still wins.
+        fixture.update(cx, |input, window, cx| {
+            input.apply_group_editing(cx.entity_id(), true, false, cx);
+            input.update(
+                InputProps {
+                    readonly: true,
+                    ..InputProps::default()
+                },
+                window,
+                cx,
+            );
+            assert!(!input.state.read(cx).is_editable());
+            input.apply_group_editing(cx.entity_id(), false, false, cx);
+            assert!(
+                !input.state.read(cx).is_editable(),
+                "the control's own readonly prop must win after the overlay lifts"
+            );
+        });
+    }
+
+    #[gpui::test]
+    fn controlled_content_restores_tokens_atomically_and_rejects_invalid_updates(
+        cx: &mut TestAppContext,
+    ) {
+        let fixture = crate::components::test_support::Fixture::<TextControl<SingleLine>>::new(
+            InputProps {
+                content: Some(InputContentSnapshot {
+                    text: "see @ada".into(),
+                    tokens: vec![InputTokenSpan {
+                        id: "user-1".into(),
+                        text: "@ada".into(),
+                        label: "Ada".into(),
+                        anchor_byte: 4,
+                        head_byte: 8,
+                    }],
+                }),
+                ..Default::default()
+            },
+            cx,
+        );
+        fixture.update(cx, |input, _, cx| {
+            assert_eq!(input.state.read(cx).value().as_ref(), "see @ada");
+            let content = input.state.read(cx).content();
+            assert_eq!(content.tokens().len(), 1);
+            assert_eq!(content.tokens()[0].token().id().as_ref(), "user-1");
+            assert_eq!(content.tokens()[0].range(), 4..8);
+        });
+        // The controlled snapshot round-trips: text and tokens return
+        // together through the same pending/acknowledgement channel.
+        fixture.update(cx, |input, window, cx| {
+            input.update(
+                InputProps {
+                    content: Some(InputContentSnapshot {
+                        text: "cc @bob".into(),
+                        tokens: vec![InputTokenSpan {
+                            id: "user-2".into(),
+                            text: "@bob".into(),
+                            label: "Bob".into(),
+                            anchor_byte: 3,
+                            head_byte: 7,
+                        }],
+                    }),
+                    ack_edit_seq: 0,
+                    ..Default::default()
+                },
+                window,
+                cx,
+            );
+        });
+        tick(cx);
+        fixture.update(cx, |input, _, cx| {
+            assert_eq!(input.state.read(cx).value().as_ref(), "cc @bob");
+            let content = input.state.read(cx).content();
+            assert_eq!(content.tokens().len(), 1);
+            assert_eq!(content.tokens()[0].token().id().as_ref(), "user-2");
+        });
+        // A snapshot whose tokens do not match its text is rejected before
+        // any mutation: value and tokens both stay untouched.
+        let valid = <TextControl<SingleLine> as NativeView>::validate_props(&InputProps {
+            content: Some(InputContentSnapshot {
+                text: "cc ".into(),
+                tokens: vec![InputTokenSpan {
+                    id: "user-3".into(),
+                    text: "@carol".into(),
+                    label: "Carol".into(),
+                    anchor_byte: 0,
+                    head_byte: 6,
+                }],
+            }),
+            ..Default::default()
+        });
+        assert!(valid.is_err());
+        fixture.update(cx, |input, _, cx| {
+            assert_eq!(input.state.read(cx).value().as_ref(), "cc @bob");
+            assert_eq!(input.state.read(cx).content().tokens().len(), 1);
+        });
+        // `value` and `content` never carry the document together.
+        assert!(
+            <TextControl<SingleLine> as NativeView>::validate_props(&InputProps {
+                value: Some("plain".into()),
+                content: Some(InputContentSnapshot::default()),
+                ..Default::default()
+            })
+            .is_err()
+        );
     }
 }

@@ -1,7 +1,11 @@
 export const componentDescriptionsChinese: Record<string, string> = {
+  "Share one native frame between an input and aligned text, icons or actions.":
+    "让输入控件与对齐的文本、图标或操作共享一个原生边框。",
+  "Compose native multi-step questions with choice and freeform answers, validation and submission.":
+    "组合原生多步骤问卷，支持选择、自由输入、验证与提交。",
   "A retained native carousel with keyboard navigation and pagination.": "保留原生状态的轮播，支持键盘导航与分页。",
-  "Native motion samples transitions, springs and keyframes without per-frame JavaScript updates.":
-    "原生动画支持过渡、弹簧和关键帧，无需逐帧更新 JavaScript。",
+  "Native motion samples transitions, springs, keyframes and sequences without per-frame JavaScript updates.":
+    "原生动画支持过渡、弹簧、关键帧与序列，无需逐帧更新 JavaScript。",
   "Retain children until their native exit animation completes.": "保留子内容，直到原生退出动画完成。",
   "An accessible native control with application-owned visuals.": "由应用定义外观的无障碍原生控件。",
   "Reveal scrollable content with edge fades that disappear at the boundaries.":

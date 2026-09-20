@@ -260,7 +260,7 @@ impl NativeView for Settings {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "selection",
+            value_props: &["selection"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",

@@ -321,9 +321,9 @@ fn validate(
     }
     Ok(())
 }
-fn binding(prop: &'static str) -> Option<ControlledBinding> {
+fn binding(props: &'static [&'static str]) -> Option<ControlledBinding> {
     Some(ControlledBinding {
-        value_prop: prop,
+        value_props: props,
         event_id: 1,
         sequence_field: "editSeq",
         ack_prop: "ackEditSeq",
@@ -367,7 +367,7 @@ impl NativeView for Select {
         "change"
     }
     fn controlled() -> Option<ControlledBinding> {
-        binding("value")
+        binding(&["value"])
     }
     fn additional_events() -> Vec<EventDefinition> {
         vec![EventDefinition::new::<ChoiceQuery>("query")]
@@ -593,7 +593,7 @@ impl NativeView for Combobox {
         "change"
     }
     fn controlled() -> Option<ControlledBinding> {
-        binding("values")
+        binding(&["values"])
     }
     fn additional_events() -> Vec<EventDefinition> {
         vec![

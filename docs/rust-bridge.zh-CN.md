@@ -196,6 +196,11 @@ fn badge(
 
 `NativeView::Event` 可用带标签枚举在一个类型化事件流中表达多种变化。复杂编辑器、树表和虚拟列表的 delegate 与瞬态状态由 Rust 拥有，不必将每个内部状态变化映射为 JS 属性。大数据集和高频输入使用批量 DTO 或 Rust 模型，避免逐项往返。
 
+`NativeView::controlled()` 通过 `ControlledBinding::value_props` 声明可替代的受控数据属性列表，
+这些属性共享一个编辑序号事件和确认属性。只要任一属性存在，生成绑定就保持内部订阅，
+即使应用没有回调。Input 使用 `["value", "content"]`，让原子 token 快照与普通文本遵循
+相同确认路径。该元数据由宿主生成；修改后重建所有宿主目录，不要手工编辑生成的 TypeScript。
+
 原生滚动视图可通过 `NativeView::scroll_viewport()` 返回其拥有的 `native::ScrollViewport` 克隆（基于 `ScrollHandle` 或 `ListState`）。宿主在原生提交协调后发布此能力；`NativeChildren::content().scroll_viewport()` 只解析一个直接子项，不绘制行，也不在命令执行期间重新借用根实体。装饰器持有 `ScrollViewport::decorate()` 返回的租约；`is_decorated()` 为真时，视图省略自己的滚动条。内容、方向变化或装饰器卸载时释放租约。句柄只留在 Rust，不进入生成的 DTO。
 
 从主包子路径导入内置组件：

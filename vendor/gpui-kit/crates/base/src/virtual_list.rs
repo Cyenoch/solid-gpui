@@ -370,6 +370,10 @@ pub struct VirtualListFrameState {
     size_layout: ItemSizeLayout,
 }
 
+/// Per-item sizes along the list axis, gap included, and their prefix sums.
+///
+/// Shared between the element state and the frame state so that carrying
+/// them across a frame is a reference count, not a copy of every item.
 #[derive(Default, Clone)]
 pub struct ItemSizeLayout {
     items_sizes: Rc<Vec<Size<Pixels>>>,
@@ -468,30 +472,22 @@ impl Element for VirtualList {
                                 .into();
 
                             // Prepare each item's origin by axis
+                            let mut cumulative = px(0.);
                             state.origins = state
                                 .sizes
                                 .iter()
-                                .scan(px(0.), |cumulative, size| match self.axis {
-                                    Axis::Horizontal => {
-                                        let x = *cumulative;
-                                        *cumulative += *size;
-                                        Some(x)
-                                    }
-                                    Axis::Vertical => {
-                                        let y = *cumulative;
-                                        *cumulative += *size;
-                                        Some(y)
-                                    }
+                                .map(|size| {
+                                    let origin = cumulative;
+                                    cumulative += *size;
+                                    origin
                                 })
                                 .collect::<Vec<_>>()
                                 .into();
 
                             if self.axis.is_horizontal() {
-                                state.content_size.width =
-                                    px(state.sizes.iter().map(|size| size.as_f32()).sum::<f32>());
+                                state.content_size.width = cumulative;
                             } else {
-                                state.content_size.height =
-                                    px(state.sizes.iter().map(|size| size.as_f32()).sum::<f32>());
+                                state.content_size.height = cumulative;
                             }
                         }
 

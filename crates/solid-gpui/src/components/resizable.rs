@@ -136,7 +136,7 @@ impl NativeView for ResizablePanelGroup {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "sizes",
+            value_props: &["sizes"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",

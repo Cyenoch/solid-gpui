@@ -283,7 +283,7 @@ pub trait NativeView: Render + Sized + 'static {
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ControlledBinding {
-    pub value_prop: &'static str,
+    pub value_props: &'static [&'static str],
     pub event_id: u32,
     pub sequence_field: &'static str,
     pub ack_prop: &'static str,
@@ -534,7 +534,9 @@ impl ComponentDefinition {
             source: "",
             children: V::accepts_children(),
             slots: V::slots(),
-            element_type: None,
+            // A retained view is identified by its entity type, so compound
+            // parents can validate the exact retained child they require.
+            element_type: Some(std::any::TypeId::of::<Entity<V>>()),
             child_type: None,
             requires_typed_parent: false,
             validate_composition: Box::new(|props, children| {
@@ -691,6 +693,10 @@ impl<P: DeserializeOwned + 'static, E: 'static> ExtensionInstance for ElementIns
     fn build_native(&self, context: ExtensionRenderContext<'_>) -> Option<Box<dyn Any>> {
         Some(Box::new(self.build(context)))
     }
+    fn build_element(&self, context: ExtensionRenderContext<'_>) -> Option<AnyElement> {
+        let into_element = self.into_element?;
+        Some(into_element(self.build(context)))
+    }
 }
 impl<P, E> ElementInstance<P, E> {
     fn build(&self, context: ExtensionRenderContext<'_>) -> E {
@@ -732,6 +738,15 @@ impl<V: NativeView> ExtensionInstance for ViewInstance<V> {
 
     fn render(&self, _: ExtensionRenderContext<'_>) -> AnyElement {
         self.entity.clone().into_any_element()
+    }
+    /// Retained views expose their entity for typed consumption by a compound
+    /// native parent. The entity stays the renderer of record: a parent that
+    /// extracts a typed representation from it must keep observing it.
+    fn build_native(&self, _: ExtensionRenderContext<'_>) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.entity.clone()))
+    }
+    fn build_element(&self, _: ExtensionRenderContext<'_>) -> Option<AnyElement> {
+        Some(self.entity.clone().into_any_element())
     }
     fn invoke(
         &mut self,

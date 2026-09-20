@@ -198,7 +198,7 @@ impl NativeView for Slider {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "value",
+            value_props: &["value"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",
@@ -289,6 +289,7 @@ impl NativeView for OtpInput {
                     this.event.emit(super::input::InputChange {
                         value: state.read(cx).value().to_string(),
                         edit_seq: this.edit_seq,
+                        content: None,
                     });
                 }
                 OtpEvent::Complete => this
@@ -337,7 +338,7 @@ impl NativeView for OtpInput {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "value",
+            value_props: &["value"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",

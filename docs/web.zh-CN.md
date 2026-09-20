@@ -31,7 +31,7 @@ bun run website:build
 
 ## 渲染与所有权
 
-`crates/solid-gpui-web` 使用固定版本 gpui-pre 0.3.3 的单线程 Web 平台，不需要 SharedArrayBuffer 或跨源隔离响应头。上游 wasm_thread 依赖仍要求构建时使用指定 nightly。宿主嵌入获授权的 Inter、IBM Plex Sans、Lilex 和 Noto Sans SC 字体；GPUI 文本塑形无法使用浏览器系统字体。
+`crates/solid-gpui-web` 使用固定版本 gpui-pre 0.3.5 的单线程 Web 平台，不需要 SharedArrayBuffer 或跨源隔离响应头。上游 wasm_thread 依赖仍要求构建时使用指定 nightly。宿主嵌入获授权的 Inter、IBM Plex Sans、Maple Mono 和 Noto Sans SC 字体；GPUI 文本塑形无法使用浏览器系统字体。字体注册后，宿主通过 Kit 的 `Theme::update` 选择 Inter，在打开窗口前同步 Component 与 Base 排版。
 
 `start()` 异步初始化图形并打开窗口；`submit()` 接收一个有大小限制、带帧的协议消息，在前台应用到现有 `SolidRoot`；`drain_events()` 在 Rust 更新回调外返回带帧原生事件。`WebTransport` 负责事件轮询与宿主释放。边界只传递字节，Solid 状态留在 JavaScript。
 

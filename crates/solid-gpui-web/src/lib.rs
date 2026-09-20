@@ -88,7 +88,6 @@ pub async fn start() -> Result<(), JsValue> {
                 solid_gpui::motion::initialize(cx);
                 solid_gpui::components::initialize(cx);
                 gpui_component::Theme::change(gpui_component::ThemeMode::Dark, None, cx);
-                cx.global_mut::<gpui_component::Theme>().font_family = "Inter Variable".into();
                 let root_slot = Rc::new(RefCell::new(None));
                 let slot = root_slot.clone();
                 cx.text_system().add_fonts(vec![
@@ -96,6 +95,9 @@ pub async fn start() -> Result<(), JsValue> {
                     Cow::Borrowed(include_bytes!("../fonts/Inter-Regular.ttf")),
                     Cow::Borrowed(include_bytes!("../fonts/NotoSansSC-Regular.ttf")),
                 ])?;
+                gpui_component::Theme::update(cx, |theme| {
+                    theme.font_family = "Inter Variable".into();
+                });
                 let window = cx.open_window(
                     WindowOptions {
                         window_background: gpui::WindowBackgroundAppearance::Transparent,

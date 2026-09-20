@@ -1,4 +1,25 @@
 export const recipeChinese: Record<string, string> = {
+  "Multiline composer": "多行编辑框",
+  "Keep the native textarea state inside a shared frame with a footer action.":
+    "在共享边框内保留原生文本域状态，并在底部放置操作。",
+  "Atomic inline tokens": "原子内联 token",
+  "Insert a native mention token that moves and deletes as one editing unit.":
+    "插入原生提及 token，光标移动和删除将其作为一个编辑单元。",
+  "Programmatic search": "命令式搜索",
+  "Search and navigate native editor matches without replacing the editor or its selection state.":
+    "搜索并跳转原生编辑器匹配项，无需替换编辑器或其选择状态。",
+  "Required and optional questions": "必答题与可选题",
+  "Required answers block advancing; optional questions can be skipped and custom choice content stays native.":
+    "必答题通过验证后才可前进，可选题允许跳过，自定义选项内容仍由原生控件承载。",
+  "Chained transitions": "串联过渡",
+  "Replay a native sequence whose next step starts when the previous step ends.":
+    "重播原生序列，前一步结束后才开始下一步。",
+  "Streamed text": "流式文本",
+  "Append text without replacing the native text state; new chunks fade in natively.":
+    "追加文本而不替换原生文本状态，新片段由原生动画淡入。",
+  "Interactive slices": "交互式扇区",
+  "Hover a slice to reveal its value and share with native lift and fade motion.":
+    "悬停扇区可查看数值与占比，并显示原生抬升和淡入淡出动画。",
   "Checked menu actions": "带勾选状态的菜单操作",
   "Checked and disabled": "选中与禁用",
   "Compare available and unavailable choices in both states.": "比较选中、未选中以及禁用状态。",

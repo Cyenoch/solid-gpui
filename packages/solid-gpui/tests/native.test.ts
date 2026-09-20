@@ -226,7 +226,7 @@ test("controlled native echo commits its value and internal acknowledgement toge
     props: null,
     commands: [],
     events: [{ id: 1, name: "change", prop: "onChange" }],
-    controlled: { eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq", valueProp: "value" },
+    controlled: { eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq", valueProps: ["value"] },
   });
   root.render(() => {
     const [value, setValue] = createSignal("initial");
@@ -285,19 +285,25 @@ test("controlled values keep their internal subscription without a handler and u
   const transport = new MemoryTransport();
   const root = createRoot(transport, { surfaceId: 206 });
   let setValue!: (value: string | undefined) => void;
-  const Input = createNativeComponent<{ value?: string }, {}, {}>({
+  let setContent!: (content: { text: string } | undefined) => void;
+  const Input = createNativeComponent<{ value?: string; content?: { text: string } }, {}, {}>({
     ...descriptor,
     props: null,
     commands: [],
     events: [{ id: 1, name: "change", prop: "onChange" }],
-    controlled: { eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq", valueProp: "value" },
+    controlled: { eventId: 1, sequenceField: "editSeq", ackProp: "ackEditSeq", valueProps: ["content", "value"] },
   });
   root.render(() => {
     const [value, set] = createSignal<string | undefined>("locked");
     setValue = set;
+    const [content, changeContent] = createSignal<{ text: string }>();
+    setContent = changeContent;
     return Input({
       get value() {
         return value();
+      },
+      get content() {
+        return content();
       },
     });
   });
@@ -337,6 +343,13 @@ test("controlled values keep their internal subscription without a handler and u
   setValue("controlled again");
   await Promise.resolve();
   expect(latestProperties().eventIds).toEqual([1]);
+  setContent({ text: "controlled tokens" });
+  setValue(undefined);
+  await Promise.resolve();
+  expect(latestProperties().eventIds).toEqual([1]);
+  setContent(undefined);
+  await Promise.resolve();
+  expect(latestProperties().eventIds).toEqual([]);
   root.unmount();
 });
 

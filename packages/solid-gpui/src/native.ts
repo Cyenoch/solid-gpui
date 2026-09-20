@@ -41,7 +41,7 @@ export interface NativeComponentDescriptor {
     readonly eventId: number;
     readonly sequenceField: string;
     readonly ackProp: string;
-    readonly valueProp: string;
+    readonly valueProps: readonly string[];
   } | null;
 }
 export type NativeComponentProps<P, E, R, S extends string = never> = P & {
@@ -189,11 +189,10 @@ export function createNativeComponent<P extends object, E extends object, R, S e
     (!eventIds.has(controlled.eventId) ||
       !controlled.sequenceField ||
       !controlled.ackProp ||
-      !controlled.valueProp ||
+      controlled.valueProps.length === 0 ||
       HOST_PROPS.has(controlled.ackProp) ||
       eventProps.has(controlled.ackProp) ||
-      HOST_PROPS.has(controlled.valueProp) ||
-      eventProps.has(controlled.valueProp))
+      controlled.valueProps.some((name) => !name || HOST_PROPS.has(name) || eventProps.has(name)))
   )
     throw new TypeError("Native controlled config must name a declared event and a data acknowledgement prop");
 
@@ -210,7 +209,7 @@ export function createNativeComponent<P extends object, E extends object, R, S e
       }
       if (controlled) dto[controlled.ackProp] = acknowledged();
       const internalEvent =
-        controlled && dto[controlled.valueProp] !== undefined && dto[controlled.valueProp] !== null
+        controlled && controlled.valueProps.some((name) => dto[name] !== undefined && dto[name] !== null)
           ? controlled.eventId
           : undefined;
       const callbacks = new Map<number, (...args: unknown[]) => unknown>();

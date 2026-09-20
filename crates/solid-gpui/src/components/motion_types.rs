@@ -92,6 +92,19 @@ pub struct MotionKeyframe {
     pub offset: f32,
     pub value: MotionTarget,
 }
+/// One chained step of a [`MotionAnimation::Sequence`]: the target value the
+/// step transitions to and the duration-based transition that reaches it.
+#[crate::native_type]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MotionSequenceStep {
+    pub target: MotionTarget,
+    pub duration_ms: u32,
+    #[serde(default)]
+    pub delay_ms: i32,
+    #[serde(default)]
+    pub easing: MotionEasing,
+}
 #[crate::native_type]
 #[derive(Clone, Debug, PartialEq)]
 #[serde(
@@ -126,6 +139,14 @@ pub enum MotionAnimation {
         #[serde(default)]
         easing: MotionEasing,
     },
+    /// A chain of duration-based transitions, each starting when the previous
+    /// one ends. Plays once from `from`; bump `playbackId` to replay. Under
+    /// reduced motion the last step's target is adopted at once.
+    Sequence {
+        #[serde(default)]
+        from: MotionTarget,
+        steps: Vec<MotionSequenceStep>,
+    },
 }
 fn damping() -> f32 {
     1.
@@ -149,6 +170,10 @@ pub(super) enum PreparedMotion {
     Transition(motion::Transition),
     Spring(motion::Spring),
     Keyframes(motion::Keyframes<MotionTarget>, motion::Timing),
+    Sequence {
+        from: MotionTarget,
+        steps: Vec<motion::SequenceStep<MotionTarget>>,
+    },
 }
 
 #[crate::native_type]
@@ -276,6 +301,78 @@ impl MotionAnimation {
                         .ease((*easing).into()),
                 )
             }
+            Self::Sequence { from, steps } => {
+                from.validate()?;
+                if steps.is_empty() || steps.len() > 32 {
+                    return Err("a sequence requires 1..32 steps".into());
+                }
+                let steps = steps
+                    .iter()
+                    .map(|step| {
+                        step.target.validate()?;
+                        timing(step.duration_ms, step.delay_ms)?;
+                        Ok(motion::SequenceStep::new(
+                            step.target,
+                            motion::Transition::new(Duration::from_millis(step.duration_ms as u64))
+                                .delay(delay(step.delay_ms))
+                                .easing(step.easing.into()),
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                PreparedMotion::Sequence { from: *from, steps }
+            }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn decode(v: &str) -> MotionAnimation {
+        crate::native::decode_json(v.as_bytes()).unwrap()
+    }
+
+    #[test]
+    fn sequence_rejects_unbounded_or_invalid_steps() {
+        fn sequence_with_steps(count: usize) -> String {
+            let steps: Vec<String> = (0..count)
+                .map(|_| r#"{"target":{},"durationMs":10}"#.to_string())
+                .collect();
+            format!(r#"{{"type":"sequence","steps":[{}]}}"#, steps.join(","))
+        }
+        let prepare = |v: &str| decode(v).prepare();
+        assert!(prepare(r#"{"type":"sequence","steps":[]}"#).is_err());
+        let long_step =
+            prepare(r#"{"type":"sequence","steps":[{"target":{},"durationMs":60001}]}"#);
+        assert!(
+            long_step.is_err(),
+            "a step duration is bounded like a transition"
+        );
+        let long_delay = prepare(
+            r#"{"type":"sequence","steps":[{"target":{},"durationMs":100,"delayMs":-60001}]}"#,
+        );
+        assert!(
+            long_delay.is_err(),
+            "a step delay is bounded like a transition"
+        );
+        let faded_target =
+            prepare(r#"{"type":"sequence","steps":[{"target":{"opacity":2},"durationMs":100}]}"#);
+        assert!(
+            faded_target.is_err(),
+            "a step target validates like a motion target"
+        );
+        let faded_from = prepare(
+            r#"{"type":"sequence","from":{"opacity":2},"steps":[{"target":{},"durationMs":100}]}"#,
+        );
+        assert!(
+            faded_from.is_err(),
+            "the sequence origin validates like a motion target"
+        );
+        assert!(prepare(&sequence_with_steps(32)).is_ok());
+        assert!(
+            prepare(&sequence_with_steps(33)).is_err(),
+            "33 steps exceed the 32-step bound"
+        );
     }
 }

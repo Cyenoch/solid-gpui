@@ -240,437 +240,436 @@ fn apply_application(cx: &mut App) {
     let Some(config) = cx.global::<Appearance>().application.clone() else {
         return;
     };
-    let theme = Theme::global_mut(cx);
-    if let Some(value) = config.colors.accent {
-        theme.colors.accent = value.native();
-    }
-    if let Some(value) = config.colors.accent_foreground {
-        theme.colors.accent_foreground = value.native();
-    }
-    if let Some(value) = config.colors.accordion {
-        theme.colors.accordion = value.native();
-    }
-    if let Some(value) = config.colors.background {
-        theme.colors.background = value.native();
-    }
-    if let Some(value) = config.colors.border {
-        theme.colors.border = value.native();
-    }
-    if let Some(value) = config.colors.button {
-        theme.colors.button = value.native();
-    }
-    if let Some(value) = config.colors.button_active {
-        theme.colors.button_active = value.native();
-    }
-    if let Some(value) = config.colors.button_foreground {
-        theme.colors.button_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_hover {
-        theme.colors.button_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_danger {
-        theme.colors.button_danger = value.native();
-    }
-    if let Some(value) = config.colors.button_danger_active {
-        theme.colors.button_danger_active = value.native();
-    }
-    if let Some(value) = config.colors.button_danger_foreground {
-        theme.colors.button_danger_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_danger_hover {
-        theme.colors.button_danger_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_info {
-        theme.colors.button_info = value.native();
-    }
-    if let Some(value) = config.colors.button_info_active {
-        theme.colors.button_info_active = value.native();
-    }
-    if let Some(value) = config.colors.button_info_foreground {
-        theme.colors.button_info_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_info_hover {
-        theme.colors.button_info_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_primary {
-        theme.colors.button_primary = value.native();
-    }
-    if let Some(value) = config.colors.button_primary_active {
-        theme.colors.button_primary_active = value.native();
-    }
-    if let Some(value) = config.colors.button_primary_foreground {
-        theme.colors.button_primary_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_primary_hover {
-        theme.colors.button_primary_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_secondary {
-        theme.colors.button_secondary = value.native();
-    }
-    if let Some(value) = config.colors.button_secondary_active {
-        theme.colors.button_secondary_active = value.native();
-    }
-    if let Some(value) = config.colors.button_secondary_foreground {
-        theme.colors.button_secondary_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_secondary_hover {
-        theme.colors.button_secondary_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_success {
-        theme.colors.button_success = value.native();
-    }
-    if let Some(value) = config.colors.button_success_active {
-        theme.colors.button_success_active = value.native();
-    }
-    if let Some(value) = config.colors.button_success_foreground {
-        theme.colors.button_success_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_success_hover {
-        theme.colors.button_success_hover = value.native();
-    }
-    if let Some(value) = config.colors.button_warning {
-        theme.colors.button_warning = value.native();
-    }
-    if let Some(value) = config.colors.button_warning_active {
-        theme.colors.button_warning_active = value.native();
-    }
-    if let Some(value) = config.colors.button_warning_foreground {
-        theme.colors.button_warning_foreground = value.native();
-    }
-    if let Some(value) = config.colors.button_warning_hover {
-        theme.colors.button_warning_hover = value.native();
-    }
-    if let Some(value) = config.colors.group_box {
-        theme.colors.group_box = value.native();
-    }
-    if let Some(value) = config.colors.group_box_foreground {
-        theme.colors.group_box_foreground = value.native();
-    }
-    if let Some(value) = config.colors.caret {
-        theme.colors.caret = value.native();
-    }
-    if let Some(value) = config.colors.chart_1 {
-        theme.colors.chart_1 = value.native();
-    }
-    if let Some(value) = config.colors.chart_2 {
-        theme.colors.chart_2 = value.native();
-    }
-    if let Some(value) = config.colors.chart_3 {
-        theme.colors.chart_3 = value.native();
-    }
-    if let Some(value) = config.colors.chart_4 {
-        theme.colors.chart_4 = value.native();
-    }
-    if let Some(value) = config.colors.chart_5 {
-        theme.colors.chart_5 = value.native();
-    }
-    if let Some(value) = config.colors.chart_bullish {
-        theme.colors.chart_bullish = value.native();
-    }
-    if let Some(value) = config.colors.chart_bearish {
-        theme.colors.chart_bearish = value.native();
-    }
-    if let Some(value) = config.colors.danger {
-        theme.colors.danger = value.native();
-    }
-    if let Some(value) = config.colors.danger_active {
-        theme.colors.danger_active = value.native();
-    }
-    if let Some(value) = config.colors.danger_foreground {
-        theme.colors.danger_foreground = value.native();
-    }
-    if let Some(value) = config.colors.danger_hover {
-        theme.colors.danger_hover = value.native();
-    }
-    if let Some(value) = config.colors.description_list_label {
-        theme.colors.description_list_label = value.native();
-    }
-    if let Some(value) = config.colors.description_list_label_foreground {
-        theme.colors.description_list_label_foreground = value.native();
-    }
-    if let Some(value) = config.colors.drag_border {
-        theme.colors.drag_border = value.native();
-    }
-    if let Some(value) = config.colors.drop_target {
-        theme.colors.drop_target = value.native();
-    }
-    if let Some(value) = config.colors.foreground {
-        theme.colors.foreground = value.native();
-    }
-    if let Some(value) = config.colors.info {
-        theme.colors.info = value.native();
-    }
-    if let Some(value) = config.colors.info_active {
-        theme.colors.info_active = value.native();
-    }
-    if let Some(value) = config.colors.info_foreground {
-        theme.colors.info_foreground = value.native();
-    }
-    if let Some(value) = config.colors.info_hover {
-        theme.colors.info_hover = value.native();
-    }
-    if let Some(value) = config.colors.input {
-        theme.colors.input = value.native();
-    }
-    if let Some(value) = config.colors.link {
-        theme.colors.link = value.native();
-    }
-    if let Some(value) = config.colors.link_active {
-        theme.colors.link_active = value.native();
-    }
-    if let Some(value) = config.colors.link_hover {
-        theme.colors.link_hover = value.native();
-    }
-    if let Some(value) = config.colors.list {
-        theme.colors.list = value.native();
-    }
-    if let Some(value) = config.colors.list_active {
-        theme.colors.list_active = value.native();
-    }
-    if let Some(value) = config.colors.list_active_border {
-        theme.colors.list_active_border = value.native();
-    }
-    if let Some(value) = config.colors.list_even {
-        theme.colors.list_even = value.native();
-    }
-    if let Some(value) = config.colors.list_head {
-        theme.colors.list_head = value.native();
-    }
-    if let Some(value) = config.colors.list_hover {
-        theme.colors.list_hover = value.native();
-    }
-    if let Some(value) = config.colors.muted {
-        theme.colors.muted = value.native();
-    }
-    if let Some(value) = config.colors.muted_foreground {
-        theme.colors.muted_foreground = value.native();
-    }
-    if let Some(value) = config.colors.popover {
-        theme.colors.popover = value.native();
-    }
-    if let Some(value) = config.colors.popover_foreground {
-        theme.colors.popover_foreground = value.native();
-    }
-    if let Some(value) = config.colors.primary {
-        theme.colors.primary = value.native();
-    }
-    if let Some(value) = config.colors.primary_active {
-        theme.colors.primary_active = value.native();
-    }
-    if let Some(value) = config.colors.primary_foreground {
-        theme.colors.primary_foreground = value.native();
-    }
-    if let Some(value) = config.colors.primary_hover {
-        theme.colors.primary_hover = value.native();
-    }
-    if let Some(value) = config.colors.progress_bar {
-        theme.colors.progress_bar = value.native();
-    }
-    if let Some(value) = config.colors.ring {
-        theme.colors.ring = value.native();
-    }
-    if let Some(value) = config.colors.scrollbar {
-        theme.colors.scrollbar = value.native();
-    }
-    if let Some(value) = config.colors.scrollbar_thumb {
-        theme.colors.scrollbar_thumb = value.native();
-    }
-    if let Some(value) = config.colors.scrollbar_thumb_hover {
-        theme.colors.scrollbar_thumb_hover = value.native();
-    }
-    if let Some(value) = config.colors.secondary {
-        theme.colors.secondary = value.native();
-    }
-    if let Some(value) = config.colors.secondary_active {
-        theme.colors.secondary_active = value.native();
-    }
-    if let Some(value) = config.colors.secondary_foreground {
-        theme.colors.secondary_foreground = value.native();
-    }
-    if let Some(value) = config.colors.secondary_hover {
-        theme.colors.secondary_hover = value.native();
-    }
-    if let Some(value) = config.colors.selection {
-        theme.colors.selection = value.native();
-    }
-    if let Some(value) = config.colors.sidebar {
-        theme.colors.sidebar = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_accent {
-        theme.colors.sidebar_accent = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_accent_foreground {
-        theme.colors.sidebar_accent_foreground = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_border {
-        theme.colors.sidebar_border = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_foreground {
-        theme.colors.sidebar_foreground = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_primary {
-        theme.colors.sidebar_primary = value.native();
-    }
-    if let Some(value) = config.colors.sidebar_primary_foreground {
-        theme.colors.sidebar_primary_foreground = value.native();
-    }
-    if let Some(value) = config.colors.skeleton {
-        theme.colors.skeleton = value.native();
-    }
-    if let Some(value) = config.colors.slider_bar {
-        theme.colors.slider_bar = value.native();
-    }
-    if let Some(value) = config.colors.slider_thumb {
-        theme.colors.slider_thumb = value.native();
-    }
-    if let Some(value) = config.colors.success {
-        theme.colors.success = value.native();
-    }
-    if let Some(value) = config.colors.success_foreground {
-        theme.colors.success_foreground = value.native();
-    }
-    if let Some(value) = config.colors.success_hover {
-        theme.colors.success_hover = value.native();
-    }
-    if let Some(value) = config.colors.success_active {
-        theme.colors.success_active = value.native();
-    }
-    if let Some(value) = config.colors.switch {
-        theme.colors.switch = value.native();
-    }
-    if let Some(value) = config.colors.switch_thumb {
-        theme.colors.switch_thumb = value.native();
-    }
-    if let Some(value) = config.colors.tab {
-        theme.colors.tab = value.native();
-    }
-    if let Some(value) = config.colors.tab_active {
-        theme.colors.tab_active = value.native();
-    }
-    if let Some(value) = config.colors.tab_active_foreground {
-        theme.colors.tab_active_foreground = value.native();
-    }
-    if let Some(value) = config.colors.tab_bar {
-        theme.colors.tab_bar = value.native();
-    }
-    if let Some(value) = config.colors.tab_bar_segmented {
-        theme.colors.tab_bar_segmented = value.native();
-    }
-    if let Some(value) = config.colors.tab_foreground {
-        theme.colors.tab_foreground = value.native();
-    }
-    if let Some(value) = config.colors.table {
-        theme.colors.table = value.native();
-    }
-    if let Some(value) = config.colors.table_active {
-        theme.colors.table_active = value.native();
-    }
-    if let Some(value) = config.colors.table_active_border {
-        theme.colors.table_active_border = value.native();
-    }
-    if let Some(value) = config.colors.table_even {
-        theme.colors.table_even = value.native();
-    }
-    if let Some(value) = config.colors.table_head {
-        theme.colors.table_head = value.native();
-    }
-    if let Some(value) = config.colors.table_head_foreground {
-        theme.colors.table_head_foreground = value.native();
-    }
-    if let Some(value) = config.colors.table_foot {
-        theme.colors.table_foot = value.native();
-    }
-    if let Some(value) = config.colors.table_foot_foreground {
-        theme.colors.table_foot_foreground = value.native();
-    }
-    if let Some(value) = config.colors.table_hover {
-        theme.colors.table_hover = value.native();
-    }
-    if let Some(value) = config.colors.table_row_border {
-        theme.colors.table_row_border = value.native();
-    }
-    if let Some(value) = config.colors.title_bar {
-        theme.colors.title_bar = value.native();
-    }
-    if let Some(value) = config.colors.title_bar_border {
-        theme.colors.title_bar_border = value.native();
-    }
-    if let Some(value) = config.colors.status_bar {
-        theme.colors.status_bar = value.native();
-    }
-    if let Some(value) = config.colors.status_bar_border {
-        theme.colors.status_bar_border = value.native();
-    }
-    if let Some(value) = config.colors.warning {
-        theme.colors.warning = value.native();
-    }
-    if let Some(value) = config.colors.warning_active {
-        theme.colors.warning_active = value.native();
-    }
-    if let Some(value) = config.colors.warning_hover {
-        theme.colors.warning_hover = value.native();
-    }
-    if let Some(value) = config.colors.warning_foreground {
-        theme.colors.warning_foreground = value.native();
-    }
-    if let Some(value) = config.colors.overlay {
-        theme.colors.overlay = value.native();
-    }
-    if let Some(value) = config.colors.window_border {
-        theme.colors.window_border = value.native();
-    }
-    if let Some(value) = config.colors.red {
-        theme.colors.red = value.native();
-    }
-    if let Some(value) = config.colors.red_light {
-        theme.colors.red_light = value.native();
-    }
-    if let Some(value) = config.colors.green {
-        theme.colors.green = value.native();
-    }
-    if let Some(value) = config.colors.green_light {
-        theme.colors.green_light = value.native();
-    }
-    if let Some(value) = config.colors.blue {
-        theme.colors.blue = value.native();
-    }
-    if let Some(value) = config.colors.blue_light {
-        theme.colors.blue_light = value.native();
-    }
-    if let Some(value) = config.colors.yellow {
-        theme.colors.yellow = value.native();
-    }
-    if let Some(value) = config.colors.yellow_light {
-        theme.colors.yellow_light = value.native();
-    }
-    if let Some(value) = config.colors.magenta {
-        theme.colors.magenta = value.native();
-    }
-    if let Some(value) = config.colors.magenta_light {
-        theme.colors.magenta_light = value.native();
-    }
-    if let Some(value) = config.colors.cyan {
-        theme.colors.cyan = value.native();
-    }
-    if let Some(value) = config.colors.cyan_light {
-        theme.colors.cyan_light = value.native();
-    }
-    theme.tokens = (&theme.colors).into();
-    theme.input_background_override = config.input_background.map(|color| color.native());
-    theme.component_metrics = config.components.unwrap_or_default().native();
-    if let Some(value) = config.font_family {
-        theme.font_family = value.into();
-    }
-    if let Some(value) = config.font_size {
-        theme.font_size = gpui::px(value.0);
-    }
-    if let Some(value) = config.radius {
-        theme.radius = gpui::px(value.0);
-    }
-    if let Some(value) = config.radius_lg {
-        theme.radius_lg = gpui::px(value.0);
-    }
-    Theme::sync_base(cx);
+    Theme::update(cx, |theme| {
+        if let Some(value) = config.colors.accent {
+            theme.colors.accent = value.native();
+        }
+        if let Some(value) = config.colors.accent_foreground {
+            theme.colors.accent_foreground = value.native();
+        }
+        if let Some(value) = config.colors.accordion {
+            theme.colors.accordion = value.native();
+        }
+        if let Some(value) = config.colors.background {
+            theme.colors.background = value.native();
+        }
+        if let Some(value) = config.colors.border {
+            theme.colors.border = value.native();
+        }
+        if let Some(value) = config.colors.button {
+            theme.colors.button = value.native();
+        }
+        if let Some(value) = config.colors.button_active {
+            theme.colors.button_active = value.native();
+        }
+        if let Some(value) = config.colors.button_foreground {
+            theme.colors.button_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_hover {
+            theme.colors.button_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_danger {
+            theme.colors.button_danger = value.native();
+        }
+        if let Some(value) = config.colors.button_danger_active {
+            theme.colors.button_danger_active = value.native();
+        }
+        if let Some(value) = config.colors.button_danger_foreground {
+            theme.colors.button_danger_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_danger_hover {
+            theme.colors.button_danger_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_info {
+            theme.colors.button_info = value.native();
+        }
+        if let Some(value) = config.colors.button_info_active {
+            theme.colors.button_info_active = value.native();
+        }
+        if let Some(value) = config.colors.button_info_foreground {
+            theme.colors.button_info_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_info_hover {
+            theme.colors.button_info_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_primary {
+            theme.colors.button_primary = value.native();
+        }
+        if let Some(value) = config.colors.button_primary_active {
+            theme.colors.button_primary_active = value.native();
+        }
+        if let Some(value) = config.colors.button_primary_foreground {
+            theme.colors.button_primary_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_primary_hover {
+            theme.colors.button_primary_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_secondary {
+            theme.colors.button_secondary = value.native();
+        }
+        if let Some(value) = config.colors.button_secondary_active {
+            theme.colors.button_secondary_active = value.native();
+        }
+        if let Some(value) = config.colors.button_secondary_foreground {
+            theme.colors.button_secondary_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_secondary_hover {
+            theme.colors.button_secondary_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_success {
+            theme.colors.button_success = value.native();
+        }
+        if let Some(value) = config.colors.button_success_active {
+            theme.colors.button_success_active = value.native();
+        }
+        if let Some(value) = config.colors.button_success_foreground {
+            theme.colors.button_success_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_success_hover {
+            theme.colors.button_success_hover = value.native();
+        }
+        if let Some(value) = config.colors.button_warning {
+            theme.colors.button_warning = value.native();
+        }
+        if let Some(value) = config.colors.button_warning_active {
+            theme.colors.button_warning_active = value.native();
+        }
+        if let Some(value) = config.colors.button_warning_foreground {
+            theme.colors.button_warning_foreground = value.native();
+        }
+        if let Some(value) = config.colors.button_warning_hover {
+            theme.colors.button_warning_hover = value.native();
+        }
+        if let Some(value) = config.colors.group_box {
+            theme.colors.group_box = value.native();
+        }
+        if let Some(value) = config.colors.group_box_foreground {
+            theme.colors.group_box_foreground = value.native();
+        }
+        if let Some(value) = config.colors.caret {
+            theme.colors.caret = value.native();
+        }
+        if let Some(value) = config.colors.chart_1 {
+            theme.colors.chart_1 = value.native();
+        }
+        if let Some(value) = config.colors.chart_2 {
+            theme.colors.chart_2 = value.native();
+        }
+        if let Some(value) = config.colors.chart_3 {
+            theme.colors.chart_3 = value.native();
+        }
+        if let Some(value) = config.colors.chart_4 {
+            theme.colors.chart_4 = value.native();
+        }
+        if let Some(value) = config.colors.chart_5 {
+            theme.colors.chart_5 = value.native();
+        }
+        if let Some(value) = config.colors.chart_bullish {
+            theme.colors.chart_bullish = value.native();
+        }
+        if let Some(value) = config.colors.chart_bearish {
+            theme.colors.chart_bearish = value.native();
+        }
+        if let Some(value) = config.colors.danger {
+            theme.colors.danger = value.native();
+        }
+        if let Some(value) = config.colors.danger_active {
+            theme.colors.danger_active = value.native();
+        }
+        if let Some(value) = config.colors.danger_foreground {
+            theme.colors.danger_foreground = value.native();
+        }
+        if let Some(value) = config.colors.danger_hover {
+            theme.colors.danger_hover = value.native();
+        }
+        if let Some(value) = config.colors.description_list_label {
+            theme.colors.description_list_label = value.native();
+        }
+        if let Some(value) = config.colors.description_list_label_foreground {
+            theme.colors.description_list_label_foreground = value.native();
+        }
+        if let Some(value) = config.colors.drag_border {
+            theme.colors.drag_border = value.native();
+        }
+        if let Some(value) = config.colors.drop_target {
+            theme.colors.drop_target = value.native();
+        }
+        if let Some(value) = config.colors.foreground {
+            theme.colors.foreground = value.native();
+        }
+        if let Some(value) = config.colors.info {
+            theme.colors.info = value.native();
+        }
+        if let Some(value) = config.colors.info_active {
+            theme.colors.info_active = value.native();
+        }
+        if let Some(value) = config.colors.info_foreground {
+            theme.colors.info_foreground = value.native();
+        }
+        if let Some(value) = config.colors.info_hover {
+            theme.colors.info_hover = value.native();
+        }
+        if let Some(value) = config.colors.input {
+            theme.colors.input = value.native();
+        }
+        if let Some(value) = config.colors.link {
+            theme.colors.link = value.native();
+        }
+        if let Some(value) = config.colors.link_active {
+            theme.colors.link_active = value.native();
+        }
+        if let Some(value) = config.colors.link_hover {
+            theme.colors.link_hover = value.native();
+        }
+        if let Some(value) = config.colors.list {
+            theme.colors.list = value.native();
+        }
+        if let Some(value) = config.colors.list_active {
+            theme.colors.list_active = value.native();
+        }
+        if let Some(value) = config.colors.list_active_border {
+            theme.colors.list_active_border = value.native();
+        }
+        if let Some(value) = config.colors.list_even {
+            theme.colors.list_even = value.native();
+        }
+        if let Some(value) = config.colors.list_head {
+            theme.colors.list_head = value.native();
+        }
+        if let Some(value) = config.colors.list_hover {
+            theme.colors.list_hover = value.native();
+        }
+        if let Some(value) = config.colors.muted {
+            theme.colors.muted = value.native();
+        }
+        if let Some(value) = config.colors.muted_foreground {
+            theme.colors.muted_foreground = value.native();
+        }
+        if let Some(value) = config.colors.popover {
+            theme.colors.popover = value.native();
+        }
+        if let Some(value) = config.colors.popover_foreground {
+            theme.colors.popover_foreground = value.native();
+        }
+        if let Some(value) = config.colors.primary {
+            theme.colors.primary = value.native();
+        }
+        if let Some(value) = config.colors.primary_active {
+            theme.colors.primary_active = value.native();
+        }
+        if let Some(value) = config.colors.primary_foreground {
+            theme.colors.primary_foreground = value.native();
+        }
+        if let Some(value) = config.colors.primary_hover {
+            theme.colors.primary_hover = value.native();
+        }
+        if let Some(value) = config.colors.progress_bar {
+            theme.colors.progress_bar = value.native();
+        }
+        if let Some(value) = config.colors.ring {
+            theme.colors.ring = value.native();
+        }
+        if let Some(value) = config.colors.scrollbar {
+            theme.colors.scrollbar = value.native();
+        }
+        if let Some(value) = config.colors.scrollbar_thumb {
+            theme.colors.scrollbar_thumb = value.native();
+        }
+        if let Some(value) = config.colors.scrollbar_thumb_hover {
+            theme.colors.scrollbar_thumb_hover = value.native();
+        }
+        if let Some(value) = config.colors.secondary {
+            theme.colors.secondary = value.native();
+        }
+        if let Some(value) = config.colors.secondary_active {
+            theme.colors.secondary_active = value.native();
+        }
+        if let Some(value) = config.colors.secondary_foreground {
+            theme.colors.secondary_foreground = value.native();
+        }
+        if let Some(value) = config.colors.secondary_hover {
+            theme.colors.secondary_hover = value.native();
+        }
+        if let Some(value) = config.colors.selection {
+            theme.colors.selection = value.native();
+        }
+        if let Some(value) = config.colors.sidebar {
+            theme.colors.sidebar = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_accent {
+            theme.colors.sidebar_accent = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_accent_foreground {
+            theme.colors.sidebar_accent_foreground = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_border {
+            theme.colors.sidebar_border = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_foreground {
+            theme.colors.sidebar_foreground = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_primary {
+            theme.colors.sidebar_primary = value.native();
+        }
+        if let Some(value) = config.colors.sidebar_primary_foreground {
+            theme.colors.sidebar_primary_foreground = value.native();
+        }
+        if let Some(value) = config.colors.skeleton {
+            theme.colors.skeleton = value.native();
+        }
+        if let Some(value) = config.colors.slider_bar {
+            theme.colors.slider_bar = value.native();
+        }
+        if let Some(value) = config.colors.slider_thumb {
+            theme.colors.slider_thumb = value.native();
+        }
+        if let Some(value) = config.colors.success {
+            theme.colors.success = value.native();
+        }
+        if let Some(value) = config.colors.success_foreground {
+            theme.colors.success_foreground = value.native();
+        }
+        if let Some(value) = config.colors.success_hover {
+            theme.colors.success_hover = value.native();
+        }
+        if let Some(value) = config.colors.success_active {
+            theme.colors.success_active = value.native();
+        }
+        if let Some(value) = config.colors.switch {
+            theme.colors.switch = value.native();
+        }
+        if let Some(value) = config.colors.switch_thumb {
+            theme.colors.switch_thumb = value.native();
+        }
+        if let Some(value) = config.colors.tab {
+            theme.colors.tab = value.native();
+        }
+        if let Some(value) = config.colors.tab_active {
+            theme.colors.tab_active = value.native();
+        }
+        if let Some(value) = config.colors.tab_active_foreground {
+            theme.colors.tab_active_foreground = value.native();
+        }
+        if let Some(value) = config.colors.tab_bar {
+            theme.colors.tab_bar = value.native();
+        }
+        if let Some(value) = config.colors.tab_bar_segmented {
+            theme.colors.tab_bar_segmented = value.native();
+        }
+        if let Some(value) = config.colors.tab_foreground {
+            theme.colors.tab_foreground = value.native();
+        }
+        if let Some(value) = config.colors.table {
+            theme.colors.table = value.native();
+        }
+        if let Some(value) = config.colors.table_active {
+            theme.colors.table_active = value.native();
+        }
+        if let Some(value) = config.colors.table_active_border {
+            theme.colors.table_active_border = value.native();
+        }
+        if let Some(value) = config.colors.table_even {
+            theme.colors.table_even = value.native();
+        }
+        if let Some(value) = config.colors.table_head {
+            theme.colors.table_head = value.native();
+        }
+        if let Some(value) = config.colors.table_head_foreground {
+            theme.colors.table_head_foreground = value.native();
+        }
+        if let Some(value) = config.colors.table_foot {
+            theme.colors.table_foot = value.native();
+        }
+        if let Some(value) = config.colors.table_foot_foreground {
+            theme.colors.table_foot_foreground = value.native();
+        }
+        if let Some(value) = config.colors.table_hover {
+            theme.colors.table_hover = value.native();
+        }
+        if let Some(value) = config.colors.table_row_border {
+            theme.colors.table_row_border = value.native();
+        }
+        if let Some(value) = config.colors.title_bar {
+            theme.colors.title_bar = value.native();
+        }
+        if let Some(value) = config.colors.title_bar_border {
+            theme.colors.title_bar_border = value.native();
+        }
+        if let Some(value) = config.colors.status_bar {
+            theme.colors.status_bar = value.native();
+        }
+        if let Some(value) = config.colors.status_bar_border {
+            theme.colors.status_bar_border = value.native();
+        }
+        if let Some(value) = config.colors.warning {
+            theme.colors.warning = value.native();
+        }
+        if let Some(value) = config.colors.warning_active {
+            theme.colors.warning_active = value.native();
+        }
+        if let Some(value) = config.colors.warning_hover {
+            theme.colors.warning_hover = value.native();
+        }
+        if let Some(value) = config.colors.warning_foreground {
+            theme.colors.warning_foreground = value.native();
+        }
+        if let Some(value) = config.colors.overlay {
+            theme.colors.overlay = value.native();
+        }
+        if let Some(value) = config.colors.window_border {
+            theme.colors.window_border = value.native();
+        }
+        if let Some(value) = config.colors.red {
+            theme.colors.red = value.native();
+        }
+        if let Some(value) = config.colors.red_light {
+            theme.colors.red_light = value.native();
+        }
+        if let Some(value) = config.colors.green {
+            theme.colors.green = value.native();
+        }
+        if let Some(value) = config.colors.green_light {
+            theme.colors.green_light = value.native();
+        }
+        if let Some(value) = config.colors.blue {
+            theme.colors.blue = value.native();
+        }
+        if let Some(value) = config.colors.blue_light {
+            theme.colors.blue_light = value.native();
+        }
+        if let Some(value) = config.colors.yellow {
+            theme.colors.yellow = value.native();
+        }
+        if let Some(value) = config.colors.yellow_light {
+            theme.colors.yellow_light = value.native();
+        }
+        if let Some(value) = config.colors.magenta {
+            theme.colors.magenta = value.native();
+        }
+        if let Some(value) = config.colors.magenta_light {
+            theme.colors.magenta_light = value.native();
+        }
+        if let Some(value) = config.colors.cyan {
+            theme.colors.cyan = value.native();
+        }
+        if let Some(value) = config.colors.cyan_light {
+            theme.colors.cyan_light = value.native();
+        }
+        theme.input_background_override = config.input_background.map(|color| color.native());
+        theme.component_metrics = config.components.unwrap_or_default().native();
+        if let Some(value) = config.font_family {
+            theme.font_family = value.into();
+        }
+        if let Some(value) = config.font_size {
+            theme.font_size = gpui::px(value.0);
+        }
+        if let Some(value) = config.radius {
+            theme.radius = gpui::px(value.0);
+        }
+        if let Some(value) = config.radius_lg {
+            theme.radius_lg = gpui::px(value.0);
+        }
+    });
     if let Some(value) = config.line_height {
         gpui_base::Theme::global_mut(cx)
             .tokens
@@ -761,5 +760,42 @@ impl ApplicationComponentMetrics {
             menu: self.menu.native(),
             dialog: self.dialog.native(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[gpui::test]
+    fn application_overrides_preserve_unedited_gradient_tokens(cx: &mut gpui::TestAppContext) {
+        cx.update(|cx| {
+            gpui_component::init(cx);
+            initialize(cx);
+            let from = gpui::rgb(0x4f46e5).into();
+            let to: gpui::Hsla = gpui::rgb(0x06b6d4).into();
+            let token = gpui_component::theme::ThemeToken::new(
+                from,
+                gpui::linear_gradient(
+                    135.,
+                    gpui::linear_color_stop(from, 0.),
+                    gpui::linear_color_stop(to, 1.),
+                ),
+            );
+            Theme::update(cx, |theme| theme.tokens.primary = token);
+            let overrides = crate::native::decode_json::<ApplicationTheme>(
+                br##"{"colors":{"foreground":"#123456"}}"##,
+            )
+            .unwrap();
+            cx.global_mut::<Appearance>().application = Some(overrides);
+            apply_application(cx);
+            let theme = Theme::global(cx);
+            assert_eq!(theme.tokens.primary, token);
+            assert_eq!(theme.tokens.foreground.color, gpui::rgb(0x123456).into());
+            assert_eq!(
+                gpui_base::Theme::global(cx).tokens.colors.foreground,
+                theme.foreground
+            );
+        });
     }
 }

@@ -1,6 +1,6 @@
 # Pinned native component source
 
-Vendored from [GPUI Kit](https://github.com/longbridge/gpui-kit) at `501c73923280859a5de2b16fe64d4aac960bb040` (0.6.1 plus subsequent changes), under Apache-2.0. This checkout contains `base`, `component`, `component-macros`, `assets`, the `kit` facade, and `fps`; the root workspace resolves GPUI to `gpui-pre 0.3.5` in its lockfile.
+Vendored from [GPUI Kit](https://github.com/longbridge/gpui-kit) at `0e63ea799766c486022a0cecfda6e48c5183a2d7` (0.6.4 plus subsequent changes), under Apache-2.0. This checkout contains `base`, `component`, `component-macros`, `assets`, the `kit` facade, and `fps`; the root workspace resolves GPUI to `gpui-pre 0.3.5` in its lockfile.
 
 Consumers use the `solid-gpui` Rust facade and its generated JavaScript module. This source copy supplies the native state/configuration seams that declarative updates require. It is not a second application framework or a set of JS-painted replacement controls.
 
@@ -11,7 +11,7 @@ Consumers use the `solid-gpui` Rust facade and its generated JavaScript module. 
 - **Typed composition:** `ComponentChild<T>` carries the host render boundary until the native parent lays out its child. Native containers consume their concrete child types without erasing style, focus, events or identity. Deferred field/sidebar builders enter the child scope before constructing native content.
 - **Mutable controls:** input/textarea/editor, OTP, slider, calendar/date picker, choices and rich text can update configuration while retaining their editing/selection entities. Textarea fixed rows can replace auto-grow, determine intrinsic rendered height and survive text/wrap updates; only auto-grow mode derives its rows from content. Asynchronous editor/choice work is invalidated by its current owner/configuration.
 - **Virtualized data:** list, table, tree, command, virtual list and message scroller expose the state operations needed for keyed reconciliation, visible-range changes, native search and explicit load completion. Resize and scroll changes preserve native handles and reading anchors.
-- **Overlays:** Root has owner/session tokens for dialogs, sheets and notifications. Closing or retiring an old owner cannot dismiss a newer overlay. DialogButtonProps exposes its localized native action footer for ordinary dialogs as well as alerts. Popover/tooltip and menu builders retain their live state. Notification replacement preserves native identity and timer ownership. A dialog popup bounds its height to the room the window leaves above a 24 px bottom gap (never below 160 px) and names itself `dialog-popup` in the debug-bounds map, so a body taller than the window scrolls inside the popup instead of pushing the title and footer off screen.
+- **Overlays:** Root has owner/session tokens for dialogs, sheets and notifications. Closing or retiring an old owner cannot dismiss a newer overlay. DialogButtonProps exposes its localized native action footer for ordinary dialogs as well as alerts, retaining upstream partial-merge semantics. Popover/tooltip and menu builders retain their live state. Notification replacement preserves native identity and timer ownership. A dialog popup bounds its height to the room the window leaves above a 24 px bottom gap (never below 160 px), so a tall body scrolls inside it; upstream's layer-specific `dialog-{index}` debug selector identifies the popup.
 - **Notification card layout:** a toast is one row — `[icon] [title / message / content] [action]` — with a single 16 px inset on all four sides, 12 px between slots, and no absolutely positioned child. The icon and the action each sit in a slot one body line tall (at least 24 px), so their glyphs centre on the *first* line of wrapped copy; the copy column stretches to the row, so its own inset stays symmetric. The card draws **no** close control: a toast is dismissed by clicking it or by its own timer, and it carries the `notification-card`, `notification-icon`, `notification-copy` and `notification-action` test-only selectors.
 - **Menus:** application-menu revisions update AppMenuBar; PopupMenu exposes its weak owner to builders running through a different entity and supports stable submenu adoption/rebuild. NativeMenu exposes combined checked/disabled/icon configuration and disabled submenus. A popup menu's leading item icon draws at its label's own scale (`Size::Medium`, 16 px) instead of one step below it, and names itself `menu-icon` in the debug-bounds map.
 - **Settings:** page/group/item keys replace index-based identity. SettingsState exposes selection/search; search and reorder retain the intended page/group. Native input field setters and number options refresh when configuration changes.
@@ -29,8 +29,30 @@ The bridge validates serialized data and composition before publication, includi
 - Carousel exposes atomic item/selection reconciliation for keyed Solid children.
 - Editor exposes directed cursor selections with UTF-8/CRLF, mode and IME validation
   before mutation. Local grapheme editing and controlled-state behavior are preserved.
+- Input and Textarea expose native atomic inline tokens; editor search commands
+  operate on the retained search session. The bridge validates serialized ranges
+  and preserves controlled edit acknowledgements instead of rebuilding editors.
+  Grapheme stepping also passes through the token/CRLF cursor boundary, so the
+  local Unicode editing rules cannot move the caret inside an atomic token.
+  The input validator setter is shared across modes for bounded token documents.
+- InputGroup uses upstream rendering with boundary-carrying controls and addon
+  children; the retained child owns editing and the frame owns presentation.
+  Disabled/readonly overlays carry owner identity and release on reparent/unmount.
+- Sequence exposes borrowed sampling so Motion retains its prepared steps without
+  allocating a new chain per frame. TextView exports the upstream fade duration
+  for policy updates before an appended chunk is applied.
+- Questionnaire retains upstream behavior and default skin behind validated item,
+  choice and freeform-input descriptors. It exposes answer/navigation/submission
+  events and commands; internal visual parts are not stand-alone JSX aliases.
+- TextView uses native stream-fade policy and retains its incremental text state.
+  SharedPlot forwards upstream hover sampling so chart motion stays native;
+  PieChart exposes interactive slice tooltips and keeps automatic radius behavior.
 - FPS exports its headline mode and overlay offset. ComponentHost retains the monitor
   per window, starts in observed mode, and leaves it disabled unless explicitly enabled.
+- Base's system reduced-motion reader has an explicit enable/disable seam. The
+  Solid host disables it before Component initialization because its own motion
+  service owns live OS subscriptions and the `system`/`reduced`/`full` override.
+  A delayed Base platform response must not overwrite an explicit host choice.
 - Shell and Component Shell are not vendored or linked. Solid keeps its own runtime.
 - Kit assets serve internal default control glyphs only. Web embeds exactly
   `crates/assets/default-icons.txt`, avoiding the full Lucide catalog and CDN loader.

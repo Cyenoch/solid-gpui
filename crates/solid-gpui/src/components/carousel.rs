@@ -104,7 +104,7 @@ impl NativeView for Carousel {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "selectedIndex",
+            value_props: &["selectedIndex"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",

@@ -2265,12 +2265,14 @@ dependencies = [
 
 [[package]]
 name = "gpui-base"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "aho-corasick",
  "anyhow",
+ "ashpd",
  "async-channel",
  "chrono",
+ "data-url",
  "futures",
  "gpui-pre",
  "gpui-pre-macros",
@@ -2293,11 +2295,12 @@ dependencies = [
  "tracing",
  "unicode-segmentation",
  "web-time",
+ "windows 0.58.0",
 ]
 
 [[package]]
 name = "gpui-component"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2339,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-component-macros"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2349,7 +2352,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-fps"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "core-graphics 0.24.0",
  "gpui-pre",
@@ -2376,7 +2379,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "gpui-base",
  "gpui-component",
@@ -2388,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-kit-assets"
-version = "0.6.1"
+version = "0.6.4"
 dependencies = [
  "anyhow",
  "gpui-pre",
@@ -6939,7 +6942,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

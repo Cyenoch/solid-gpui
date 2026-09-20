@@ -28,7 +28,7 @@ impl MotionProps {
                         .checked_add(offset)
                         .ok_or("stagger delay overflow")?;
                 }
-                MotionAnimation::Spring { .. } => {
+                MotionAnimation::Spring { .. } | MotionAnimation::Sequence { .. } => {
                     return Err("stagger requires a transition or keyframes".into());
                 }
             }
@@ -37,7 +37,7 @@ impl MotionProps {
     }
 }
 #[crate::native_type]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MotionComplete {
     pub playback_id: u32,
@@ -45,10 +45,28 @@ pub struct MotionComplete {
 struct Motion {
     props: MotionProps,
     prepared: PreparedMotion,
+    sequence: Option<motion::Sequence<MotionTarget>>,
     children: NativeChildren,
     event: Event<MotionComplete>,
     completed: bool,
     generation: u64,
+}
+impl Motion {
+    /// Builds the retained sequence for a playback key. Rebuilt only when the
+    /// generation moves — a new mount or a replay — so frames sample the kept
+    /// sequence without rebuilding or reallocating its step chain.
+    fn sequence_for(
+        prepared: &PreparedMotion,
+        generation: u64,
+    ) -> Option<motion::Sequence<MotionTarget>> {
+        match prepared {
+            PreparedMotion::Sequence { from, steps } => Some(
+                motion::Sequence::new(gpui::ElementId::Integer(generation), *from)
+                    .with_steps(steps.iter().cloned()),
+            ),
+            _ => None,
+        }
+    }
 }
 impl NativeView for Motion {
     type Props = MotionProps;
@@ -71,9 +89,11 @@ impl NativeView for Motion {
         _: &mut Context<Self>,
     ) -> Self {
         let prepared = props.prepare().expect("validated native motion");
+        let sequence = Self::sequence_for(&prepared, 0);
         Self {
             props,
             prepared,
+            sequence,
             children,
             event,
             completed: false,
@@ -81,18 +101,25 @@ impl NativeView for Motion {
         }
     }
     fn update(&mut self, props: Self::Props, _: &mut Window, _: &mut Context<Self>) {
-        if props != self.props {
-            self.completed = false;
-        }
-        if props.animation != self.props.animation
+        let playback_changed = props.animation != self.props.animation
             || props.stagger != self.props.stagger
-            || props.playback_id != self.props.playback_id
-        {
+            || props.playback_id != self.props.playback_id;
+        if playback_changed {
+            self.completed = false;
             self.prepared = props.prepare().expect("validated native motion");
             self.generation = self
                 .generation
                 .checked_add(1)
                 .expect("motion generation exhausted");
+            self.sequence = Self::sequence_for(&self.prepared, self.generation);
+        } else if props.target != self.props.target
+            && !matches!(self.prepared, PreparedMotion::Sequence { .. })
+        {
+            // A retarget re-arms completion only for the variants that sample
+            // `target` live. A sequence owns its timeline and ignores a
+            // mid-flight `target` change, so its completion is re-armed by a
+            // playback change alone.
+            self.completed = false;
         }
         self.props = props;
     }
@@ -131,6 +158,21 @@ impl Render for Motion {
                     cx,
                 );
                 (sample.value, sample.status == MotionStatus::Finished)
+            }
+            PreparedMotion::Sequence { .. } => {
+                // Retained per playback key (built in mount/update when the
+                // generation moves); borrowed sampling keeps every frame
+                // allocation-free. The generation in the key owns the
+                // playback: re-rendering with it continues the sequence, and
+                // a replay starts a fresh key at `from`. Reduced motion
+                // settles on the last step inside `sample_ref` and reports
+                // `Finished` without requesting frames.
+                let sample = self
+                    .sequence
+                    .as_ref()
+                    .expect("validated native sequence")
+                    .sample_ref(window, cx);
+                (*sample.value(), sample.is_finished())
             }
         };
         if finished && !self.completed {
@@ -260,4 +302,195 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<NativePresence>("NativePresence")
             .with_contract(include_str!("motion_view.rs")),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::EventPayload;
+    use crate::components::motion_types::{MotionSequenceStep, StaggerOrigin};
+    use crate::components::test_support::Fixture;
+    use gpui::TestAppContext;
+
+    fn sequence_props(stagger: Option<MotionStagger>) -> MotionProps {
+        MotionProps {
+            target: MotionTarget::default(),
+            animation: MotionAnimation::Sequence {
+                from: MotionTarget::default(),
+                steps: vec![MotionSequenceStep {
+                    target: MotionTarget::default(),
+                    duration_ms: 100,
+                    delay_ms: 0,
+                    easing: MotionEasing::EaseOut,
+                }],
+            },
+            playback_id: 1,
+            stagger,
+        }
+    }
+
+    #[test]
+    fn a_sequence_prepares_without_stagger_and_rejects_it_with_one() {
+        assert!(sequence_props(None).prepare().is_ok());
+        assert!(
+            sequence_props(Some(MotionStagger {
+                index: 0,
+                count: 2,
+                interval_ms: 40,
+                origin: StaggerOrigin::First,
+            }))
+            .prepare()
+            .is_err()
+        );
+    }
+
+    /// Two 100ms linear steps on a 200ms timeline.
+    fn two_step_sequence(playback_id: u32) -> MotionProps {
+        MotionProps {
+            target: MotionTarget::default(),
+            animation: MotionAnimation::Sequence {
+                from: MotionTarget {
+                    x: 0.,
+                    y: 0.,
+                    opacity: 0.,
+                },
+                steps: vec![
+                    MotionSequenceStep {
+                        target: MotionTarget {
+                            x: 0.,
+                            y: 0.,
+                            opacity: 1.,
+                        },
+                        duration_ms: 100,
+                        delay_ms: 0,
+                        easing: MotionEasing::Linear,
+                    },
+                    MotionSequenceStep {
+                        target: MotionTarget {
+                            x: 10.,
+                            y: 0.,
+                            opacity: 1.,
+                        },
+                        duration_ms: 100,
+                        delay_ms: 0,
+                        easing: MotionEasing::Linear,
+                    },
+                ],
+            },
+            playback_id,
+            stagger: None,
+        }
+    }
+
+    fn draw(f: &Fixture<Motion>, cx: &mut TestAppContext) {
+        f.window
+            .update(cx, |_, window, _| window.refresh())
+            .unwrap();
+        cx.run_until_parked();
+    }
+
+    fn completions(f: &Fixture<Motion>) -> Vec<MotionComplete> {
+        let mut result = vec![];
+        while let Some(e) = f.runtime.take_event().unwrap() {
+            if let EventPayload::Extension {
+                event_id: 1,
+                fields,
+                ..
+            } = e.payload
+            {
+                let crate::protocol::ExtensionValue::Bytes(bytes) = &fields[0].value else {
+                    panic!("typed event")
+                };
+                result.push(crate::native::decode_json(bytes).unwrap());
+            }
+        }
+        result
+    }
+
+    #[gpui::test]
+    fn a_sequence_completes_once_ignores_target_moves_and_replays_by_playback_id(
+        cx: &mut TestAppContext,
+    ) {
+        let f = Fixture::<Motion>::new(two_step_sequence(1), cx);
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "a fresh sequence is mid-flight, not finished"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(150));
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "the second step is still playing at 150ms of 200ms"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(100));
+        draw(&f, cx);
+        assert_eq!(
+            completions(&f),
+            vec![MotionComplete { playback_id: 1 }],
+            "completion fires once the last step settles"
+        );
+
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "a finished sequence does not re-emit on later frames"
+        );
+
+        // A `target` move is not a playback change: a sequence owns its
+        // timeline, so completion stays settled instead of firing again.
+        f.update(cx, |v, w, cx| {
+            let mut p = v.props.clone();
+            p.target = MotionTarget {
+                x: 5.,
+                y: 0.,
+                opacity: 1.,
+            };
+            v.update(p, w, cx);
+        });
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "a target move without a playback change never re-emits completion"
+        );
+
+        f.update(cx, |v, w, cx| {
+            let mut p = v.props.clone();
+            p.playback_id = 2;
+            v.update(p, w, cx);
+        });
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "a replayed sequence restarts from its origin mid-flight"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(250));
+        draw(&f, cx);
+        assert_eq!(
+            completions(&f),
+            vec![MotionComplete { playback_id: 2 }],
+            "the replay reports its own playbackId"
+        );
+    }
+
+    #[gpui::test]
+    fn reduced_motion_settles_a_sequence_and_completes_immediately(cx: &mut TestAppContext) {
+        cx.update(|cx| cx.set_reduce_motion(true));
+        let f = Fixture::<Motion>::new(two_step_sequence(7), cx);
+        draw(&f, cx);
+        assert_eq!(
+            completions(&f),
+            vec![MotionComplete { playback_id: 7 }],
+            "reduced motion adopts the last step without waiting on the clock"
+        );
+
+        draw(&f, cx);
+        assert!(
+            completions(&f).is_empty(),
+            "the immediate completion is emitted once"
+        );
+    }
 }

@@ -299,6 +299,14 @@ editors, tree tables, and virtualized lists; each internal state change does not
 need a corresponding JavaScript property. Use batch DTOs or Rust-owned models
 for large datasets and high-frequency input to avoid per-item round trips.
 
+`NativeView::controlled()` declares `ControlledBinding::value_props`, a static
+list of alternative controlled data properties sharing one edit-sequence event
+and acknowledgement property. The generated binding subscribes internally when
+any listed property is present, even without an application callback. Input uses
+`["value", "content"]` so atomic token snapshots follow the same acknowledgement
+path as plain text. This metadata is generated; rebuild every host catalog after
+changing it rather than hand-editing generated TypeScript.
+
 Scrollable native views may expose `NativeView::scroll_viewport()` by returning
 a clone of an owned `native::ScrollViewport` (backed by `ScrollHandle` or
 `ListState`). The host publishes this capability after native commit reconciliation;

@@ -121,13 +121,17 @@ impl SettingPage {
         self
     }
 
-    fn is_resettable(&self, cx: &App) -> bool {
-        self.resettable && self.groups.iter().any(|group| group.is_resettable(cx))
+    fn is_resettable(&self, query: &str, cx: &App) -> bool {
+        self.resettable
+            && self
+                .groups
+                .iter()
+                .any(|group| group.is_resettable(query, cx))
     }
 
-    fn reset_all(&self, window: &mut Window, cx: &mut App) {
+    fn reset_all(&self, query: &str, window: &mut Window, cx: &mut App) {
         for group in &self.groups {
-            group.reset(window, cx);
+            group.reset(query, window, cx);
         }
     }
 
@@ -141,6 +145,8 @@ impl SettingPage {
     ) -> impl IntoElement + use<> {
         let search_input = state.read(cx).search_input.clone();
         let query = search_input.read(cx).value();
+        // The page filters its own groups by the live query: group identity is
+        // the group's key, independent of position or filtering.
         let groups = self
             .groups
             .iter()
@@ -207,7 +213,7 @@ impl SettingPage {
                                         this.child(suffix(window, cx))
                                     }),
                             )
-                            .when(self.is_resettable(cx), |this| {
+                            .when(self.is_resettable(&query, cx), |this| {
                                 this.child(
                                     Button::new("reset")
                                         .icon(IconName::Undo2)
@@ -216,8 +222,9 @@ impl SettingPage {
                                         .tooltip(t!("Settings.Reset All"))
                                         .on_click({
                                             let page = self.clone();
+                                            let query = query.clone();
                                             move |_, window, cx| {
-                                                page.reset_all(window, cx);
+                                                page.reset_all(&query, window, cx);
                                             }
                                         }),
                                 )

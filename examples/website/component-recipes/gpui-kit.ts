@@ -2,6 +2,151 @@ import type { ComponentVariant } from "../component-variants.ts";
 
 export const kitRecipes: ComponentVariant[] = [
   {
+    component: "InputGroupTextarea",
+    id: "InputGroupTextarea--composer",
+    title: "Multiline composer",
+    description: "Keep the native textarea state inside a shared frame with a footer action.",
+    source: `import * as N from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  const [message, setMessage] = createSignal("");
+  const [sent, setSent] = createSignal("");
+  return <View style={{ gap: 12 }}>
+    <N.InputGroupTextarea ariaLabel="Message composer" slots={{
+      control: <N.Textarea value={message()} onChange={change => setMessage(change.value)} rows={3} placeholder="Write a message…" />,
+      bottom: <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <N.InputGroupText><N.Text value={message().length + " characters"} /></N.InputGroupText>
+        <N.InputGroupButton label="Send" onPress={() => { setSent(message()); setMessage(""); }} />
+      </View>,
+    }} />
+    <N.Label text={sent() ? "Sent: " + sent() : "Nothing sent yet."} />
+  </View>;
+}`,
+  },
+  {
+    component: "Input",
+    id: "Input--tokens",
+    title: "Atomic inline tokens",
+    description: "Insert a native mention token that moves and deletes as one editing unit.",
+    source: `import { Button, Input, Label, type InputRef } from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  let input: InputRef | undefined;
+  let nextId = 0;
+  const [status, setStatus] = createSignal("Place the caret, then insert a mention.");
+  return <View style={{ gap: 12 }}>
+    <Input ref={value => input = value} defaultValue="Hello " onTokenClick={token => setStatus("Clicked " + token.label)} />
+    <Button label="Insert mention" onPress={() => void input?.insertToken({ id: "mention-" + nextId++, text: "@Alex", label: "Alex" }).catch(error => setStatus(String(error)))} />
+    <Label text={status()} />
+  </View>;
+}`,
+  },
+  {
+    component: "Editor",
+    id: "Editor--search",
+    title: "Programmatic search",
+    description: "Search and navigate native editor matches without replacing the editor or its selection state.",
+    source: `import { Button, Editor, Label, type EditorRef } from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  let editor: EditorRef | undefined;
+  const [status, setStatus] = createSignal("Find the word native.");
+  const search = async () => {
+    if (!editor) return;
+    try {
+      await editor.setSearchQuery({ query: "native", caseInsensitive: true });
+      await editor.nextSearchMatch();
+      const session = await editor.getSearchSession();
+      setStatus(session.matchCount + " matches");
+    } catch (error) { setStatus(String(error)); }
+  };
+  return <View style={{ gap: 12 }}>
+    <Editor ref={value => editor = value} defaultValue={"Native editing keeps focus.\\nSearch native text in place."} style={{ height: 160 }} />
+    <Button label="Find next native" onPress={() => void search()} />
+    <Label text={status()} />
+  </View>;
+}`,
+  },
+  {
+    component: "Questionnaire",
+    id: "Questionnaire--validation",
+    title: "Required and optional questions",
+    description:
+      "Required answers block advancing; optional questions can be skipped and custom choice content stays native.",
+    source: `import * as N from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  const [status, setStatus] = createSignal("Complete the required question first.");
+  return <View style={{ gap: 12 }}>
+    <N.Questionnaire shortcuts="numbers" onSubmit={() => setStatus("Submitted")}> 
+      <N.QuestionnaireItem name="plan" accessibilityLabel="Choose your plan" required>
+        <N.QuestionnaireChoice value="personal" accessibilityLabel="Personal">
+          <View style={{ gap: 4 }}><N.Label text="Personal" /><N.Label text="A workspace for your own projects." /></View>
+        </N.QuestionnaireChoice>
+        <N.QuestionnaireChoice value="team" accessibilityLabel="Team" description="Shared projects and settings." />
+      </N.QuestionnaireItem>
+      <N.QuestionnaireItem name="notes" accessibilityLabel="Any additional notes?">
+        <N.QuestionnaireInput accessibilityLabel="Notes" placeholder="Optional feedback" />
+      </N.QuestionnaireItem>
+    </N.Questionnaire>
+    <N.Label text={status()} />
+  </View>;
+}`,
+  },
+  {
+    component: "Motion",
+    id: "Motion--sequence",
+    title: "Chained transitions",
+    description: "Replay a native sequence whose next step starts when the previous step ends.",
+    source: `import { Button, Label, Motion } from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  const [playbackId, setPlaybackId] = createSignal(0);
+  return <View style={{ gap: 16 }}>
+    <Button label="Replay sequence" onPress={() => setPlaybackId(playbackId() + 1)} />
+    <Motion playbackId={playbackId()} animation={{ type: "sequence", from: { opacity: 0, y: 16 }, steps: [
+      { target: { opacity: 1, y: 0 }, durationMs: 250 },
+      { target: { x: 80 }, durationMs: 400, delayMs: 120, easing: "easeInOut" },
+      { target: { x: 0 }, durationMs: 300 },
+    ] }}><Label text="Native sequence" /></Motion>
+  </View>;
+}`,
+  },
+  {
+    component: "TextView",
+    id: "TextView--stream-fade",
+    title: "Streamed text",
+    description: "Append text without replacing the native text state; new chunks fade in natively.",
+    source: `import { Button, TextView } from "@solid-gpui/core/components";
+import { View } from "@solid-gpui/core";
+import { createSignal } from "@solid-gpui/core/runtime";
+export default function Example() {
+  const [text, setText] = createSignal("Streaming response.");
+  return <View style={{ gap: 12 }}>
+    <Button label="Append chunk" onPress={() => setText(text() + " Another native text chunk arrives.")} />
+    <TextView text={text()} streamFade={{ durationMs: 350, staggerMs: 30 }} selectable />
+  </View>;
+}`,
+  },
+  {
+    component: "PieChart",
+    id: "PieChart--interactive",
+    title: "Interactive slices",
+    description: "Hover a slice to reveal its value and share with native lift and fade motion.",
+    source: `import { PieChart } from "@solid-gpui/core/components";
+export default function Example() {
+  return <PieChart interactive name="Usage" innerRadius={45} labels data={[
+    { label: "Desktop", value: 64, color: "#6366f1" },
+    { label: "Web", value: 36, color: "#22c55e" },
+  ]} style={{ height: 240 }} />;
+}`,
+  },
+  {
     component: "TextView",
     id: "TextView--frontmatter",
     title: "Document metadata",

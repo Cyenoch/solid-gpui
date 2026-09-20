@@ -16,6 +16,7 @@ mod groups;
 pub mod host;
 mod icon_source;
 mod input;
+mod input_group;
 mod input_language;
 #[cfg(test)]
 mod menu_icon_tests;
@@ -34,6 +35,7 @@ mod plot;
 mod plot_math;
 mod popups;
 mod primitives;
+mod questionnaire;
 mod resizable;
 mod rich_text;
 mod scroll_views;
@@ -280,6 +282,8 @@ mod controls {
 }
 /// Initialize the shared component theme and interaction infrastructure.
 pub fn initialize(cx: &mut gpui::App) {
+    // The host owns live system subscriptions and explicit application overrides.
+    gpui_base::set_system_reduce_motion_enabled(false, cx);
     gpui_component::init(cx);
     theme::initialize(cx);
     cx.text_system()
@@ -296,18 +300,21 @@ pub fn initialize(cx: &mut gpui::App) {
     // `lfMessageFont` (`Microsoft YaHei UI`, `Microsoft JhengHei UI`, `Yu Gothic UI`,
     // `Malgun Gothic`, or Segoe UI). Naming a Latin family in the framework default
     // would push non-Latin text onto the per-glyph fallback path on those systems.
-    cx.global_mut::<gpui_component::Theme>().mono_font_family = "Maple Mono".into();
-    gpui_component::Theme::sync_base(cx);
+    gpui_component::Theme::update(cx, |theme| {
+        theme.mono_font_family = "Maple Mono".into();
+    });
 }
 
 pub fn native_module() -> crate::native::ModuleDefinition {
     input::definitions()
         .into_iter()
+        .chain(input_group::definitions())
         .chain(carousel::definitions())
         .chain(motion_view::definitions())
         .chain(value_controls::definitions())
         .chain(pickers::definitions())
         .chain(choices::definitions())
+        .chain(questionnaire::definitions())
         .chain(scroll_views::definitions())
         .chain(resizable::definitions())
         .chain(overlays::definitions())

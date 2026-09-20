@@ -413,7 +413,7 @@ impl NativeView for List {
     }
     fn controlled() -> Option<ControlledBinding> {
         Some(ControlledBinding {
-            value_prop: "selectedKey",
+            value_props: &["selectedKey"],
             event_id: 1,
             sequence_field: "editSeq",
             ack_prop: "ackEditSeq",

@@ -2,7 +2,7 @@
 
 SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与命令。
 实现来自 [GPUI Kit](https://github.com/longbridge/gpui-kit)，固定提交
-`501c73923280859a5de2b16fe64d4aac960bb040`（0.6.1 及后续变更）。本地状态与生命周期接入点记录在
+`0e63ea799766c486022a0cecfda6e48c5183a2d7`（0.6.4 及后续变更）。本地状态与生命周期接入点记录在
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md)。
 
 Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
@@ -13,7 +13,7 @@ Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点
 | `gpui-component`  | 带样式的原生控件、编辑器、Carousel、文本、图表及窗口弹层；crate 名称仍为 `gpui-component`。 |
 | `gpui-base`       | 原生交互与状态、无样式控件、过渡、弹簧、关键帧、交错延迟与 presence。                       |
 | `gpui-kit`        | 独立原生集成测试包使用的 facade 和无窗口系统交互辅助工具。                                  |
-| `gpui-fps`        | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.zh-CN.md)。                   |
+| `gpui-fps`        | 显式开启、按窗口持有的性能 HUD；参见[指标定义](performance-analysis.zh-CN.md)。             |
 | `gpui-kit-assets` | 仅提供 Kit 控件内部需要的默认图标；应用图标归 Iconify。                                     |
 
 运行依赖位于 `vendor/gpui-kit`，`references/gpui-kit` 是匹配的固定上游检出。
@@ -37,6 +37,72 @@ const [name, setName] = createSignal("");
 显式 `host` 则由外部构建。见[开发会话管理](hot-reload.zh-CN.md#开发会话管理)。
 
 ## 覆盖范围
+
+### 2026 年 9 月上游更新
+
+基于 0.6.4 的固定版本新增 InputGroup、Questionnaire、原子内联输入 token、
+编辑器搜索命令、串联原生动画和流式文本淡入。Solid 契约从适配器生成，
+并非直接照搬 Rust API；website 的可运行示例和 API 表格使用相同契约。
+
+既有控件也获得上游修复：上下文菜单只从实际按下的触发器打开，Dialog 操作路由到
+各自的对话框，Switch 显示焦点环，Markdown 可解码内嵌 `data:` 图片。
+TextView 跨帧保留段落排版和高亮结果。这些变化发生在原生实现中，无需用 JSX 重写控件。
+
+设置 `PieChart interactive` 可启用原生扇区命中检测、抬升与淡入淡出动画以及数值/占比提示；
+可选 `name` 设置提示中的系列名称。继续支持自动半径和逐扇区半径。
+其他交互式图表同样转发原生悬停生命周期，不产生逐帧 JavaScript 事件。
+
+应用主题覆盖使用上游 `Theme::update`，同步纯色、可渲染 token 与 Base 投影，
+不会丢弃未修改 token 的渐变。
+
+### 输入组
+
+`InputGroup` 的 `slots.control` 包含且仅包含一个保留状态的 `Input`；
+`InputGroupTextarea` 对应 `Textarea`。`slots.start`、`end`、`top`、`bottom`
+用于对齐附加内容。共享边框、焦点环、无效状态和控件外观由原生 group 处理。
+子控件继续拥有编辑状态、事件、ref 命令和受控值确认；不要手工去掉子控件边框，
+也不要在 group 上复制一份输入值。`InputGroupText` 与 `InputGroupButton`
+使用上游附加内容外观。
+
+```tsx
+<InputGroup
+  slots={{
+    control: <Input placeholder="example.com" />,
+    start: (
+      <InputGroupText>
+        <Text value="https://" />
+      </InputGroupText>
+    ),
+    end: <InputGroupButton label="Use" onPress={() => useAddress()} />,
+  }}
+/>
+```
+
+group 的 `disabled` 与 `readonly` 会约束保留的输入引擎，清除后恢复子控件自身设置。
+`invalid` 只改变呈现。对齐 slot 替代独立 InputGroupAddon 描述符，
+上游 InputGroupInput 别名由普通保留状态的 `Input` 子控件表示。
+
+### Questionnaire
+
+在 `Questionnaire` 内组合 `QuestionnaireItem` schema 子项，每题包含
+`QuestionnaireChoice` 选项和可选的 `QuestionnaireInput` 自由输入描述。
+这些子项描述问题；保留的原生根组件渲染上游真正的进度、标题、选项、验证与导航控件。
+内部视觉部件不会导出为不渲染内容的 JSX 别名。
+
+原生状态拥有当前题目、答案、验证、焦点和键盘快捷键。通过 `onAnswerChange` 同步
+应用数据，`onChange` 观察题目导航，`onSubmit` 接收提交结果；不维护第二份受控答案状态。
+ref 命令提供状态读取、答案/输入修改、导航、提交、重置、焦点、禁用选项和外部验证错误。
+`size`、`shortcuts`、`showProgress`、`showActions` 以及操作标签属性控制原生呈现。
+必答题验证通过后才可前进，可选题允许跳过。
+
+保持题目 `name` 和选项 `value` 稳定。只修改标签/描述时会保留兼容的按 key 答案和当前题目；
+结构或行为 schema 变化会重建原生流程，不要用修改 schema 代替答案 setter。
+通过 ref 命令修改答案，或通过 `reset()` 明确重新开始。
+最多接受 256 题、每题 128 个选项；标识不能为空、必须唯一，且最多 256 个 UTF-8 字节。
+单选题最多一个默认选中选项，每题最多一个自由输入描述。
+schema 还必须满足保守的 1 MiB 响应预算，为每个选项、最大自由输入答案和外部验证错误
+预留空间，并计入 JSON 转义。大型组合可能在达到单项数量上限前触及该预算。
+每个自由输入最多 8192 个 UTF-8 字节；超限命令在修改前报错，不会丢弃答案事件。
 
 ### 异步选项目录
 
@@ -78,11 +144,42 @@ IME 组合期间的选择变更都会在修改状态前拒绝。接受 1–1024 
 配置按语言在应用内共享，应先配置再打开编辑器。模式使用 Rust 正则表达式，源最多 4096 字节，
 编译程序最多 1 MiB。编辑规则不会添加语法高亮 grammar。
 
+### 内联 token 与搜索
+
+`Input` 和 `Textarea` 可使用原子 `content={{ text, tokens }}` 代替 `value`。
+每个快照 token 包含 `id`、`text`、`label` 和 UTF-8 字节偏移 `anchorByte` / `headByte`。
+范围必须匹配 token 文本、位于字素边界且互不重叠。原生编辑器将 token 的导航、选择、
+删除和撤销作为一个单元处理。Editor 与掩码输入模式不接受 token，普通 `value` 替换会清除 token。
+受控 content 遵循相同的 `editSeq` / `ackEditSeq` 确认机制，不要同时提供 `content` 和 `value`。
+
+ref 提供 `insertToken({ id, text, label })`、`replaceRangeWithToken({ token: { id, text, label },
+anchorByte, headByte })`、`getTokens()` 和 `getContent()`。
+`onTokenClick` 返回 token 及其当前范围，默认 token 外观由原生实现。
+token 文档预留事件容量：UTF-8 正文最多 32 KiB，token 标识/文本/标签合计最多 32 KiB，
+且最多 256 个 token。标识最多 256 字节，每个文本/标签最多 4096 字节。
+控件首次包含 token 后，原生编辑器保留 32 KiB 正文限制，避免后续输入导致变更事件超限。
+受控 `content` 应回填 `onChange.content` 原子快照，不要从 `value` 重建 token 范围。
+
+`Input`、`Textarea` 和 `Editor` 提供 `setSearchQuery({ query, caseInsensitive })`、
+`getSearchSession()`、`nextSearchMatch()`、`previousSearchMatch()`、`closeSearch()`、
+`replaceCurrentSearchMatch({ replacement })` 和 `replaceAllSearchMatches({ replacement })`。
+搜索状态与高亮留在原生，应用可组合搜索操作而无需替换编辑器；替换遵循原生可编辑性和撤销规则。
+
+订阅 `onPaste` 会拦截可编辑控件的粘贴，并异步报告有界文本、图片元数据/数据及文件路径。
+处理器必须通过输入命令显式应用需要的文字，不存在同步 JS 接受/拒绝回调。
+没有订阅者时保持原生默认粘贴行为。
+
 ### Markdown 元数据与图标来源
 
 `TextView format="markdown" frontmatter` 启用顶部 YAML 元数据渲染。
 支持的简单标量显示为描述列表，复合或不支持的 YAML 显示为原生代码块。
 此能力必须显式开启且仅适用于 Markdown；它不是通用 YAML 解析器。
+
+`TextView streamFade` 使用原生 350 ms 策略淡入追加的文本片段。
+通过 `streamFade={{ durationMs: 350, staggerMs: 30, easing: "easeOut" }}`
+配置逐词交错动画，或用 `false` 关闭。每个时间值不超过 60 秒，长更新会自动压缩交错间隔。
+保持同一 TextView 挂载并向 `text` 追加内容，原生状态会保留已有文本、选择和淡入进度。
+省略该属性会保留状态当前的动画策略。
 
 组件图标 slot 通过 `ComponentIcon` 接受已注册的 Iconify 名称或 `{ svg: "<svg …>…</svg>" }`。
 生成的独立 `Icon` 使用 `source`，例如 `<Icon source="lucide:check" />`。
@@ -91,12 +188,19 @@ SVG 校验后由原生保留，源文本限制为 64 KiB。Button、菜单、侧
 
 ### 原生动画与自定义控件
 
-`Motion` 接受 `{ x, y, opacity }` 目标和由 `type` 区分的 `transition`、`spring`、`keyframes`。
+`Motion` 接受 `{ x, y, opacity }` 目标和由 `type` 区分的 `transition`、`spring`、`keyframes`、`sequence`。
 省略的偏移为零，不透明度为一。逐帧采样和重绘请求留在 GPUI，完成后发送 `onComplete({ playbackId })`。
-更新 `playbackId` 重播关键帧；过渡从当前目标变化，弹簧保留速度。
+更新 `playbackId` 重播关键帧或序列；过渡从当前目标变化，弹簧保留速度。
 关键帧接受 2–128 个停靠点、播放方向、重复次数（`null` 为无限重复）。
 过渡与关键帧支持 `stagger={{ index, count, intervalMs, origin }}`，
 `origin` 可为 `first`、`last`、`center`。时长及绝对延迟不超过 60 秒，并遵循宿主减少动画设置。
+
+序列自行拥有时间线，例如 `animation={{ type: "sequence", from: { opacity: 0 },
+steps: [{ target: { opacity: 1 }, durationMs: 250 }, { target: { x: 80 },
+durationMs: 400, delayMs: 120, easing: "easeInOut" }] }}`。接受 1–32 步，
+每步配置目标、时长和可选延迟/缓动。`from` 默认零偏移、完全不透明。
+序列忽略顶层 `target`，不接受 `stagger`；最后一步结束后只触发一次完成事件。
+减少动画模式直接跳到最终目标；修改动画或 `playbackId` 会重播。
 
 通过 Solid `Presence` helper 将子 owner 保留至退出完成：
 
@@ -148,21 +252,21 @@ import {
 </Empty>;
 ```
 
-| 原生家族        | JS 入口                                                                                                                                                                                                                                                                                                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 基础控件        | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag               |
-| 编辑与选择      | Input、Textarea、Editor、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                                                                                        |
-| 数据与滚动      | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                 |
-| 组合            | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar |
-| 消息与附件      | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                                                                               |
-| 导航与设置      | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                                                                             |
-| 覆盖层          | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                                                                                          |
-| 停靠            | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                                                                                                |
-| 图表            | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                                                                                       |
-| 底层绘图        | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                                                                                           |
-| 动画与 Presence | Motion、NativePresence                                                                                                                                                                                                                                                                                    |
-| 外观            | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                                                       |
-| 计算            | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                                                                                |
+| 原生家族        | JS 入口                                                                                                                                                                                                                                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 基础控件        | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag                                           |
+| 编辑与选择      | Input、Textarea、Editor、InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                                                     |
+| 数据与滚动      | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                             |
+| 组合            | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、Questionnaire 及其复合部件、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar |
+| 消息与附件      | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                                                                                                           |
+| 导航与设置      | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                                                                                                         |
+| 覆盖层          | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                                                                                                                      |
+| 停靠            | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                                                                                                                            |
+| 图表            | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                                                                                                                   |
+| 底层绘图        | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                                                                                                                       |
+| 动画与 Presence | Motion、NativePresence                                                                                                                                                                                                                                                                                                                |
+| 外观            | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                                                                                   |
+| 计算            | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                                                                                                            |
 
 网站的组件侧边栏按上表的家族分组，顺序与上表一致，复合部件与宿主共用页面
 （`examples/website/component-families.ts`）。`examples/website/component-groups.ts`
@@ -184,7 +288,7 @@ import {
 
 `scrollbarVisibility` 默认为 `"always"`，也支持 `"hover"` 和 `"scrolling"`。若覆盖式滚动条会挡住内容，请沿滚动条所在边缘预留内边距。网站的 Markdown 表格和组件 API 表格在 Web 与桌面端共用横向 `ScrollShadow`。
 
-固定上游完整需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，将构造描述符和内部/条件类型与普通公共渲染接口分开列出；本固定版本为 144 个，上游新增了 `empty` 的六个部件。
+历史上游需求清单位于 `.scratch/gpui-component-complete/upstream-inventory.md`，其中的数量对应其记录的基线，不代表当前目录。当前 Solid API 以生成的 SDK 和 website 目录为准，包括 InputGroup 和 Questionnaire。
 
 ## Popover 呈现范围
 

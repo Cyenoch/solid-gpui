@@ -195,11 +195,11 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | gpu-allocator | 0.28.0 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | gpu-descriptor-types | 0.2.0 | Apache-2.0 | registry (crates.io) |
-| gpui-base | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
-| gpui-component | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
-| gpui-component-macros | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
-| gpui-fps | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
-| gpui-kit-assets | 0.6.1 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 501c73923280859a5de2b16fe64d4aac960bb040; local patches) |
+| gpui-base | 0.6.4 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 0e63ea799766c486022a0cecfda6e48c5183a2d7; local patches) |
+| gpui-component | 0.6.4 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 0e63ea799766c486022a0cecfda6e48c5183a2d7; local patches) |
+| gpui-component-macros | 0.6.4 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 0e63ea799766c486022a0cecfda6e48c5183a2d7; local patches) |
+| gpui-fps | 0.6.4 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 0e63ea799766c486022a0cecfda6e48c5183a2d7; local patches) |
+| gpui-kit-assets | 0.6.4 | Apache-2.0 | vendored (https://github.com/longbridge/gpui-kit @ 0e63ea799766c486022a0cecfda6e48c5183a2d7; local patches) |
 | gpui-pre | 0.3.5 | Apache-2.0 | vendored (https://crates.io/crates/gpui-pre/0.3.5; local patches) |
 | gpui-pre-apple | 0.3.5 | Apache-2.0 | registry (crates.io) |
 | gpui-pre-collections | 0.3.5 | Apache-2.0 | registry (crates.io) |

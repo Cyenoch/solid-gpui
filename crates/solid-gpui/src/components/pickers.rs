@@ -204,7 +204,7 @@ fn validate_calendar(
 }
 fn binding() -> Option<ControlledBinding> {
     Some(ControlledBinding {
-        value_prop: "value",
+        value_props: &["value"],
         event_id: 1,
         sequence_field: "editSeq",
         ack_prop: "ackEditSeq",

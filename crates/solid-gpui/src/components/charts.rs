@@ -414,6 +414,10 @@ pub struct PieSlice {
 pub struct PieChartProps {
     pub data: Vec<PieSlice>,
     #[serde(default)]
+    pub interactive: bool,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
     pub inner_radius: f32,
     #[serde(default)]
     pub outer_radius: f32,
@@ -665,6 +669,14 @@ impl<T: Plot + 'static> Plot for SharedPlot<T> {
     fn tooltip_state(&self, p: Point<Pixels>, b: Bounds<Pixels>, c: &App) -> Option<TooltipState> {
         self.0.borrow().tooltip_state(p, b, c)
     }
+    fn hover(
+        &mut self,
+        hover: Option<&gpui_component::plot::tooltip::PlotHover>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.0.borrow_mut().hover(hover, window, cx);
+    }
     fn tooltip(
         &self,
         s: &TooltipState,
@@ -896,6 +908,12 @@ impl ChartProps for PieChartProps {
         .outer_radius_fn(move |a| a.data.outer.unwrap_or(outer))
         .pad_angle(self.pad_angle)
         .label_gap(self.label_gap);
+        if self.interactive {
+            c = c.id("chart");
+        }
+        if let Some(name) = self.name {
+            c = c.name(name);
+        }
         if self.labels {
             c = c
                 .label(|d: &PieDatum| d.label.clone())
@@ -1197,6 +1215,24 @@ mod tests {
                 .unwrap();
             assert_eq!(hit.index, 1);
             assert_eq!(hit.cross_line.x, px(400.));
+        });
+    }
+    #[gpui::test]
+    fn pie_hover_uses_automatic_and_per_slice_radii(cx: &mut TestAppContext) {
+        let fixture = Fixture::<Chart<PieChartProps>>::new(
+            props(
+                r##"{"interactive":true,"innerRadius":20,"data":[{"value":1,"color":"#ff0000","label":"Automatic"},{"value":1,"color":"#0000ff","label":"Explicit","outerRadius":60}]}"##,
+            ),
+            cx,
+        );
+        fixture.update(cx, |view, _, cx| {
+            let bounds = Bounds::new(point(px(0.), px(0.)), size(px(200.), px(200.)));
+            let plot = view.plot.borrow();
+            let hit = |x, y| plot.tooltip_state(point(px(x), px(y)), bounds, cx);
+            assert_eq!(hit(170., 100.).unwrap().index, 0);
+            assert_eq!(hit(50., 100.).unwrap().index, 1);
+            assert!(hit(30., 100.).is_none());
+            assert!(hit(100., 100.).is_none());
         });
     }
     #[test]

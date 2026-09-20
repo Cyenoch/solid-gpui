@@ -67,7 +67,7 @@ impl SettingsState {
         cx: &mut Context<Self>,
     ) {
         self.search_input
-            .update(cx, |input, cx| input.set_value(query, window, cx));
+            .update(cx, |input, cx| input.set_value(query.into(), window, cx));
         cx.notify();
     }
     pub fn select(&mut self, selection: SettingSelection, cx: &mut Context<Self>) {
@@ -441,7 +441,7 @@ impl Default for RenderOptions {
 }
 
 #[cfg(test)]
-mod tests {
+mod key_selection_tests {
     use super::*;
     use crate::{
         Root,
@@ -551,3 +551,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;

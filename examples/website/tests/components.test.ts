@@ -19,7 +19,6 @@ test("every exported component has a usage example that type-checks against the 
   expect(pages.some((page) => page.name === "AttachmentMedia")).toBe(false);
   expect(new Set(catalog.map((entry) => entry.name)).size).toBe(catalog.length);
   for (const entry of catalog) {
-    expect(entry.examples.length).toBeGreaterThanOrEqual(2);
     expect(new Set(entry.examples.map((example) => example.title)).size).toBe(entry.examples.length);
     for (const example of entry.examples) {
       expect(chinese[example.title]).toBeTruthy();

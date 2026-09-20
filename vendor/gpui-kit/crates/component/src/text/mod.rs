@@ -5,13 +5,14 @@ mod frontmatter;
 mod style;
 
 pub use compat::{
-    Text, TextView, TextViewLayoutState, TextViewPlugin, TextViewPrepaintState, html, markdown,
+    STREAM_FADE, Text, TextView, TextViewLayoutState, TextViewPlugin, TextViewPrepaintState, html,
+    markdown,
 };
 pub use frontmatter::FrontmatterPlugin;
 pub use gpui_base::text::{
     InlineElement, InlineRenderContext, MarkdownBlockParserFn, MarkdownBlockRenderFn,
     MarkdownExtensions, MarkdownNode, MarkdownParseContext, MarkdownPlugin, SelectionFormat,
-    TableData, TextViewState, markdown_ast,
+    TableData, TextViewMotion, TextViewState, markdown_ast,
 };
 pub use style::TextViewStyle;
 
