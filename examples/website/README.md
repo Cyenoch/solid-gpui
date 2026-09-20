@@ -85,6 +85,12 @@ with the package's `HighlightedCode` component and the existing GPUI text host.
 No tokenizer or Oniguruma WASM is sent to the browser. Vite must run under Bun
 (the `dev` and `build` scripts enforce this). New static snippets belong in
 `src/snippets.ts` and `build-highlights.ts`; missing results are explicit errors.
+
+The shared Vite config, its native/embedded entry points, and their transitive
+configuration dependencies use explicit `.ts` extensions for relative imports
+and re-exports, including type-only imports, so both bundled and native Vite
+config loaders can resolve them. Keep this convention when adding build helpers.
+
 Markdown fences retain their declared language, including plain text.
 Expanded code blocks keep the complete source in one selectable paragraph, with
 line numbers in a separate non-selectable gutter. Drag selection crosses tokens,

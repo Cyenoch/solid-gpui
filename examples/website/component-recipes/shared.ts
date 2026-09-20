@@ -1,4 +1,4 @@
-import type { ComponentVariant } from "../component-variants";
+import type { ComponentVariant } from "../component-variants.ts";
 
 export type Recipe = { id: string; title: string; description: string; jsx: string; setup?: string; preamble?: string };
 

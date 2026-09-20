@@ -1,4 +1,4 @@
-import { recipes } from "./shared";
+import { recipes } from "./shared.ts";
 
 export const overlaysRecipes = [
   ...recipes("Dialog DialogAction DialogClose DialogContent DialogDescription DialogFooter DialogHeader DialogTitle", [

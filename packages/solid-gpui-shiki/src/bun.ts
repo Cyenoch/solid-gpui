@@ -1,7 +1,7 @@
-import type { BunHighlighterOptions, WorkerRequest, WorkerResponse } from "./messages";
-import { validateRequest, type CodeHighlighter, type HighlightRequest, type HighlightResult } from "./types";
+import type { BunHighlighterOptions, WorkerRequest, WorkerResponse } from "./messages.ts";
+import { validateRequest, type CodeHighlighter, type HighlightRequest, type HighlightResult } from "./types.ts";
 
-export type { BunHighlighterOptions } from "./messages";
+export type { BunHighlighterOptions } from "./messages.ts";
 
 interface Job {
   readonly id: number;

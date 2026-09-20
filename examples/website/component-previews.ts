@@ -1,4 +1,4 @@
-import { componentExamples } from "./component-examples";
+import { componentExamples } from "./component-examples.ts";
 
 /** Window chrome needs its own window, not a nested documentation card. */
 export const previewNotes: Record<string, string> = {

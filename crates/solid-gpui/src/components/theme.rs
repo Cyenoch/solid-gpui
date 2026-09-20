@@ -31,6 +31,7 @@ pub(super) fn initialize(cx: &mut App) {
     cx.set_global(Appearance::default());
     Theme::sync_system_appearance(None, cx);
 }
+#[cfg(feature = "gpui-component")]
 pub(super) fn sync_system(window: &mut Window, cx: &mut App) {
     if cx.global::<Appearance>().mode == ThemeMode::System {
         Theme::sync_system_appearance(Some(window), cx);

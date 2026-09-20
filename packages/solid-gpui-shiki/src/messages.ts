@@ -1,5 +1,5 @@
 import type { BundledLanguage, BundledTheme } from "shiki";
-import type { HighlightRequest, HighlightResult } from "./types";
+import type { HighlightRequest, HighlightResult } from "./types.ts";
 
 export interface BunHighlighterOptions {
   readonly languages: readonly BundledLanguage[];

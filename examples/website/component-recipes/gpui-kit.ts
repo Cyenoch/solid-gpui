@@ -1,4 +1,4 @@
-import type { ComponentVariant } from "../component-variants";
+import type { ComponentVariant } from "../component-variants.ts";
 
 export const kitRecipes: ComponentVariant[] = [
   {

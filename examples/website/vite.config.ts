@@ -1,11 +1,11 @@
-import { solidGpuiRouter } from "../../packages/solid-gpui-router/src/vite";
-import { componentVariants } from "./component-variants";
+import { solidGpuiRouter } from "../../packages/solid-gpui-router/src/vite.ts";
+import { componentVariants } from "./component-variants.ts";
 import { solidGpui } from "../../packages/solid-gpui-vite/src/index.ts";
 import { solidGpuiSource } from "../../packages/solid-gpui-vite/src/source.ts";
-import { browserPreviewNames } from "./component-previews";
-import { componentExamples } from "./component-examples";
-import { componentCatalog } from "./component-catalog";
-import { buildHighlights } from "./build-highlights";
+import { browserPreviewNames } from "./component-previews.ts";
+import { componentExamples } from "./component-examples.ts";
+import { componentCatalog } from "./component-catalog.ts";
+import { buildHighlights } from "./build-highlights.ts";
 import { format } from "oxfmt";
 import { defineConfig } from "vite";
 import { resolve } from "node:path";

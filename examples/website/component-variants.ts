@@ -1,10 +1,10 @@
-import { kitRecipes } from "./component-recipes/gpui-kit";
-import { controlsRecipes } from "./component-recipes/controls";
-import { presentationRecipes } from "./component-recipes/presentation";
-import { compositionRecipes } from "./component-recipes/composition";
-import { dataRecipes } from "./component-recipes/data";
-import { chartsRecipes } from "./component-recipes/charts";
-import { overlaysRecipes } from "./component-recipes/overlays";
+import { kitRecipes } from "./component-recipes/gpui-kit.ts";
+import { controlsRecipes } from "./component-recipes/controls.ts";
+import { presentationRecipes } from "./component-recipes/presentation.ts";
+import { compositionRecipes } from "./component-recipes/composition.ts";
+import { dataRecipes } from "./component-recipes/data.ts";
+import { chartsRecipes } from "./component-recipes/charts.ts";
+import { overlaysRecipes } from "./component-recipes/overlays.ts";
 /** Additional examples share the documentation and executable preview pipeline. */
 export type ComponentVariant = { component: string; id: string; title: string; description: string; source: string };
 const example = (id: string, title: string, description: string, jsx: string, setup = ""): ComponentVariant => ({

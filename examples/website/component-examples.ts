@@ -1,4 +1,4 @@
-import { componentDescriptionsChinese } from "./component-examples.zh-CN";
+import { componentDescriptionsChinese } from "./component-examples.zh-CN.ts";
 type Example = { names: string[]; description: string; descriptionChinese: string; source: string };
 export const componentExamples: Example[] = [];
 function add(names: string, description: string, descriptionChinese: string, jsx: string, setup = "") {

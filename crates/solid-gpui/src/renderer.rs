@@ -9,9 +9,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 #[cfg(test)]
 use gpui::ListOffset;
+#[cfg(any(feature = "host", test))]
+use gpui::px;
 use gpui::{
     App, Context, Element, FocusHandle, IntoElement, ListState, Render, Styled, Subscription,
-    Window, WindowAppearance as GpuiWindowAppearance, div, px,
+    Window, WindowAppearance as GpuiWindowAppearance, div,
 };
 use thiserror::Error;
 
@@ -349,6 +351,7 @@ impl SolidRoot {
         &self.store
     }
 
+    #[cfg(any(feature = "host", test))]
     pub(crate) fn popup_anchor(&self, node_id: u32) -> Option<gpui::Bounds<gpui::Pixels>> {
         self.store.get(node_id)?;
         let (x, y, width, height) = self.rendered_bounds.borrow().get(&node_id).copied()?;

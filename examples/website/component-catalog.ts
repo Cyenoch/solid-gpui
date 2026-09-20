@@ -1,11 +1,11 @@
-import { componentFamilies } from "./component-families";
-import { componentGroups } from "./component-groups";
-import { componentDocumentation, isNewComponent } from "./component-introduced";
-import { previewNotes } from "./component-previews";
-import { componentVariants } from "./component-variants";
+import { componentFamilies } from "./component-families.ts";
+import { componentGroups } from "./component-groups.ts";
+import { componentDocumentation, isNewComponent } from "./component-introduced.ts";
+import { previewNotes } from "./component-previews.ts";
+import { componentVariants } from "./component-variants.ts";
 import ts from "typescript-api";
 import { resolve } from "node:path";
-import { componentExamples } from "./component-examples";
+import { componentExamples } from "./component-examples.ts";
 
 export function componentEntries() {
   const path = resolve(import.meta.dirname, "../../packages/solid-gpui/src/components.ts");

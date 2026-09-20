@@ -1,4 +1,4 @@
-import { recipes } from "./shared";
+import { recipes } from "./shared.ts";
 
 export const presentationRecipes = [
   ...recipes("Alert", [

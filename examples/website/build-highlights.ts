@@ -1,11 +1,11 @@
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createBunHighlighter } from "../../packages/solid-gpui-shiki/src/bun";
-import type { HighlightResult } from "../../packages/solid-gpui-shiki/src/types";
-import type { componentCatalog } from "./component-catalog";
-import { examples } from "./src/examples";
-import { markdownBlocks } from "./src/markdown";
-import { excerptCode, importCode, installCode, landingCode, snippetKey } from "./src/snippets";
+import { createBunHighlighter } from "../../packages/solid-gpui-shiki/src/bun.ts";
+import type { HighlightResult } from "../../packages/solid-gpui-shiki/src/types.ts";
+import type { componentCatalog } from "./component-catalog.ts";
+import { examples } from "./src/examples.ts";
+import { markdownBlocks } from "./src/markdown.ts";
+import { excerptCode, importCode, installCode, landingCode, snippetKey } from "./src/snippets.ts";
 
 /** One build-time service supplies every rendered code block, including excerpts. */
 export async function buildHighlights(
