@@ -667,20 +667,24 @@ mod tests {
         let mut bytes = Vec::new();
         {
             let mut encoder = gif::Encoder::new(&mut bytes, 2, 1, &palette).unwrap();
-            let mut first = gif::Frame::default();
-            first.width = 2;
-            first.height = 1;
-            first.delay = 2;
-            first.dispose = DisposalMethod::Background;
-            first.buffer = Cow::Borrowed(&[0, 0]);
+            let first = gif::Frame {
+                width: 2,
+                height: 1,
+                delay: 2,
+                dispose: DisposalMethod::Background,
+                buffer: Cow::Borrowed(&[0, 0]),
+                ..Default::default()
+            };
             encoder.write_frame(&first).unwrap();
 
-            let mut second = gif::Frame::default();
-            second.left = 1;
-            second.width = 1;
-            second.height = 1;
-            second.delay = 3;
-            second.buffer = Cow::Borrowed(&[1]);
+            let second = gif::Frame {
+                left: 1,
+                width: 1,
+                height: 1,
+                delay: 3,
+                buffer: Cow::Borrowed(&[1]),
+                ..Default::default()
+            };
             encoder.write_frame(&second).unwrap();
         }
 

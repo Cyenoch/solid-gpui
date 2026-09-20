@@ -293,7 +293,7 @@ pub(super) fn render(
 mod tests {
     use super::*;
     use futures::FutureExt as _;
-    use gpui::{AppContext, Asset, ImageAssetLoader, RenderImage, Resource, WeakEntity};
+    use gpui::{AppContext, Asset, ImageAssetLoader, RenderImage, Resource};
     use resource::Images;
     use std::io::Cursor;
 
