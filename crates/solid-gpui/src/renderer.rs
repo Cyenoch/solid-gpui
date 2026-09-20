@@ -229,7 +229,6 @@ pub struct SolidRoot {
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
     rich_text_parts_cache: RefCell<HashMap<u32, Rc<paint::RichTextParts>>>,
     selectable_text_selections: HashMap<u32, Range<usize>>,
-    link_affordance_bounds: paint::LinkAffordanceBounds,
     #[cfg(test)]
     rich_text_assembly_count: Cell<usize>,
     #[cfg(test)]
@@ -304,7 +303,6 @@ impl SolidRoot {
             text_input_layouts: HashMap::new(),
             selectable_text_layouts: HashMap::new(),
             selectable_text_selections: HashMap::new(),
-            link_affordance_bounds: Rc::new(RefCell::new(HashMap::new())),
             #[cfg(test)]
             rich_text_assembly_count: Cell::new(0),
             #[cfg(test)]
@@ -437,14 +435,6 @@ impl SolidRoot {
             (
                 "rich_text_parts_cache",
                 self.rich_text_parts_cache
-                    .borrow()
-                    .keys()
-                    .copied()
-                    .collect(),
-            ),
-            (
-                "link_affordance_bounds",
-                self.link_affordance_bounds
                     .borrow()
                     .keys()
                     .copied()
@@ -624,6 +614,10 @@ impl SolidRoot {
                 self.layout_observations.clear();
                 if reset_native_state {
                     self.reset_native_state();
+                } else {
+                    // A full same-epoch Snapshot replaces published capabilities,
+                    // even for IDs retained with different native state.
+                    self.extension_event_state.scroll_viewports.borrow_mut().clear();
                 }
                 self.extension_content_dirty
                     .extend(self.store.iter().map(|node| node.id));
@@ -873,7 +867,6 @@ impl SolidRoot {
             self.pending_visible_ranges.borrow_mut().remove(id);
             self.rendered_bounds.borrow_mut().remove(id);
             self.rich_text_parts_cache.borrow_mut().remove(id);
-            self.link_affordance_bounds.borrow_mut().remove(id);
         }
         if self
             .active_input
@@ -4019,19 +4012,27 @@ mod input_tests {
         cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
             .expect("draw interactive Text");
         cx.run_until_parked();
+        let underline_quads = |cx: &mut gpui::TestAppContext| {
+            cx.update_window(window.into(), |_, window, _| {
+                window
+                    .painted_quads()
+                    .into_iter()
+                    .filter(|quad| {
+                        quad.background.as_solid() == Some(gpui::rgba(0x2d6cdfff).into())
+                            && quad.bounds.size.height == px(1.0).scale(window.scale_factor())
+                            && quad.bounds.size.width > px(0.0).scale(window.scale_factor())
+                    })
+                    .count()
+            })
+            .expect("inspect painted link underline")
+        };
+        assert_eq!(underline_quads(cx), 0, "unfocused links have no underline");
         cx.update_window(window.into(), |_, window, cx| window.focus_next(cx))
             .expect("focus next");
         cx.run_until_parked();
         cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
             .expect("draw focused interactive Text");
-        let affordance = root.read_with(cx, |root, _| {
-            root.link_affordance_bounds.borrow().get(&3).cloned()
-        });
-        let affordance = affordance.expect("focused link affordance");
-        assert!(!affordance.is_empty());
-        assert!(affordance.iter().all(|(_, _, width, height)| {
-            width.is_finite() && height.is_finite() && *width > 0.0 && *height == 1.0
-        }));
+        assert!(underline_quads(cx) > 0, "focused link paints an underline");
     }
 
     #[test]

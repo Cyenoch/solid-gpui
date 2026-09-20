@@ -158,6 +158,7 @@ export const HOST_KIND_SPECS: Record<HostKind, HostKindSpec> = {
     allowedProps: {
       ...BASE_PROPS,
       source: true,
+      sourceSet: true,
       fallbackSource: true,
       objectFit: true,
       onLayout: true,

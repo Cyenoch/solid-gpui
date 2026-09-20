@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Setter } from "solid-js";
+import { SurfaceIdReusedError } from "../src/surface-host";
 import type { ExtensionDescriptor } from "../src/renderer/extension";
 import type { HostNodeInternal } from "../src/renderer/types";
 import {
@@ -1453,6 +1454,30 @@ test("SurfaceHost releases a root even when unmount cleanup throws", () => {
   host.dispose();
 });
 
+test("SurfaceHost preserves exact retired membership across sparse IDs and range bridges", () => {
+  const transport = new MemoryTransport();
+  const host = createSurfaceHost(transport);
+  for (let id = 1; id <= 32; id++) host.createRoot().unmount();
+
+  host.createRoot({ surfaceId: 34 }).unmount();
+  host.createRoot({ surfaceId: 0xffff_ffff }).unmount();
+  expect(() => host.createRoot({ surfaceId: 34 })).toThrow(SurfaceIdReusedError);
+  expect(() => host.createRoot({ surfaceId: 0xffff_ffff })).toThrow(SurfaceIdReusedError);
+  expect(() => host.createRoot({ surfaceId: 1 })).toThrow(SurfaceIdReusedError);
+  host.createRoot({ surfaceId: 33 }).unmount();
+  host.createRoot({ surfaceId: 0xffff_fffe }).unmount();
+  expect(() => host.createRoot({ surfaceId: 33 })).toThrow(SurfaceIdReusedError);
+  expect(() => host.createRoot({ surfaceId: 0xffff_fffe })).toThrow(SurfaceIdReusedError);
+  const next = host.createRoot();
+  next.render(() => createComponent(Text, { children: "next" }));
+  const snapshot = body(transport.submitted.at(-1)!);
+  if (snapshot.tag !== 1) throw new Error("expected snapshot");
+  expect(snapshot.value.surfaceId).toBe(35);
+  next.unmount();
+  host.dispose();
+});
+
+
 test("transport disposal rejects pending commands and notifies termination once", async () => {
   let notify: ((error: TransportTerminatedError) => void) | undefined;
   let notifications = 0;
@@ -1609,10 +1634,14 @@ test("Image supports bounded inline sources through reactive commits", async () 
       `<svg xmlns="http://www.w3.org/2000/svg" width="2" height="1"><!--${"x".repeat(2048)}--><rect width="2" height="1" fill="red"/></svg>`,
     );
   const [source, setSource] = createSignal(inline);
+  const [sourceSet, setSourceSet] = createSignal([{ source: "assets/photo@2x.png", width: 640, height: 360 }]);
   root.render(() =>
     createComponent(Image, {
       get source() {
         return source();
+      },
+      get sourceSet() {
+        return sourceSet();
       },
       fallbackSource: inline,
     }),
@@ -1622,6 +1651,9 @@ test("Image supports bounded inline sources through reactive commits", async () 
   const properties = initial.value.nodes?.find((node) => node.hostProperties?.tag === 3)?.hostProperties;
   expect(properties?.tag === 3 && properties.value.source).toBe(inline);
   expect(properties?.tag === 3 && properties.value.fallbackSource).toBe(inline);
+  expect(properties?.tag === 3 && properties.value.sources).toEqual([
+    { source: "assets/photo@2x.png", width: 640, height: 360 },
+  ]);
   setSource("https://images.example/photo.png");
   await Promise.resolve();
   const patch = body(transport.submitted.at(-1)!);
@@ -1635,10 +1667,38 @@ test("Image supports bounded inline sources through reactive commits", async () 
         operation.value.hostProperties.value.source === "https://images.example/photo.png",
     ),
   ).toBe(true);
+  setSourceSet([{ source: "assets/photo@3x.png", width: 960, height: 540 }]);
+  await Promise.resolve();
+  const sourceSetPatch = body(transport.submitted.at(-1)!);
+  if (sourceSetPatch.tag !== 3) throw new Error("expected sourceSet patch");
+  expect(
+    sourceSetPatch.value.operations?.some(
+      ({ operation }) =>
+        operation?.tag === 2 &&
+        operation.value.hostProperties?.tag === 3 &&
+        operation.value.hostProperties.value.sources?.[0]?.source === "assets/photo@3x.png",
+    ),
+  ).toBe(true);
   root.unmount();
   const invalid = createRoot(new MemoryTransport());
   expect(() =>
     invalid.render(() => createComponent(Image, { source: "x".repeat(MAX_IMAGE_SOURCE_BYTES + 1) })),
   ).toThrow("source");
+  expect(() =>
+    invalid.render(() => createComponent(Image, { source: "ok.png", sourceSet: [{ source: "x.png", width: 0, height: 1 }] })),
+  ).toThrow("width");
+  expect(() =>
+    invalid.render(() =>
+      createComponent(Image, { source: "ok.png", sourceSet: [{ source: "x.png", width: 1, height: Number.NaN }] }),
+    ),
+  ).toThrow("height");
+  expect(() =>
+    invalid.render(() =>
+      createComponent(Image, {
+        source: "ok.png",
+        sourceSet: Array.from({ length: 33 }, (_, index) => ({ source: `${index}.png`, width: 1, height: 1 })),
+      }),
+    ),
+  ).toThrow("at most 32");
   invalid.unmount();
 });

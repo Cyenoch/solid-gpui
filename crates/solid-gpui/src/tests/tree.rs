@@ -885,6 +885,11 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
         source: "assets/icon.png".into(),
         object_fit: 2,
         fallback_source: Some("assets/fallback.png".into()),
+        sources: vec![crate::protocol::ImageCandidate {
+            source: "assets/icon@2x.png".into(),
+            width: 128,
+            height: 128,
+        }],
     }));
     let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), image]);
     assert_eq!(
@@ -898,6 +903,7 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
         source: format!("data:image/svg+xml,{}", "x".repeat(2048)),
         object_fit: 2,
         fallback_source: Some(format!("data:image/svg+xml,{}", "x".repeat(2048))),
+        sources: Vec::new(),
     }));
     let inline = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), inline]);
     let decoded = Snapshot::decode(&inline.encode().unwrap()).unwrap();
@@ -909,26 +915,53 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
             source: "x".repeat(crate::protocol::MAX_IMAGE_SOURCE_BYTES + 1),
             object_fit: 2,
             fallback_source: None,
+            sources: Vec::new(),
         },
         ImageProperties {
             source: String::new(),
             object_fit: 2,
             fallback_source: None,
+            sources: Vec::new(),
         },
         ImageProperties {
             source: "bad\npath".into(),
             object_fit: 2,
             fallback_source: None,
+            sources: Vec::new(),
         },
         ImageProperties {
             source: "assets/icon.png".into(),
             object_fit: 6,
             fallback_source: None,
+            sources: Vec::new(),
         },
         ImageProperties {
             source: "assets/icon.png".into(),
             object_fit: 2,
             fallback_source: Some("bad\npath".into()),
+            sources: Vec::new(),
+        },
+        ImageProperties {
+            source: "assets/icon.png".into(),
+            object_fit: 2,
+            fallback_source: None,
+            sources: vec![crate::protocol::ImageCandidate {
+                source: "assets/icon@2x.png".into(),
+                width: 0,
+                height: 128,
+            }],
+        },
+        ImageProperties {
+            source: "assets/icon.png".into(),
+            object_fit: 2,
+            fallback_source: None,
+            sources: (0..33)
+                .map(|index| crate::protocol::ImageCandidate {
+                    source: format!("assets/icon-{index}.png"),
+                    width: 128,
+                    height: 128,
+                })
+                .collect(),
         },
     ] {
         let mut invalid = Node::new(2, 1, 0, KIND_IMAGE);
@@ -951,6 +984,7 @@ fn image_host_properties_round_trip_and_reject_invalid_sources_or_children() {
         source: "assets/icon.png".into(),
         object_fit: 2,
         fallback_source: None,
+        sources: Vec::new(),
     }));
     assert!(matches!(
         NodeStore::default().apply_snapshot(Snapshot::new(
@@ -972,6 +1006,7 @@ fn image_layout_listener_is_valid() {
         source: "assets/icon.png".into(),
         object_fit: 2,
         fallback_source: None,
+        sources: Vec::new(),
     }));
     NodeStore::default()
         .apply_snapshot(Snapshot::new(
@@ -1092,6 +1127,7 @@ fn extension_host_properties_are_neutral_and_require_nonzero_ids() {
         source: "assets/icon.png".into(),
         object_fit: 2,
         fallback_source: None,
+        sources: Vec::new(),
     }));
     assert!(matches!(
         NodeStore::default().apply_snapshot(Snapshot::new(

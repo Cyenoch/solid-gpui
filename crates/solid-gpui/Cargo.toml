@@ -11,6 +11,11 @@ categories = ["gui"]
 
 [dependencies]
 roxmltree = "0.21.1"
+image = { version = "0.25.10", default-features = false, features = ["bmp", "dds", "exr", "ff", "gif", "hdr", "ico", "jpeg", "png", "pnm", "qoi", "tga", "tiff", "webp"] }
+gif = "0.14.2"
+image-webp = "0.2.4"
+jpeg-decoder = { version = "0.3.2", default-features = false }
+smallvec = "1.16.0"
 web-time = "1.1"
 bebop.workspace = true
 futures.workspace = true
@@ -52,8 +57,6 @@ gpui-platform = { workspace = true, features = ["font-kit", "wayland", "x11"], o
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 
-image = "0.25.10"
-smallvec = "1.16.0"
 gpui = { workspace = true, features = ["test-support"] }
 
 [[test]]

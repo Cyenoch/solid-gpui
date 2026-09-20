@@ -23,10 +23,54 @@ export interface SurfaceHost {
   dispose(): void;
 }
 
+// Inclusive, sorted, disjoint ranges of IDs that can never be assigned again.
+class RetiredSurfaceIds {
+  private readonly ranges: Array<[number, number]> = [];
+
+  has(id: number): boolean {
+    let lo = 0;
+    let hi = this.ranges.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (this.ranges[mid]![0] <= id) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo > 0 && id <= this.ranges[lo - 1]![1];
+  }
+
+  add(id: number): void {
+    let lo = 0;
+    let hi = this.ranges.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (this.ranges[mid]![0] < id) lo = mid + 1;
+      else hi = mid;
+    }
+    const previous = this.ranges[lo - 1];
+    if (this.ranges[lo]?.[0] === id) return;
+    if (previous && id <= previous[1] + 1) {
+      if (id > previous[1]) previous[1] = id;
+      const next = this.ranges[lo];
+      if (next && next[0] <= previous[1] + 1) {
+        previous[1] = Math.max(previous[1], next[1]);
+        this.ranges.splice(lo, 1);
+      }
+    } else {
+      const next = this.ranges[lo];
+      if (next && next[0] === id + 1) next[0] = id;
+      else this.ranges.splice(lo, 0, [id, id]);
+    }
+  }
+
+  clear(): void {
+    this.ranges.length = 0;
+  }
+}
+
 export class SurfaceHostImpl implements SurfaceHost {
   private readonly router: SurfaceRouter;
   private readonly roots = new Map<number, Root>();
-  private readonly retiredSurfaceIds = new Set<number>();
+  private readonly retiredSurfaceIds = new RetiredSurfaceIds();
   private nextSurfaceId = 1;
   private terminated = false;
   private disposed = false;
@@ -56,7 +100,7 @@ export class SurfaceHostImpl implements SurfaceHost {
       if (released) return;
       released = true;
       this.roots.delete(surfaceId);
-      this.retiredSurfaceIds.add(surfaceId);
+      if (!this.disposed && !this.terminated) this.retiredSurfaceIds.add(surfaceId);
     };
     const root = createRootWithRouter(
       this.router,
@@ -89,6 +133,7 @@ export class SurfaceHostImpl implements SurfaceHost {
     const error = new TransportTerminatedError("SurfaceHost is disposed", { kind: "shutdown" });
     this.router.terminate(error);
     this.roots.clear();
+    this.retiredSurfaceIds.clear();
   }
 
   submit(frame: Uint8Array): void {
@@ -109,6 +154,7 @@ export class SurfaceHostImpl implements SurfaceHost {
     this.terminated = true;
     this.terminationError = error;
     this.roots.clear();
+    this.retiredSurfaceIds.clear();
     try {
       listener?.(error);
     } catch {

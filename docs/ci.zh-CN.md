@@ -79,3 +79,20 @@ Pages 分开缓存 `examples/website/src/wasm` 与生成的 `packages/solid-gpui
 源码依据、基线耗时、保留的覆盖范围及托管验证结果见[优化研究](../.scratch/ci-optimization/research.md)。
 
 工作流变更后运行 `actionlint`、`bun test scripts/task-contract.test.ts` 和相关[网站检查](../examples/website/README.md)。在后续 GitHub 运行中对比缓存恢复/保存、构建耗时及 runner 总分钟数。本地验证不能证明托管 runner 的实际提速或跨平台发布质量。
+
+### 9 月 20 日托管测量
+
+在非保护分支 `ci/efficiency-native-pages` 验证真实作业，没有生产部署或分支保护变更。
+
+| 测量项 | 修改前 | 修改后 | 证据 |
+| --- | ---: | ---: | --- |
+| 原生热缓存关键路径 | 640 秒 | 334 秒 | [基线](https://github.com/Cyenoch/solid-gpui/actions/runs/35494419897)、[拆分运行](https://github.com/Cyenoch/solid-gpui/actions/runs/35496678245) |
+| 原生 runner 时间之和 | 640 秒 | 638 秒 | 修改后为 check 334 秒 + test 304 秒。 |
+| 核心库执行时间 | 115.59 秒 | 52.04 秒 | 均为 314 个通过、1 个原有忽略。 |
+| Pages 两个产物未命中 | 425 秒 | 468 秒 | [基线](https://github.com/Cyenoch/solid-gpui/actions/runs/35494419990)、[新缓存初建](https://github.com/Cyenoch/solid-gpui/actions/runs/35496434184) |
+| Pages 仅导出器输入变化 | — | 181 秒 | [混合命中](https://github.com/Cyenoch/solid-gpui/actions/runs/35496528358)：生成绑定，跳过 WASM/bindgen。 |
+| Pages 两个产物精确命中 | — | 48 秒 | [热运行](https://github.com/Cyenoch/solid-gpui/actions/runs/35496942640)：前端检查仍全部执行。 |
+
+原生关键路径缩短 47.8%，原生 runner 总时间基本持平。这是各模式一次托管样本，不是受控基准或冷构建提速保证。新原生缓存命名空间[首次运行](https://github.com/Cyenoch/solid-gpui/actions/runs/35496068245)完全未命中，check 为 554 秒、test 为 715 秒；缓存淘汰后可能再次付出这项成本。混合 Pages 运行按保留的并发策略等待前序完成，表中不含排队时间。
+
+两次分支 dispatch 确认[过时 CI](https://github.com/Cyenoch/solid-gpui/actions/runs/35496061216)自动取消。push/PR 路径过滤未变，未新开 PR 验证事件过滤。本地执行了汇总状态成功/失败/取消/跳过的 16 种组合、两条原生 lane、包检查、完整网站宿主/前端构建及 8 项网站测试。PATH 中设置调用即失败的 Cargo 命令后，四个无宿主 QuickJS fixture 均可构建。已有 Actions Node 20 迁移提示及生成 WASM eval/包体积警告仍保留。

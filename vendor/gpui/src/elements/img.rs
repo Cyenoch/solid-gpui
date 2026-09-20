@@ -1,9 +1,9 @@
 use crate::{
-    AnyElement, AnyImageCache, App, Asset, AssetLogger, Bounds, DefiniteLength, Element, ElementId,
-    Entity, GlobalElementId, Hitbox, Image, ImageCache, InspectorElementId, InteractiveElement,
-    Interactivity, IntoElement, LayoutId, Length, ObjectFit, Pixels, RenderImage, Resource,
-    SharedString, SharedUri, StyleRefinement, Styled, Task, Window, decode_static_image,
-    decode_static_image_from_decoder, px,
+    AnyElement, AnyEntity, AnyImageCache, App, Asset, AssetLogger, Bounds, DefiniteLength,
+    DevicePixels, Element, ElementId, Entity, GlobalElementId, Hitbox, Image, ImageCache,
+    InspectorElementId, InteractiveElement, Interactivity, IntoElement, LayoutId, Length, ObjectFit,
+    Pixels, RenderImage, Resource, SharedString, SharedUri, Size, StyleRefinement, Styled, Task,
+    Window, decode_static_image, decode_static_image_from_decoder, px,
 };
 use anyhow::Result;
 
@@ -37,6 +37,50 @@ pub const LOADING_DELAY: Duration = Duration::from_millis(200);
 /// Custom loaders, or external images will not use this asset loader
 pub type ImgResourceLoader = AssetLogger<ImageAssetLoader>;
 
+/// The physical rendering context for a managed image frame.
+#[derive(Clone, Copy)]
+pub struct ImageRequest {
+    /// The image element's laid-out bounds in logical pixels.
+    pub bounds: Bounds<Pixels>,
+    /// How the image is fitted into its bounds.
+    pub object_fit: ObjectFit,
+    /// The number of physical pixels per logical pixel.
+    pub scale_factor: f32,
+    /// Whether animated playback is currently allowed.
+    pub animate: bool,
+    /// Whether any part of the image intersects the current content mask.
+    pub visible: bool,
+}
+
+/// A managed image frame and the entity that owns its backing pixels.
+#[derive(Clone)]
+pub struct ManagedImageFrame {
+    /// The single current frame to paint.
+    pub image: Arc<RenderImage>,
+    /// The owner retained until GPUI finishes painting this frame.
+    pub owner: AnyEntity,
+}
+/// An image source that owns decoding, caching, and animation playback.
+///
+/// Implementations should notify their owning view when a pending intrinsic size or
+/// frame becomes available. Each successful [`Self::image`] call returns only the
+/// current frame; GPUI does not schedule or advance managed animation frames.
+pub trait ManagedImageSource: 'static {
+    /// Returns the image's intrinsic size in logical pixels, if it is available.
+    fn intrinsic_size(
+        &self,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<Result<Size<Pixels>, ImageCacheError>>;
+
+    /// Returns the current frame for the supplied physical rendering context.
+    fn image(
+        &self,
+        request: ImageRequest,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Option<Result<ManagedImageFrame, ImageCacheError>>;
+}
 /// A source of image content.
 #[derive(Clone)]
 pub enum ImageSource {
@@ -48,6 +92,8 @@ pub enum ImageSource {
     Image(Arc<Image>),
     /// A custom loading function to use
     Custom(Arc<dyn Fn(&mut Window, &mut App) -> Option<Result<Arc<RenderImage>, ImageCacheError>>>),
+    /// Image data whose decoding and playback are managed by its owner.
+    Managed(Arc<dyn ManagedImageSource>),
 }
 
 fn is_uri(uri: &str) -> bool {
@@ -254,12 +300,15 @@ struct ImgState {
     frame_index: usize,
     last_frame_time: Option<Instant>,
     started_loading: Option<(Instant, Task<()>)>,
+    retained_managed_frame: Option<ManagedImageFrame>,
 }
 
 /// The image layout state between frames
 pub struct ImgLayoutState {
     frame_index: usize,
     replacement: Option<AnyElement>,
+    managed_intrinsic_size: Option<Size<Pixels>>,
+    managed_frame: Option<ManagedImageFrame>,
 }
 
 impl Element for Img {
@@ -284,6 +333,8 @@ impl Element for Img {
         let mut layout_state = ImgLayoutState {
             frame_index: 0,
             replacement: None,
+            managed_intrinsic_size: None,
+            managed_frame: None,
         };
 
         window.with_optional_element_state(global_id, |state, window| {
@@ -292,6 +343,7 @@ impl Element for Img {
                     frame_index: 0,
                     last_frame_time: None,
                     started_loading: None,
+                    retained_managed_frame: None,
                 })
             });
 
@@ -305,6 +357,63 @@ impl Element for Img {
                 |mut style, window, cx| {
                     let mut replacement_id = None;
 
+                    if let ImageSource::Managed(provider) = &self.source {
+                        if let Some(state) = &mut state {
+                            state.started_loading = None;
+                            state.last_frame_time = None;
+                        }
+                        match provider.intrinsic_size(window, cx) {
+                            Some(Ok(image_size)) => {
+                                layout_state.managed_intrinsic_size = Some(image_size);
+
+                                if style.aspect_ratio.is_none() {
+                                    style.aspect_ratio = Some(image_size.width / image_size.height);
+                                }
+
+                                if let Length::Auto = style.size.width {
+                                    style.size.width = match style.size.height {
+                                        Length::Definite(DefiniteLength::Absolute(abs_length)) => {
+                                            let height_px = abs_length.to_pixels(window.rem_size());
+                                            Length::Definite(
+                                                px(image_size.width.0 * height_px.0
+                                                    / image_size.height.0)
+                                                .into(),
+                                            )
+                                        }
+                                        _ => Length::Definite(image_size.width.into()),
+                                    };
+                                }
+
+                                if let Length::Auto = style.size.height {
+                                    style.size.height = match style.size.width {
+                                        Length::Definite(DefiniteLength::Absolute(abs_length)) => {
+                                            let width_px = abs_length.to_pixels(window.rem_size());
+                                            Length::Definite(
+                                                px(image_size.height.0 * width_px.0
+                                                    / image_size.width.0)
+                                                .into(),
+                                            )
+                                        }
+                                        _ => Length::Definite(image_size.height.into()),
+                                    };
+                                }
+                            }
+                            Some(Err(_)) => {
+                                if let Some(fallback) = self.style.fallback.as_ref() {
+                                    let mut element = fallback();
+                                    replacement_id = Some(element.request_layout(window, cx));
+                                    layout_state.replacement = Some(element);
+                                }
+                                if let Some(state) = &mut state {
+                                    state.retained_managed_frame = None;
+                                }
+                            }
+                            None => {}
+                        }
+                    } else {
+                        if let Some(state) = &mut state {
+                            state.retained_managed_frame = None;
+                        }
                     match self.source.use_data(
                         self.image_cache
                             .clone()
@@ -421,6 +530,7 @@ impl Element for Img {
                             }
                         }
                     }
+                    }
 
                     window.request_layout(style, replacement_id, cx)
                 },
@@ -451,6 +561,27 @@ impl Element for Img {
             |_, _, hitbox, window, cx| {
                 if let Some(replacement) = &mut request_layout.replacement {
                     replacement.prepaint(window, cx);
+                } else if let ImageSource::Managed(provider) = &self.source {
+                    let visible = bounds.intersects(&window.content_mask().bounds);
+                    let request = ImageRequest {
+                        bounds,
+                        object_fit: self.style.object_fit,
+                        scale_factor: window.scale_factor(),
+                        animate: window.is_window_active() && !cx.reduce_motion(),
+                        visible,
+                    };
+                    request_layout.managed_frame = provider
+                        .image(request, window, cx)
+                        .and_then(Result::ok)
+                        .filter(|frame| visible && frame.image.frame_count() > 0);
+
+                    if let Some(global_id) = global_id {
+                        window.with_element_state::<ImgState, _>(global_id, |state, _| {
+                            let mut state = state.expect("img state should be initialized");
+                            state.retained_managed_frame = request_layout.managed_frame.clone();
+                            ((), state)
+                        });
+                    }
                 }
 
                 hitbox
@@ -477,7 +608,30 @@ impl Element for Img {
             window,
             cx,
             |style, window, cx| {
-                if let Some(Ok(data)) = source.use_data(
+                if matches!(&source, ImageSource::Managed(_)) {
+                    if let Some(frame) = &layout_state.managed_frame {
+                        let image_size = layout_state
+                            .managed_intrinsic_size
+                            .unwrap_or_else(|| frame.image.render_size(0));
+                        let image_size = image_size.map(|dimension| {
+                            DevicePixels::from(dimension.0.max(0.0).round() as u32)
+                        });
+                        let new_bounds = self.style.object_fit.get_bounds(bounds, image_size);
+                        let corner_radii = style.corner_radii.to_pixels(window.rem_size());
+                        window
+                            .paint_image(
+                                bounds,
+                                new_bounds,
+                                corner_radii,
+                                frame.image.clone(),
+                                0,
+                                self.style.grayscale,
+                            )
+                            .log_err();
+                    } else if let Some(replacement) = &mut layout_state.replacement {
+                        replacement.paint(window, cx);
+                    }
+                } else if let Some(Ok(data)) = source.use_data(
                     self.image_cache
                         .clone()
                         .or_else(|| window.image_cache_stack.last().cloned()),
@@ -550,6 +704,7 @@ impl ImageSource {
             ImageSource::Custom(loading_fn) => loading_fn(window, cx),
             ImageSource::Render(data) => Some(Ok(data.to_owned())),
             ImageSource::Image(data) => window.use_asset::<AssetLogger<ImageDecoder>>(data, cx),
+            ImageSource::Managed(_) => None,
         }
     }
 
@@ -570,6 +725,7 @@ impl ImageSource {
             ImageSource::Custom(loading_fn) => loading_fn(window, cx),
             ImageSource::Render(data) => Some(Ok(data.to_owned())),
             ImageSource::Image(data) => window.get_asset::<AssetLogger<ImageDecoder>>(data, cx),
+            ImageSource::Managed(_) => None,
         }
     }
 
@@ -579,7 +735,7 @@ impl ImageSource {
             ImageSource::Resource(resource) => {
                 cx.remove_asset::<ImgResourceLoader>(resource);
             }
-            ImageSource::Custom(_) | ImageSource::Render(_) => {}
+            ImageSource::Custom(_) | ImageSource::Render(_) | ImageSource::Managed(_) => {}
             ImageSource::Image(data) => cx.remove_asset::<AssetLogger<ImageDecoder>>(data),
         }
     }
@@ -590,7 +746,7 @@ impl ImageSource {
     pub fn is_asset_cached(&self, cx: &App) -> bool {
         match self {
             ImageSource::Resource(resource) => cx.has_asset::<ImgResourceLoader>(resource),
-            ImageSource::Custom(_) | ImageSource::Render(_) => false,
+            ImageSource::Custom(_) | ImageSource::Render(_) | ImageSource::Managed(_) => false,
             ImageSource::Image(data) => cx.has_asset::<AssetLogger<ImageDecoder>>(data),
         }
     }
@@ -804,6 +960,8 @@ mod tests {
     use super::*;
     use crate::{ParentElement as _, TestAppContext, canvas, div, point, px, size};
     use image::{Frame, ImageBuffer, Rgba};
+    use parking_lot::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     const TEST_IMG_ID: &str = "test-img";
 
@@ -817,6 +975,112 @@ mod tests {
     fn test_image_with_size(width: u32, height: u32) -> Arc<RenderImage> {
         let frame = Frame::new(ImageBuffer::from_pixel(width, height, Rgba([0, 0, 0, 0])));
         Arc::new(RenderImage::new(SmallVec::from_elem(frame, 1)))
+    }
+    struct TestManagedSource {
+        intrinsic: Option<Result<Size<Pixels>, ImageCacheError>>,
+        requests: Mutex<Vec<ImageRequest>>,
+    }
+
+    impl ManagedImageSource for TestManagedSource {
+        fn intrinsic_size(
+            &self,
+            _window: &mut Window,
+            _cx: &mut App,
+        ) -> Option<Result<Size<Pixels>, ImageCacheError>> {
+            self.intrinsic.clone()
+        }
+
+        fn image(
+            &self,
+            request: ImageRequest,
+            _window: &mut Window,
+            _cx: &mut App,
+        ) -> Option<Result<ManagedImageFrame, ImageCacheError>> {
+            self.requests.lock().push(request);
+            None
+        }
+    }
+
+    #[gpui::test]
+    fn managed_image_uses_intrinsic_size_and_receives_physical_context(
+        cx: &mut TestAppContext,
+    ) {
+        let source = Arc::new(TestManagedSource {
+            intrinsic: Some(Ok(size(px(40.), px(20.)))),
+            requests: Mutex::new(Vec::new()),
+        });
+        let window = cx.add_empty_window();
+        window.draw(point(px(0.), px(0.)), size(px(100.), px(100.)), |_, _| {
+            img(ImageSource::Managed(source.clone())).into_any_element()
+        });
+
+        let requests = source.requests.lock();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].bounds.size, size(px(40.), px(20.)));
+        assert_eq!(requests[0].scale_factor, window.update(|window, _| window.scale_factor()));
+        assert!(requests[0].animate);
+        assert!(requests[0].visible);
+    }
+
+    #[gpui::test]
+    fn managed_image_reports_offscreen_visibility(cx: &mut TestAppContext) {
+        let source = Arc::new(TestManagedSource {
+            intrinsic: Some(Ok(size(px(20.), px(20.)))),
+            requests: Mutex::new(Vec::new()),
+        });
+        cx.add_empty_window().draw(
+            point(px(0.), px(0.)),
+            size(px(100.), px(100.)),
+            |_, _| {
+                div()
+                    .size_full()
+                    .overflow_hidden()
+                    .child(
+                        img(ImageSource::Managed(source.clone()))
+                            .ml(px(200.))
+                            .size(px(20.)),
+                    )
+                    .into_any_element()
+            },
+        );
+
+        let requests = source.requests.lock();
+        assert_eq!(requests.len(), 1);
+        assert!(!requests[0].visible);
+    }
+
+    #[gpui::test]
+    fn managed_image_falls_back_only_after_intrinsic_error(cx: &mut TestAppContext) {
+        let fallback_count = Arc::new(AtomicUsize::new(0));
+        let draw = |intrinsic, fallback_count: Arc<AtomicUsize>| {
+            let source = Arc::new(TestManagedSource {
+                intrinsic,
+                requests: Mutex::new(Vec::new()),
+            });
+            img(ImageSource::Managed(source))
+                .with_fallback(move || {
+                    fallback_count.fetch_add(1, Ordering::Relaxed);
+                    div().into_any_element()
+                })
+                .into_any_element()
+        };
+        let window = cx.add_empty_window();
+        window.draw(point(px(0.), px(0.)), size(px(100.), px(100.)), {
+            let fallback_count = fallback_count.clone();
+            move |_, _| draw(None, fallback_count)
+        });
+        assert_eq!(fallback_count.load(Ordering::Relaxed), 0);
+
+        window.draw(point(px(0.), px(0.)), size(px(100.), px(100.)), {
+            let fallback_count = fallback_count.clone();
+            move |_, _| {
+                draw(
+                    Some(Err(ImageCacheError::Asset("failed".into()))),
+                    fallback_count,
+                )
+            }
+        });
+        assert_eq!(fallback_count.load(Ordering::Relaxed), 1);
     }
 
     /// Overwrites the cached `frame_index` of the sibling `img` during paint.

@@ -38,7 +38,7 @@ pub use protocol::{
     EVENT_SELECTION, EVENT_SUBMIT, EVENT_SURFACE_CLOSED, EVENT_VISIBLE_RANGE,
     EVENT_WINDOW_ACTIVATION, EVENT_WINDOW_APPEARANCE, EVENT_WINDOW_RESIZE, Easing, Event,
     EventKind, EventMeta, EventPayload, FlexDirectionCode, FontStyleCode, FontWeightCode,
-    HostProperties, IconProperties, ImageProperties, JustifyContentCode, KeybindingDefinition,
+    HostProperties, IconProperties, ImageCandidate, ImageProperties, JustifyContentCode, KeybindingDefinition,
     MAX_CLIPBOARD_IMAGE_BYTES, MAX_CLIPBOARD_TEXT_BYTES, MAX_FILE_READ_BYTES, MAX_FILE_WRITE_BYTES,
     MAX_FRAME_LENGTH, MAX_NATIVE_CALL_BYTES, MenuAction, MenuDefinition, MenuItemDefinition, Node,
     NotificationActionDefinition, NotificationResponseEvent, ObjectFitCode, OverflowCode,

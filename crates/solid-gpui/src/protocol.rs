@@ -710,10 +710,17 @@ pub struct TextInputProperties {
     pub selection_reversed: bool,
 }
 #[derive(Debug, Clone, PartialEq)]
+pub struct ImageCandidate {
+    pub source: String,
+    pub width: u32,
+    pub height: u32,
+}
+#[derive(Debug, Clone, PartialEq)]
 pub struct ImageProperties {
     pub source: String,
     pub object_fit: u32,
     pub fallback_source: Option<String>,
+    pub sources: Vec<ImageCandidate>,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct IconProperties {

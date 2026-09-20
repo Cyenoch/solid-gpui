@@ -266,6 +266,8 @@ export interface ViewProps extends AccessibilityProps {
 export interface ImageProps extends AccessibilityProps {
   /** Local path, file: URL (native), HTTP(S) URL, or data:image/... URL; at most 1 MiB of UTF-8. */
   readonly source: string;
+  /** Same-aspect variants with intrinsic physical-pixel dimensions, selected natively for target size and DPI. */
+  readonly sourceSet?: readonly { readonly source: string; readonly width: number; readonly height: number }[];
   /** Image source displayed when the primary fails, using the same supported source formats. */
   readonly fallbackSource?: string;
   readonly objectFit?: ImageObjectFit;

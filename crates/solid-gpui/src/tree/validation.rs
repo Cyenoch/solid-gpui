@@ -252,6 +252,9 @@ pub(super) fn validate_host_properties_shape(
             }
         }
         (Some(HostProperties::Image(image)), KIND_IMAGE) => {
+            let aggregate_bytes = image.source.len()
+                + image.fallback_source.as_ref().map_or(0, String::len)
+                + image.sources.iter().map(|candidate| candidate.source.len()).sum::<usize>();
             if image.source.is_empty()
                 || image.source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
                 || image.source.chars().any(char::is_control)
@@ -260,11 +263,20 @@ pub(super) fn validate_host_properties_shape(
                         || source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
                         || source.chars().any(char::is_control)
                 })
+                || image.sources.len() > 32
+                || image.sources.iter().any(|candidate| {
+                    candidate.width == 0
+                        || candidate.height == 0
+                        || candidate.source.is_empty()
+                        || candidate.source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
+                        || candidate.source.chars().any(char::is_control)
+                })
+                || aggregate_bytes > crate::protocol::MAX_FRAME_LENGTH - 1024
                 || !(1..=5).contains(&image.object_fit)
             {
                 return Err(TreeError::InvalidProperties {
                     node_id,
-                    reason: "invalid Image source, fallback, or object fit",
+                    reason: "invalid Image source, candidates, fallback, or object fit",
                 });
             }
         }

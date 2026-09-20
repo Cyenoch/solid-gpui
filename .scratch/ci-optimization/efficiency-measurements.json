@@ -1,0 +1,107 @@
+{
+  "baseline": [
+    {
+      "run": 35494419897,
+      "jobs": [
+        {
+          "name": "Rust and protocol checks (macOS)",
+          "seconds": 640
+        },
+        {
+          "name": "Package checks (Linux)",
+          "seconds": 52
+        },
+        {
+          "name": "Rust and Bun checks",
+          "seconds": 2
+        }
+      ]
+    },
+    {
+      "run": 35494419990,
+      "jobs": [
+        {
+          "name": "build",
+          "seconds": 425
+        },
+        {
+          "name": "deploy",
+          "seconds": 10
+        }
+      ]
+    }
+  ],
+  "local": {
+    "packageCi": "passed",
+    "nativeTestCi": "passed",
+    "nativeCheckCi": "passed",
+    "buildHost": "passed",
+    "websiteTests": {
+      "tests": 8,
+      "assertions": 4026
+    },
+    "hostlessFixtureCargoGuard": "all four fixtures passed",
+    "focusedQuickJsTests": {
+      "tests": 2,
+      "seconds": 0.34
+    },
+    "aggregateResultCases": 16
+  },
+  "hosted": {
+    "cancelled": 35496061216,
+    "initialCi": 35496068245,
+    "initialPages": 35496061495,
+    "finalPagesSeed": 35496434184,
+    "bindingsOnly": 35496528358,
+    "nativeCold": {
+      "run": 35496068245,
+      "checkSeconds": 554,
+      "testSeconds": 715,
+      "packageSeconds": 43,
+      "aggregateSeconds": 1,
+      "caches": "both new native namespaces missed",
+      "libraryTests": 314,
+      "ignored": 1,
+      "librarySeconds": 76.58
+    },
+    "nativeWarmRun": 35496678245,
+    "nativeWarm": {
+      "run": 35496678245,
+      "checkSeconds": 334,
+      "testSeconds": 304,
+      "packageSeconds": 43,
+      "aggregateSeconds": 4,
+      "workflowElapsedSeconds": 351,
+      "nativeRunnerSeconds": 638,
+      "caches": "both exact hits",
+      "librarySeconds": 52.04,
+      "libraryTests": 314,
+      "ignored": 1
+    },
+    "pages": {
+      "cold": {
+        "run": 35496434184,
+        "seconds": 468
+      },
+      "bindingsOnly": {
+        "run": 35496528358,
+        "seconds": 181,
+        "wasm": "skipped",
+        "bindings": "success"
+      },
+      "warm": {
+        "run": 35496942640,
+        "seconds": 48,
+        "rustSetup": "skipped",
+        "frontend": "success",
+        "tests": "success"
+      }
+    }
+  },
+  "limitations": [
+    "Hosted timing is one sample per mode, not controlled runner benchmarks",
+    "New lane cold caches increased initial runner time",
+    "Push/PR path filters unchanged; live verification used branch workflow_dispatch, no PR opened or main deployment",
+    "Existing Actions Node20 deprecation notices remain; no unrelated action upgrade"
+  ]
+}

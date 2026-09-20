@@ -103,6 +103,14 @@ pub struct SvgRenderer {
 /// scales should retain this value to avoid re-paying the parse cost.
 pub struct ParsedSvg(usvg::Tree);
 
+impl ParsedSvg {
+    /// Intrinsic logical dimensions, available before any pixel allocation.
+    pub fn size(&self) -> crate::Size<crate::Pixels> {
+        let size = self.0.size();
+        crate::size(crate::px(size.width()), crate::px(size.height()))
+    }
+}
+
 /// The size in which to rasterize the SVG.
 #[derive(Clone, Copy)]
 pub enum SvgSize {

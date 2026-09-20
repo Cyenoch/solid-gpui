@@ -473,6 +473,11 @@ function wireHost(value: SemanticHostProperties | null): HostProperties | undefi
       source: value.value.source,
       objectFit: value.value.objectFit,
       fallbackSource: value.value.fallbackSource ?? undefined,
+      sources: value.value.sources.map((candidate) => ({
+        source: candidate.source,
+        width: candidate.width,
+        height: candidate.height,
+      })),
     });
   if (value.type === "icon")
     return WireHostProperties.fromIconProperties({

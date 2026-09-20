@@ -181,6 +181,7 @@ union HostProperties {
         1 -> string source;
         2 -> uint32 objectFit;
         3 -> string fallbackSource;
+        4 -> ImageCandidate[] sources;
     }
     4 -> message DragProperties {
         1 -> string dragType;
@@ -201,6 +202,12 @@ union HostProperties {
         2 -> float32 size;
         3 -> uint32 color;
     }
+}
+
+message ImageCandidate {
+    1 -> string source;
+    2 -> uint32 width;
+    3 -> uint32 height;
 }
 
 message VirtualListDataEdit {

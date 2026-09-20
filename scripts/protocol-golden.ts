@@ -156,7 +156,12 @@ const virtualList: HostProperties = {
 };
 const image: HostProperties = {
   type: "image",
-  value: { source: "assets/😀.png", objectFit: 3, fallbackSource: "assets/fallback.png" },
+  value: {
+    source: "assets/😀.png",
+    objectFit: 3,
+    fallbackSource: "assets/fallback.png",
+    sources: [{ source: "assets/😀@2x.png", width: 640, height: 360 }],
+  },
 };
 const drag: HostProperties = {
   type: "drag",

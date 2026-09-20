@@ -190,3 +190,34 @@ and the relevant [website checks](../examples/website/README.md). Compare cache
 restore/save time, build time, and total runner minutes on subsequent GitHub runs.
 Local validation cannot establish hosted runner speedups or cross-platform
 release qualification.
+
+### September 20 hosted measurements
+
+The non-protected `ci/efficiency-native-pages` branch exercised the actual jobs;
+no production deployment or branch-protection setting was changed.
+
+| Measurement | Before | After | Evidence |
+| --- | ---: | ---: | --- |
+| Warm native critical path | 640 s | 334 s | [Baseline](https://github.com/Cyenoch/solid-gpui/actions/runs/35494419897), [split lanes](https://github.com/Cyenoch/solid-gpui/actions/runs/35496678245) |
+| Native runner time, summed lanes | 640 s | 638 s | Same runs; after = 334 s check + 304 s test. |
+| Core library execution | 115.59 s | 52.04 s | Same 314 passing tests and one existing ignored test. |
+| Pages, both artifacts missing | 425 s | 468 s | [Baseline](https://github.com/Cyenoch/solid-gpui/actions/runs/35494419990), [new artifact seed](https://github.com/Cyenoch/solid-gpui/actions/runs/35496434184). |
+| Pages, exporter-only input change | — | 181 s | [Mixed hit](https://github.com/Cyenoch/solid-gpui/actions/runs/35496528358): bindings rebuilt; WASM/bindgen skipped. |
+| Pages, both exact artifact hits | — | 48 s | [Warm run](https://github.com/Cyenoch/solid-gpui/actions/runs/35496942640): all frontend checks still ran. |
+
+The native critical path fell by 47.8%; summed native runner time stayed roughly
+flat. This is a single hosted sample per mode, not a controlled benchmark or a
+promise of cold-build savings. New native cache namespaces initially missed:
+[first run](https://github.com/Cyenoch/solid-gpui/actions/runs/35496068245) took
+554 s check and 715 s test before the measured warm run. Cache eviction can repeat
+that cost. The mixed Pages run waited for the preceding run because production
+concurrency policy was preserved; table values exclude that queue wait.
+
+Two branch dispatches verified cancellation of the
+[superseded CI run](https://github.com/Cyenoch/solid-gpui/actions/runs/35496061216).
+Push/PR path filters are unchanged; PR event filtering was not requalified with
+a new PR. Local checks exercised all 16 aggregate success/failure/cancel/skip
+combinations, both native lanes, package checks, full website host/frontend builds,
+and eight website tests. A failing Cargo command on PATH proved all four hostless
+QuickJS fixtures bundle without invoking Cargo. Existing Actions Node 20 migration
+notices and generated WASM eval/bundle-size warnings remain visible.

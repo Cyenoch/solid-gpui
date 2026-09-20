@@ -1,4 +1,10 @@
-import { isIconName, MAX_CLIPBOARD_TEXT_BYTES, MAX_IMAGE_SOURCE_BYTES, utf8ByteLength } from "../protocol";
+import {
+  isIconName,
+  MAX_CLIPBOARD_TEXT_BYTES,
+  MAX_FRAME_SIZE,
+  MAX_IMAGE_SOURCE_BYTES,
+  utf8ByteLength,
+} from "../protocol";
 import { encodeColor, validateStyle } from "../style";
 import type {
   AccessibilityProperties,
@@ -131,11 +137,32 @@ export function imageFor(node: HostNodeInternal, props: HostProps): HostProperti
   assertImageSource("source", source);
   const fallbackSource = props.fallbackSource;
   if (fallbackSource !== undefined) assertImageSource("fallbackSource", fallbackSource);
+  const sourceSet = props.sourceSet ?? [];
+  if (!Array.isArray(sourceSet) || sourceSet.length > 32)
+    throw new TypeError("Image sourceSet must contain at most 32 candidates");
+  let sourceBytes = utf8ByteLength(source) + (fallbackSource === undefined ? 0 : utf8ByteLength(fallbackSource));
+  const sources = sourceSet.map((candidate, index) => {
+    if (candidate === null || typeof candidate !== "object")
+      throw new TypeError(`Image sourceSet[${index}] must be a source candidate`);
+    assertImageSource(`sourceSet[${index}].source`, candidate.source);
+    for (const dimension of ["width", "height"] as const) {
+      const value = candidate[dimension];
+      if (!Number.isInteger(value) || value <= 0 || value > 0xffff_ffff)
+        throw new TypeError(`Image sourceSet[${index}].${dimension} must be a positive uint32`);
+    }
+    sourceBytes += utf8ByteLength(candidate.source);
+    return { source: candidate.source, width: candidate.width, height: candidate.height };
+  });
+  if (sourceBytes > MAX_FRAME_SIZE - 1024)
+    throw new RangeError("Image sources exceed the aggregate frame byte limit");
   const objectFit = props.objectFit ?? "contain";
   if (!["fill", "contain", "cover", "scaleDown", "none"].includes(objectFit))
     throw new TypeError("Image objectFit is invalid");
   const objectFitCode = OBJECT_FIT_CODES[objectFit];
-  return { type: "image", value: { source, objectFit: objectFitCode, fallbackSource: fallbackSource ?? null } };
+  return {
+    type: "image",
+    value: { source, objectFit: objectFitCode, fallbackSource: fallbackSource ?? null, sources },
+  };
 }
 export function iconFor(node: HostNodeInternal, props: HostProps): HostProperties | null {
   if (node.kind !== "Icon") return null;

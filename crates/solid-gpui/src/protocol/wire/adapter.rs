@@ -803,6 +803,17 @@ fn wire_host(value: &HostProperties) -> generated::HostProperties<'_> {
             source: Some(&image.source),
             object_fit: Some(image.object_fit),
             fallback_source: image.fallback_source.as_deref(),
+            sources: Some(
+                image
+                    .sources
+                    .iter()
+                    .map(|candidate| generated::ImageCandidate {
+                        source: Some(&candidate.source),
+                        width: Some(candidate.width),
+                        height: Some(candidate.height),
+                    })
+                    .collect(),
+            ),
         },
         HostProperties::Drag(drag) => generated::HostProperties::DragProperties {
             drag_type: drag.drag_type.as_deref(),
@@ -932,22 +943,50 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
             source,
             object_fit,
             fallback_source,
+            sources,
         } => {
             let source = source.ok_or(ProtocolError::InvalidHostProperties)?;
             let object_fit = object_fit.ok_or(ProtocolError::InvalidHostProperties)?;
             ObjectFitCode::try_from(object_fit)
                 .map_err(|_| ProtocolError::InvalidHostProperties)?;
-            if !valid_host_string(source, super::super::MAX_IMAGE_SOURCE_BYTES)
+            let sources = sources.unwrap_or_default();
+            if sources.len() > 32
+                || !valid_host_string(source, super::super::MAX_IMAGE_SOURCE_BYTES)
                 || fallback_source.is_some_and(|value| {
                     !valid_host_string(value, super::super::MAX_IMAGE_SOURCE_BYTES)
                 })
             {
                 return Err(ProtocolError::InvalidHostProperties);
             }
+            let mut aggregate_bytes = source.len() + fallback_source.map_or(0, str::len);
+            let mut candidates = Vec::with_capacity(sources.len());
+            for candidate in sources {
+                let candidate_source = candidate.source.ok_or(ProtocolError::InvalidHostProperties)?;
+                let width = candidate.width.ok_or(ProtocolError::InvalidHostProperties)?;
+                let height = candidate.height.ok_or(ProtocolError::InvalidHostProperties)?;
+                if width == 0
+                    || height == 0
+                    || !valid_host_string(candidate_source, super::super::MAX_IMAGE_SOURCE_BYTES)
+                {
+                    return Err(ProtocolError::InvalidHostProperties);
+                }
+                aggregate_bytes = aggregate_bytes
+                    .checked_add(candidate_source.len())
+                    .ok_or(ProtocolError::InvalidHostProperties)?;
+                candidates.push(ImageCandidate {
+                    source: candidate_source.to_owned(),
+                    width,
+                    height,
+                });
+            }
+            if aggregate_bytes > MAX_FRAME_LENGTH - 1024 {
+                return Err(ProtocolError::InvalidHostProperties);
+            }
             Ok(HostProperties::Image(ImageProperties {
                 source: source.to_owned(),
                 object_fit,
                 fallback_source: fallback_source.map(str::to_owned),
+                sources: candidates,
             }))
         }
         generated::HostProperties::DragProperties {

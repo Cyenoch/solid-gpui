@@ -185,7 +185,6 @@ struct RichTextElement {
     text: String,
     runs: Vec<TextRun>,
     focuses: Vec<(u32, Range<usize>, gpui::FocusHandle)>,
-    affordance_bounds: super::LinkAffordanceBounds,
 }
 struct RichTextPrepaint {
     hitbox: gpui::Hitbox,
@@ -263,36 +262,19 @@ impl Element for RichTextElement {
             line_height,
         };
         let mut affordances = Vec::new();
-        for (node_id, range, focus) in &self.focuses {
+        for (_, range, focus) in &self.focuses {
             if !focus.is_focused(window) {
                 continue;
             }
-            let frames = layout
-                .selection_bounds_per_line(range.clone(), bounds)
-                .into_iter()
-                .map(|row| {
-                    let y = row.origin.y + row.size.height - px(1.0);
-                    Bounds::new(point(row.origin.x, y), size(row.size.width, px(1.0)))
-                })
-                .filter(|row| row.size.width > px(0.0))
-                .collect::<Vec<_>>();
-            self.affordance_bounds.borrow_mut().insert(
-                *node_id,
-                frames
-                    .iter()
-                    .map(|row| {
-                        (
-                            f32::from(row.origin.x),
-                            f32::from(row.origin.y),
-                            f32::from(row.size.width),
-                            f32::from(row.size.height),
-                        )
-                    })
-                    .collect(),
-            );
             affordances.extend(
-                frames
+                layout
+                    .selection_bounds_per_line(range.clone(), bounds)
                     .into_iter()
+                    .map(|row| {
+                        let y = row.origin.y + row.size.height - px(1.0);
+                        Bounds::new(point(row.origin.x, y), size(row.size.width, px(1.0)))
+                    })
+                    .filter(|row| row.size.width > px(0.0))
                     .map(|row| fill(row, rgba(FOCUS_AFFORDANCE_RGBA))),
             );
         }
@@ -1038,7 +1020,6 @@ pub(super) fn render_rich_text(
         .collect();
     let node_id = node.id;
     let text = parts.text.clone();
-    let affordance_bounds = Rc::clone(&root.link_affordance_bounds);
     let text_ranges = ranges.clone();
     element = element.child(InheritedText::new(parts, move |styled_text, runs| {
         let interactive = InteractiveText::new(
@@ -1065,7 +1046,6 @@ pub(super) fn render_rich_text(
             text,
             runs,
             focuses,
-            affordance_bounds,
         }
         .into_any()
     }));

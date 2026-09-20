@@ -19,7 +19,7 @@ use gpui::{
     WindowOptions, px, size,
 };
 use std::backtrace::Backtrace;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::ffi::OsString;
 use std::fmt::Display;
@@ -287,6 +287,35 @@ fn check_command_metadata(meta: CommandMeta, actual: (u32, u32, u32)) -> Command
     CommandAdmission::Accepted
 }
 
+// Inclusive, sorted ranges retain exact membership without one entry per closed surface.
+#[derive(Default)]
+struct RetiredSurfaceIds(BTreeMap<u32, u32>);
+
+impl RetiredSurfaceIds {
+    fn contains(&self, id: &u32) -> bool {
+        self.0.range(..=*id).next_back().is_some_and(|(_, end)| id <= end)
+    }
+
+    fn insert(&mut self, id: u32) {
+        let mut start = id;
+        let mut end = id;
+        if let Some((&previous_start, &previous_end)) = self.0.range(..=id).next_back()
+            && previous_end.saturating_add(1) >= id
+        {
+            start = previous_start;
+            end = end.max(previous_end);
+            self.0.remove(&previous_start);
+        }
+        if let Some((&next_start, &next_end)) = self.0.range(id..).next()
+            && next_start <= end.saturating_add(1)
+        {
+            end = next_end;
+            self.0.remove(&next_start);
+        }
+        self.0.insert(start, end);
+    }
+}
+
 struct NativeStateRegistry {
     popups: HashMap<u32, popup::PopupSession>,
     application: ApplicationLifecycle,
@@ -296,7 +325,7 @@ struct NativeStateRegistry {
     surfaces: HashMap<u32, Surface>,
     windows: HashMap<WindowId, u32>,
     keybindings: HashMap<u32, Vec<KeyBinding>>,
-    retired_surface_ids: HashSet<u32>,
+    retired_surface_ids: RetiredSurfaceIds,
     next_surface_id: u32,
     transport_terminated: bool,
     close_subscription: Option<Subscription>,
@@ -323,7 +352,7 @@ impl NativeStateRegistry {
             surfaces: HashMap::new(),
             windows: HashMap::new(),
             keybindings: HashMap::new(),
-            retired_surface_ids: HashSet::new(),
+            retired_surface_ids: RetiredSurfaceIds::default(),
             next_surface_id: 1,
             transport_terminated: false,
             close_subscription: None,
@@ -1742,6 +1771,26 @@ mod tests {
         let mut registry = NativeStateRegistry::new(crate::InMemoryAdapter::new());
         registry.retired_surface_ids.insert(1);
         assert_eq!(registry.allocate_surface_id(), Ok(2));
+    }
+
+    #[test]
+    fn retired_surface_ranges_are_compact_exact_and_bridge_out_of_order() {
+        let mut registry = NativeStateRegistry::new(crate::InMemoryAdapter::new());
+        for id in 1..=50_000 {
+            registry.retired_surface_ids.insert(id);
+        }
+        assert_eq!(registry.retired_surface_ids.0.len(), 1);
+        assert_eq!(registry.retired_surface_ids.0.get(&1), Some(&50_000));
+        registry.retired_surface_ids.insert(50_002);
+        registry.retired_surface_ids.insert(u32::MAX);
+        assert!(!registry.retired_surface_ids.contains(&50_001));
+        assert!(!registry.retired_surface_ids.contains(&(u32::MAX - 1)));
+        registry.retired_surface_ids.insert(50_001);
+        registry.retired_surface_ids.insert(u32::MAX - 1);
+        assert_eq!(registry.retired_surface_ids.0.get(&1), Some(&50_002));
+        assert_eq!(registry.retired_surface_ids.0.get(&(u32::MAX - 1)), Some(&u32::MAX));
+        registry.next_surface_id = 50_000;
+        assert_eq!(registry.allocate_surface_id(), Ok(50_003));
     }
 }
 

@@ -25,6 +25,7 @@ pub struct DebugBelow;
 #[cfg(debug_assertions)]
 impl crate::Global for DebugBelow {}
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 /// How to fit the image into the bounds of the element.
 pub enum ObjectFit {
     /// The image will be stretched to fill the bounds of the element.

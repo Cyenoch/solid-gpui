@@ -147,6 +147,7 @@ impl<'a> Guard<'a> {
     fn array_limit(&self, field: &str) -> usize {
         match field {
             "modifiers" => 5,
+            "sources" => 32,
             "actions" | "bindings" => 64,
             "values" => 2,
             "items" => 1024,

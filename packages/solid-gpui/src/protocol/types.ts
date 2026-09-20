@@ -185,10 +185,17 @@ export interface VirtualListProperties {
   readonly dataEdit: VirtualListDataEdit | null;
 }
 
+export interface ImageCandidate {
+  readonly source: string;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface ImageProperties {
   readonly source: string;
   readonly objectFit: 1 | 2 | 3 | 4 | 5;
   readonly fallbackSource: string | null;
+  readonly sources: readonly ImageCandidate[];
 }
 
 export interface IconProperties {

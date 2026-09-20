@@ -1,10 +1,10 @@
 use super::*;
 use crate::protocol::{
     CommandOperation, EventPayload, ExtensionField, ExtensionProperties, ExtensionValue, Node,
-    Patch, Snapshot, UPDATE_LISTENER, UPDATE_PROPERTIES,
+    Patch, Snapshot, VirtualListProperties, UPDATE_LISTENER, UPDATE_PROPERTIES,
 };
 use crate::transport::InMemoryAdapter;
-use crate::tree::KIND_EXTENSION;
+use crate::tree::{KIND_EXTENSION, KIND_VIRTUAL_LIST};
 use gpui::{AnyElement, App, AppContext, Entity, EntityId, TestAppContext, WindowHandle};
 
 const PROVIDER: [u8; 16] = [7; 16];
@@ -18,6 +18,7 @@ struct Evidence {
     drops: Cell<usize>,
     entities: RefCell<Vec<EntityId>>,
     sinks: RefCell<Vec<ExtensionEventSink>>,
+    contents: RefCell<Vec<ExtensionContent>>,
     calls: RefCell<Vec<u32>>,
 }
 struct NativeView(u32);
@@ -116,13 +117,14 @@ impl ExtensionAdapter for Registry {
         _: u32,
         props: &ExtensionProperties,
         sink: ExtensionEventSink,
-        _: ExtensionChildren,
+        children: ExtensionChildren,
         _: &mut Window,
         cx: &mut App,
     ) -> Option<Box<dyn ExtensionInstance>> {
         self.0.mounts.set(self.0.mounts.get() + 1);
         let entity = cx.new(|_| NativeView(value(props)));
         self.0.entities.borrow_mut().push(entity.entity_id());
+        self.0.contents.borrow_mut().push(children.content(None));
         self.0.sinks.borrow_mut().push(sink);
         Some(Box::new(Instance {
             entity,
@@ -379,6 +381,60 @@ fn native_node_methods_execute_before_next_commit_and_reject_bad_targets(cx: &mu
     );
     assert!(!results[1].success);
     assert!(!results[2].success);
+}
+
+#[gpui::test]
+fn same_epoch_snapshot_republishes_live_scroll_capabilities(cx: &mut TestAppContext) {
+    let evidence = Rc::new(Evidence::default());
+    let runtime = InMemoryAdapter::new();
+    let window = cx.open_window(gpui::size(gpui::px(240.0), gpui::px(100.0)), {
+        let evidence = evidence.clone();
+        move |_, _| SolidRoot::with_extensions(runtime, Rc::new(Registry(evidence)))
+    });
+    let root = window.root(cx).expect("extension root");
+    let snapshot = |base, revision, child_kind: Option<bool>| {
+        let mut nodes = vec![Node::new(1, 0, 0, KIND_VIEW), node(10)];
+        if let Some(list) = child_kind {
+            let mut child = Node::new(3, 2, 0, if list { KIND_VIRTUAL_LIST } else { KIND_VIEW });
+            if list {
+                child.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
+                    item_count: 100,
+                    range_start: 0,
+                    range_end: 0,
+                    estimated_item_size: 20.0,
+                    overscan: 2,
+                    data_revision: 0,
+                    data_edit: None,
+                }));
+            }
+            nodes.push(child);
+        }
+        DecodedMessage::Snapshot(Snapshot::new(1, 1, base, revision, nodes))
+    };
+    let commit = |cx: &mut TestAppContext, message| {
+        cx.update_window(window.into(), |_, window, cx| {
+                root.update(cx, |root, cx| {
+                    root.apply_decoded_message_in_window(message, window, cx)
+                })
+            })
+            .expect("window")
+            .expect("commit");
+    };
+    commit(cx, snapshot(0, 1, Some(true)));
+    let content = evidence.contents.borrow()[0].clone();
+    let old_viewport = content.scroll_viewport().expect("live list publishes viewport");
+    let _old_decoration = old_viewport.decorate();
+    commit(cx, snapshot(1, 2, Some(true)));
+    assert!(
+        !content.scroll_viewport().expect("rebased list viewport").is_decorated(),
+        "full Snapshot republishes the current list capability"
+    );
+    commit(cx, snapshot(2, 3, None));
+    assert!(content.scroll_viewport().is_none(), "removed child has no list capability");
+    commit(cx, snapshot(3, 4, Some(false)));
+    assert!(content.scroll_viewport().is_none(), "replacement View has no list capability");
+    commit(cx, snapshot(4, 5, Some(true)));
+    assert!(content.scroll_viewport().is_some(), "same ID newly created list is published");
 }
 
 #[test]

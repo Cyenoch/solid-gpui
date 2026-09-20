@@ -358,12 +358,22 @@ function equalHostProperties(a: HostProperties | null, b: HostProperties | null)
       x.dataEdit.newCount === y.dataEdit.newCount
     );
   }
-  if (a.type === "image" && b.type === "image")
+  if (a.type === "image" && b.type === "image") {
+    const x = a.value;
+    const y = b.value;
     return (
-      a.value.source === b.value.source &&
-      a.value.objectFit === b.value.objectFit &&
-      a.value.fallbackSource === b.value.fallbackSource
+      x.source === y.source &&
+      x.objectFit === y.objectFit &&
+      x.fallbackSource === y.fallbackSource &&
+      x.sources.length === y.sources.length &&
+      x.sources.every(
+        (candidate, index) =>
+          candidate.source === y.sources[index]?.source &&
+          candidate.width === y.sources[index]?.width &&
+          candidate.height === y.sources[index]?.height,
+      )
     );
+  }
   if (a.type === "drag" && b.type === "drag") {
     if (
       a.value.dragType !== b.value.dragType ||

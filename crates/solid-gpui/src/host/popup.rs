@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use super::*;
 use gpui::{
     Bounds, FocusHandle, Pixels, Point,

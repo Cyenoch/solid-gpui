@@ -1,7 +1,7 @@
 {
   "schema": "protocol.bop",
   "root": "Envelope",
-  "digest": "79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc",
+  "digest": "67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d",
   "definitions": {
     "NodeKind": {
       "kind": "enum",
@@ -790,6 +790,17 @@
             "kind": "scalar",
             "name": "string"
           }
+        },
+        {
+          "id": 4,
+          "name": "sources",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "def",
+              "name": "ImageCandidate"
+            }
+          }
         }
       ]
     },
@@ -920,6 +931,35 @@
         {
           "id": 3,
           "name": "color",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        }
+      ]
+    },
+    "ImageCandidate": {
+      "kind": "message",
+      "fields": [
+        {
+          "id": 1,
+          "name": "source",
+          "type": {
+            "kind": "scalar",
+            "name": "string"
+          }
+        },
+        {
+          "id": 2,
+          "name": "width",
+          "type": {
+            "kind": "scalar",
+            "name": "uint32"
+          }
+        },
+        {
+          "id": 3,
+          "name": "height",
           "type": {
             "kind": "scalar",
             "name": "uint32"

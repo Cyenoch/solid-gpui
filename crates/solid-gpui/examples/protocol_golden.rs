@@ -177,6 +177,11 @@ fn snapshot() -> Snapshot {
         source: "assets/😀.png".to_owned(),
         object_fit: 3,
         fallback_source: Some("assets/fallback.png".to_owned()),
+        sources: vec![ImageCandidate {
+            source: "assets/😀@2x.png".to_owned(),
+            width: 640,
+            height: 360,
+        }],
     }));
 
     let mut drag = node(8, 1, 5, KIND_VIEW);

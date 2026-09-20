@@ -128,6 +128,7 @@ fn medium_snapshot() -> Snapshot {
         source: "/tmp/property-test-image.png".to_owned(),
         object_fit: 1,
         fallback_source: None,
+        sources: Vec::new(),
     }));
     let pressable = append_node(&mut nodes, &mut next_indexes, 16, 1, KIND_PRESSABLE);
     nodes[pressable].listener_id = 16;
@@ -205,6 +206,7 @@ fn generated_node(id: u32, parent_id: u32, index: u32, kind: u32) -> Node {
                 source: format!("/tmp/property-test-{id}.png"),
                 object_fit: 1,
                 fallback_source: None,
+                sources: Vec::new(),
             }));
         }
         _ => {}
@@ -372,6 +374,7 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
                     source: format!("/tmp/property-test-{}.png", node.id),
                     object_fit: 1,
                     fallback_source: None,
+                    sources: Vec::new(),
                 })),
                 _ => None,
             })
