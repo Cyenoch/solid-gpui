@@ -45,29 +45,42 @@ jobs:
       PAGES_BASE_PATH: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
-      # Only an exact input match may skip host compilation; never add fallback keys.
-      # Restore every build:host output so warm and cold frontend inputs agree.
-      # native-ci separately verifies the committed SDK contract against its hosts.
-      # Extend this closure whenever the host build gains another input.
-      - name: Restore generated host artifacts
-        id: web-host
+      # Exact keys only: each producer is skipped only when all of its inputs match.
+      - name: Restore generated WASM host
+        id: web-wasm
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: &web-host-outputs |
-            examples/website/src/wasm
-            packages/solid-gpui/src/components.ts
+          path: &web-wasm-output examples/website/src/wasm
           key: >-
-            pages-web-host-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
-            '.github/workflows/pages.yml', '.github/actions/setup-rust/**',
+            pages-web-wasm-v1-bindgen-0.2.121-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
+            '.github/workflows/pages.yml',
+            '.github/actions/setup-rust/**',
+            '.cargo/**', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml',
+            'examples/*/native/Cargo.toml',
+            'crates/**', 'vendor/**', 'third_party/**', 'assets/**',
+            'scripts/build-web-wasm.sh'
+            ) }}
+
+      # Include the committed output so editing it always regenerates and verifies the contract.
+      - name: Restore generated SDK bindings
+        id: web-bindings
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: &web-bindings-output packages/solid-gpui/src/components.ts
+          key: >-
+            pages-web-bindings-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(
+            '.github/workflows/pages.yml',
+            '.github/actions/setup-rust/**',
             '.bun-version', '.cargo/**',
             'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml',
-            'package.json', 'bun.lock', 'examples/website/package.json',
+            '.oxfmtrc.json', 'package.json', 'bun.lock', 'tsconfig*.json',
+            'examples/*/native/Cargo.toml', 'examples/website/package.json',
             'crates/**', 'vendor/**', 'third_party/**', 'assets/**',
-            'examples/*/native/Cargo.toml',
-            'scripts/build-web-host.sh', 'scripts/native-codegen.ts',
-            'packages/solid-gpui-vite/src/**',
-            'packages/*/package.json',
+            'scripts/native-codegen.ts',
+            'packages/solid-gpui-vite/src/**', 'packages/*/package.json',
             'packages/solid-gpui/src/components.ts'
             ) }}
 
@@ -76,41 +89,50 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - name: Install native binding generator prerequisites
-        if: steps.web-host.outputs.cache-hit != 'true'
+        if: steps.web-bindings.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends \
             libfontconfig1-dev libfreetype6-dev libxcb1-dev \
             libxkbcommon-dev libxkbcommon-x11-dev pkg-config
       - name: Install Web Rust toolchain
-        if: steps.web-host.outputs.cache-hit != 'true'
+        if: steps.web-wasm.outputs.cache-hit != 'true' || steps.web-bindings.outputs.cache-hit != 'true'
         run: rustup toolchain install nightly-2026-07-28 --profile minimal --target wasm32-unknown-unknown
       - name: Set up Rust and dependency cache
-        if: steps.web-host.outputs.cache-hit != 'true'
+        if: steps.web-wasm.outputs.cache-hit != 'true' || steps.web-bindings.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-rust
         with:
           cache-key: pages-ubuntu-24.04
       - name: Install matching wasm-bindgen
-        if: steps.web-host.outputs.cache-hit != 'true'
+        if: steps.web-wasm.outputs.cache-hit != 'true'
         uses: taiki-e/install-action@d438492cf8a250514fa2d34b30bc3c0dc37c65ff # v2.87.8
         with:
           tool: wasm-bindgen-cli@0.2.121
           fallback: none
-      - name: Build WASM host and generated SDK bindings
-        if: steps.web-host.outputs.cache-hit != 'true'
-        run: bun run --cwd examples/website build:host
+      - name: Generate SDK bindings
+        if: steps.web-bindings.outputs.cache-hit != 'true'
+        run: bun run --cwd examples/website build:bindings
+      - name: Build WASM host
+        if: steps.web-wasm.outputs.cache-hit != 'true'
+        run: bun run --cwd examples/website build:wasm
       - name: Type-check and build the website
         run: bun run --cwd examples/website build:frontend
       - name: Test the website
         run: bun --conditions=browser test examples/website/tests
 
-      # Publish artifacts only after build/tests succeed, and never from a PR.
-      - name: Save generated host artifacts
-        if: github.event_name != 'pull_request' && steps.web-host.outputs.cache-hit != 'true'
+      # Save only exact artifacts from trusted post-validation runs, never from a PR.
+      - name: Save generated WASM host
+        if: github.event_name != 'pull_request' && steps.web-wasm.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: *web-host-outputs
-          key: ${{ steps.web-host.outputs.cache-primary-key }}
+          path: *web-wasm-output
+          key: ${{ steps.web-wasm.outputs.cache-primary-key }}
+      - name: Save generated SDK bindings
+        if: github.event_name != 'pull_request' && steps.web-bindings.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: *web-bindings-output
+          key: ${{ steps.web-bindings.outputs.cache-primary-key }}
 
       - name: Configure Pages
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

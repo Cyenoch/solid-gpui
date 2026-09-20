@@ -6,7 +6,7 @@ GitHub Actions 分别执行开发检查、依赖审计、网站部署和发布�
 
 | 工作流                                                         | 自动触发条件                                                   | 覆盖范围                                                                                               |
 | -------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| [CI](../.github/workflows/ci.yml)                              | 源码、测试夹具、构建配置或 Actions 变化的 PR 与 `main` 推送    | 独立运行 macOS 原生/协议检查与 Linux SDK 包检查；保留的 `Rust and Bun checks` 汇总状态要求两者均成功。 |
+| [CI](../.github/workflows/ci.yml)                              | 源码、测试夹具、构建配置或 Actions 变化的 PR 与 `main` 推送    | 独立运行 macOS 原生 check/test 两条 lane 与 Linux SDK 包检查；`Rust and Bun checks` 要求全部成功。 |
 | [Cross-platform host](../.github/workflows/cross-platform.yml) | 原生宿主或渲染器输入变化的 PR 与 `main` 推送                   | Linux Clippy 和库测试夹具；Windows 工作区检查与进程宿主链接。                                          |
 | [Dependency audit](../.github/workflows/audit.yml)             | 依赖清单、锁文件、审计配置或许可清单输入变化；每周一 03:37 UTC | Bun/Rust 安全公告及 macOS 上的第三方许可清单校验。                                                     |
 | [GitHub Pages](../.github/workflows/pages.yml)                 | 网站、文档、品牌资源、SDK、Rust 或构建输入变化                 | WASM 构建、网站类型检查和测试；仅从 `main` 部署。                                                      |
@@ -16,15 +16,17 @@ GitHub Actions 分别执行开发检查、依赖审计、网站部署和发布�
 路径过滤器保存在各工作流中，YAML 锚点保持 push 与 PR 的过滤器一致。
 添加分支保护的必需检查时，应考虑[路径过滤规则](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore)：整个工作流被跳过时不会上报已完成的检查。
 
-macOS 作业运行 `bun run task native-ci`：Rust 格式、协议与原生生成契约、跨语言 golden 夹具、默认特性工作区编译、严格 QuickJS Clippy 和 Rust 测试。Linux SDK 作业运行 `bun run task package-ci`：包格式、类型、测试和打包消费者冒烟检查。它为小型 native 工具夹具安装固定 Rust，但不编译 GPUI 宿主。两个作业独立启动，最终的 `Rust and Bun checks` 即使在依赖失败或跳过时也会执行，且只接受两者均成功；分支保护应继续使用这个汇总状态。
+macOS 矩阵分为两条独立 lane。`native-check-ci` 负责 Rust 格式、生成协议检查、默认特性工作区编译、严格 QuickJS Clippy 和原生绑定一致性；`native-test-ci` 负责跨语言 golden 与全部工作区运行时测试，包括修改过的 HTTP 客户端。任一 lane 失败不会取消另一条。Linux `package-ci` 负责包格式、类型、测试与打包消费者冒烟检查，其小型 native 工具夹具不编译 GPUI。`Rust and Bun checks` 即使在依赖失败或跳过时也运行，只接受整个原生矩阵和包检查均成功；分支保护继续使用此汇总状态。
 
-本地 `bun run ci` 仍组合两套检查，并共享记忆化的包构建。不要在同一 checkout 同时启动多个会构建包的 task 进程，它们的 `dist` 清理不相互协调。原生绑定检查归 `native-ci`，不再放在 JavaScript 包的 `package-ci` 中。
+本地 `native-ci` 顺序组合两条原生 lane；`bun run ci` 还运行包检查并共享记忆化包构建。不要在同一 checkout 中同时启动多个构建包的 task 进程，它们的 `dist` 清理不相互协调。托管 lane 使用独立工作区与缓存用途。
+
+Rust 承载的 QuickJS VM 测试通过 `fixtures/vite.quickjs-test.config.ts` 编译 TSX，不再构建外部原生宿主，仍执行真实 Vite 编译和 QuickJS 运行。受管理的 `fixtures/vite.config.ts` 保留开发与 Bun 启动集成所需的宿主构建/导出；原生准备和导出仍由工具链测试及原生绑定门禁覆盖，不删除运行时断言。
 
 Watcher 夹具通过 `scripts/watch-fixture.ts` 发出相互独立的应用保存。Vite 内置 watcher 会合并 50ms 内的 `change` 事件，Linux inotify 交付较快，即使 HMR 已完成，下一次测试写入仍可能被合并。辅助函数将模拟保存间隔设为 100ms，不修改真实应用的 watcher 配置、不重试失败检查、不增加测试超时，也不删除断言。
 
 macOS 的默认特性 `cargo check` 有意保留：QuickJS Clippy 启用了不同的依赖特性集合，不能验证消费者在不启用 QuickJS 时的编译契约。Linux Clippy 已用默认特性检查所有 targets，不重复执行 `cargo check` 或平台无关的格式检查。Windows 仍保留工作区检查与宿主链接。显示和 GPU 验证见[分发指南](distribution.zh-CN.md)。
 
-Pages 精确恢复生成的 WASM 宿主缓存，未命中时执行 `build:host`，随后始终运行 `build:frontend` 和浏览器测试。SDK 包检查不依赖网站已有构建产物，也不重复这些检查。组件示例检查器按网站的 tsconfig 解析类型，因此在 Bun 隔离安装依赖后，从仓库根目录运行也能正确解析。
+Pages 分别精确恢复 WASM 与生成 SDK 绑定，仅运行未命中缓存的对应生产步骤，随后始终执行 `build:frontend` 和浏览器测试。SDK 包检查不依赖网站已有构建产物，也不重复这些检查。组件示例检查器按网站 tsconfig 解析类型，因此从仓库根目录运行也能正确解析。
 
 Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一致；同时启用 Ashpd 默认的 Tokio 后端会导致编译失败。宿主 HTTP 适配器和浏览器资源下载器使用官方 Reqwest，使根锁文件不再包含已停止维护的 `rustls-pemfile`。macOS CI 和 Linux 库检查也会运行 HTTP 适配器的本地服务器测试，覆盖重定向策略、流式请求体、超时和代理配置。
 
@@ -58,11 +60,11 @@ bun run task website-package
 
 ## 缓存与验证
 
-共享的 [Rust 设置 action](../.github/actions/setup-rust/action.yml) 先选择固定工具链，再恢复 [Rust 依赖缓存](https://github.com/Swatinem/rust-cache)。缓存键包含 runner 镜像、架构、构建用途、已安装编译器、Cargo 配置和依赖清单/锁文件。Pages 在 WASM 成品缓存未命中时，先安装固定 Web nightly，再计算 Cargo 缓存键。Cargo 依赖缓存不为每次源码提交创建新条目。
+共享的 [Rust 设置 action](../.github/actions/setup-rust/action.yml) 先选择固定工具链，再恢复 Rust 依赖缓存。键包含 runner 镜像、架构、构建用途、已安装编译器、Cargo 配置及清单/锁文件。Pages 任一产物未命中时均先安装固定 Web nightly，包括仅绑定未命中的情况，保持 Cargo 缓存的工具链身份一致。依赖缓存不按源码提交生成新条目。
 
-保存前清理本地工作区/vendor 构建产物和增量状态，CI 也禁用 Cargo 增量编译。PR 只恢复缓存；只有推送或手动运行中成功的作业才能保存。精确命中的缓存不可修改，失败或仅检查的构建不应占据完整编译/测试作业的缓存。因此原生 CI 与 Embedded Bun 即使同为 macOS 15，也使用独立命名空间。审计只缓存 registry，候选构建与开发/WASM 缓存相互隔离。
+保存前清理本地工作区/vendor 构建产物和增量状态，CI 禁用 Cargo 增量编译。PR 只恢复缓存；成功的 push/手动运行才保存。精确命中不可修改，失败或仅检查的构建不能占据测试/链接图缓存。因此原生 check、原生 test 和 Embedded Bun 使用独立缓存用途；审计只缓存 registry，候选缓存与开发/WASM 隔离。
 
-Pages 将 `build:host` 的全部产物一起缓存：`examples/website/src/wasm` 和生成的 `packages/solid-gpui/src/components.ts`，不使用回退恢复键。只有 Rust 源码、嵌入资源、Cargo 配置/锁文件/清单、编译器和 bindgen 选择、原生导出器输入与构建工作流精确匹配时才跳过宿主编译；普通网站 TypeScript 和 Markdown 修改不使其失效。命中时跳过原生系统包及 Rust/bindgen 安装，但绝不跳过前端构建、类型检查或测试。仅在这些检查成功后保存，PR 不写入。新增 Rust 构建输入时同步维护 `pages.yml` 的键输入，参见 [Web 部署](web.zh-CN.md#github-pages)。
+Pages 分开缓存 `examples/website/src/wasm` 与生成的 `packages/solid-gpui/src/components.ts`，无回退键。WASM 键覆盖完整 Rust、Cargo、工具链、嵌入资源与 WASM 脚本输入，不包含 Bun 锁文件或 TS 导出器；绑定键额外包含 Bun、包、格式化器、导出器输入和已提交目录。仅编译器升级不再使未变的 WASM 失效。原生系统包只在绑定未命中时安装，wasm-bindgen 只在 WASM 未命中时安装；两者均命中则跳过 Rust 设置。前端构建、类型和测试始终运行，成功的非 PR 运行才保存缓存。新增输入时同步维护两份键，见 [Web 部署](web.zh-CN.md#github-pages)。
 
 轻量内嵌作业不构建 SDK 包、不生成原生绑定、不安装 LLVM，也不下载原生构建图。其独立 Cargo 缓存只承担 `embedded-bun` Clippy 图，不与原生 CI 的测试/链接图竞争。
 

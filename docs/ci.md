@@ -7,7 +7,7 @@ and release qualification. All workflows can also be started manually.
 
 | Workflow                                                       | Automatic trigger                                                                             | Coverage                                                                                                                                   |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| [CI](../.github/workflows/ci.yml)                              | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | Independent macOS native/protocol checks and Linux SDK package checks; the existing `Rust and Bun checks` status requires both to succeed. |
+| [CI](../.github/workflows/ci.yml)                              | Pull requests and pushes to `main` changing source, fixtures, build configuration, or Actions | Independent macOS native check/test lanes and Linux SDK package checks; `Rust and Bun checks` requires every lane to succeed. |
 | [Cross-platform host](../.github/workflows/cross-platform.yml) | Pull requests and pushes to `main` changing native host or renderer inputs                    | Linux Clippy and library fixtures; Windows workspace checks and a linked process host.                                                     |
 | [Dependency audit](../.github/workflows/audit.yml)             | Dependency manifests, locks, audit configuration, or notice inputs; Mondays at 03:37 UTC      | Bun and Rust advisories, plus generated third-party notice verification on macOS.                                                          |
 | [GitHub Pages](../.github/workflows/pages.yml)                 | Website, documentation, branding, SDK, Rust, or build inputs                                  | WASM build, website types and tests; deployments only from `main`.                                                                         |
@@ -21,19 +21,27 @@ filters identical. If branch protection adds required checks, account for
 [path-filtered workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore),
 which do not report a completed check when the entire workflow is skipped.
 
-The macOS job runs `bun run task native-ci`: Rust formatting, generated protocol
-and native contracts, cross-language golden fixtures, default-feature workspace
-compilation, strict QuickJS Clippy, and Rust tests. The Linux SDK job runs
-`bun run task package-ci`: package formatting, types, tests, and packed-consumer
-smoke tests. It installs pinned Rust for the small native-tooling fixtures, not a
-GPUI host. Both jobs start independently; the final `Rust and Bun checks` job
-runs even when a dependency fails or is skipped and accepts only two successful
-results. Keep that aggregate status in branch protection.
+The macOS matrix has two independent lanes. `native-check-ci` owns Rust formatting,
+generated protocol checks, default-feature workspace compilation, strict QuickJS
+Clippy, and native binding consistency. `native-test-ci` owns cross-language
+goldens and all workspace runtime tests, including the patched HTTP client.
+Neither lane cancels its sibling on failure. The Linux `package-ci` job owns
+package formatting, types, tests, and packed-consumer smoke checks; its small
+native-tooling fixtures do not compile GPUI. The `Rust and Bun checks` aggregate
+runs even after failures or skips and accepts only successful native matrix and
+package results. Keep that status in branch protection.
 
-Local `bun run ci` still composes both gates and shares the memoized package
-build. Do not launch separate package-building task processes against the same
-checkout: their `dist` cleanup is not coordinated. Native binding verification
-belongs to `native-ci`, not the JavaScript-only `package-ci` gate.
+Local `native-ci` composes both native lanes sequentially; `bun run ci` also runs
+the package gate and shares the memoized package build. Separate task processes
+must not build packages concurrently in one checkout: their `dist` cleanup is
+not coordinated. Hosted lanes use separate workspaces and cache purposes.
+
+Rust-hosted QuickJS VM tests compile their TSX through
+`fixtures/vite.quickjs-test.config.ts`, with no external native host. They retain
+real Vite compilation and real QuickJS execution without nested Cargo builds.
+The managed `fixtures/vite.config.ts` still builds/exports the host for development
+and the Bun launch integration. Native preparation/export behavior remains covered
+by the tooling tests and native binding gate; no runtime assertions are skipped.
 
 Watcher fixtures use `scripts/watch-fixture.ts` for distinct application saves.
 Vite's bundled watcher coalesces `change` events within 50ms; fast Linux inotify
@@ -48,8 +56,8 @@ set, so that job does not repeat `cargo check` or platform-independent formattin
 Windows still checks the workspace and links the host. Display and GPU
 qualification remain separate; see [distribution](distribution.md).
 
-Pages restores an exact-input cache of the generated WASM host or runs
-`build:host` on a miss, then always runs `build:frontend` and browser tests.
+Pages restores independent exact-input caches for WASM and generated SDK bindings;
+only the producer whose cache misses runs. It always runs `build:frontend` and browser tests.
 The SDK package gate does not require website build products or repeat those
 checks. The component example checker
 resolves types from the website's tsconfig, so it also works when invoked from
@@ -122,28 +130,29 @@ The shared [Rust setup action](../.github/actions/setup-rust/action.yml) selects
 the pinned toolchain before restoring a
 [Rust dependency cache](https://github.com/Swatinem/rust-cache). Cache keys include
 the runner image, architecture, build purpose, installed compilers, Cargo
-configuration, and dependency manifests/locks. On a WASM artifact-cache miss,
-Pages installs its pinned Web nightly before computing the Cargo key. Cargo
-dependency caches do not create a new entry for every source commit.
+configuration, and dependency manifests/locks. Whenever either Pages artifact
+misses, Pages installs the pinned Web nightly before computing the Cargo key,
+including bindings-only misses, keeping the installed-toolchain identity stable.
+Cargo dependency caches do not create a new entry for every source commit.
 
 The action prunes local workspace/vendor build products and incremental state
 before saving; CI also disables Cargo incremental compilation. PRs restore
 caches; only successful jobs on pushes and manual runs can save them. Exact cache hits
 are immutable: a failed or check-only build must not seed the cache used by full
-compile/test jobs. Native CI and Embedded Bun therefore have separate cache
-namespaces even though both use macOS 15. Audit jobs cache only the registry.
+compile/test jobs. Native check, native test, and Embedded Bun therefore have
+separate cache purposes even on macOS 15. Audit jobs cache only the registry.
 Candidate build caches are isolated from development and WASM caches.
 
-Pages also caches `examples/website/src/wasm` and the generated
-`packages/solid-gpui/src/components.ts` together: both are outputs of `build:host`.
-This cache has no fallback restore keys: only an exact match of the Rust sources, embedded
-assets, Cargo configuration/locks/manifests, compiler and bindgen selection,
-native exporter inputs, and build workflow can skip host compilation. Ordinary
-website TypeScript and Markdown edits do not invalidate it. A hit skips native
-system packages and Rust/bindgen setup, never frontend compilation, type checks,
-or tests. Save it only after those checks succeed and never from a PR. Keep the
-input list in `pages.yml` current when adding Rust build inputs; see
-[Web deployment](web.md#github-pages).
+Pages caches `examples/website/src/wasm` and generated
+`packages/solid-gpui/src/components.ts` separately, with no fallback restore keys.
+The WASM key includes the complete Rust, Cargo, toolchain, embedded-asset and
+WASM build-script inputs, but excludes Bun locks and TypeScript exporter sources.
+The bindings key adds Bun/package/formatter/exporter inputs and the committed
+catalog. A compiler-only update therefore cannot invalidate unchanged WASM.
+Native system packages are needed only for bindings; wasm-bindgen only for WASM.
+Both hits skip Rust setup entirely. Frontend compilation, type checking and tests
+always run; only successful non-PR runs save artifact caches. Keep both input lists
+in `pages.yml` current; see [Web deployment](web.md#github-pages).
 
 The lightweight embedded job skips SDK package builds, native binding generation,
 LLVM installation, and native graph downloads. Its isolated Cargo cache contains

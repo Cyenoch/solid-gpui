@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { build } from "vite";
 import { solidGpui } from "../packages/solid-gpui-vite/src";
-import { fixtureAliases } from "../fixtures/vite.config";
+import { fixtureAliases } from "../fixtures/vite.shared";
 
 async function buildApplication(options: {
   entry: string;

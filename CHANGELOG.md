@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Separated exact-input Pages WASM and SDK-binding caches, with independent producers and unchanged full local builds. Removed nested Cargo builds from Rust-hosted QuickJS fixtures while preserving real Vite/VM checks. Split native CI into independent check/test lanes with isolated dependency caches and a fail-closed aggregate; checkout credentials are not retained in these build jobs.
 - Updated `@solidjs/compiler` from `2.0.0-rc.6` to `2.0.0-rc.9`, retaining the latest stable `solid-js` runtime at `1.9.15`. Added a local Windows ARM64 native compiler build/package path using the exact upstream source and `SOLID_COMPILER_NATIVE`, without patching or publishing upstream. Synchronized English/Chinese installation, development and troubleshooting guides and regenerated dependency notices.
 - Updated vendored GPUI Kit and its reference pin from `501c7392` to `0e63ea79` (0.6.4 plus subsequent changes), preserving local editing, overlay, virtual-list and geometry-cache seams. Added native InputGroup/Questionnaire bindings, atomic inline tokens, editor search and paste events, Motion sequences, TextView stream fades and interactive pie charts. Controlled metadata now declares alternative `valueProps` so token content and plain values share acknowledgements. Regenerated SDK, website and desktop host catalogs; synchronized English/Chinese guides, executable website examples, navigation, documentation dates and dependency notices.
 

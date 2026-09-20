@@ -18,7 +18,7 @@ bun run website
 Open `http://127.0.0.1:5173/solid-gpui/`. The build writes generated WASM bindings
 into `examples/website/src/wasm/` and the deployable site into
 `examples/website/dist/`. Neither directory is committed. Browser `dev` and `build` commands first run
-`scripts/build-web-host.sh` to regenerate SDK bindings and rebuild the WASM host
+`build:host` to regenerate SDK bindings and rebuild the WASM host
 from the same Rust sources. Restart `dev` after Rust or protocol changes; Vite
 handles TypeScript/TSX changes. Calling Vite directly bypasses this preparation
 and can pair new component bindings with an obsolete host catalog.
@@ -29,6 +29,8 @@ sources, and `build:frontend` runs the route generator, the type check, and the
 Vite bundle. `dev` prepares the host the same way and then starts Vite. No script
 reuses a previously generated host or downloads one; every local build rebuilds
 both the bindings and the WASM module from the working tree.
+`build:bindings` runs the native catalog exporter; `build:wasm` runs
+`scripts/build-web-wasm.sh`. Pages can execute these producers independently.
 
 Set `WASM_BINDGEN` to a matching executable if your default wasm-bindgen version
 differs. The CLI must match the `wasm-bindgen` version in `Cargo.lock` exactly;
@@ -139,9 +141,9 @@ The [Pages workflow](../.github/workflows/pages.yml) handles the full deployment
   build and test without publishing. Manual runs publish only from `main`.
 - Ubuntu installs the Linux native libraries needed to export SDK bindings,
   the repository's pinned Rust and Bun toolchains, the matching Web nightly,
-  and a checksum-verified, prebuilt wasm-bindgen CLI. `build:host` regenerates
-  native bindings and builds the WASM host; `build:frontend` then type-checks and
-  bundles the site, and the website tests run last.
+  and a checksum-verified, prebuilt wasm-bindgen CLI as needed. Independent
+  `build:bindings` and `build:wasm` steps produce missing artifacts;
+  `build:frontend` then type-checks and bundles the site, followed by website tests.
 - Assets use `/<repository-name>/`, which is `/solid-gpui/` for this site.
   Only `examples/website/dist` is uploaded. The deploy job receives Pages write
   and OIDC permissions; no personal access token or backend is required.
@@ -150,43 +152,43 @@ The [Pages workflow](../.github/workflows/pages.yml) handles the full deployment
 
 ### Pages caching
 
-Two caches with different trust models serve this job.
+Two artifact caches and one dependency cache serve different purposes.
 
-The **generated host** cache stores both outputs of `build:host`:
-`examples/website/src/wasm` and `packages/solid-gpui/src/components.ts`.
-Restoring the generated SDK catalog together with WASM keeps warm and cold
-frontend inputs identical, even if the exporter rewrote the checked-out catalog.
-Its key is an
-exact-input hash with no `restore-keys`, so every hit is an exact hit: the
-restored bindings were produced by the same host build this commit would run. The
-key covers the workflow itself, the Rust setup action, the pinned toolchain and
-Bun versions, Cargo manifests and lockfile, `.cargo/**`, every crate, the vendored
-GPUI Kit and platform sources, third-party stubs, `scripts/build-web-host.sh`, the
-exporter that generates the SDK bindings, and the committed
-`packages/solid-gpui/src/components.ts` those bindings are paired with. It
-deliberately excludes website frontend sources and `docs/*.md`: they change the
-site, never the host. The artifact is tens of megabytes, one entry per distinct
-input key, and GitHub reclaims entries that go unused, so the cache holds the
-current input sets rather than one copy per commit; a reclaimed entry simply
-rebuilds through the cold path.
+The **WASM artifact** cache stores `examples/website/src/wasm`. Its exact input
+key covers the workflow/setup action, Cargo manifests/lock/configuration, pinned
+Rust toolchains, all crate/vendor/third-party sources and embedded assets,
+`scripts/build-web-wasm.sh`, and the wasm-bindgen version. It deliberately excludes
+Bun/package locks and TypeScript exporter code: those cannot change the WASM
+producer. The namespace is `pages-web-wasm-v1-bindgen-0.2.121`.
 
-On a hit the job skips the Linux native libraries, the nightly install, the Cargo
-dependency cache, the wasm-bindgen CLI, and `build:host`. It never skips route
-generation, the type check, the Vite bundle, or the website tests, so a warm run
-still validates everything that consumes the host. A key with no entry - a Rust,
-manifest, exporter, or generated-contract change - rebuilds the host through the
-same pins and commands as an uncached run. `pages-web-host-v2` namespaces the
-current artifact layout; bump it and extend the hashed closure whenever the host
-build gains an input, so an entry written for other inputs can never be reused.
+The **SDK binding** cache stores `packages/solid-gpui/src/components.ts`. Its key
+includes the same broad native inputs, plus Bun, package/formatter/TypeScript
+configuration, exporter source, and the committed catalog. The namespace is
+`pages-web-bindings-v1`. Neither artifact uses `restore-keys`; each producer runs
+on its own miss. Changes to TypeScript tooling can regenerate bindings without
+rebuilding unchanged WASM. Ordinary frontend and Markdown changes invalidate
+neither artifact, but always rebuild and test the website.
+
+| WASM cache | Binding cache | Work performed before frontend checks |
+| --- | --- | --- |
+| Hit | Hit | Restore both artifacts; no Rust setup or host compilation. |
+| Hit | Miss | Install native prerequisites; generate bindings only. |
+| Miss | Hit | Install wasm-bindgen; build WASM only. |
+| Miss | Miss | Install both producer prerequisites; generate bindings and WASM. |
+
+Whenever either artifact misses, install the same pinned Web nightly before
+restoring Cargo dependencies, including bindings-only builds. The Cargo cache
+hashes installed toolchains, so varying that set would fragment its namespace.
+All paths run route generation, type checking, bundling and website tests.
+Artifact caches are saved only after those checks succeed, never from PRs.
+Extend the relevant key and bump its namespace whenever a producer gains an input.
 
 The **Cargo dependency** cache is the `rust-cache` entry from
 `.github/actions/setup-rust`. It is keyed per runner and build purpose, reused
-across source commits, saved only by successful non-PR jobs, and used only on the cold
-path. It holds intermediate compilation products, never the generated bindings. It is also never
-a reason to skip the host build: only the exact-input WASM cache hit skips it, and
-that cache is written only by non-pull-request runs that already built the host,
-type-checked and bundled the site, and passed the website tests. No partial,
-failed, or unrelated cache entry substitutes for that build.
+across source commits, saved only by successful non-PR jobs, and used when either
+artifact misses. It holds intermediate compilation products, not proof that a
+producer can be skipped. Only that producer's exact artifact hit can skip it;
+partial, failed, or unrelated cache entries never substitute for a build.
 
 Because the key includes the committed SDK bindings, regenerate and commit
 `packages/solid-gpui/src/components.ts` together with any host change that alters

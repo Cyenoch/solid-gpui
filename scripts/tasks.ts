@@ -487,12 +487,21 @@ class Tasks {
   }
 
   async nativeCI(): Promise<void> {
+    await this.nativeCheckCI();
+    await this.nativeTestCI();
+  }
+
+  async nativeCheckCI(): Promise<void> {
     await this.rustFormat();
     await this.protocolCodegenCheck();
+    await this.rustCompile();
+    await this.nativeCodegenCheck();
+  }
+
+  async nativeTestCI(): Promise<void> {
     await this.packageBuild();
     await this.protocolGoldenCheck();
-    await this.rustCheck();
-    await this.nativeCodegenCheck();
+    await this.rustTest();
   }
 
   async packageCI(): Promise<void> {
@@ -696,6 +705,10 @@ addTask("sdk-pack <output>", "Build and pack the matching SDK packages without c
   tasks.sdkPack(output),
 );
 addTask("native-ci", "Run the native, protocol, and Rust CI suite", () => tasks.nativeCI());
+addTask("native-check-ci", "Check native formatting, schemas, feature configurations, and bindings", () =>
+  tasks.nativeCheckCI(),
+);
+addTask("native-test-ci", "Verify protocol goldens and run native runtime tests", () => tasks.nativeTestCI());
 addTask("package-ci", "Run the TypeScript package CI suite", () => tasks.packageCI());
 addTask("rust-format", "Check Rust formatting", () => tasks.rustFormat());
 addTask("rust-compile", "Compile Rust workspace", () => tasks.rustCompile());

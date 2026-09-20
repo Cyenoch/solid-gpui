@@ -396,7 +396,7 @@ mod tests {
                     "vite",
                     "build",
                     "--config",
-                    "fixtures/vite.config.ts"
+                    "fixtures/vite.quickjs-test.config.ts"
                 ])
                 .env("SOLID_GPUI_FIXTURE_OUTPUT", &entry)
                 .status()
