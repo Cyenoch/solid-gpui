@@ -1477,7 +1477,6 @@ test("SurfaceHost preserves exact retired membership across sparse IDs and range
   host.dispose();
 });
 
-
 test("transport disposal rejects pending commands and notifies termination once", async () => {
   let notify: ((error: TransportTerminatedError) => void) | undefined;
   let notifications = 0;
@@ -1685,7 +1684,9 @@ test("Image supports bounded inline sources through reactive commits", async () 
     invalid.render(() => createComponent(Image, { source: "x".repeat(MAX_IMAGE_SOURCE_BYTES + 1) })),
   ).toThrow("source");
   expect(() =>
-    invalid.render(() => createComponent(Image, { source: "ok.png", sourceSet: [{ source: "x.png", width: 0, height: 1 }] })),
+    invalid.render(() =>
+      createComponent(Image, { source: "ok.png", sourceSet: [{ source: "x.png", width: 0, height: 1 }] }),
+    ),
   ).toThrow("width");
   expect(() =>
     invalid.render(() =>

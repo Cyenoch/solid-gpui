@@ -189,23 +189,31 @@ import { Column, Row, Text } from "@solid-gpui/core";
 
 ## 图片
 
-`Image` 接受本地路径、百分号编码的 `file:` URL、HTTP(S) 和 `data:image/...`。原生宿主在开窗前安装 HTTP 客户端，浏览器宿主使用平台 fetch。内联数据通过 GPUI 异步资源缓存解码，支持 GPUI 提供的 SVG 和动画格式。主来源与备用来源各限制为 1 MiB UTF-8 文本，仍遵守总帧预算。
+`Image` 接受本地路径、百分号编码的 `file:` URL、HTTP(S) 和 `data:image/...`。原生宿主在开窗前安装 HTTP 客户端，浏览器宿主使用平台 fetch。每个主来源和备用来源字符串限制为 1 MiB UTF-8 文本，仍遵守总帧预算。相对路径基于宿主工作目录解析。
 
-`fallbackSource` 仅在主来源失败时使用，不因请求等待而显示，保留视口、object fit 和圆角。需离线工作的打包应用可用内联备用图片。相对路径基于宿主工作目录解析。
+原生托管 provider 根据图片实际布局边界和窗口缩放选择物理解码/栅格化目标。目标向上归入四分之一倍频程桶（相邻尺寸每轴相差小于约 1.19 倍），且不超过源位图；`objectFit` 仍使用原始逻辑几何。SVG 保持可缩放并按目标尺寸栅格化。JPEG 会在适用时先使用原生 1/8、1/4 或 1/2 解码，再完成最终缩放。其他光栅格式先按源尺寸解码再缩放，因此大 PNG 或其他全分辨率位图仍可能产生有界的瞬时内存峰值；它们不会在解码阶段降采样。
 
-直接将 URL 传给 `source`，无需 JavaScript fetch 或临时文件：
+同一图片有多种物理尺寸时使用 `sourceSet`。它最多接受 32 个相同比例的候选项，每项带正数固有 `width` 和 `height`；provider 选择足以覆盖实际物理目标的最小候选项，若都不足则选择最大项。仅当 `sourceSet` 为空时才以 `source` 为主来源。URL 按原值使用，运行时不会重写 URL 或自行添加尺寸参数。
 
 ```tsx
 import { Image } from "@solid-gpui/core";
 
 <Image
-  source="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=640"
+  source="/photos/cover-1280.jpg"
+  sourceSet={[
+    { source: "/photos/cover-640.jpg", width: 640, height: 360 },
+    { source: "/photos/cover-1280.jpg", width: 1280, height: 720 },
+  ]}
   fallbackSource="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%2394a3b8'/%3E%3C/svg%3E"
   objectFit="cover"
   style={{ width: 320, height: 180, borderRadius: 12 }}
 />;
 ```
 
-GPUI 按来源管理异步下载、解码和缓存；更新 `source` 会选择新资源。浏览器请求需满足图片服务器的 CORS 策略。自行创建 GPUI `Application` 的 Rust 应用需通过 `with_http_client` 配置 HTTP 客户端。
+`fallbackSource` 仅在选中的主来源失败后尝试，不会在请求等待时显示，并保留图片视口、object fit 和圆角。需要离线工作的打包应用可使用内联备用图片。
 
-原生 HTTP 连接超时 10 秒，闲置读取超时 15 秒；这些是连接与闲置上限，不是整个下载时长上限。
+编码输入限制为 32 MiB；任一轴超过 32768 像素或源像素数超过 64 × 1024 × 1024 时拒绝，输出位图最多 16 × 1024 × 1024 像素。原生工作最多同时进行四个抓取和两个解码。相同来源键共享编码输入，相同来源及目标尺寸通过弱索引共享解码结果，但不存在非活跃解码图片缓存：最后一个渲染 owner 释放变体时，其解码像素与 atlas 分配随之释放。每个窗口在替换帧重绘完成前保留之前显示的帧，保证场景重放安全。
+
+GIF/WebP 动画只保留当前帧、一个预取帧及 compositor 源状态，不会解码完整动画。每窗口帧租约避免一个窗口使另一窗口正在显示的帧失效。离屏 prepaint 会释放变体；减少动态效果或窗口不活跃时暂停新的播放工作。自然布局所需的源元数据仍可能抓取一次。这些边界限制单项工作和保留变体，不代表常量内存保证，也不是整个应用的总内存上限。
+
+浏览器请求需满足图片服务器的 CORS 策略。自行创建 GPUI `Application` 的 Rust 应用需通过 `with_http_client` 配置 HTTP 客户端。原生 HTTP 连接超时 10 秒，闲置读取超时 15 秒；这些是连接与闲置上限，不是整个下载时长上限。

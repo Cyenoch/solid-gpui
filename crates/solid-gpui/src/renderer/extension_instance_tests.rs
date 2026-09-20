@@ -1,7 +1,7 @@
 use super::*;
 use crate::protocol::{
     CommandOperation, EventPayload, ExtensionField, ExtensionProperties, ExtensionValue, Node,
-    Patch, Snapshot, VirtualListProperties, UPDATE_LISTENER, UPDATE_PROPERTIES,
+    Patch, Snapshot, UPDATE_LISTENER, UPDATE_PROPERTIES, VirtualListProperties,
 };
 use crate::transport::InMemoryAdapter;
 use crate::tree::{KIND_EXTENSION, KIND_VIRTUAL_LIST};
@@ -413,28 +413,42 @@ fn same_epoch_snapshot_republishes_live_scroll_capabilities(cx: &mut TestAppCont
     };
     let commit = |cx: &mut TestAppContext, message| {
         cx.update_window(window.into(), |_, window, cx| {
-                root.update(cx, |root, cx| {
-                    root.apply_decoded_message_in_window(message, window, cx)
-                })
+            root.update(cx, |root, cx| {
+                root.apply_decoded_message_in_window(message, window, cx)
             })
-            .expect("window")
-            .expect("commit");
+        })
+        .expect("window")
+        .expect("commit");
     };
     commit(cx, snapshot(0, 1, Some(true)));
     let content = evidence.contents.borrow()[0].clone();
-    let old_viewport = content.scroll_viewport().expect("live list publishes viewport");
+    let old_viewport = content
+        .scroll_viewport()
+        .expect("live list publishes viewport");
     let _old_decoration = old_viewport.decorate();
     commit(cx, snapshot(1, 2, Some(true)));
     assert!(
-        !content.scroll_viewport().expect("rebased list viewport").is_decorated(),
+        !content
+            .scroll_viewport()
+            .expect("rebased list viewport")
+            .is_decorated(),
         "full Snapshot republishes the current list capability"
     );
     commit(cx, snapshot(2, 3, None));
-    assert!(content.scroll_viewport().is_none(), "removed child has no list capability");
+    assert!(
+        content.scroll_viewport().is_none(),
+        "removed child has no list capability"
+    );
     commit(cx, snapshot(3, 4, Some(false)));
-    assert!(content.scroll_viewport().is_none(), "replacement View has no list capability");
+    assert!(
+        content.scroll_viewport().is_none(),
+        "replacement View has no list capability"
+    );
     commit(cx, snapshot(4, 5, Some(true)));
-    assert!(content.scroll_viewport().is_some(), "same ID newly created list is published");
+    assert!(
+        content.scroll_viewport().is_some(),
+        "same ID newly created list is published"
+    );
 }
 
 #[test]

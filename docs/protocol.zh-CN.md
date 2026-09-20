@@ -1,6 +1,6 @@
 # Solid GPUI 协议 v6
 
-本文描述 TypeScript 渲染器与 Rust/GPUI 宿主之间已实现的线协议。v6 为 Bebop 契约新增显式布局订阅和带数据版本的虚拟列表编辑，两端必须同步重建，不接受 v5 载荷。权威 schema 位于 [protocol.bop](../packages/solid-gpui/src/protocol/protocol.bop)，已校验生成绑定分别位于 TypeScript 和 Rust 协议模块。schema-lock.json 将版本 6 固定到 SHA-256 `79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc`，漂移会使生成检查失败。普通包和 Rust 构建消费已提交文件，不调用 bebopc。重新生成与检查：
+本文描述 TypeScript 渲染器与 Rust/GPUI 宿主之间已实现的线协议。v6 为 Bebop 契约新增显式布局订阅和带数据版本的虚拟列表编辑，两端必须同步重建，不接受 v5 载荷。权威 schema 位于 [protocol.bop](../packages/solid-gpui/src/protocol/protocol.bop)，已校验生成绑定分别位于 TypeScript 和 Rust 协议模块。schema-lock.json 将版本 6 固定到 SHA-256 `67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d`，漂移会使生成检查失败。普通包和 Rust 构建消费已提交文件，不调用 bebopc。重新生成与检查：
 
 ```sh
 bun run task protocol-codegen
@@ -56,9 +56,11 @@ HostProperties 包含：
 
 - TextInput：值、占位文本、多行、禁用、受控状态、编辑序号、选区、marked range、最大长度和反向选区。
 - VirtualList：项数、可见范围、估计尺寸、overscan、必需的 `dataRevision`，以及可选的 `dataEdit { baseRevision, start, oldCount, newCount }`。
-- Image：来源、object-fit 代码和备用来源。
+- Image：来源、object-fit 代码、备用来源，以及最多 32 个包含来源和正数固有宽高的 `sourceSet` 项。
 - Drag：拖动类型、导出文件、接受 drag-over/drop 标记。
 - Extension：16 字节 providerId、32 字节 catalogDigest、非零 entryId/entryVersion、有序唯一非零字段和事件 ID。字段支持 bool、i32、u32、有限 f32、有界文本和字节。字段和事件 ID 最多各 256 个；文本及字节的单值与合计均限制 1 MiB。
+
+图片候选项必须具有相同宽高比。宿主选择足以覆盖实际布局物理目标的最小候选项，都不足时选择最大项。仅当 `sourceSet` 为空时才以 `source` 为主来源；`fallbackSource` 仍是失败回退。候选 URL 是不透明线协议值，不会自动重写。
 
 虚拟列表编辑替换上一已发布数据的一段连续区间。新节点的数据版本为零，不携带编辑。数据版本变更时必须给出基于上一版本的编辑，旧区间合法且结果数量等于 itemCount；等长替换和重排也属于数据变更。仅视口变化时保留原版本与编辑，宿主不会重复应用已消费编辑。完整 Snapshot 提供完整状态，不作为增量编辑执行。无效 Patch 元数据在事务内拒绝，不通过重置列表掩盖错误。
 
@@ -140,7 +142,7 @@ Command 携带 surfaceId、epoch、afterRevision、requestId、nodeId、数值 k
 
 命令结果以 Event 返回 request ID、command code、node ID、success、可选错误和 CommandValue。值标签为 1=number、2=pair、3=boolean、4=text、5=paths、6=file text、7=image、8=bounds、9=window state、10=scroll offset。文件、图片、剪贴板、路径、菜单、通知和快捷键限制在发布到 JS 前检查。
 
-已退役 Surface 的合法在途提交不再发布，也不会终止应用。迟到的初始 Snapshot 会收到匹配的 SurfaceClosed，让客户端释放子根。此规则不接受从未分配的 ID，也不恢复已退役 ID。
+已退役 Surface 的合法在途提交不再发布，也不会终止应用。退役 ID 以合并后的精确区间压缩；稀疏退役状态会随间隙数增长，不是常量内存。迟到的初始 Snapshot 会收到匹配的 SurfaceClosed，让客户端释放子根。此规则不接受从未分配的 ID，也不恢复已退役 ID；JavaScript peer 终止时清空退役 ID 状态。
 
 ## 4. 事件
 
@@ -182,6 +184,8 @@ Focus/Blur 有意保留双形式：View/Pressable 焦点观察者省略载荷，
 Rust NativeStateRegistry 拥有 surface、窗口、焦点、输入和保留状态。CommitPump 是有界交接点，接收 runtime 提交载荷并在 registry 前台 owner 应用，只验证和发布完整 Snapshot/Patch 状态。
 
 原生 Patch 使用被修改节点和子列表的事务日志，不再克隆整个节点存储。结构校验与 Extension 合约校验位于同一回滚范围，全部成功后才发布 revision 并更新原生状态。失败时恢复结构、派生文本与旧 revision。内部变更集合包含修改/删除的身份、原始与最终祖先，以及类型化子节点的归属依赖；校验、事件路由、原生实例更新和缓存失效共同消费该集合。结构变更可以访问被移动的兄弟节点和依赖子树，局部属性更新不复制无关节点。首次 Snapshot 仍完整验证树。
+
+聚焦链接边界由当前状态派生，不再保留只写状态。完整 Snapshot 在替换完整树的同时刷新视口能力，避免遗留旧的 surface 能力状态。
 
 TypeScript SurfaceRouter 是唯一帧解码和事件路由器，将输入 chunk 分组成各 surface 有序语义事件批次。HostTree 拥有私有 NodeGraph、事务日志、脏属性定稿和 Snapshot/Patch 生产；CommandClient 拥有请求 ID、待处理结果与终止拒绝。HostKind 事实模块拥有允许属性、子规则、投射类别和运行值能力。这些模块不向 Solid 组件暴露传输内部或生成协议记录。
 

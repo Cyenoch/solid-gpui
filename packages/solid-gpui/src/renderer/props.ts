@@ -153,8 +153,7 @@ export function imageFor(node: HostNodeInternal, props: HostProps): HostProperti
     sourceBytes += utf8ByteLength(candidate.source);
     return { source: candidate.source, width: candidate.width, height: candidate.height };
   });
-  if (sourceBytes > MAX_FRAME_SIZE - 1024)
-    throw new RangeError("Image sources exceed the aggregate frame byte limit");
+  if (sourceBytes > MAX_FRAME_SIZE - 1024) throw new RangeError("Image sources exceed the aggregate frame byte limit");
   const objectFit = props.objectFit ?? "contain";
   if (!["fill", "contain", "cover", "scaleDown", "none"].includes(objectFit))
     throw new TypeError("Image objectFit is invalid");

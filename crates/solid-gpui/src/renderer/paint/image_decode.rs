@@ -6,7 +6,9 @@ use std::time::Duration;
 use gif::{ColorOutput, DisposalMethod, MemoryLimit};
 use gpui::{DevicePixels, ImageCacheError, ParsedSvg, RenderImage, SvgRenderer, SvgSize, size};
 use image::imageops::{self, FilterType};
-use image::{DynamicImage, GenericImageView, ImageBuffer, ImageFormat, ImageReader, Limits, RgbaImage};
+use image::{
+    DynamicImage, GenericImageView, ImageBuffer, ImageFormat, ImageReader, Limits, RgbaImage,
+};
 use image_webp::WebPDecoder;
 use smallvec::smallvec;
 
@@ -49,7 +51,7 @@ pub(super) struct ImageDecoder {
 
 enum DecoderState {
     Static(StaticDecoder),
-    Gif(GifDecoder),
+    Gif(Box<GifDecoder>),
     WebP(WebPDecoderState),
     Svg(SvgDecoder),
 }
@@ -108,7 +110,11 @@ impl EncodedImage {
             ImageFormat::Gif => {
                 let reader = new_gif_reader(bytes.clone())?;
                 let animated = gif_is_animated(bytes.clone())?;
-                (u32::from(reader.width()), u32::from(reader.height()), animated)
+                (
+                    u32::from(reader.width()),
+                    u32::from(reader.height()),
+                    animated,
+                )
             }
             ImageFormat::WebP => {
                 let reader = new_webp_reader(bytes.clone())?;
@@ -126,8 +132,13 @@ impl EncodedImage {
 
         let orientation = if format == ImageFormat::Jpeg {
             jpeg_orientation(&bytes)
-        } else {
+        } else if format == ImageFormat::Gif || animated {
             image::metadata::Orientation::NoTransforms
+        } else {
+            let mut reader = ImageReader::with_format(Cursor::new(bytes.clone()), format);
+            reader.limits(image_limits());
+            let mut decoder = reader.into_decoder().map_err(image_error)?;
+            image::ImageDecoder::orientation(&mut decoder).map_err(image_error)?
         };
         let size = if orientation_swaps_axes(orientation) {
             (height, width)
@@ -155,11 +166,13 @@ impl EncodedImage {
             EncodedKind::Raster(ImageFormat::Gif) => {
                 let reader = new_gif_reader(self.bytes.clone())?;
                 let canvas = RgbaImage::new(u32::from(reader.width()), u32::from(reader.height()));
-                DecoderState::Gif(GifDecoder { reader, canvas })
+                DecoderState::Gif(Box::new(GifDecoder { reader, canvas }))
             }
-            EncodedKind::Raster(ImageFormat::WebP) => {
+            EncodedKind::Raster(ImageFormat::WebP) if self.animated => {
                 let reader = new_webp_reader(self.bytes.clone())?;
-                let size = reader.output_buffer_size().ok_or_else(|| decode_error("WebP output size overflows"))?;
+                let size = reader
+                    .output_buffer_size()
+                    .ok_or_else(|| decode_error("WebP output size overflows"))?;
                 if size > MAX_DECODE_BYTES {
                     return Err(decode_error("WebP output exceeds the decode limit"));
                 }
@@ -222,7 +235,9 @@ impl StaticDecoder {
             // decoder allocations are bounded, but their transient decode peak is source-sized.
             let mut reader = ImageReader::with_format(Cursor::new(self.bytes.clone()), self.format);
             reader.limits(image_limits());
-            resize_exact(reader.decode().map_err(image_error)?, target)
+            let mut image = reader.decode().map_err(image_error)?;
+            image.apply_orientation(self.orientation);
+            resize_exact(image, target)
         };
         Ok(decoded_frame(image, Duration::ZERO))
     }
@@ -256,8 +271,12 @@ impl GifDecoder {
         let top = u32::from(frame.top);
         let width = u32::from(frame.width);
         let height = u32::from(frame.height);
-        if left.checked_add(width).is_none_or(|right| right > self.canvas.width())
-            || top.checked_add(height).is_none_or(|bottom| bottom > self.canvas.height())
+        if left
+            .checked_add(width)
+            .is_none_or(|right| right > self.canvas.width())
+            || top
+                .checked_add(height)
+                .is_none_or(|bottom| bottom > self.canvas.height())
         {
             return Err(decode_error("GIF frame lies outside its canvas"));
         }
@@ -268,7 +287,11 @@ impl GifDecoder {
                 let source = ((y * width + x) * 4) as usize;
                 let pixel = &frame.buffer[source..source + 4];
                 if pixel[3] != 0 {
-                    output.put_pixel(left + x, top + y, image::Rgba([pixel[0], pixel[1], pixel[2], pixel[3]]));
+                    output.put_pixel(
+                        left + x,
+                        top + y,
+                        image::Rgba([pixel[0], pixel[1], pixel[2], pixel[3]]),
+                    );
                 }
             }
         }
@@ -320,7 +343,7 @@ impl WebPDecoderState {
             ))
         } else {
             let mut rgba = Vec::with_capacity((width as usize) * (height as usize) * 4);
-            for rgb in self.buffer.chunks_exact(3) {
+            for rgb in self.buffer.as_chunks::<3>().0 {
                 rgba.extend_from_slice(&[rgb[0], rgb[1], rgb[2], 255]);
             }
             let image = RgbaImage::from_raw(width, height, rgba)
@@ -339,7 +362,9 @@ fn decode_jpeg(
     let mut decoder = jpeg_decoder::Decoder::new(Cursor::new(bytes));
     decoder.set_max_decoding_buffer_size(MAX_DECODE_BYTES);
     decoder.read_info().map_err(external_error)?;
-    let source = decoder.info().ok_or_else(|| decode_error("JPEG has no frame information"))?;
+    let source = decoder
+        .info()
+        .ok_or_else(|| decode_error("JPEG has no frame information"))?;
     let requested = if orientation_swaps_axes(orientation) {
         (target.1, target.0)
     } else {
@@ -369,18 +394,18 @@ fn decode_jpeg(
             }
         }
         jpeg_decoder::PixelFormat::L16 => {
-            for luma in pixels.chunks_exact(2) {
-                let luma = u16::from_be_bytes([luma[0], luma[1]]) >> 8;
+            for luma in pixels.as_chunks::<2>().0 {
+                let luma = u16::from_ne_bytes([luma[0], luma[1]]) >> 8;
                 rgba.extend_from_slice(&[luma as u8, luma as u8, luma as u8, 255]);
             }
         }
         jpeg_decoder::PixelFormat::RGB24 => {
-            for rgb in pixels.chunks_exact(3) {
+            for rgb in pixels.as_chunks::<3>().0 {
                 rgba.extend_from_slice(&[rgb[0], rgb[1], rgb[2], 255]);
             }
         }
         jpeg_decoder::PixelFormat::CMYK32 => {
-            for cmyk in pixels.chunks_exact(4) {
+            for cmyk in pixels.as_chunks::<4>().0 {
                 let key = 1.0 - f32::from(cmyk[3]) / 255.0;
                 rgba.extend_from_slice(&[
                     ((255.0 - f32::from(cmyk[0])) * key) as u8,
@@ -408,7 +433,7 @@ fn resize_exact(image: DynamicImage, target: (u32, u32)) -> DynamicImage {
 
 fn decoded_frame(image: DynamicImage, delay: Duration) -> DecodedFrame {
     let mut buffer = image.into_rgba8();
-    for pixel in buffer.chunks_exact_mut(4) {
+    for pixel in buffer.as_chunks_mut::<4>().0 {
         pixel.swap(0, 2);
     }
     let frame = image::Frame::new(buffer);
@@ -425,7 +450,9 @@ fn new_gif_reader(bytes: Bytes) -> Result<GifReader, ImageCacheError> {
         NonZeroU64::new(MAX_DECODE_BYTES as u64).expect("non-zero GIF memory limit"),
     ));
     options.check_frame_consistency(true);
-    options.read_info(Cursor::new(bytes)).map_err(external_error)
+    options
+        .read_info(Cursor::new(bytes))
+        .map_err(external_error)
 }
 
 fn gif_is_animated(bytes: Bytes) -> Result<bool, ImageCacheError> {
@@ -434,7 +461,9 @@ fn gif_is_animated(bytes: Bytes) -> Result<bool, ImageCacheError> {
     options.set_memory_limit(MemoryLimit::Bytes(
         NonZeroU64::new(MAX_DECODE_BYTES as u64).expect("non-zero GIF memory limit"),
     ));
-    let mut reader = options.read_info(Cursor::new(bytes)).map_err(external_error)?;
+    let mut reader = options
+        .read_info(Cursor::new(bytes))
+        .map_err(external_error)?;
     if reader.read_next_frame().map_err(external_error)?.is_none() {
         return Err(decode_error("GIF contains no frames"));
     }
@@ -497,25 +526,36 @@ fn jpeg_orientation(bytes: &[u8]) -> image::metadata::Orientation {
         if bytes[offset] != 0xff {
             break;
         }
-        let marker = bytes[offset + 1];
-        offset += 2;
+        while bytes.get(offset) == Some(&0xff) {
+            offset += 1;
+        }
+        let Some(&marker) = bytes.get(offset) else {
+            break;
+        };
+        offset += 1;
         if marker == 0xda || marker == 0xd9 {
             break;
         }
         if marker == 0x01 || (0xd0..=0xd7).contains(&marker) {
             continue;
         }
-        let Some(length_bytes) = bytes.get(offset..offset + 2) else { break };
+        let Some(length_bytes) = bytes.get(offset..offset + 2) else {
+            break;
+        };
         let length = usize::from(u16::from_be_bytes([length_bytes[0], length_bytes[1]]));
-        if length < 2 || offset.checked_add(length).is_none_or(|end| end > bytes.len()) {
+        if length < 2
+            || offset
+                .checked_add(length)
+                .is_none_or(|end| end > bytes.len())
+        {
             break;
         }
         if marker == 0xe1 {
             let payload = &bytes[offset + 2..offset + length];
-            if let Some(tiff) = payload.strip_prefix(b"Exif\0\0") {
-                if let Some(orientation) = image::metadata::Orientation::from_exif_chunk(tiff) {
-                    return orientation;
-                }
+            if let Some(tiff) = payload.strip_prefix(b"Exif\0\0")
+                && let Some(orientation) = image::metadata::Orientation::from_exif_chunk(tiff)
+            {
+                return orientation;
             }
         }
         offset += length;
@@ -541,6 +581,39 @@ mod tests {
     use image::{GenericImageView, ImageEncoder};
 
     #[test]
+    fn static_png_orientation_survives_target_decode() {
+        let source = image::RgbImage::from_fn(2, 1, |x, _| {
+            if x == 0 {
+                image::Rgb([255, 0, 0])
+            } else {
+                image::Rgb([0, 255, 0])
+            }
+        });
+        let mut bytes = Vec::new();
+        let mut encoder = image::codecs::png::PngEncoder::new(&mut bytes);
+        encoder
+            .set_exif_metadata(
+                b"II*\0\x08\0\0\0\x01\0\x12\x01\x03\0\x01\0\0\0\x06\0\0\0\0\0\0\0".to_vec(),
+            )
+            .unwrap();
+        encoder
+            .write_image(source.as_raw(), 2, 1, image::ExtendedColorType::Rgb8)
+            .unwrap();
+        let encoded = Arc::new(EncodedImage::new(bytes, SvgRenderer::new(Arc::new(()))).unwrap());
+        assert_eq!(encoded.size, (1, 2));
+        let frame = encoded
+            .decoder((1, 2))
+            .unwrap()
+            .next_frame()
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            frame.image.as_bytes(0).unwrap(),
+            &[0, 0, 255, 255, 0, 255, 0, 255]
+        );
+    }
+
+    #[test]
     fn dimension_limits_reject_before_allocation() {
         assert!(validate_source_size(MAX_DIMENSION + 1, 1).is_err());
         assert!(validate_source_size(8193, 8192).is_err());
@@ -550,19 +623,24 @@ mod tests {
 
     #[test]
     fn jpeg_orientation_parser_swaps_intrinsic_axes() {
-        let mut jpeg = vec![0xff, 0xd8, 0xff, 0xe1, 0, 34];
-        jpeg.extend_from_slice(b"Exif\0\0II*\0\x08\0\0\0\x01\0\x12\x01\x03\0\x01\0\0\0\x06\0\0\0\0\0\0\0");
+        let mut jpeg = vec![0xff, 0xd8, 0xff, 0xff, 0xe1, 0, 34];
+        jpeg.extend_from_slice(
+            b"Exif\0\0II*\0\x08\0\0\0\x01\0\x12\x01\x03\0\x01\0\0\0\x06\0\0\0\0\0\0\0",
+        );
         jpeg.extend_from_slice(&[0xff, 0xd9]);
-        assert_eq!(jpeg_orientation(&jpeg), image::metadata::Orientation::Rotate90);
+        assert_eq!(
+            jpeg_orientation(&jpeg),
+            image::metadata::Orientation::Rotate90
+        );
         assert!(orientation_swaps_axes(jpeg_orientation(&jpeg)));
     }
 
     #[test]
     fn jpeg_decoder_scales_and_emits_target_sized_bgra() {
-        let source = RgbaImage::from_fn(64, 32, |x, _| image::Rgba([x as u8, 2, 3, 255]));
+        let source = image::RgbImage::from_fn(64, 32, |x, _| image::Rgb([x as u8, 2, 3]));
         let mut bytes = Vec::new();
         image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 90)
-            .write_image(source.as_raw(), 64, 32, image::ExtendedColorType::Rgba8)
+            .write_image(source.as_raw(), 64, 32, image::ExtendedColorType::Rgb8)
             .unwrap();
 
         let mut native = jpeg_decoder::Decoder::new(Cursor::new(bytes.as_slice()));
@@ -570,7 +648,12 @@ mod tests {
         let scaled = native.scale(13, 7).unwrap();
         assert!(scaled.0 < 64 && scaled.1 < 32);
 
-        let image = decode_jpeg(bytes.into(), (13, 7), image::metadata::Orientation::NoTransforms).unwrap();
+        let image = decode_jpeg(
+            bytes.into(),
+            (13, 7),
+            image::metadata::Orientation::NoTransforms,
+        )
+        .unwrap();
         assert_eq!(image.dimensions(), (13, 7));
         let frame = decoded_frame(image, Duration::ZERO);
         assert_eq!(frame.image.as_bytes(0).unwrap().len(), 13 * 7 * 4);
@@ -611,7 +694,10 @@ mod tests {
         assert_eq!(first.image.as_bytes(0).unwrap().len(), 4 * 2 * 4);
         let second = decoder.next_frame((2, 1)).unwrap().unwrap();
         assert_eq!(second.delay, Duration::from_millis(30));
-        assert_eq!(second.image.as_bytes(0).unwrap(), &[0, 0, 0, 0, 0, 255, 0, 255]);
+        assert_eq!(
+            second.image.as_bytes(0).unwrap(),
+            &[0, 0, 0, 0, 0, 255, 0, 255]
+        );
         assert!(decoder.next_frame((2, 1)).unwrap().is_none());
     }
 }

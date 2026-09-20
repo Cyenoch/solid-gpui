@@ -1,9 +1,9 @@
-use std::collections::HashSet;
 use super::*;
 use gpui::{
     Bounds, FocusHandle, Pixels, Point,
     popup::{PopupAnchor, PopupConstraintAdjustment, PopupGravity, PopupOptions},
 };
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, PartialEq)]
 struct PopupGeometry {

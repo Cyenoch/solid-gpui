@@ -293,7 +293,10 @@ struct RetiredSurfaceIds(BTreeMap<u32, u32>);
 
 impl RetiredSurfaceIds {
     fn contains(&self, id: &u32) -> bool {
-        self.0.range(..=*id).next_back().is_some_and(|(_, end)| id <= end)
+        self.0
+            .range(..=*id)
+            .next_back()
+            .is_some_and(|(_, end)| id <= end)
     }
 
     fn insert(&mut self, id: u32) {
@@ -1788,7 +1791,10 @@ mod tests {
         registry.retired_surface_ids.insert(50_001);
         registry.retired_surface_ids.insert(u32::MAX - 1);
         assert_eq!(registry.retired_surface_ids.0.get(&1), Some(&50_002));
-        assert_eq!(registry.retired_surface_ids.0.get(&(u32::MAX - 1)), Some(&u32::MAX));
+        assert_eq!(
+            registry.retired_surface_ids.0.get(&(u32::MAX - 1)),
+            Some(&u32::MAX)
+        );
         registry.next_surface_id = 50_000;
         assert_eq!(registry.allocate_surface_id(), Ok(50_003));
     }

@@ -254,7 +254,11 @@ pub(super) fn validate_host_properties_shape(
         (Some(HostProperties::Image(image)), KIND_IMAGE) => {
             let aggregate_bytes = image.source.len()
                 + image.fallback_source.as_ref().map_or(0, String::len)
-                + image.sources.iter().map(|candidate| candidate.source.len()).sum::<usize>();
+                + image
+                    .sources
+                    .iter()
+                    .map(|candidate| candidate.source.len())
+                    .sum::<usize>();
             if image.source.is_empty()
                 || image.source.len() > crate::protocol::MAX_IMAGE_SOURCE_BYTES
                 || image.source.chars().any(char::is_control)

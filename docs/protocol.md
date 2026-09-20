@@ -7,7 +7,7 @@ v5 payloads are not accepted. The canonical wire schema is
 [`packages/solid-gpui/src/protocol/protocol.bop`](../packages/solid-gpui/src/protocol/protocol.bop);
 checked generated bindings are under the TypeScript and Rust protocol seams.
 `packages/solid-gpui/src/protocol/schema-lock.json` pins the schema SHA-256
-digest (`79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc`)
+digest (`67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d`)
 for protocol version `6`; codegen checks fail on drift.
 Normal package and Rust builds consume those checked files and do not invoke
 `bebopc`. Regenerate and check them with:
@@ -117,7 +117,8 @@ Style slots, optional RawText `text`, `listenerId`, optional tagged
   sequence, selection range, marked range, max length, and reversed selection;
 - VirtualList: item count, visible range, estimated item size, overscan, required
   `dataRevision`, and optional `dataEdit { baseRevision, start, oldCount, newCount }`;
-- Image: source, object-fit code, and fallback source; and
+- Image: source, object-fit code, fallback source, and at most 32
+  `sourceSet` entries containing source plus positive intrinsic width/height;
 - Drag: drag type, exported files, accepts-drag-over, and accepts-drop.
 
 - Extension: a 16-byte `providerId`, 32-byte `catalogDigest`, nonzero
@@ -126,6 +127,12 @@ Style slots, optional RawText `text`, `listenerId`, optional tagged
   bounded text, or bounded bytes values. There are at most 256 fields and
   event IDs; text and bytes are each capped at 1 MiB per value and in
   aggregate.
+
+Image candidates must share one aspect ratio. The selected candidate is the
+smallest one sufficient for the actual laid-out physical target, or the largest
+when none is sufficient. Plain `source` is the primary only for an empty
+`sourceSet`; `fallbackSource` remains the failure fallback. Candidate URLs are
+opaque wire values and are never rewritten automatically.
 
 Virtual-list data edits replace one contiguous span of the previous published
 data. New nodes begin at data revision zero without an edit. A changed data
@@ -268,9 +275,12 @@ clipboard, path, menu, notification, and keybinding limits are checked before
 publication to JavaScript.
 
 Valid in-flight messages for a retired Surface are discarded without publishing
-state or terminating the application. A late initial Snapshot receives a matching
+state or terminating the application. Retired IDs are compacted as coalesced
+exact ranges; sparse retirement therefore grows with the number of gaps rather
+than claiming constant memory. A late initial Snapshot receives a matching
 SurfaceClosed event so its newly registered root can dispose itself. This does
-not admit never-allocated IDs or revive retired IDs.
+not admit never-allocated IDs or revive retired IDs. A terminal JavaScript peer
+clears its retired-ID state.
 
 ## 4. Events
 
@@ -343,6 +353,10 @@ Validation, event routes, native instance updates, and cache invalidation consum
 that set. Structural edits may visit shifted siblings and dependency subtrees;
 a local property edit does not copy unrelated nodes. Snapshot bootstrap still
 validates the complete tree.
+
+Focused-link bounds are derived rather than retained as write-only state. A full
+Snapshot refreshes viewport capabilities as well as the complete tree, so a
+replacement snapshot cannot leave stale surface capability state behind.
 
 On the TypeScript side, `SurfaceRouter` is the only frame decoder and event
 router. It groups one incoming chunk into ordered semantic event batches per

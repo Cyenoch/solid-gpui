@@ -961,9 +961,15 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
             let mut aggregate_bytes = source.len() + fallback_source.map_or(0, str::len);
             let mut candidates = Vec::with_capacity(sources.len());
             for candidate in sources {
-                let candidate_source = candidate.source.ok_or(ProtocolError::InvalidHostProperties)?;
-                let width = candidate.width.ok_or(ProtocolError::InvalidHostProperties)?;
-                let height = candidate.height.ok_or(ProtocolError::InvalidHostProperties)?;
+                let candidate_source = candidate
+                    .source
+                    .ok_or(ProtocolError::InvalidHostProperties)?;
+                let width = candidate
+                    .width
+                    .ok_or(ProtocolError::InvalidHostProperties)?;
+                let height = candidate
+                    .height
+                    .ok_or(ProtocolError::InvalidHostProperties)?;
                 if width == 0
                     || height == 0
                     || !valid_host_string(candidate_source, super::super::MAX_IMAGE_SOURCE_BYTES)

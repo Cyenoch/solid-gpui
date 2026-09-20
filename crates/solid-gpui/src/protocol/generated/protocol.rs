@@ -14,12 +14,11 @@
 // Changes to this file may cause incorrect behavior and will be lost if
 // the code is regenerated.
 //
-
 #![allow(warnings)]
 
-use ::std::io::Write as _;
-use ::core::convert::TryInto as _;
 use ::bebop::FixedSized as _;
+use ::core::convert::TryInto as _;
+use ::std::io::Write as _;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -51,7 +50,9 @@ impl ::core::convert::TryFrom<u8> for NodeKind {
             7 => Ok(NodeKind::Image),
             8 => Ok(NodeKind::Extension),
             9 => Ok(NodeKind::Icon),
-            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(d.into())),
+            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
+                d.into(),
+            )),
         }
     }
 }
@@ -78,7 +79,9 @@ impl ::bebop::SubRecord<'_> for NodeKind {
     const EXACT_SERIALIZED_SIZE: Option<usize> = Some(::std::mem::size_of::<u8>());
 
     #[inline]
-    fn serialized_size(&self) -> usize { ::std::mem::size_of::<u8>() }
+    fn serialized_size(&self) -> usize {
+        ::std::mem::size_of::<u8>()
+    }
 
     ::bebop::define_serialize_chained!(*Self => |zelf, dest| {
         u8::from(zelf)._serialize_chained(dest)
@@ -94,7 +97,6 @@ impl ::bebop::SubRecord<'_> for NodeKind {
 impl ::bebop::FixedSized for NodeKind {
     const SERIALIZED_SIZE: usize = ::std::mem::size_of::<u8>();
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -112,7 +114,9 @@ impl ::core::convert::TryFrom<u8> for WindowAppearance {
             0 => Ok(WindowAppearance::Unspecified),
             1 => Ok(WindowAppearance::Light),
             2 => Ok(WindowAppearance::Dark),
-            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(d.into())),
+            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
+                d.into(),
+            )),
         }
     }
 }
@@ -132,7 +136,9 @@ impl ::bebop::SubRecord<'_> for WindowAppearance {
     const EXACT_SERIALIZED_SIZE: Option<usize> = Some(::std::mem::size_of::<u8>());
 
     #[inline]
-    fn serialized_size(&self) -> usize { ::std::mem::size_of::<u8>() }
+    fn serialized_size(&self) -> usize {
+        ::std::mem::size_of::<u8>()
+    }
 
     ::bebop::define_serialize_chained!(*Self => |zelf, dest| {
         u8::from(zelf)._serialize_chained(dest)
@@ -148,7 +154,6 @@ impl ::bebop::SubRecord<'_> for WindowAppearance {
 impl ::bebop::FixedSized for WindowAppearance {
     const SERIALIZED_SIZE: usize = ::std::mem::size_of::<u8>();
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -212,7 +217,9 @@ impl ::core::convert::TryFrom<u8> for EventKind {
             23 => Ok(EventKind::CloseRequested),
             24 => Ok(EventKind::Extension),
             25 => Ok(EventKind::ApplicationActivation),
-            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(d.into())),
+            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
+                d.into(),
+            )),
         }
     }
 }
@@ -255,7 +262,9 @@ impl ::bebop::SubRecord<'_> for EventKind {
     const EXACT_SERIALIZED_SIZE: Option<usize> = Some(::std::mem::size_of::<u8>());
 
     #[inline]
-    fn serialized_size(&self) -> usize { ::std::mem::size_of::<u8>() }
+    fn serialized_size(&self) -> usize {
+        ::std::mem::size_of::<u8>()
+    }
 
     ::bebop::define_serialize_chained!(*Self => |zelf, dest| {
         u8::from(zelf)._serialize_chained(dest)
@@ -271,7 +280,6 @@ impl ::bebop::SubRecord<'_> for EventKind {
 impl ::bebop::FixedSized for EventKind {
     const SERIALIZED_SIZE: usize = ::std::mem::size_of::<u8>();
 }
-
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -365,7 +373,9 @@ impl ::core::convert::TryFrom<u8> for CommandKind {
             38 => Ok(CommandKind::ConfigureApplication),
             39 => Ok(CommandKind::OpenPopup),
             40 => Ok(CommandKind::ClosePopup),
-            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(d.into())),
+            d => Err(::bebop::DeserializeError::InvalidEnumDiscriminator(
+                d.into(),
+            )),
         }
     }
 }
@@ -423,7 +433,9 @@ impl ::bebop::SubRecord<'_> for CommandKind {
     const EXACT_SERIALIZED_SIZE: Option<usize> = Some(::std::mem::size_of::<u8>());
 
     #[inline]
-    fn serialized_size(&self) -> usize { ::std::mem::size_of::<u8>() }
+    fn serialized_size(&self) -> usize {
+        ::std::mem::size_of::<u8>()
+    }
 
     ::bebop::define_serialize_chained!(*Self => |zelf, dest| {
         u8::from(zelf)._serialize_chained(dest)
@@ -439,7 +451,6 @@ impl ::bebop::SubRecord<'_> for CommandKind {
 impl ::bebop::FixedSized for CommandKind {
     const SERIALIZED_SIZE: usize = ::std::mem::size_of::<u8>();
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Body<'raw> {
@@ -517,82 +528,153 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            Body::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                Body::Unknown => 0,
+                Self::Snapshot {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    base_revision: _base_revision,
+                    revision: _revision,
+                    nodes: _nodes,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _epoch
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _base_revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _nodes
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::Event {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    revision: _revision,
+                    sequence: _sequence,
+                    node_id: _node_id,
+                    listener_id: _listener_id,
+                    event_type: _event_type,
+                    payload: _payload,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _epoch
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _sequence
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _node_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _listener_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _event_type
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _payload
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::Patch {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    base_revision: _base_revision,
+                    revision: _revision,
+                    operations: _operations,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _epoch
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _base_revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _operations
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::Command {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    after_revision: _after_revision,
+                    request_id: _request_id,
+                    node_id: _node_id,
+                    kind: _kind,
+                    payload: _payload,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _epoch
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _after_revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _node_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _payload
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
             }
-            Self::Snapshot {
-                surface_id: _surface_id,
-                epoch: _epoch,
-                base_revision: _base_revision,
-                revision: _revision,
-                nodes: _nodes,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _base_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _nodes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::Event {
-                surface_id: _surface_id,
-                epoch: _epoch,
-                revision: _revision,
-                sequence: _sequence,
-                node_id: _node_id,
-                listener_id: _listener_id,
-                event_type: _event_type,
-                payload: _payload,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _sequence.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _event_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _payload.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::Patch {
-                surface_id: _surface_id,
-                epoch: _epoch,
-                base_revision: _base_revision,
-                revision: _revision,
-                operations: _operations,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _base_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _operations.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::Command {
-                surface_id: _surface_id,
-                epoch: _epoch,
-                after_revision: _after_revision,
-                request_id: _request_id,
-                node_id: _node_id,
-                kind: _kind,
-                payload: _payload,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _after_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _payload.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -806,7 +888,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _surface_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _surface_id = Some(value)
                         }
@@ -815,7 +898,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _epoch.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _epoch = Some(value)
                         }
@@ -824,7 +908,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _base_revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _base_revision = Some(value)
                         }
@@ -833,7 +918,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _revision = Some(value)
                         }
@@ -842,7 +928,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _nodes.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _nodes = Some(value)
                         }
@@ -855,7 +942,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 Body::Snapshot {
@@ -912,7 +999,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _surface_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _surface_id = Some(value)
                         }
@@ -921,7 +1009,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _epoch.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _epoch = Some(value)
                         }
@@ -930,7 +1019,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _revision = Some(value)
                         }
@@ -939,7 +1029,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _sequence.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _sequence = Some(value)
                         }
@@ -948,7 +1039,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _node_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _node_id = Some(value)
                         }
@@ -957,7 +1049,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _listener_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _listener_id = Some(value)
                         }
@@ -966,7 +1059,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _event_type.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _event_type = Some(value)
                         }
@@ -975,7 +1069,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _payload.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _payload = Some(value)
                         }
@@ -988,7 +1083,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 Body::Event {
@@ -1045,7 +1140,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _surface_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _surface_id = Some(value)
                         }
@@ -1054,7 +1150,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _epoch.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _epoch = Some(value)
                         }
@@ -1063,7 +1160,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _base_revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _base_revision = Some(value)
                         }
@@ -1072,7 +1170,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _revision = Some(value)
                         }
@@ -1081,7 +1180,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _operations.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _operations = Some(value)
                         }
@@ -1094,7 +1194,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 Body::Patch {
@@ -1150,7 +1250,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _surface_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _surface_id = Some(value)
                         }
@@ -1159,7 +1260,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _epoch.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _epoch = Some(value)
                         }
@@ -1168,7 +1270,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _after_revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _after_revision = Some(value)
                         }
@@ -1177,7 +1280,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -1186,7 +1290,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _node_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _node_id = Some(value)
                         }
@@ -1195,7 +1300,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _kind.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _kind = Some(value)
                         }
@@ -1204,7 +1310,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
                             if _payload.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _payload = Some(value)
                         }
@@ -1217,7 +1324,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 Body::Command {
@@ -1238,12 +1345,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for Body<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for Body<'raw> {}
@@ -1294,54 +1399,59 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            ExtensionValue::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                ExtensionValue::Unknown => 0,
+                Self::ExtensionBoolValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionInt32Value { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionU32Value { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionF32Value { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionTextValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionBytesValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
             }
-            Self::ExtensionBoolValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionInt32Value {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionU32Value {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionF32Value {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionTextValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionBytesValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -1470,7 +1580,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1483,12 +1594,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionBoolValue {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionBoolValue { value: _value }
             }
             2 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -1529,7 +1638,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1542,12 +1652,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionInt32Value {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionInt32Value { value: _value }
             }
             3 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -1588,7 +1696,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1601,12 +1710,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionU32Value {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionU32Value { value: _value }
             }
             4 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -1647,7 +1754,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1660,12 +1768,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionF32Value {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionF32Value { value: _value }
             }
             5 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -1706,7 +1812,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1719,12 +1826,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionTextValue {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionTextValue { value: _value }
             }
             6 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -1765,7 +1870,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -1778,12 +1884,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                ExtensionValue::ExtensionBytesValue {
-                    value: _value,
-                }
+                ExtensionValue::ExtensionBytesValue { value: _value }
             }
             _ => {
                 i = len;
@@ -1793,12 +1897,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for ExtensionValue<'raw> {}
@@ -1816,9 +1918,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionField<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .id
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .value
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -1899,13 +2010,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for ExtensionField<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            id: _id,
-            value: _value,
-        }))
+        Ok((
+            i,
+            Self {
+                id: _id,
+                value: _value,
+            },
+        ))
     }
 }
 
@@ -2017,114 +2131,215 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            HostProperties::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                HostProperties::Unknown => 0,
+                Self::TextInputProperties {
+                    value: _value,
+                    placeholder: _placeholder,
+                    multiline: _multiline,
+                    disabled: _disabled,
+                    controlled: _controlled,
+                    ack_edit_seq: _ack_edit_seq,
+                    selection_start: _selection_start,
+                    selection_end: _selection_end,
+                    marked_start: _marked_start,
+                    marked_end: _marked_end,
+                    max_length: _max_length,
+                    selection_reversed: _selection_reversed,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _placeholder
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _multiline
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _disabled
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _controlled
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _ack_edit_seq
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _selection_start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _selection_end
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _marked_start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _marked_end
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _max_length
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _selection_reversed
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::VirtualListProperties {
+                    item_count: _item_count,
+                    range_start: _range_start,
+                    range_end: _range_end,
+                    estimated_item_size: _estimated_item_size,
+                    overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _item_count
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _range_start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _range_end
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _estimated_item_size
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _overscan
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _data_revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _data_edit
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ImageProperties {
+                    source: _source,
+                    object_fit: _object_fit,
+                    fallback_source: _fallback_source,
+                    sources: _sources,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _source
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _object_fit
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _fallback_source
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _sources
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::DragProperties {
+                    drag_type: _drag_type,
+                    export_files: _export_files,
+                    accepts_drag_over: _accepts_drag_over,
+                    accepts_drop: _accepts_drop,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _drag_type
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _export_files
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _accepts_drag_over
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _accepts_drop
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionProperties {
+                    provider_id: _provider_id,
+                    catalog_digest: _catalog_digest,
+                    entry_id: _entry_id,
+                    entry_version: _entry_version,
+                    fields: _fields,
+                    event_ids: _event_ids,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _provider_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _catalog_digest
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _entry_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _entry_version
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _fields
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _event_ids
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::IconProperties {
+                    name: _name,
+                    size: _size,
+                    color: _color,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _color
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
             }
-            Self::TextInputProperties {
-                value: _value,
-                placeholder: _placeholder,
-                multiline: _multiline,
-                disabled: _disabled,
-                controlled: _controlled,
-                ack_edit_seq: _ack_edit_seq,
-                selection_start: _selection_start,
-                selection_end: _selection_end,
-                marked_start: _marked_start,
-                marked_end: _marked_end,
-                max_length: _max_length,
-                selection_reversed: _selection_reversed,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _placeholder.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _multiline.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _controlled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _ack_edit_seq.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selection_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selection_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _marked_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _marked_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _max_length.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selection_reversed.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::VirtualListProperties {
-                item_count: _item_count,
-                range_start: _range_start,
-                range_end: _range_end,
-                estimated_item_size: _estimated_item_size,
-                overscan: _overscan,
-                data_revision: _data_revision,
-                data_edit: _data_edit,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _item_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _range_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _range_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _estimated_item_size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _overscan.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _data_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _data_edit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ImageProperties {
-                source: _source,
-                object_fit: _object_fit,
-                fallback_source: _fallback_source,
-                sources: _sources,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _object_fit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _fallback_source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _sources.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::DragProperties {
-                drag_type: _drag_type,
-                export_files: _export_files,
-                accepts_drag_over: _accepts_drag_over,
-                accepts_drop: _accepts_drop,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _export_files.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _accepts_drag_over.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _accepts_drop.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionProperties {
-                provider_id: _provider_id,
-                catalog_digest: _catalog_digest,
-                entry_id: _entry_id,
-                entry_version: _entry_version,
-                fields: _fields,
-                event_ids: _event_ids,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _provider_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _catalog_digest.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _entry_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _entry_version.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _fields.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _event_ids.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::IconProperties {
-                name: _name,
-                size: _size,
-                color: _color,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -2414,7 +2629,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -2423,7 +2639,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _placeholder.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _placeholder = Some(value)
                         }
@@ -2432,7 +2649,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _multiline.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _multiline = Some(value)
                         }
@@ -2441,7 +2659,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _disabled.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _disabled = Some(value)
                         }
@@ -2450,7 +2669,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _controlled.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _controlled = Some(value)
                         }
@@ -2459,7 +2679,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _ack_edit_seq.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _ack_edit_seq = Some(value)
                         }
@@ -2468,7 +2689,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _selection_start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selection_start = Some(value)
                         }
@@ -2477,7 +2699,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _selection_end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selection_end = Some(value)
                         }
@@ -2486,7 +2709,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _marked_start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _marked_start = Some(value)
                         }
@@ -2495,7 +2719,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _marked_end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _marked_end = Some(value)
                         }
@@ -2504,7 +2729,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _max_length.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _max_length = Some(value)
                         }
@@ -2513,7 +2739,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _selection_reversed.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selection_reversed = Some(value)
                         }
@@ -2526,7 +2753,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::TextInputProperties {
@@ -2589,7 +2816,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _item_count.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _item_count = Some(value)
                         }
@@ -2598,7 +2826,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _range_start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _range_start = Some(value)
                         }
@@ -2607,7 +2836,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _range_end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _range_end = Some(value)
                         }
@@ -2616,7 +2846,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _estimated_item_size.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _estimated_item_size = Some(value)
                         }
@@ -2625,7 +2856,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _overscan.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _overscan = Some(value)
                         }
@@ -2634,7 +2866,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _data_revision.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _data_revision = Some(value)
                         }
@@ -2643,7 +2876,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _data_edit.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _data_edit = Some(value)
                         }
@@ -2656,7 +2890,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::VirtualListProperties {
@@ -2711,7 +2945,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _source.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _source = Some(value)
                         }
@@ -2720,7 +2955,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _object_fit.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _object_fit = Some(value)
                         }
@@ -2729,7 +2965,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _fallback_source.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _fallback_source = Some(value)
                         }
@@ -2738,7 +2975,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _sources.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _sources = Some(value)
                         }
@@ -2751,7 +2989,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::ImageProperties {
@@ -2803,7 +3041,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _drag_type.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _drag_type = Some(value)
                         }
@@ -2812,7 +3051,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _export_files.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _export_files = Some(value)
                         }
@@ -2821,7 +3061,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _accepts_drag_over.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _accepts_drag_over = Some(value)
                         }
@@ -2830,7 +3071,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _accepts_drop.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _accepts_drop = Some(value)
                         }
@@ -2843,7 +3085,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::DragProperties {
@@ -2897,7 +3139,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _provider_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _provider_id = Some(value)
                         }
@@ -2906,7 +3149,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _catalog_digest.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _catalog_digest = Some(value)
                         }
@@ -2915,7 +3159,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _entry_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _entry_id = Some(value)
                         }
@@ -2924,7 +3169,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _entry_version.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _entry_version = Some(value)
                         }
@@ -2933,7 +3179,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _fields.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _fields = Some(value)
                         }
@@ -2942,7 +3189,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _event_ids.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _event_ids = Some(value)
                         }
@@ -2955,7 +3203,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::ExtensionProperties {
@@ -3008,7 +3256,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _name.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _name = Some(value)
                         }
@@ -3017,7 +3266,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _size.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _size = Some(value)
                         }
@@ -3026,7 +3276,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             if _color.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _color = Some(value)
                         }
@@ -3039,7 +3290,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 HostProperties::IconProperties {
@@ -3056,12 +3307,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for HostProperties<'raw> {}
@@ -3081,10 +3330,23 @@ impl<'raw> ::bebop::SubRecord<'raw> for ImageCandidate<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .source
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3179,14 +3441,17 @@ impl<'raw> ::bebop::SubRecord<'raw> for ImageCandidate<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            source: _source,
-            width: _width,
-            height: _height,
-        }))
+        Ok((
+            i,
+            Self {
+                source: _source,
+                width: _width,
+                height: _height,
+            },
+        ))
     }
 }
 
@@ -3209,11 +3474,28 @@ impl<'raw> ::bebop::SubRecord<'raw> for VirtualListDataEdit {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.base_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.old_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.new_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .base_revision
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .old_count
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .new_count
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3322,15 +3604,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for VirtualListDataEdit {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            base_revision: _base_revision,
-            start: _start,
-            old_count: _old_count,
-            new_count: _new_count,
-        }))
+        Ok((
+            i,
+            Self {
+                base_revision: _base_revision,
+                start: _start,
+                old_count: _old_count,
+                new_count: _new_count,
+            },
+        ))
     }
 }
 
@@ -3365,17 +3650,58 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.role.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.label.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.description.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.checked.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.selected.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.expanded.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.level.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.live.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .role
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .label
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .description
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .disabled
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .checked
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .selected
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .value
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .expanded
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .level
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .live
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3568,21 +3894,24 @@ impl<'raw> ::bebop::SubRecord<'raw> for AccessibilityProperties<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            role: _role,
-            label: _label,
-            description: _description,
-            disabled: _disabled,
-            checked: _checked,
-            selected: _selected,
-            value: _value,
-            expanded: _expanded,
-            level: _level,
-            live: _live,
-        }))
+        Ok((
+            i,
+            Self {
+                role: _role,
+                label: _label,
+                description: _description,
+                disabled: _disabled,
+                checked: _checked,
+                selected: _selected,
+                value: _value,
+                expanded: _expanded,
+                level: _level,
+                live: _live,
+            },
+        ))
     }
 }
 
@@ -3605,11 +3934,28 @@ impl<'raw> ::bebop::SubRecord<'raw> for Transition {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.duration_ms.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.delay_ms.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.easing.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.property_mask.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .duration_ms
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .delay_ms
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .easing
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .property_mask
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3718,15 +4064,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for Transition {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            duration_ms: _duration_ms,
-            delay_ms: _delay_ms,
-            easing: _easing,
-            property_mask: _property_mask,
-        }))
+        Ok((
+            i,
+            Self {
+                duration_ms: _duration_ms,
+                delay_ms: _delay_ms,
+                easing: _easing,
+                property_mask: _property_mask,
+            },
+        ))
     }
 }
 
@@ -3753,13 +4102,38 @@ impl<'raw> ::bebop::SubRecord<'raw> for BoxShadowValue {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.offset_x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.offset_y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.blur_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.spread_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.inset.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .offset_x
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .offset_y
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .blur_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .spread_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .inset
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3896,17 +4270,20 @@ impl<'raw> ::bebop::SubRecord<'raw> for BoxShadowValue {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            offset_x: _offset_x,
-            offset_y: _offset_y,
-            blur_radius: _blur_radius,
-            spread_radius: _spread_radius,
-            color: _color,
-            inset: _inset,
-        }))
+        Ok((
+            i,
+            Self {
+                offset_x: _offset_x,
+                offset_y: _offset_y,
+                blur_radius: _blur_radius,
+                spread_radius: _spread_radius,
+                color: _color,
+                inset: _inset,
+            },
+        ))
     }
 }
 
@@ -3923,8 +4300,13 @@ impl<'raw> ::bebop::SubRecord<'raw> for BoxShadowSet {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.values.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .values
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -3991,12 +4373,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for BoxShadowSet {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            values: _values,
-        }))
+        Ok((i, Self { values: _values }))
     }
 }
 
@@ -4021,12 +4401,33 @@ impl<'raw> ::bebop::SubRecord<'raw> for LinearGradient {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.angle.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.start_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.start_position.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.end_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.end_position.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .angle
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start_position
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .end_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .end_position
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -4149,16 +4550,19 @@ impl<'raw> ::bebop::SubRecord<'raw> for LinearGradient {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            angle: _angle,
-            start_color: _start_color,
-            start_position: _start_position,
-            end_color: _end_color,
-            end_position: _end_position,
-        }))
+        Ok((
+            i,
+            Self {
+                angle: _angle,
+                start_color: _start_color,
+                start_position: _start_position,
+                end_color: _end_color,
+                end_position: _end_position,
+            },
+        ))
     }
 }
 
@@ -4305,73 +4709,338 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.flex_direction.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.flex_grow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.padding.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.background_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.opacity.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.transition.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.justify_content.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.align_items.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.font_size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.font_weight.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.overflow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.line_clamp.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.text_overflow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.margin_top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.margin_right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.margin_bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.margin_left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.font_style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.text_decoration.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.line_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.min_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.max_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.min_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.max_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.flex_shrink.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.align_self.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.position.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.cursor.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.text_align.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.box_shadow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.font_family.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.padding_top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.padding_right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.padding_bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.padding_left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_top_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_right_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_bottom_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_left_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_top_left_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_top_right_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_bottom_right_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_bottom_left_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.width_percent.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.height_percent.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.flex_wrap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.linear_gradient.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_top_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_right_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_bottom_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.border_left_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.grid_columns.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.grid_rows.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.grid_column_span.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.grid_row_span.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .flex_direction
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .flex_grow
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .gap
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .background_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .opacity
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .transition
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .justify_content
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .align_items
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .font_size
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .font_weight
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .overflow
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .line_clamp
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .text_overflow
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .margin_top
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .margin_right
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .margin_bottom
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .margin_left
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .font_style
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .text_decoration
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .line_height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .min_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .max_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .min_height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .max_height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .flex_shrink
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .align_self
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .position
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .left
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .top
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .right
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .bottom
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .cursor
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .text_align
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .box_shadow
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .font_family
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_top
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_right
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_bottom
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .padding_left
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_right_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_left_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_left_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_right_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_right_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_left_radius
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .width_percent
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .height_percent
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .flex_wrap
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .linear_gradient
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_top_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_right_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_bottom_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .border_left_color
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_columns
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_rows
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_column_span
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .grid_row_span
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -5348,77 +6017,80 @@ impl<'raw> ::bebop::SubRecord<'raw> for Style<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            width: _width,
-            height: _height,
-            flex_direction: _flex_direction,
-            flex_grow: _flex_grow,
-            padding: _padding,
-            gap: _gap,
-            background_color: _background_color,
-            color: _color,
-            opacity: _opacity,
-            transition: _transition,
-            justify_content: _justify_content,
-            align_items: _align_items,
-            border_radius: _border_radius,
-            border_width: _border_width,
-            border_color: _border_color,
-            font_size: _font_size,
-            font_weight: _font_weight,
-            overflow: _overflow,
-            line_clamp: _line_clamp,
-            text_overflow: _text_overflow,
-            margin_top: _margin_top,
-            margin_right: _margin_right,
-            margin_bottom: _margin_bottom,
-            margin_left: _margin_left,
-            font_style: _font_style,
-            text_decoration: _text_decoration,
-            line_height: _line_height,
-            min_width: _min_width,
-            max_width: _max_width,
-            min_height: _min_height,
-            max_height: _max_height,
-            flex_shrink: _flex_shrink,
-            align_self: _align_self,
-            position: _position,
-            left: _left,
-            top: _top,
-            right: _right,
-            bottom: _bottom,
-            cursor: _cursor,
-            text_align: _text_align,
-            box_shadow: _box_shadow,
-            font_family: _font_family,
-            padding_top: _padding_top,
-            padding_right: _padding_right,
-            padding_bottom: _padding_bottom,
-            padding_left: _padding_left,
-            border_top_width: _border_top_width,
-            border_right_width: _border_right_width,
-            border_bottom_width: _border_bottom_width,
-            border_left_width: _border_left_width,
-            border_top_left_radius: _border_top_left_radius,
-            border_top_right_radius: _border_top_right_radius,
-            border_bottom_right_radius: _border_bottom_right_radius,
-            border_bottom_left_radius: _border_bottom_left_radius,
-            width_percent: _width_percent,
-            height_percent: _height_percent,
-            flex_wrap: _flex_wrap,
-            linear_gradient: _linear_gradient,
-            border_top_color: _border_top_color,
-            border_right_color: _border_right_color,
-            border_bottom_color: _border_bottom_color,
-            border_left_color: _border_left_color,
-            grid_columns: _grid_columns,
-            grid_rows: _grid_rows,
-            grid_column_span: _grid_column_span,
-            grid_row_span: _grid_row_span,
-        }))
+        Ok((
+            i,
+            Self {
+                width: _width,
+                height: _height,
+                flex_direction: _flex_direction,
+                flex_grow: _flex_grow,
+                padding: _padding,
+                gap: _gap,
+                background_color: _background_color,
+                color: _color,
+                opacity: _opacity,
+                transition: _transition,
+                justify_content: _justify_content,
+                align_items: _align_items,
+                border_radius: _border_radius,
+                border_width: _border_width,
+                border_color: _border_color,
+                font_size: _font_size,
+                font_weight: _font_weight,
+                overflow: _overflow,
+                line_clamp: _line_clamp,
+                text_overflow: _text_overflow,
+                margin_top: _margin_top,
+                margin_right: _margin_right,
+                margin_bottom: _margin_bottom,
+                margin_left: _margin_left,
+                font_style: _font_style,
+                text_decoration: _text_decoration,
+                line_height: _line_height,
+                min_width: _min_width,
+                max_width: _max_width,
+                min_height: _min_height,
+                max_height: _max_height,
+                flex_shrink: _flex_shrink,
+                align_self: _align_self,
+                position: _position,
+                left: _left,
+                top: _top,
+                right: _right,
+                bottom: _bottom,
+                cursor: _cursor,
+                text_align: _text_align,
+                box_shadow: _box_shadow,
+                font_family: _font_family,
+                padding_top: _padding_top,
+                padding_right: _padding_right,
+                padding_bottom: _padding_bottom,
+                padding_left: _padding_left,
+                border_top_width: _border_top_width,
+                border_right_width: _border_right_width,
+                border_bottom_width: _border_bottom_width,
+                border_left_width: _border_left_width,
+                border_top_left_radius: _border_top_left_radius,
+                border_top_right_radius: _border_top_right_radius,
+                border_bottom_right_radius: _border_bottom_right_radius,
+                border_bottom_left_radius: _border_bottom_left_radius,
+                width_percent: _width_percent,
+                height_percent: _height_percent,
+                flex_wrap: _flex_wrap,
+                linear_gradient: _linear_gradient,
+                border_top_color: _border_top_color,
+                border_right_color: _border_right_color,
+                border_bottom_color: _border_bottom_color,
+                border_left_color: _border_left_color,
+                grid_columns: _grid_columns,
+                grid_rows: _grid_rows,
+                grid_column_span: _grid_column_span,
+                grid_row_span: _grid_row_span,
+            },
+        ))
     }
 }
 
@@ -5461,21 +6133,78 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.parent_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.index.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.host_properties.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.accessibility.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.focusable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.selectable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.tooltip.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.accepts_pointer_move.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.observes_layout.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .id
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .parent_id
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .index
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .kind
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .style
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .text
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .listener_id
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .host_properties
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .accessibility
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .focusable
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .selectable
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .tooltip
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .accepts_pointer_move
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .observes_layout
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -5724,33 +6453,35 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            id: _id,
-            parent_id: _parent_id,
-            index: _index,
-            kind: _kind,
-            style: _style,
-            text: _text,
-            listener_id: _listener_id,
-            host_properties: _host_properties,
-            accessibility: _accessibility,
-            focusable: _focusable,
-            selectable: _selectable,
-            tooltip: _tooltip,
-            accepts_pointer_move: _accepts_pointer_move,
-            observes_layout: _observes_layout,
-        }))
+        Ok((
+            i,
+            Self {
+                id: _id,
+                parent_id: _parent_id,
+                index: _index,
+                kind: _kind,
+                style: _style,
+                text: _text,
+                listener_id: _listener_id,
+                host_properties: _host_properties,
+                accessibility: _accessibility,
+                focusable: _focusable,
+                selectable: _selectable,
+                tooltip: _tooltip,
+                accepts_pointer_move: _accepts_pointer_move,
+                observes_layout: _observes_layout,
+            },
+        ))
     }
 }
 
 impl<'raw> ::bebop::Record<'raw> for Node<'raw> {}
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub struct ClearStyle {
-}
+pub struct ClearStyle {}
 
 impl<'raw> ::bebop::SubRecord<'raw> for ClearStyle {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
@@ -5758,7 +6489,6 @@ impl<'raw> ::bebop::SubRecord<'raw> for ClearStyle {
     #[inline]
     fn serialized_size(&self) -> usize {
         ::bebop::LEN_SIZE + 1
-
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -5781,7 +6511,6 @@ impl<'raw> ::bebop::SubRecord<'raw> for ClearStyle {
         if raw.len() < len {
             return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
         }
-
 
         #[cfg(not(feature = "unchecked"))]
         let mut last = 0;
@@ -5811,11 +6540,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for ClearStyle {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-        }))
+        Ok((i, Self {}))
     }
 }
 
@@ -5883,68 +6611,99 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            PatchOperationValue::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                PatchOperationValue::Unknown => 0,
+                Self::PatchCreate { node: _node } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _node.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::PatchUpdate {
+                    id: _id,
+                    mask: _mask,
+                    style: _style,
+                    clear_style: _clear_style,
+                    text: _text,
+                    listener_id: _listener_id,
+                    host_properties: _host_properties,
+                    accessibility: _accessibility,
+                    focusable: _focusable,
+                    selectable: _selectable,
+                    tooltip: _tooltip,
+                    accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _mask.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _style
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _clear_style
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _listener_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _host_properties
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _accessibility
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _focusable
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _selectable
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _tooltip
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _accepts_pointer_move
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _observes_layout
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PatchMove {
+                    id: _id,
+                    parent_id: _parent_id,
+                    index: _index,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _parent_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _index
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PatchDelete { id: _id } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
             }
-            Self::PatchCreate {
-                node: _node,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _node.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PatchUpdate {
-                id: _id,
-                mask: _mask,
-                style: _style,
-                clear_style: _clear_style,
-                text: _text,
-                listener_id: _listener_id,
-                host_properties: _host_properties,
-                accessibility: _accessibility,
-                focusable: _focusable,
-                selectable: _selectable,
-                tooltip: _tooltip,
-                accepts_pointer_move: _accepts_pointer_move,
-                observes_layout: _observes_layout,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _mask.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _clear_style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _host_properties.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _accessibility.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _focusable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selectable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _tooltip.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _accepts_pointer_move.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _observes_layout.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PatchMove {
-                id: _id,
-                parent_id: _parent_id,
-                index: _index,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _parent_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _index.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PatchDelete {
-                id: _id,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -6119,7 +6878,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _node.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _node = Some(value)
                         }
@@ -6132,12 +6892,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                PatchOperationValue::PatchCreate {
-                    node: _node,
-                }
+                PatchOperationValue::PatchCreate { node: _node }
             }
             2 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -6190,7 +6948,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _id = Some(value)
                         }
@@ -6199,7 +6958,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _mask.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _mask = Some(value)
                         }
@@ -6208,7 +6968,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _style.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _style = Some(value)
                         }
@@ -6217,7 +6978,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _clear_style.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _clear_style = Some(value)
                         }
@@ -6226,7 +6988,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _text.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _text = Some(value)
                         }
@@ -6235,7 +6998,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _listener_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _listener_id = Some(value)
                         }
@@ -6244,7 +7008,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _host_properties.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _host_properties = Some(value)
                         }
@@ -6253,7 +7018,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _accessibility.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _accessibility = Some(value)
                         }
@@ -6262,7 +7028,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _focusable.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _focusable = Some(value)
                         }
@@ -6271,7 +7038,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _selectable.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selectable = Some(value)
                         }
@@ -6280,7 +7048,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _tooltip.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _tooltip = Some(value)
                         }
@@ -6289,7 +7058,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _accepts_pointer_move.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _accepts_pointer_move = Some(value)
                         }
@@ -6298,7 +7068,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _observes_layout.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _observes_layout = Some(value)
                         }
@@ -6311,7 +7082,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 PatchOperationValue::PatchUpdate {
@@ -6371,7 +7142,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _id = Some(value)
                         }
@@ -6380,7 +7152,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _parent_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _parent_id = Some(value)
                         }
@@ -6389,7 +7162,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _index.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _index = Some(value)
                         }
@@ -6402,7 +7176,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 PatchOperationValue::PatchMove {
@@ -6450,7 +7224,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             if _id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _id = Some(value)
                         }
@@ -6463,12 +7238,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                PatchOperationValue::PatchDelete {
-                    id: _id,
-                }
+                PatchOperationValue::PatchDelete { id: _id }
             }
             _ => {
                 i = len;
@@ -6478,12 +7251,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for PatchOperationValue<'raw> {}
@@ -6499,8 +7270,13 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperation<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.operation.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .operation
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -6567,12 +7343,15 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperation<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            operation: _operation,
-        }))
+        Ok((
+            i,
+            Self {
+                operation: _operation,
+            },
+        ))
     }
 }
 
@@ -6595,11 +7374,28 @@ impl<'raw> ::bebop::SubRecord<'raw> for WindowOpenOptions {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.resizable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.min_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.min_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .kind
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .resizable
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .min_width
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .min_height
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -6708,15 +7504,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for WindowOpenOptions {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            kind: _kind,
-            resizable: _resizable,
-            min_width: _min_width,
-            min_height: _min_height,
-        }))
+        Ok((
+            i,
+            Self {
+                kind: _kind,
+                resizable: _resizable,
+                min_width: _min_width,
+                min_height: _min_height,
+            },
+        ))
     }
 }
 
@@ -6735,9 +7534,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for NotificationActionDefinition<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.label.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .id
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .label
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -6818,13 +7626,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for NotificationActionDefinition<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            id: _id,
-            label: _label,
-        }))
+        Ok((
+            i,
+            Self {
+                id: _id,
+                label: _label,
+            },
+        ))
     }
 }
 
@@ -6843,9 +7654,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuDefinition<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.items.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .title
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .items
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -6926,13 +7746,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuDefinition<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            title: _title,
-            items: _items,
-        }))
+        Ok((
+            i,
+            Self {
+                title: _title,
+                items: _items,
+            },
+        ))
     }
 }
 
@@ -6944,8 +7767,7 @@ pub enum MenuItemValue<'raw> {
     Unknown,
 
     /// Discriminator 1
-    MenuSeparator {
-    },
+    MenuSeparator {},
 
     /// Discriminator 2
     MenuAction {
@@ -6968,36 +7790,34 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            MenuItemValue::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                MenuItemValue::Unknown => 0,
+                Self::MenuSeparator {} => ::bebop::LEN_SIZE + 1,
+                Self::MenuAction {
+                    name: _name,
+                    disabled: _disabled,
+                    checked: _checked,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _disabled
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _checked
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::MenuSubmenu { menu: _menu } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _menu.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
             }
-            Self::MenuSeparator {
-            }
-            => {
-                ::bebop::LEN_SIZE + 1
-
-            }
-            Self::MenuAction {
-                name: _name,
-                disabled: _disabled,
-                checked: _checked,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _checked.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::MenuSubmenu {
-                menu: _menu,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _menu.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -7069,7 +7889,6 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
                     return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
                 }
 
-
                 #[cfg(not(feature = "unchecked"))]
                 let mut last = 0;
 
@@ -7098,11 +7917,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                MenuItemValue::MenuSeparator {
-                }
+                MenuItemValue::MenuSeparator {}
             }
             2 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -7145,7 +7963,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
                             if _name.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _name = Some(value)
                         }
@@ -7154,7 +7973,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
                             if _disabled.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _disabled = Some(value)
                         }
@@ -7163,7 +7983,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
                             if _checked.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _checked = Some(value)
                         }
@@ -7176,7 +7997,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 MenuItemValue::MenuAction {
@@ -7224,7 +8045,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
                             if _menu.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _menu = Some(value)
                         }
@@ -7237,12 +8059,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                MenuItemValue::MenuSubmenu {
-                    menu: _menu,
-                }
+                MenuItemValue::MenuSubmenu { menu: _menu }
             }
             _ => {
                 i = len;
@@ -7252,12 +8072,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for MenuItemValue<'raw> {}
@@ -7273,8 +8091,13 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItem<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .value
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -7341,12 +8164,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for MenuItem<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            value: _value,
-        }))
+        Ok((i, Self { value: _value }))
     }
 }
 
@@ -7365,9 +8186,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for KeybindingDefinition<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.keystrokes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.action_name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .keystrokes
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .action_name
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -7448,13 +8278,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for KeybindingDefinition<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            keystrokes: _keystrokes,
-            action_name: _action_name,
-        }))
+        Ok((
+            i,
+            Self {
+                keystrokes: _keystrokes,
+                action_name: _action_name,
+            },
+        ))
     }
 }
 
@@ -7606,164 +8439,250 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            CommandPayload::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                CommandPayload::Unknown => 0,
+                Self::U32PairCommand {
+                    first: _first,
+                    second: _second,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _first
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _second
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::FloatCommand { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::TextCommand { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::StringPairCommand {
+                    path: _path,
+                    content: _content,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _path.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _content
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::OpenSurfaceCommand {
+                    title: _title,
+                    width: _width,
+                    height: _height,
+                    options: _options,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _title
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _options
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::FileDialogOpenCommand {
+                    title: _title,
+                    directories: _directories,
+                    multiple: _multiple,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _title
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _directories
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _multiple
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::NotificationCommand {
+                    title: _title,
+                    body: _body,
+                    actions: _actions,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _title
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _actions
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::MenusCommand { menus: _menus } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _menus
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::KeybindingsCommand {
+                    bindings: _bindings,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _bindings
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ClipboardImageCommand {
+                    format: _format,
+                    bytes: _bytes,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _format
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _bytes
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::CloseResolutionCommand {
+                    request_id: _request_id,
+                    allow: _allow,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _allow
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::InvokeNativeCommand {
+                    module_id: _module_id,
+                    module_digest: _module_digest,
+                    function_id: _function_id,
+                    args: _args,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _module_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _module_digest
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _function_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::CancelNativeCommand {
+                    request_id: _request_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _keep_alive
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _acknowledged_sequence
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _anchor_node_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _placement
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::ClosePopupCommand {
+                    request_id: _request_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
             }
-            Self::U32PairCommand {
-                first: _first,
-                second: _second,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _first.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _second.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::FloatCommand {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::TextCommand {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::StringPairCommand {
-                path: _path,
-                content: _content,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _path.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _content.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::OpenSurfaceCommand {
-                title: _title,
-                width: _width,
-                height: _height,
-                options: _options,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _options.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::FileDialogOpenCommand {
-                title: _title,
-                directories: _directories,
-                multiple: _multiple,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _directories.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _multiple.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::NotificationCommand {
-                title: _title,
-                body: _body,
-                actions: _actions,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _actions.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::MenusCommand {
-                menus: _menus,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _menus.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::KeybindingsCommand {
-                bindings: _bindings,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _bindings.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ClipboardImageCommand {
-                format: _format,
-                bytes: _bytes,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _format.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _bytes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::CloseResolutionCommand {
-                request_id: _request_id,
-                allow: _allow,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _allow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::InvokeNativeCommand {
-                module_id: _module_id,
-                module_digest: _module_digest,
-                function_id: _function_id,
-                args: _args,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _module_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _module_digest.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _function_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::CancelNativeCommand {
-                request_id: _request_id,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ConfigureApplicationCommand {
-                keep_alive: _keep_alive,
-                quit: _quit,
-                acknowledged_sequence: _acknowledged_sequence,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _keep_alive.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _acknowledged_sequence.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::OpenPopupCommand {
-                anchor_node_id: _anchor_node_id,
-                width: _width,
-                height: _height,
-                placement: _placement,
-                gap: _gap,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _anchor_node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _placement.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ClosePopupCommand {
-                request_id: _request_id,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -8113,7 +9032,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _first.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _first = Some(value)
                         }
@@ -8122,7 +9042,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _second.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _second = Some(value)
                         }
@@ -8135,7 +9056,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::U32PairCommand {
@@ -8182,7 +9103,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -8195,12 +9117,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandPayload::FloatCommand {
-                    value: _value,
-                }
+                CommandPayload::FloatCommand { value: _value }
             }
             3 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -8241,7 +9161,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -8254,12 +9175,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandPayload::TextCommand {
-                    value: _value,
-                }
+                CommandPayload::TextCommand { value: _value }
             }
             4 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -8301,7 +9220,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _path.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _path = Some(value)
                         }
@@ -8310,7 +9230,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _content.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _content = Some(value)
                         }
@@ -8323,7 +9244,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::StringPairCommand {
@@ -8373,7 +9294,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _title.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _title = Some(value)
                         }
@@ -8382,7 +9304,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -8391,7 +9314,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -8400,7 +9324,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _options.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _options = Some(value)
                         }
@@ -8413,7 +9338,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::OpenSurfaceCommand {
@@ -8464,7 +9389,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _title.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _title = Some(value)
                         }
@@ -8473,7 +9399,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _directories.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _directories = Some(value)
                         }
@@ -8482,7 +9409,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _multiple.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _multiple = Some(value)
                         }
@@ -8495,7 +9423,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::FileDialogOpenCommand {
@@ -8545,7 +9473,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _title.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _title = Some(value)
                         }
@@ -8554,7 +9483,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _body.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _body = Some(value)
                         }
@@ -8563,7 +9493,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _actions.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _actions = Some(value)
                         }
@@ -8576,7 +9507,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::NotificationCommand {
@@ -8624,7 +9555,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _menus.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _menus = Some(value)
                         }
@@ -8637,12 +9569,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandPayload::MenusCommand {
-                    menus: _menus,
-                }
+                CommandPayload::MenusCommand { menus: _menus }
             }
             9 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -8683,7 +9613,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _bindings.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _bindings = Some(value)
                         }
@@ -8696,7 +9627,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::KeybindingsCommand {
@@ -8743,7 +9674,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _format.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _format = Some(value)
                         }
@@ -8752,7 +9684,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _bytes.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _bytes = Some(value)
                         }
@@ -8765,7 +9698,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::ClipboardImageCommand {
@@ -8813,7 +9746,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -8822,7 +9756,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _allow.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _allow = Some(value)
                         }
@@ -8835,7 +9770,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::CloseResolutionCommand {
@@ -8885,7 +9820,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _module_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _module_id = Some(value)
                         }
@@ -8894,7 +9830,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _module_digest.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _module_digest = Some(value)
                         }
@@ -8903,7 +9840,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _function_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _function_id = Some(value)
                         }
@@ -8912,7 +9850,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _args.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _args = Some(value)
                         }
@@ -8925,7 +9864,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::InvokeNativeCommand {
@@ -8974,7 +9913,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -8987,7 +9927,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::CancelNativeCommand {
@@ -9035,7 +9975,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _keep_alive.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _keep_alive = Some(value)
                         }
@@ -9044,7 +9985,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _quit.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _quit = Some(value)
                         }
@@ -9053,7 +9995,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _acknowledged_sequence.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _acknowledged_sequence = Some(value)
                         }
@@ -9066,7 +10009,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::ConfigureApplicationCommand {
@@ -9118,7 +10061,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _anchor_node_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _anchor_node_id = Some(value)
                         }
@@ -9127,7 +10071,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -9136,7 +10081,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -9145,7 +10091,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _placement.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _placement = Some(value)
                         }
@@ -9154,7 +10101,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _gap.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _gap = Some(value)
                         }
@@ -9167,7 +10115,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::OpenPopupCommand {
@@ -9217,7 +10165,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -9230,7 +10179,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandPayload::ClosePopupCommand {
@@ -9245,12 +10194,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for CommandPayload<'raw> {}
@@ -9343,101 +10290,131 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            CommandValue::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                CommandValue::Unknown => 0,
+                Self::NumberValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PairValue {
+                    width: _width,
+                    height: _height,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::BoolValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::TextValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PathsValue { paths: _paths } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _paths
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::FileTextValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ImageValue {
+                    format: _format,
+                    bytes: _bytes,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _format
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _bytes
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::BoundsValue {
+                    x: _x,
+                    y: _y,
+                    width: _width,
+                    height: _height,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::WindowStateValue {
+                    fullscreen: _fullscreen,
+                    maximized: _maximized,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _fullscreen
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _maximized
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ScrollOffsetValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::BytesValue { value: _value } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
             }
-            Self::NumberValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PairValue {
-                width: _width,
-                height: _height,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::BoolValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::TextValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PathsValue {
-                paths: _paths,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _paths.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::FileTextValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ImageValue {
-                format: _format,
-                bytes: _bytes,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _format.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _bytes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::BoundsValue {
-                x: _x,
-                y: _y,
-                width: _width,
-                height: _height,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::WindowStateValue {
-                fullscreen: _fullscreen,
-                maximized: _maximized,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _fullscreen.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _maximized.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ScrollOffsetValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::BytesValue {
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -9656,7 +10633,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -9669,12 +10647,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::NumberValue {
-                    value: _value,
-                }
+                CommandValue::NumberValue { value: _value }
             }
             2 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -9716,7 +10692,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -9725,7 +10702,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -9738,7 +10716,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandValue::PairValue {
@@ -9785,7 +10763,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -9798,12 +10777,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::BoolValue {
-                    value: _value,
-                }
+                CommandValue::BoolValue { value: _value }
             }
             4 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -9844,7 +10821,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -9857,12 +10835,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::TextValue {
-                    value: _value,
-                }
+                CommandValue::TextValue { value: _value }
             }
             5 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -9903,7 +10879,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _paths.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _paths = Some(value)
                         }
@@ -9916,12 +10893,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::PathsValue {
-                    paths: _paths,
-                }
+                CommandValue::PathsValue { paths: _paths }
             }
             6 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -9962,7 +10937,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -9975,12 +10951,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::FileTextValue {
-                    value: _value,
-                }
+                CommandValue::FileTextValue { value: _value }
             }
             7 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -10022,7 +10996,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _format.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _format = Some(value)
                         }
@@ -10031,7 +11006,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _bytes.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _bytes = Some(value)
                         }
@@ -10044,7 +11020,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandValue::ImageValue {
@@ -10094,7 +11070,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -10103,7 +11080,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -10112,7 +11090,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -10121,7 +11100,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -10134,7 +11114,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandValue::BoundsValue {
@@ -10184,7 +11164,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _fullscreen.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _fullscreen = Some(value)
                         }
@@ -10193,7 +11174,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _maximized.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _maximized = Some(value)
                         }
@@ -10206,7 +11188,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 CommandValue::WindowStateValue {
@@ -10253,7 +11235,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -10266,12 +11249,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::ScrollOffsetValue {
-                    value: _value,
-                }
+                CommandValue::ScrollOffsetValue { value: _value }
             }
             11 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -10312,7 +11293,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -10325,12 +11307,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                CommandValue::BytesValue {
-                    value: _value,
-                }
+                CommandValue::BytesValue { value: _value }
             }
             _ => {
                 i = len;
@@ -10340,12 +11320,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for CommandValue<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for CommandValue<'raw> {}
@@ -10564,238 +11542,346 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
     const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        match self {
-            EventPayload::Unknown => {
-                0
+        ::bebop::LEN_SIZE
+            + 1
+            + match self {
+                EventPayload::Unknown => 0,
+                Self::TextInputEventData {
+                    text: _text,
+                    selection_start: _selection_start,
+                    selection_end: _selection_end,
+                    marked_start: _marked_start,
+                    marked_end: _marked_end,
+                    edit_seq: _edit_seq,
+                    reversed: _reversed,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _selection_start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _selection_end
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _marked_start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _marked_end
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _edit_seq
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _reversed
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::CommandResult {
+                    request_id: _request_id,
+                    command: _command,
+                    node_id: _node_id,
+                    success: _success,
+                    error: _error,
+                    value: _value,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _command
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _node_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _success
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _error
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _value
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::VisibleRangeEvent {
+                    start: _start,
+                    end: _end,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _start
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::AnimationCompleteEvent {
+                    generation: _generation,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _generation
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::KeyEvent {
+                    key: _key,
+                    modifiers: _modifiers,
+                    action: _action,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _key.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _modifiers
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _action
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PointerEvent {
+                    button: _button,
+                    modifiers: _modifiers,
+                    action: _action,
+                    click_count: _click_count,
+                    x: _x,
+                    y: _y,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _button
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _modifiers
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _action
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _click_count
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::PointerMoveEvent {
+                    modifiers: _modifiers,
+                    x: _x,
+                    y: _y,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _modifiers
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::ScrollEvent {
+                    delta_kind: _delta_kind,
+                    dx: _dx,
+                    dy: _dy,
+                    x: _x,
+                    y: _y,
+                    modifiers: _modifiers,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _delta_kind
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _dx.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _dy.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _modifiers
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::SubmitEvent { text: _text } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::WindowResizeEvent {
+                    width: _width,
+                    height: _height,
+                    scale_factor: _scale_factor,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _scale_factor
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::WindowActivationEvent { active: _active } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _active
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ActionEvent { action: _action } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _action
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::WindowAppearanceEvent {
+                    appearance: _appearance,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _appearance
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::LayoutEvent {
+                    x: _x,
+                    y: _y,
+                    width: _width,
+                    height: _height,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _width
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _height
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::DragOverEvent {
+                    drag_type: _drag_type,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _drag_type
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::DragDropEvent {
+                    drag_type: _drag_type,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _drag_type
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExternalFileDropEvent { paths: _paths } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _paths
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::NotificationResponseEvent {
+                    tag: _tag,
+                    action_id: _action_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _tag.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _action_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::PointerDownOutsideEvent { x: _x, y: _y } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                        + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
+                Self::CloseRequestedEvent {
+                    request_id: _request_id,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _request_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ExtensionEvent {
+                    event_id: _event_id,
+                    fields: _fields,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _event_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _fields
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                }
+                Self::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
+                } => {
+                    ::bebop::LEN_SIZE
+                        + 1
+                        + _target_surface_id
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _reason
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                }
             }
-            Self::TextInputEventData {
-                text: _text,
-                selection_start: _selection_start,
-                selection_end: _selection_end,
-                marked_start: _marked_start,
-                marked_end: _marked_end,
-                edit_seq: _edit_seq,
-                reversed: _reversed,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selection_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _selection_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _marked_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _marked_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _edit_seq.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _reversed.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::CommandResult {
-                request_id: _request_id,
-                command: _command,
-                node_id: _node_id,
-                success: _success,
-                error: _error,
-                value: _value,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _command.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _success.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _error.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::VisibleRangeEvent {
-                start: _start,
-                end: _end,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::AnimationCompleteEvent {
-                generation: _generation,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _generation.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::KeyEvent {
-                key: _key,
-                modifiers: _modifiers,
-                action: _action,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _key.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PointerEvent {
-                button: _button,
-                modifiers: _modifiers,
-                action: _action,
-                click_count: _click_count,
-                x: _x,
-                y: _y,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _button.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _click_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PointerMoveEvent {
-                modifiers: _modifiers,
-                x: _x,
-                y: _y,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ScrollEvent {
-                delta_kind: _delta_kind,
-                dx: _dx,
-                dy: _dy,
-                x: _x,
-                y: _y,
-                modifiers: _modifiers,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _delta_kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _dx.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _dy.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::SubmitEvent {
-                text: _text,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::WindowResizeEvent {
-                width: _width,
-                height: _height,
-                scale_factor: _scale_factor,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _scale_factor.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::WindowActivationEvent {
-                active: _active,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _active.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ActionEvent {
-                action: _action,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::WindowAppearanceEvent {
-                appearance: _appearance,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _appearance.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::LayoutEvent {
-                x: _x,
-                y: _y,
-                width: _width,
-                height: _height,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::DragOverEvent {
-                drag_type: _drag_type,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::DragDropEvent {
-                drag_type: _drag_type,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExternalFileDropEvent {
-                paths: _paths,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _paths.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::NotificationResponseEvent {
-                tag: _tag,
-                action_id: _action_id,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _tag.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _action_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::PointerDownOutsideEvent {
-                x: _x,
-                y: _y,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::CloseRequestedEvent {
-                request_id: _request_id,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ExtensionEvent {
-                event_id: _event_id,
-                fields: _fields,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _event_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _fields.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-            Self::ApplicationActivationEvent {
-                target_surface_id: _target_surface_id,
-                reason: _reason,
-                urls: _urls,
-            }
-            => {
-                ::bebop::LEN_SIZE + 1 +
-                _target_surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _reason.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-            }
-        }
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -11302,7 +12388,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _text.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _text = Some(value)
                         }
@@ -11311,7 +12398,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _selection_start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selection_start = Some(value)
                         }
@@ -11320,7 +12408,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _selection_end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _selection_end = Some(value)
                         }
@@ -11329,7 +12418,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _marked_start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _marked_start = Some(value)
                         }
@@ -11338,7 +12428,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _marked_end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _marked_end = Some(value)
                         }
@@ -11347,7 +12438,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _edit_seq.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _edit_seq = Some(value)
                         }
@@ -11356,7 +12448,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _reversed.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _reversed = Some(value)
                         }
@@ -11369,7 +12462,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::TextInputEventData {
@@ -11426,7 +12519,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -11435,7 +12529,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _command.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _command = Some(value)
                         }
@@ -11444,7 +12539,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _node_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _node_id = Some(value)
                         }
@@ -11453,7 +12549,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _success.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _success = Some(value)
                         }
@@ -11462,7 +12559,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _error.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _error = Some(value)
                         }
@@ -11471,7 +12569,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _value.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _value = Some(value)
                         }
@@ -11484,7 +12583,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::CommandResult {
@@ -11536,7 +12635,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _start.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _start = Some(value)
                         }
@@ -11545,7 +12645,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _end.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _end = Some(value)
                         }
@@ -11558,7 +12659,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::VisibleRangeEvent {
@@ -11605,7 +12706,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _generation.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _generation = Some(value)
                         }
@@ -11618,7 +12720,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::AnimationCompleteEvent {
@@ -11666,7 +12768,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _key.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _key = Some(value)
                         }
@@ -11675,7 +12778,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _modifiers.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _modifiers = Some(value)
                         }
@@ -11684,7 +12788,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _action.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _action = Some(value)
                         }
@@ -11697,7 +12802,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::KeyEvent {
@@ -11750,7 +12855,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _button.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _button = Some(value)
                         }
@@ -11759,7 +12865,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _modifiers.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _modifiers = Some(value)
                         }
@@ -11768,7 +12875,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _action.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _action = Some(value)
                         }
@@ -11777,7 +12885,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _click_count.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _click_count = Some(value)
                         }
@@ -11786,7 +12895,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -11795,7 +12905,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -11808,7 +12919,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::PointerEvent {
@@ -11861,7 +12972,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _modifiers.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _modifiers = Some(value)
                         }
@@ -11870,7 +12982,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -11879,7 +12992,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -11892,7 +13006,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::PointerMoveEvent {
@@ -11945,7 +13059,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _delta_kind.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _delta_kind = Some(value)
                         }
@@ -11954,7 +13069,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _dx.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _dx = Some(value)
                         }
@@ -11963,7 +13079,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _dy.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _dy = Some(value)
                         }
@@ -11972,7 +13089,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -11981,7 +13099,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -11990,7 +13109,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _modifiers.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _modifiers = Some(value)
                         }
@@ -12003,7 +13123,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::ScrollEvent {
@@ -12054,7 +13174,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _text.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _text = Some(value)
                         }
@@ -12067,12 +13188,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                EventPayload::SubmitEvent {
-                    text: _text,
-                }
+                EventPayload::SubmitEvent { text: _text }
             }
             10 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -12115,7 +13234,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -12124,7 +13244,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -12133,7 +13254,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _scale_factor.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _scale_factor = Some(value)
                         }
@@ -12146,7 +13268,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::WindowResizeEvent {
@@ -12194,7 +13316,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _active.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _active = Some(value)
                         }
@@ -12207,12 +13330,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                EventPayload::WindowActivationEvent {
-                    active: _active,
-                }
+                EventPayload::WindowActivationEvent { active: _active }
             }
             12 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -12253,7 +13374,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _action.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _action = Some(value)
                         }
@@ -12266,12 +13388,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                EventPayload::ActionEvent {
-                    action: _action,
-                }
+                EventPayload::ActionEvent { action: _action }
             }
             13 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -12312,7 +13432,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _appearance.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _appearance = Some(value)
                         }
@@ -12325,7 +13446,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::WindowAppearanceEvent {
@@ -12374,7 +13495,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -12383,7 +13505,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -12392,7 +13515,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _width.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _width = Some(value)
                         }
@@ -12401,7 +13525,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _height.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _height = Some(value)
                         }
@@ -12414,7 +13539,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::LayoutEvent {
@@ -12463,7 +13588,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _drag_type.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _drag_type = Some(value)
                         }
@@ -12476,7 +13602,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::DragOverEvent {
@@ -12522,7 +13648,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _drag_type.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _drag_type = Some(value)
                         }
@@ -12535,7 +13662,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::DragDropEvent {
@@ -12581,7 +13708,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _paths.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _paths = Some(value)
                         }
@@ -12594,12 +13722,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                EventPayload::ExternalFileDropEvent {
-                    paths: _paths,
-                }
+                EventPayload::ExternalFileDropEvent { paths: _paths }
             }
             18 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -12641,7 +13767,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _tag.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _tag = Some(value)
                         }
@@ -12650,7 +13777,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _action_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _action_id = Some(value)
                         }
@@ -12663,7 +13791,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::NotificationResponseEvent {
@@ -12711,7 +13839,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _x.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _x = Some(value)
                         }
@@ -12720,7 +13849,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _y.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _y = Some(value)
                         }
@@ -12733,13 +13863,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
-                EventPayload::PointerDownOutsideEvent {
-                    x: _x,
-                    y: _y,
-                }
+                EventPayload::PointerDownOutsideEvent { x: _x, y: _y }
             }
             20 => {
                 let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -12780,7 +13907,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _request_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _request_id = Some(value)
                         }
@@ -12793,7 +13921,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::CloseRequestedEvent {
@@ -12840,7 +13968,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _event_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _event_id = Some(value)
                         }
@@ -12849,7 +13978,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _fields.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _fields = Some(value)
                         }
@@ -12862,7 +13992,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::ExtensionEvent {
@@ -12911,7 +14041,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _target_surface_id.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _target_surface_id = Some(value)
                         }
@@ -12920,7 +14051,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _reason.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _reason = Some(value)
                         }
@@ -12929,7 +14061,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
                             if _urls.is_some() {
                                 return Err(::bebop::DeserializeError::DuplicateMessageField);
                             }
-                            let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                             i += read;
                             _urls = Some(value)
                         }
@@ -12942,7 +14075,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
 
                 if i != len {
                     debug_assert!(i > len);
-                    return Err(::bebop::DeserializeError::CorruptFrame)
+                    return Err(::bebop::DeserializeError::CorruptFrame);
                 }
 
                 EventPayload::ApplicationActivationEvent {
@@ -12959,12 +14092,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for EventPayload<'raw> {
         if !cfg!(feature = "unchecked") && i != len {
             debug_assert!(i > len);
             Err(::bebop::DeserializeError::CorruptFrame)
-        }
-        else {
+        } else {
             Ok((i, de))
         }
     }
-
 }
 
 impl<'raw> ::bebop::Record<'raw> for EventPayload<'raw> {}
@@ -12982,9 +14113,18 @@ impl<'raw> ::bebop::SubRecord<'raw> for Envelope<'raw> {
 
     #[inline]
     fn serialized_size(&self) -> usize {
-        ::bebop::LEN_SIZE + 1 +
-        self.protocol_version.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-        self.body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .protocol_version
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .body
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -13065,13 +14205,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for Envelope<'raw> {
 
         if i != len {
             debug_assert!(i > len);
-            return Err(::bebop::DeserializeError::CorruptFrame)
+            return Err(::bebop::DeserializeError::CorruptFrame);
         }
 
-        Ok((i, Self {
-            protocol_version: _protocol_version,
-            body: _body,
-        }))
+        Ok((
+            i,
+            Self {
+                protocol_version: _protocol_version,
+                body: _body,
+            },
+        ))
     }
 }
 
@@ -13081,9 +14224,9 @@ impl<'raw> ::bebop::Record<'raw> for Envelope<'raw> {}
 pub mod owned {
     #![allow(warnings)]
 
-    use ::std::io::Write as _;
-    use ::core::convert::TryInto as _;
     use ::bebop::FixedSized as _;
+    use ::core::convert::TryInto as _;
+    use ::std::io::Write as _;
 
     pub use super::NodeKind;
 
@@ -13168,25 +14311,21 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::Body<'raw>> for Body {
         fn from(value: super::Body) -> Self {
             match value {
-                super::Body::Unknown => {
-                    Self::Unknown
-                }
+                super::Body::Unknown => Self::Unknown,
                 super::Body::Snapshot {
                     surface_id: _surface_id,
                     epoch: _epoch,
                     base_revision: _base_revision,
                     revision: _revision,
                     nodes: _nodes,
-                }
-                => {
-                    Self::Snapshot {
-                        surface_id: _surface_id,
-                        epoch: _epoch,
-                        base_revision: _base_revision,
-                        revision: _revision,
-                        nodes: _nodes.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
+                } => Self::Snapshot {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    base_revision: _base_revision,
+                    revision: _revision,
+                    nodes: _nodes
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
                 super::Body::Event {
                     surface_id: _surface_id,
                     epoch: _epoch,
@@ -13196,35 +14335,30 @@ pub mod owned {
                     listener_id: _listener_id,
                     event_type: _event_type,
                     payload: _payload,
-                }
-                => {
-                    Self::Event {
-                        surface_id: _surface_id,
-                        epoch: _epoch,
-                        revision: _revision,
-                        sequence: _sequence,
-                        node_id: _node_id,
-                        listener_id: _listener_id,
-                        event_type: _event_type,
-                        payload: _payload.map(|value| value.into()),
-                    }
-                }
+                } => Self::Event {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    revision: _revision,
+                    sequence: _sequence,
+                    node_id: _node_id,
+                    listener_id: _listener_id,
+                    event_type: _event_type,
+                    payload: _payload.map(|value| value.into()),
+                },
                 super::Body::Patch {
                     surface_id: _surface_id,
                     epoch: _epoch,
                     base_revision: _base_revision,
                     revision: _revision,
                     operations: _operations,
-                }
-                => {
-                    Self::Patch {
-                        surface_id: _surface_id,
-                        epoch: _epoch,
-                        base_revision: _base_revision,
-                        revision: _revision,
-                        operations: _operations.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
+                } => Self::Patch {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    base_revision: _base_revision,
+                    revision: _revision,
+                    operations: _operations
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
                 super::Body::Command {
                     surface_id: _surface_id,
                     epoch: _epoch,
@@ -13233,8 +14367,131 @@ pub mod owned {
                     node_id: _node_id,
                     kind: _kind,
                     payload: _payload,
-                }
-                => {
+                } => Self::Command {
+                    surface_id: _surface_id,
+                    epoch: _epoch,
+                    after_revision: _after_revision,
+                    request_id: _request_id,
+                    node_id: _node_id,
+                    kind: _kind,
+                    payload: _payload.map(|value| value.into()),
+                },
+            }
+        }
+    }
+    impl<'raw> ::bebop::SubRecord<'raw> for Body {
+        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+        fn serialized_size(&self) -> usize {
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    Body::Unknown => 0,
+                    Self::Snapshot {
+                        surface_id: _surface_id,
+                        epoch: _epoch,
+                        base_revision: _base_revision,
+                        revision: _revision,
+                        nodes: _nodes,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _epoch
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _base_revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _nodes
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::Event {
+                        surface_id: _surface_id,
+                        epoch: _epoch,
+                        revision: _revision,
+                        sequence: _sequence,
+                        node_id: _node_id,
+                        listener_id: _listener_id,
+                        event_type: _event_type,
+                        payload: _payload,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _epoch
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _sequence
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _node_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _listener_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _event_type
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _payload
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::Patch {
+                        surface_id: _surface_id,
+                        epoch: _epoch,
+                        base_revision: _base_revision,
+                        revision: _revision,
+                        operations: _operations,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _epoch
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _base_revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _operations
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
                     Self::Command {
                         surface_id: _surface_id,
                         epoch: _epoch,
@@ -13242,93 +14499,37 @@ pub mod owned {
                         request_id: _request_id,
                         node_id: _node_id,
                         kind: _kind,
-                        payload: _payload.map(|value| value.into()),
+                        payload: _payload,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _epoch
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _after_revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _node_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _payload
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
                 }
-            }
-        }
-
-    }
-    impl<'raw> ::bebop::SubRecord<'raw> for Body {
-        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
-
-        fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                Body::Unknown => {
-                    0
-                }
-                Self::Snapshot {
-                    surface_id: _surface_id,
-                    epoch: _epoch,
-                    base_revision: _base_revision,
-                    revision: _revision,
-                    nodes: _nodes,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _base_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _nodes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::Event {
-                    surface_id: _surface_id,
-                    epoch: _epoch,
-                    revision: _revision,
-                    sequence: _sequence,
-                    node_id: _node_id,
-                    listener_id: _listener_id,
-                    event_type: _event_type,
-                    payload: _payload,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _sequence.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _event_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _payload.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::Patch {
-                    surface_id: _surface_id,
-                    epoch: _epoch,
-                    base_revision: _base_revision,
-                    revision: _revision,
-                    operations: _operations,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _base_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _operations.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::Command {
-                    surface_id: _surface_id,
-                    epoch: _epoch,
-                    after_revision: _after_revision,
-                    request_id: _request_id,
-                    node_id: _node_id,
-                    kind: _kind,
-                    payload: _payload,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _epoch.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _after_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _payload.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -13542,7 +14743,8 @@ pub mod owned {
                                 if _surface_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _surface_id = Some(value)
                             }
@@ -13551,7 +14753,8 @@ pub mod owned {
                                 if _epoch.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _epoch = Some(value)
                             }
@@ -13560,7 +14763,8 @@ pub mod owned {
                                 if _base_revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _base_revision = Some(value)
                             }
@@ -13569,7 +14773,8 @@ pub mod owned {
                                 if _revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _revision = Some(value)
                             }
@@ -13578,7 +14783,8 @@ pub mod owned {
                                 if _nodes.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _nodes = Some(value)
                             }
@@ -13591,7 +14797,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     Body::Snapshot {
@@ -13648,7 +14854,8 @@ pub mod owned {
                                 if _surface_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _surface_id = Some(value)
                             }
@@ -13657,7 +14864,8 @@ pub mod owned {
                                 if _epoch.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _epoch = Some(value)
                             }
@@ -13666,7 +14874,8 @@ pub mod owned {
                                 if _revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _revision = Some(value)
                             }
@@ -13675,7 +14884,8 @@ pub mod owned {
                                 if _sequence.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _sequence = Some(value)
                             }
@@ -13684,7 +14894,8 @@ pub mod owned {
                                 if _node_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _node_id = Some(value)
                             }
@@ -13693,7 +14904,8 @@ pub mod owned {
                                 if _listener_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _listener_id = Some(value)
                             }
@@ -13702,7 +14914,8 @@ pub mod owned {
                                 if _event_type.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _event_type = Some(value)
                             }
@@ -13711,7 +14924,8 @@ pub mod owned {
                                 if _payload.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _payload = Some(value)
                             }
@@ -13724,7 +14938,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     Body::Event {
@@ -13781,7 +14995,8 @@ pub mod owned {
                                 if _surface_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _surface_id = Some(value)
                             }
@@ -13790,7 +15005,8 @@ pub mod owned {
                                 if _epoch.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _epoch = Some(value)
                             }
@@ -13799,7 +15015,8 @@ pub mod owned {
                                 if _base_revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _base_revision = Some(value)
                             }
@@ -13808,7 +15025,8 @@ pub mod owned {
                                 if _revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _revision = Some(value)
                             }
@@ -13817,7 +15035,8 @@ pub mod owned {
                                 if _operations.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _operations = Some(value)
                             }
@@ -13830,7 +15049,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     Body::Patch {
@@ -13886,7 +15105,8 @@ pub mod owned {
                                 if _surface_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _surface_id = Some(value)
                             }
@@ -13895,7 +15115,8 @@ pub mod owned {
                                 if _epoch.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _epoch = Some(value)
                             }
@@ -13904,7 +15125,8 @@ pub mod owned {
                                 if _after_revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _after_revision = Some(value)
                             }
@@ -13913,7 +15135,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -13922,7 +15145,8 @@ pub mod owned {
                                 if _node_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _node_id = Some(value)
                             }
@@ -13931,7 +15155,8 @@ pub mod owned {
                                 if _kind.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _kind = Some(value)
                             }
@@ -13940,7 +15165,8 @@ pub mod owned {
                                 if _payload.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _payload = Some(value)
                             }
@@ -13953,7 +15179,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     Body::Command {
@@ -13974,12 +15200,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for Body {}
@@ -14029,113 +15253,89 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::ExtensionValue<'raw>> for ExtensionValue {
         fn from(value: super::ExtensionValue) -> Self {
             match value {
-                super::ExtensionValue::Unknown => {
-                    Self::Unknown
+                super::ExtensionValue::Unknown => Self::Unknown,
+                super::ExtensionValue::ExtensionBoolValue { value: _value } => {
+                    Self::ExtensionBoolValue { value: _value }
                 }
-                super::ExtensionValue::ExtensionBoolValue {
-                    value: _value,
+                super::ExtensionValue::ExtensionInt32Value { value: _value } => {
+                    Self::ExtensionInt32Value { value: _value }
                 }
-                => {
-                    Self::ExtensionBoolValue {
-                        value: _value,
-                    }
+                super::ExtensionValue::ExtensionU32Value { value: _value } => {
+                    Self::ExtensionU32Value { value: _value }
                 }
-                super::ExtensionValue::ExtensionInt32Value {
-                    value: _value,
+                super::ExtensionValue::ExtensionF32Value { value: _value } => {
+                    Self::ExtensionF32Value { value: _value }
                 }
-                => {
-                    Self::ExtensionInt32Value {
-                        value: _value,
-                    }
-                }
-                super::ExtensionValue::ExtensionU32Value {
-                    value: _value,
-                }
-                => {
-                    Self::ExtensionU32Value {
-                        value: _value,
-                    }
-                }
-                super::ExtensionValue::ExtensionF32Value {
-                    value: _value,
-                }
-                => {
-                    Self::ExtensionF32Value {
-                        value: _value,
-                    }
-                }
-                super::ExtensionValue::ExtensionTextValue {
-                    value: _value,
-                }
-                => {
+                super::ExtensionValue::ExtensionTextValue { value: _value } => {
                     Self::ExtensionTextValue {
                         value: _value.map(|value| value.into()),
                     }
                 }
-                super::ExtensionValue::ExtensionBytesValue {
-                    value: _value,
-                }
-                => {
+                super::ExtensionValue::ExtensionBytesValue { value: _value } => {
                     Self::ExtensionBytesValue {
                         value: _value.map(|value| value.iter().map(|value| value).collect()),
                     }
                 }
             }
         }
-
     }
     impl<'raw> ::bebop::SubRecord<'raw> for ExtensionValue {
         const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                ExtensionValue::Unknown => {
-                    0
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    ExtensionValue::Unknown => 0,
+                    Self::ExtensionBoolValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionInt32Value { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionU32Value { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionF32Value { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionTextValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionBytesValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
                 }
-                Self::ExtensionBoolValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionInt32Value {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionU32Value {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionF32Value {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionTextValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionBytesValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -14264,7 +15464,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14277,12 +15478,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionBoolValue {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionBoolValue { value: _value }
                 }
                 2 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -14323,7 +15522,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14336,12 +15536,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionInt32Value {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionInt32Value { value: _value }
                 }
                 3 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -14382,7 +15580,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14395,12 +15594,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionU32Value {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionU32Value { value: _value }
                 }
                 4 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -14441,7 +15638,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14454,12 +15652,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionF32Value {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionF32Value { value: _value }
                 }
                 5 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -14500,7 +15696,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14513,12 +15710,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionTextValue {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionTextValue { value: _value }
                 }
                 6 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -14559,7 +15754,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -14572,12 +15768,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    ExtensionValue::ExtensionBytesValue {
-                        value: _value,
-                    }
+                    ExtensionValue::ExtensionBytesValue { value: _value }
                 }
                 _ => {
                     i = len;
@@ -14587,12 +15781,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for ExtensionValue {}
@@ -14619,9 +15811,18 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .id
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .value
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -14702,13 +15903,16 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                id: _id,
-                value: _value,
-            }))
+            Ok((
+                i,
+                Self {
+                    id: _id,
+                    value: _value,
+                },
+            ))
         }
     }
 
@@ -14819,9 +16023,7 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::HostProperties<'raw>> for HostProperties {
         fn from(value: super::HostProperties) -> Self {
             match value {
-                super::HostProperties::Unknown => {
-                    Self::Unknown
-                }
+                super::HostProperties::Unknown => Self::Unknown,
                 super::HostProperties::TextInputProperties {
                     value: _value,
                     placeholder: _placeholder,
@@ -14835,117 +16037,9 @@ pub mod owned {
                     marked_end: _marked_end,
                     max_length: _max_length,
                     selection_reversed: _selection_reversed,
-                }
-                => {
-                    Self::TextInputProperties {
-                        value: _value.map(|value| value.into()),
-                        placeholder: _placeholder.map(|value| value.into()),
-                        multiline: _multiline,
-                        disabled: _disabled,
-                        controlled: _controlled,
-                        ack_edit_seq: _ack_edit_seq,
-                        selection_start: _selection_start,
-                        selection_end: _selection_end,
-                        marked_start: _marked_start,
-                        marked_end: _marked_end,
-                        max_length: _max_length,
-                        selection_reversed: _selection_reversed,
-                    }
-                }
-                super::HostProperties::VirtualListProperties {
-                    item_count: _item_count,
-                    range_start: _range_start,
-                    range_end: _range_end,
-                    estimated_item_size: _estimated_item_size,
-                    overscan: _overscan,
-                    data_revision: _data_revision,
-                    data_edit: _data_edit,
-                }
-                => {
-                    Self::VirtualListProperties {
-                        item_count: _item_count,
-                        range_start: _range_start,
-                        range_end: _range_end,
-                        estimated_item_size: _estimated_item_size,
-                        overscan: _overscan,
-                        data_revision: _data_revision,
-                        data_edit: _data_edit,
-                    }
-                }
-                super::HostProperties::ImageProperties {
-                    source: _source,
-                    object_fit: _object_fit,
-                    fallback_source: _fallback_source,
-                    sources: _sources,
-                }
-                => {
-                    Self::ImageProperties {
-                        source: _source.map(|value| value.into()),
-                        object_fit: _object_fit,
-                        fallback_source: _fallback_source.map(|value| value.into()),
-                        sources: _sources.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
-                super::HostProperties::DragProperties {
-                    drag_type: _drag_type,
-                    export_files: _export_files,
-                    accepts_drag_over: _accepts_drag_over,
-                    accepts_drop: _accepts_drop,
-                }
-                => {
-                    Self::DragProperties {
-                        drag_type: _drag_type.map(|value| value.into()),
-                        export_files: _export_files.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                        accepts_drag_over: _accepts_drag_over,
-                        accepts_drop: _accepts_drop,
-                    }
-                }
-                super::HostProperties::ExtensionProperties {
-                    provider_id: _provider_id,
-                    catalog_digest: _catalog_digest,
-                    entry_id: _entry_id,
-                    entry_version: _entry_version,
-                    fields: _fields,
-                    event_ids: _event_ids,
-                }
-                => {
-                    Self::ExtensionProperties {
-                        provider_id: _provider_id.map(|value| value.iter().map(|value| value).collect()),
-                        catalog_digest: _catalog_digest.map(|value| value.iter().map(|value| value).collect()),
-                        entry_id: _entry_id,
-                        entry_version: _entry_version,
-                        fields: _fields.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                        event_ids: _event_ids.map(|value| value.iter().map(|value| value).collect()),
-                    }
-                }
-                super::HostProperties::IconProperties {
-                    name: _name,
-                    size: _size,
-                    color: _color,
-                }
-                => {
-                    Self::IconProperties {
-                        name: _name.map(|value| value.into()),
-                        size: _size,
-                        color: _color,
-                    }
-                }
-            }
-        }
-
-    }
-    impl<'raw> ::bebop::SubRecord<'raw> for HostProperties {
-        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
-
-        fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                HostProperties::Unknown => {
-                    0
-                }
-                Self::TextInputProperties {
-                    value: _value,
-                    placeholder: _placeholder,
+                } => Self::TextInputProperties {
+                    value: _value.map(|value| value.into()),
+                    placeholder: _placeholder.map(|value| value.into()),
                     multiline: _multiline,
                     disabled: _disabled,
                     controlled: _controlled,
@@ -14956,23 +16050,8 @@ pub mod owned {
                     marked_end: _marked_end,
                     max_length: _max_length,
                     selection_reversed: _selection_reversed,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _placeholder.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _multiline.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _controlled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _ack_edit_seq.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selection_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selection_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _marked_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _marked_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _max_length.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selection_reversed.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::VirtualListProperties {
+                },
+                super::HostProperties::VirtualListProperties {
                     item_count: _item_count,
                     range_start: _range_start,
                     range_end: _range_end,
@@ -14980,72 +16059,282 @@ pub mod owned {
                     overscan: _overscan,
                     data_revision: _data_revision,
                     data_edit: _data_edit,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _item_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _range_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _range_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _estimated_item_size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _overscan.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _data_revision.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _data_edit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ImageProperties {
+                } => Self::VirtualListProperties {
+                    item_count: _item_count,
+                    range_start: _range_start,
+                    range_end: _range_end,
+                    estimated_item_size: _estimated_item_size,
+                    overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
+                },
+                super::HostProperties::ImageProperties {
                     source: _source,
                     object_fit: _object_fit,
                     fallback_source: _fallback_source,
                     sources: _sources,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _object_fit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _fallback_source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _sources.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::DragProperties {
+                } => Self::ImageProperties {
+                    source: _source.map(|value| value.into()),
+                    object_fit: _object_fit,
+                    fallback_source: _fallback_source.map(|value| value.into()),
+                    sources: _sources
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::HostProperties::DragProperties {
                     drag_type: _drag_type,
                     export_files: _export_files,
                     accepts_drag_over: _accepts_drag_over,
                     accepts_drop: _accepts_drop,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _export_files.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _accepts_drag_over.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _accepts_drop.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionProperties {
+                } => Self::DragProperties {
+                    drag_type: _drag_type.map(|value| value.into()),
+                    export_files: _export_files
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    accepts_drag_over: _accepts_drag_over,
+                    accepts_drop: _accepts_drop,
+                },
+                super::HostProperties::ExtensionProperties {
                     provider_id: _provider_id,
                     catalog_digest: _catalog_digest,
                     entry_id: _entry_id,
                     entry_version: _entry_version,
                     fields: _fields,
                     event_ids: _event_ids,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _provider_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _catalog_digest.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _entry_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _entry_version.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _fields.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _event_ids.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::IconProperties {
+                } => Self::ExtensionProperties {
+                    provider_id: _provider_id
+                        .map(|value| value.iter().map(|value| value).collect()),
+                    catalog_digest: _catalog_digest
+                        .map(|value| value.iter().map(|value| value).collect()),
+                    entry_id: _entry_id,
+                    entry_version: _entry_version,
+                    fields: _fields
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    event_ids: _event_ids.map(|value| value.iter().map(|value| value).collect()),
+                },
+                super::HostProperties::IconProperties {
                     name: _name,
                     size: _size,
                     color: _color,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
+                } => Self::IconProperties {
+                    name: _name.map(|value| value.into()),
+                    size: _size,
+                    color: _color,
+                },
             }
+        }
+    }
+    impl<'raw> ::bebop::SubRecord<'raw> for HostProperties {
+        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+        fn serialized_size(&self) -> usize {
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    HostProperties::Unknown => 0,
+                    Self::TextInputProperties {
+                        value: _value,
+                        placeholder: _placeholder,
+                        multiline: _multiline,
+                        disabled: _disabled,
+                        controlled: _controlled,
+                        ack_edit_seq: _ack_edit_seq,
+                        selection_start: _selection_start,
+                        selection_end: _selection_end,
+                        marked_start: _marked_start,
+                        marked_end: _marked_end,
+                        max_length: _max_length,
+                        selection_reversed: _selection_reversed,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _placeholder
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _multiline
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _disabled
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _controlled
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _ack_edit_seq
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _selection_start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _selection_end
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _marked_start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _marked_end
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _max_length
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _selection_reversed
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::VirtualListProperties {
+                        item_count: _item_count,
+                        range_start: _range_start,
+                        range_end: _range_end,
+                        estimated_item_size: _estimated_item_size,
+                        overscan: _overscan,
+                        data_revision: _data_revision,
+                        data_edit: _data_edit,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _item_count
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _range_start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _range_end
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _estimated_item_size
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _overscan
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _data_revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _data_edit
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ImageProperties {
+                        source: _source,
+                        object_fit: _object_fit,
+                        fallback_source: _fallback_source,
+                        sources: _sources,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _source
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _object_fit
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _fallback_source
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _sources
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::DragProperties {
+                        drag_type: _drag_type,
+                        export_files: _export_files,
+                        accepts_drag_over: _accepts_drag_over,
+                        accepts_drop: _accepts_drop,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _drag_type
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _export_files
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _accepts_drag_over
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _accepts_drop
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ExtensionProperties {
+                        provider_id: _provider_id,
+                        catalog_digest: _catalog_digest,
+                        entry_id: _entry_id,
+                        entry_version: _entry_version,
+                        fields: _fields,
+                        event_ids: _event_ids,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _provider_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _catalog_digest
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _entry_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _entry_version
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _fields
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _event_ids
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::IconProperties {
+                        name: _name,
+                        size: _size,
+                        color: _color,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _color
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -15335,7 +16624,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -15344,7 +16634,8 @@ pub mod owned {
                                 if _placeholder.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _placeholder = Some(value)
                             }
@@ -15353,7 +16644,8 @@ pub mod owned {
                                 if _multiline.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _multiline = Some(value)
                             }
@@ -15362,7 +16654,8 @@ pub mod owned {
                                 if _disabled.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _disabled = Some(value)
                             }
@@ -15371,7 +16664,8 @@ pub mod owned {
                                 if _controlled.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _controlled = Some(value)
                             }
@@ -15380,7 +16674,8 @@ pub mod owned {
                                 if _ack_edit_seq.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _ack_edit_seq = Some(value)
                             }
@@ -15389,7 +16684,8 @@ pub mod owned {
                                 if _selection_start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selection_start = Some(value)
                             }
@@ -15398,7 +16694,8 @@ pub mod owned {
                                 if _selection_end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selection_end = Some(value)
                             }
@@ -15407,7 +16704,8 @@ pub mod owned {
                                 if _marked_start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _marked_start = Some(value)
                             }
@@ -15416,7 +16714,8 @@ pub mod owned {
                                 if _marked_end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _marked_end = Some(value)
                             }
@@ -15425,7 +16724,8 @@ pub mod owned {
                                 if _max_length.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _max_length = Some(value)
                             }
@@ -15434,7 +16734,8 @@ pub mod owned {
                                 if _selection_reversed.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selection_reversed = Some(value)
                             }
@@ -15447,7 +16748,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::TextInputProperties {
@@ -15510,7 +16811,8 @@ pub mod owned {
                                 if _item_count.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _item_count = Some(value)
                             }
@@ -15519,7 +16821,8 @@ pub mod owned {
                                 if _range_start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _range_start = Some(value)
                             }
@@ -15528,7 +16831,8 @@ pub mod owned {
                                 if _range_end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _range_end = Some(value)
                             }
@@ -15537,7 +16841,8 @@ pub mod owned {
                                 if _estimated_item_size.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _estimated_item_size = Some(value)
                             }
@@ -15546,7 +16851,8 @@ pub mod owned {
                                 if _overscan.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _overscan = Some(value)
                             }
@@ -15555,7 +16861,8 @@ pub mod owned {
                                 if _data_revision.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _data_revision = Some(value)
                             }
@@ -15564,7 +16871,8 @@ pub mod owned {
                                 if _data_edit.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _data_edit = Some(value)
                             }
@@ -15577,7 +16885,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::VirtualListProperties {
@@ -15632,7 +16940,8 @@ pub mod owned {
                                 if _source.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _source = Some(value)
                             }
@@ -15641,7 +16950,8 @@ pub mod owned {
                                 if _object_fit.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _object_fit = Some(value)
                             }
@@ -15650,7 +16960,8 @@ pub mod owned {
                                 if _fallback_source.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _fallback_source = Some(value)
                             }
@@ -15659,7 +16970,8 @@ pub mod owned {
                                 if _sources.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _sources = Some(value)
                             }
@@ -15672,7 +16984,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::ImageProperties {
@@ -15724,7 +17036,8 @@ pub mod owned {
                                 if _drag_type.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _drag_type = Some(value)
                             }
@@ -15733,7 +17046,8 @@ pub mod owned {
                                 if _export_files.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _export_files = Some(value)
                             }
@@ -15742,7 +17056,8 @@ pub mod owned {
                                 if _accepts_drag_over.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _accepts_drag_over = Some(value)
                             }
@@ -15751,7 +17066,8 @@ pub mod owned {
                                 if _accepts_drop.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _accepts_drop = Some(value)
                             }
@@ -15764,7 +17080,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::DragProperties {
@@ -15818,7 +17134,8 @@ pub mod owned {
                                 if _provider_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _provider_id = Some(value)
                             }
@@ -15827,7 +17144,8 @@ pub mod owned {
                                 if _catalog_digest.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _catalog_digest = Some(value)
                             }
@@ -15836,7 +17154,8 @@ pub mod owned {
                                 if _entry_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _entry_id = Some(value)
                             }
@@ -15845,7 +17164,8 @@ pub mod owned {
                                 if _entry_version.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _entry_version = Some(value)
                             }
@@ -15854,7 +17174,8 @@ pub mod owned {
                                 if _fields.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _fields = Some(value)
                             }
@@ -15863,7 +17184,8 @@ pub mod owned {
                                 if _event_ids.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _event_ids = Some(value)
                             }
@@ -15876,7 +17198,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::ExtensionProperties {
@@ -15929,7 +17251,8 @@ pub mod owned {
                                 if _name.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _name = Some(value)
                             }
@@ -15938,7 +17261,8 @@ pub mod owned {
                                 if _size.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _size = Some(value)
                             }
@@ -15947,7 +17271,8 @@ pub mod owned {
                                 if _color.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _color = Some(value)
                             }
@@ -15960,7 +17285,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     HostProperties::IconProperties {
@@ -15977,12 +17302,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for HostProperties {}
@@ -16012,10 +17335,23 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.source.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .source
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .height
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -16110,14 +17446,17 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                source: _source,
-                width: _width,
-                height: _height,
-            }))
+            Ok((
+                i,
+                Self {
+                    source: _source,
+                    width: _width,
+                    height: _height,
+                },
+            ))
         }
     }
 
@@ -16171,17 +17510,58 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.role.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.label.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.description.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.checked.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.selected.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.expanded.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.level.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.live.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .role
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .label
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .description
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .disabled
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .checked
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .selected
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .value
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .expanded
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .level
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .live
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -16374,21 +17754,24 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                role: _role,
-                label: _label,
-                description: _description,
-                disabled: _disabled,
-                checked: _checked,
-                selected: _selected,
-                value: _value,
-                expanded: _expanded,
-                level: _level,
-                live: _live,
-            }))
+            Ok((
+                i,
+                Self {
+                    role: _role,
+                    label: _label,
+                    description: _description,
+                    disabled: _disabled,
+                    checked: _checked,
+                    selected: _selected,
+                    value: _value,
+                    expanded: _expanded,
+                    level: _level,
+                    live: _live,
+                },
+            ))
         }
     }
 
@@ -16616,73 +17999,338 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.flex_direction.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.flex_grow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.padding.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.background_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.opacity.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.transition.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.justify_content.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.align_items.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.font_size.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.font_weight.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.overflow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.line_clamp.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.text_overflow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.margin_top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.margin_right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.margin_bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.margin_left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.font_style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.text_decoration.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.line_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.min_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.max_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.min_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.max_height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.flex_shrink.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.align_self.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.position.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.cursor.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.text_align.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.box_shadow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.font_family.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.padding_top.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.padding_right.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.padding_bottom.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.padding_left.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_top_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_right_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_bottom_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_left_width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_top_left_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_top_right_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_bottom_right_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_bottom_left_radius.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.width_percent.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.height_percent.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.flex_wrap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.linear_gradient.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_top_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_right_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_bottom_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.border_left_color.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.grid_columns.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.grid_rows.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.grid_column_span.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.grid_row_span.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .height
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .flex_direction
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .flex_grow
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .gap
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .background_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .opacity
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .transition
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .justify_content
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .align_items
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .font_size
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .font_weight
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .overflow
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .line_clamp
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .text_overflow
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .margin_top
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .margin_right
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .margin_bottom
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .margin_left
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .font_style
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .text_decoration
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .line_height
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .min_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .max_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .min_height
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .max_height
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .flex_shrink
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .align_self
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .position
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .left
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .top
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .right
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .bottom
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .cursor
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .text_align
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .box_shadow
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .font_family
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_top
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_right
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_bottom
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .padding_left
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_right_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_left_width
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_left_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_right_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_right_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_left_radius
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .width_percent
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .height_percent
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .flex_wrap
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .linear_gradient
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_top_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_right_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_bottom_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .border_left_color
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_columns
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_rows
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_column_span
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .grid_row_span
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -17659,77 +19307,80 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                width: _width,
-                height: _height,
-                flex_direction: _flex_direction,
-                flex_grow: _flex_grow,
-                padding: _padding,
-                gap: _gap,
-                background_color: _background_color,
-                color: _color,
-                opacity: _opacity,
-                transition: _transition,
-                justify_content: _justify_content,
-                align_items: _align_items,
-                border_radius: _border_radius,
-                border_width: _border_width,
-                border_color: _border_color,
-                font_size: _font_size,
-                font_weight: _font_weight,
-                overflow: _overflow,
-                line_clamp: _line_clamp,
-                text_overflow: _text_overflow,
-                margin_top: _margin_top,
-                margin_right: _margin_right,
-                margin_bottom: _margin_bottom,
-                margin_left: _margin_left,
-                font_style: _font_style,
-                text_decoration: _text_decoration,
-                line_height: _line_height,
-                min_width: _min_width,
-                max_width: _max_width,
-                min_height: _min_height,
-                max_height: _max_height,
-                flex_shrink: _flex_shrink,
-                align_self: _align_self,
-                position: _position,
-                left: _left,
-                top: _top,
-                right: _right,
-                bottom: _bottom,
-                cursor: _cursor,
-                text_align: _text_align,
-                box_shadow: _box_shadow,
-                font_family: _font_family,
-                padding_top: _padding_top,
-                padding_right: _padding_right,
-                padding_bottom: _padding_bottom,
-                padding_left: _padding_left,
-                border_top_width: _border_top_width,
-                border_right_width: _border_right_width,
-                border_bottom_width: _border_bottom_width,
-                border_left_width: _border_left_width,
-                border_top_left_radius: _border_top_left_radius,
-                border_top_right_radius: _border_top_right_radius,
-                border_bottom_right_radius: _border_bottom_right_radius,
-                border_bottom_left_radius: _border_bottom_left_radius,
-                width_percent: _width_percent,
-                height_percent: _height_percent,
-                flex_wrap: _flex_wrap,
-                linear_gradient: _linear_gradient,
-                border_top_color: _border_top_color,
-                border_right_color: _border_right_color,
-                border_bottom_color: _border_bottom_color,
-                border_left_color: _border_left_color,
-                grid_columns: _grid_columns,
-                grid_rows: _grid_rows,
-                grid_column_span: _grid_column_span,
-                grid_row_span: _grid_row_span,
-            }))
+            Ok((
+                i,
+                Self {
+                    width: _width,
+                    height: _height,
+                    flex_direction: _flex_direction,
+                    flex_grow: _flex_grow,
+                    padding: _padding,
+                    gap: _gap,
+                    background_color: _background_color,
+                    color: _color,
+                    opacity: _opacity,
+                    transition: _transition,
+                    justify_content: _justify_content,
+                    align_items: _align_items,
+                    border_radius: _border_radius,
+                    border_width: _border_width,
+                    border_color: _border_color,
+                    font_size: _font_size,
+                    font_weight: _font_weight,
+                    overflow: _overflow,
+                    line_clamp: _line_clamp,
+                    text_overflow: _text_overflow,
+                    margin_top: _margin_top,
+                    margin_right: _margin_right,
+                    margin_bottom: _margin_bottom,
+                    margin_left: _margin_left,
+                    font_style: _font_style,
+                    text_decoration: _text_decoration,
+                    line_height: _line_height,
+                    min_width: _min_width,
+                    max_width: _max_width,
+                    min_height: _min_height,
+                    max_height: _max_height,
+                    flex_shrink: _flex_shrink,
+                    align_self: _align_self,
+                    position: _position,
+                    left: _left,
+                    top: _top,
+                    right: _right,
+                    bottom: _bottom,
+                    cursor: _cursor,
+                    text_align: _text_align,
+                    box_shadow: _box_shadow,
+                    font_family: _font_family,
+                    padding_top: _padding_top,
+                    padding_right: _padding_right,
+                    padding_bottom: _padding_bottom,
+                    padding_left: _padding_left,
+                    border_top_width: _border_top_width,
+                    border_right_width: _border_right_width,
+                    border_bottom_width: _border_bottom_width,
+                    border_left_width: _border_left_width,
+                    border_top_left_radius: _border_top_left_radius,
+                    border_top_right_radius: _border_top_right_radius,
+                    border_bottom_right_radius: _border_bottom_right_radius,
+                    border_bottom_left_radius: _border_bottom_left_radius,
+                    width_percent: _width_percent,
+                    height_percent: _height_percent,
+                    flex_wrap: _flex_wrap,
+                    linear_gradient: _linear_gradient,
+                    border_top_color: _border_top_color,
+                    border_right_color: _border_right_color,
+                    border_bottom_color: _border_bottom_color,
+                    border_left_color: _border_left_color,
+                    grid_columns: _grid_columns,
+                    grid_rows: _grid_rows,
+                    grid_column_span: _grid_column_span,
+                    grid_row_span: _grid_row_span,
+                },
+            ))
         }
     }
 
@@ -17793,21 +19444,78 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.parent_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.index.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.host_properties.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.accessibility.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.focusable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.selectable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.tooltip.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.accepts_pointer_move.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.observes_layout.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .id
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .parent_id
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .index
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .kind
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .style
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .text
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .listener_id
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .host_properties
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .accessibility
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .focusable
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .selectable
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .tooltip
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .accepts_pointer_move
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .observes_layout
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -18056,25 +19764,28 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                id: _id,
-                parent_id: _parent_id,
-                index: _index,
-                kind: _kind,
-                style: _style,
-                text: _text,
-                listener_id: _listener_id,
-                host_properties: _host_properties,
-                accessibility: _accessibility,
-                focusable: _focusable,
-                selectable: _selectable,
-                tooltip: _tooltip,
-                accepts_pointer_move: _accepts_pointer_move,
-                observes_layout: _observes_layout,
-            }))
+            Ok((
+                i,
+                Self {
+                    id: _id,
+                    parent_id: _parent_id,
+                    index: _index,
+                    kind: _kind,
+                    style: _style,
+                    text: _text,
+                    listener_id: _listener_id,
+                    host_properties: _host_properties,
+                    accessibility: _accessibility,
+                    focusable: _focusable,
+                    selectable: _selectable,
+                    tooltip: _tooltip,
+                    accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
+                },
+            ))
         }
     }
 
@@ -18143,17 +19854,10 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::PatchOperationValue<'raw>> for PatchOperationValue {
         fn from(value: super::PatchOperationValue) -> Self {
             match value {
-                super::PatchOperationValue::Unknown => {
-                    Self::Unknown
-                }
-                super::PatchOperationValue::PatchCreate {
-                    node: _node,
-                }
-                => {
-                    Self::PatchCreate {
-                        node: _node.map(|value| value.into()),
-                    }
-                }
+                super::PatchOperationValue::Unknown => Self::Unknown,
+                super::PatchOperationValue::PatchCreate { node: _node } => Self::PatchCreate {
+                    node: _node.map(|value| value.into()),
+                },
                 super::PatchOperationValue::PatchUpdate {
                     id: _id,
                     mask: _mask,
@@ -18168,114 +19872,133 @@ pub mod owned {
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
                     observes_layout: _observes_layout,
-                }
-                => {
-                    Self::PatchUpdate {
-                        id: _id,
-                        mask: _mask,
-                        style: _style.map(|value| value.into()),
-                        clear_style: _clear_style,
-                        text: _text.map(|value| value.into()),
-                        listener_id: _listener_id,
-                        host_properties: _host_properties.map(|value| value.into()),
-                        accessibility: _accessibility.map(|value| value.into()),
-                        focusable: _focusable,
-                        selectable: _selectable,
-                        tooltip: _tooltip.map(|value| value.into()),
-                        accepts_pointer_move: _accepts_pointer_move,
-                        observes_layout: _observes_layout,
-                    }
-                }
+                } => Self::PatchUpdate {
+                    id: _id,
+                    mask: _mask,
+                    style: _style.map(|value| value.into()),
+                    clear_style: _clear_style,
+                    text: _text.map(|value| value.into()),
+                    listener_id: _listener_id,
+                    host_properties: _host_properties.map(|value| value.into()),
+                    accessibility: _accessibility.map(|value| value.into()),
+                    focusable: _focusable,
+                    selectable: _selectable,
+                    tooltip: _tooltip.map(|value| value.into()),
+                    accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
+                },
                 super::PatchOperationValue::PatchMove {
                     id: _id,
                     parent_id: _parent_id,
                     index: _index,
-                }
-                => {
-                    Self::PatchMove {
-                        id: _id,
-                        parent_id: _parent_id,
-                        index: _index,
-                    }
-                }
-                super::PatchOperationValue::PatchDelete {
+                } => Self::PatchMove {
                     id: _id,
-                }
-                => {
-                    Self::PatchDelete {
-                        id: _id,
-                    }
+                    parent_id: _parent_id,
+                    index: _index,
+                },
+                super::PatchOperationValue::PatchDelete { id: _id } => {
+                    Self::PatchDelete { id: _id }
                 }
             }
         }
-
     }
     impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue {
         const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                PatchOperationValue::Unknown => {
-                    0
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    PatchOperationValue::Unknown => 0,
+                    Self::PatchCreate { node: _node } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _node.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::PatchUpdate {
+                        id: _id,
+                        mask: _mask,
+                        style: _style,
+                        clear_style: _clear_style,
+                        text: _text,
+                        listener_id: _listener_id,
+                        host_properties: _host_properties,
+                        accessibility: _accessibility,
+                        focusable: _focusable,
+                        selectable: _selectable,
+                        tooltip: _tooltip,
+                        accepts_pointer_move: _accepts_pointer_move,
+                        observes_layout: _observes_layout,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _mask.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _style
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _clear_style
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _listener_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _host_properties
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _accessibility
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _focusable
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _selectable
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _tooltip
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _accepts_pointer_move
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _observes_layout
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::PatchMove {
+                        id: _id,
+                        parent_id: _parent_id,
+                        index: _index,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _parent_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _index
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::PatchDelete { id: _id } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
                 }
-                Self::PatchCreate {
-                    node: _node,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _node.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PatchUpdate {
-                    id: _id,
-                    mask: _mask,
-                    style: _style,
-                    clear_style: _clear_style,
-                    text: _text,
-                    listener_id: _listener_id,
-                    host_properties: _host_properties,
-                    accessibility: _accessibility,
-                    focusable: _focusable,
-                    selectable: _selectable,
-                    tooltip: _tooltip,
-                    accepts_pointer_move: _accepts_pointer_move,
-                    observes_layout: _observes_layout,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _mask.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _clear_style.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _listener_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _host_properties.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _accessibility.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _focusable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selectable.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _tooltip.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _accepts_pointer_move.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _observes_layout.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PatchMove {
-                    id: _id,
-                    parent_id: _parent_id,
-                    index: _index,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _parent_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _index.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PatchDelete {
-                    id: _id,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -18450,7 +20173,8 @@ pub mod owned {
                                 if _node.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _node = Some(value)
                             }
@@ -18463,12 +20187,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    PatchOperationValue::PatchCreate {
-                        node: _node,
-                    }
+                    PatchOperationValue::PatchCreate { node: _node }
                 }
                 2 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -18521,7 +20243,8 @@ pub mod owned {
                                 if _id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _id = Some(value)
                             }
@@ -18530,7 +20253,8 @@ pub mod owned {
                                 if _mask.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _mask = Some(value)
                             }
@@ -18539,7 +20263,8 @@ pub mod owned {
                                 if _style.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _style = Some(value)
                             }
@@ -18548,7 +20273,8 @@ pub mod owned {
                                 if _clear_style.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _clear_style = Some(value)
                             }
@@ -18557,7 +20283,8 @@ pub mod owned {
                                 if _text.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _text = Some(value)
                             }
@@ -18566,7 +20293,8 @@ pub mod owned {
                                 if _listener_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _listener_id = Some(value)
                             }
@@ -18575,7 +20303,8 @@ pub mod owned {
                                 if _host_properties.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _host_properties = Some(value)
                             }
@@ -18584,7 +20313,8 @@ pub mod owned {
                                 if _accessibility.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _accessibility = Some(value)
                             }
@@ -18593,7 +20323,8 @@ pub mod owned {
                                 if _focusable.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _focusable = Some(value)
                             }
@@ -18602,7 +20333,8 @@ pub mod owned {
                                 if _selectable.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selectable = Some(value)
                             }
@@ -18611,7 +20343,8 @@ pub mod owned {
                                 if _tooltip.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _tooltip = Some(value)
                             }
@@ -18620,7 +20353,8 @@ pub mod owned {
                                 if _accepts_pointer_move.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _accepts_pointer_move = Some(value)
                             }
@@ -18629,7 +20363,8 @@ pub mod owned {
                                 if _observes_layout.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _observes_layout = Some(value)
                             }
@@ -18642,7 +20377,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     PatchOperationValue::PatchUpdate {
@@ -18702,7 +20437,8 @@ pub mod owned {
                                 if _id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _id = Some(value)
                             }
@@ -18711,7 +20447,8 @@ pub mod owned {
                                 if _parent_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _parent_id = Some(value)
                             }
@@ -18720,7 +20457,8 @@ pub mod owned {
                                 if _index.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _index = Some(value)
                             }
@@ -18733,7 +20471,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     PatchOperationValue::PatchMove {
@@ -18781,7 +20519,8 @@ pub mod owned {
                                 if _id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _id = Some(value)
                             }
@@ -18794,12 +20533,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    PatchOperationValue::PatchDelete {
-                        id: _id,
-                    }
+                    PatchOperationValue::PatchDelete { id: _id }
                 }
                 _ => {
                     i = len;
@@ -18809,12 +20546,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for PatchOperationValue {}
@@ -18838,8 +20573,13 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.operation.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .operation
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -18906,12 +20646,15 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                operation: _operation,
-            }))
+            Ok((
+                i,
+                Self {
+                    operation: _operation,
+                },
+            ))
         }
     }
 
@@ -18927,7 +20670,9 @@ pub mod owned {
         pub label: ::core::option::Option<String>,
     }
 
-    impl<'raw> ::core::convert::From<super::NotificationActionDefinition<'raw>> for NotificationActionDefinition {
+    impl<'raw> ::core::convert::From<super::NotificationActionDefinition<'raw>>
+        for NotificationActionDefinition
+    {
         fn from(value: super::NotificationActionDefinition) -> Self {
             Self {
                 id: value.id.map(|value| value.into()),
@@ -18941,9 +20686,18 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.label.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .id
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .label
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -19024,13 +20778,16 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                id: _id,
-                label: _label,
-            }))
+            Ok((
+                i,
+                Self {
+                    id: _id,
+                    label: _label,
+                },
+            ))
         }
     }
 
@@ -19048,7 +20805,9 @@ pub mod owned {
         fn from(value: super::MenuDefinition) -> Self {
             Self {
                 title: value.title.map(|value| value.into()),
-                items: value.items.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                items: value
+                    .items
+                    .map(|value| value.into_iter().map(|value| value.into()).collect()),
             }
         }
     }
@@ -19058,9 +20817,18 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.items.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .title
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .items
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -19141,13 +20909,16 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                title: _title,
-                items: _items,
-            }))
+            Ok((
+                i,
+                Self {
+                    title: _title,
+                    items: _items,
+                },
+            ))
         }
     }
 
@@ -19159,8 +20930,7 @@ pub mod owned {
         Unknown,
 
         /// Discriminator 1
-        MenuSeparator {
-        },
+        MenuSeparator {},
 
         /// Discriminator 2
         MenuAction {
@@ -19182,73 +20952,55 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::MenuItemValue<'raw>> for MenuItemValue {
         fn from(value: super::MenuItemValue) -> Self {
             match value {
-                super::MenuItemValue::Unknown => {
-                    Self::Unknown
-                }
-                super::MenuItemValue::MenuSeparator {
-                }
-                => {
-                    Self::MenuSeparator {
-                    }
-                }
+                super::MenuItemValue::Unknown => Self::Unknown,
+                super::MenuItemValue::MenuSeparator {} => Self::MenuSeparator {},
                 super::MenuItemValue::MenuAction {
                     name: _name,
                     disabled: _disabled,
                     checked: _checked,
-                }
-                => {
-                    Self::MenuAction {
-                        name: _name.map(|value| value.into()),
-                        disabled: _disabled,
-                        checked: _checked,
-                    }
-                }
-                super::MenuItemValue::MenuSubmenu {
-                    menu: _menu,
-                }
-                => {
-                    Self::MenuSubmenu {
-                        menu: _menu.map(|value| value.into()),
-                    }
-                }
+                } => Self::MenuAction {
+                    name: _name.map(|value| value.into()),
+                    disabled: _disabled,
+                    checked: _checked,
+                },
+                super::MenuItemValue::MenuSubmenu { menu: _menu } => Self::MenuSubmenu {
+                    menu: _menu.map(|value| value.into()),
+                },
             }
         }
-
     }
     impl<'raw> ::bebop::SubRecord<'raw> for MenuItemValue {
         const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                MenuItemValue::Unknown => {
-                    0
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    MenuItemValue::Unknown => 0,
+                    Self::MenuSeparator {} => ::bebop::LEN_SIZE + 1,
+                    Self::MenuAction {
+                        name: _name,
+                        disabled: _disabled,
+                        checked: _checked,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _disabled
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _checked
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::MenuSubmenu { menu: _menu } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _menu.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
                 }
-                Self::MenuSeparator {
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1
-
-                }
-                Self::MenuAction {
-                    name: _name,
-                    disabled: _disabled,
-                    checked: _checked,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _disabled.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _checked.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::MenuSubmenu {
-                    menu: _menu,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _menu.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -19320,7 +21072,6 @@ pub mod owned {
                         return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
                     }
 
-
                     #[cfg(not(feature = "unchecked"))]
                     let mut last = 0;
 
@@ -19349,11 +21100,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    MenuItemValue::MenuSeparator {
-                    }
+                    MenuItemValue::MenuSeparator {}
                 }
                 2 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -19396,7 +21146,8 @@ pub mod owned {
                                 if _name.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _name = Some(value)
                             }
@@ -19405,7 +21156,8 @@ pub mod owned {
                                 if _disabled.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _disabled = Some(value)
                             }
@@ -19414,7 +21166,8 @@ pub mod owned {
                                 if _checked.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _checked = Some(value)
                             }
@@ -19427,7 +21180,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     MenuItemValue::MenuAction {
@@ -19475,7 +21228,8 @@ pub mod owned {
                                 if _menu.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _menu = Some(value)
                             }
@@ -19488,12 +21242,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    MenuItemValue::MenuSubmenu {
-                        menu: _menu,
-                    }
+                    MenuItemValue::MenuSubmenu { menu: _menu }
                 }
                 _ => {
                     i = len;
@@ -19503,12 +21255,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for MenuItemValue {}
@@ -19532,8 +21282,13 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .value
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -19600,12 +21355,10 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                value: _value,
-            }))
+            Ok((i, Self { value: _value }))
         }
     }
 
@@ -19633,9 +21386,18 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.keystrokes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.action_name.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .keystrokes
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .action_name
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -19716,13 +21478,16 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                keystrokes: _keystrokes,
-                action_name: _action_name,
-            }))
+            Ok((
+                i,
+                Self {
+                    keystrokes: _keystrokes,
+                    action_name: _action_name,
+                },
+            ))
         }
     }
 
@@ -19873,343 +21638,376 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::CommandPayload<'raw>> for CommandPayload {
         fn from(value: super::CommandPayload) -> Self {
             match value {
-                super::CommandPayload::Unknown => {
-                    Self::Unknown
-                }
+                super::CommandPayload::Unknown => Self::Unknown,
                 super::CommandPayload::U32PairCommand {
                     first: _first,
                     second: _second,
+                } => Self::U32PairCommand {
+                    first: _first,
+                    second: _second,
+                },
+                super::CommandPayload::FloatCommand { value: _value } => {
+                    Self::FloatCommand { value: _value }
                 }
-                => {
-                    Self::U32PairCommand {
-                        first: _first,
-                        second: _second,
-                    }
-                }
-                super::CommandPayload::FloatCommand {
-                    value: _value,
-                }
-                => {
-                    Self::FloatCommand {
-                        value: _value,
-                    }
-                }
-                super::CommandPayload::TextCommand {
-                    value: _value,
-                }
-                => {
-                    Self::TextCommand {
-                        value: _value.map(|value| value.into()),
-                    }
-                }
+                super::CommandPayload::TextCommand { value: _value } => Self::TextCommand {
+                    value: _value.map(|value| value.into()),
+                },
                 super::CommandPayload::StringPairCommand {
                     path: _path,
                     content: _content,
-                }
-                => {
-                    Self::StringPairCommand {
-                        path: _path.map(|value| value.into()),
-                        content: _content.map(|value| value.into()),
-                    }
-                }
+                } => Self::StringPairCommand {
+                    path: _path.map(|value| value.into()),
+                    content: _content.map(|value| value.into()),
+                },
                 super::CommandPayload::OpenSurfaceCommand {
                     title: _title,
                     width: _width,
                     height: _height,
                     options: _options,
-                }
-                => {
-                    Self::OpenSurfaceCommand {
-                        title: _title.map(|value| value.into()),
-                        width: _width,
-                        height: _height,
-                        options: _options,
-                    }
-                }
+                } => Self::OpenSurfaceCommand {
+                    title: _title.map(|value| value.into()),
+                    width: _width,
+                    height: _height,
+                    options: _options,
+                },
                 super::CommandPayload::FileDialogOpenCommand {
                     title: _title,
                     directories: _directories,
                     multiple: _multiple,
-                }
-                => {
-                    Self::FileDialogOpenCommand {
-                        title: _title.map(|value| value.into()),
-                        directories: _directories,
-                        multiple: _multiple,
-                    }
-                }
+                } => Self::FileDialogOpenCommand {
+                    title: _title.map(|value| value.into()),
+                    directories: _directories,
+                    multiple: _multiple,
+                },
                 super::CommandPayload::NotificationCommand {
                     title: _title,
                     body: _body,
                     actions: _actions,
-                }
-                => {
-                    Self::NotificationCommand {
-                        title: _title.map(|value| value.into()),
-                        body: _body.map(|value| value.into()),
-                        actions: _actions.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
-                super::CommandPayload::MenusCommand {
-                    menus: _menus,
-                }
-                => {
-                    Self::MenusCommand {
-                        menus: _menus.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
+                } => Self::NotificationCommand {
+                    title: _title.map(|value| value.into()),
+                    body: _body.map(|value| value.into()),
+                    actions: _actions
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::CommandPayload::MenusCommand { menus: _menus } => Self::MenusCommand {
+                    menus: _menus
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
                 super::CommandPayload::KeybindingsCommand {
                     bindings: _bindings,
-                }
-                => {
-                    Self::KeybindingsCommand {
-                        bindings: _bindings.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
+                } => Self::KeybindingsCommand {
+                    bindings: _bindings
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
                 super::CommandPayload::ClipboardImageCommand {
                     format: _format,
                     bytes: _bytes,
-                }
-                => {
-                    Self::ClipboardImageCommand {
-                        format: _format,
-                        bytes: _bytes.map(|value| value.iter().map(|value| value).collect()),
-                    }
-                }
+                } => Self::ClipboardImageCommand {
+                    format: _format,
+                    bytes: _bytes.map(|value| value.iter().map(|value| value).collect()),
+                },
                 super::CommandPayload::CloseResolutionCommand {
                     request_id: _request_id,
                     allow: _allow,
-                }
-                => {
-                    Self::CloseResolutionCommand {
-                        request_id: _request_id,
-                        allow: _allow,
-                    }
-                }
+                } => Self::CloseResolutionCommand {
+                    request_id: _request_id,
+                    allow: _allow,
+                },
                 super::CommandPayload::InvokeNativeCommand {
                     module_id: _module_id,
                     module_digest: _module_digest,
                     function_id: _function_id,
                     args: _args,
-                }
-                => {
-                    Self::InvokeNativeCommand {
-                        module_id: _module_id.map(|value| value.iter().map(|value| value).collect()),
-                        module_digest: _module_digest.map(|value| value.iter().map(|value| value).collect()),
-                        function_id: _function_id,
-                        args: _args.map(|value| value.iter().map(|value| value).collect()),
-                    }
-                }
+                } => Self::InvokeNativeCommand {
+                    module_id: _module_id.map(|value| value.iter().map(|value| value).collect()),
+                    module_digest: _module_digest
+                        .map(|value| value.iter().map(|value| value).collect()),
+                    function_id: _function_id,
+                    args: _args.map(|value| value.iter().map(|value| value).collect()),
+                },
                 super::CommandPayload::CancelNativeCommand {
                     request_id: _request_id,
-                }
-                => {
-                    Self::CancelNativeCommand {
-                        request_id: _request_id,
-                    }
-                }
+                } => Self::CancelNativeCommand {
+                    request_id: _request_id,
+                },
                 super::CommandPayload::ConfigureApplicationCommand {
                     keep_alive: _keep_alive,
                     quit: _quit,
                     acknowledged_sequence: _acknowledged_sequence,
-                }
-                => {
-                    Self::ConfigureApplicationCommand {
-                        keep_alive: _keep_alive,
-                        quit: _quit,
-                        acknowledged_sequence: _acknowledged_sequence,
-                    }
-                }
+                } => Self::ConfigureApplicationCommand {
+                    keep_alive: _keep_alive,
+                    quit: _quit,
+                    acknowledged_sequence: _acknowledged_sequence,
+                },
                 super::CommandPayload::OpenPopupCommand {
                     anchor_node_id: _anchor_node_id,
                     width: _width,
                     height: _height,
                     placement: _placement,
                     gap: _gap,
-                }
-                => {
+                } => Self::OpenPopupCommand {
+                    anchor_node_id: _anchor_node_id,
+                    width: _width,
+                    height: _height,
+                    placement: _placement,
+                    gap: _gap,
+                },
+                super::CommandPayload::ClosePopupCommand {
+                    request_id: _request_id,
+                } => Self::ClosePopupCommand {
+                    request_id: _request_id,
+                },
+            }
+        }
+    }
+    impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload {
+        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+        fn serialized_size(&self) -> usize {
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    CommandPayload::Unknown => 0,
+                    Self::U32PairCommand {
+                        first: _first,
+                        second: _second,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _first
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _second
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::FloatCommand { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::TextCommand { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::StringPairCommand {
+                        path: _path,
+                        content: _content,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _path.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _content
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::OpenSurfaceCommand {
+                        title: _title,
+                        width: _width,
+                        height: _height,
+                        options: _options,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _title
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _options
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::FileDialogOpenCommand {
+                        title: _title,
+                        directories: _directories,
+                        multiple: _multiple,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _title
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _directories
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _multiple
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::NotificationCommand {
+                        title: _title,
+                        body: _body,
+                        actions: _actions,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _title
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _actions
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::MenusCommand { menus: _menus } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _menus
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::KeybindingsCommand {
+                        bindings: _bindings,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _bindings
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ClipboardImageCommand {
+                        format: _format,
+                        bytes: _bytes,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _format
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _bytes
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::CloseResolutionCommand {
+                        request_id: _request_id,
+                        allow: _allow,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _allow
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::InvokeNativeCommand {
+                        module_id: _module_id,
+                        module_digest: _module_digest,
+                        function_id: _function_id,
+                        args: _args,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _module_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _module_digest
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _function_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::CancelNativeCommand {
+                        request_id: _request_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ConfigureApplicationCommand {
+                        keep_alive: _keep_alive,
+                        quit: _quit,
+                        acknowledged_sequence: _acknowledged_sequence,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _keep_alive
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _acknowledged_sequence
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
                     Self::OpenPopupCommand {
                         anchor_node_id: _anchor_node_id,
                         width: _width,
                         height: _height,
                         placement: _placement,
                         gap: _gap,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _anchor_node_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _placement
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                     }
-                }
-                super::CommandPayload::ClosePopupCommand {
-                    request_id: _request_id,
-                }
-                => {
                     Self::ClosePopupCommand {
                         request_id: _request_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
                 }
-            }
-        }
-
-    }
-    impl<'raw> ::bebop::SubRecord<'raw> for CommandPayload {
-        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
-
-        fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                CommandPayload::Unknown => {
-                    0
-                }
-                Self::U32PairCommand {
-                    first: _first,
-                    second: _second,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _first.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _second.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::FloatCommand {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::TextCommand {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::StringPairCommand {
-                    path: _path,
-                    content: _content,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _path.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _content.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::OpenSurfaceCommand {
-                    title: _title,
-                    width: _width,
-                    height: _height,
-                    options: _options,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _options.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::FileDialogOpenCommand {
-                    title: _title,
-                    directories: _directories,
-                    multiple: _multiple,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _directories.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _multiple.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::NotificationCommand {
-                    title: _title,
-                    body: _body,
-                    actions: _actions,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _title.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _actions.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::MenusCommand {
-                    menus: _menus,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _menus.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::KeybindingsCommand {
-                    bindings: _bindings,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _bindings.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ClipboardImageCommand {
-                    format: _format,
-                    bytes: _bytes,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _format.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _bytes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::CloseResolutionCommand {
-                    request_id: _request_id,
-                    allow: _allow,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _allow.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::InvokeNativeCommand {
-                    module_id: _module_id,
-                    module_digest: _module_digest,
-                    function_id: _function_id,
-                    args: _args,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _module_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _module_digest.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _function_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _args.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::CancelNativeCommand {
-                    request_id: _request_id,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ConfigureApplicationCommand {
-                    keep_alive: _keep_alive,
-                    quit: _quit,
-                    acknowledged_sequence: _acknowledged_sequence,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _keep_alive.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _quit.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _acknowledged_sequence.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::OpenPopupCommand {
-                    anchor_node_id: _anchor_node_id,
-                    width: _width,
-                    height: _height,
-                    placement: _placement,
-                    gap: _gap,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _anchor_node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _placement.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _gap.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ClosePopupCommand {
-                    request_id: _request_id,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -20559,7 +22357,8 @@ pub mod owned {
                                 if _first.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _first = Some(value)
                             }
@@ -20568,7 +22367,8 @@ pub mod owned {
                                 if _second.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _second = Some(value)
                             }
@@ -20581,7 +22381,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::U32PairCommand {
@@ -20628,7 +22428,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -20641,12 +22442,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandPayload::FloatCommand {
-                        value: _value,
-                    }
+                    CommandPayload::FloatCommand { value: _value }
                 }
                 3 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -20687,7 +22486,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -20700,12 +22500,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandPayload::TextCommand {
-                        value: _value,
-                    }
+                    CommandPayload::TextCommand { value: _value }
                 }
                 4 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -20747,7 +22545,8 @@ pub mod owned {
                                 if _path.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _path = Some(value)
                             }
@@ -20756,7 +22555,8 @@ pub mod owned {
                                 if _content.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _content = Some(value)
                             }
@@ -20769,7 +22569,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::StringPairCommand {
@@ -20819,7 +22619,8 @@ pub mod owned {
                                 if _title.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _title = Some(value)
                             }
@@ -20828,7 +22629,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -20837,7 +22639,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -20846,7 +22649,8 @@ pub mod owned {
                                 if _options.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _options = Some(value)
                             }
@@ -20859,7 +22663,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::OpenSurfaceCommand {
@@ -20910,7 +22714,8 @@ pub mod owned {
                                 if _title.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _title = Some(value)
                             }
@@ -20919,7 +22724,8 @@ pub mod owned {
                                 if _directories.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _directories = Some(value)
                             }
@@ -20928,7 +22734,8 @@ pub mod owned {
                                 if _multiple.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _multiple = Some(value)
                             }
@@ -20941,7 +22748,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::FileDialogOpenCommand {
@@ -20991,7 +22798,8 @@ pub mod owned {
                                 if _title.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _title = Some(value)
                             }
@@ -21000,7 +22808,8 @@ pub mod owned {
                                 if _body.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _body = Some(value)
                             }
@@ -21009,7 +22818,8 @@ pub mod owned {
                                 if _actions.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _actions = Some(value)
                             }
@@ -21022,7 +22832,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::NotificationCommand {
@@ -21070,7 +22880,8 @@ pub mod owned {
                                 if _menus.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _menus = Some(value)
                             }
@@ -21083,12 +22894,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandPayload::MenusCommand {
-                        menus: _menus,
-                    }
+                    CommandPayload::MenusCommand { menus: _menus }
                 }
                 9 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -21129,7 +22938,8 @@ pub mod owned {
                                 if _bindings.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _bindings = Some(value)
                             }
@@ -21142,7 +22952,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::KeybindingsCommand {
@@ -21189,7 +22999,8 @@ pub mod owned {
                                 if _format.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _format = Some(value)
                             }
@@ -21198,7 +23009,8 @@ pub mod owned {
                                 if _bytes.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _bytes = Some(value)
                             }
@@ -21211,7 +23023,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::ClipboardImageCommand {
@@ -21259,7 +23071,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -21268,7 +23081,8 @@ pub mod owned {
                                 if _allow.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _allow = Some(value)
                             }
@@ -21281,7 +23095,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::CloseResolutionCommand {
@@ -21331,7 +23145,8 @@ pub mod owned {
                                 if _module_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _module_id = Some(value)
                             }
@@ -21340,7 +23155,8 @@ pub mod owned {
                                 if _module_digest.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _module_digest = Some(value)
                             }
@@ -21349,7 +23165,8 @@ pub mod owned {
                                 if _function_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _function_id = Some(value)
                             }
@@ -21358,7 +23175,8 @@ pub mod owned {
                                 if _args.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _args = Some(value)
                             }
@@ -21371,7 +23189,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::InvokeNativeCommand {
@@ -21420,7 +23238,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -21433,7 +23252,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::CancelNativeCommand {
@@ -21481,7 +23300,8 @@ pub mod owned {
                                 if _keep_alive.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _keep_alive = Some(value)
                             }
@@ -21490,7 +23310,8 @@ pub mod owned {
                                 if _quit.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _quit = Some(value)
                             }
@@ -21499,7 +23320,8 @@ pub mod owned {
                                 if _acknowledged_sequence.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _acknowledged_sequence = Some(value)
                             }
@@ -21512,7 +23334,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::ConfigureApplicationCommand {
@@ -21564,7 +23386,8 @@ pub mod owned {
                                 if _anchor_node_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _anchor_node_id = Some(value)
                             }
@@ -21573,7 +23396,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -21582,7 +23406,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -21591,7 +23416,8 @@ pub mod owned {
                                 if _placement.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _placement = Some(value)
                             }
@@ -21600,7 +23426,8 @@ pub mod owned {
                                 if _gap.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _gap = Some(value)
                             }
@@ -21613,7 +23440,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::OpenPopupCommand {
@@ -21663,7 +23490,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -21676,7 +23504,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandPayload::ClosePopupCommand {
@@ -21691,12 +23519,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for CommandPayload {}
@@ -21788,212 +23614,193 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::CommandValue<'raw>> for CommandValue {
         fn from(value: super::CommandValue) -> Self {
             match value {
-                super::CommandValue::Unknown => {
-                    Self::Unknown
-                }
-                super::CommandValue::NumberValue {
-                    value: _value,
-                }
-                => {
-                    Self::NumberValue {
-                        value: _value,
-                    }
+                super::CommandValue::Unknown => Self::Unknown,
+                super::CommandValue::NumberValue { value: _value } => {
+                    Self::NumberValue { value: _value }
                 }
                 super::CommandValue::PairValue {
                     width: _width,
                     height: _height,
+                } => Self::PairValue {
+                    width: _width,
+                    height: _height,
+                },
+                super::CommandValue::BoolValue { value: _value } => {
+                    Self::BoolValue { value: _value }
                 }
-                => {
-                    Self::PairValue {
-                        width: _width,
-                        height: _height,
-                    }
-                }
-                super::CommandValue::BoolValue {
-                    value: _value,
-                }
-                => {
-                    Self::BoolValue {
-                        value: _value,
-                    }
-                }
-                super::CommandValue::TextValue {
-                    value: _value,
-                }
-                => {
-                    Self::TextValue {
-                        value: _value.map(|value| value.into()),
-                    }
-                }
-                super::CommandValue::PathsValue {
-                    paths: _paths,
-                }
-                => {
-                    Self::PathsValue {
-                        paths: _paths.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                    }
-                }
-                super::CommandValue::FileTextValue {
-                    value: _value,
-                }
-                => {
-                    Self::FileTextValue {
-                        value: _value.map(|value| value.into()),
-                    }
-                }
+                super::CommandValue::TextValue { value: _value } => Self::TextValue {
+                    value: _value.map(|value| value.into()),
+                },
+                super::CommandValue::PathsValue { paths: _paths } => Self::PathsValue {
+                    paths: _paths
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::CommandValue::FileTextValue { value: _value } => Self::FileTextValue {
+                    value: _value.map(|value| value.into()),
+                },
                 super::CommandValue::ImageValue {
                     format: _format,
                     bytes: _bytes,
-                }
-                => {
-                    Self::ImageValue {
-                        format: _format,
-                        bytes: _bytes.map(|value| value.iter().map(|value| value).collect()),
-                    }
-                }
+                } => Self::ImageValue {
+                    format: _format,
+                    bytes: _bytes.map(|value| value.iter().map(|value| value).collect()),
+                },
                 super::CommandValue::BoundsValue {
                     x: _x,
                     y: _y,
                     width: _width,
                     height: _height,
-                }
-                => {
-                    Self::BoundsValue {
-                        x: _x,
-                        y: _y,
-                        width: _width,
-                        height: _height,
-                    }
-                }
+                } => Self::BoundsValue {
+                    x: _x,
+                    y: _y,
+                    width: _width,
+                    height: _height,
+                },
                 super::CommandValue::WindowStateValue {
                     fullscreen: _fullscreen,
                     maximized: _maximized,
+                } => Self::WindowStateValue {
+                    fullscreen: _fullscreen,
+                    maximized: _maximized,
+                },
+                super::CommandValue::ScrollOffsetValue { value: _value } => {
+                    Self::ScrollOffsetValue { value: _value }
                 }
-                => {
-                    Self::WindowStateValue {
-                        fullscreen: _fullscreen,
-                        maximized: _maximized,
-                    }
-                }
-                super::CommandValue::ScrollOffsetValue {
-                    value: _value,
-                }
-                => {
-                    Self::ScrollOffsetValue {
-                        value: _value,
-                    }
-                }
-                super::CommandValue::BytesValue {
-                    value: _value,
-                }
-                => {
-                    Self::BytesValue {
-                        value: _value.map(|value| value.iter().map(|value| value).collect()),
-                    }
-                }
+                super::CommandValue::BytesValue { value: _value } => Self::BytesValue {
+                    value: _value.map(|value| value.iter().map(|value| value).collect()),
+                },
             }
         }
-
     }
     impl<'raw> ::bebop::SubRecord<'raw> for CommandValue {
         const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
 
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                CommandValue::Unknown => {
-                    0
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    CommandValue::Unknown => 0,
+                    Self::NumberValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::PairValue {
+                        width: _width,
+                        height: _height,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::BoolValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::TextValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::PathsValue { paths: _paths } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _paths
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::FileTextValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ImageValue {
+                        format: _format,
+                        bytes: _bytes,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _format
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _bytes
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::BoundsValue {
+                        x: _x,
+                        y: _y,
+                        width: _width,
+                        height: _height,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::WindowStateValue {
+                        fullscreen: _fullscreen,
+                        maximized: _maximized,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _fullscreen
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _maximized
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::ScrollOffsetValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::BytesValue { value: _value } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
                 }
-                Self::NumberValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PairValue {
-                    width: _width,
-                    height: _height,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::BoolValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::TextValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PathsValue {
-                    paths: _paths,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _paths.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::FileTextValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ImageValue {
-                    format: _format,
-                    bytes: _bytes,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _format.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _bytes.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::BoundsValue {
-                    x: _x,
-                    y: _y,
-                    width: _width,
-                    height: _height,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::WindowStateValue {
-                    fullscreen: _fullscreen,
-                    maximized: _maximized,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _fullscreen.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _maximized.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ScrollOffsetValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::BytesValue {
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -22212,7 +24019,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22225,12 +24033,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::NumberValue {
-                        value: _value,
-                    }
+                    CommandValue::NumberValue { value: _value }
                 }
                 2 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22272,7 +24078,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -22281,7 +24088,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -22294,7 +24102,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandValue::PairValue {
@@ -22341,7 +24149,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22354,12 +24163,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::BoolValue {
-                        value: _value,
-                    }
+                    CommandValue::BoolValue { value: _value }
                 }
                 4 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22400,7 +24207,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22413,12 +24221,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::TextValue {
-                        value: _value,
-                    }
+                    CommandValue::TextValue { value: _value }
                 }
                 5 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22459,7 +24265,8 @@ pub mod owned {
                                 if _paths.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _paths = Some(value)
                             }
@@ -22472,12 +24279,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::PathsValue {
-                        paths: _paths,
-                    }
+                    CommandValue::PathsValue { paths: _paths }
                 }
                 6 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22518,7 +24323,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22531,12 +24337,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::FileTextValue {
-                        value: _value,
-                    }
+                    CommandValue::FileTextValue { value: _value }
                 }
                 7 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22578,7 +24382,8 @@ pub mod owned {
                                 if _format.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _format = Some(value)
                             }
@@ -22587,7 +24392,8 @@ pub mod owned {
                                 if _bytes.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _bytes = Some(value)
                             }
@@ -22600,7 +24406,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandValue::ImageValue {
@@ -22650,7 +24456,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -22659,7 +24466,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -22668,7 +24476,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -22677,7 +24486,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -22690,7 +24500,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandValue::BoundsValue {
@@ -22740,7 +24550,8 @@ pub mod owned {
                                 if _fullscreen.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _fullscreen = Some(value)
                             }
@@ -22749,7 +24560,8 @@ pub mod owned {
                                 if _maximized.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _maximized = Some(value)
                             }
@@ -22762,7 +24574,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     CommandValue::WindowStateValue {
@@ -22809,7 +24621,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22822,12 +24635,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::ScrollOffsetValue {
-                        value: _value,
-                    }
+                    CommandValue::ScrollOffsetValue { value: _value }
                 }
                 11 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -22868,7 +24679,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -22881,12 +24693,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    CommandValue::BytesValue {
-                        value: _value,
-                    }
+                    CommandValue::BytesValue { value: _value }
                 }
                 _ => {
                     i = len;
@@ -22896,12 +24706,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for CommandValue {}
@@ -23119,9 +24927,7 @@ pub mod owned {
     impl<'raw> ::core::convert::From<super::EventPayload<'raw>> for EventPayload {
         fn from(value: super::EventPayload) -> Self {
             match value {
-                super::EventPayload::Unknown => {
-                    Self::Unknown
-                }
+                super::EventPayload::Unknown => Self::Unknown,
                 super::EventPayload::TextInputEventData {
                     text: _text,
                     selection_start: _selection_start,
@@ -23130,18 +24936,15 @@ pub mod owned {
                     marked_end: _marked_end,
                     edit_seq: _edit_seq,
                     reversed: _reversed,
-                }
-                => {
-                    Self::TextInputEventData {
-                        text: _text.map(|value| value.into()),
-                        selection_start: _selection_start,
-                        selection_end: _selection_end,
-                        marked_start: _marked_start,
-                        marked_end: _marked_end,
-                        edit_seq: _edit_seq,
-                        reversed: _reversed,
-                    }
-                }
+                } => Self::TextInputEventData {
+                    text: _text.map(|value| value.into()),
+                    selection_start: _selection_start,
+                    selection_end: _selection_end,
+                    marked_start: _marked_start,
+                    marked_end: _marked_end,
+                    edit_seq: _edit_seq,
+                    reversed: _reversed,
+                },
                 super::EventPayload::CommandResult {
                     request_id: _request_id,
                     command: _command,
@@ -23149,47 +24952,36 @@ pub mod owned {
                     success: _success,
                     error: _error,
                     value: _value,
-                }
-                => {
-                    Self::CommandResult {
-                        request_id: _request_id,
-                        command: _command,
-                        node_id: _node_id,
-                        success: _success,
-                        error: _error.map(|value| value.into()),
-                        value: _value.map(|value| value.into()),
-                    }
-                }
+                } => Self::CommandResult {
+                    request_id: _request_id,
+                    command: _command,
+                    node_id: _node_id,
+                    success: _success,
+                    error: _error.map(|value| value.into()),
+                    value: _value.map(|value| value.into()),
+                },
                 super::EventPayload::VisibleRangeEvent {
                     start: _start,
                     end: _end,
-                }
-                => {
-                    Self::VisibleRangeEvent {
-                        start: _start,
-                        end: _end,
-                    }
-                }
+                } => Self::VisibleRangeEvent {
+                    start: _start,
+                    end: _end,
+                },
                 super::EventPayload::AnimationCompleteEvent {
                     generation: _generation,
-                }
-                => {
-                    Self::AnimationCompleteEvent {
-                        generation: _generation,
-                    }
-                }
+                } => Self::AnimationCompleteEvent {
+                    generation: _generation,
+                },
                 super::EventPayload::KeyEvent {
                     key: _key,
                     modifiers: _modifiers,
                     action: _action,
-                }
-                => {
-                    Self::KeyEvent {
-                        key: _key.map(|value| value.into()),
-                        modifiers: _modifiers.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                        action: _action,
-                    }
-                }
+                } => Self::KeyEvent {
+                    key: _key.map(|value| value.into()),
+                    modifiers: _modifiers
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    action: _action,
+                },
                 super::EventPayload::PointerEvent {
                     button: _button,
                     modifiers: _modifiers,
@@ -23197,29 +24989,25 @@ pub mod owned {
                     click_count: _click_count,
                     x: _x,
                     y: _y,
-                }
-                => {
-                    Self::PointerEvent {
-                        button: _button,
-                        modifiers: _modifiers.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                        action: _action,
-                        click_count: _click_count,
-                        x: _x,
-                        y: _y,
-                    }
-                }
+                } => Self::PointerEvent {
+                    button: _button,
+                    modifiers: _modifiers
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    action: _action,
+                    click_count: _click_count,
+                    x: _x,
+                    y: _y,
+                },
                 super::EventPayload::PointerMoveEvent {
                     modifiers: _modifiers,
                     x: _x,
                     y: _y,
-                }
-                => {
-                    Self::PointerMoveEvent {
-                        modifiers: _modifiers.map(|value| value.into_iter().map(|value| value.into()).collect()),
-                        x: _x,
-                        y: _y,
-                    }
-                }
+                } => Self::PointerMoveEvent {
+                    modifiers: _modifiers
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    x: _x,
+                    y: _y,
+                },
                 super::EventPayload::ScrollEvent {
                     delta_kind: _delta_kind,
                     dx: _dx,
@@ -23227,389 +25015,444 @@ pub mod owned {
                     x: _x,
                     y: _y,
                     modifiers: _modifiers,
+                } => Self::ScrollEvent {
+                    delta_kind: _delta_kind,
+                    dx: _dx,
+                    dy: _dy,
+                    x: _x,
+                    y: _y,
+                    modifiers: _modifiers
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::EventPayload::SubmitEvent { text: _text } => Self::SubmitEvent {
+                    text: _text.map(|value| value.into()),
+                },
+                super::EventPayload::WindowResizeEvent {
+                    width: _width,
+                    height: _height,
+                    scale_factor: _scale_factor,
+                } => Self::WindowResizeEvent {
+                    width: _width,
+                    height: _height,
+                    scale_factor: _scale_factor,
+                },
+                super::EventPayload::WindowActivationEvent { active: _active } => {
+                    Self::WindowActivationEvent { active: _active }
                 }
-                => {
+                super::EventPayload::ActionEvent { action: _action } => Self::ActionEvent {
+                    action: _action.map(|value| value.into()),
+                },
+                super::EventPayload::WindowAppearanceEvent {
+                    appearance: _appearance,
+                } => Self::WindowAppearanceEvent {
+                    appearance: _appearance,
+                },
+                super::EventPayload::LayoutEvent {
+                    x: _x,
+                    y: _y,
+                    width: _width,
+                    height: _height,
+                } => Self::LayoutEvent {
+                    x: _x,
+                    y: _y,
+                    width: _width,
+                    height: _height,
+                },
+                super::EventPayload::DragOverEvent {
+                    drag_type: _drag_type,
+                } => Self::DragOverEvent {
+                    drag_type: _drag_type.map(|value| value.into()),
+                },
+                super::EventPayload::DragDropEvent {
+                    drag_type: _drag_type,
+                } => Self::DragDropEvent {
+                    drag_type: _drag_type.map(|value| value.into()),
+                },
+                super::EventPayload::ExternalFileDropEvent { paths: _paths } => {
+                    Self::ExternalFileDropEvent {
+                        paths: _paths
+                            .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    }
+                }
+                super::EventPayload::NotificationResponseEvent {
+                    tag: _tag,
+                    action_id: _action_id,
+                } => Self::NotificationResponseEvent {
+                    tag: _tag.map(|value| value.into()),
+                    action_id: _action_id.map(|value| value.into()),
+                },
+                super::EventPayload::PointerDownOutsideEvent { x: _x, y: _y } => {
+                    Self::PointerDownOutsideEvent { x: _x, y: _y }
+                }
+                super::EventPayload::CloseRequestedEvent {
+                    request_id: _request_id,
+                } => Self::CloseRequestedEvent {
+                    request_id: _request_id,
+                },
+                super::EventPayload::ExtensionEvent {
+                    event_id: _event_id,
+                    fields: _fields,
+                } => Self::ExtensionEvent {
+                    event_id: _event_id,
+                    fields: _fields
+                        .map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+                super::EventPayload::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason,
+                    urls: _urls,
+                } => Self::ApplicationActivationEvent {
+                    target_surface_id: _target_surface_id,
+                    reason: _reason.map(|value| value.into()),
+                    urls: _urls.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                },
+            }
+        }
+    }
+    impl<'raw> ::bebop::SubRecord<'raw> for EventPayload {
+        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+        fn serialized_size(&self) -> usize {
+            ::bebop::LEN_SIZE
+                + 1
+                + match self {
+                    EventPayload::Unknown => 0,
+                    Self::TextInputEventData {
+                        text: _text,
+                        selection_start: _selection_start,
+                        selection_end: _selection_end,
+                        marked_start: _marked_start,
+                        marked_end: _marked_end,
+                        edit_seq: _edit_seq,
+                        reversed: _reversed,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _selection_start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _selection_end
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _marked_start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _marked_end
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _edit_seq
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _reversed
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::CommandResult {
+                        request_id: _request_id,
+                        command: _command,
+                        node_id: _node_id,
+                        success: _success,
+                        error: _error,
+                        value: _value,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _command
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _node_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _success
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _error
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _value
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::VisibleRangeEvent {
+                        start: _start,
+                        end: _end,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _start
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::AnimationCompleteEvent {
+                        generation: _generation,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _generation
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::KeyEvent {
+                        key: _key,
+                        modifiers: _modifiers,
+                        action: _action,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _key.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _modifiers
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _action
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                    }
+                    Self::PointerEvent {
+                        button: _button,
+                        modifiers: _modifiers,
+                        action: _action,
+                        click_count: _click_count,
+                        x: _x,
+                        y: _y,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _button
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _modifiers
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _action
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _click_count
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
+                    Self::PointerMoveEvent {
+                        modifiers: _modifiers,
+                        x: _x,
+                        y: _y,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _modifiers
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                    }
                     Self::ScrollEvent {
                         delta_kind: _delta_kind,
                         dx: _dx,
                         dy: _dy,
                         x: _x,
                         y: _y,
-                        modifiers: _modifiers.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                        modifiers: _modifiers,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _delta_kind
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _dx.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _dy.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _modifiers
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::SubmitEvent {
-                    text: _text,
-                }
-                => {
-                    Self::SubmitEvent {
-                        text: _text.map(|value| value.into()),
+                    Self::SubmitEvent { text: _text } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                     }
-                }
-                super::EventPayload::WindowResizeEvent {
-                    width: _width,
-                    height: _height,
-                    scale_factor: _scale_factor,
-                }
-                => {
                     Self::WindowResizeEvent {
                         width: _width,
                         height: _height,
                         scale_factor: _scale_factor,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _scale_factor
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::WindowActivationEvent {
-                    active: _active,
-                }
-                => {
-                    Self::WindowActivationEvent {
-                        active: _active,
+                    Self::WindowActivationEvent { active: _active } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _active
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::ActionEvent {
-                    action: _action,
-                }
-                => {
-                    Self::ActionEvent {
-                        action: _action.map(|value| value.into()),
+                    Self::ActionEvent { action: _action } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _action
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::WindowAppearanceEvent {
-                    appearance: _appearance,
-                }
-                => {
                     Self::WindowAppearanceEvent {
                         appearance: _appearance,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _appearance
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::LayoutEvent {
-                    x: _x,
-                    y: _y,
-                    width: _width,
-                    height: _height,
-                }
-                => {
                     Self::LayoutEvent {
                         x: _x,
                         y: _y,
                         width: _width,
                         height: _height,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _width
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _height
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::DragOverEvent {
-                    drag_type: _drag_type,
-                }
-                => {
                     Self::DragOverEvent {
-                        drag_type: _drag_type.map(|value| value.into()),
+                        drag_type: _drag_type,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _drag_type
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::DragDropEvent {
-                    drag_type: _drag_type,
-                }
-                => {
                     Self::DragDropEvent {
-                        drag_type: _drag_type.map(|value| value.into()),
+                        drag_type: _drag_type,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _drag_type
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::ExternalFileDropEvent {
-                    paths: _paths,
-                }
-                => {
-                    Self::ExternalFileDropEvent {
-                        paths: _paths.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                    Self::ExternalFileDropEvent { paths: _paths } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _paths
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::NotificationResponseEvent {
-                    tag: _tag,
-                    action_id: _action_id,
-                }
-                => {
                     Self::NotificationResponseEvent {
-                        tag: _tag.map(|value| value.into()),
-                        action_id: _action_id.map(|value| value.into()),
+                        tag: _tag,
+                        action_id: _action_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _tag.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _action_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::PointerDownOutsideEvent {
-                    x: _x,
-                    y: _y,
-                }
-                => {
-                    Self::PointerDownOutsideEvent {
-                        x: _x,
-                        y: _y,
+                    Self::PointerDownOutsideEvent { x: _x, y: _y } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+                            + _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                     }
-                }
-                super::EventPayload::CloseRequestedEvent {
-                    request_id: _request_id,
-                }
-                => {
                     Self::CloseRequestedEvent {
                         request_id: _request_id,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _request_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::ExtensionEvent {
-                    event_id: _event_id,
-                    fields: _fields,
-                }
-                => {
                     Self::ExtensionEvent {
                         event_id: _event_id,
-                        fields: _fields.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                        fields: _fields,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _event_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _fields
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
                     }
-                }
-                super::EventPayload::ApplicationActivationEvent {
-                    target_surface_id: _target_surface_id,
-                    reason: _reason,
-                    urls: _urls,
-                }
-                => {
                     Self::ApplicationActivationEvent {
                         target_surface_id: _target_surface_id,
-                        reason: _reason.map(|value| value.into()),
-                        urls: _urls.map(|value| value.into_iter().map(|value| value.into()).collect()),
+                        reason: _reason,
+                        urls: _urls,
+                    } => {
+                        ::bebop::LEN_SIZE
+                            + 1
+                            + _target_surface_id
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _reason
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
                     }
                 }
-            }
-        }
-
-    }
-    impl<'raw> ::bebop::SubRecord<'raw> for EventPayload {
-        const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
-
-        fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            match self {
-                EventPayload::Unknown => {
-                    0
-                }
-                Self::TextInputEventData {
-                    text: _text,
-                    selection_start: _selection_start,
-                    selection_end: _selection_end,
-                    marked_start: _marked_start,
-                    marked_end: _marked_end,
-                    edit_seq: _edit_seq,
-                    reversed: _reversed,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selection_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _selection_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _marked_start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _marked_end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _edit_seq.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _reversed.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::CommandResult {
-                    request_id: _request_id,
-                    command: _command,
-                    node_id: _node_id,
-                    success: _success,
-                    error: _error,
-                    value: _value,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _command.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _node_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _success.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _error.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _value.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::VisibleRangeEvent {
-                    start: _start,
-                    end: _end,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _start.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _end.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::AnimationCompleteEvent {
-                    generation: _generation,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _generation.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::KeyEvent {
-                    key: _key,
-                    modifiers: _modifiers,
-                    action: _action,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _key.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PointerEvent {
-                    button: _button,
-                    modifiers: _modifiers,
-                    action: _action,
-                    click_count: _click_count,
-                    x: _x,
-                    y: _y,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _button.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _click_count.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PointerMoveEvent {
-                    modifiers: _modifiers,
-                    x: _x,
-                    y: _y,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ScrollEvent {
-                    delta_kind: _delta_kind,
-                    dx: _dx,
-                    dy: _dy,
-                    x: _x,
-                    y: _y,
-                    modifiers: _modifiers,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _delta_kind.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _dx.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _dy.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _modifiers.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::SubmitEvent {
-                    text: _text,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _text.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::WindowResizeEvent {
-                    width: _width,
-                    height: _height,
-                    scale_factor: _scale_factor,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _scale_factor.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::WindowActivationEvent {
-                    active: _active,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _active.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ActionEvent {
-                    action: _action,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _action.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::WindowAppearanceEvent {
-                    appearance: _appearance,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _appearance.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::LayoutEvent {
-                    x: _x,
-                    y: _y,
-                    width: _width,
-                    height: _height,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _width.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _height.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::DragOverEvent {
-                    drag_type: _drag_type,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::DragDropEvent {
-                    drag_type: _drag_type,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _drag_type.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExternalFileDropEvent {
-                    paths: _paths,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _paths.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::NotificationResponseEvent {
-                    tag: _tag,
-                    action_id: _action_id,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _tag.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _action_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::PointerDownOutsideEvent {
-                    x: _x,
-                    y: _y,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _x.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _y.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::CloseRequestedEvent {
-                    request_id: _request_id,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _request_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ExtensionEvent {
-                    event_id: _event_id,
-                    fields: _fields,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _event_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _fields.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-                Self::ApplicationActivationEvent {
-                    target_surface_id: _target_surface_id,
-                    reason: _reason,
-                    urls: _urls,
-                }
-                => {
-                    ::bebop::LEN_SIZE + 1 +
-                    _target_surface_id.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _reason.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-                    _urls.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
-                }
-            }
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -24116,7 +25959,8 @@ pub mod owned {
                                 if _text.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _text = Some(value)
                             }
@@ -24125,7 +25969,8 @@ pub mod owned {
                                 if _selection_start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selection_start = Some(value)
                             }
@@ -24134,7 +25979,8 @@ pub mod owned {
                                 if _selection_end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _selection_end = Some(value)
                             }
@@ -24143,7 +25989,8 @@ pub mod owned {
                                 if _marked_start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _marked_start = Some(value)
                             }
@@ -24152,7 +25999,8 @@ pub mod owned {
                                 if _marked_end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _marked_end = Some(value)
                             }
@@ -24161,7 +26009,8 @@ pub mod owned {
                                 if _edit_seq.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _edit_seq = Some(value)
                             }
@@ -24170,7 +26019,8 @@ pub mod owned {
                                 if _reversed.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _reversed = Some(value)
                             }
@@ -24183,7 +26033,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::TextInputEventData {
@@ -24240,7 +26090,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -24249,7 +26100,8 @@ pub mod owned {
                                 if _command.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _command = Some(value)
                             }
@@ -24258,7 +26110,8 @@ pub mod owned {
                                 if _node_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _node_id = Some(value)
                             }
@@ -24267,7 +26120,8 @@ pub mod owned {
                                 if _success.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _success = Some(value)
                             }
@@ -24276,7 +26130,8 @@ pub mod owned {
                                 if _error.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _error = Some(value)
                             }
@@ -24285,7 +26140,8 @@ pub mod owned {
                                 if _value.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _value = Some(value)
                             }
@@ -24298,7 +26154,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::CommandResult {
@@ -24350,7 +26206,8 @@ pub mod owned {
                                 if _start.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _start = Some(value)
                             }
@@ -24359,7 +26216,8 @@ pub mod owned {
                                 if _end.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _end = Some(value)
                             }
@@ -24372,7 +26230,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::VisibleRangeEvent {
@@ -24419,7 +26277,8 @@ pub mod owned {
                                 if _generation.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _generation = Some(value)
                             }
@@ -24432,7 +26291,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::AnimationCompleteEvent {
@@ -24480,7 +26339,8 @@ pub mod owned {
                                 if _key.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _key = Some(value)
                             }
@@ -24489,7 +26349,8 @@ pub mod owned {
                                 if _modifiers.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _modifiers = Some(value)
                             }
@@ -24498,7 +26359,8 @@ pub mod owned {
                                 if _action.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _action = Some(value)
                             }
@@ -24511,7 +26373,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::KeyEvent {
@@ -24564,7 +26426,8 @@ pub mod owned {
                                 if _button.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _button = Some(value)
                             }
@@ -24573,7 +26436,8 @@ pub mod owned {
                                 if _modifiers.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _modifiers = Some(value)
                             }
@@ -24582,7 +26446,8 @@ pub mod owned {
                                 if _action.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _action = Some(value)
                             }
@@ -24591,7 +26456,8 @@ pub mod owned {
                                 if _click_count.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _click_count = Some(value)
                             }
@@ -24600,7 +26466,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -24609,7 +26476,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -24622,7 +26490,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::PointerEvent {
@@ -24675,7 +26543,8 @@ pub mod owned {
                                 if _modifiers.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _modifiers = Some(value)
                             }
@@ -24684,7 +26553,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -24693,7 +26563,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -24706,7 +26577,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::PointerMoveEvent {
@@ -24759,7 +26630,8 @@ pub mod owned {
                                 if _delta_kind.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _delta_kind = Some(value)
                             }
@@ -24768,7 +26640,8 @@ pub mod owned {
                                 if _dx.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _dx = Some(value)
                             }
@@ -24777,7 +26650,8 @@ pub mod owned {
                                 if _dy.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _dy = Some(value)
                             }
@@ -24786,7 +26660,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -24795,7 +26670,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -24804,7 +26680,8 @@ pub mod owned {
                                 if _modifiers.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _modifiers = Some(value)
                             }
@@ -24817,7 +26694,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::ScrollEvent {
@@ -24868,7 +26745,8 @@ pub mod owned {
                                 if _text.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _text = Some(value)
                             }
@@ -24881,12 +26759,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    EventPayload::SubmitEvent {
-                        text: _text,
-                    }
+                    EventPayload::SubmitEvent { text: _text }
                 }
                 10 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -24929,7 +26805,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -24938,7 +26815,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -24947,7 +26825,8 @@ pub mod owned {
                                 if _scale_factor.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _scale_factor = Some(value)
                             }
@@ -24960,7 +26839,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::WindowResizeEvent {
@@ -25008,7 +26887,8 @@ pub mod owned {
                                 if _active.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _active = Some(value)
                             }
@@ -25021,12 +26901,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    EventPayload::WindowActivationEvent {
-                        active: _active,
-                    }
+                    EventPayload::WindowActivationEvent { active: _active }
                 }
                 12 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -25067,7 +26945,8 @@ pub mod owned {
                                 if _action.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _action = Some(value)
                             }
@@ -25080,12 +26959,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    EventPayload::ActionEvent {
-                        action: _action,
-                    }
+                    EventPayload::ActionEvent { action: _action }
                 }
                 13 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -25126,7 +27003,8 @@ pub mod owned {
                                 if _appearance.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _appearance = Some(value)
                             }
@@ -25139,7 +27017,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::WindowAppearanceEvent {
@@ -25188,7 +27066,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -25197,7 +27076,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -25206,7 +27086,8 @@ pub mod owned {
                                 if _width.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _width = Some(value)
                             }
@@ -25215,7 +27096,8 @@ pub mod owned {
                                 if _height.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _height = Some(value)
                             }
@@ -25228,7 +27110,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::LayoutEvent {
@@ -25277,7 +27159,8 @@ pub mod owned {
                                 if _drag_type.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _drag_type = Some(value)
                             }
@@ -25290,7 +27173,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::DragOverEvent {
@@ -25336,7 +27219,8 @@ pub mod owned {
                                 if _drag_type.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _drag_type = Some(value)
                             }
@@ -25349,7 +27233,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::DragDropEvent {
@@ -25395,7 +27279,8 @@ pub mod owned {
                                 if _paths.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _paths = Some(value)
                             }
@@ -25408,12 +27293,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    EventPayload::ExternalFileDropEvent {
-                        paths: _paths,
-                    }
+                    EventPayload::ExternalFileDropEvent { paths: _paths }
                 }
                 18 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -25455,7 +27338,8 @@ pub mod owned {
                                 if _tag.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _tag = Some(value)
                             }
@@ -25464,7 +27348,8 @@ pub mod owned {
                                 if _action_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _action_id = Some(value)
                             }
@@ -25477,7 +27362,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::NotificationResponseEvent {
@@ -25525,7 +27410,8 @@ pub mod owned {
                                 if _x.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _x = Some(value)
                             }
@@ -25534,7 +27420,8 @@ pub mod owned {
                                 if _y.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _y = Some(value)
                             }
@@ -25547,13 +27434,10 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
-                    EventPayload::PointerDownOutsideEvent {
-                        x: _x,
-                        y: _y,
-                    }
+                    EventPayload::PointerDownOutsideEvent { x: _x, y: _y }
                 }
                 20 => {
                     let len = ::bebop::read_len(&raw[i..])? + i + ::bebop::LEN_SIZE;
@@ -25594,7 +27478,8 @@ pub mod owned {
                                 if _request_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _request_id = Some(value)
                             }
@@ -25607,7 +27492,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::CloseRequestedEvent {
@@ -25654,7 +27539,8 @@ pub mod owned {
                                 if _event_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _event_id = Some(value)
                             }
@@ -25663,7 +27549,8 @@ pub mod owned {
                                 if _fields.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _fields = Some(value)
                             }
@@ -25676,7 +27563,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::ExtensionEvent {
@@ -25725,7 +27612,8 @@ pub mod owned {
                                 if _target_surface_id.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _target_surface_id = Some(value)
                             }
@@ -25734,7 +27622,8 @@ pub mod owned {
                                 if _reason.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _reason = Some(value)
                             }
@@ -25743,7 +27632,8 @@ pub mod owned {
                                 if _urls.is_some() {
                                     return Err(::bebop::DeserializeError::DuplicateMessageField);
                                 }
-                                let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
                                 i += read;
                                 _urls = Some(value)
                             }
@@ -25756,7 +27646,7 @@ pub mod owned {
 
                     if i != len {
                         debug_assert!(i > len);
-                        return Err(::bebop::DeserializeError::CorruptFrame)
+                        return Err(::bebop::DeserializeError::CorruptFrame);
                     }
 
                     EventPayload::ApplicationActivationEvent {
@@ -25773,12 +27663,10 @@ pub mod owned {
             if !cfg!(feature = "unchecked") && i != len {
                 debug_assert!(i > len);
                 Err(::bebop::DeserializeError::CorruptFrame)
-            }
-            else {
+            } else {
                 Ok((i, de))
             }
         }
-
     }
 
     impl<'raw> ::bebop::Record<'raw> for EventPayload {}
@@ -25805,9 +27693,18 @@ pub mod owned {
 
         #[inline]
         fn serialized_size(&self) -> usize {
-            ::bebop::LEN_SIZE + 1 +
-            self.protocol_version.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0) +
-            self.body.as_ref().map(|v| v.serialized_size() + 1).unwrap_or(0)
+            ::bebop::LEN_SIZE
+                + 1
+                + self
+                    .protocol_version
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
+                + self
+                    .body
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -25888,14 +27785,18 @@ pub mod owned {
 
             if i != len {
                 debug_assert!(i > len);
-                return Err(::bebop::DeserializeError::CorruptFrame)
+                return Err(::bebop::DeserializeError::CorruptFrame);
             }
 
-            Ok((i, Self {
-                protocol_version: _protocol_version,
-                body: _body,
-            }))
+            Ok((
+                i,
+                Self {
+                    protocol_version: _protocol_version,
+                    body: _body,
+                },
+            ))
         }
     }
 
-    impl<'raw> ::bebop::Record<'raw> for Envelope {}}
+    impl<'raw> ::bebop::Record<'raw> for Envelope {}
+}

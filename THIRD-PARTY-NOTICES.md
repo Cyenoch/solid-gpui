@@ -13,7 +13,7 @@ License groups below repeat a package when its declared expression contains mult
 
 ## Rust dependencies
 
-The current Cargo inventory contains 824 third-party packages and 1433 package-license records; local workspace records are listed separately below.
+The current Cargo inventory contains 798 third-party packages and 1398 package-license records; local workspace records are listed separately below.
 
 ### 0BSD
 
@@ -39,15 +39,12 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | adler2 | 2.0.1 | Apache-2.0 | registry (crates.io) |
 | aes | 0.8.4 | Apache-2.0 | registry (crates.io) |
 | ahash | 0.8.12 | Apache-2.0 | registry (crates.io) |
-| aligned | 0.4.3 | Apache-2.0 | registry (crates.io) |
 | allocator-api2 | 0.2.21 | Apache-2.0 | registry (crates.io) |
 | android_system_properties | 0.1.6 | Apache-2.0 | registry (crates.io) |
 | anyhow | 1.0.104 | Apache-2.0 | registry (crates.io) |
-| arbitrary | 1.4.2 | Apache-2.0 | registry (crates.io) |
 | arc-swap | 1.9.2 | Apache-2.0 | registry (crates.io) |
 | arrayvec | 0.7.8 | Apache-2.0 | registry (crates.io) |
 | as-raw-xcb-connection | 1.0.1 | Apache-2.0 | registry (crates.io) |
-| as-slice | 0.2.1 | Apache-2.0 | registry (crates.io) |
 | ash | 0.38.0+1.3.281 | Apache-2.0 | registry (crates.io) |
 | async-broadcast | 0.7.2 | Apache-2.0 | registry (crates.io) |
 | async-channel | 2.5.0 | Apache-2.0 | registry (crates.io) |
@@ -80,7 +77,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | bit_field | 0.10.3 | Apache-2.0 | registry (crates.io) |
 | bitflags | 1.3.2 | Apache-2.0 | registry (crates.io) |
 | bitflags | 2.13.1 | Apache-2.0 | registry (crates.io) |
-| bitstream-io | 4.10.0 | Apache-2.0 | registry (crates.io) |
 | block-buffer | 0.10.4 | Apache-2.0 | registry (crates.io) |
 | block-buffer | 0.12.1 | Apache-2.0 | registry (crates.io) |
 | block-padding | 0.3.3 | Apache-2.0 | registry (crates.io) |
@@ -249,7 +245,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | idna_adapter | 1.2.2 | Apache-2.0 | registry (crates.io) |
 | image | 0.25.10 | Apache-2.0 | registry (crates.io) |
 | image-webp | 0.2.4 | Apache-2.0 | registry (crates.io) |
-| imgref | 1.12.3 | Apache-2.0 | registry (crates.io) |
 | indexmap | 2.14.2 | Apache-2.0 | registry (crates.io) |
 | inout | 0.1.4 | Apache-2.0 | registry (crates.io) |
 | inventory | 0.3.24 | Apache-2.0 | registry (crates.io) |
@@ -265,6 +260,7 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | jni-sys | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | jni-sys-macros | 0.4.1 | Apache-2.0 | registry (crates.io) |
 | jobserver | 0.1.35 | Apache-2.0 | registry (crates.io) |
+| jpeg-decoder | 0.3.2 | Apache-2.0 | registry (crates.io) |
 | js-sys | 0.3.98 | Apache-2.0 | registry (crates.io) |
 | khronos-egl | 6.0.0 | Apache-2.0 | registry (crates.io) |
 | khronos_api | 3.1.0 | Apache-2.0 | registry (crates.io) |
@@ -274,7 +270,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | leak | 0.1.2 | Apache-2.0 | registry (crates.io) |
 | leaky-cow | 0.1.1 | Apache-2.0 | registry (crates.io) |
 | libc | 0.2.189 | Apache-2.0 | registry (crates.io) |
-| libfuzzer-sys | 0.4.13 | Apache-2.0 | registry (crates.io) |
 | linebender_resource_handle | 0.1.1 | Apache-2.0 | registry (crates.io) |
 | link-section | 0.19.3 | Apache-2.0 | registry (crates.io) |
 | linktime-proc-macro | 0.2.3 | Apache-2.0 | registry (crates.io) |
@@ -302,7 +297,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | moxcms | 0.8.1 | Apache-2.0 | registry (crates.io) |
 | naga | 29.0.4 | Apache-2.0 | registry (crates.io) |
 | ndk-sys | 0.6.0+11769913 | Apache-2.0 | registry (crates.io) |
-| no_std_io2 | 0.9.4 | Apache-2.0 | registry (crates.io) |
 | normpath | 1.5.1 | Apache-2.0 | registry (crates.io) |
 | notify-rust | 4.18.0 | Apache-2.0 | registry (crates.io) |
 | notify-types | 2.1.0 | Apache-2.0 | registry (crates.io) |
@@ -312,7 +306,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | num-bigint-dig | 0.9.1 | Apache-2.0 | registry (crates.io) |
 | num-complex | 0.4.6 | Apache-2.0 | registry (crates.io) |
 | num-conv | 0.2.2 | Apache-2.0 | registry (crates.io) |
-| num-derive | 0.4.2 | Apache-2.0 | registry (crates.io) |
 | num-integer | 0.1.47 | Apache-2.0 | registry (crates.io) |
 | num-iter | 0.1.46 | Apache-2.0 | registry (crates.io) |
 | num-rational | 0.4.2 | Apache-2.0 | registry (crates.io) |
@@ -340,7 +333,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | parking_lot | 0.12.5 | Apache-2.0 | registry (crates.io) |
 | parking_lot_core | 0.9.12 | Apache-2.0 | registry (crates.io) |
 | paste | 1.0.15 | Apache-2.0 | registry (crates.io) |
-| pastey | 0.1.1 | Apache-2.0 | registry (crates.io) |
 | pathfinder_geometry | 0.5.1 | Apache-2.0 | registry (crates.io) |
 | pathfinder_simd | 0.5.6 | Apache-2.0 | registry (crates.io) |
 | pbkdf2 | 0.12.2 | Apache-2.0 | registry (crates.io) |
@@ -619,7 +611,7 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | zune-jpeg | 0.4.21 | Apache-2.0 | registry (crates.io) |
 | zune-jpeg | 0.5.15 | Apache-2.0 | registry (crates.io) |
 
-**Total Apache-2.0: 589 package records.**
+**Total Apache-2.0: 581 package records.**
 
 ### Apache-2.0 WITH LLVM-exception
 
@@ -638,20 +630,16 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
 | arrayref | 0.3.9 | BSD-2-Clause | registry (crates.io) |
-| av1-grain | 0.2.5 | BSD-2-Clause | registry (crates.io) |
 | mach2 | 0.5.0 | BSD-2-Clause | registry (crates.io) |
-| rav1e | 0.8.1 | BSD-2-Clause | registry (crates.io) |
-| v_frame | 0.3.9 | BSD-2-Clause | registry (crates.io) |
 | zerocopy | 0.8.56 | BSD-2-Clause | registry (crates.io) |
 | zerocopy-derive | 0.8.56 | BSD-2-Clause | registry (crates.io) |
 
-**Total BSD-2-Clause: 7 package records.**
+**Total BSD-2-Clause: 4 package records.**
 
 ### BSD-3-Clause
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| avif-serialize | 0.8.9 | BSD-3-Clause | registry (crates.io) |
 | aws-lc-sys | 0.45.0 | BSD-3-Clause | registry (crates.io) |
 | bindgen | 0.72.1 | BSD-3-Clause | registry (crates.io) |
 | encoding_rs | 0.8.35 | BSD-3-Clause | registry (crates.io) |
@@ -659,13 +647,12 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | lebe | 0.5.3 | BSD-3-Clause | registry (crates.io) |
 | moxcms | 0.8.1 | BSD-3-Clause | registry (crates.io) |
 | pxfm | 0.1.30 | BSD-3-Clause | registry (crates.io) |
-| ravif | 0.13.0 | BSD-3-Clause | registry (crates.io) |
 | sha1_smol | 1.0.1 | BSD-3-Clause | registry (crates.io) |
 | subtle | 2.6.1 | BSD-3-Clause | registry (crates.io) |
 | tiny-skia | 0.11.4 | BSD-3-Clause | registry (crates.io) |
 | tiny-skia-path | 0.11.4 | BSD-3-Clause | registry (crates.io) |
 
-**Total BSD-3-Clause: 13 package records.**
+**Total BSD-3-Clause: 11 package records.**
 
 ### BSL-1.0
 
@@ -689,11 +676,10 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | --- | --- | --- | --- |
 | dunce | 1.0.5 | CC0-1.0 | registry (crates.io) |
 | hexf-parse | 0.2.1 | CC0-1.0 | registry (crates.io) |
-| imgref | 1.12.3 | CC0-1.0 | registry (crates.io) |
 | notify | 8.2.0 | CC0-1.0 | registry (crates.io) |
 | tiny-keccak | 2.0.2 | CC0-1.0 | registry (crates.io) |
 
-**Total CC0-1.0: 5 package records.**
+**Total CC0-1.0: 4 package records.**
 
 ### CDLA-Permissive-2.0
 
@@ -753,17 +739,12 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | aes | 0.8.4 | MIT | registry (crates.io) |
 | ahash | 0.8.12 | MIT | registry (crates.io) |
 | aho-corasick | 1.1.5 | MIT | registry (crates.io) |
-| aligned | 0.4.3 | MIT | registry (crates.io) |
-| aligned-vec | 0.6.4 | MIT | registry (crates.io) |
 | allocator-api2 | 0.2.21 | MIT | registry (crates.io) |
 | android_system_properties | 0.1.6 | MIT | registry (crates.io) |
 | anyhow | 1.0.104 | MIT | registry (crates.io) |
-| arbitrary | 1.4.2 | MIT | registry (crates.io) |
 | arc-swap | 1.9.2 | MIT | registry (crates.io) |
-| arg_enum_proc_macro | 0.3.4 | MIT | registry (crates.io) |
 | arrayvec | 0.7.8 | MIT | registry (crates.io) |
 | as-raw-xcb-connection | 1.0.1 | MIT | registry (crates.io) |
-| as-slice | 0.2.1 | MIT | registry (crates.io) |
 | ash | 0.38.0+1.3.281 | MIT | registry (crates.io) |
 | ashpd | 0.13.13 | MIT | registry (crates.io) |
 | async-broadcast | 0.7.2 | MIT | registry (crates.io) |
@@ -785,7 +766,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | atspi-common | 0.13.0 | MIT | registry (crates.io) |
 | atspi-proxies | 0.13.0 | MIT | registry (crates.io) |
 | autocfg | 1.5.1 | MIT | registry (crates.io) |
-| av-scenechange | 0.14.1 | MIT | registry (crates.io) |
 | aws-lc-sys | 0.45.0 | MIT | registry (crates.io) |
 | backtrace | 0.3.76 | MIT | registry (crates.io) |
 | base62 | 2.2.4 | MIT | registry (crates.io) |
@@ -797,7 +777,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | bit_field | 0.10.3 | MIT | registry (crates.io) |
 | bitflags | 1.3.2 | MIT | registry (crates.io) |
 | bitflags | 2.13.1 | MIT | registry (crates.io) |
-| bitstream-io | 4.10.0 | MIT | registry (crates.io) |
 | block | 0.1.6 | MIT | registry (crates.io) |
 | block-buffer | 0.10.4 | MIT | registry (crates.io) |
 | block-buffer | 0.12.1 | MIT | registry (crates.io) |
@@ -805,7 +784,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | block2 | 0.6.2 | MIT | registry (crates.io) |
 | blocking | 1.7.0 | MIT | registry (crates.io) |
 | bstr | 1.13.1 | MIT | registry (crates.io) |
-| built | 0.8.1 | MIT | registry (crates.io) |
 | bumpalo | 3.20.3 | MIT | registry (crates.io) |
 | bytemuck | 1.25.2 | MIT | registry (crates.io) |
 | bytemuck_derive | 1.12.0 | MIT | registry (crates.io) |
@@ -881,8 +859,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | enumflags2 | 0.7.12 | MIT | registry (crates.io) |
 | enumflags2_derive | 0.7.12 | MIT | registry (crates.io) |
 | enumn | 0.1.14 | MIT | registry (crates.io) |
-| equator | 0.4.2 | MIT | registry (crates.io) |
-| equator-macro | 0.4.2 | MIT | registry (crates.io) |
 | equivalent | 1.0.2 | MIT | registry (crates.io) |
 | erased-serde | 0.4.10 | MIT | registry (crates.io) |
 | errno | 0.3.14 | MIT | registry (crates.io) |
@@ -976,7 +952,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | imagesize | 0.14.0 | MIT | registry (crates.io) |
 | indexmap | 2.14.2 | MIT | registry (crates.io) |
 | inout | 0.1.4 | MIT | registry (crates.io) |
-| interpolate_name | 0.2.4 | MIT | registry (crates.io) |
 | inventory | 0.3.24 | MIT | registry (crates.io) |
 | io-surface | 0.16.1 | MIT | registry (crates.io) |
 | ipnet | 2.12.1 | MIT | registry (crates.io) |
@@ -992,6 +967,7 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | jni-sys | 0.4.1 | MIT | registry (crates.io) |
 | jni-sys-macros | 0.4.1 | MIT | registry (crates.io) |
 | jobserver | 0.1.35 | MIT | registry (crates.io) |
+| jpeg-decoder | 0.3.2 | MIT | registry (crates.io) |
 | js-sys | 0.3.98 | MIT | registry (crates.io) |
 | khronos-egl | 6.0.0 | MIT | registry (crates.io) |
 | kqueue | 1.2.1 | MIT | registry (crates.io) |
@@ -1002,7 +978,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | leak | 0.1.2 | MIT | registry (crates.io) |
 | leaky-cow | 0.1.1 | MIT | registry (crates.io) |
 | libc | 0.2.189 | MIT | registry (crates.io) |
-| libfuzzer-sys | 0.4.13 | MIT | registry (crates.io) |
 | libm | 0.2.16 | MIT | registry (crates.io) |
 | libredox | 0.1.23 | MIT | registry (crates.io) |
 | linebender_resource_handle | 0.1.1 | MIT | registry (crates.io) |
@@ -1012,7 +987,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | litrs | 1.0.0 | MIT | registry (crates.io) |
 | lock_api | 0.4.14 | MIT | registry (crates.io) |
 | log | 0.4.34 | MIT | registry (crates.io) |
-| loop9 | 0.1.5 | MIT | registry (crates.io) |
 | lsp-types | 0.97.0 | MIT | registry (crates.io) |
 | lyon | 1.0.19 | MIT | registry (crates.io) |
 | lyon_algorithms | 1.0.21 | MIT | registry (crates.io) |
@@ -1026,7 +1000,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | markdown | 1.0.0 | MIT | registry (crates.io) |
 | markup5ever | 0.12.1 | MIT | registry (crates.io) |
 | markup5ever_rcdom | 0.3.0 | MIT | registry (crates.io) |
-| maybe-rayon | 0.1.1 | MIT | registry (crates.io) |
 | md-5 | 0.10.6 | MIT | registry (crates.io) |
 | memchr | 2.8.3 | MIT | registry (crates.io) |
 | memmap2 | 0.9.11 | MIT | registry (crates.io) |
@@ -1041,10 +1014,7 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | naga | 29.0.4 | MIT | registry (crates.io) |
 | ndk-sys | 0.6.0+11769913 | MIT | registry (crates.io) |
 | new_debug_unreachable | 1.0.6 | MIT | registry (crates.io) |
-| no_std_io2 | 0.9.4 | MIT | registry (crates.io) |
 | nom | 7.1.3 | MIT | registry (crates.io) |
-| nom | 8.0.0 | MIT | registry (crates.io) |
-| noop_proc_macro | 0.3.0 | MIT | registry (crates.io) |
 | normpath | 1.5.1 | MIT | registry (crates.io) |
 | notify-rust | 4.18.0 | MIT | registry (crates.io) |
 | notify-types | 2.1.0 | MIT | registry (crates.io) |
@@ -1055,7 +1025,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | num-bigint-dig | 0.9.1 | MIT | registry (crates.io) |
 | num-complex | 0.4.6 | MIT | registry (crates.io) |
 | num-conv | 0.2.2 | MIT | registry (crates.io) |
-| num-derive | 0.4.2 | MIT | registry (crates.io) |
 | num-integer | 0.1.47 | MIT | registry (crates.io) |
 | num-iter | 0.1.46 | MIT | registry (crates.io) |
 | num-rational | 0.4.2 | MIT | registry (crates.io) |
@@ -1094,7 +1063,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | parking_lot | 0.12.5 | MIT | registry (crates.io) |
 | parking_lot_core | 0.9.12 | MIT | registry (crates.io) |
 | paste | 1.0.15 | MIT | registry (crates.io) |
-| pastey | 0.1.1 | MIT | registry (crates.io) |
 | pathfinder_geometry | 0.5.1 | MIT | registry (crates.io) |
 | pathfinder_simd | 0.5.6 | MIT | registry (crates.io) |
 | pbkdf2 | 0.12.2 | MIT | registry (crates.io) |
@@ -1229,7 +1197,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | signal-hook-registry | 1.4.8 | MIT | registry (crates.io) |
 | simd-adler32 | 0.3.10 | MIT | registry (crates.io) |
 | simd_cesu8 | 1.2.0 | MIT | registry (crates.io) |
-| simd_helpers | 0.1.0 | MIT | registry (crates.io) |
 | simdutf8 | 0.1.5 | MIT | registry (crates.io) |
 | simplecss | 0.2.2 | MIT | registry (crates.io) |
 | siphasher | 1.0.3 | MIT | registry (crates.io) |
@@ -1443,7 +1410,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | xml-rs | 0.8.29 | MIT | registry (crates.io) |
 | xml5ever | 0.18.1 | MIT | registry (crates.io) |
 | xmlwriter | 0.1.0 | MIT | registry (crates.io) |
-| y4m | 0.8.0 | MIT | registry (crates.io) |
 | yazi | 0.2.1 | MIT | registry (crates.io) |
 | yeslogic-fontconfig-sys | 6.0.1 | MIT | registry (crates.io) |
 | zbus | 5.19.0 | MIT | registry (crates.io) |
@@ -1470,7 +1436,7 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | zvariant_derive | 5.15.0 | MIT | registry (crates.io) |
 | zvariant_utils | 4.2.0 | MIT | registry (crates.io) |
 
-**Total MIT: 727 package records.**
+**Total MIT: 707 package records.**
 
 ### MIT-0
 
@@ -1490,14 +1456,6 @@ The current Cargo inventory contains 824 third-party packages and 1433 package-l
 | option-ext | 0.2.0 | MPL-2.0 | registry (crates.io) |
 
 **Total MPL-2.0: 3 package records.**
-
-### NCSA
-
-| Crate | Version | License (SPDX) | Source |
-| --- | --- | --- | --- |
-| libfuzzer-sys | 0.4.13 | NCSA | registry (crates.io) |
-
-**Total NCSA: 1 package records.**
 
 ### Unicode-3.0
 

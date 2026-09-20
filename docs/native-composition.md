@@ -292,34 +292,66 @@ and carry distinct canonical-schema field numbers like the other layout fields.
 
 `Image` accepts local filesystem paths, percent-encoded `file:` URLs, HTTP(S)
 URLs, and `data:image/...` URLs. The native host installs its HTTP client before
-opening windows; browser hosts use their platform fetch client. Inline data is
-decoded through GPUI's asynchronous asset cache, including SVG and animated
-formats supported by GPUI. Each source and fallback is bounded to 1 MiB of UTF-8
-text, with the normal total-frame budget still enforced.
+opening windows; browser hosts use their platform fetch client. Each source and
+fallback string is bounded to 1 MiB of UTF-8 text, with the normal total-frame
+budget still enforced. Relative filesystem paths are resolved against the host
+working directory.
 
-`fallbackSource` is used when the primary fails; it is not shown merely because a
-request is pending. It keeps the image viewport, object fit, and corner radius.
-Use an inline fallback for a packaged application that should work offline.
-Relative filesystem paths are resolved against the host working directory.
+The managed native provider chooses a physical decode/raster target from the
+image's actual laid-out bounds and window scale. Targets round upward into
+quarter-octave buckets (adjacent sizes differ by less than about 1.19 per axis),
+never exceed the source bitmap, and do not change the original logical geometry
+used by `objectFit`. SVG remains scalable and is rasterized at the target size.
+JPEG uses its native 1/8, 1/4, or 1/2 decode when applicable before the final
+resize. Other raster formats decode at source size before resizing, so a large
+PNG or other full-resolution bitmap can still cause a bounded transient memory
+peak; it is not downscaled during decode.
 
-Pass the URL directly; no JavaScript fetch or temporary local file is needed:
+Use `sourceSet` when the same image is available at multiple physical sizes. It
+accepts at most 32 same-aspect candidates with positive intrinsic `width` and
+`height`; the provider selects the smallest candidate sufficient for the actual
+physical target, or the largest candidate if none is sufficient. `source` is
+used as the primary only when `sourceSet` is empty. URLs are used exactly as
+provided—the runtime does not rewrite a URL or invent size parameters.
 
 ```tsx
 import { Image } from "@solid-gpui/core";
 
 <Image
-  source="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=640"
+  source="/photos/cover-1280.jpg"
+  sourceSet={[
+    { source: "/photos/cover-640.jpg", width: 640, height: 360 },
+    { source: "/photos/cover-1280.jpg", width: 1280, height: 720 },
+  ]}
   fallbackSource="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%2394a3b8'/%3E%3C/svg%3E"
   objectFit="cover"
   style={{ width: 320, height: 180, borderRadius: 12 }}
 />;
 ```
 
-GPUI owns asynchronous download, decoding, and caching by source. Updating
-`source` selects the new resource. Browser requests must satisfy the image
-server's CORS policy. Custom Rust applications that create their own GPUI
-`Application` must configure its HTTP client with `with_http_client`.
+`fallbackSource` is tried only after the selected primary fails, not while it is
+pending. It preserves the image viewport, object fit, and corner radius. Use an
+inline fallback for a packaged application that must work offline.
 
-Native HTTP requests have a 10-second connection timeout and a 15-second idle
-read timeout. These are idle/connection bounds, not a total image-download
-duration limit.
+Encoded input is limited to 32 MiB. A source is rejected above 32768 pixels on
+either axis or 64 × 1024 × 1024 source pixels, and a produced bitmap is limited
+to 16 × 1024 × 1024 pixels. Native work admits at most four concurrent fetches
+and two concurrent decodes. Identical source keys share encoded input, and
+identical source/target variants share decoding through weak indices. There is no inactive decoded-image
+cache: when the final rendered owner releases a variant, its decoded pixels and
+atlas allocation are released. A window retains its previous displayed frame
+until the replacement redraw completes so scene replay remains safe.
+
+Animated GIF/WebP keeps the current and one prefetched frame plus compositor
+source state rather than decoding the entire animation. Per-window frame leases
+prevent one window from invalidating another's displayed frame. Offscreen
+prepaint releases variants; reduced-motion or inactive windows pause new
+playback work. Source metadata needed for natural layout may still be fetched
+once. These bounds limit individual work and retained variants; they are not a
+constant-memory guarantee or a total-application memory cap.
+
+Browser requests must satisfy the image server's CORS policy. Custom Rust
+applications that create their own GPUI `Application` must configure its HTTP
+client with `with_http_client`. Native HTTP requests have a 10-second connection
+timeout and a 15-second idle-read timeout. These are idle/connection bounds, not
+a total image-download duration limit.

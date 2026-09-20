@@ -181,7 +181,6 @@ impl ImageCacheItem {
         Self(CachedLoad::new(future, cx))
     }
 
-
     /// Returns the cached result without subscribing to completion notifications.
     pub fn get(&self) -> Option<Result<Arc<RenderImage>, ImageCacheError>> {
         self.0.get()

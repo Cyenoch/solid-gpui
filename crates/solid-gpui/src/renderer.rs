@@ -617,7 +617,10 @@ impl SolidRoot {
                 } else {
                     // A full same-epoch Snapshot replaces published capabilities,
                     // even for IDs retained with different native state.
-                    self.extension_event_state.scroll_viewports.borrow_mut().clear();
+                    self.extension_event_state
+                        .scroll_viewports
+                        .borrow_mut()
+                        .clear();
                 }
                 self.extension_content_dirty
                     .extend(self.store.iter().map(|node| node.id));

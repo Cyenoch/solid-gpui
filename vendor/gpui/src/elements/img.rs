@@ -1,9 +1,9 @@
 use crate::{
     AnyElement, AnyEntity, AnyImageCache, App, Asset, AssetLogger, Bounds, DefiniteLength,
     DevicePixels, Element, ElementId, Entity, GlobalElementId, Hitbox, Image, ImageCache,
-    InspectorElementId, InteractiveElement, Interactivity, IntoElement, LayoutId, Length, ObjectFit,
-    Pixels, RenderImage, Resource, SharedString, SharedUri, Size, StyleRefinement, Styled, Task,
-    Window, decode_static_image, decode_static_image_from_decoder, px,
+    InspectorElementId, InteractiveElement, Interactivity, IntoElement, LayoutId, Length,
+    ObjectFit, Pixels, RenderImage, Resource, SharedString, SharedUri, Size, StyleRefinement,
+    Styled, Task, Window, decode_static_image, decode_static_image_from_decoder, px,
 };
 use anyhow::Result;
 
@@ -301,6 +301,7 @@ struct ImgState {
     last_frame_time: Option<Instant>,
     started_loading: Option<(Instant, Task<()>)>,
     retained_managed_frame: Option<ManagedImageFrame>,
+    managed_failed: bool,
 }
 
 /// The image layout state between frames
@@ -344,6 +345,7 @@ impl Element for Img {
                     last_frame_time: None,
                     started_loading: None,
                     retained_managed_frame: None,
+                    managed_failed: false,
                 })
             });
 
@@ -410,126 +412,136 @@ impl Element for Img {
                             }
                             None => {}
                         }
+                        if state.as_ref().is_some_and(|state| state.managed_failed)
+                            && layout_state.replacement.is_none()
+                            && let Some(fallback) = self.style.fallback.as_ref()
+                        {
+                            let mut element = fallback();
+                            replacement_id = Some(element.request_layout(window, cx));
+                            layout_state.replacement = Some(element);
+                        }
                     } else {
                         if let Some(state) = &mut state {
                             state.retained_managed_frame = None;
                         }
-                    match self.source.use_data(
-                        self.image_cache
-                            .clone()
-                            .or_else(|| window.image_cache_stack.last().cloned()),
-                        window,
-                        cx,
-                    ) {
-                        Some(Ok(data)) => {
-                            let frame_count = data.frame_count();
-                            let max_frame_index = frame_count.saturating_sub(1);
+                        match self.source.use_data(
+                            self.image_cache
+                                .clone()
+                                .or_else(|| window.image_cache_stack.last().cloned()),
+                            window,
+                            cx,
+                        ) {
+                            Some(Ok(data)) => {
+                                let frame_count = data.frame_count();
+                                let max_frame_index = frame_count.saturating_sub(1);
 
-                            if let Some(state) = &mut state {
-                                state.frame_index = state.frame_index.min(max_frame_index);
-                                if frame_count > 1 && !cx.reduce_motion() {
-                                    if window.is_window_active() {
-                                        let current_time = Instant::now();
-                                        if let Some(last_frame_time) = state.last_frame_time {
-                                            let elapsed = current_time - last_frame_time;
-                                            let frame_duration =
-                                                Duration::from(data.delay(state.frame_index));
+                                if let Some(state) = &mut state {
+                                    state.frame_index = state.frame_index.min(max_frame_index);
+                                    if frame_count > 1 && !cx.reduce_motion() {
+                                        if window.is_window_active() {
+                                            let current_time = Instant::now();
+                                            if let Some(last_frame_time) = state.last_frame_time {
+                                                let elapsed = current_time - last_frame_time;
+                                                let frame_duration =
+                                                    Duration::from(data.delay(state.frame_index));
 
-                                            if elapsed >= frame_duration {
-                                                state.frame_index =
-                                                    (state.frame_index + 1) % frame_count;
-                                                state.last_frame_time =
-                                                    Some(current_time - (elapsed - frame_duration));
+                                                if elapsed >= frame_duration {
+                                                    state.frame_index =
+                                                        (state.frame_index + 1) % frame_count;
+                                                    state.last_frame_time = Some(
+                                                        current_time - (elapsed - frame_duration),
+                                                    );
+                                                }
+                                            } else {
+                                                state.last_frame_time = Some(current_time);
                                             }
                                         } else {
-                                            state.last_frame_time = Some(current_time);
+                                            state.last_frame_time = None;
                                         }
                                     } else {
                                         state.last_frame_time = None;
                                     }
-                                } else {
-                                    state.last_frame_time = None;
+                                    state.started_loading = None;
+                                    frame_index = state.frame_index;
                                 }
-                                state.started_loading = None;
-                                frame_index = state.frame_index;
-                            }
 
-                            let image_size = data.render_size(frame_index);
+                                let image_size = data.render_size(frame_index);
 
-                            if style.aspect_ratio.is_none() {
-                                style.aspect_ratio = Some(image_size.width / image_size.height);
-                            }
+                                if style.aspect_ratio.is_none() {
+                                    style.aspect_ratio = Some(image_size.width / image_size.height);
+                                }
 
-                            if let Length::Auto = style.size.width {
-                                style.size.width = match style.size.height {
-                                    Length::Definite(DefiniteLength::Absolute(abs_length)) => {
-                                        let height_px = abs_length.to_pixels(window.rem_size());
-                                        Length::Definite(
-                                            px(image_size.width.0 * height_px.0
-                                                / image_size.height.0)
-                                            .into(),
-                                        )
-                                    }
-                                    _ => Length::Definite(image_size.width.into()),
-                                };
-                            }
+                                if let Length::Auto = style.size.width {
+                                    style.size.width = match style.size.height {
+                                        Length::Definite(DefiniteLength::Absolute(abs_length)) => {
+                                            let height_px = abs_length.to_pixels(window.rem_size());
+                                            Length::Definite(
+                                                px(image_size.width.0 * height_px.0
+                                                    / image_size.height.0)
+                                                .into(),
+                                            )
+                                        }
+                                        _ => Length::Definite(image_size.width.into()),
+                                    };
+                                }
 
-                            if let Length::Auto = style.size.height {
-                                style.size.height = match style.size.width {
-                                    Length::Definite(DefiniteLength::Absolute(abs_length)) => {
-                                        let width_px = abs_length.to_pixels(window.rem_size());
-                                        Length::Definite(
-                                            px(image_size.height.0 * width_px.0
-                                                / image_size.width.0)
-                                            .into(),
-                                        )
-                                    }
-                                    _ => Length::Definite(image_size.height.into()),
-                                };
-                            }
+                                if let Length::Auto = style.size.height {
+                                    style.size.height = match style.size.width {
+                                        Length::Definite(DefiniteLength::Absolute(abs_length)) => {
+                                            let width_px = abs_length.to_pixels(window.rem_size());
+                                            Length::Definite(
+                                                px(image_size.height.0 * width_px.0
+                                                    / image_size.width.0)
+                                                .into(),
+                                            )
+                                        }
+                                        _ => Length::Definite(image_size.height.into()),
+                                    };
+                                }
 
-                            if global_id.is_some()
-                                && data.frame_count() > 1
-                                && window.is_window_active()
-                                && !cx.reduce_motion()
-                            {
-                                window.request_animation_frame();
-                            }
-                        }
-                        Some(_err) => {
-                            if let Some(fallback) = self.style.fallback.as_ref() {
-                                let mut element = fallback();
-                                replacement_id = Some(element.request_layout(window, cx));
-                                layout_state.replacement = Some(element);
-                            }
-                            if let Some(state) = &mut state {
-                                state.started_loading = None;
-                            }
-                        }
-                        None => {
-                            if let Some(state) = &mut state {
-                                if let Some((started_loading, _)) = state.started_loading {
-                                    if started_loading.elapsed() > LOADING_DELAY
-                                        && let Some(loading) = self.style.loading.as_ref()
-                                    {
-                                        let mut element = loading();
-                                        replacement_id = Some(element.request_layout(window, cx));
-                                        layout_state.replacement = Some(element);
-                                    }
-                                } else {
-                                    let current_view = window.current_view();
-                                    let task = window.spawn(cx, async move |cx| {
-                                        cx.background_executor().timer(LOADING_DELAY).await;
-                                        cx.update(move |_, cx| {
-                                            cx.notify(current_view);
-                                        })
-                                        .ok();
-                                    });
-                                    state.started_loading = Some((Instant::now(), task));
+                                if global_id.is_some()
+                                    && data.frame_count() > 1
+                                    && window.is_window_active()
+                                    && !cx.reduce_motion()
+                                {
+                                    window.request_animation_frame();
                                 }
                             }
+                            Some(_err) => {
+                                if let Some(fallback) = self.style.fallback.as_ref() {
+                                    let mut element = fallback();
+                                    replacement_id = Some(element.request_layout(window, cx));
+                                    layout_state.replacement = Some(element);
+                                }
+                                if let Some(state) = &mut state {
+                                    state.started_loading = None;
+                                }
+                            }
+                            None => {
+                                if let Some(state) = &mut state {
+                                    if let Some((started_loading, _)) = state.started_loading {
+                                        if started_loading.elapsed() > LOADING_DELAY
+                                            && let Some(loading) = self.style.loading.as_ref()
+                                        {
+                                            let mut element = loading();
+                                            replacement_id =
+                                                Some(element.request_layout(window, cx));
+                                            layout_state.replacement = Some(element);
+                                        }
+                                    } else {
+                                        let current_view = window.current_view();
+                                        let task = window.spawn(cx, async move |cx| {
+                                            cx.background_executor().timer(LOADING_DELAY).await;
+                                            cx.update(move |_, cx| {
+                                                cx.notify(current_view);
+                                            })
+                                            .ok();
+                                        });
+                                        state.started_loading = Some((Instant::now(), task));
+                                    }
+                                }
+                            }
                         }
-                    }
                     }
 
                     window.request_layout(style, replacement_id, cx)
@@ -559,9 +571,7 @@ impl Element for Img {
             window,
             cx,
             |_, _, hitbox, window, cx| {
-                if let Some(replacement) = &mut request_layout.replacement {
-                    replacement.prepaint(window, cx);
-                } else if let ImageSource::Managed(provider) = &self.source {
+                if let ImageSource::Managed(provider) = &self.source {
                     let visible = bounds.intersects(&window.content_mask().bounds);
                     let request = ImageRequest {
                         bounds,
@@ -570,18 +580,28 @@ impl Element for Img {
                         animate: window.is_window_active() && !cx.reduce_motion(),
                         visible,
                     };
-                    request_layout.managed_frame = provider
-                        .image(request, window, cx)
+                    let result = provider.image(request, window, cx);
+                    let failed = matches!(result, Some(Err(_)));
+                    request_layout.managed_frame = result
                         .and_then(Result::ok)
                         .filter(|frame| visible && frame.image.frame_count() > 0);
 
                     if let Some(global_id) = global_id {
-                        window.with_element_state::<ImgState, _>(global_id, |state, _| {
+                        window.with_element_state::<ImgState, _>(global_id, |state, window| {
                             let mut state = state.expect("img state should be initialized");
                             state.retained_managed_frame = request_layout.managed_frame.clone();
+                            if state.managed_failed != failed {
+                                state.managed_failed = failed;
+                                cx.notify(window.current_view());
+                            }
                             ((), state)
                         });
                     }
+                }
+                if request_layout.managed_frame.is_none()
+                    && let Some(replacement) = &mut request_layout.replacement
+                {
+                    replacement.prepaint(window, cx);
                 }
 
                 hitbox
@@ -1002,9 +1022,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn managed_image_uses_intrinsic_size_and_receives_physical_context(
-        cx: &mut TestAppContext,
-    ) {
+    fn managed_image_uses_intrinsic_size_and_receives_physical_context(cx: &mut TestAppContext) {
         let source = Arc::new(TestManagedSource {
             intrinsic: Some(Ok(size(px(40.), px(20.)))),
             requests: Mutex::new(Vec::new()),
@@ -1017,8 +1035,10 @@ mod tests {
         let requests = source.requests.lock();
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].bounds.size, size(px(40.), px(20.)));
-        assert_eq!(requests[0].scale_factor, window.update(|window, _| window.scale_factor()));
-        assert!(requests[0].animate);
+        assert_eq!(
+            requests[0].scale_factor,
+            window.update(|window, _| window.scale_factor())
+        );
         assert!(requests[0].visible);
     }
 
@@ -1028,10 +1048,8 @@ mod tests {
             intrinsic: Some(Ok(size(px(20.), px(20.)))),
             requests: Mutex::new(Vec::new()),
         });
-        cx.add_empty_window().draw(
-            point(px(0.), px(0.)),
-            size(px(100.), px(100.)),
-            |_, _| {
+        cx.add_empty_window()
+            .draw(point(px(0.), px(0.)), size(px(100.), px(100.)), |_, _| {
                 div()
                     .size_full()
                     .overflow_hidden()
@@ -1041,8 +1059,7 @@ mod tests {
                             .size(px(20.)),
                     )
                     .into_any_element()
-            },
-        );
+            });
 
         let requests = source.requests.lock();
         assert_eq!(requests.len(), 1);

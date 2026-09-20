@@ -32,20 +32,46 @@ before collecting measurements.
 
 ## 2. Choose metrics with explicit boundaries
 
-| Metric                   | What it measures                                         | What it cannot establish                                     |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------ |
-| Observed FPS             | Native presentation event cadence in the sample window  | Full-redraw capacity, physical scanout, or idle baseline with the HUD active |
-| CPU draw p50/p95/p99/max | CPU cost of native construction, layout, and painting    | All queueing or input latency, or smoothness by itself       |
-| Input-to-present         | GPUI input to the platform presentation boundary         | Wheel-only latency or the time photons reach the display     |
-| Dirty-to-present         | Invalidation request to the presentation boundary        | Direct comparisons across idle, startup, or resize intervals |
-| Throughput/completion    | Completed work and total elapsed time                    | Whether a long poll starved the UI foreground                |
-| TestAppContext timing    | CPU attribution and geometry on a deterministic platform | Real GPU submission, vsync, or trackpad dispatch             |
+| Metric                   | What it measures                                         | What it cannot establish                                                     |
+| ------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Observed FPS             | Native presentation event cadence in the sample window   | Full-redraw capacity, physical scanout, or idle baseline with the HUD active |
+| CPU draw p50/p95/p99/max | CPU cost of native construction, layout, and painting    | All queueing or input latency, or smoothness by itself                       |
+| Input-to-present         | GPUI input to the platform presentation boundary         | Wheel-only latency or the time photons reach the display                     |
+| Dirty-to-present         | Invalidation request to the presentation boundary        | Direct comparisons across idle, startup, or resize intervals                 |
+| Throughput/completion    | Completed work and total elapsed time                    | Whether a long poll starved the UI foreground                                |
+| TestAppContext timing    | CPU attribution and geometry on a deterministic platform | Real GPU submission, vsync, or trackpad dispatch                             |
 
 A frame interval is approximately 8.33 ms at 120 Hz and 16.67 ms at 60 Hz;
 choose the target for the actual platform and workload. Brief high FPS can hide
 long-tail input latency. Low idle FPS usually means the content has not changed.
 A range of interval p95 values is not an overall p95: merge the underlying
 distributions before reporting a pooled percentile.
+
+### Image memory measurements
+
+Report image memory in separate layers: encoded source bytes, decoded CPU pixel
+storage and compositor/GPU atlas storage. Process RSS or a platform "memory"
+counter can combine these with allocator slack, mapped files, other application
+state and driver accounting, so it is not evidence for any one layer by itself.
+Record the image sources and dimensions, laid-out logical size, display scale,
+format, animation state, window activity, and whether the sample is cold,
+loading, steady, offscreen, or after the final owner is released.
+
+Measure both peak and retained memory. JPEG may use native 1/8, 1/4, or 1/2
+decode before resize, while PNG and other raster formats decode at full source
+size before producing a target variant; that full-resolution transient can make
+the loading peak much larger than steady state. SVG rasterizes at its target.
+Animated GIF/WebP retains current and prefetched-frame/compositor state rather
+than every decoded frame, but active windows and variants still consume memory.
+Do not treat encoded bytes as a proxy for decoded or GPU size.
+
+The per-input, source-pixel, output-pixel, fetch and decode limits are admission
+and concurrency budgets, not a total-application cap. Multiple active sources,
+target buckets, windows, animations and unrelated application state add up.
+There is no inactive decoded-image cache, but measure release only after the
+last rendered owner and any previous frame retained for redraw safety are gone.
+Accordingly, neither active-image memory nor sparse retired-Surface tracking has
+an absolute constant-memory bound.
 
 ## 3. Compare with and without the live monitor
 
@@ -75,7 +101,6 @@ and keep window size, input and data fixed. No environment variable overrides
 this application policy. `frame-profile` and `bun run task website-native-profile`
 retain separate CPU draw, input-to-present and invalidation-to-present interval
 logging. Physical input-to-display acceptance still requires real platform input.
-
 
 For a serial comparison using one diagnostic binary, build it first and run the
 same 360-update, 500-row workload twice. This fixture alone accepts
@@ -334,15 +359,15 @@ Serial local probes used Bun 1.4.2, macOS arm64 Apple M5 Pro, vendored gpui-pre
 0.3.5 and an optimized `solid-gpui` development package. Setup, assertions and
 compilation were outside timed intervals. Timings below are medians, not budgets.
 
-| Workload | Earlier audit | Updated implementation |
-| --- | ---: | ---: |
-| 8,000-row reverse, JS signal-to-frame | 308.43 ms | 5.52 ms |
-| Reverse sibling index work | 63,988,001 visits | 8,000 writes |
-| 8,000-row left rotation wire output | 7,999 Moves / 248,019 bytes | 1 Move / 81 bytes |
-| Same rotation, native tree application | 474.73 ms | 4.21 ms |
-| 4,000 rich-text runs, one paragraph updated | 126.31 ms | 1.93 ms |
-| 4,000-run paragraph, one run updated | 0.033 ms | 0.034 ms |
-| Million-item native list append | 37.64 ms reset | 0.0115 ms hinted splice |
+| Workload                                    |               Earlier audit |  Updated implementation |
+| ------------------------------------------- | --------------------------: | ----------------------: |
+| 8,000-row reverse, JS signal-to-frame       |                   308.43 ms |                 5.52 ms |
+| Reverse sibling index work                  |           63,988,001 visits |            8,000 writes |
+| 8,000-row left rotation wire output         | 7,999 Moves / 248,019 bytes |       1 Move / 81 bytes |
+| Same rotation, native tree application      |                   474.73 ms |                 4.21 ms |
+| 4,000 rich-text runs, one paragraph updated |                   126.31 ms |                 1.93 ms |
+| 4,000-run paragraph, one run updated        |                    0.033 ms |                0.034 ms |
+| Million-item native list append             |              37.64 ms reset | 0.0115 ms hinted splice |
 
 Final order, retained identities, revisions, text contents, item counts and logical
 scroll anchors were asserted. The list number excludes JavaScript data copying,
