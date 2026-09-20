@@ -65,6 +65,9 @@ use uuid::Uuid;
 pub(crate) mod a11y;
 mod prompts;
 
+#[cfg(test)]
+mod bounds_tests;
+
 pub use a11y::A11ySubtreeBuilder;
 
 use self::a11y::A11y;
@@ -1140,6 +1143,25 @@ enum InputModality {
     Touch,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct WindowVisualState {
+    maximized: bool,
+    fullscreen: bool,
+    simple_fullscreen: bool,
+    decorations: Decorations,
+}
+
+impl WindowVisualState {
+    fn read(window: &dyn PlatformWindow) -> Self {
+        Self {
+            maximized: window.is_maximized(),
+            fullscreen: window.is_fullscreen(),
+            simple_fullscreen: window.is_simple_fullscreen(),
+            decorations: window.window_decorations(),
+        }
+    }
+}
+
 /// Holds the state for a specific window.
 pub struct Window {
     pub(crate) handle: AnyWindowHandle,
@@ -1147,6 +1169,7 @@ pub struct Window {
     pub(crate) removed: bool,
     pub(crate) platform_window: Box<dyn PlatformWindow>,
     display_id: Option<DisplayId>,
+    visual_state: WindowVisualState,
     is_resizable: bool,
     is_minimizable: bool,
     sprite_atlas: Arc<dyn PlatformAtlas>,
@@ -2009,6 +2032,7 @@ impl Window {
         }
 
         platform_window.map_window().unwrap();
+        let visual_state = WindowVisualState::read(platform_window.as_ref());
 
         Ok(Window {
             handle,
@@ -2016,6 +2040,7 @@ impl Window {
             removed: false,
             platform_window,
             display_id,
+            visual_state,
             is_resizable,
             is_minimizable,
             sprite_atlas,
@@ -2659,18 +2684,44 @@ impl Window {
         })
     }
 
-    /// Notify the window that its bounds have changed.
+    /// Synchronize native bounds and notify observers after a move or resize.
     ///
-    /// This updates internal state like `viewport_size` and `scale_factor` from
-    /// the platform window, then notifies observers. Normally called automatically
-    /// by the platform's resize callback, but exposed publicly for test infrastructure.
+    /// Only changes that affect rendered output invalidate the window. Pure
+    /// position changes still reach observers, which can invalidate their own
+    /// position-dependent content. Also exposed for test infrastructure.
     pub fn bounds_changed(&mut self, cx: &mut App) {
-        self.scale_factor = self.platform_window.scale_factor();
-        self.viewport_size = self.platform_window.content_size();
-        self.display_id = self.platform_window.display().map(|display| display.id());
-        self.mouse_position = self.platform_window.mouse_position();
+        let scale_factor = self.platform_window.scale_factor();
+        let viewport_size = self.platform_window.content_size();
+        let display_id = self.platform_window.display().map(|display| display.id());
+        let visual_state = WindowVisualState::read(self.platform_window.as_ref());
+        let mouse_position = self.platform_window.mouse_position();
+        let geometry_changed = self.scale_factor != scale_factor
+            || self.viewport_size != viewport_size
+            || self.display_id != display_id
+            || self.visual_state != visual_state;
 
-        self.refresh();
+        // Hitbox hover painting depends on client coordinates even in inactive
+        // windows. Preserve it when the pointer enters, leaves or moves within
+        // content, but do not rebuild for titlebar moves or a distant pointer.
+        let client_bounds = Bounds::new(Point::default(), viewport_size);
+        let pointer_affects_content = client_bounds.contains(&self.mouse_position)
+            || client_bounds.contains(&mouse_position)
+            || self.tooltip_bounds.as_ref().is_some_and(|tooltip| {
+                tooltip.bounds.contains(&self.mouse_position)
+                    || tooltip.bounds.contains(&mouse_position)
+            });
+        let pointer_changed = self.mouse_position != mouse_position
+            && (pointer_affects_content || cx.has_active_drag());
+
+        self.scale_factor = scale_factor;
+        self.viewport_size = viewport_size;
+        self.display_id = display_id;
+        self.visual_state = visual_state;
+        self.mouse_position = mouse_position;
+
+        if geometry_changed || pointer_changed {
+            self.refresh();
+        }
 
         self.bounds_observers
             .clone()

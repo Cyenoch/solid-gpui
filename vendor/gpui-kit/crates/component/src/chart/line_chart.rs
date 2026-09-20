@@ -10,7 +10,7 @@ use num_traits::{Num, ToPrimitive};
 use crate::{
     ActiveTheme,
     plot::{
-        AXIS_GAP, Grid, Plot, PlotAxis, StrokeStyle,
+        AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, StrokeStyle,
         scale::{Scale, ScaleLinear, ScalePoint, Sealed},
         shape::Line,
         tooltip::{CrossLine, Dot, Tooltip, TooltipState},
@@ -211,7 +211,16 @@ where
             line = line.dot().dot_size(8.).dot_fill_color(stroke);
         }
 
-        line.paint(&bounds, window);
+        // The stroke is tessellated once and reused while the projected
+        // points, width and curve style stay the same; each frame only moves
+        // it to the plot's origin. Dots stay per-frame quads, colored here.
+        let caches = PathCaches::for_paint("line-chart", window, cx);
+        caches.update(cx, |caches, _| {
+            line.paint_cached(&bounds, caches.slot(0), window);
+            // One line per chart: dropping past the first slot keeps the
+            // cache bounded when a rebuilt chart paints fewer shapes.
+            caches.truncate(1);
+        });
     }
 
     fn id(&self) -> Option<ElementId> {

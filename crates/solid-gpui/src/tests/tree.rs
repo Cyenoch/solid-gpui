@@ -1,5 +1,7 @@
 use super::support::*;
-use crate::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
+use crate::protocol::{
+    ExtensionField, ExtensionProperties, ExtensionValue, UPDATE_LAYOUT, VirtualListDataEdit,
+};
 use crate::tree::KIND_EXTENSION;
 
 #[test]
@@ -118,6 +120,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     );
     assert!(matches!(
@@ -161,6 +164,7 @@ fn accessibility_patch_updates_a_valid_label() {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     );
     store
@@ -216,6 +220,7 @@ fn accessibility_patch_can_clear_existing_properties() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         ))
         .expect("accessibility removal");
@@ -619,6 +624,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         ))
         .unwrap();
@@ -653,6 +659,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         ))
         .unwrap();
@@ -722,6 +729,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -794,6 +802,7 @@ fn rejected_patch_restores_created_nodes_and_ancestor_text_caches() {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         },
         PatchOperation::Create(created),
         PatchOperation::Move {
@@ -859,6 +868,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         ))
         .unwrap();
@@ -1150,6 +1160,8 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
         range_end: 2,
         estimated_item_size: 20.0,
         overscan: 1,
+        data_revision: 0,
+        data_edit: None,
     }));
     let mut store = NodeStore::default();
     store
@@ -1178,12 +1190,15 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
                 range_end: 2,
                 estimated_item_size: 20.0,
                 overscan: 1,
+                data_revision: 0,
+                data_edit: None,
             })),
             accessibility: None,
             focusable: false,
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     );
     assert!(matches!(
@@ -1191,6 +1206,231 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
         Err(TreeError::InvalidPatchOperation { .. })
     ));
     assert_eq!(store.revision(), 1);
+}
+
+fn transition_list_props(
+    item_count: u32,
+    data_revision: u32,
+    data_edit: Option<VirtualListDataEdit>,
+) -> Option<HostProperties> {
+    Some(HostProperties::VirtualList(VirtualListProperties {
+        item_count,
+        range_start: 0,
+        range_end: item_count.min(2),
+        estimated_item_size: 20.0,
+        overscan: 1,
+        data_revision,
+        data_edit,
+    }))
+}
+
+fn transition_edit(
+    base_revision: u32,
+    start: u32,
+    old_count: u32,
+    new_count: u32,
+) -> VirtualListDataEdit {
+    VirtualListDataEdit {
+        base_revision,
+        start,
+        old_count,
+        new_count,
+    }
+}
+
+fn props_update(revision: u32, props: Option<HostProperties>) -> Patch {
+    Patch::new(
+        7,
+        3,
+        revision,
+        revision + 1,
+        vec![PatchOperation::Update {
+            id: 2,
+            mask: UPDATE_PROPERTIES,
+            style: None,
+            text: None,
+            listener_id: 0,
+            host_properties: props,
+            accessibility: None,
+            focusable: false,
+            selectable: false,
+            tooltip: None,
+            accepts_pointer_move: false,
+            observes_layout: false,
+        }],
+    )
+}
+
+#[test]
+fn virtual_list_data_transitions_validate_against_the_prior_revision() {
+    let mut list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+    list.host_properties = transition_list_props(10, 0, None);
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), list],
+        ))
+        .unwrap();
+
+    // Viewport-only republish retains data verbatim.
+    store
+        .apply_patch(props_update(1, transition_list_props(10, 0, None)))
+        .unwrap();
+    // An equal-count splice is a real data change and must bump the revision.
+    store
+        .apply_patch(props_update(
+            2,
+            transition_list_props(10, 1, Some(transition_edit(0, 2, 3, 3))),
+        ))
+        .unwrap();
+    // A shrinking splice matches the count equation 10 - 4 + 1 == 7.
+    store
+        .apply_patch(props_update(
+            3,
+            transition_list_props(7, 2, Some(transition_edit(1, 0, 4, 1))),
+        ))
+        .unwrap();
+    assert!(!store.get(2).unwrap().observes_layout);
+
+    // Republishing retained data with a viewport change is accepted.
+    let mut viewport = transition_list_props(7, 2, Some(transition_edit(1, 0, 4, 1)));
+    if let Some(HostProperties::VirtualList(props)) = viewport.as_mut() {
+        props.range_start = 1;
+    }
+    store.apply_patch(props_update(4, viewport)).unwrap();
+
+    // Data must not change while the revision is retained.
+    let error = store.apply_patch(props_update(
+        5,
+        transition_list_props(7, 2, Some(transition_edit(2, 0, 1, 1))),
+    ));
+    assert_eq!(store.revision(), 5);
+    assert!(matches!(
+        error,
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    // Advancing without an edit is malformed.
+    assert!(matches!(
+        store.apply_patch(props_update(5, transition_list_props(7, 3, None))),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    // A gapped base is malformed.
+    assert!(matches!(
+        store.apply_patch(props_update(
+            5,
+            transition_list_props(7, 3, Some(transition_edit(0, 0, 2, 2))),
+        )),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    // A splice window beyond the prior items is malformed.
+    assert!(matches!(
+        store.apply_patch(props_update(
+            5,
+            transition_list_props(7, 3, Some(transition_edit(2, 5, 4, 4))),
+        )),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    // A broken count equation is malformed: 7 - 2 + 5 != 9.
+    assert!(matches!(
+        store.apply_patch(props_update(
+            5,
+            transition_list_props(9, 3, Some(transition_edit(2, 0, 2, 5))),
+        )),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    // A revision regression is malformed.
+    assert!(matches!(
+        store.apply_patch(props_update(
+            5,
+            transition_list_props(7, 1, Some(transition_edit(0, 0, 2, 2))),
+        )),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    assert_eq!(store.revision(), 5);
+
+    // Created lists start at revision zero without an edit; the transaction
+    // rolls back cleanly.
+    let patch = Patch::new(
+        7,
+        3,
+        5,
+        6,
+        vec![
+            PatchOperation::Create({
+                let mut node = Node::new(3, 1, 1, KIND_VIRTUAL_LIST);
+                node.host_properties = transition_list_props(4, 3, None);
+                node
+            }),
+            PatchOperation::Create({
+                let mut node = Node::new(3, 1, 1, KIND_VIRTUAL_LIST);
+                node.host_properties =
+                    transition_list_props(4, 0, Some(transition_edit(0, 0, 0, 4)));
+                node
+            }),
+            PatchOperation::Create({
+                let mut node = Node::new(3, 1, 1, KIND_VIRTUAL_LIST);
+                node.host_properties = transition_list_props(4, 0, None);
+                node
+            }),
+        ],
+    );
+    assert!(matches!(
+        store.apply_patch(patch),
+        Err(TreeError::InvalidPatchOperation { .. })
+    ));
+    assert!(store.get(3).is_none());
+    assert_eq!(store.revision(), 5);
+
+    // Snapshots have no prior state and ignore edits entirely.
+    let mut snapshot_list = Node::new(2, 1, 0, KIND_VIRTUAL_LIST);
+    snapshot_list.host_properties = transition_list_props(4, 9, Some(transition_edit(3, 0, 1, 1)));
+    let mut fresh = NodeStore::default();
+    fresh
+        .apply_snapshot(Snapshot::new(
+            7,
+            3,
+            0,
+            1,
+            vec![Node::new(1, 0, 0, KIND_VIEW), snapshot_list],
+        ))
+        .unwrap();
+    assert!(!fresh.get(2).unwrap().observes_layout);
+}
+
+#[test]
+fn layout_observation_binds_through_the_update_mask() {
+    let mut store = NodeStore::default();
+    store
+        .apply_snapshot(synthetic_root(1))
+        .expect("initial root");
+    assert!(!store.get(1).unwrap().observes_layout);
+    store
+        .apply_patch(Patch::new(
+            7,
+            3,
+            1,
+            2,
+            vec![PatchOperation::Update {
+                id: 1,
+                mask: UPDATE_LAYOUT,
+                observes_layout: true,
+                style: None,
+                text: None,
+                listener_id: 0,
+                host_properties: None,
+                accessibility: None,
+                focusable: false,
+                selectable: false,
+                tooltip: None,
+                accepts_pointer_move: false,
+            }],
+        ))
+        .unwrap();
+    assert!(store.get(1).unwrap().observes_layout);
 }
 
 #[test]
@@ -1269,6 +1509,7 @@ fn pressable_focusable_patch_is_accepted() {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     );
     store.apply_patch(patch).expect("Pressable focusable patch");
@@ -1305,6 +1546,7 @@ fn interaction_patches_validate_retained_capabilities_before_publishing() {
         selectable: false,
         tooltip: None,
         accepts_pointer_move: false,
+        observes_layout: false,
     };
     for operation in [
         update(2, UPDATE_LISTENER, false),
@@ -1377,6 +1619,7 @@ fn tooltip_snapshot_and_patch_apply_for_view_and_pressable() {
                 selectable: false,
                 tooltip: Some("Updated view hint".to_owned()),
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         ))
         .expect("tooltip patch applies");
@@ -1413,6 +1656,7 @@ fn pointer_move_capability_requires_interactive_listener_and_can_be_cleared() {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     );
     store
@@ -1477,6 +1721,7 @@ fn extension_listener_survives_property_updates_and_can_be_replaced() {
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 }],
             ))
             .expect(

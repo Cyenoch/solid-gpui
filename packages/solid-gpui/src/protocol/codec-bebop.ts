@@ -132,6 +132,7 @@ import {
   UPDATE_FOCUSABLE,
   UPDATE_LISTENER,
   UPDATE_POINTER_MOVE,
+  UPDATE_LAYOUT,
   UPDATE_PROPERTIES,
   UPDATE_SELECTABLE,
   UPDATE_STYLE,
@@ -444,14 +445,29 @@ function wireHost(value: SemanticHostProperties | null): HostProperties | undefi
       maxLength: value.value.maxLength ?? undefined,
       selectionReversed: value.value.selectionReversed,
     });
-  if (value.type === "virtual-list")
+  if (value.type === "virtual-list") {
+    const { dataRevision, dataEdit } = value.value;
+    if (
+      !isU32(dataRevision) ||
+      (dataEdit !== null &&
+        (!isU32(dataEdit.baseRevision) ||
+          dataEdit.baseRevision >= dataRevision ||
+          !isU32(dataEdit.start) ||
+          !isU32(dataEdit.oldCount) ||
+          !isU32(dataEdit.newCount) ||
+          dataEdit.start + dataEdit.newCount > value.value.itemCount))
+    )
+      throw new TypeError("VirtualList data edit must identify a valid data revision and replacement range");
     return WireHostProperties.fromVirtualListProperties({
       itemCount: value.value.itemCount,
       rangeStart: value.value.rangeStart,
       rangeEnd: value.value.rangeEnd,
       estimatedItemSize: f32(value.value.estimatedItemSize, "estimated item size"),
       overscan: value.value.overscan,
+      dataRevision,
+      dataEdit: dataEdit ?? undefined,
     });
+  }
   if (value.type === "image")
     return WireHostProperties.fromImageProperties({
       source: value.value.source,
@@ -496,6 +512,7 @@ function wireNode(value: SemanticNode): WireNode {
     selectable: value.selectable,
     tooltip: value.tooltip ?? undefined,
     acceptsPointerMove: value.acceptsPointerMove,
+    observesLayout: value.observesLayout,
   };
 }
 function wireSnapshot(value: SemanticSnapshot): WireSnapshot {
@@ -545,6 +562,7 @@ function wirePatchOperation(value: SemanticPatchOperation): WirePatchOperation {
       selectable: value.mask & UPDATE_SELECTABLE ? value.selectable : undefined,
       tooltip: value.mask & UPDATE_TOOLTIP ? (value.tooltip ?? undefined) : undefined,
       acceptsPointerMove: value.mask & UPDATE_POINTER_MOVE ? value.acceptsPointerMove : undefined,
+      observesLayout: value.mask & UPDATE_LAYOUT ? value.observesLayout : undefined,
     }),
   };
 }

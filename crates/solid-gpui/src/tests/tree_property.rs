@@ -1,5 +1,5 @@
 use super::support::*;
-use crate::protocol::UPDATE_SELECTABLE;
+use crate::protocol::{UPDATE_LAYOUT, UPDATE_SELECTABLE};
 use crate::renderer::SolidRoot;
 use gpui::AppContext as _;
 use std::collections::{HashMap, HashSet};
@@ -120,6 +120,8 @@ fn medium_snapshot() -> Snapshot {
         range_end: 4,
         estimated_item_size: 24.0,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
     let image = append_node(&mut nodes, &mut next_indexes, 15, 1, KIND_IMAGE);
     nodes[image].host_properties = Some(HostProperties::Image(ImageProperties {
@@ -332,7 +334,14 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
         }
         _ => vec![UPDATE_STYLE, UPDATE_ACCESSIBILITY],
     };
-    let mask = options[rng.below(options.len())];
+    // Every kind may flip its layout subscription; flips exercise both the
+    // subscribe and unsubscribe bindings under random structural churn.
+    let layout_flip = rng.below(4) == 0;
+    let mask = if layout_flip {
+        UPDATE_LAYOUT
+    } else {
+        options[rng.below(options.len())]
+    };
     let style = if mask == UPDATE_STYLE {
         Some(if node_is_nested_text(store, node) {
             nested_text_style()
@@ -356,6 +365,8 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
                     range_end: 4,
                     estimated_item_size: 24.0,
                     overscan: 2,
+                    data_revision: 0,
+                    data_edit: None,
                 })),
                 KIND_IMAGE => Some(HostProperties::Image(ImageProperties {
                     source: format!("/tmp/property-test-{}.png", node.id),
@@ -374,6 +385,7 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
     };
     let tooltip = None;
     let accepts_pointer_move = false;
+    let observes_layout = layout_flip && rng.below(2) == 0;
     let selectable = false;
     let accessibility = (mask == UPDATE_ACCESSIBILITY).then(|| AccessibilityProperties {
         role: 1,
@@ -399,6 +411,7 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
         selectable,
         tooltip,
         accepts_pointer_move,
+        observes_layout,
     })
 }
 
@@ -474,6 +487,7 @@ fn next_operation(store: &NodeStore, rng: &mut Rng, next_id: &mut u32) -> PatchO
         selectable: false,
         tooltip: None,
         accepts_pointer_move: false,
+        observes_layout: false,
     })
 }
 

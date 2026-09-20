@@ -10,21 +10,24 @@ use std::sync::atomic::{AtomicU32, Ordering};
 #[cfg(test)]
 use gpui::ListOffset;
 use gpui::{
-    App, Context, Element, FocusHandle, IntoElement, ListAlignment, ListState, Render, Styled,
-    Subscription, Window, WindowAppearance as GpuiWindowAppearance, div, px,
+    App, Context, Element, FocusHandle, IntoElement, ListState, Render, Styled, Subscription,
+    Window, WindowAppearance as GpuiWindowAppearance, div, px,
 };
 use thiserror::Error;
 
-#[cfg(test)]
 use crate::protocol::PatchOperation;
+#[cfg(test)]
+use crate::protocol::Style;
 use crate::protocol::{
     Command, CommandKind, CommandMeta, CommandResult, CommandValue, DecodedMessage, Event,
-    HostProperties, PositionCode, ProtocolError, Style, WindowAppearance,
+    HostProperties, PositionCode, ProtocolError, WindowAppearance,
 };
 use crate::transport::{RuntimeAdapter, send_event_or_exit};
+#[cfg(test)]
+use crate::tree::KIND_VIRTUAL_LIST;
 use crate::tree::{
-    KIND_EXTENSION, KIND_PRESSABLE, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, KIND_VIRTUAL_LIST,
-    NodeStore, StoredNode, TreeError,
+    KIND_EXTENSION, KIND_PRESSABLE, KIND_TEXT, KIND_TEXT_INPUT, KIND_VIEW, NodeStore, StoredNode,
+    TreeError,
 };
 
 mod animation;
@@ -36,6 +39,7 @@ mod input;
 mod native_call_lifecycle_tests;
 mod native_calls;
 pub(crate) mod paint;
+mod virtual_lists;
 use crate::profile;
 
 pub use extensions::{
@@ -47,14 +51,16 @@ pub use extensions::{
 #[cfg(test)]
 mod extension_instance_tests;
 #[cfg(test)]
+mod popup_move_tests;
+#[cfg(test)]
 mod resize_tests;
 #[cfg(test)]
 mod scroll_tests;
 #[cfg(test)]
 use crate::protocol::{Easing, TextInputProperties};
-use animation::AnimationState;
+use animation::AnimationBook;
 #[cfg(test)]
-use animation::animation_target_changed;
+use animation::{AnimationState, animation_target_changed};
 use extensions::{new_event_state, update_event_state, validate_extension_fields};
 use input::{NativeInputState, TextInputLayout};
 use paint::RenderedBounds;
@@ -191,19 +197,6 @@ fn committed_child_index(absolute_index: u32, range_start: u32, range_end: u32) 
     }
 }
 
-fn virtual_list_ancestor(store: &NodeStore, mut node_id: u32) -> Option<u32> {
-    loop {
-        let node = store.get(node_id)?;
-        if node.kind == KIND_VIRTUAL_LIST {
-            return Some(node.id);
-        }
-        if node.parent_id == 0 {
-            return None;
-        }
-        node_id = node.parent_id;
-    }
-}
-
 pub(crate) type PopupObserver = Rc<dyn Fn(&mut App)>;
 pub(crate) type PopupInput = Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>;
 
@@ -211,6 +204,16 @@ pub struct SolidRoot {
     pub(crate) popup_anchors: std::collections::HashSet<u32>,
     pub(crate) popup_observer: Option<PopupObserver>,
     pub(crate) popup_input: Option<PopupInput>,
+    /// Viewport of the last painted frame. Popup reconciliation may only follow
+    /// a passive owner move from painted geometry while the viewport is
+    /// unchanged; anything else must fall back to the render path.
+    last_painted_viewport: Option<(f32, f32)>,
+    /// Store revision the last painted frame was built from. A newer revision
+    /// means a commit changed the tree after the paint, so painted anchor
+    /// bounds are stale and must not be consumed before the next draw.
+    last_painted_revision: Option<u32>,
+    /// Coalesces bounds-driven popup reconciles queued before they run.
+    popup_reconcile_scheduled: bool,
     store: NodeStore,
     runtime: Arc<dyn RuntimeAdapter>,
     next_sequence: Arc<AtomicU32>,
@@ -249,15 +252,13 @@ pub struct SolidRoot {
     virtual_lists: HashMap<u32, ListState>,
     virtual_ranges: HashMap<u32, (u32, u32)>,
     virtual_item_sizes: HashMap<u32, f32>,
+    virtual_data_revisions: HashMap<u32, u32>,
     pending_visible_ranges: Rc<RefCell<HashMap<u32, (u32, u32)>>>,
     reported_visible_ranges: HashMap<u32, (u32, u32)>,
     active_drag_type: Rc<RefCell<Option<String>>>,
     rendered_bounds: RenderedBounds,
-    reported_layout_bounds: HashMap<u32, (f32, f32, f32, f32)>,
-    animation_states: HashMap<u32, AnimationState>,
-    animation_styles: HashMap<u32, Option<Style>>,
-    frame_styles: HashMap<u32, Style>,
-    animation_frame_requested: bool,
+    layout_observations: paint::LayoutObservations,
+    animation: AnimationBook,
     focus_observer_dirty: HashSet<u32>,
     focus_observers: HashMap<u32, (Subscription, Subscription)>,
     focus_lost_observer: Option<Subscription>,
@@ -285,6 +286,9 @@ impl SolidRoot {
             popup_anchors: HashSet::new(),
             popup_observer: None,
             popup_input: None,
+            last_painted_viewport: None,
+            last_painted_revision: None,
+            popup_reconcile_scheduled: false,
             store: NodeStore::empty(),
             runtime,
             next_sequence,
@@ -321,17 +325,15 @@ impl SolidRoot {
             virtual_lists: HashMap::new(),
             virtual_ranges: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
+            virtual_data_revisions: HashMap::new(),
             pending_visible_ranges: Rc::new(RefCell::new(HashMap::new())),
             reported_visible_ranges: HashMap::new(),
             rendered_bounds: Rc::new(RefCell::new(HashMap::new())),
             active_drag_type: Rc::new(RefCell::new(None)),
-            reported_layout_bounds: HashMap::new(),
-            animation_states: HashMap::new(),
+            layout_observations: paint::LayoutObservations::default(),
+            animation: AnimationBook::new(),
             commands: Vec::new(),
             pending_native_calls: HashMap::new(),
-            animation_styles: HashMap::new(),
-            frame_styles: HashMap::new(),
-            animation_frame_requested: false,
             focus_observer_dirty: HashSet::new(),
             focus_observers: HashMap::new(),
             focus_lost_observer: None,
@@ -371,85 +373,95 @@ impl SolidRoot {
     }
     #[cfg(test)]
     pub(crate) fn test_side_map_ids(&self) -> Vec<(&'static str, HashSet<u32>)> {
-        let mut ids = Vec::with_capacity(20);
-        ids.push(("input_states", self.input_states.keys().copied().collect()));
-        ids.push((
-            "text_input_layouts",
-            self.text_input_layouts.keys().copied().collect(),
-        ));
-        ids.push((
-            "selectable_text_layouts",
-            self.selectable_text_layouts.keys().copied().collect(),
-        ));
-        ids.push((
-            "selectable_text_selections",
-            self.selectable_text_selections.keys().copied().collect(),
-        ));
-        ids.push((
-            "focus_handles",
-            self.focus_handles.keys().copied().collect(),
-        ));
-        ids.push((
-            "focus_observers",
-            self.focus_observers.keys().copied().collect(),
-        ));
-        ids.push((
-            "virtual_lists",
-            self.virtual_lists.keys().copied().collect(),
-        ));
-        ids.push((
-            "virtual_ranges",
-            self.virtual_ranges.keys().copied().collect(),
-        ));
-        ids.push((
-            "virtual_item_sizes",
-            self.virtual_item_sizes.keys().copied().collect(),
-        ));
-        ids.push((
-            "pending_visible_ranges",
-            self.pending_visible_ranges
-                .borrow()
-                .keys()
-                .copied()
-                .collect(),
-        ));
-        ids.push((
-            "reported_visible_ranges",
-            self.reported_visible_ranges.keys().copied().collect(),
-        ));
-        ids.push((
-            "reported_layout_bounds",
-            self.reported_layout_bounds.keys().copied().collect(),
-        ));
-        ids.push((
-            "rendered_bounds",
-            self.rendered_bounds.borrow().keys().copied().collect(),
-        ));
-        ids.push((
-            "rich_text_parts_cache",
-            self.rich_text_parts_cache
-                .borrow()
-                .keys()
-                .copied()
-                .collect(),
-        ));
-        ids.push((
-            "link_affordance_bounds",
-            self.link_affordance_bounds
-                .borrow()
-                .keys()
-                .copied()
-                .collect(),
-        ));
-        ids.push((
-            "animation_states",
-            self.animation_states.keys().copied().collect(),
-        ));
-        ids.push((
-            "animation_styles",
-            self.animation_styles.keys().copied().collect(),
-        ));
-        ids.push(("frame_styles", self.frame_styles.keys().copied().collect()));
+        let mut ids = vec![
+            ("input_states", self.input_states.keys().copied().collect()),
+            (
+                "text_input_layouts",
+                self.text_input_layouts.keys().copied().collect(),
+            ),
+            (
+                "selectable_text_layouts",
+                self.selectable_text_layouts.keys().copied().collect(),
+            ),
+            (
+                "selectable_text_selections",
+                self.selectable_text_selections.keys().copied().collect(),
+            ),
+            (
+                "focus_handles",
+                self.focus_handles.keys().copied().collect(),
+            ),
+            (
+                "focus_observers",
+                self.focus_observers.keys().copied().collect(),
+            ),
+            (
+                "virtual_lists",
+                self.virtual_lists.keys().copied().collect(),
+            ),
+            (
+                "virtual_ranges",
+                self.virtual_ranges.keys().copied().collect(),
+            ),
+            (
+                "virtual_item_sizes",
+                self.virtual_item_sizes.keys().copied().collect(),
+            ),
+            (
+                "virtual_data_revisions",
+                self.virtual_data_revisions.keys().copied().collect(),
+            ),
+            (
+                "pending_visible_ranges",
+                self.pending_visible_ranges
+                    .borrow()
+                    .keys()
+                    .copied()
+                    .collect(),
+            ),
+            (
+                "reported_visible_ranges",
+                self.reported_visible_ranges.keys().copied().collect(),
+            ),
+            (
+                "layout_observations",
+                self.layout_observations.reported.keys().copied().collect(),
+            ),
+            (
+                "rendered_bounds",
+                self.rendered_bounds.borrow().keys().copied().collect(),
+            ),
+            (
+                "rich_text_parts_cache",
+                self.rich_text_parts_cache
+                    .borrow()
+                    .keys()
+                    .copied()
+                    .collect(),
+            ),
+            (
+                "link_affordance_bounds",
+                self.link_affordance_bounds
+                    .borrow()
+                    .keys()
+                    .copied()
+                    .collect(),
+            ),
+            (
+                "animation_states",
+                self.animation.states.keys().copied().collect(),
+            ),
+            (
+                "animation_styles",
+                self.animation.styles.keys().copied().collect(),
+            ),
+            (
+                "frame_styles",
+                self.animation.frame_styles.keys().copied().collect(),
+            ),
+            ("animation_animating", self.animation.animating_ids()),
+            ("animation_delayed", self.animation.delayed_ids()),
+        ];
         let mut singleton_ids = HashSet::new();
         if let Some((id, _)) = self.focused_node {
             singleton_ids.insert(id);
@@ -606,7 +618,7 @@ impl SolidRoot {
                     self.store.revision(),
                 );
                 self.rich_text_parts_cache.borrow_mut().clear();
-                self.reported_layout_bounds.clear();
+                self.layout_observations.clear();
                 if reset_native_state {
                     self.reset_native_state();
                 }
@@ -624,6 +636,27 @@ impl SolidRoot {
                 None
             }
             DecodedMessage::Patch(patch) => {
+                let virtual_list_updates: Vec<_> = patch
+                    .operations
+                    .iter()
+                    .filter_map(|operation| match operation {
+                        PatchOperation::Create(node) => match &node.host_properties {
+                            Some(HostProperties::VirtualList(list)) => {
+                                Some((node.id, list.clone(), true))
+                            }
+                            _ => None,
+                        },
+                        PatchOperation::Update {
+                            id,
+                            mask,
+                            host_properties: Some(HostProperties::VirtualList(list)),
+                            ..
+                        } if mask & crate::protocol::UPDATE_PROPERTIES != 0 => {
+                            Some((*id, list.clone(), false))
+                        }
+                        _ => None,
+                    })
+                    .collect();
                 let registry = self.extension_registry.as_ref();
                 let tree_profile = profile::span(profile::Stage::Tree);
                 let changes = self.store.apply_patch_validated(patch, |store, changes| {
@@ -647,7 +680,13 @@ impl SolidRoot {
                     self.rich_text_parts_cache.borrow_mut().remove(id);
                 }
                 for id in &changes.changed {
-                    self.reported_layout_bounds.remove(id);
+                    if self
+                        .store
+                        .get(*id)
+                        .is_none_or(|node| !node.observes_layout || node.listener_id == 0)
+                    {
+                        self.layout_observations.remove(id);
+                    }
                 }
                 self.extension_content_dirty
                     .extend(changes.affected.iter().copied());
@@ -659,6 +698,7 @@ impl SolidRoot {
                     }));
                 self.reconcile_input_states(cx, Some(&changes.affected));
                 self.reconcile_selectable_text_states(cx, Some(&changes.affected));
+                self.replay_virtual_list_updates(&virtual_list_updates);
                 self.reconcile_virtual_lists_for(Some(&changes.affected));
                 self.reconcile_animation_states(cx, Some(&changes.affected));
                 Some(changes)
@@ -821,11 +861,10 @@ impl SolidRoot {
             self.virtual_lists.remove(id);
             self.virtual_ranges.remove(id);
             self.virtual_item_sizes.remove(id);
+            self.virtual_data_revisions.remove(id);
             self.reported_visible_ranges.remove(id);
-            self.reported_layout_bounds.remove(id);
-            self.animation_states.remove(id);
-            self.animation_styles.remove(id);
-            self.frame_styles.remove(id);
+            self.layout_observations.remove(id);
+            self.animation.remove_node(*id);
             self.extension_dirty.remove(id);
             self.extension_content_dirty.remove(id);
             self.pending_visible_ranges.borrow_mut().remove(id);
@@ -874,161 +913,39 @@ impl SolidRoot {
         self.virtual_lists.clear();
         self.virtual_ranges.clear();
         self.virtual_item_sizes.clear();
+        self.virtual_data_revisions.clear();
         self.reported_visible_ranges.clear();
-        self.reported_layout_bounds.clear();
+        self.layout_observations.clear();
         self.pending_visible_ranges.borrow_mut().clear();
-        self.animation_states.clear();
-        self.animation_styles.clear();
+        self.animation.reset();
         self.window_observation_scheduled = false;
         self.last_window_size = None;
         self.last_window_scale_factor = None;
         self.last_window_active = None;
         self.last_window_appearance = None;
-    }
-    #[cfg(test)]
-    fn reconcile_virtual_lists(&mut self) {
-        self.reconcile_virtual_lists_for(None);
-    }
-
-    fn reconcile_virtual_lists_for(&mut self, affected: Option<&HashSet<u32>>) {
-        if let Some(ids) = affected {
-            for id in ids {
-                if self
-                    .store
-                    .get(*id)
-                    .is_none_or(|node| node.kind != KIND_VIRTUAL_LIST)
-                {
-                    self.virtual_lists.remove(id);
-                    self.virtual_ranges.remove(id);
-                    self.virtual_item_sizes.remove(id);
-                    self.reported_visible_ranges.remove(id);
-                    self.pending_visible_ranges.borrow_mut().remove(id);
-                }
-            }
-        } else {
-            self.virtual_lists.retain(|id, _| {
-                self.store
-                    .get(*id)
-                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-            });
-            self.virtual_ranges.retain(|id, _| {
-                self.store
-                    .get(*id)
-                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-            });
-            self.virtual_item_sizes.retain(|id, _| {
-                self.store
-                    .get(*id)
-                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-            });
-            self.reported_visible_ranges.retain(|id, _| {
-                self.store
-                    .get(*id)
-                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-            });
-            self.pending_visible_ranges.borrow_mut().retain(|id, _| {
-                self.store
-                    .get(*id)
-                    .is_some_and(|node| node.kind == KIND_VIRTUAL_LIST)
-            });
-        }
-        let affected_virtual_lists: HashSet<u32> = affected
-            .into_iter()
-            .flat_map(|ids| ids.iter().copied())
-            .filter_map(|id| virtual_list_ancestor(&self.store, id))
-            .collect();
-        let ids: Vec<u32> = match affected {
-            Some(ids) => ids.iter().copied().collect(),
-            None => self
-                .store
-                .iter()
-                .filter(|node| node.kind == KIND_VIRTUAL_LIST)
-                .map(|node| node.id)
-                .collect(),
-        };
-        for id in ids {
-            let Some(node) = self.store.get(id) else {
-                continue;
-            };
-            let Some(HostProperties::VirtualList(list)) = node.host_properties.as_ref() else {
-                continue;
-            };
-            let item_count = list.item_count as usize;
-            let estimated = px(list.estimated_item_size);
-            let previous_estimate = self.virtual_item_sizes.insert(id, list.estimated_item_size);
-            let state = self.virtual_lists.entry(id).or_insert_with(|| {
-                ListState::new(item_count, ListAlignment::Top, px(2048.0))
-                    .with_uniform_item_height(estimated)
-            });
-            let previous_count = state.item_count();
-            if previous_count != item_count {
-                let scroll_top = state.logical_scroll_top();
-                let was_at_end = previous_count > 0 && scroll_top.item_ix >= previous_count;
-                state.reset_with_uniform_height(item_count, estimated);
-                if was_at_end && item_count > 0 {
-                    state.scroll_to_end();
-                } else {
-                    state.scroll_to(scroll_top);
-                }
-            } else if previous_estimate.is_some_and(|previous| previous != list.estimated_item_size)
-            {
-                let scroll_top = state.logical_scroll_top();
-                state.reset_with_uniform_height(item_count, estimated);
-                state.scroll_to(scroll_top);
-            }
-            let next_range = (list.range_start, list.range_end);
-            let previous_range = self.virtual_ranges.insert(id, next_range);
-            if (previous_range.is_some_and(|previous| previous != next_range)
-                || affected_virtual_lists.contains(&id))
-                && next_range.0 < next_range.1
-            {
-                state.remeasure_items(next_range.0 as usize..next_range.1 as usize);
-            }
-        }
-    }
-
-    fn emit_visible_range(&mut self, node_id: u32, start: u32, end: u32) {
-        if self.reported_visible_ranges.get(&node_id) == Some(&(start, end)) {
-            return;
-        }
-        let Some(node) = self.store.get(node_id) else {
-            return;
-        };
-        if node.kind != KIND_VIRTUAL_LIST || node.listener_id == 0 {
-            return;
-        }
-        self.reported_visible_ranges.insert(node_id, (start, end));
-        let event = Event::visible_range(
-            self.store.surface_id(),
-            self.store.epoch(),
-            self.store.revision(),
-            self.next_sequence.fetch_add(1, Ordering::Relaxed),
-            node_id,
-            node.listener_id,
-            start,
-            end,
-        );
-        send_event_or_exit(
-            self.runtime.as_ref(),
-            "VirtualList visible range event",
-            event,
-        );
+        self.last_painted_viewport = None;
+        self.last_painted_revision = None;
+        self.popup_reconcile_scheduled = false;
     }
     fn emit_layout_bounds(&mut self, node_id: u32, frame: (f32, f32, f32, f32)) {
         if ![frame.0, frame.1, frame.2, frame.3]
             .into_iter()
             .all(f32::is_finite)
-            || self.reported_layout_bounds.get(&node_id) == Some(&frame)
         {
             return;
         }
         let Some(node) = self.store.get(node_id) else {
             return;
         };
-        if node.listener_id == 0 {
+        if !node.observes_layout
+            || node.listener_id == 0
+            || self.layout_observations.reported.get(&node_id) == Some(&(node.listener_id, frame))
+        {
             return;
         }
-        self.reported_layout_bounds.insert(node_id, frame);
+        self.layout_observations
+            .reported
+            .insert(node_id, (node.listener_id, frame));
         let event = Event::layout(
             self.store.surface_id(),
             self.store.epoch(),
@@ -1198,7 +1115,7 @@ impl SolidRoot {
         let resize = cx.observe_window_bounds(window, |root, window, cx| {
             root.schedule_window_observation(window, cx);
             if root.popup_observer.is_some() {
-                cx.notify();
+                root.schedule_popup_reconcile(window, cx);
             }
         });
         let activation = cx.observe_window_activation(window, |root, window, cx| {
@@ -1228,6 +1145,70 @@ impl SolidRoot {
             let _ = entity.update(app, |root, _| {
                 root.emit_window_observation(width, height, scale_factor, active, appearance);
             });
+        });
+    }
+
+    /// Reconcile open popups after a window bounds change.
+    ///
+    /// A bounds change that also changes what the next paint will look like
+    /// needs fresh layout before anchor bounds mean anything: a different
+    /// viewport than the last painted frame, a store revision newer than the
+    /// painted one, or no painted frame at all (no anchors recorded yet) all
+    /// fall back to the render-driven path via `cx.notify`, exactly as before.
+    ///
+    /// A passive owner move leaves the painted tree current — anchor bounds are
+    /// parent-local and nothing in the store changed — so the popup follows
+    /// from the already painted geometry plus the new owner bounds without
+    /// dirtying the window or repainting the root.
+    ///
+    /// The observer runs from a deferred effect: bounds observers execute while
+    /// this window is leased, and reconciliation re-enters the owner window to
+    /// read its bounds, which would panic on a live lease.
+    fn schedule_popup_reconcile(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let viewport = window.viewport_size();
+        let viewport = (f32::from(viewport.width), f32::from(viewport.height));
+        let revision = self.store.revision();
+        if Some(viewport) != self.last_painted_viewport
+            || Some(revision) != self.last_painted_revision
+            || self.rendered_bounds.borrow().is_empty()
+        {
+            cx.notify();
+            return;
+        }
+        if self.popup_reconcile_scheduled {
+            return;
+        }
+        let Some(observer) = self.popup_observer.clone() else {
+            return;
+        };
+        self.popup_reconcile_scheduled = true;
+        // A queued effect must not retain a closed surface and its native tasks.
+        let entity = cx.weak_entity();
+        let window_handle = window.window_handle();
+        cx.defer(move |app| {
+            // A commit may have landed between scheduling and this flush. If
+            // the painted anchors are no longer current, the render path the
+            // commit already notified owns reconciliation instead.
+            let viewport = window_handle
+                .update(app, |_, window, _| window.viewport_size())
+                .ok()
+                .map(|size| (f32::from(size.width), f32::from(size.height)));
+            let current = entity
+                .update(app, |root, _| {
+                    root.popup_reconcile_scheduled = false;
+                    viewport.is_some()
+                        && viewport == root.last_painted_viewport
+                        && Some(root.store.revision()) == root.last_painted_revision
+                        && !root.rendered_bounds.borrow().is_empty()
+                        && root
+                            .popup_observer
+                            .as_ref()
+                            .is_some_and(|current| Rc::ptr_eq(current, &observer))
+                })
+                .unwrap_or(false);
+            if current {
+                observer(app);
+            }
         });
     }
 
@@ -1289,6 +1270,12 @@ impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _profile = profile::span(profile::Stage::Render);
         self.rendered_bounds.borrow_mut().clear();
+        let viewport = window.viewport_size();
+        // Record what this paint corresponds to so a later bounds change can
+        // tell a passive owner move (painted geometry still current) from a
+        // change that must re-layout before popup anchors mean anything.
+        self.last_painted_viewport = Some((f32::from(viewport.width), f32::from(viewport.height)));
+        self.last_painted_revision = Some(self.store.revision());
         if let Some(observer) = self.popup_observer.clone() {
             cx.defer(move |cx| observer(cx));
         }
@@ -1502,6 +1489,8 @@ mod input_tests {
                             range_end: 4,
                             estimated_item_size: 24.0,
                             overscan: 2,
+                            data_revision: 0,
+                            data_edit: None,
                         }));
                     nodes.push(list);
                 }
@@ -1597,6 +1586,7 @@ mod input_tests {
                         selectable: false,
                         tooltip: None,
                         accepts_pointer_move: false,
+                        observes_layout: false,
                     }],
                 )
                 .encode()
@@ -1687,6 +1677,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         )
         .encode()
@@ -1925,16 +1916,6 @@ mod input_tests {
         }
     }
 
-    fn root_with_animated_node(runtime: Arc<InMemoryAdapter>, style: Style) -> SolidRoot {
-        let mut root = SolidRoot::new(runtime);
-        let mut node = Node::new(1, 0, 0, crate::tree::KIND_VIEW);
-        node.listener_id = 7;
-        node.style = Some(style);
-        root.store
-            .apply_snapshot(Snapshot::new(7, 3, 0, 1, vec![node]))
-            .expect("animated root snapshot");
-        root
-    }
     #[test]
     fn accessibility_role_mapping_matches_protocol_roles() {
         assert_eq!(super::paint::accessibility_role(1), None);
@@ -1999,6 +1980,8 @@ mod input_tests {
             range_end: 4,
             estimated_item_size,
             overscan: 2,
+            data_revision: 0,
+            data_edit: None,
         }));
         Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list])
     }
@@ -2232,20 +2215,22 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         let patch_payload = patch.encode().expect("encode animation patch");
         root.update(cx, |root, cx| root.apply_payload(&patch_payload, cx))
             .expect("apply animation patch");
         root.update(cx, |root, _| {
-            root.animation_states
+            root.animation
+                .states
                 .get_mut(&1)
                 .expect("reverse animation state")
                 .start = Instant::now() - Duration::from_millis(50);
         });
 
         let (opacity, background, generation, active) = root.read_with(cx, |root, _| {
-            let state = root.animation_states.get(&1).expect("animation state");
+            let state = root.animation.states.get(&1).expect("animation state");
             let (opacity, background, _, _, _) = state.values(Instant::now(), false);
             (opacity, background, state.generation, state.active())
         });
@@ -2295,54 +2280,6 @@ mod input_tests {
     }
 
     #[test]
-    fn completion_is_once_reduced_motion_is_immediate_and_deletion_cancels() {
-        let runtime = InMemoryAdapter::new();
-        let style = animated_style(Some(1.0), Some(0xffffffff));
-        let mut root = root_with_animated_node(runtime.clone(), style.clone());
-        let mut state = AnimationState::at_target(&style);
-        state.opacity_active = true;
-        state.opacity_from = 0.0;
-        state.opacity_target = 1.0;
-        state.completion_sent = false;
-        state.generation = 4;
-        root.animation_states.insert(1, state);
-        root.finish_animation(1);
-        root.finish_animation(1);
-        let event = runtime
-            .take_event()
-            .expect("event result")
-            .expect("completion");
-        assert_eq!(
-            u32::from(event.payload.event_kind()),
-            crate::protocol::EVENT_ANIMATION_COMPLETE
-        );
-        assert!(runtime.take_event().expect("second event result").is_none());
-
-        let runtime = InMemoryAdapter::new();
-        let mut root = root_with_animated_node(runtime.clone(), animated_style(Some(0.0), None));
-        let target = animated_style(Some(1.0), None);
-        root.animation_states.insert(
-            1,
-            AnimationState::at_target(&animated_style(Some(0.0), None)),
-        );
-        let transition = target.transition.as_ref().expect("target transition");
-        root.retarget_animation(1, &target, transition, true);
-        assert!(!root.animation_states.get(&1).expect("state").active());
-        assert!(
-            runtime
-                .take_event()
-                .expect("reduced event result")
-                .is_some()
-        );
-
-        root.animation_states.insert(
-            99,
-            AnimationState::at_target(&animated_style(Some(0.0), None)),
-        );
-        root.prune_animation_states();
-        assert!(!root.animation_states.contains_key(&99));
-    }
-    #[test]
     fn virtual_list_state_persists_remeasures_and_cleans_up() {
         let runtime = InMemoryAdapter::new();
         let mut root = SolidRoot::new(runtime);
@@ -2376,6 +2313,7 @@ mod input_tests {
                         selectable: false,
                         tooltip: None,
                         accepts_pointer_move: false,
+                        observes_layout: false,
                     },
                     PatchOperation::Create(Node::new(3, 1, 1, KIND_VIEW)),
                     PatchOperation::Move {
@@ -2409,12 +2347,15 @@ mod input_tests {
                         range_end: 4,
                         estimated_item_size: 32.0,
                         overscan: 2,
+                        data_revision: 0,
+                        data_edit: None,
                     })),
                     accessibility: None,
                     focusable: false,
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 }],
             ))
             .expect("estimated size patch");
@@ -2481,12 +2422,20 @@ mod input_tests {
                         range_end: 4,
                         estimated_item_size: 20.0,
                         overscan: 2,
+                        data_revision: 1,
+                        data_edit: Some(crate::protocol::VirtualListDataEdit {
+                            base_revision: 0,
+                            start: 100,
+                            old_count: 0,
+                            new_count: 100,
+                        }),
                     })),
                     accessibility: None,
                     focusable: false,
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 }],
             ))
             .expect("grow VirtualList");
@@ -2517,12 +2466,20 @@ mod input_tests {
                         range_end: 4,
                         estimated_item_size: 20.0,
                         overscan: 2,
+                        data_revision: 2,
+                        data_edit: Some(crate::protocol::VirtualListDataEdit {
+                            base_revision: 1,
+                            start: 20,
+                            old_count: 180,
+                            new_count: 0,
+                        }),
                     })),
                     accessibility: None,
                     focusable: false,
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 }],
             ))
             .expect("shrink VirtualList");
@@ -2549,12 +2506,20 @@ mod input_tests {
                         range_end: 4,
                         estimated_item_size: 20.0,
                         overscan: 2,
+                        data_revision: 3,
+                        data_edit: Some(crate::protocol::VirtualListDataEdit {
+                            base_revision: 2,
+                            start: 20,
+                            old_count: 0,
+                            new_count: 80,
+                        }),
                     })),
                     accessibility: None,
                     focusable: false,
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 }],
             ))
             .expect("restore VirtualList");
@@ -2593,6 +2558,8 @@ mod input_tests {
             range_end: 2,
             estimated_item_size: 50.0,
             overscan: 1,
+            data_revision: 0,
+            data_edit: None,
         }));
         let snapshot = Snapshot::new(
             7,
@@ -2662,6 +2629,8 @@ mod input_tests {
             range_end: 1,
             estimated_item_size: 10.0,
             overscan: 1,
+            data_revision: 0,
+            data_edit: None,
         }));
         let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list, first]);
         let payload = snapshot.encode().expect("encode estimated list snapshot");
@@ -2714,12 +2683,15 @@ mod input_tests {
                         range_end: 2,
                         estimated_item_size: 10.0,
                         overscan: 1,
+                        data_revision: 0,
+                        data_edit: None,
                     })),
                     accessibility: None,
                     focusable: false,
                     selectable: false,
                     tooltip: None,
                     accepts_pointer_move: false,
+                    observes_layout: false,
                 },
             ],
         );
@@ -2764,6 +2736,8 @@ mod input_tests {
             range_end: 4,
             estimated_item_size: 20.0,
             overscan: 2,
+            data_revision: 0,
+            data_edit: None,
         }));
         let snapshot = Snapshot::new(7, 3, 0, 1, vec![outer, list]);
         let payload = snapshot.encode().expect("encode boundary snapshot");
@@ -2861,6 +2835,8 @@ mod input_tests {
             range_end: 4,
             estimated_item_size: 20.0,
             overscan: 2,
+            data_revision: 0,
+            data_edit: None,
         }));
         let snapshot = Snapshot::new(7, 3, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list]);
         let snapshot_payload = snapshot.encode().expect("encode command snapshot");
@@ -3335,6 +3311,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -3466,6 +3443,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -3820,6 +3798,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         let text_payload = text_patch.encode().expect("encode text update");
@@ -4087,6 +4066,7 @@ mod input_tests {
         let mut root = SolidRoot::new(runtime.clone());
         let mut node = Node::new(2, 1, 0, KIND_VIEW);
         node.listener_id = 7;
+        node.observes_layout = true;
         root.store
             .apply_snapshot(Snapshot::new(
                 7,
@@ -4139,6 +4119,7 @@ mod input_tests {
         for id in 2..=MEASURED_NODES + 1 {
             let mut node = Node::new(id, 1, id - 2, KIND_VIEW);
             node.listener_id = id;
+            node.observes_layout = id % 2 == 0;
             nodes.push(node);
         }
         let payload = Snapshot::new(7, 3, 0, 1, nodes)
@@ -4147,7 +4128,6 @@ mod input_tests {
         root.update(cx, |root, cx| root.apply_payload(&payload, cx))
             .expect("apply layout storm snapshot");
 
-        let started = Instant::now();
         for _ in 0..2 {
             cx.update_window(window.into(), |_, window, cx| {
                 window.draw(cx).clear(cx);
@@ -4160,20 +4140,36 @@ mod input_tests {
         .expect("deliver layout storm callbacks");
         cx.run_until_parked();
 
-        let mut layout_events = 0;
-        while let Some(event) = runtime.take_event().expect("read layout storm event") {
+        let mut observed = Vec::new();
+        while let Some(event) = runtime.take_event().expect("read layout event") {
             if event.payload.event_kind() == crate::protocol::EventKind::Layout {
-                layout_events += 1;
+                observed.push(event.meta.node_id);
             }
         }
-        let elapsed = started.elapsed();
-        eprintln!(
-            "perf_event_storm: layout measured_nodes={MEASURED_NODES} draws=2 callbacks={} emitted_events={} elapsed={:.3}ms",
-            MEASURED_NODES * 2,
-            layout_events,
-            elapsed.as_secs_f64() * 1_000.0,
+        assert_eq!(
+            observed,
+            (2..=MEASURED_NODES + 1)
+                .filter(|id| id % 2 == 0)
+                .collect::<Vec<_>>()
         );
-        assert_eq!(layout_events, MEASURED_NODES);
+        for _ in 0..3 {
+            let callbacks = cx
+                .update_window(window.into(), |_, window, cx| {
+                    window.draw(cx).clear(cx);
+                    window.simulate_next_frame(cx)
+                })
+                .expect("redraw unchanged layout");
+            assert_eq!(
+                callbacks, 0,
+                "unchanged observations must not schedule frames"
+            );
+        }
+        assert!(
+            runtime
+                .take_event()
+                .expect("read unchanged events")
+                .is_none()
+        );
     }
 
     #[gpui::test]
@@ -4234,6 +4230,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -4313,6 +4310,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -4342,6 +4340,7 @@ mod input_tests {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         );
         root.update(cx, |root, cx| {

@@ -165,6 +165,10 @@ export const Text = hostComponent<TextProps>("Text");
 export const Pressable = hostComponent<PressableProps>("Pressable");
 
 export function VirtualList<T>(props: VirtualListProps<T>): SolidChild {
+  // Snapshot reactive item identities, not rows. Viewport-only updates reuse it;
+  // replacing items in a store or republishing a mutable array cannot rewrite
+  // the baseline of an already published native revision.
+  const dataSnapshot = createMemo(() => props.data.slice());
   const initialCount = Math.min(props.data.length, props.initialNumToRender ?? 10);
   const [range, setRange] = createSignal<readonly [number, number]>([0, initialCount]);
   let endReached = false;
@@ -233,6 +237,10 @@ export function VirtualList<T>(props: VirtualListProps<T>): SolidChild {
     },
     get __itemCount() {
       return props.data.length;
+    },
+    // Diff the current identity snapshot against the last published snapshot.
+    get __data() {
+      return dataSnapshot();
     },
     get __rangeStart() {
       return committedRange()[0];

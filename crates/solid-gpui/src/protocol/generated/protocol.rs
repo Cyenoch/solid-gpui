@@ -2070,6 +2070,10 @@ pub enum HostProperties<'raw> {
         estimated_item_size: ::core::option::Option<f32>,
         /// Field 5
         overscan: ::core::option::Option<u32>,
+        /// Field 6
+        data_revision: ::core::option::Option<u32>,
+        /// Field 7
+        data_edit: ::core::option::Option<VirtualListDataEdit>,
     },
 
     /// Discriminator 3
@@ -2200,6 +2204,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                     range_end: _range_end,
                     estimated_item_size: _estimated_item_size,
                     overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
                 } => {
                     ::bebop::LEN_SIZE
                         + 1
@@ -2220,6 +2226,14 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
                         + _overscan
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _data_revision
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _data_edit
                             .as_ref()
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
@@ -2401,6 +2415,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                 range_end: _range_end,
                 estimated_item_size: _estimated_item_size,
                 overscan: _overscan,
+                data_revision: _data_revision,
+                data_edit: _data_edit,
             }
             => {
                 2u8._serialize_chained(dest)?;
@@ -2423,6 +2439,14 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                 }
                 if let Some(v) = &_overscan {
                     5u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_data_revision {
+                    6u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_data_edit {
+                    7u8._serialize_chained(dest)?;
                     v._serialize_chained(dest)?;
                 }
                 0u8._serialize_chained(dest)?;
@@ -2753,6 +2777,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                 let mut _range_end = None;
                 let mut _estimated_item_size = None;
                 let mut _overscan = None;
+                let mut _data_revision = None;
+                let mut _data_edit = None;
 
                 #[cfg(not(feature = "unchecked"))]
                 let mut last = 0;
@@ -2823,6 +2849,26 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                             i += read;
                             _overscan = Some(value)
                         }
+                        6 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _data_revision.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _data_revision = Some(value)
+                        }
+                        7 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _data_edit.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _data_edit = Some(value)
+                        }
                         _ => {
                             i = len;
                             break;
@@ -2841,6 +2887,8 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
                     range_end: _range_end,
                     estimated_item_size: _estimated_item_size,
                     overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
                 }
             }
             3 => {
@@ -3242,6 +3290,170 @@ impl<'raw> ::bebop::SubRecord<'raw> for HostProperties<'raw> {
 }
 
 impl<'raw> ::bebop::Record<'raw> for HostProperties<'raw> {}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct VirtualListDataEdit {
+    /// Field 1
+    pub base_revision: ::core::option::Option<u32>,
+    /// Field 2
+    pub start: ::core::option::Option<u32>,
+    /// Field 3
+    pub old_count: ::core::option::Option<u32>,
+    /// Field 4
+    pub new_count: ::core::option::Option<u32>,
+}
+
+impl<'raw> ::bebop::SubRecord<'raw> for VirtualListDataEdit {
+    const MIN_SERIALIZED_SIZE: usize = ::bebop::LEN_SIZE + 1;
+
+    #[inline]
+    fn serialized_size(&self) -> usize {
+        ::bebop::LEN_SIZE
+            + 1
+            + self
+                .base_revision
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .start
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .old_count
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+            + self
+                .new_count
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
+    }
+
+    ::bebop::define_serialize_chained!(Self => |zelf, dest| {
+        let size = zelf.serialized_size();
+        ::bebop::write_len(dest, size - ::bebop::LEN_SIZE)?;
+        if let Some(v) = &zelf.base_revision {
+            1u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.start {
+            2u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.old_count {
+            3u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        if let Some(v) = &zelf.new_count {
+            4u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
+        0u8._serialize_chained(dest)?;
+        Ok(size)
+    });
+
+    fn _deserialize_chained(raw: &'raw [u8]) -> ::bebop::DeResult<(usize, Self)> {
+        let mut i = 0;
+        let len = ::bebop::read_len(&raw[i..])? + ::bebop::LEN_SIZE;
+        i += ::bebop::LEN_SIZE;
+
+        #[cfg(not(feature = "unchecked"))]
+        if len == 0 {
+            return Err(::bebop::DeserializeError::CorruptFrame);
+        }
+
+        if raw.len() < len {
+            return Err(::bebop::DeserializeError::MoreDataExpected(len - raw.len()));
+        }
+
+        let mut _base_revision = None;
+        let mut _start = None;
+        let mut _old_count = None;
+        let mut _new_count = None;
+
+        #[cfg(not(feature = "unchecked"))]
+        let mut last = 0;
+
+        while i < len {
+            let di = raw[i];
+
+            #[cfg(not(feature = "unchecked"))]
+            if di != 0 {
+                if di < last {
+                    return Err(::bebop::DeserializeError::CorruptFrame);
+                }
+                last = di;
+            }
+
+            i += 1;
+            match di {
+                0 => {
+                    break;
+                }
+                1 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _base_revision.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _base_revision = Some(value)
+                }
+                2 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _start.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _start = Some(value)
+                }
+                3 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _old_count.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _old_count = Some(value)
+                }
+                4 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _new_count.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _new_count = Some(value)
+                }
+                _ => {
+                    i = len;
+                    break;
+                }
+            }
+        }
+
+        if i != len {
+            debug_assert!(i > len);
+            return Err(::bebop::DeserializeError::CorruptFrame);
+        }
+
+        Ok((
+            i,
+            Self {
+                base_revision: _base_revision,
+                start: _start,
+                old_count: _old_count,
+                new_count: _new_count,
+            },
+        ))
+    }
+}
+
+impl<'raw> ::bebop::Record<'raw> for VirtualListDataEdit {}
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct AccessibilityProperties<'raw> {
@@ -5746,6 +5958,8 @@ pub struct Node<'raw> {
     pub tooltip: ::core::option::Option<&'raw str>,
     /// Field 13
     pub accepts_pointer_move: ::core::option::Option<bool>,
+    /// Field 14
+    pub observes_layout: ::core::option::Option<bool>,
 }
 
 impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
@@ -5820,6 +6034,11 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
                 .as_ref()
                 .map(|v| v.serialized_size() + 1)
                 .unwrap_or(0)
+            + self
+                .observes_layout
+                .as_ref()
+                .map(|v| v.serialized_size() + 1)
+                .unwrap_or(0)
     }
 
     ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -5877,6 +6096,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
             13u8._serialize_chained(dest)?;
             v._serialize_chained(dest)?;
         }
+        if let Some(v) = &zelf.observes_layout {
+            14u8._serialize_chained(dest)?;
+            v._serialize_chained(dest)?;
+        }
         0u8._serialize_chained(dest)?;
         Ok(size)
     });
@@ -5908,6 +6131,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
         let mut _selectable = None;
         let mut _tooltip = None;
         let mut _accepts_pointer_move = None;
+        let mut _observes_layout = None;
 
         #[cfg(not(feature = "unchecked"))]
         let mut last = 0;
@@ -6045,6 +6269,15 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
                     i += read;
                     _accepts_pointer_move = Some(value)
                 }
+                14 => {
+                    #[cfg(not(feature = "unchecked"))]
+                    if _observes_layout.is_some() {
+                        return Err(::bebop::DeserializeError::DuplicateMessageField);
+                    }
+                    let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                    i += read;
+                    _observes_layout = Some(value)
+                }
                 _ => {
                     i = len;
                     break;
@@ -6073,6 +6306,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for Node<'raw> {
                 selectable: _selectable,
                 tooltip: _tooltip,
                 accepts_pointer_move: _accepts_pointer_move,
+                observes_layout: _observes_layout,
             },
         ))
     }
@@ -6186,6 +6420,8 @@ pub enum PatchOperationValue<'raw> {
         tooltip: ::core::option::Option<&'raw str>,
         /// Field 12
         accepts_pointer_move: ::core::option::Option<bool>,
+        /// Field 13
+        observes_layout: ::core::option::Option<bool>,
     },
 
     /// Discriminator 3
@@ -6231,6 +6467,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                     selectable: _selectable,
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 } => {
                     ::bebop::LEN_SIZE
                         + 1
@@ -6270,6 +6507,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
                         + _accepts_pointer_move
+                            .as_ref()
+                            .map(|v| v.serialized_size() + 1)
+                            .unwrap_or(0)
+                        + _observes_layout
                             .as_ref()
                             .map(|v| v.serialized_size() + 1)
                             .unwrap_or(0)
@@ -6331,6 +6572,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                 selectable: _selectable,
                 tooltip: _tooltip,
                 accepts_pointer_move: _accepts_pointer_move,
+                observes_layout: _observes_layout,
             }
             => {
                 2u8._serialize_chained(dest)?;
@@ -6381,6 +6623,10 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                 }
                 if let Some(v) = &_accepts_pointer_move {
                     12u8._serialize_chained(dest)?;
+                    v._serialize_chained(dest)?;
+                }
+                if let Some(v) = &_observes_layout {
+                    13u8._serialize_chained(dest)?;
                     v._serialize_chained(dest)?;
                 }
                 0u8._serialize_chained(dest)?;
@@ -6510,6 +6756,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                 let mut _selectable = None;
                 let mut _tooltip = None;
                 let mut _accepts_pointer_move = None;
+                let mut _observes_layout = None;
 
                 #[cfg(not(feature = "unchecked"))]
                 let mut last = 0;
@@ -6650,6 +6897,16 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                             i += read;
                             _accepts_pointer_move = Some(value)
                         }
+                        13 => {
+                            #[cfg(not(feature = "unchecked"))]
+                            if _observes_layout.is_some() {
+                                return Err(::bebop::DeserializeError::DuplicateMessageField);
+                            }
+                            let (read, value) =
+                                ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                            i += read;
+                            _observes_layout = Some(value)
+                        }
                         _ => {
                             i = len;
                             break;
@@ -6675,6 +6932,7 @@ impl<'raw> ::bebop::SubRecord<'raw> for PatchOperationValue<'raw> {
                     selectable: _selectable,
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 }
             }
             3 => {
@@ -15539,6 +15797,10 @@ pub mod owned {
             estimated_item_size: ::core::option::Option<f32>,
             /// Field 5
             overscan: ::core::option::Option<u32>,
+            /// Field 6
+            data_revision: ::core::option::Option<u32>,
+            /// Field 7
+            data_edit: ::core::option::Option<VirtualListDataEdit>,
         },
 
         /// Discriminator 3
@@ -15627,12 +15889,16 @@ pub mod owned {
                     range_end: _range_end,
                     estimated_item_size: _estimated_item_size,
                     overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
                 } => Self::VirtualListProperties {
                     item_count: _item_count,
                     range_start: _range_start,
                     range_end: _range_end,
                     estimated_item_size: _estimated_item_size,
                     overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
                 },
                 super::HostProperties::ImageProperties {
                     source: _source,
@@ -15764,6 +16030,8 @@ pub mod owned {
                         range_end: _range_end,
                         estimated_item_size: _estimated_item_size,
                         overscan: _overscan,
+                        data_revision: _data_revision,
+                        data_edit: _data_edit,
                     } => {
                         ::bebop::LEN_SIZE
                             + 1
@@ -15784,6 +16052,14 @@ pub mod owned {
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
                             + _overscan
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _data_revision
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _data_edit
                                 .as_ref()
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
@@ -15965,6 +16241,8 @@ pub mod owned {
                     range_end: _range_end,
                     estimated_item_size: _estimated_item_size,
                     overscan: _overscan,
+                    data_revision: _data_revision,
+                    data_edit: _data_edit,
                 }
                 => {
                     2u8._serialize_chained(dest)?;
@@ -15987,6 +16265,14 @@ pub mod owned {
                     }
                     if let Some(v) = &_overscan {
                         5u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_data_revision {
+                        6u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_data_edit {
+                        7u8._serialize_chained(dest)?;
                         v._serialize_chained(dest)?;
                     }
                     0u8._serialize_chained(dest)?;
@@ -16317,6 +16603,8 @@ pub mod owned {
                     let mut _range_end = None;
                     let mut _estimated_item_size = None;
                     let mut _overscan = None;
+                    let mut _data_revision = None;
+                    let mut _data_edit = None;
 
                     #[cfg(not(feature = "unchecked"))]
                     let mut last = 0;
@@ -16387,6 +16675,26 @@ pub mod owned {
                                 i += read;
                                 _overscan = Some(value)
                             }
+                            6 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _data_revision.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _data_revision = Some(value)
+                            }
+                            7 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _data_edit.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _data_edit = Some(value)
+                            }
                             _ => {
                                 i = len;
                                 break;
@@ -16405,6 +16713,8 @@ pub mod owned {
                         range_end: _range_end,
                         estimated_item_size: _estimated_item_size,
                         overscan: _overscan,
+                        data_revision: _data_revision,
+                        data_edit: _data_edit,
                     }
                 }
                 3 => {
@@ -16806,6 +17116,8 @@ pub mod owned {
     }
 
     impl<'raw> ::bebop::Record<'raw> for HostProperties {}
+
+    pub use super::VirtualListDataEdit;
 
     #[derive(Clone, Debug, PartialEq, Default)]
     pub struct AccessibilityProperties {
@@ -18757,6 +19069,8 @@ pub mod owned {
         pub tooltip: ::core::option::Option<String>,
         /// Field 13
         pub accepts_pointer_move: ::core::option::Option<bool>,
+        /// Field 14
+        pub observes_layout: ::core::option::Option<bool>,
     }
 
     impl<'raw> ::core::convert::From<super::Node<'raw>> for Node {
@@ -18775,6 +19089,7 @@ pub mod owned {
                 selectable: value.selectable,
                 tooltip: value.tooltip.map(|value| value.into()),
                 accepts_pointer_move: value.accepts_pointer_move,
+                observes_layout: value.observes_layout,
             }
         }
     }
@@ -18851,6 +19166,11 @@ pub mod owned {
                     .as_ref()
                     .map(|v| v.serialized_size() + 1)
                     .unwrap_or(0)
+                + self
+                    .observes_layout
+                    .as_ref()
+                    .map(|v| v.serialized_size() + 1)
+                    .unwrap_or(0)
         }
 
         ::bebop::define_serialize_chained!(Self => |zelf, dest| {
@@ -18908,6 +19228,10 @@ pub mod owned {
                 13u8._serialize_chained(dest)?;
                 v._serialize_chained(dest)?;
             }
+            if let Some(v) = &zelf.observes_layout {
+                14u8._serialize_chained(dest)?;
+                v._serialize_chained(dest)?;
+            }
             0u8._serialize_chained(dest)?;
             Ok(size)
         });
@@ -18939,6 +19263,7 @@ pub mod owned {
             let mut _selectable = None;
             let mut _tooltip = None;
             let mut _accepts_pointer_move = None;
+            let mut _observes_layout = None;
 
             #[cfg(not(feature = "unchecked"))]
             let mut last = 0;
@@ -19076,6 +19401,15 @@ pub mod owned {
                         i += read;
                         _accepts_pointer_move = Some(value)
                     }
+                    14 => {
+                        #[cfg(not(feature = "unchecked"))]
+                        if _observes_layout.is_some() {
+                            return Err(::bebop::DeserializeError::DuplicateMessageField);
+                        }
+                        let (read, value) = ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                        i += read;
+                        _observes_layout = Some(value)
+                    }
                     _ => {
                         i = len;
                         break;
@@ -19104,6 +19438,7 @@ pub mod owned {
                     selectable: _selectable,
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 },
             ))
         }
@@ -19150,6 +19485,8 @@ pub mod owned {
             tooltip: ::core::option::Option<String>,
             /// Field 12
             accepts_pointer_move: ::core::option::Option<bool>,
+            /// Field 13
+            observes_layout: ::core::option::Option<bool>,
         },
 
         /// Discriminator 3
@@ -19189,6 +19526,7 @@ pub mod owned {
                     selectable: _selectable,
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 } => Self::PatchUpdate {
                     id: _id,
                     mask: _mask,
@@ -19202,6 +19540,7 @@ pub mod owned {
                     selectable: _selectable,
                     tooltip: _tooltip.map(|value| value.into()),
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 },
                 super::PatchOperationValue::PatchMove {
                     id: _id,
@@ -19244,6 +19583,7 @@ pub mod owned {
                         selectable: _selectable,
                         tooltip: _tooltip,
                         accepts_pointer_move: _accepts_pointer_move,
+                        observes_layout: _observes_layout,
                     } => {
                         ::bebop::LEN_SIZE
                             + 1
@@ -19283,6 +19623,10 @@ pub mod owned {
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
                             + _accepts_pointer_move
+                                .as_ref()
+                                .map(|v| v.serialized_size() + 1)
+                                .unwrap_or(0)
+                            + _observes_layout
                                 .as_ref()
                                 .map(|v| v.serialized_size() + 1)
                                 .unwrap_or(0)
@@ -19344,6 +19688,7 @@ pub mod owned {
                     selectable: _selectable,
                     tooltip: _tooltip,
                     accepts_pointer_move: _accepts_pointer_move,
+                    observes_layout: _observes_layout,
                 }
                 => {
                     2u8._serialize_chained(dest)?;
@@ -19394,6 +19739,10 @@ pub mod owned {
                     }
                     if let Some(v) = &_accepts_pointer_move {
                         12u8._serialize_chained(dest)?;
+                        v._serialize_chained(dest)?;
+                    }
+                    if let Some(v) = &_observes_layout {
+                        13u8._serialize_chained(dest)?;
                         v._serialize_chained(dest)?;
                     }
                     0u8._serialize_chained(dest)?;
@@ -19523,6 +19872,7 @@ pub mod owned {
                     let mut _selectable = None;
                     let mut _tooltip = None;
                     let mut _accepts_pointer_move = None;
+                    let mut _observes_layout = None;
 
                     #[cfg(not(feature = "unchecked"))]
                     let mut last = 0;
@@ -19663,6 +20013,16 @@ pub mod owned {
                                 i += read;
                                 _accepts_pointer_move = Some(value)
                             }
+                            13 => {
+                                #[cfg(not(feature = "unchecked"))]
+                                if _observes_layout.is_some() {
+                                    return Err(::bebop::DeserializeError::DuplicateMessageField);
+                                }
+                                let (read, value) =
+                                    ::bebop::SubRecord::_deserialize_chained(&raw[i..])?;
+                                i += read;
+                                _observes_layout = Some(value)
+                            }
                             _ => {
                                 i = len;
                                 break;
@@ -19688,6 +20048,7 @@ pub mod owned {
                         selectable: _selectable,
                         tooltip: _tooltip,
                         accepts_pointer_move: _accepts_pointer_move,
+                        observes_layout: _observes_layout,
                     }
                 }
                 3 => {

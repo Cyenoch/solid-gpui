@@ -143,6 +143,7 @@ export const HOST_KIND_SPECS: Record<HostKind, HostKindSpec> = {
     allowedProps: {
       ...BASE_PROPS,
       __itemCount: true,
+      __data: true,
       __rangeStart: true,
       __rangeEnd: true,
       __estimatedItemSize: true,

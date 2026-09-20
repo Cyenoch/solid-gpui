@@ -651,7 +651,7 @@ impl ExtensionChildIterator for ChildIterator<'_> {
         );
         let boundary = native_boundary(
             node.id,
-            node.listener_id,
+            node.observes_layout && node.listener_id != 0,
             adapter.native_style(),
             self.root.style_for_node(node),
             self.entity,
@@ -907,7 +907,7 @@ pub(crate) fn render(
     );
     let boundary = native_boundary(
         node.id,
-        node.listener_id,
+        node.observes_layout && node.listener_id != 0,
         adapter.native_style(),
         style,
         entity,
@@ -946,7 +946,7 @@ pub(crate) fn render(
 
 fn native_boundary(
     node_id: u32,
-    listener_id: u32,
+    observes_layout: bool,
     native_style: bool,
     style: Option<&crate::protocol::Style>,
     entity: &gpui::Entity<crate::SolidRoot>,
@@ -972,7 +972,7 @@ fn native_boundary(
         };
         crate::renderer::paint::scope_native_element(
             node_id,
-            listener_id != 0,
+            observes_layout,
             element,
             &entity,
             sink.clone(),

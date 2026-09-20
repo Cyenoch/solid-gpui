@@ -4,6 +4,8 @@ use std::{f32::consts::PI, fmt::Debug};
 
 use gpui::{Bounds, Hsla, Path, PathBuilder, Pixels, Point, Window, point, px};
 
+use crate::plot::{PathCache, ShapeKey};
+
 const EPSILON: f32 = 1e-12;
 const HALF_PI: f32 = PI / 2.;
 
@@ -72,7 +74,7 @@ impl Arc {
         arc: &ArcData<T>,
         inner_radius: Option<f32>,
         outer_radius: Option<f32>,
-        bounds: &Bounds<Pixels>,
+        center: Point<Pixels>,
     ) -> Option<Path<Pixels>> {
         let start_angle = arc.start_angle - HALF_PI;
         let end_angle = arc.end_angle - HALF_PI;
@@ -87,9 +89,8 @@ impl Arc {
         let r0 = inner_radius.unwrap_or(self.inner_radius).max(0.);
         let r1 = outer_radius.unwrap_or(self.outer_radius).max(0.);
 
-        // Calculate the center point.
-        let center_x = bounds.origin.x.as_f32() + bounds.size.width.as_f32() / 2.;
-        let center_y = bounds.origin.y.as_f32() + bounds.size.height.as_f32() / 2.;
+        let center_x = center.x.as_f32();
+        let center_y = center.y.as_f32();
 
         // Angle difference.
         if r1 < EPSILON || da.abs() < EPSILON {
@@ -172,6 +173,60 @@ impl Arc {
         builder.build().ok()
     }
 
+    /// The center of `bounds`, which arc paths are built around.
+    fn center(bounds: &Bounds<Pixels>) -> Point<Pixels> {
+        point(
+            px(bounds.origin.x.as_f32() + bounds.size.width.as_f32() / 2.),
+            px(bounds.origin.y.as_f32() + bounds.size.height.as_f32() / 2.),
+        )
+    }
+
+    /// The shape key for an arc slice: the cache domain tag, the angles and
+    /// the resolved radii. Everything else the path depends on is derived
+    /// from these.
+    fn shape_key<T>(
+        &self,
+        arc: &ArcData<T>,
+        inner_radius: Option<f32>,
+        outer_radius: Option<f32>,
+    ) -> u64 {
+        let r0 = inner_radius.unwrap_or(self.inner_radius).max(0.);
+        let r1 = outer_radius.unwrap_or(self.outer_radius).max(0.);
+        ShapeKey::new((
+            "arc/fill",
+            arc.start_angle.to_bits(),
+            arc.end_angle.to_bits(),
+            arc.pad_angle.to_bits(),
+            r0.to_bits(),
+            r1.to_bits(),
+        ))
+        .finish()
+    }
+
+    /// Paint the Arc, reusing the path tessellated by an earlier paint while
+    /// the angles and radii are unchanged. The path is built around a zero
+    /// center and moved to this frame's center, so a pie that moves keeps
+    /// every slice cached; changed angles or radii rebuild by key.
+    pub fn paint_cached<T>(
+        &self,
+        arc: &ArcData<T>,
+        color: impl Into<Hsla>,
+        inner_radius: Option<f32>,
+        outer_radius: Option<f32>,
+        bounds: &Bounds<Pixels>,
+        cache: &mut PathCache,
+        window: &mut Window,
+    ) {
+        let center = Self::center(bounds);
+        if let Some(path) = cache.get(
+            self.shape_key(arc, inner_radius, outer_radius),
+            center,
+            || self.path(arc, inner_radius, outer_radius, point(px(0.), px(0.))),
+        ) {
+            window.paint_path(path, color.into());
+        }
+    }
+
     /// Paint the Arc.
     pub fn paint<T>(
         &self,
@@ -182,7 +237,7 @@ impl Arc {
         bounds: &Bounds<Pixels>,
         window: &mut Window,
     ) {
-        let path = self.path(arc, inner_radius, outer_radius, bounds);
+        let path = self.path(arc, inner_radius, outer_radius, Self::center(bounds));
         if let Some(path) = path {
             window.paint_path(path, color.into());
         }
@@ -227,5 +282,75 @@ mod tests {
 
         assert_eq!(centroid.x, expected_radius * expected_angle.cos());
         assert_eq!(centroid.y, expected_radius * expected_angle.sin());
+    }
+
+    #[test]
+    fn cached_shape_key_follows_angles_and_radii() {
+        let arc = Arc::new().inner_radius(10.).outer_radius(20.);
+        let slice = |start: f32, end: f32| ArcData {
+            data: &(),
+            index: 0,
+            value: 1.,
+            start_angle: start,
+            end_angle: end,
+            pad_angle: 0.,
+        };
+
+        let key = arc.shape_key(&slice(0., 1.), None, None);
+
+        // The same slice keeps the key, whoever owns the datum.
+        let other = ArcData {
+            data: &7,
+            index: 3,
+            value: 99.,
+            start_angle: 0.,
+            end_angle: 1.,
+            pad_angle: 0.,
+        };
+        assert_eq!(key, arc.shape_key(&other, None, None));
+
+        // Explicit radii equal to the configured ones resolve to the same
+        // shape, so they keep the key too.
+        assert_eq!(key, arc.shape_key(&slice(0., 1.), Some(10.), Some(20.)));
+
+        // Changed angles or radii re-tessellate.
+        assert_ne!(key, arc.shape_key(&slice(0., 1.1), None, None));
+        assert_ne!(key, arc.shape_key(&slice(0.1, 1.), None, None));
+        assert_ne!(key, arc.shape_key(&slice(0., 1.), Some(12.), None));
+        assert_ne!(key, arc.shape_key(&slice(0., 1.), None, Some(25.)));
+    }
+
+    #[test]
+    fn cached_arc_builds_at_zero_center_and_translates() {
+        let arc = Arc::new().inner_radius(5.).outer_radius(20.);
+        let slice = ArcData {
+            data: &(),
+            index: 0,
+            value: 1.,
+            start_angle: 0.,
+            end_angle: 2.,
+            pad_angle: 0.02,
+        };
+
+        let local = arc.path(&slice, None, None, point(px(0.), px(0.))).unwrap();
+        let center_x = 120.;
+        let center_y = 75.;
+        let direct = arc
+            .path(&slice, None, None, point(px(center_x), px(center_y)))
+            .unwrap();
+
+        assert_eq!(local.vertices.len(), direct.vertices.len());
+        for (a, b) in local.vertices.iter().zip(&direct.vertices) {
+            // Tessellating translated inputs changes f32 operation order.
+            assert!((a.xy_position.x.as_f32() + center_x - b.xy_position.x.as_f32()).abs() < 1e-4);
+            assert!((a.xy_position.y.as_f32() + center_y - b.xy_position.y.as_f32()).abs() < 1e-4);
+            assert_eq!(a.st_position, b.st_position);
+        }
+        assert_eq!(
+            (direct.bounds.origin.x.as_f32() - local.bounds.origin.x.as_f32()),
+            center_x
+        );
+        assert!((local.bounds.size.width - direct.bounds.size.width).abs() < px(1e-4));
+        assert!((local.bounds.size.height - direct.bounds.size.height).abs() < px(1e-4));
     }
 }

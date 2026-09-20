@@ -741,3 +741,72 @@ pub(super) fn supports_listener(kind: u32, style: Option<&Style>) -> bool {
             | KIND_ICON
     ) || style.and_then(|style| style.transition.as_ref()).is_some()
 }
+
+pub(super) fn as_virtual_list(props: Option<&HostProperties>) -> Option<&VirtualListProperties> {
+    match props {
+        Some(HostProperties::VirtualList(list)) => Some(list),
+        _ => None,
+    }
+}
+
+/// Virtual list data moves through explicit revisions. An initial publish
+/// starts at revision zero without an edit, a retained revision keeps its
+/// data verbatim, and an advanced revision must splice the prior item count
+/// with a base-matched edit. Malformed transitions are rejected instead of
+/// silently resetting list state; snapshots never see prior state and skip
+/// this validation.
+pub(super) fn validate_virtual_list_transition(
+    node_id: u32,
+    previous: Option<&VirtualListProperties>,
+    next: &VirtualListProperties,
+) -> Result<(), TreeError> {
+    let invalid = |reason: &'static str| TreeError::InvalidProperties { node_id, reason };
+    let Some(previous) = previous else {
+        // Initial publish resets list state: the revision starts at zero with
+        // no pending delta. Snapshots carry current state and skip this
+        // validation entirely; reconciliation reseeds instead of splicing.
+        if next.data_revision != 0 || next.data_edit.is_some() {
+            return Err(invalid(
+                "virtual list initial publish requires dataRevision 0 without a dataEdit",
+            ));
+        }
+        return Ok(());
+    };
+    if next.data_revision == previous.data_revision {
+        // Viewport and property updates republish the retained data state.
+        if next.data_edit != previous.data_edit || next.item_count != previous.item_count {
+            return Err(invalid(
+                "virtual list data changed without advancing the data revision",
+            ));
+        }
+        return Ok(());
+    }
+    if next.data_revision < previous.data_revision {
+        return Err(invalid("virtual list data revision moved backwards"));
+    }
+    let Some(edit) = next.data_edit.as_ref() else {
+        return Err(invalid(
+            "virtual list data revision advanced without a data edit",
+        ));
+    };
+    if edit.base_revision != previous.data_revision {
+        return Err(invalid(
+            "virtual list data edit is stale or gapped against the prior revision",
+        ));
+    }
+    // The splice window and count equation are evaluated against the prior
+    // published list; u64 math rejects overflow without wrapping.
+    if (edit.start as u64 + edit.old_count as u64) > previous.item_count as u64 {
+        return Err(invalid(
+            "virtual list data edit range exceeds the prior item count",
+        ));
+    }
+    if previous.item_count as u64 - edit.old_count as u64 + edit.new_count as u64
+        != next.item_count as u64
+    {
+        return Err(invalid(
+            "virtual list data edit count equation does not match",
+        ));
+    }
+    Ok(())
+}

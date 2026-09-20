@@ -102,6 +102,12 @@ impl PathCaches {
         let (head, tail) = self.slots.split_at_mut(first + 1);
         (&mut head[first], &mut tail[0])
     }
+
+    /// Drop caches past the first `len` shapes, so a plot whose series shrank
+    /// does not retain geometry it no longer paints.
+    pub fn truncate(&mut self, len: usize) {
+        self.slots.truncate(len);
+    }
 }
 
 /// A shape key from its projected points (origin-relative) and whatever else
@@ -123,6 +129,13 @@ impl ShapeKey {
 
     pub fn f32(&mut self, value: f32) -> &mut Self {
         value.to_bits().hash(&mut self.0);
+        self
+    }
+
+    /// Hashes a presence flag: an input that only toggles whether part of the
+    /// shape is built at all (e.g. an optional fill).
+    pub fn bit(&mut self, value: bool) -> &mut Self {
+        value.hash(&mut self.0);
         self
     }
 
@@ -193,5 +206,33 @@ mod tests {
         assert_eq!(a, same);
         assert_ne!(a, moved);
         assert_ne!(a, thicker);
+    }
+
+    #[test]
+    fn truncate_drops_slots_of_removed_shapes() {
+        let mut caches = PathCaches::default();
+        caches.slot(3);
+        caches.slot_pair(2);
+        assert_eq!(caches.slots.len(), 6);
+
+        caches.truncate(2);
+        assert_eq!(caches.slots.len(), 2);
+
+        // Shrinking never invalidates the kept slots: slot 1 still serves the
+        // same key without rebuilding.
+        caches
+            .slot(0)
+            .get(7, point(px(0.), px(0.)), || diagonal())
+            .unwrap();
+        caches
+            .slot(1)
+            .get(9, point(px(0.), px(0.)), || diagonal())
+            .unwrap();
+        let mut builds = 0;
+        caches.slot(1).get(9, point(px(5.), px(5.)), || {
+            builds += 1;
+            diagonal()
+        });
+        assert_eq!(builds, 0);
     }
 }

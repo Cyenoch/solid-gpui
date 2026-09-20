@@ -22,6 +22,37 @@ use super::SolidRoot;
 use super::events::{emit_key_event, emit_pointer_event, emit_pointer_move, emit_scroll_event};
 pub(super) type RenderedBounds = Rc<RefCell<HashMap<u32, (f32, f32, f32, f32)>>>;
 pub(super) type LinkAffordanceBounds = Rc<RefCell<HashMap<u32, Vec<(f32, f32, f32, f32)>>>>;
+
+type LayoutFrame = (f32, f32, f32, f32);
+
+struct LayoutObservation {
+    epoch: u32,
+    revision: u32,
+    listener_id: u32,
+    frame: LayoutFrame,
+    route: Option<super::extensions::ExtensionEventSink>,
+}
+
+#[derive(Default)]
+pub(super) struct LayoutObservations {
+    pub(super) reported: HashMap<u32, (u32, LayoutFrame)>,
+    pending: HashMap<u32, LayoutObservation>,
+    order: Vec<u32>,
+    scheduled: bool,
+}
+
+impl LayoutObservations {
+    pub(super) fn remove(&mut self, id: &u32) {
+        self.reported.remove(id);
+        self.pending.remove(id);
+    }
+
+    pub(super) fn clear(&mut self) {
+        self.reported.clear();
+        self.pending.clear();
+        self.order.clear();
+    }
+}
 struct TooltipView {
     text: SharedString,
 }
@@ -123,14 +154,64 @@ impl Element for MeasuredElement {
                 .into_iter()
                 .all(f32::is_finite)
         {
-            let entity = self.entity.clone();
-            let node_id = self.node_id;
-            let route = self.route.clone();
-            window.on_next_frame(move |_, app| {
-                if route.as_ref().is_none_or(|route| route.is_active()) {
-                    entity.update(app, |root, _| root.emit_layout_bounds(node_id, frame));
+            let schedule = self.entity.update(cx, |root, _| {
+                if self.route.as_ref().is_some_and(|route| !route.is_active()) {
+                    return false;
                 }
+                let Some(node) = root.store.get(self.node_id) else {
+                    return false;
+                };
+                let observation = (node.listener_id, frame);
+                let observations = &mut root.layout_observations;
+                if observations.reported.get(&self.node_id) == Some(&observation) {
+                    observations.pending.remove(&self.node_id);
+                    return false;
+                }
+                if !observations.pending.contains_key(&self.node_id) {
+                    observations.order.push(self.node_id);
+                }
+                observations.pending.insert(
+                    self.node_id,
+                    LayoutObservation {
+                        epoch: root.store.epoch(),
+                        revision: root.store.revision(),
+                        listener_id: node.listener_id,
+                        frame,
+                        route: self.route.clone(),
+                    },
+                );
+                !std::mem::replace(&mut observations.scheduled, true)
             });
+            if schedule {
+                let entity = self.entity.downgrade();
+                window.on_next_frame(move |_, app| {
+                    let _ = entity.update(app, |root, _| {
+                        root.layout_observations.scheduled = false;
+                        let mut pending = std::mem::take(&mut root.layout_observations.pending);
+                        let mut order = std::mem::take(&mut root.layout_observations.order);
+                        for node_id in order.drain(..) {
+                            let Some(observation) = pending.remove(&node_id) else {
+                                continue;
+                            };
+                            if root.store.epoch() == observation.epoch
+                                && root.store.revision() == observation.revision
+                                && observation
+                                    .route
+                                    .as_ref()
+                                    .is_none_or(|route| route.is_active())
+                                && root
+                                    .store
+                                    .get(node_id)
+                                    .is_some_and(|node| node.listener_id == observation.listener_id)
+                            {
+                                root.emit_layout_bounds(node_id, observation.frame);
+                            }
+                        }
+                        root.layout_observations.pending = pending;
+                        root.layout_observations.order = order;
+                    });
+                });
+            }
         }
         self.element.prepaint(window, cx)
     }
@@ -154,7 +235,8 @@ pub(crate) fn measure_node(
     element: AnyElement,
     entity: &Entity<SolidRoot>,
 ) -> AnyElement {
-    if node.listener_id == 0
+    if !node.observes_layout
+        || node.listener_id == 0
         || !matches!(
             node.kind,
             KIND_VIEW | KIND_PRESSABLE | KIND_TEXT | KIND_IMAGE | KIND_ICON | KIND_EXTENSION

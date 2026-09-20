@@ -4,6 +4,11 @@
 - **Date:** 2026-09-01
 - **Accepted:** 2026-09-01
 
+> Version update: the codec and lockstep policy selected here remain accepted.
+> The active [protocol](../protocol.md) is now v6, adding explicit layout demand
+> and revision-chained VirtualList edits. The v5 measurements and decision below
+> are historical evidence, not a claim that v5 remains decodable.
+
 ## Context
 
 The TypeScript renderer and Rust host previously shared the MessagePack v3 wire

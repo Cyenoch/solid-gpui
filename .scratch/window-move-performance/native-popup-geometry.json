@@ -1,0 +1,107 @@
+{
+  "open": [
+    {
+      "id": "1286",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 500,
+      "y": 571,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 40379
+    },
+    {
+      "id": "1284",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 484,
+      "y": 439,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 40379
+    },
+    {
+      "id": "1279",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": 464,
+      "y": 259,
+      "width": 800,
+      "height": 632,
+      "focused": true,
+      "pid": 40379
+    }
+  ],
+  "moved": [
+    {
+      "id": "1286",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": -1764,
+      "y": 612,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 40379
+    },
+    {
+      "id": "1284",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": -1780,
+      "y": 480,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 40379
+    },
+    {
+      "id": "1279",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": -1800,
+      "y": 300,
+      "width": 800,
+      "height": 632,
+      "focused": true,
+      "pid": 40379
+    }
+  ],
+  "resized": [
+    {
+      "id": "1286",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": -1764,
+      "y": 612,
+      "width": 340,
+      "height": 230,
+      "focused": false,
+      "pid": 40379
+    },
+    {
+      "id": "1284",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": -1780,
+      "y": 480,
+      "width": 340,
+      "height": 230,
+      "focused": false,
+      "pid": 40379
+    },
+    {
+      "id": "1279",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": -1800,
+      "y": 300,
+      "width": 700,
+      "height": 532,
+      "focused": false,
+      "pid": 40379
+    }
+  ]
+}

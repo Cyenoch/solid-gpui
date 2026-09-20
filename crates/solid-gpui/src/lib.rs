@@ -47,10 +47,10 @@ pub use protocol::{
     PointerEvent, PointerMoveEvent, PositionCode, ProtocolError, SCROLL_DELTA_PIXELS, ScrollEvent,
     Snapshot, Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY,
     TRANSITION_WIDTH, TextAlignCode, TextDecorationCode, TextInputEvent, TextInputProperties,
-    TextOverflowCode, Transition, UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_LISTENER,
-    UPDATE_POINTER_MOVE, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE, UPDATE_TEXT,
-    UPDATE_TOOLTIP, VirtualListProperties, WindowAppearance, WindowOpenOptions, decode_message,
-    read_frame, write_frame,
+    TextOverflowCode, Transition, UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_LAYOUT,
+    UPDATE_LISTENER, UPDATE_POINTER_MOVE, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE,
+    UPDATE_TEXT, UPDATE_TOOLTIP, VirtualListDataEdit, VirtualListProperties, WindowAppearance,
+    WindowOpenOptions, decode_message, read_frame, write_frame,
 };
 pub use renderer::{
     ExtensionAdapter, ExtensionChildIterator, ExtensionChildSummary, ExtensionChildren,

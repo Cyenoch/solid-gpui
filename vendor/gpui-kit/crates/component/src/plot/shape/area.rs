@@ -85,7 +85,13 @@ impl<T> Area<T> {
         self
     }
 
-    fn path(&self, bounds: &Bounds<Pixels>) -> (Option<Path<Pixels>>, Option<Path<Pixels>>) {
+    /// The fill and stroke paths for the bounds, built at the bounds origin.
+    ///
+    /// Crate-visible so cache tests can build an area's real geometry.
+    pub(crate) fn path(
+        &self,
+        bounds: &Bounds<Pixels>,
+    ) -> (Option<Path<Pixels>>, Option<Path<Pixels>>) {
         let origin = bounds.origin;
         let mut area_builder = PathBuilder::fill();
         let mut line_builder = PathBuilder::stroke(px(1.));
@@ -188,23 +194,16 @@ impl<T> Area<T> {
         line: &mut PathCache,
         window: &mut Window,
     ) {
-        let mut key = ShapeKey::new((self.stroke_style, self.y0.map(f32::to_bits)));
-        for v in self.data.iter() {
-            if let (Some(x), Some(y)) = ((self.x)(v), (self.y1)(v)) {
-                key.f32(x).f32(y);
-            }
-        }
-        let key = key.finish();
         let local = Bounds::new(Point::default(), bounds.size);
         // One miss builds both paths; the second cache takes the stroke from
         // the stash instead of building again.
         let mut stroke_path = None;
-        let fill_path = fill.get(key, bounds.origin, || {
+        let fill_path = fill.get(self.shape_key("area/fill"), bounds.origin, || {
             let (area, stroke) = self.path(&local);
             stroke_path = Some(stroke);
             area
         });
-        let line_path = line.get(key, bounds.origin, || {
+        let line_path = line.get(self.shape_key("area/stroke"), bounds.origin, || {
             stroke_path.take().unwrap_or_else(|| self.path(&local).1)
         });
         if let Some(area) = fill_path {
@@ -213,6 +212,35 @@ impl<T> Area<T> {
         if let Some(line) = line_path {
             window.paint_path(line, self.stroke);
         }
+    }
+
+    /// The shape key of the area under `purpose` (the fill and the stroke are
+    /// cached separately): the curve style, the baseline, the datum count,
+    /// and every datum's x and y with their presence — the closing baseline
+    /// edge is built from the first and last datum's x even when that datum's
+    /// y is null, so a null y must not drop the x from the key. Colors are
+    /// not part of it: they don't change the tessellation and are applied per
+    /// paint.
+    pub(crate) fn shape_key(&self, purpose: &'static str) -> u64 {
+        let mut key = ShapeKey::new((
+            purpose,
+            self.stroke_style,
+            self.y0.map(f32::to_bits),
+            self.data.len(),
+        ));
+        for v in self.data.iter() {
+            let x = (self.x)(v);
+            let y = (self.y1)(v);
+            key.bit(x.is_some());
+            if let Some(x) = x {
+                key.f32(x);
+            }
+            key.bit(y.is_some());
+            if let Some(y) = y {
+                key.f32(y);
+            }
+        }
+        key.finish()
     }
 
     /// Paint the Area.
@@ -225,5 +253,227 @@ impl<T> Area<T> {
         if let Some(line) = line {
             window.paint_path(line, self.stroke);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui::{point, size};
+
+    type Nullable = (f32, Option<f32>);
+
+    #[test]
+    fn cached_area_reuses_only_while_the_closed_shape_is_unchanged() {
+        let area = Area::new()
+            .data(vec![1., 2., 3.])
+            .x(|v| Some(*v))
+            .y0(90.)
+            .y1(|v| Some(*v * 2.))
+            .stroke_style(StrokeStyle::Linear)
+            .fill(gpui::black())
+            .stroke(gpui::blue());
+        let local = Bounds::new(Point::default(), size(px(100.), px(100.)));
+        let key = area.shape_key("area/fill");
+
+        let mut cache = PathCache::default();
+        let mut builds = 0;
+        for origin in [point(px(0.), px(0.)), point(px(30.), px(12.))] {
+            let path = cache
+                .get(key, origin, || {
+                    builds += 1;
+                    area.path(&local).0
+                })
+                .unwrap();
+            // The served fill is the area's own geometry moved to the origin:
+            // the closing baseline edge keeps its first-datum corner at
+            // (first_x, y0), translated by the origin.
+            assert!(path.vertices.iter().any(|v| {
+                v.xy_position.x.as_f32() == 1. + origin.x.as_f32()
+                    && v.xy_position.y.as_f32() == 90. + origin.y.as_f32()
+            }));
+        }
+        assert_eq!(builds, 1, "unchanged geometry must reuse the cached fill");
+
+        // A different baseline or curve style re-tessellates.
+        let rebased = Area::new()
+            .data(vec![1., 2., 3.])
+            .x(|v| Some(*v))
+            .y0(80.)
+            .y1(|v| Some(*v * 2.))
+            .stroke_style(StrokeStyle::Linear)
+            .fill(gpui::black());
+        cache
+            .get(
+                rebased.shape_key("area/fill"),
+                point(px(0.), px(0.)),
+                || {
+                    builds += 1;
+                    rebased.path(&local).0
+                },
+            )
+            .unwrap();
+        assert_eq!(builds, 2);
+
+        let stepped = Area::new()
+            .data(vec![1., 2., 3.])
+            .x(|v| Some(*v))
+            .y0(90.)
+            .y1(|v| Some(*v * 2.))
+            .stroke_style(StrokeStyle::StepAfter)
+            .fill(gpui::black());
+        cache
+            .get(
+                stepped.shape_key("area/fill"),
+                point(px(0.), px(0.)),
+                || {
+                    builds += 1;
+                    stepped.path(&local).0
+                },
+            )
+            .unwrap();
+        assert_eq!(builds, 3);
+
+        // Colors don't change the tessellation. The slot currently holds the
+        // stepped area, so the original geometry misses once on its way back
+        // in; the recolored area is then served by that entry (the color is
+        // applied per paint).
+        cache
+            .get(key, point(px(0.), px(0.)), || {
+                builds += 1;
+                area.path(&local).0
+            })
+            .unwrap();
+        assert_eq!(
+            builds, 4,
+            "the original key missed while the stepped area held the slot"
+        );
+        cache
+            .get(key, point(px(0.), px(0.)), || {
+                builds += 1;
+                area.path(&local).0
+            })
+            .unwrap();
+        assert_eq!(builds, 4, "the second request must be a hit");
+        let recolored = Area::new()
+            .data(vec![1., 2., 3.])
+            .x(|v| Some(*v))
+            .y0(90.)
+            .y1(|v| Some(*v * 2.))
+            .stroke_style(StrokeStyle::Linear)
+            .fill(gpui::red())
+            .stroke(gpui::green());
+        assert_eq!(key, recolored.shape_key("area/fill"));
+        let served = cache
+            .get(
+                recolored.shape_key("area/fill"),
+                point(px(0.), px(0.)),
+                || {
+                    builds += 1;
+                    recolored.path(&local).0
+                },
+            )
+            .unwrap();
+        assert_eq!(builds, 4, "a color-only change must not rebuild");
+        // The served fill is exactly the recolored area's own geometry (same
+        // shape, so identical vertices).
+        let direct = recolored.path(&local).0.unwrap();
+        let same: Vec<(f32, f32)> = direct
+            .vertices
+            .iter()
+            .map(|v| (v.xy_position.x.as_f32(), v.xy_position.y.as_f32()))
+            .collect();
+        let cached: Vec<(f32, f32)> = served
+            .vertices
+            .iter()
+            .map(|v| (v.xy_position.x.as_f32(), v.xy_position.y.as_f32()))
+            .collect();
+        assert_eq!(cached, same);
+    }
+
+    #[test]
+    fn cached_area_key_carries_null_y_endpoints_into_the_baseline_edge() {
+        let local = Bounds::new(Point::default(), size(px(100.), px(100.)));
+        let build = |first_x: f32| {
+            Area::new()
+                .data(vec![(first_x, None), (10., Some(10.)), (20., Some(20.))])
+                .x(|d: &Nullable| Some(d.0))
+                .y0(30.)
+                .y1(|d: &Nullable| d.1)
+                .stroke_style(StrokeStyle::Linear)
+                .fill(gpui::black())
+        };
+
+        // The closing baseline edge is built from the first datum's x even
+        // though its y is null, so moving that x must change the built
+        // geometry...
+        let at_zero = build(0.).path(&local).0.unwrap();
+        let at_five = build(5.).path(&local).0.unwrap();
+        let has_corner = |path: &Path<Pixels>, x: f32| {
+            path.vertices
+                .iter()
+                .any(|v| v.xy_position.x.as_f32() == x && v.xy_position.y.as_f32() == 30.)
+        };
+        assert!(has_corner(&at_zero, 0.));
+        assert!(!has_corner(&at_zero, 5.));
+        assert!(has_corner(&at_five, 5.));
+
+        // ...and therefore re-tessellate through the cache instead of being
+        // served the stale closing edge.
+        let mut cache = PathCache::default();
+        let mut builds = 0;
+        cache
+            .get(
+                build(0.).shape_key("area/fill"),
+                point(px(0.), px(0.)),
+                || {
+                    builds += 1;
+                    build(0.).path(&local).0
+                },
+            )
+            .unwrap();
+        cache
+            .get(
+                build(5.).shape_key("area/fill"),
+                point(px(0.), px(0.)),
+                || {
+                    builds += 1;
+                    build(5.).path(&local).0
+                },
+            )
+            .unwrap();
+        assert_eq!(builds, 2, "the shifted null-y endpoint must re-tessellate");
+
+        // Every other null-y-aware input does too: a null y that becomes a
+        // value adds a curve point, and an extra null datum changes which
+        // datum the baseline edge hangs off.
+        let filled = Area::new()
+            .data(vec![(0., Some(7.)), (10., Some(10.)), (20., Some(20.))])
+            .x(|d: &Nullable| Some(d.0))
+            .y0(30.)
+            .y1(|d: &Nullable| d.1)
+            .stroke_style(StrokeStyle::Linear)
+            .fill(gpui::black());
+        let extended = Area::new()
+            .data(vec![
+                (0., None),
+                (10., Some(10.)),
+                (20., Some(20.)),
+                (25., None),
+            ])
+            .x(|d: &Nullable| Some(d.0))
+            .y0(30.)
+            .y1(|d: &Nullable| d.1)
+            .stroke_style(StrokeStyle::Linear)
+            .fill(gpui::black());
+        let endpoint = build(0.);
+        let keys = [
+            endpoint.shape_key("area/fill"),
+            filled.shape_key("area/fill"),
+            extended.shape_key("area/fill"),
+        ];
+        assert_ne!(keys[0], keys[1]);
+        assert_ne!(keys[0], keys[2]);
+        assert_ne!(keys[1], keys[2]);
     }
 }

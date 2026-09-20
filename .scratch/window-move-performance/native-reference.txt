@@ -1,0 +1,15 @@
+READY mode=forced-refresh-reference
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=2 callbacks=1 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=59 callbacks=58 counter=0 origin=Point { x: 273px, y: 180px } viewport=Size { 800px × 600px } scale=2
+SAMPLE mode=forced-refresh-reference renders=117 callbacks=117 counter=0 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px } scale=2
+STORM mode=forced-refresh-reference renders=116 callbacks=116 origin=Point { x: 220px, y: 180px } viewport=Size { 800px × 600px }
+[window-move-storm-reference: exited; cursor=1925]

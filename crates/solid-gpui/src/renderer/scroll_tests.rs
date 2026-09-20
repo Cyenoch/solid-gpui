@@ -240,6 +240,7 @@ fn zero_listener_gallery_overflow_moves_plain_children_after_wheel(cx: &mut Test
 fn scroll_snapshot() -> Snapshot {
     let mut scroll = Node::new(2, 1, 0, KIND_VIEW);
     scroll.listener_id = 2;
+    scroll.observes_layout = true;
     scroll.style = Some(Style {
         width: Some(100.0),
         height: Some(100.0),
@@ -249,6 +250,7 @@ fn scroll_snapshot() -> Snapshot {
 
     let mut child = Node::new(3, 2, 0, KIND_VIEW);
     child.listener_id = 3;
+    child.observes_layout = true;
     child.style = Some(Style {
         width: Some(100.0),
         height: Some(300.0),
@@ -440,6 +442,7 @@ fn vertical_wheel_over_horizontal_strip_reaches_parent_scroll(cx: &mut TestAppCo
 fn styled_view(id: u32, parent_id: u32, index: u32, style: Style) -> Node {
     let mut node = Node::new(id, parent_id, index, KIND_VIEW);
     node.listener_id = id;
+    node.observes_layout = true;
     node.style = Some(style);
     node
 }
@@ -738,6 +741,8 @@ fn virtual_list_at_top_passes_wheel_to_outer_content(cx: &mut TestAppContext) {
         range_end: 0,
         estimated_item_size: 20.0,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
     let tail = styled_view(
         5,

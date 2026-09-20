@@ -148,6 +148,7 @@ fn extension(
     node.host_properties = Some(props(module, entry, text));
     if entry == 2 {
         node.listener_id = id + 100;
+        node.observes_layout = true;
         node.style = Some(crate::Style {
             width: Some(if id == 8 { 180. } else { 120. }),
             height: Some(30.),
@@ -243,6 +244,7 @@ fn typed_children_and_slots_render_updates_without_remount_and_retire_with_owner
         selectable: false,
         tooltip: None,
         accepts_pointer_move: false,
+        observes_layout: false,
     };
     window
         .update(cx, |root, window, cx| {

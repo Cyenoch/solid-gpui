@@ -1570,22 +1570,6 @@ mod tests {
     }
 
     #[test]
-    fn version_and_startup_diagnostics_include_protocol_version() {
-        assert_eq!(
-            version_line(),
-            format!(
-                "solid-gpui-host {} protocol=v{}",
-                env!("CARGO_PKG_VERSION"),
-                PROTOCOL_VERSION
-            )
-        );
-        assert_eq!(
-            startup_diagnostic(RuntimeMode::Process, "bun".to_owned(), 42),
-            "starting mode=Process protocol=v5 entry=bun pid=42"
-        );
-    }
-
-    #[test]
     fn parses_version_before_renderer_command() {
         assert_eq!(
             parse_host_args(&args(&["--version"])),

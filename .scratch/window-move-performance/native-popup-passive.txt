@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "out": "Solid GPUI Popup Movement Probe, -1720, 400, 800, 632, Solid GPUI Popup Movement Probe, -1520, 450, 800, 632, Solid GPUI Popup Movement Probe, -1520, 450, 700, 532\n",
+  "err": ""
+}

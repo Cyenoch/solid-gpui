@@ -241,12 +241,12 @@ impl WindowsWindowInner {
         // reads `IsIconic` at delivery, so one call covers both directions.
         self.report_visibility();
 
-        // Don't resize the renderer when the window is minimized, but record that it was minimized so
-        // that on restore the swap chain can be recreated via `update_drawable_size_even_if_unchanged`.
+        // Park only once: repeated minimize messages must not discard the
+        // callback needed to resume drawing on restore.
         if wparam.0 == SIZE_MINIMIZED as usize {
-            self.state
-                .restore_from_minimized
-                .set(self.state.callbacks.request_frame.take());
+            if let Some(callback) = self.state.callbacks.request_frame.take() {
+                self.state.restore_from_minimized.set(Some(callback));
+            }
             return Some(0);
         }
 
@@ -255,32 +255,25 @@ impl WindowsWindowInner {
         let new_size = size(DevicePixels(width), DevicePixels(height));
 
         let scale_factor = self.state.scale_factor.get();
-        let mut should_resize_renderer = false;
         if let Some(restore_from_minimized) = self.state.restore_from_minimized.take() {
             self.state
                 .callbacks
                 .request_frame
                 .set(Some(restore_from_minimized));
-        } else {
-            should_resize_renderer = true;
+            // Surface recovery must not depend on a geometry change.
+            self.state.force_render_pending.set(true);
         }
-
-        self.handle_size_change(new_size, scale_factor, should_resize_renderer);
+        // The client size may have changed while minimized. Equal-size calls
+        // already return without reallocating the renderer's surface.
+        self.handle_size_change(new_size, scale_factor);
         Some(0)
     }
 
-    fn handle_size_change(
-        &self,
-        device_size: Size<DevicePixels>,
-        scale_factor: f32,
-        should_resize_renderer: bool,
-    ) {
+    fn handle_size_change(&self, device_size: Size<DevicePixels>, scale_factor: f32) {
         let new_logical_size = device_size.to_pixels(scale_factor);
 
         self.state.logical_size.set(new_logical_size);
-        if should_resize_renderer
-            && let Err(e) = self.state.renderer.borrow_mut().resize(device_size)
-        {
+        if let Err(e) = self.state.renderer.borrow_mut().resize(device_size) {
             log::error!("Failed to resize renderer, invalidating devices: {}", e);
             self.state
                 .invalidate_devices
@@ -921,7 +914,7 @@ impl WindowsWindowInner {
                 // SetWindowPos may not send WM_SIZE for maximized windows in some cases,
                 // so we manually update the size to ensure proper rendering
                 let device_size = size(DevicePixels(width), DevicePixels(height));
-                self.handle_size_change(device_size, new_scale_factor, true);
+                self.handle_size_change(device_size, new_scale_factor);
             }
         } else {
             // For non-maximized windows, use the suggested RECT from the system
@@ -957,6 +950,12 @@ impl WindowsWindowInner {
         }
         let new_display = WindowsDisplay::new(WindowsDisplay::display_id_for_monitor(new_monitor))?;
         self.state.display.set(new_display);
+        // Work-area geometry can change without changing the monitor handle.
+        // Keep native bounds observers current in either case.
+        if let Some(mut callback) = self.state.callbacks.moved.take() {
+            callback();
+            self.state.callbacks.moved.set(Some(callback));
+        }
         Some(0)
     }
 
@@ -1355,7 +1354,7 @@ impl WindowsWindowInner {
             }
         }
 
-        let force_render = force_render || self.state.force_render_pending.take();
+        let force_render = self.state.force_render_pending.take() || force_render;
         if force_render {
             // Re-enable drawing after a device loss recovery. The forced render
             // will rebuild the scene with fresh atlas textures.

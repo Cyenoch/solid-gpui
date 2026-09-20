@@ -80,6 +80,12 @@ reposition the live native window without a JavaScript geometry subscription.
 A fully clipped or removed trigger closes its popup. Closed popups retain no
 geometry observer or animation timer. The host admits at most 32 live popups.
 
+Position-only owner movement reuses the last painted anchor geometry instead of
+rendering the owner tree merely to follow its screen position. Resizing, pending
+tree updates, and missing painted anchors retain post-layout reconciliation.
+On macOS, native frame changes are queued on the main thread so AppKit callbacks
+run after GPUI releases the current App/window borrow.
+
 ## Platforms and displays
 
 | Host                               | Implementation and limits                                                                                                                                                                                                                              |

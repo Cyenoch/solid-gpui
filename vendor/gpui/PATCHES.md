@@ -18,5 +18,16 @@ Local changes:
   rows. The solid-gpui ScrollShadow composition regression covers the 100,000-row
   extent, bounded committed ranges, native commands, resizing, and filtering.
 
+- Separate bounds synchronization and observer delivery from full-tree refresh.
+  Viewport, scale, display identity, visual window state, and content-relevant
+  pointer changes invalidate rendering; passive origin changes and repeated
+  same-size callbacks do not. Observer notifications and forced recovery frames
+  retain their own invalidation semantics. Test-platform move and state callbacks
+  cover observer delivery, hover painting, cursor resolution, and recovery.
+
+- Use the executor clock for spring animation updates, matching the scheduler
+  that advances deterministic animation tests instead of mixing simulated time
+  with wall-clock elapsed time.
+
 The native bidirectional geometry refactor is tracked in
 `../../.scratch/native-production-completion/bidi-implementation.md`.

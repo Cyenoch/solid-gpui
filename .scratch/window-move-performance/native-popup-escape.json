@@ -1,0 +1,107 @@
+{
+  "before": [
+    {
+      "id": "1332",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 500,
+      "y": 571,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1330",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 484,
+      "y": 439,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1325",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": 464,
+      "y": 259,
+      "width": 800,
+      "height": 632,
+      "focused": true,
+      "pid": 44735
+    }
+  ],
+  "first": [
+    {
+      "id": "1332",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 500,
+      "y": 571,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1330",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 484,
+      "y": 439,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1325",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": 464,
+      "y": 259,
+      "width": 800,
+      "height": 632,
+      "focused": true,
+      "pid": 44735
+    }
+  ],
+  "second": [
+    {
+      "id": "1332",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 500,
+      "y": 571,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1330",
+      "title": "",
+      "app": "solid-gpui-profile",
+      "x": 484,
+      "y": 439,
+      "width": 340,
+      "height": 230,
+      "focused": true,
+      "pid": 44735
+    },
+    {
+      "id": "1325",
+      "title": "Solid GPUI Popup Movement Probe",
+      "app": "solid-gpui-profile",
+      "x": 464,
+      "y": 259,
+      "width": 800,
+      "height": 632,
+      "focused": true,
+      "pid": 44735
+    }
+  ]
+}

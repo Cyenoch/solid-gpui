@@ -6,6 +6,8 @@ import {
   MAX_NATIVE_CALL_BYTES,
   UPDATE_FOCUSABLE,
   UPDATE_SELECTABLE,
+  UPDATE_LAYOUT,
+  PROTOCOL_VERSION,
   classifyPayload,
   decodeEvent,
   encodeFrame,
@@ -67,7 +69,7 @@ test("InvokeNative preserves opaque arguments and accepts the byte budget bounda
 test("native bytes reject missing, oversized, and non-invocation wire results", () => {
   const wire = (command: number, value: Uint8Array | undefined, nodeId = 1, success = true, error?: string) =>
     Envelope.encode({
-      protocolVersion: 5,
+      protocolVersion: PROTOCOL_VERSION,
       body: WireBody.fromEvent({
         surfaceId: 1,
         epoch: 1,
@@ -149,10 +151,10 @@ function eventPayload(eventType: number, payload: number[], nodeId = 1, listener
     0,
   ];
   const body = union(2, message(fields));
-  return Uint8Array.from(message([1, ...littleEndian(5), 2, ...body, 0]));
+  return Uint8Array.from(message([1, ...littleEndian(PROTOCOL_VERSION), 2, ...body, 0]));
 }
 
-test("Bebop v5 encodes semantic commands and classifies the generated envelope", () => {
+test("Bebop encodes semantic commands and classifies the generated envelope", () => {
   const command: Command = {
     type: "command",
     surfaceId: 7,
@@ -477,7 +479,7 @@ test("all Event payload forms round-trip through the semantic seam", () => {
   for (const event of events) expect(decodeEvent(encodePayload(event))).toEqual(event);
 });
 
-test("Extension values, properties, and events round-trip through Bebop v5", () => {
+test("Extension values, properties, and events round-trip through Bebop", () => {
   const extension: Snapshot = {
     type: "snapshot",
     surfaceId: 7,
@@ -516,6 +518,7 @@ test("Extension values, properties, and events round-trip through Bebop v5", () 
         selectable: false,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
     ],
   };
@@ -660,7 +663,7 @@ test("schema guard rejects strict bool/enum/UTF-8 and repeated-count violations"
   const key = union(5, message([1, 1, 0, 0, 0, 255, 2, ...littleEndian(0), 3, ...littleEndian(1), 0]));
   expect(() => decodeEvent(eventPayload(9, key, 1, 1))).toThrow(/UTF-8/);
   const snapshot = union(1, message([5, ...littleEndian(500_000), 0]));
-  const oversized = Uint8Array.from(message([1, ...littleEndian(5), 2, ...snapshot, 0]));
+  const oversized = Uint8Array.from(message([1, ...littleEndian(PROTOCOL_VERSION), 2, ...snapshot, 0]));
   expect(() => decodeEvent(oversized)).toThrow(/array item budget/);
 });
 test("schema guard rejects overlong, surrogate, out-of-range, and truncated UTF-8", () => {
@@ -719,6 +722,7 @@ test("Bebop preserves border width and defaults transition delay", () => {
         selectable: false,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
     ],
   };
@@ -751,6 +755,7 @@ test("Bebop encodes an omitted patch style as an explicit clear", () => {
         selectable: false,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
     ],
   };
@@ -787,11 +792,12 @@ test("Bebop patch booleans are present only for their mask bits", () => {
         selectable: true,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
       {
         type: "update",
         id: 1,
-        mask: UPDATE_FOCUSABLE | UPDATE_SELECTABLE,
+        mask: UPDATE_FOCUSABLE | UPDATE_SELECTABLE | UPDATE_LAYOUT,
         style: undefined,
         text: null,
         listenerId: 0,
@@ -801,6 +807,7 @@ test("Bebop patch booleans are present only for their mask bits", () => {
         selectable: false,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
     ],
   };
@@ -813,6 +820,7 @@ test("Bebop patch booleans are present only for their mask bits", () => {
   if (omitted?.tag === 2) {
     expect(omitted.value.focusable).toBeUndefined();
     expect(omitted.value.selectable).toBeUndefined();
+    expect(omitted.value.observesLayout).toBeUndefined();
   }
 
   const present = body.value.operations?.[1]?.operation;
@@ -820,12 +828,13 @@ test("Bebop patch booleans are present only for their mask bits", () => {
   if (present?.tag === 2) {
     expect(present.value.focusable).toBe(false);
     expect(present.value.selectable).toBe(false);
+    expect(present.value.observesLayout).toBe(false);
   }
 });
 
 test("Bebop rejects malformed present command values", () => {
   const payload = Envelope.encode({
-    protocolVersion: 5,
+    protocolVersion: PROTOCOL_VERSION,
     body: WireBody.fromEvent({
       surfaceId: 7,
       epoch: 3,
@@ -882,6 +891,7 @@ test("Bebop rejects values that overflow float32", () => {
         selectable: false,
         tooltip: null,
         acceptsPointerMove: false,
+        observesLayout: false,
       },
     ],
   };

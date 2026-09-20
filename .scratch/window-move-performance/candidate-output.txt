@@ -1,0 +1,24 @@
+Command:
+BOUNDS_PROBE_EXPECT_CLEAN=1 cargo test --locked -p gpui-pre --lib investigate_bounds_invalidation -- --nocapture
+
+Captured result excerpt (experimental-core-gate.patch applied, temporary internal probe module enabled):
+
+   Compiling gpui-pre v0.3.5 (/Users/jgbingzi/workspace/sp/solid-gpui/vendor/gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.73s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/gpui.rs (target/debug/deps/gpui-82d16a6ce686ef11)
+
+running 1 test
+clean_present_requests=60 root_renders=0
+unchanged_bounds_callbacks=60 root_renders=0 observations=60
+coalesced_same_size_callbacks=60 root_renders=0
+actual_resize=1 root_renders=1
+scale_change=1 root_renders=1
+notifying_observer=1 root_renders=1
+forced_recovery=1 root_renders=1
+test window::window_bounds_probe::investigate_bounds_invalidation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 376 filtered out; finished in 0.00s
+
+Interpretation: TestAppContext flushes dirty draws automatically, so the coalesced_same_size_callbacks label is not evidence of production frame coalescing. These are render work counts, not timings, native movement or GPU recovery measurements.

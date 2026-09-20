@@ -1096,10 +1096,43 @@ impl X11WindowStatePtr {
 
     pub fn property_notify(&self, event: xproto::PropertyNotifyEvent) -> anyhow::Result<()> {
         let state = self.state.borrow_mut();
+        let previous = (
+            state.fullscreen,
+            state.maximized_vertical,
+            state.maximized_horizontal,
+            state
+                .edge_constraints
+                .as_ref()
+                .map(EdgeConstraints::to_tiling),
+        );
         if event.atom == state.atoms._NET_WM_STATE {
             self.set_wm_properties(state)?;
         } else if event.atom == state.atoms._GTK_EDGE_CONSTRAINTS {
             self.set_edge_constraints(state)?;
+        } else {
+            return Ok(());
+        }
+        let state = self.state.borrow();
+        let current = (
+            state.fullscreen,
+            state.maximized_vertical,
+            state.maximized_horizontal,
+            state
+                .edge_constraints
+                .as_ref()
+                .map(EdgeConstraints::to_tiling),
+        );
+        let size = state.content_size();
+        let scale = state.scale_factor;
+        drop(state);
+        if previous != current {
+            // A state-only transition need not produce ConfigureNotify. Let
+            // GPUI resample visual state even when the client size is unchanged.
+            let callback = self.callbacks.borrow_mut().resize.take();
+            if let Some(mut callback) = callback {
+                callback(size, scale);
+                self.callbacks.borrow_mut().resize = Some(callback);
+            }
         }
         Ok(())
     }

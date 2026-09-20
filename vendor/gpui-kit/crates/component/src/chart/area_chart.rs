@@ -10,7 +10,7 @@ use num_traits::{Num, ToPrimitive};
 use crate::{
     ActiveTheme,
     plot::{
-        AXIS_GAP, Grid, Plot, PlotAxis, StrokeStyle,
+        AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, StrokeStyle,
         scale::{Scale, ScaleLinear, ScalePoint, Sealed},
         shape::Area,
         tooltip::{CrossLine, Dot, Tooltip, TooltipState},
@@ -222,40 +222,51 @@ where
         }
 
         // Draw area
-        for (i, y_fn) in self.y.iter().enumerate() {
-            let x = x.clone();
-            let y = y.clone();
-            let y_fn = y_fn.clone();
+        let caches = PathCaches::for_paint("area-chart", window, cx);
+        caches.update(cx, |caches, cx| {
+            for (i, y_fn) in self.y.iter().enumerate() {
+                let x = x.clone();
+                let y = y.clone();
+                let y_fn = y_fn.clone();
 
-            let fill = self
-                .fills
-                .get(i)
-                .copied()
-                .flatten()
-                .unwrap_or_else(|| cx.theme().chart_2.opacity(0.4).into());
+                let fill = self
+                    .fills
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .unwrap_or_else(|| cx.theme().chart_2.opacity(0.4).into());
 
-            let stroke = self
-                .strokes
-                .get(i)
-                .copied()
-                .flatten()
-                .unwrap_or(cx.theme().chart_2);
+                let stroke = self
+                    .strokes
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .unwrap_or(cx.theme().chart_2);
 
-            let stroke_style = *self
-                .stroke_styles
-                .get(i)
-                .unwrap_or(self.stroke_styles.first().unwrap_or(&Default::default()));
+                let stroke_style = *self
+                    .stroke_styles
+                    .get(i)
+                    .unwrap_or(self.stroke_styles.first().unwrap_or(&Default::default()));
 
-            Area::new()
-                .data(self.data.iter().enumerate())
-                .x(move |(i, _)| x.tick_at(*i))
-                .y0(height)
-                .y1(move |(_, d)| y.tick(&y_fn(d)))
-                .stroke(stroke)
-                .stroke_style(stroke_style)
-                .fill(fill)
-                .paint(&bounds, window);
-        }
+                let area = Area::new()
+                    .data(self.data.iter().enumerate())
+                    .x(move |(i, _)| x.tick_at(*i))
+                    .y0(height)
+                    .y1(move |(_, d)| y.tick(&y_fn(d)))
+                    .stroke(stroke)
+                    .stroke_style(stroke_style)
+                    .fill(fill);
+
+                // Each series' fill and stroke are tessellated once and
+                // reused while its projected points, baseline and curve style
+                // stay the same; each frame only moves them to the origin.
+                let (fill_cache, line_cache) = caches.slot_pair(i);
+                area.paint_cached(&bounds, fill_cache, line_cache, window);
+            }
+            // Two caches per series: dropping past the painted count keeps
+            // the cache bounded when series are removed.
+            caches.truncate(2 * self.y.len());
+        });
     }
 
     fn id(&self) -> Option<ElementId> {

@@ -6,9 +6,9 @@ use thiserror::Error;
 use crate::protocol::{
     AccessibilityProperties, HostProperties, Node, Patch, PatchOperation, PositionCode, Snapshot,
     Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
-    UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_LISTENER, UPDATE_POINTER_MOVE,
+    UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_LAYOUT, UPDATE_LISTENER, UPDATE_POINTER_MOVE,
     UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE, UPDATE_TEXT, UPDATE_TOOLTIP,
-    generated_facts,
+    VirtualListProperties, generated_facts,
 };
 mod transaction;
 #[cfg(test)]
@@ -135,6 +135,7 @@ pub struct StoredNode {
     pub selectable: bool,
     pub tooltip: Option<Arc<str>>,
     pub accepts_pointer_move: bool,
+    pub observes_layout: bool,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -171,6 +172,31 @@ pub struct PatchStats {
     pub operation_count: u32,
     pub affected_nodes: u32,
     pub affected_parents: u32,
+}
+
+/// Per-transaction derived work, settled once after the last accepted
+/// operation. Sibling indexes sync per touched parent and Text ancestors
+/// rederive once regardless of how many operations touched them.
+#[derive(Debug, Default)]
+struct DeferredWork {
+    reindex_parents: HashSet<u32>,
+    text_seeds: DeferredText,
+}
+
+/// Derivation seeds keep first-touched order so derived-content errors
+/// attribute deterministically without re-deriving shared ancestors.
+#[derive(Debug, Default)]
+struct DeferredText {
+    order: Vec<u32>,
+    seen: HashSet<u32>,
+}
+
+impl DeferredText {
+    fn insert(&mut self, seed: u32) {
+        if self.seen.insert(seed) {
+            self.order.push(seed);
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -306,6 +332,7 @@ impl NodeStore {
                     selectable: node.selectable,
                     tooltip: node.tooltip.map(Arc::<str>::from),
                     accepts_pointer_move: node.accepts_pointer_move,
+                    observes_layout: node.observes_layout,
                     accessibility_id: Arc::<str>::from(format!("solid-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -379,11 +406,17 @@ impl NodeStore {
         stats: &mut PatchStats,
     ) -> Result<(), TreeError> {
         let mut affected_parents = HashSet::new();
+        let mut deferred = DeferredWork::default();
         for (operation_index, operation) in operations.iter().enumerate() {
             match operation {
-                PatchOperation::Create(node) => {
-                    self.apply_create(operation_index, node, undo, stats, &mut affected_parents)?
-                }
+                PatchOperation::Create(node) => self.apply_create(
+                    operation_index,
+                    node,
+                    undo,
+                    stats,
+                    &mut affected_parents,
+                    &mut deferred,
+                )?,
                 PatchOperation::Update {
                     id,
                     mask,
@@ -396,6 +429,7 @@ impl NodeStore {
                     selectable,
                     tooltip,
                     accepts_pointer_move,
+                    observes_layout,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -409,9 +443,11 @@ impl NodeStore {
                     *selectable,
                     tooltip.clone(),
                     *accepts_pointer_move,
+                    *observes_layout,
                     undo,
                     stats,
                     &mut affected_parents,
+                    &mut deferred,
                 )?,
                 PatchOperation::Move {
                     id,
@@ -425,16 +461,28 @@ impl NodeStore {
                     undo,
                     stats,
                     &mut affected_parents,
+                    &mut deferred,
                 )?,
-                PatchOperation::Delete { id } => {
-                    self.apply_delete(operation_index, *id, undo, stats, &mut affected_parents)?
-                }
+                PatchOperation::Delete { id } => self.apply_delete(
+                    operation_index,
+                    *id,
+                    undo,
+                    stats,
+                    &mut affected_parents,
+                    &mut deferred,
+                )?,
             }
         }
+        // Structural and type validation above stayed per operation. Derived
+        // state settles once for the accepted transaction, before the
+        // dependency closure is computed and published.
+        self.sync_reindexed_parents(&deferred.reindex_parents, undo);
+        self.rederive_dirty_text(&deferred.text_seeds, undo)?;
         stats.affected_parents = affected_parents.len() as u32;
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_create(
         &mut self,
         operation: usize,
@@ -442,6 +490,7 @@ impl NodeStore {
         undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
+        deferred: &mut DeferredWork,
     ) -> Result<(), TreeError> {
         if node.id < 2 || self.nodes.contains_key(&node.id) {
             return Err(TreeError::PatchConflict {
@@ -460,6 +509,14 @@ impl NodeStore {
             operation,
             reason: "invalid created node",
         })?;
+        if let Some(list) = as_virtual_list(node.host_properties.as_ref()) {
+            validate_virtual_list_transition(node.id, None, list).map_err(|_| {
+                TreeError::InvalidPatchOperation {
+                    operation,
+                    reason: "invalid virtual list data transition",
+                }
+            })?;
+        }
         let parent_is_nested_text = parent.kind == KIND_TEXT
             && parent.parent_id != 0
             && self
@@ -485,7 +542,7 @@ impl NodeStore {
             });
         }
         undo.capture(self, node.id);
-        undo.capture_parent(self, node.parent_id, node.index as usize);
+        undo.capture(self, node.parent_id);
         let stored = StoredNode {
             id: node.id,
             parent_id: node.parent_id,
@@ -501,6 +558,7 @@ impl NodeStore {
             selectable: node.selectable,
             tooltip: node.tooltip.clone().map(Arc::<str>::from),
             accepts_pointer_move: node.accepts_pointer_move,
+            observes_layout: node.observes_layout,
             accessibility_id: Arc::<str>::from(format!("solid-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -510,15 +568,12 @@ impl NodeStore {
             .entry(node.parent_id)
             .or_default()
             .insert(node.index as usize, node.id);
-        self.reindex_parent(node.parent_id, node.index as usize);
-        self.recompute_text_content(
-            if node.kind == KIND_TEXT {
-                node.id
-            } else {
-                node.parent_id
-            },
-            undo,
-        )?;
+        deferred.reindex_parents.insert(node.parent_id);
+        deferred.text_seeds.insert(if node.kind == KIND_TEXT {
+            node.id
+        } else {
+            node.parent_id
+        });
         stats.affected_nodes += 1;
         parents.insert(node.parent_id);
         Ok(())
@@ -539,9 +594,11 @@ impl NodeStore {
         selectable: bool,
         tooltip: Option<String>,
         accepts_pointer_move: bool,
+        observes_layout: bool,
         undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
+        deferred: &mut DeferredWork,
     ) -> Result<(), TreeError> {
         if mask == 0
             || mask
@@ -553,7 +610,8 @@ impl NodeStore {
                     | UPDATE_FOCUSABLE
                     | UPDATE_SELECTABLE
                     | UPDATE_TOOLTIP
-                    | UPDATE_POINTER_MOVE)
+                    | UPDATE_POINTER_MOVE
+                    | UPDATE_LAYOUT)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -641,6 +699,18 @@ impl NodeStore {
                     reason: "invalid host properties",
                 },
             )?;
+            if let (
+                Some(HostProperties::VirtualList(previous)),
+                Some(HostProperties::VirtualList(next)),
+            ) = (node.host_properties.as_ref(), host_properties.as_ref())
+            {
+                validate_virtual_list_transition(id, Some(previous), next).map_err(|_| {
+                    TreeError::InvalidPatchOperation {
+                        operation,
+                        reason: "invalid virtual list data transition",
+                    }
+                })?;
+            }
         }
         if mask & UPDATE_ACCESSIBILITY != 0 {
             validate_accessibility_shape(id, accessibility.as_ref()).map_err(|_| {
@@ -705,14 +775,27 @@ impl NodeStore {
         if mask & UPDATE_POINTER_MOVE != 0 {
             target.accepts_pointer_move = accepts_pointer_move;
         }
+        if mask & UPDATE_LAYOUT != 0 {
+            target.observes_layout = observes_layout;
+        }
         if mask & UPDATE_ACCESSIBILITY != 0 {
             target.accessibility = accessibility;
         }
         if mask & UPDATE_TEXT != 0 {
-            target.text = text.map(Arc::<str>::from);
-        }
-        if mask & UPDATE_TEXT != 0 {
-            self.recompute_text_content(node.parent_id, undo)?;
+            // A RawText must always carry text. Eager derivation used to
+            // reject a cleared text at this operation — even when a later
+            // operation removed the node before deferred aggregation ran —
+            // so that legality stays per operation while the paragraph
+            // aggregation itself remains deferred.
+            let Some(text) = text else {
+                return Err(TreeError::InvalidChild {
+                    node_id: node.parent_id,
+                    child_id: id,
+                    reason: "Text child must carry text",
+                });
+            };
+            target.text = Some(Arc::<str>::from(text));
+            deferred.text_seeds.insert(node.parent_id);
             parents.insert(node.parent_id);
         }
         stats.affected_nodes += 1;
@@ -731,6 +814,7 @@ impl NodeStore {
         undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
+        deferred: &mut DeferredWork,
     ) -> Result<(), TreeError> {
         if id == self.root_id {
             return Err(TreeError::PatchConflict {
@@ -788,15 +872,25 @@ impl NodeStore {
             }
             ancestor = self.nodes.get(&ancestor).map(|n| n.parent_id).unwrap_or(0);
         }
-        let old_index = node.index as usize;
-        let target_index = index as usize;
-        if node.parent_id == parent_id {
-            undo.capture_parent(self, parent_id, old_index.min(target_index));
-        } else {
-            undo.capture_parent(self, node.parent_id, old_index);
-            undo.capture_parent(self, parent_id, target_index);
-        }
         let old_parent = node.parent_id;
+        // Locate the moving child in the current child order; stored indexes may
+        // lag behind earlier operations of this transaction.
+        let old_index = self
+            .children
+            .get(&old_parent)
+            .and_then(|siblings| siblings.iter().position(|&child| child == id))
+            .ok_or(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "child is not recorded in its current parent",
+            })?;
+        let target_index = index as usize;
+        if old_parent == parent_id {
+            undo.capture(self, parent_id);
+        } else {
+            undo.capture(self, old_parent);
+            undo.capture(self, parent_id);
+        }
+        undo.capture_node(self, id);
         let old_siblings =
             self.children
                 .get_mut(&old_parent)
@@ -804,7 +898,6 @@ impl NodeStore {
                     operation,
                     node_id: old_parent,
                 })?;
-        debug_assert_eq!(old_siblings.get(old_index), Some(&id));
         old_siblings.remove(old_index);
         if old_parent == parent_id && index as usize > old_siblings.len() {
             return Err(TreeError::InvalidPatchOperation {
@@ -812,7 +905,11 @@ impl NodeStore {
                 reason: "child index is out of bounds",
             });
         }
-        let target = self.children.entry(parent_id).or_default();
+        let target = if old_parent == parent_id {
+            old_siblings
+        } else {
+            self.children.entry(parent_id).or_default()
+        };
         if target_index > target.len() {
             return Err(TreeError::InvalidPatchOperation {
                 operation,
@@ -821,22 +918,19 @@ impl NodeStore {
         }
         target.insert(target_index, id);
         self.nodes.get_mut(&id).expect("validated node").parent_id = parent_id;
-        if old_parent == parent_id {
-            self.reindex_parent(parent_id, old_index.min(target_index));
-        } else {
-            self.reindex_parent(old_parent, old_index);
-            self.reindex_parent(parent_id, target_index);
-        }
-        self.recompute_text_content(old_parent, undo)?;
+        deferred.reindex_parents.insert(old_parent);
         if old_parent != parent_id {
-            self.recompute_text_content(parent_id, undo)?;
+            deferred.reindex_parents.insert(parent_id);
         }
+        deferred.text_seeds.insert(old_parent);
+        deferred.text_seeds.insert(parent_id);
         parents.insert(old_parent);
         parents.insert(parent_id);
         stats.affected_nodes += 1;
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_delete(
         &mut self,
         operation: usize,
@@ -844,6 +938,7 @@ impl NodeStore {
         undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
+        deferred: &mut DeferredWork,
     ) -> Result<(), TreeError> {
         if id == self.root_id {
             return Err(TreeError::PatchConflict {
@@ -865,64 +960,103 @@ impl NodeStore {
             subtree.push(current);
             stack.extend(self.children.get(&current).into_iter().flatten().copied());
         }
-        undo.capture_parent(self, root.parent_id, root.index as usize);
+        undo.capture(self, root.parent_id);
         for &child in &subtree {
             undo.capture(self, child);
         }
-        let siblings = self
+        // Locate the deleted child in the current child order; stored indexes
+        // may lag behind earlier operations of this transaction.
+        let position = self
             .children
+            .get(&root.parent_id)
+            .and_then(|siblings| siblings.iter().position(|&child| child == id))
+            .ok_or(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "child is not recorded in its parent",
+            })?;
+        self.children
             .get_mut(&root.parent_id)
-            .expect("parent exists");
-        debug_assert_eq!(siblings.get(root.index as usize), Some(&id));
-        siblings.remove(root.index as usize);
-        self.reindex_parent(root.parent_id, root.index as usize);
+            .expect("parent exists")
+            .remove(position);
+        deferred.reindex_parents.insert(root.parent_id);
+        deferred.text_seeds.insert(root.parent_id);
         undo.removed.extend(subtree.iter().copied());
         for child in &subtree {
             self.nodes.remove(child);
             self.children.remove(child);
         }
-        self.recompute_text_content(root.parent_id, undo)?;
         parents.insert(root.parent_id);
         stats.affected_nodes += subtree.len() as u32;
         Ok(())
     }
 
-    fn reindex_parent(&mut self, parent_id: u32, first_changed: usize) {
-        let children = self
-            .children
-            .get(&parent_id)
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        if let Some(parent) = self.nodes.get_mut(&parent_id) {
-            parent.child_len = children.len();
-        }
-        for (index, child_id) in children.iter().enumerate().skip(first_changed) {
-            if let Some(child) = self.nodes.get_mut(child_id) {
-                child.index = index as u32;
+    /// Make stored child indexes match the final child order, once per touched
+    /// parent. The first write per sibling journals its pre-transaction value,
+    /// so rollback stays exact without per-operation suffix captures.
+    fn sync_reindexed_parents(&mut self, parents: &HashSet<u32>, undo: &mut PatchUndo) {
+        for &parent_id in parents {
+            let Some(children) = self.children.get(&parent_id) else {
+                continue;
+            };
+            let child_len = children.len();
+            let stale: Vec<(u32, u32)> = children
+                .iter()
+                .enumerate()
+                .filter(|(position, child_id)| {
+                    self.nodes
+                        .get(*child_id)
+                        .is_some_and(|node| node.index != *position as u32)
+                })
+                .map(|(position, &child_id)| (child_id, position as u32))
+                .collect();
+            if let Some(parent) = self.nodes.get_mut(&parent_id) {
+                parent.child_len = child_len;
+            }
+            #[cfg(test)]
+            {
+                undo.work.index_writes += stale.len() as u32;
+            }
+            for (child_id, index) in stale {
+                undo.capture_node(self, child_id);
+                if let Some(node) = self.nodes.get_mut(&child_id) {
+                    node.index = index;
+                }
             }
         }
     }
 
-    fn recompute_text_content(
+    /// Derive each dirty Text ancestor once for the whole transaction. Seeds
+    /// keep first-touched order for deterministic error attribution, and the
+    /// visited set merges overlapping ancestor chains.
+    fn rederive_dirty_text(
         &mut self,
-        node_id: u32,
+        seeds: &DeferredText,
         undo: &mut PatchUndo,
     ) -> Result<(), TreeError> {
-        let mut current = node_id;
-        while let Some(node) = self.nodes.get(&current) {
-            // Text contains only RawText or one-level Text runs. Once this chain
-            // reaches a non-Text parent, no ancestor can have a derived text cache.
-            if node.kind != KIND_TEXT {
-                break;
+        let mut derived = HashSet::new();
+        for &seed in &seeds.order {
+            let mut current = seed;
+            while let Some(node) = self.nodes.get(&current) {
+                // Text contains only RawText or one-level Text runs. Once this chain
+                // reaches a non-Text parent, no ancestor can have a derived text cache.
+                if node.kind != KIND_TEXT {
+                    break;
+                }
+                let parent_id = node.parent_id;
+                if derived.insert(current) {
+                    #[cfg(test)]
+                    {
+                        undo.work.text_derivations += 1;
+                    }
+                    let content = collect_text_content(current, &self.nodes, &self.children)?;
+                    undo.capture_node(self, current);
+                    self.nodes
+                        .get_mut(&current)
+                        .expect("validated text node")
+                        .text_content = Some(Arc::<str>::from(content));
+                }
+                current = parent_id;
             }
-            let parent_id = node.parent_id;
-            let content = collect_text_content(current, &self.nodes, &self.children)?;
-            undo.capture_node(self, current);
-            self.nodes
-                .get_mut(&current)
-                .expect("validated text node")
-                .text_content = Some(Arc::<str>::from(content));
-            current = parent_id;
         }
         Ok(())
     }

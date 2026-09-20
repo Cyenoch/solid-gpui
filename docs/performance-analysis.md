@@ -119,6 +119,30 @@ component route changes preserve the sidebar and send incremental updates. This
 is a lifecycle correctness check, not a geometry or CPU benchmark. Use the native
 measurement workflow above for Showcase scrolling and resize acceptance.
 
+### Window movement and popup anchors
+
+Count bounds callbacks and root renders separately. A position-only callback
+still synchronizes window state and notifies bounds observers, but does not
+force a whole-tree refresh. Viewport size, DPI scale, display identity, visual
+window state, and content-relevant pointer changes remain rendering inputs.
+Pointer movement outside the client area is not itself a reason to rebuild the
+tree; content hover/cursor transitions and active drags must remain correct,
+including in inactive windows. Applications whose content depends on screen
+position can explicitly notify from their bounds observer.
+
+An open popup must follow passive owner movement using current painted anchors
+without notifying the owner root just to reposition it. Resize, pending commits,
+and missing anchors must use post-layout geometry instead. Verify nested popups,
+editable content, anchor clipping/removal, and owner closure on the native host.
+
+Also check repeated same-size callbacks, actual resizing, display/DPI changes,
+same-size maximization/decoration changes, and minimize/restore recovery. A forced
+recovery frame is independent of bounds equality. Keep deterministic test-platform
+counts, native programmatic moves, physical titlebar dragging, and visual checks
+distinct. A forced-refresh reference mode is not an unmodified historical binary;
+render counts are not FPS or CPU savings, and macOS results do not qualify Windows
+or Linux behavior.
+
 ## 5. Attribute cost along the actual path
 
 ```text
@@ -270,3 +294,92 @@ region design must connect commits **and** native-only input, scrolling,
 animations, and asynchronous content to region invalidation, and verify actual
 rendered content before accepting timing improvements. Bounds, clipping, and
 inherited text styles are additional cache dependencies.
+
+### Batched work and retained geometry
+
+- JavaScript sibling mutations update links immediately and materialize child
+  indexes once per changed parent. A longest-increasing-subsequence planner emits
+  minimal same-parent moves with sequential wire indexes; either one-position
+  rotation costs one Move. Neighbor links and published properties participate in
+  rollback, including a failed publication followed by another reorder.
+- Native patches derive each dirty Text ancestor once after all operations and
+  synchronize changed sibling indexes once. Individual malformed operations are
+  still rejected in order; deferred work never permits an invalid operation to be
+  hidden by a later delete. Validation precedes revision publication.
+- VirtualList owns an identity snapshot per reactive data update. Native applies
+  revision-chained replacement spans with estimated-height hints, preserving
+  measured rows outside the span and adjusting the logical scroll anchor. Equal
+  counts do not imply equal data. Viewport-only updates reuse the retained edit;
+  snapshots reseed state rather than replaying a delta against unrelated data.
+  Identity snapshot/diff remains O(data length); native splicing avoids resetting
+  the complete list. Estimate changes and full snapshots may still do full work.
+- Delayed transitions retain their sampled source style and one executor deadline
+  wake, without requesting animation frames before the delay expires. Active
+  transitions, retargeting, deletion, reduced motion, and epoch changes retain
+  their completion/cancellation semantics.
+- Only explicit `onLayout` demand subscribes to layout events. A root coalesces
+  pending observations in order and deduplicates unchanged bounds before scheduling
+  a callback. Internal input, selection, and scrolling geometry is independent of
+  that public subscription. Stale revisions, listener bindings and routes cannot
+  publish delayed observations.
+- Charts and NativePlot retain bounded per-primitive path slots. Keys include the
+  primitive purpose and geometry inputs, including nullable Area endpoints, radial
+  fill presence, widths, angles, radii and Sankey control points. Paint still
+  supplies current color, gradient, opacity, scale and clip. Origin translation
+  reuses tessellation, not a cached scene; translated geometry still costs work.
+
+### September 2026 CPU comparison
+
+Serial local probes used Bun 1.4.2, macOS arm64 Apple M5 Pro, vendored gpui-pre
+0.3.5 and an optimized `solid-gpui` development package. Setup, assertions and
+compilation were outside timed intervals. Timings below are medians, not budgets.
+
+| Workload | Earlier audit | Updated implementation |
+| --- | ---: | ---: |
+| 8,000-row reverse, JS signal-to-frame | 308.43 ms | 5.52 ms |
+| Reverse sibling index work | 63,988,001 visits | 8,000 writes |
+| 8,000-row left rotation wire output | 7,999 Moves / 248,019 bytes | 1 Move / 81 bytes |
+| Same rotation, native tree application | 474.73 ms | 4.21 ms |
+| 4,000 rich-text runs, one paragraph updated | 126.31 ms | 1.93 ms |
+| 4,000-run paragraph, one run updated | 0.033 ms | 0.034 ms |
+| Million-item native list append | 37.64 ms reset | 0.0115 ms hinted splice |
+
+Final order, retained identities, revisions, text contents, item counts and logical
+scroll anchors were asserted. The list number excludes JavaScript data copying,
+diffing and layout. Index visits and writes are different counters describing the
+removed amplification, not identical operations. Native reverse still shifts
+vectors and searches current positions; it is not claimed to be linear overall.
+
+A separate geometry-cache seam compared cold tessellation with warm translated
+paths: the 8,192-point line measured 13.83/3.95 ms, Area fill 224.04/0.54 ms, and a
+Sankey ribbon 31.75/3.79 microseconds. Build-count and vertex/bounds checks ran
+outside timing. These are seam costs, excluding projection, key hashing and native
+painting, not whole-chart redraw measurements.
+
+The workstation was not load-isolated. These results do not qualify release
+builds, Windows, low-end hardware, GPU presentation, FPS or physical input latency.
+After displays became available, the production macOS host (not TestAppContext)
+was exercised at 2× scale with the monitor disabled. Screenshots confirmed sibling
+rotation, 24-run rich-text updates, delayed opacity completion, row 5,000 reached
+at offset 140,000, a prepend retaining the visible reading position, the final row
+9,999, filtering to three rows with offset zero, and narrow → wide → narrow
+resizing (616/972/616 logical pixels) retaining content.
+
+This acceptance exposed a real empty → populated regression: a retained Solid
+VirtualList was recreated with data revision 3 instead of Create's required zero.
+Creation now resets the native data revision/edit after property finalization,
+without discarding the current identity snapshot. The wire regression failed
+before the fix and passed afterward; the real window then restored 10,000 rows.
+The SDK suite passes 118 tests.
+
+The user subsequently confirmed manual acceptance on September 20, 2026, closing
+the native acceptance task for these optimizations. This is user-confirmed
+acceptance, separate from the automated checks and CPU measurements above.
+
+The earlier automation limits remain part of the evidence record: desktop
+Space/full-screen VM switches prevented completion of same-count reversal and
+two-way chart-data interactions, and synthetic wheel input did not establish
+reliable displacement. User confirmation closes the acceptance status; it does
+not retroactively make those automated checks pass or add per-scenario traces.
+No new GPU presentation, FPS, input-latency, release-build, Windows or low-end-device
+measurements were supplied with that confirmation.

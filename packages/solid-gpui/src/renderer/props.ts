@@ -1,6 +1,12 @@
 import { isIconName, MAX_CLIPBOARD_TEXT_BYTES, MAX_IMAGE_SOURCE_BYTES, utf8ByteLength } from "../protocol";
 import { encodeColor, validateStyle } from "../style";
-import type { AccessibilityProperties, HostProperties, IconProperties } from "../protocol";
+import type {
+  AccessibilityProperties,
+  HostProperties,
+  IconProperties,
+  VirtualListDataEdit,
+  VirtualListProperties,
+} from "../protocol";
 import type { HostKind, HostNodeInternal, HostProps, TextInputProps } from "./types";
 
 import {
@@ -159,6 +165,42 @@ export function iconFor(node: HostNodeInternal, props: HostProps): HostPropertie
   };
 }
 
+type VirtualListCommittedData = { committedData?: readonly unknown[] };
+
+function committedVirtualListData(previous: VirtualListProperties | null): readonly unknown[] | undefined {
+  if (previous === null) return undefined;
+  return (previous as VirtualListProperties & VirtualListCommittedData).committedData;
+}
+
+/**
+ * Compute the replacement span between the previously published data and the
+ * next published data. Positions outside the span hold identical items (by
+ * reference), so the native list can retain their measured heights; rows inside
+ * the span must be treated as replaced.
+ */
+function diffDataSpan(
+  previous: readonly unknown[],
+  current: readonly unknown[],
+): { start: number; oldCount: number; newCount: number } {
+  const previousLength = previous.length;
+  const currentLength = current.length;
+  const limit = Math.min(previousLength, currentLength);
+  let start = 0;
+  while (start < limit && Object.is(previous[start], current[start])) start += 1;
+  let suffix = 0;
+  while (
+    suffix < limit - start &&
+    Object.is(previous[previousLength - 1 - suffix], current[currentLength - 1 - suffix])
+  ) {
+    suffix += 1;
+  }
+  return {
+    start,
+    oldCount: previousLength - start - suffix,
+    newCount: currentLength - start - suffix,
+  };
+}
+
 export function virtualListFor(node: HostNodeInternal, props: HostProps): HostProperties | null {
   if (node.kind !== "VirtualList") return null;
   const itemCount = props.__itemCount;
@@ -191,7 +233,56 @@ export function virtualListFor(node: HostNodeInternal, props: HostProps): HostPr
   assertU32Option("VirtualList rangeStart", rangeStart);
   assertU32Option("VirtualList rangeEnd", rangeEnd);
   assertU32Option("VirtualList overscan", overscan);
-  return { type: "virtual-list", value: { itemCount, rangeStart, rangeEnd, estimatedItemSize, overscan } };
+
+  // The built-in producer owns an immutable identity snapshot for each reactive
+  // data update. Its length must equal itemCount so every count change carries
+  // a data revision; callers need not freeze or replace their input arrays.
+  //
+  // The data anchor rides on the published host properties, so the tree's
+  // journal snapshots and restores it together with the edit it anchors: a
+  // rolled-back or retried commit recomputes against the last state native
+  // actually has, never against a skipped intermediate reactive update.
+  const data = props.__data;
+  if (!Array.isArray(data)) {
+    throw new TypeError("VirtualList requires a data array");
+  }
+  if (data.length !== itemCount) {
+    throw new RangeError("VirtualList itemCount must equal the data length");
+  }
+  const previous =
+    node.hostProperties !== null && node.hostProperties.type === "virtual-list" ? node.hostProperties.value : null;
+  let dataRevision = previous?.dataRevision ?? 0;
+  let dataEdit: VirtualListDataEdit | null = previous?.dataEdit ?? null;
+  const committed = committedVirtualListData(previous);
+  if (committed === undefined || previous === null) {
+    dataRevision = 0;
+    dataEdit = null;
+  } else {
+    const span = committed === data ? null : diffDataSpan(committed, data);
+    if (span === null || (span.oldCount === 0 && span.newCount === 0)) {
+      // Reference churn with identical content: keep the published revision
+      // and edit so unrelated commits stay deduplicated on the wire.
+      dataRevision = previous.dataRevision;
+      dataEdit = previous.dataEdit;
+    } else {
+      dataRevision = nextU32(previous.dataRevision, "VirtualList dataRevision");
+      dataEdit = {
+        baseRevision: previous.dataRevision,
+        ...span,
+      };
+    }
+  }
+  const value: VirtualListProperties & VirtualListCommittedData = {
+    itemCount,
+    rangeStart,
+    rangeEnd,
+    estimatedItemSize,
+    overscan,
+    dataRevision,
+    dataEdit,
+  };
+  value.committedData = data;
+  return { type: "virtual-list", value };
 }
 function exportFilesFor(value: unknown): readonly string[] | null {
   if (value === undefined) return null;

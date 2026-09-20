@@ -13,7 +13,7 @@ use num_traits::{Num, ToPrimitive, Zero};
 use crate::{
     ActiveTheme,
     plot::{
-        Plot,
+        PathCaches, Plot,
         label::{PlotLabel, TEXT_SIZE, Text},
         polygon,
         scale::{Scale, ScaleLinear, Sealed},
@@ -416,61 +416,74 @@ where
         let center_y = bounds.size.height.as_f32() / 2.;
         let scale = self.scale(outer_radius);
 
-        // Draw grid rings and spokes
-        if self.grid {
-            let stroke = cx.theme().border;
+        // Rings and series strokes/fills are tessellated once and reused
+        // while their resolved points, stroke width and closed flag stay the
+        // same; each frame only moves them to the plot's center. Ring level
+        // `l` caches in slot pair `l`, series `i` in slot pair
+        // `grid_levels + i`. The spokes stay per-frame: each is a single
+        // 2-point stroke, cheaper to build than to key.
+        let caches = PathCaches::for_paint("radar-chart", window, cx);
+        caches.update(cx, |caches, cx| {
+            // Draw grid rings and spokes
+            if self.grid {
+                let stroke = cx.theme().border;
 
-            for level in 1..=self.grid_levels {
-                let radius = outer_radius * level as f32 / self.grid_levels as f32;
-                RadialLine::new()
-                    .data(0..n)
-                    .angle(move |_, i| Some(i as f32 * angle_step))
-                    .radius(move |_, _| Some(radius))
-                    .closed()
-                    .stroke(stroke)
-                    .paint(&bounds, window);
-            }
+                for level in 1..=self.grid_levels {
+                    let radius = outer_radius * level as f32 / self.grid_levels as f32;
+                    let line = RadialLine::new()
+                        .data(0..n)
+                        .angle(move |_, i| Some(i as f32 * angle_step))
+                        .radius(move |_, _| Some(radius))
+                        .closed()
+                        .stroke(stroke);
+                    let (fill_cache, stroke_cache) = caches.slot_pair(level - 1);
+                    line.paint_cached(&bounds, fill_cache, stroke_cache, window);
+                }
 
-            for i in 0..n {
-                let angle = i as f32 * angle_step - HALF_PI;
-                let points = [
-                    point(center_x, center_y),
-                    point(
-                        center_x + outer_radius * angle.cos(),
-                        center_y + outer_radius * angle.sin(),
-                    ),
-                ];
-                if let Some(path) = polygon(&points, &bounds) {
-                    window.paint_path(path, stroke);
+                for i in 0..n {
+                    let angle = i as f32 * angle_step - HALF_PI;
+                    let points = [
+                        point(center_x, center_y),
+                        point(
+                            center_x + outer_radius * angle.cos(),
+                            center_y + outer_radius * angle.sin(),
+                        ),
+                    ];
+                    if let Some(path) = polygon(&points, &bounds) {
+                        window.paint_path(path, stroke);
+                    }
                 }
             }
-        }
 
-        // Draw series
-        for (i, value_fn) in self.values.iter().enumerate() {
-            let stroke = self.series_stroke(i, cx);
-            let fill = self
-                .fills
-                .get(i)
-                .copied()
-                .flatten()
-                .unwrap_or_else(|| stroke.opacity(0.3).into());
+            // Draw series
+            for (i, value_fn) in self.values.iter().enumerate() {
+                let stroke = self.series_stroke(i, cx);
+                let fill = self
+                    .fills
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .unwrap_or_else(|| stroke.opacity(0.3).into());
 
-            let scale = scale.clone();
-            let value_fn = value_fn.clone();
-            let mut line = RadialLine::new()
-                .data(&self.data)
-                .angle(move |_, i| Some(i as f32 * angle_step))
-                .radius(move |d, _| scale.tick(&value_fn(d)))
-                .closed()
-                .fill(fill)
-                .stroke(stroke)
-                .stroke_width(2.);
-            if self.dot {
-                line = line.dot().dot_size(8.).dot_fill_color(stroke);
+                let scale = scale.clone();
+                let value_fn = value_fn.clone();
+                let mut line = RadialLine::new()
+                    .data(&self.data)
+                    .angle(move |_, i| Some(i as f32 * angle_step))
+                    .radius(move |d, _| scale.tick(&value_fn(d)))
+                    .closed()
+                    .fill(fill)
+                    .stroke(stroke)
+                    .stroke_width(2.);
+                if self.dot {
+                    line = line.dot().dot_size(8.).dot_fill_color(stroke);
+                }
+                let (fill_cache, stroke_cache) = caches.slot_pair(self.grid_levels + i);
+                line.paint_cached(&bounds, fill_cache, stroke_cache, window);
             }
-            line.paint(&bounds, window);
-        }
+
+            caches.truncate(2 * (self.grid_levels + self.values.len()));
+        });
 
         // Draw the text labels outside the outer ring; `prepaint` resolved them and
         // already placed the element ones.

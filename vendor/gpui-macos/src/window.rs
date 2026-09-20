@@ -868,8 +868,12 @@ impl MacWindowState {
         }
 
         unsafe {
+            let screen = self.native_window.screen();
+            if screen == nil {
+                return false;
+            }
             let bounds = self.bounds();
-            let screen_size = rect_to_size(self.native_window.screen().visibleFrame());
+            let screen_size = rect_to_size(screen.visibleFrame());
             bounds.size == screen_size
         }
     }
@@ -1510,7 +1514,7 @@ impl PlatformWindow for MacWindow {
     }
 
     fn reposition_popup(&mut self, anchor: Bounds<Pixels>) -> anyhow::Result<()> {
-        let (mut options, native, content) = {
+        let (mut options, native, content, foreground_executor, closed) = {
             let state = self.0.lock();
             (
                 state
@@ -1519,6 +1523,8 @@ impl PlatformWindow for MacWindow {
                     .ok_or_else(|| anyhow::anyhow!("window is not an anchored popup"))?,
                 state.native_window,
                 state.popup_requested_size,
+                state.foreground_executor.clone(),
+                state.closed.clone(),
             )
         };
         options.anchor_rect = anchor;
@@ -1566,7 +1572,7 @@ impl PlatformWindow for MacWindow {
             let work: NSRect = msg_send![screen, visibleFrame];
             let work = to_bounds(work);
             let bounds = gpui::popup::popup_bounds(&placement, content, work);
-            // Publish before AppKit synchronously invokes resize callbacks.
+            // Publish the anchor before scheduling the native frame change.
             self.0.lock().popup = Some(options);
             let frame = NSRect::new(
                 NSPoint::new(
@@ -1578,7 +1584,15 @@ impl PlatformWindow for MacWindow {
                     bounds.size.height.as_f32() as f64,
                 ),
             );
-            let _: () = msg_send![native, setFrame: frame display: YES];
+            // setFrame synchronously reports moves and resizes. Apply it after
+            // the caller releases GPUI's App/window borrow, just like resize.
+            foreground_executor
+                .spawn(async move {
+                    if_window_not_closed(closed, || {
+                        let _: () = msg_send![native, setFrame: frame display: YES];
+                    });
+                })
+                .detach();
         }
         Ok(())
     }

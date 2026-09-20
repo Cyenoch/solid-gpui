@@ -219,6 +219,7 @@ fn show_footer_height(
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             }],
         )),
     );

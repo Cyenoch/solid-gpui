@@ -513,7 +513,37 @@ impl ListState {
         old_range: Range<usize>,
         focus_handles: impl IntoIterator<Item = Option<FocusHandle>>,
     ) {
+        self.splice_focusable_with_size_hint(old_range, focus_handles, None)
+    }
+
+    /// Inform the list state that the items in `old_range` have been replaced by
+    /// `count` new items, seeding each new item with `size_hint` so that total
+    /// height and scrollbar estimates stay valid before the new items are
+    /// measured.
+    ///
+    /// Unlike [`Self::reset`], items outside `old_range` keep their measured
+    /// heights and identity, the logical scroll position adjusts incrementally,
+    /// and only the replaced region of the underlying tree is rebuilt.
+    pub fn splice_with_size_hint(
+        &self,
+        old_range: Range<usize>,
+        count: usize,
+        size_hint: Option<Pixels>,
+    ) {
+        self.splice_focusable_with_size_hint(old_range, (0..count).map(|_| None), size_hint)
+    }
+
+    fn splice_focusable_with_size_hint(
+        &self,
+        old_range: Range<usize>,
+        focus_handles: impl IntoIterator<Item = Option<FocusHandle>>,
+        size_hint: Option<Pixels>,
+    ) {
         let state = &mut *self.0.borrow_mut();
+        let size_hint = size_hint.map(|height| Size {
+            width: px(0.),
+            height,
+        });
 
         let mut old_items = state.items.cursor::<Count>(());
         let mut new_items = old_items.slice(&Count(old_range.start), Bias::Right);
@@ -524,7 +554,7 @@ impl ListState {
             focus_handles.into_iter().map(|focus_handle| {
                 spliced_count += 1;
                 ListItem::Unmeasured {
-                    size_hint: None,
+                    size_hint,
                     focus_handle,
                 }
             }),
@@ -1723,6 +1753,7 @@ impl sum_tree::SeekTarget<'_, ListItemSummary, ListItemSummary> for Height {
 #[cfg(test)]
 mod test {
 
+    use super::ListItem;
     use gpui::{ScrollDelta, ScrollWheelEvent};
     use std::cell::Cell;
     use std::rc::Rc;
@@ -2973,5 +3004,98 @@ mod test {
              the bottom of its track, even when content has grown during the drag \
              (so frozen_bottom < live_bottom)"
         );
+    }
+
+    fn measured_tree(heights: &[f32]) -> sum_tree::SumTree<ListItem> {
+        let mut tree = sum_tree::SumTree::default();
+        tree.extend(
+            heights
+                .iter()
+                .map(|height| ListItem::Measured {
+                    size: size(px(0.), px(*height)),
+                    focus_handle: None,
+                }),
+            (),
+        );
+        tree
+    }
+
+    #[gpui::test]
+    fn test_splice_with_size_hint_retains_measured_neighbors() {
+        let state = ListState::new(0, crate::ListAlignment::Top, px(0.));
+        state.0.borrow_mut().items = measured_tree(&[10., 20., 30., 40.]);
+        state.scroll_to(gpui::ListOffset {
+            item_ix: 1,
+            offset_in_item: px(3.),
+        });
+
+        // Replace item 2 with two hinted rows; measured neighbors stay measured.
+        state.splice_with_size_hint(2..3, 2, Some(px(7.)));
+
+        let inner = state.0.borrow();
+        assert_eq!(inner.items.summary().count, 5);
+        let items: Vec<ListItem> = inner.items.iter().cloned().collect();
+        assert_eq!(items[0].size(), Some(size(px(0.), px(10.))));
+        assert_eq!(items[1].size(), Some(size(px(0.), px(20.))));
+        assert_eq!(items[2].size_hint(), Some(size(px(0.), px(7.))));
+        assert_eq!(items[2].size(), None);
+        assert_eq!(items[3].size_hint(), Some(size(px(0.), px(7.))));
+        assert_eq!(items[4].size(), Some(size(px(0.), px(40.))));
+        // The scroll anchor sits before the replaced range and must not move.
+        assert_eq!(inner.logical_scroll_top.map(|top| top.item_ix), Some(1));
+        assert_eq!(
+            inner.logical_scroll_top.map(|top| top.offset_in_item),
+            Some(px(3.))
+        );
+        // Unlike `reset`, splicing must not drop scroll events until next paint.
+        assert!(!inner.reset);
+    }
+
+    #[gpui::test]
+    fn test_splice_with_size_hint_prepends_keeping_content_anchor() {
+        let state = ListState::new(0, crate::ListAlignment::Top, px(0.));
+        state.0.borrow_mut().items = measured_tree(&[10., 20., 30.]);
+        state.scroll_to(gpui::ListOffset {
+            item_ix: 1,
+            offset_in_item: px(3.),
+        });
+
+        state.splice_with_size_hint(0..0, 2, Some(px(7.)));
+
+        let inner = state.0.borrow();
+        assert_eq!(inner.items.summary().count, 5);
+        let items: Vec<ListItem> = inner.items.iter().cloned().collect();
+        assert_eq!(items[0].size_hint(), Some(size(px(0.), px(7.))));
+        assert_eq!(items[2].size(), Some(size(px(0.), px(10.))));
+        assert_eq!(items[3].size(), Some(size(px(0.), px(20.))));
+        // The previously top row is still the anchor, shifted to its new index.
+        assert_eq!(inner.logical_scroll_top.map(|top| top.item_ix), Some(3));
+        assert_eq!(
+            inner.logical_scroll_top.map(|top| top.offset_in_item),
+            Some(px(3.))
+        );
+    }
+
+    #[gpui::test]
+    fn test_splice_with_size_hint_bounded_append_keeps_prefix_region() {
+        let state = ListState::new(100_000, crate::ListAlignment::Top, px(0.))
+            .with_uniform_item_height(px(24.));
+        state.scroll_to(gpui::ListOffset {
+            item_ix: 50_000,
+            offset_in_item: px(0.),
+        });
+
+        state.splice_with_size_hint(100_000..100_000, 1, Some(px(24.)));
+
+        let inner = state.0.borrow();
+        assert_eq!(inner.items.summary().count, 100_001);
+        let first = inner.items.iter().next().cloned();
+        assert_eq!(
+            first.and_then(|item| item.size_hint()),
+            Some(size(px(0.), px(24.))),
+            "appending one row must not disturb the retained prefix region"
+        );
+        assert_eq!(inner.logical_scroll_top.map(|top| top.item_ix), Some(50_000));
+        assert!(!inner.reset);
     }
 }

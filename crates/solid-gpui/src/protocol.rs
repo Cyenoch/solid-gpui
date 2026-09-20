@@ -10,7 +10,7 @@ pub(crate) mod generated_facts;
 mod guard;
 mod wire;
 
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 6;
 pub const SNAPSHOT_MESSAGE: u32 = generated_facts::BODY_SNAPSHOT;
 pub const EVENT_MESSAGE: u32 = generated_facts::BODY_EVENT;
 pub const PATCH_MESSAGE: u32 = generated_facts::BODY_PATCH;
@@ -108,6 +108,7 @@ pub const UPDATE_FOCUSABLE: u32 = 32;
 pub const UPDATE_SELECTABLE: u32 = 64;
 pub const UPDATE_TOOLTIP: u32 = 128;
 pub const UPDATE_POINTER_MOVE: u32 = 256;
+pub const UPDATE_LAYOUT: u32 = 512;
 pub const MAX_FRAME_LENGTH: usize = 16 * 1024 * 1024;
 pub const MAX_EXTENSION_FIELDS: usize = 256;
 pub const MAX_EXTENSION_EVENTS: usize = 256;
@@ -120,7 +121,7 @@ pub const TRANSITION_WIDTH: u32 = 4;
 pub const TRANSITION_HEIGHT: u32 = 8;
 
 /// A complete immutable renderer commit. It is encoded as
-/// `Envelope{protocolVersion:5, body: Snapshot}`.
+/// `Envelope{protocolVersion:6, body: Snapshot}`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Snapshot {
     pub surface_id: u32,
@@ -157,7 +158,7 @@ impl Snapshot {
 }
 
 /// An atomic incremental commit. It is encoded as
-/// `Envelope{protocolVersion:5, body: Patch}`.
+/// `Envelope{protocolVersion:6, body: Patch}`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Patch {
     pub surface_id: u32,
@@ -182,6 +183,7 @@ pub enum PatchOperation {
         selectable: bool,
         tooltip: Option<String>,
         accepts_pointer_move: bool,
+        observes_layout: bool,
     },
     Move {
         id: u32,
@@ -646,6 +648,7 @@ pub struct Node {
     pub selectable: bool,
     pub tooltip: Option<String>,
     pub accepts_pointer_move: bool,
+    pub observes_layout: bool,
 }
 
 impl Node {
@@ -664,6 +667,7 @@ impl Node {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }
     }
 }
@@ -733,6 +737,16 @@ pub struct VirtualListProperties {
     pub range_end: u32,
     pub estimated_item_size: f32,
     pub overscan: u32,
+    pub data_revision: u32,
+    pub data_edit: Option<VirtualListDataEdit>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VirtualListDataEdit {
+    pub base_revision: u32,
+    pub start: u32,
+    pub old_count: u32,
+    pub new_count: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,0 +1,30 @@
+   Compiling gpui-pre v0.3.5 (/Users/jgbingzi/workspace/sp/solid-gpui/vendor/gpui)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.76s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/gpui.rs (target/debug/deps/gpui-82d16a6ce686ef11)
+
+running 1 test
+clean_present_requests=60 root_renders=0
+unchanged_bounds_callbacks=60 root_renders=60 observations=60
+coalesced_same_size_callbacks=60 root_renders=60
+actual_resize=1 root_renders=1
+scale_change=1 root_renders=1
+notifying_observer=1 root_renders=1
+forced_recovery=1 root_renders=1
+
+thread 'window::window_bounds_probe::investigate_bounds_invalidation' (10866468) panicked at vendor/gpui/src/window_bounds_probe.rs:75:9:
+assertion `left == right` failed: unchanged bounds must not rebuild a static tree
+  left: 60
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test window::window_bounds_probe::investigate_bounds_invalidation ... FAILED
+
+failures:
+
+failures:
+    window::window_bounds_probe::investigate_bounds_invalidation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 376 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p gpui-pre --lib`

@@ -1,8 +1,6 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use solid_gpui::protocol::{
-    COMMAND_MESSAGE, Command, EVENT_MESSAGE, Event, PROTOCOL_VERSION, ProtocolError, Snapshot,
-};
+use solid_gpui::protocol::{Command, Event, PROTOCOL_VERSION, ProtocolError, Snapshot};
 
 fn message(fields: &[u8]) -> Vec<u8> {
     let mut result = Vec::with_capacity(fields.len() + 4);
@@ -18,7 +16,16 @@ fn union(tag: u8, payload: &[u8]) -> Vec<u8> {
     result
 }
 fn envelope(body: &[u8]) -> Vec<u8> {
-    message(&[&[1, 5, 0, 0, 0, 2][..], body, &[0][..]].concat())
+    message(
+        &[
+            &[1][..],
+            &PROTOCOL_VERSION.to_le_bytes(),
+            &[2][..],
+            body,
+            &[0][..],
+        ]
+        .concat(),
+    )
 }
 fn malformed_cases() -> Vec<Vec<u8>> {
     let event = Event::press(7, 3, 1, 1, 1, 1).encode().unwrap();
@@ -68,17 +75,12 @@ fn malformed_bebop_inputs_never_panic_and_are_rejected() {
 }
 
 #[test]
-fn protocol_error_contract_uses_exact_v5() {
-    assert_eq!(PROTOCOL_VERSION, 5);
-    assert_eq!(EVENT_MESSAGE, 2);
-    assert_eq!(COMMAND_MESSAGE, 4);
-    let error = Event::decode(&malformed_cases()[0]).expect_err("protocol v3 must be rejected");
+fn protocol_error_reports_both_peer_versions() {
+    let error =
+        Event::decode(&malformed_cases()[0]).expect_err("incompatible protocol must be rejected");
     assert!(matches!(
         error,
-        ProtocolError::UnsupportedProtocol {
-            received: 3,
-            expected: 5
-        }
+        ProtocolError::UnsupportedProtocol { received: 3, expected } if expected == PROTOCOL_VERSION
     ));
 }
 

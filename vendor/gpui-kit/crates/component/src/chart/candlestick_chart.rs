@@ -1,13 +1,13 @@
 use std::{hash::Hash, rc::Rc};
 
-use gpui::{App, Bounds, Hsla, PathBuilder, Pixels, SharedString, Window, fill, px};
+use gpui::{App, Bounds, Hsla, PathBuilder, Pixels, Point, SharedString, Window, fill, px};
 use gpui_component_macros::IntoPlot;
 use num_traits::{Num, ToPrimitive};
 
 use crate::{
     ActiveTheme,
     plot::{
-        AXIS_GAP, Grid, Plot, PlotAxis, origin_point,
+        AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, ShapeKey, origin_point,
         scale::{Scale, ScaleBand, ScaleLinear, Sealed},
     },
 };
@@ -171,68 +171,88 @@ where
         let low_fn = low_fn.clone();
         let close_fn = close_fn.clone();
 
-        for d in &self.data {
-            let x_tick = x.tick(&x_fn(d));
-            let Some(x_tick) = x_tick else {
-                continue;
-            };
+        let caches = PathCaches::for_paint("candlestick-chart", window, cx);
+        caches.update(cx, |caches, cx| {
+            for (ix, d) in self.data.iter().enumerate() {
+                let x_tick = x.tick(&x_fn(d));
+                let Some(x_tick) = x_tick else {
+                    continue;
+                };
 
-            // Get OHLC values for the current data point
-            let open = open_fn(d);
-            let high = high_fn(d);
-            let low = low_fn(d);
-            let close = close_fn(d);
+                // Get OHLC values for the current data point
+                let open = open_fn(d);
+                let high = high_fn(d);
+                let low = low_fn(d);
+                let close = close_fn(d);
 
-            // Convert values to pixel coordinates
-            let open_y = y.tick(&open);
-            let high_y = y.tick(&high);
-            let low_y = y.tick(&low);
-            let close_y = y.tick(&close);
+                // Convert values to pixel coordinates
+                let open_y = y.tick(&open);
+                let high_y = y.tick(&high);
+                let low_y = y.tick(&low);
+                let close_y = y.tick(&close);
 
-            let (Some(open_y), Some(high_y), Some(low_y), Some(close_y)) =
-                (open_y, high_y, low_y, close_y)
-            else {
-                continue;
-            };
+                let (Some(open_y), Some(high_y), Some(low_y), Some(close_y)) =
+                    (open_y, high_y, low_y, close_y)
+                else {
+                    continue;
+                };
 
-            // Determine if bullish (close > open) or bearish (close < open)
-            let is_bullish = close > open;
-            let color: Hsla = if is_bullish {
-                cx.theme().chart_bullish
-            } else {
-                cx.theme().chart_bearish
-            };
+                // Determine if bullish (close > open) or bearish (close < open)
+                let is_bullish = close > open;
+                let color: Hsla = if is_bullish {
+                    cx.theme().chart_bullish
+                } else {
+                    cx.theme().chart_bearish
+                };
 
-            // Calculate candlestick body dimensions
-            let center_x = x_tick + band_width / 2.;
-            let body_width = band_width * self.body_width_ratio;
-            let body_left = center_x - body_width / 2.;
-            let body_right = center_x + body_width / 2.;
+                // Calculate candlestick body dimensions
+                let center_x = x_tick + band_width / 2.;
+                let body_width = band_width * self.body_width_ratio;
+                let body_left = center_x - body_width / 2.;
+                let body_right = center_x + body_width / 2.;
 
-            // Draw wick (high to low line)
-            let mut wick_builder = PathBuilder::stroke(px(1.));
-            wick_builder.move_to(origin_point(px(center_x), px(high_y), origin));
-            wick_builder.line_to(origin_point(px(center_x), px(low_y), origin));
-
-            if let Ok(path) = wick_builder.build() {
+                // Draw wick (high to low line). The wick is tessellated once
+                // and reused while the candle's projected coordinates stay
+                // the same; each frame only moves it to the plot's origin. It
+                // stays a stroked path rather than a quad: quads snap their
+                // bounds to device pixels, the stroked path keeps the
+                // fractional coordinates.
+                let key = ShapeKey::new((
+                    "candle/wick",
+                    center_x.to_bits(),
+                    high_y.to_bits(),
+                    low_y.to_bits(),
+                ))
+                .finish();
+                let Some(path) = caches.slot(ix).get(key, origin, || {
+                    let mut wick_builder = PathBuilder::stroke(px(1.));
+                    wick_builder.move_to(origin_point(px(center_x), px(high_y), Point::default()));
+                    wick_builder.line_to(origin_point(px(center_x), px(low_y), Point::default()));
+                    wick_builder.build().ok()
+                }) else {
+                    continue;
+                };
                 window.paint_path(path, color);
+
+                // Draw body (open to close rectangle)
+                // For bullish: top is close, bottom is open
+                // For bearish: top is open, bottom is close
+                let (top, bottom) = if is_bullish {
+                    (close_y, open_y)
+                } else {
+                    (open_y, close_y)
+                };
+
+                let body_bounds = Bounds::from_corners(
+                    origin_point(px(body_left), px(top), origin),
+                    origin_point(px(body_right), px(bottom), origin),
+                );
+
+                window.paint_quad(fill(body_bounds, color));
             }
-
-            // Draw body (open to close rectangle)
-            // For bullish: top is close, bottom is open
-            // For bearish: top is open, bottom is close
-            let (top, bottom) = if is_bullish {
-                (close_y, open_y)
-            } else {
-                (open_y, close_y)
-            };
-
-            let body_bounds = Bounds::from_corners(
-                origin_point(px(body_left), px(top), origin),
-                origin_point(px(body_right), px(bottom), origin),
-            );
-
-            window.paint_quad(fill(body_bounds, color));
-        }
+            // One wick cache per candle: dropping past the painted count
+            // keeps the cache bounded when the data shrinks.
+            caches.truncate(self.data.len());
+        });
     }
 }

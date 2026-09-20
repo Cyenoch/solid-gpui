@@ -69,7 +69,10 @@ export function withRootTransaction<T>(tree: HostTree, callback: () => T): T {
 }
 
 export function cancelScheduledCommit(tree: HostTree): boolean {
-  return pendingCommits.delete(tree);
+  // A scheduling token from before a direct commit is stale: its batch already
+  // settled, so only a still-open transaction counts as pending mutations.
+  const scheduled = pendingCommits.delete(tree);
+  return scheduled && tree.graph.inTransaction;
 }
 
 /** Commands cross the same root transaction seam as renderer mutations. */
@@ -86,8 +89,12 @@ export function afterRootCommit<T>(tree: HostTree, submit: () => Promise<T>): Pr
 }
 
 function prepareMutation(tree: HostTree): void {
-  if (tree.isDisposed() || pendingCommits.has(tree) || transactionDepths.has(tree)) return;
-  tree.beginRender();
+  if (tree.isDisposed() || transactionDepths.has(tree)) return;
+  // A stale scheduling token (direct commit outside the microtask) must never
+  // leave mutations unjournaled: without an open transaction the journals and
+  // the structural patch would silently miss the change.
+  if (!tree.graph.inTransaction) tree.beginRender();
+  if (pendingCommits.has(tree)) return;
   const token = {};
   pendingCommits.set(tree, token);
   queueMicrotask(() => {
@@ -188,13 +195,13 @@ function getParentNode(node: HostNodeInternal): HostNodeInternal | undefined {
 }
 
 function getFirstChild(node: HostNodeInternal): HostNodeInternal | undefined {
-  return node.children[0];
+  // Sibling links are authoritative between renders; the materialized
+  // `children` array may lag within an open transaction.
+  return node.firstChild ?? undefined;
 }
 
 function getNextSibling(node: HostNodeInternal): HostNodeInternal | undefined {
-  const parent = getParentNode(node);
-  if (parent === undefined) return undefined;
-  return parent.children[node.index + 1];
+  return node.nextSibling ?? undefined;
 }
 
 export const hostConfig: RendererOptions<HostNodeInternal> = {

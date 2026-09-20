@@ -131,6 +131,8 @@ export interface VirtualListProps<T> extends AccessibilityProps {
   /** Rendered instead of a native VirtualList when `data` is empty. */
   readonly emptyState?: SolidChild;
   readonly style?: StyleProp;
+  /** Producer exposes the current data array by reference for delta baselines. */
+  readonly __data?: readonly T[];
   readonly ref?: (handle: VirtualListHandle) => void;
 }
 export interface VirtualListHandle extends HostNode {
@@ -418,6 +420,21 @@ export interface HostNodeInternal extends HostNode {
   parent: HostNodeInternal | null;
   children: HostNodeInternal[];
   index: number;
+  /**
+   * Sibling links are the authoritative child order while a transaction is
+   * open; `children` and `index` are materialized views rebuilt from these
+   * links once per changed parent at the commit boundary
+   * (NodeGraph.materializeChildOrder). Bulk reorders therefore cost O(1) per
+   * move instead of rewriting a suffix of indexes after every splice.
+   */
+  firstChild: HostNodeInternal | null;
+  lastChild: HostNodeInternal | null;
+  previousSibling: HostNodeInternal | null;
+  nextSibling: HostNodeInternal | null;
+  /** True while `children`/`index` lag behind the sibling links. */
+  childOrderDirty: boolean;
+  /** Intrusive list of parents whose child order changed this transaction. */
+  dirtyNext: HostNodeInternal | null;
   style: StyleProp;
   text: string | null;
   tooltip: string | null;
@@ -442,6 +459,8 @@ export interface HostNodeInternal extends HostNode {
   latestNativeText: string | null;
   latestNativeEditSeq: number;
   layoutCallback?: LayoutHandler;
+  /** Explicit JS layout subscriber demand; internal native geometry is independent. */
+  observesLayout: boolean;
   latestNativeSelection: {
     start: number;
     end: number;

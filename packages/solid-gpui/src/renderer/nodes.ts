@@ -9,6 +9,7 @@ import {
   COMMAND_SET_SELECTION,
   UPDATE_ACCESSIBILITY,
   UPDATE_FOCUSABLE,
+  UPDATE_LAYOUT,
   UPDATE_SELECTABLE,
   UPDATE_LISTENER,
   UPDATE_STYLE,
@@ -337,12 +338,24 @@ function equalHostProperties(a: HostProperties | null, b: HostProperties | null)
     );
   }
   if (a.type === "virtual-list" && b.type === "virtual-list") {
+    const x = a.value;
+    const y = b.value;
+    // dataRevision gates same-count data changes; the edit must agree too.
+    if (
+      x.itemCount !== y.itemCount ||
+      x.rangeStart !== y.rangeStart ||
+      x.rangeEnd !== y.rangeEnd ||
+      x.estimatedItemSize !== y.estimatedItemSize ||
+      x.overscan !== y.overscan ||
+      x.dataRevision !== y.dataRevision
+    )
+      return false;
+    if (x.dataEdit === null || y.dataEdit === null) return x.dataEdit === y.dataEdit;
     return (
-      a.value.itemCount === b.value.itemCount &&
-      a.value.rangeStart === b.value.rangeStart &&
-      a.value.rangeEnd === b.value.rangeEnd &&
-      a.value.estimatedItemSize === b.value.estimatedItemSize &&
-      a.value.overscan === b.value.overscan
+      x.dataEdit.baseRevision === y.dataEdit.baseRevision &&
+      x.dataEdit.start === y.dataEdit.start &&
+      x.dataEdit.oldCount === y.dataEdit.oldCount &&
+      x.dataEdit.newCount === y.dataEdit.newCount
     );
   }
   if (a.type === "image" && b.type === "image")
@@ -415,6 +428,12 @@ interface NodeStateSnapshot {
   readonly parent: HostNodeInternal | null;
   readonly children: HostNodeInternal[];
   readonly index: number;
+  readonly firstChild: HostNodeInternal | null;
+  readonly lastChild: HostNodeInternal | null;
+  readonly previousSibling: HostNodeInternal | null;
+  readonly nextSibling: HostNodeInternal | null;
+  readonly childOrderDirty: boolean;
+  readonly dirtyNext: HostNodeInternal | null;
   readonly style: HostNodeInternal["style"];
   readonly text: string | null;
   readonly tooltip: string | null;
@@ -438,6 +457,7 @@ interface NodeStateSnapshot {
   readonly latestNativeText: string | null;
   readonly latestNativeEditSeq: number;
   readonly layoutCallback: HostNodeInternal["layoutCallback"];
+  readonly observesLayout: boolean;
   readonly latestNativeSelection: HostNodeInternal["latestNativeSelection"];
   readonly inputCallbacks: HostNodeInternal["inputCallbacks"];
   readonly inputCallbackSources: HostNodeInternal["inputCallbackSources"];
@@ -462,6 +482,7 @@ interface TransactionJournal {
   readonly movedIds: Map<number, boolean | undefined>;
   readonly updatedMasks: Map<number, number | undefined>;
   readonly registry: Map<number, ListenerSlotSnapshot>;
+  readonly dirtyOrderHead: HostNodeInternal | null;
   readonly nextNodeId: number;
   readonly nextListenerId: number;
 }
@@ -481,6 +502,8 @@ export class NodeGraph {
   private nextNodeId = 2;
   private nextListenerId = 1;
   private transaction: TransactionJournal | undefined;
+  /** Intrusive head of parents whose materialized child order lags their links. */
+  private dirtyOrderHead: HostNodeInternal | null = null;
   constructor(private readonly owner: RootOwner) {
     this.syntheticRoot = {
       id: 1,
@@ -489,12 +512,19 @@ export class NodeGraph {
       parent: null,
       children: [],
       index: 0,
+      firstChild: null,
+      lastChild: null,
+      previousSibling: null,
+      nextSibling: null,
+      childOrderDirty: false,
+      dirtyNext: null,
       style: null,
       text: null,
       listenerId: 0,
       listener: undefined,
       dragCallbacks: {},
       layoutCallback: undefined,
+      observesLayout: false,
       focusable: false,
       selectable: false,
       disabled: false,
@@ -537,12 +567,19 @@ export class NodeGraph {
       parent: null,
       children: [],
       index: 0,
+      firstChild: null,
+      lastChild: null,
+      previousSibling: null,
+      nextSibling: null,
+      childOrderDirty: false,
+      dirtyNext: null,
       style: null,
       text: null,
       listenerId: 0,
       listener: undefined,
       dragCallbacks: {},
       layoutCallback: undefined,
+      observesLayout: false,
       focusable: false,
       selectable: false,
       disabled: false,
@@ -647,6 +684,19 @@ export class NodeGraph {
       if (node.attached) this.markUpdated(node, mask, true);
     }
     this.dirtyProps.clear();
+    // A retained Solid node can be detached in one commit and recreated later.
+    // Its new native incarnation has no published data revision to chain from.
+    for (const id of this.createdIds) {
+      const node = this.nodesById.get(id);
+      const properties = node?.hostProperties;
+      if (node === undefined || properties?.type !== "virtual-list") continue;
+      if (properties.value.dataRevision === 0 && properties.value.dataEdit === null) continue;
+      this.journalNode(node);
+      node.hostProperties = {
+        type: "virtual-list",
+        value: { ...properties.value, dataRevision: 0, dataEdit: null },
+      };
+    }
   }
 
   private journalMap<K, V>(changes: Map<K, V | undefined> | undefined, map: Map<K, V>, key: K): void {
@@ -683,6 +733,7 @@ export class NodeGraph {
       movedIds: new Map(),
       updatedMasks: new Map(),
       registry: new Map(),
+      dirtyOrderHead: this.dirtyOrderHead,
       nextNodeId: this.nextNodeId,
       nextListenerId: this.nextListenerId,
     };
@@ -696,11 +747,17 @@ export class NodeGraph {
     this.movedIds.clear();
     this.updatedMasks.clear();
     this.listenerRegistry.clear();
+    this.dirtyOrderHead = null;
     this.children.length = 0;
   }
 
   completeTransaction(): void {
     this.transaction = undefined;
+  }
+
+  /** True while a transaction is open and mutations are being journaled. */
+  get inTransaction(): boolean {
+    return this.transaction !== undefined;
   }
 
   publishedNode(id: number): HostNodeInternal | undefined {
@@ -771,6 +828,7 @@ export class NodeGraph {
       else this.updatedMasks.set(key, value);
     }
     for (const [nodeId, snapshot] of transaction.registry) this.listenerRegistry.restoreNode(nodeId, snapshot);
+    this.dirtyOrderHead = transaction.dirtyOrderHead;
     this.nextNodeId = transaction.nextNodeId;
     this.nextListenerId = transaction.nextListenerId;
     this.transaction = undefined;
@@ -782,6 +840,12 @@ export class NodeGraph {
       parent: node.parent,
       children: [...node.children],
       index: node.index,
+      firstChild: node.firstChild,
+      lastChild: node.lastChild,
+      previousSibling: node.previousSibling,
+      nextSibling: node.nextSibling,
+      childOrderDirty: node.childOrderDirty,
+      dirtyNext: node.dirtyNext,
       style: node.style,
       text: node.text,
       tooltip: node.tooltip,
@@ -805,6 +869,7 @@ export class NodeGraph {
       latestNativeText: node.latestNativeText,
       latestNativeEditSeq: node.latestNativeEditSeq,
       layoutCallback: node.layoutCallback,
+      observesLayout: node.observesLayout,
       latestNativeSelection: node.latestNativeSelection === null ? null : { ...node.latestNativeSelection },
       inputCallbacks: node.inputCallbacks,
       inputCallbackSources: node.inputCallbackSources,
@@ -829,6 +894,12 @@ export class NodeGraph {
     node.children.length = state.children.length;
     for (let index = 0; index < state.children.length; index++) node.children[index] = state.children[index]!;
     node.index = state.index;
+    node.firstChild = state.firstChild;
+    node.lastChild = state.lastChild;
+    node.previousSibling = state.previousSibling;
+    node.nextSibling = state.nextSibling;
+    node.childOrderDirty = state.childOrderDirty;
+    node.dirtyNext = state.dirtyNext;
     node.style = state.style;
     node.text = state.text;
     node.tooltip = state.tooltip;
@@ -852,6 +923,7 @@ export class NodeGraph {
     node.latestNativeText = state.latestNativeText;
     node.latestNativeEditSeq = state.latestNativeEditSeq;
     node.layoutCallback = state.layoutCallback;
+    node.observesLayout = state.observesLayout;
     node.latestNativeSelection = state.latestNativeSelection === null ? null : { ...state.latestNativeSelection };
     node.inputCallbacks = state.inputCallbacks;
     node.inputCallbackSources = state.inputCallbackSources;
@@ -873,6 +945,12 @@ export class NodeGraph {
     node.parent = null;
     node.children.length = 0;
     node.index = 0;
+    node.firstChild = null;
+    node.lastChild = null;
+    node.previousSibling = null;
+    node.nextSibling = null;
+    node.childOrderDirty = false;
+    node.dirtyNext = null;
     node.style = null;
     node.text = null;
     node.tooltip = null;
@@ -896,6 +974,7 @@ export class NodeGraph {
     node.latestNativeText = null;
     node.latestNativeEditSeq = 0;
     node.layoutCallback = undefined;
+    node.observesLayout = false;
     node.latestNativeSelection = null;
     node.inputCallbacks = null;
     node.inputCallbackSources = null;
@@ -993,6 +1072,10 @@ export class NodeGraph {
           }
         : {};
     node.layoutCallback = spec.allowsLayout ? props.onLayout : undefined;
+    // Layout observation is opt-in: only an explicit JS onLayout subscriber
+    // demands native layout scheduling. Internal geometry (input selection,
+    // virtual list ranges, popup bounds) never sets this flag.
+    node.observesLayout = node.layoutCallback !== undefined;
     if (node.hoverCallback === undefined) node.hovered = false;
     const previousInputCallbacks = node.inputCallbacks;
     const previousInputSources = node.inputCallbackSources;
@@ -1060,6 +1143,7 @@ export class NodeGraph {
     const previousAccessibility = node.accessibility;
     const previousTooltip = node.tooltip;
     const previousAcceptsPointerMove = node.acceptsPointerMove;
+    const previousObservesLayout = node.observesLayout;
     this.setNodeProps(node, props);
     let mask = 0;
     if (!equalStyle(previousStyle, node.style)) mask |= UPDATE_STYLE;
@@ -1069,6 +1153,7 @@ export class NodeGraph {
     if (previousSelectable !== node.selectable) mask |= UPDATE_SELECTABLE;
     if (previousTooltip !== node.tooltip) mask |= UPDATE_TOOLTIP;
     if (previousAcceptsPointerMove !== node.acceptsPointerMove) mask |= UPDATE_POINTER_MOVE;
+    if (previousObservesLayout !== node.observesLayout) mask |= UPDATE_LAYOUT;
     if (!equalHostProperties(previousProperties, node.hostProperties)) mask |= UPDATE_PROPERTIES;
     if (!equalAccessibility(previousAccessibility, node.accessibility)) mask |= UPDATE_ACCESSIBILITY;
     return mask;
@@ -1080,7 +1165,10 @@ export class NodeGraph {
     anchor: HostNodeInternal | undefined,
     bootstrapped: boolean,
   ): void {
-    if (anchor !== undefined && parent.children[anchor.index] !== anchor) {
+    if (
+      anchor !== undefined &&
+      ((anchor.parent ?? this.syntheticRoot) !== parent || !this.isLinkedChild(parent, anchor))
+    ) {
       this.owner.invalid = true;
       throw new TypeError("insertion anchor is not a child of the parent");
     }
@@ -1092,10 +1180,7 @@ export class NodeGraph {
     this.journalNode(parent);
     this.journalNode(node);
     node.detachedFocusPending = false;
-    const index = anchor === undefined ? parent.children.length : anchor.index;
-    parent.children.splice(index, 0, node);
-    node.parent = parent === this.syntheticRoot ? null : parent;
-    this.refreshChildIndexes(parent, index);
+    this.linkChild(parent, node, anchor);
     if (parent.attached) {
       if (wasAttached) this.markMoved(node, bootstrapped);
       else this.attachSubtree(node, bootstrapped);
@@ -1106,7 +1191,7 @@ export class NodeGraph {
   }
 
   removeNode(parent: HostNodeInternal, node: HostNodeInternal, bootstrapped: boolean): void {
-    if (parent.children[node.index] !== node) {
+    if ((node.parent ?? this.syntheticRoot) !== parent || !this.isLinkedChild(parent, node)) {
       this.owner.invalid = true;
       throw new TypeError("removed node is not a child of the parent");
     }
@@ -1115,15 +1200,94 @@ export class NodeGraph {
     if (node.attached) this.detachSubtree(node);
   }
 
+  /** A node counts as a child only while its sibling links actually chain it under `parent`. */
+  private isLinkedChild(parent: HostNodeInternal, node: HostNodeInternal): boolean {
+    return node.previousSibling !== null || node.nextSibling !== null || parent.firstChild === node;
+  }
+
+  /** O(1) sibling-link insertion before `anchor` (or append); no suffix work. */
+  private linkChild(parent: HostNodeInternal, node: HostNodeInternal, anchor: HostNodeInternal | undefined): void {
+    this.dirtyChildOrder(parent);
+    node.parent = parent === this.syntheticRoot ? null : parent;
+    const previous = anchor === undefined ? parent.lastChild : anchor.previousSibling;
+    const next = anchor ?? null;
+    // Neighbor links change too; journal those nodes before writing them or a
+    // failed commit restores stale pointers.
+    if (previous !== null) this.journalNode(previous);
+    if (next !== null) this.journalNode(next);
+    node.previousSibling = previous;
+    node.nextSibling = next;
+    if (previous === null) parent.firstChild = node;
+    else previous.nextSibling = node;
+    if (next === null) parent.lastChild = node;
+    else next.previousSibling = node;
+  }
+
   private detachFromParent(node: HostNodeInternal): void {
     const parent = node.parent ?? this.syntheticRoot;
-    const siblings = parent.children;
     this.journalNode(parent);
     this.journalNode(node);
-    const index = node.index;
-    siblings.splice(index, 1);
+    this.unlinkChild(parent, node);
+  }
+
+  /** O(1) sibling-link removal. The detached node keeps its last materialized index. */
+  private unlinkChild(parent: HostNodeInternal, node: HostNodeInternal): void {
+    this.dirtyChildOrder(parent);
+    const { previousSibling, nextSibling } = node;
+    if (previousSibling !== null) this.journalNode(previousSibling);
+    if (nextSibling !== null) this.journalNode(nextSibling);
+    if (previousSibling === null) parent.firstChild = nextSibling;
+    else previousSibling.nextSibling = nextSibling;
+    if (nextSibling === null) parent.lastChild = previousSibling;
+    else nextSibling.previousSibling = previousSibling;
     node.parent = null;
-    this.refreshChildIndexes(parent, index);
+    node.previousSibling = null;
+    node.nextSibling = null;
+  }
+
+  private dirtyChildOrder(parent: HostNodeInternal): void {
+    if (parent.childOrderDirty) return;
+    this.journalNode(parent);
+    parent.childOrderDirty = true;
+    parent.dirtyNext = this.dirtyOrderHead;
+    this.dirtyOrderHead = parent;
+  }
+
+  /** Rebuild `children` and `index` from sibling links; once per changed parent. */
+  private materializeOrder(parent: HostNodeInternal): void {
+    if (!parent.childOrderDirty) return;
+    this.journalNode(parent);
+    const children = parent.children;
+    let child = parent.firstChild;
+    let index = 0;
+    while (child !== null) {
+      if (child.index !== index) {
+        this.journalNode(child);
+        child.index = index;
+      }
+      children[index] = child;
+      index += 1;
+      child = child.nextSibling;
+    }
+    children.length = index;
+    parent.childOrderDirty = false;
+  }
+
+  /**
+   * Materialize every parent whose child order changed. Called once per commit
+   * before snapshot/patch planning; the scalar fast path drains an empty list.
+   * The list is consumed so every transaction boundary leaves arrays in sync.
+   */
+  materializeChildOrder(): void {
+    let parent = this.dirtyOrderHead;
+    this.dirtyOrderHead = null;
+    while (parent !== null) {
+      const next = parent.dirtyNext;
+      this.journalNode(parent);
+      parent.dirtyNext = null;
+      this.materializeOrder(parent);
+      parent = next;
+    }
   }
 
   private attachSubtree(node: HostNodeInternal, bootstrapped: boolean): void {
@@ -1136,7 +1300,9 @@ export class NodeGraph {
       current.detachedFocusPending = false;
       this.journalMap(this.transaction?.nodesById, this.nodesById, current.id);
       this.nodesById.set(current.id, current);
-      for (const child of current.children) attach(child);
+      // Sibling links are authoritative mid-transaction; materialized arrays
+      // may lag behind links created earlier in this transaction.
+      for (let child = current.firstChild; child !== null; child = child.nextSibling) attach(child);
     };
     attach(node);
     if (!bootstrapped || wasCreated) return;
@@ -1148,7 +1314,7 @@ export class NodeGraph {
     const markCreated = (current: HostNodeInternal): void => {
       this.journalSet(this.transaction?.createdIds, this.createdIds, current.id);
       this.createdIds.add(current.id);
-      for (const child of current.children) markCreated(child);
+      for (let child = current.firstChild; child !== null; child = child.nextSibling) markCreated(child);
     };
     markCreated(node);
   }
@@ -1164,7 +1330,7 @@ export class NodeGraph {
       this.journalRegistry(node.id);
       this.listenerRegistry.remove(node.id);
     }
-    for (const child of node.children) this.detachSubtree(child);
+    for (let child = node.firstChild; child !== null; child = child.nextSibling) this.detachSubtree(child);
   }
 
   releaseDetachedFocus(node: HostNodeInternal): void {
@@ -1174,17 +1340,6 @@ export class NodeGraph {
     this.journalRegistry(node.id);
     this.listenerRegistry.remove(node.id);
     node.nativeFocused = false;
-  }
-
-  private refreshChildIndexes(parent: HostNodeInternal, start: number): void {
-    // Only the shifted suffix changes identity-to-index mapping. Revisiting the
-    // prefix makes N appends quadratic and journals unrelated sibling state.
-    // Journal before writing so failed commits restore indexes with parentage.
-    for (let index = start; index < parent.children.length; index++) {
-      const child = parent.children[index]!;
-      this.journalNode(child);
-      child.index = index;
-    }
   }
 
   private markMoved(node: HostNodeInternal, bootstrapped: boolean): void {
@@ -1242,8 +1397,13 @@ export class NodeGraph {
         selectable: node.selectable,
         tooltip: node.tooltip,
         acceptsPointerMove: node.acceptsPointerMove,
+        observesLayout: node.observesLayout,
       });
-      node.children.forEach((child, childIndex) => visit(child, node.id, childIndex));
+      let childIndex = 0;
+      for (let child = node.firstChild; child !== null; child = child.nextSibling) {
+        visit(child, node.id, childIndex);
+        childIndex += 1;
+      }
     };
     visit(this.syntheticRoot, 0, 0);
     return nodes;

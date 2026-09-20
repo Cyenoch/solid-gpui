@@ -309,6 +309,8 @@ fn scroll_shadow_composes_with_windowed_virtual_list(cx: &mut TestAppContext) {
         range_end: 10,
         estimated_item_size: 30.,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
     let mut nodes = vec![Node::new(1, 0, 0, KIND_VIEW), shadow, list];
     for index in 0..10 {

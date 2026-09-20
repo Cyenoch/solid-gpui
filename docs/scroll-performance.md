@@ -170,6 +170,17 @@ empty initial range remained empty after population, and filtering could emit
 an inverted range such as 90..1. The committed range now restarts from the
 initial window when the previous range is empty or beyond the new data.
 
+Core VirtualList versions item identities, not just counts. Append/prepend and
+replacement spans splice native state with height hints, preserving measured rows
+outside the changed span and shifting the logical anchor with retained content.
+Reactive stores and explicitly republished mutable arrays use owned identity
+snapshots; viewport changes do not copy the full data again. Mutating an object
+in place without a reactive identity change is not a data replacement, though
+rendered reactive row content still triggers native remeasurement. Full snapshots
+and estimate changes remain explicit invalidation boundaries. See
+[batched work and retained geometry](performance-analysis.md#batched-work-and-retained-geometry)
+for costs and the qualified CPU comparison.
+
 `ScrollShadow` can decorate one direct, matching-axis core or native VirtualList
 without creating a second scrolling viewport. Native commits publish the child's
 viewport capability; commands and paint read the same retained handle. Moving a

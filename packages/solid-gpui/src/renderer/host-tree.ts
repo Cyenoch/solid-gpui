@@ -106,6 +106,9 @@ export class HostTree implements RootOwner {
   }
 
   beginRender(): void {
+    // Never restart an open transaction: accumulated mutations are journaled
+    // against its snapshot, and clearing them would strand unjournaled marks.
+    if (this.graph.inTransaction) return;
     this.graph.beginTransaction();
     this.transactionBootstrapped = this.bootstrapped;
     this.invalid = false;
@@ -124,6 +127,9 @@ export class HostTree implements RootOwner {
     }
     try {
       this.graph.finalizeDirtyProps();
+      // Materialize child order from sibling links before any planning or the
+      // bootstrap emptiness check; the scalar fast path drains an empty list.
+      this.graph.materializeChildOrder();
       const baseRevision = this.options.getRevision();
       const revision = nextU32(baseRevision, "revision");
       if (!this.bootstrapped && this.children.length === 0) {
@@ -205,6 +211,7 @@ export class HostTree implements RootOwner {
         selectable: node.selectable,
         tooltip: node.tooltip,
         acceptsPointerMove: node.acceptsPointerMove,
+        observesLayout: node.observesLayout,
       });
     }
     if (operations.length === 0) return null;
@@ -233,6 +240,7 @@ export class HostTree implements RootOwner {
       selectable: node.selectable,
       tooltip: node.tooltip,
       acceptsPointerMove: node.acceptsPointerMove,
+      observesLayout: node.observesLayout,
     };
   }
 }

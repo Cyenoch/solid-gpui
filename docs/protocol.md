@@ -1,13 +1,14 @@
-# Solid GPUI protocol v5
+# Solid GPUI protocol v6
 
 This is the implemented wire contract between the TypeScript renderer and the
-Rust/GPUI host. Protocol v5 is a lockstep clean cutover to Bebop. The canonical
-wire schema is
+Rust/GPUI host. Protocol v6 is a lockstep Bebop contract with explicit layout
+subscriptions and identity-aware virtual-list edits. Rebuild both peers together;
+v5 payloads are not accepted. The canonical wire schema is
 [`packages/solid-gpui/src/protocol/protocol.bop`](../packages/solid-gpui/src/protocol/protocol.bop);
 checked generated bindings are under the TypeScript and Rust protocol seams.
 `packages/solid-gpui/src/protocol/schema-lock.json` pins the schema SHA-256
-digest (`e0fcd0e7b6c78ce18dce79c5d5d54be7e6fe27a0c717d4b88132ca13f0c2e3b3`)
-for protocol version `5`; codegen checks fail on drift.
+digest (`79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc`)
+for protocol version `6`; codegen checks fail on drift.
 Normal package and Rust builds consume those checked files and do not invoke
 `bebopc`. Regenerate and check them with:
 
@@ -51,16 +52,16 @@ The root Bebop record is:
 
 ```text
 Envelope {
-  protocolVersion: u32 = 5,
+  protocolVersion: u32 = 6,
   body: Body,
 }
 ```
 
 `Body` uses the stable message tags `1=Snapshot`, `2=Event`, `3=Patch`, and
 `4=Command`. Every decoder requires `protocolVersion` to be present and equal
-to `5`, requires one known body union, rejects trailing bytes, and never
+to `6`, requires one known body union, rejects trailing bytes, and never
 attempts a legacy decode. There is no version negotiation, dual decoder, or
-permissive fallback; peers must use the same v5 contract.
+permissive fallback; peers must use the same v6 contract.
 
 Bebop messages are length-delimited records with monotonically ordered field
 IDs and a terminating field ID `0`; arrays carry a bounded u32 item count;
@@ -106,7 +107,7 @@ revision, and `revision > baseRevision`.
 `Node` carries every current field: `id`, `parentId`, `index`, `kind`, all 42
 Style slots, optional RawText `text`, `listenerId`, optional tagged
 `HostProperties`, optional `AccessibilityProperties`, `focusable`,
-`selectable`, `tooltip`, and `acceptsPointerMove`. `NodeKind` is
+`selectable`, `tooltip`, `acceptsPointerMove`, and `observesLayout`. `NodeKind` is
 `1=View`, `2=Text`, `3=Pressable`, `4=RawText`, `5=TextInput`,
 `6=VirtualList`, `7=Image`, `8=Extension`, and `9=Icon`.
 
@@ -114,7 +115,8 @@ Style slots, optional RawText `text`, `listenerId`, optional tagged
 
 - TextInput: value, placeholder, multiline, disabled, controlled, edit
   sequence, selection range, marked range, max length, and reversed selection;
-- VirtualList: item count, visible range, estimated item size, and overscan;
+- VirtualList: item count, visible range, estimated item size, overscan, required
+  `dataRevision`, and optional `dataEdit { baseRevision, start, oldCount, newCount }`;
 - Image: source, object-fit code, and fallback source; and
 - Drag: drag type, exported files, accepts-drag-over, and accepts-drop.
 
@@ -124,6 +126,22 @@ Style slots, optional RawText `text`, `listenerId`, optional tagged
   bounded text, or bounded bytes values. There are at most 256 fields and
   event IDs; text and bytes are each capped at 1 MiB per value and in
   aggregate.
+
+Virtual-list data edits replace one contiguous span of the previous published
+data. New nodes begin at data revision zero without an edit. A changed data
+revision requires an edit based on the preceding revision, a valid old span,
+and a resulting count equal to `itemCount`; this includes equal-count replacement
+and reorder. Viewport-only updates retain the revision and edit unchanged, so the
+host does not replay a previously consumed edit. Full snapshots provide complete
+state rather than incremental edit instructions. Invalid patch metadata is rejected
+within the transaction, not repaired by resetting the list.
+
+`observesLayout` is required on Node (field 14). Only an explicit `onLayout`
+subscription enables JS layout events; another event listener does not imply one.
+Changed bounds are coalesced in paint order into one pending frame callback per
+surface, with unchanged bounds rejected before scheduling. Internal selection,
+virtual-list range tracking, and popup anchor geometry remain independent of this
+subscription. Update field 13 changes the subscription through mask bit 512.
 
 Accessibility carries role, label, description, disabled, checked, selected,
 value, expanded, and heading level. Style contains width/height, flex and
@@ -159,13 +177,14 @@ Patch operations are `1=Create`, `2=Update`, `3=Move`, and `4=Delete`.
 |  64 | selectable              |
 | 128 | tooltip                 |
 | 256 | pointer-move capability |
+| 512 | layout observation      |
 
 An Update with the style bit set carries either `style` (set) or the empty
 `clearStyle` marker (clear); with the bit unset, both are omitted (unchanged).
 
-`focusable` and `selectable` follow the same exact presence rule: each field is
+`focusable`, `selectable`, `acceptsPointerMove`, and `observesLayout` follow the same exact presence rule: each field is
 omitted when its update bit is clear and is present (including explicit
-`false`) when its bit is set. Decoders reject either field when its bit is
+`false`) when its bit is set. Decoders reject a field when its bit is
 clear and materialize an omitted field as the semantic `false` placeholder.
 Masked optional fields distinguish an omitted clear from an unchanged field.
 Explicit `false` and zero values are retained when present, and optional tails
@@ -323,7 +342,7 @@ identities, original/final ancestors, and typed child ownership dependencies.
 Validation, event routes, native instance updates, and cache invalidation consume
 that set. Structural edits may visit shifted siblings and dependency subtrees;
 a local property edit does not copy unrelated nodes. Snapshot bootstrap still
-validates the complete tree. These rules do not alter the v5 wire schema.
+validates the complete tree.
 
 On the TypeScript side, `SurfaceRouter` is the only frame decoder and event
 router. It groups one incoming chunk into ordered semantic event batches per
@@ -336,7 +355,7 @@ generated protocol records to Solid components.
 
 ## 6. Conformance and cutover
 
-`bun run task protocol-golden-check` regenerates representative v5 Snapshot,
+`bun run task protocol-golden-check` regenerates representative v6 Snapshot,
 Patch, all 40 Command kinds, all Event payload forms (including both focus/blur
 forms), malformed cases, and frame boundaries, then fails if committed fixtures
 drift. TypeScript authors `ts_to_rust.hex`; Rust independently constructs the

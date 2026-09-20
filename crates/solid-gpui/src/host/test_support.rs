@@ -5,6 +5,7 @@ use std::sync::Arc;
 fn styled_view(id: u32, parent_id: u32, index: u32, style: Style) -> Node {
     let mut node = Node::new(id, parent_id, index, KIND_VIEW);
     node.listener_id = id;
+    node.observes_layout = true;
     node.style = Some(style);
     node
 }
@@ -182,6 +183,7 @@ fn snapshot() -> Snapshot {
 fn snapshot_for(surface_id: u32) -> Snapshot {
     let mut view = Node::new(2, 1, 0, KIND_VIEW);
     view.listener_id = 10;
+    view.observes_layout = true;
     view.focusable = true;
 
     let mut input = Node::new(3, 1, 1, KIND_TEXT_INPUT);
@@ -214,6 +216,8 @@ fn snapshot_for(surface_id: u32) -> Snapshot {
         range_end: 10,
         estimated_item_size: 24.0,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
 
     Snapshot::new(
@@ -1013,6 +1017,8 @@ pub fn virtual_list_scroll_offset_roundtrip(cx: &mut TestAppContext) {
         range_end: 10,
         estimated_item_size: 24.0,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
     let snapshot = Snapshot::new(1, 1, 0, 1, vec![Node::new(1, 0, 0, KIND_VIEW), list]);
     registry
@@ -1394,6 +1400,7 @@ pub fn pressable_focusable_update_roundtrip(cx: &mut TestAppContext) {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     )
     .encode()
@@ -2992,4 +2999,234 @@ fn system_popover_nested_activation_uses_native_focus_before_observers_catch_up(
         );
     });
     cx.run_until_parked();
+}
+
+/// The test platform records reposition requests instead of moving a real
+/// popup surface, so "the popup follows" is asserted through the anchor each
+/// reconcile submits plus the root render count it costs.
+#[gpui::test]
+fn system_popover_follows_passive_owner_move_without_repainting_the_root(cx: &mut TestAppContext) {
+    use gpui::point;
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .unwrap();
+    let owner: AnyWindowHandle = window_for(&registry, cx, 1).into();
+    cx.simulate_window_move(owner, point(px(0.0), px(0.0)), point(px(-12.0), px(-24.0)));
+    let snapshot = Snapshot::new(
+        1,
+        1,
+        0,
+        1,
+        vec![
+            Node::new(1, 0, 0, KIND_VIEW),
+            styled_view(
+                2,
+                1,
+                0,
+                Style {
+                    width: Some(120.0),
+                    height: Some(32.0),
+                    ..Default::default()
+                },
+            ),
+        ],
+    );
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot.encode().unwrap(), cx)
+        })
+        .unwrap();
+    route_command(
+        &registry,
+        cx,
+        Command::new(
+            CommandMeta {
+                surface_id: 1,
+                epoch: 1,
+                after_revision: 1,
+                request_id: 1,
+                node_id: 1,
+            },
+            CommandOperation::OpenPopup {
+                anchor_node_id: 2,
+                width: 300,
+                height: 180,
+                placement: 0,
+                gap: 8.0,
+            },
+        ),
+    );
+    let result = command_result(&take_events(&runtime), 1);
+    assert!(result.success, "{:?}", result.error);
+    let Some(CommandValue::Number(child)) = result.value else {
+        panic!("popup Surface ID")
+    };
+    let popup: AnyWindowHandle = window_for(&registry, cx, child).into();
+    // Run and drain the owner's initial window observation so the post-move
+    // assertions see only deltas, never initial emissions.
+    advance_frame(window_for(&registry, cx, 1), cx);
+    take_events(&runtime);
+    let anchor_at_open = registry.read_with(cx, |registry, cx| {
+        registry.surfaces[&1].root.read(cx).popup_anchor(2)
+    });
+    let anchor_at_open = anchor_at_open.expect("painted popup anchor");
+    let owner_before = cx
+        .update_window(owner, |_, window, _| window.bounds())
+        .expect("owner bounds");
+    let _ = crate::profile::take();
+
+    // The pointer sits outside the client area, so the move changes no
+    // client-relative pointer state either.
+    cx.simulate_window_move(
+        owner,
+        point(px(40.0), px(30.0)),
+        point(px(-12.0), px(-24.0)),
+    );
+    cx.run_until_parked();
+    // Serve the observation frame the bounds change scheduled: a passive move
+    // must neither draw from it nor emit a resize observation through it.
+    advance_frame(window_for(&registry, cx, 1), cx);
+
+    let samples = crate::profile::take();
+    assert_eq!(
+        samples.count[crate::profile::Stage::Render as usize],
+        0,
+        "a passive owner move must not repaint the owner root while a popup is open"
+    );
+    let owner_after = cx
+        .update_window(owner, |_, window, _| window.bounds())
+        .expect("owner bounds");
+    assert_eq!(
+        owner_after.origin - owner_before.origin,
+        point(px(40.0), px(30.0)),
+        "the simulated move must actually move the owner window"
+    );
+    assert_eq!(
+        cx.repositioned_popup_anchors(popup),
+        vec![anchor_at_open],
+        "the passive move must reposition the popup from the unchanged painted anchor"
+    );
+    registry.read_with(cx, |registry, _| {
+        assert!(
+            registry.popups.contains_key(&child),
+            "the popup must survive a passive owner move"
+        )
+    });
+    assert!(
+        take_events(&runtime).iter().all(|event| {
+            !(event.meta.surface_id == 1
+                && matches!(event.payload, EventPayload::WindowResize { .. }))
+        }),
+        "a pure move is not a resize and must not emit an owner window resize observation"
+    );
+}
+
+/// A resize re-lays out the anchor, so the popup must re-anchor through the
+/// post-layout render path and the root must repaint exactly once.
+#[gpui::test]
+fn system_popover_follows_a_relaid_out_anchor_after_resize_with_one_repaint(
+    cx: &mut TestAppContext,
+) {
+    use gpui::size;
+    let runtime = InMemoryAdapter::new();
+    let registry = cx.new(|_| NativeStateRegistry::new(runtime.clone()));
+    registry
+        .update(cx, |registry, cx| registry.open_initial(cx))
+        .unwrap();
+    let mut spacer = Node::new(2, 1, 0, KIND_VIEW);
+    spacer.style = Some(Style {
+        flex_grow: Some(1.0),
+        ..Default::default()
+    });
+    let snapshot = Snapshot::new(
+        1,
+        1,
+        0,
+        1,
+        vec![
+            // The store root is forced to size_full flex_col, so the spacer
+            // pins the anchor to the window bottom.
+            Node::new(1, 0, 0, KIND_VIEW),
+            spacer,
+            styled_view(
+                3,
+                1,
+                1,
+                Style {
+                    width: Some(120.0),
+                    height: Some(32.0),
+                    ..Default::default()
+                },
+            ),
+        ],
+    );
+    registry
+        .update(cx, |registry, cx| {
+            registry.route_payload(&snapshot.encode().unwrap(), cx)
+        })
+        .unwrap();
+    route_command(
+        &registry,
+        cx,
+        Command::new(
+            CommandMeta {
+                surface_id: 1,
+                epoch: 1,
+                after_revision: 1,
+                request_id: 1,
+                node_id: 1,
+            },
+            CommandOperation::OpenPopup {
+                anchor_node_id: 3,
+                width: 300,
+                height: 180,
+                placement: 0,
+                gap: 8.0,
+            },
+        ),
+    );
+    let result = command_result(&take_events(&runtime), 1);
+    assert!(result.success, "{:?}", result.error);
+    let Some(CommandValue::Number(child)) = result.value else {
+        panic!("popup Surface ID")
+    };
+    let popup: AnyWindowHandle = window_for(&registry, cx, child).into();
+    let owner: AnyWindowHandle = window_for(&registry, cx, 1).into();
+    let anchor_at = |cx: &mut TestAppContext| {
+        registry
+            .read_with(cx, |registry, cx| {
+                registry.surfaces[&1].root.read(cx).popup_anchor(3)
+            })
+            .expect("painted popup anchor")
+    };
+    let anchor_before = anchor_at(cx);
+    let _ = crate::profile::take();
+
+    cx.simulate_window_resize(owner, size(px(800.0), px(700.0)));
+    cx.run_until_parked();
+
+    let samples = crate::profile::take();
+    assert_eq!(
+        samples.count[crate::profile::Stage::Render as usize],
+        1,
+        "a resize with a popup open must repaint the root exactly once"
+    );
+    let anchor_after = anchor_at(cx);
+    assert_ne!(
+        anchor_after, anchor_before,
+        "the fixture anchor must move when the window resizes"
+    );
+    assert_eq!(
+        cx.repositioned_popup_anchors(popup),
+        vec![anchor_after],
+        "the popup must re-anchor to the freshly laid out anchor"
+    );
+    registry.read_with(cx, |registry, _| {
+        assert!(
+            registry.popups.contains_key(&child),
+            "the popup must survive an owner resize"
+        )
+    });
 }

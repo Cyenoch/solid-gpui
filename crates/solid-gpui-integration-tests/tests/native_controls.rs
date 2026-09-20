@@ -136,6 +136,7 @@ fn update(id: u32, props: HostProperties) -> PatchOperation {
         selectable: false,
         tooltip: None,
         accepts_pointer_move: false,
+        observes_layout: false,
     }
 }
 fn root_node() -> Node {

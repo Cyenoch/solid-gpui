@@ -10,7 +10,7 @@ Use this order:
 2. [`getting-started.md`](getting-started.md) — the authoritative external-consumer sequence: install, prepare, typecheck, develop, test, build, preview, plus the Cargo requirements your workspace root must carry. The SDK is not on a public registry yet, so it starts by packing tarballs from one pinned checkout.
 3. [`../CONTEXT.md`](../CONTEXT.md) — shared domain vocabulary and invariants.
 4. [`vite.md`](vite.md) — plugin options, artifact lookup, the published test runner, source consumption, and native module generation.
-5. [`protocol.md`](protocol.md) — authoritative framed Bebop v5 contract, bounded decoding, and generated binding workflow.
+5. [`protocol.md`](protocol.md) — authoritative framed Bebop v6 contract, bounded decoding, and generated binding workflow.
 6. [`troubleshooting.md`](troubleshooting.md) — stale bindings, install-hook mistakes, cross-target refusals, and runtime failures.
 7. [`rust-bridge.md`](rust-bridge.md) — export Rust logic and native components, configure desktop hosts, windows, and titlebars.
 8. [`hot-reload.md`](hot-reload.md) — Bun HMR and QuickJS application reload, Rust rebuild watching, persistent development sessions, explicit state contracts, and activation/recovery verification.

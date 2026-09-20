@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import type { Setter } from "solid-js";
 import type { ExtensionDescriptor } from "../src/renderer/extension";
+import type { HostNodeInternal } from "../src/renderer/types";
 import {
   Icon,
   Image,
@@ -15,15 +16,21 @@ import {
   createRoot,
   createSurfaceHost,
 } from "../src/index";
-import { Envelope, type Body as WireBody } from "../src/protocol/generated/protocol";
+import { TestHost } from "../src/testing";
+import {
+  Envelope,
+  type Body as WireBody,
+  type PatchOperationValue as WirePatchOperationValue,
+} from "../src/protocol/generated/protocol";
 import {
   COMMAND_INVOKE_NATIVE,
   MAX_NATIVE_CALL_BYTES,
   MAX_IMAGE_SOURCE_BYTES,
+  UPDATE_LAYOUT,
   encodeFrame,
   type Event,
 } from "../src/protocol";
-import { batch, createComponent, createSignal, onCleanup } from "../src/runtime";
+import { For, batch, createComponent, createSignal, onCleanup } from "../src/runtime";
 import { TransportTerminatedError, type Transport } from "../src/transport";
 import { hostConfig, withRoot } from "../src/renderer/host-config";
 import { RootContainer } from "../src/renderer/root-container";
@@ -32,6 +39,13 @@ function body(frame: Uint8Array): WireBody {
   const length = new DataView(frame.buffer, frame.byteOffset, 4).getUint32(0, true);
   expect(length).toBe(frame.byteLength - 4);
   return Envelope.decode(frame.subarray(4)).body!;
+}
+function childIds(parent: HostNodeInternal): number[] {
+  const ids: number[] = [];
+  for (let child = hostConfig.getFirstChild(parent); child !== undefined; child = hostConfig.getNextSibling(child)) {
+    ids.push(child.id);
+  }
+  return ids;
 }
 
 test("invokeNative returns opaque bytes through the surface command lifecycle", async () => {
@@ -361,8 +375,10 @@ test("reparenting detached children preserves unique ownership and rollback rest
     const children = [make(), make(), make()];
     for (const child of children) hostConfig.insertNode(first, child);
     hostConfig.insertNode(second, children[1]!);
-    expect(first.children.map((child) => child.id)).toEqual([children[0]!.id, children[2]!.id]);
-    expect(second.children.map((child) => child.id)).toEqual([children[1]!.id]);
+    // Mid-transaction order reads go through the sibling accessors; the
+    // materialized children array lags until the commit boundary.
+    expect(childIds(first)).toEqual([children[0]!.id, children[2]!.id]);
+    expect(childIds(second)).toEqual([children[1]!.id]);
     hostConfig.insertNode(container.tree.syntheticRoot, first);
     hostConfig.insertNode(container.tree.syntheticRoot, second);
     await Promise.resolve();
@@ -383,6 +399,361 @@ test("reparenting detached children preserves unique ownership and rollback rest
     expect(children.map((child) => child.index)).toEqual([0, 0, 1]);
     expect(children.map((child) => hostConfig.getParentNode(child)?.id)).toEqual([first.id, second.id, first.id]);
     expect(hostConfig.getNextSibling(children[0]!)).toBe(children[2]);
+  } finally {
+    container.dispose();
+  }
+});
+
+test("left and right rotations each emit a single retained-identity Move", () => {
+  const submitted: Uint8Array[] = [];
+  const container = new RootContainer({
+    surfaceId: 86,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const parent = withRoot(container.tree, () => hostConfig.createElement("View"));
+    const children: HostNodeInternal[] = [];
+    for (let index = 0; index < 6; index++) {
+      const child = withRoot(container.tree, () => hostConfig.createElement("View"));
+      children.push(child);
+      hostConfig.insertNode(parent, child);
+    }
+    hostConfig.insertNode(container.tree.syntheticRoot, parent);
+    container.tree.commit();
+    expect(submitted).toHaveLength(1);
+
+    // Left rotation: move the first child to the end.
+    hostConfig.insertNode(parent, children[0]!);
+    container.tree.commit();
+    expect(submitted).toHaveLength(2);
+    const leftPatch = body(submitted[1]!);
+    expect(leftPatch.tag).toBe(3);
+    if (leftPatch.tag !== 3) throw new Error("expected patch");
+    expect(leftPatch.value.operations).toHaveLength(1);
+    const leftMove = leftPatch.value.operations?.[0]?.operation;
+    expect(leftMove?.tag).toBe(3);
+    expect(leftMove?.tag === 3 ? leftMove.value : null).toMatchObject({
+      id: children[0]!.id,
+      parentId: parent.id,
+      index: 5,
+    });
+
+    // Right rotation: move the (formerly first) last child before the head.
+    hostConfig.insertNode(parent, children[0]!, children[1]!);
+    container.tree.commit();
+    expect(submitted).toHaveLength(3);
+    const rightPatch = body(submitted[2]!);
+    expect(rightPatch.tag).toBe(3);
+    if (rightPatch.tag !== 3) throw new Error("expected patch");
+    expect(rightPatch.value.operations).toHaveLength(1);
+    const rightMove = rightPatch.value.operations?.[0]?.operation;
+    expect(rightMove?.tag).toBe(3);
+    expect(rightMove?.tag === 3 ? rightMove.value : null).toMatchObject({
+      id: children[0]!.id,
+      parentId: parent.id,
+      index: 0,
+    });
+
+    // Identities survive both rotations in the original order.
+    expect(childIds(parent)).toEqual(children.map((child) => child.id));
+  } finally {
+    container.dispose();
+  }
+});
+
+test("swapping the two endpoint children costs exactly two Moves", () => {
+  const submitted: Uint8Array[] = [];
+  const container = new RootContainer({
+    surfaceId: 88,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const parent = withRoot(container.tree, () => hostConfig.createElement("View"));
+    const children: HostNodeInternal[] = [];
+    for (let index = 0; index < 7; index++) {
+      const child = withRoot(container.tree, () => hostConfig.createElement("View"));
+      children.push(child);
+      hostConfig.insertNode(parent, child);
+    }
+    hostConfig.insertNode(container.tree.syntheticRoot, parent);
+    container.tree.commit();
+
+    const first = children[0]!;
+    const last = children[children.length - 1]!;
+    hostConfig.insertNode(parent, last, first);
+    hostConfig.insertNode(parent, first);
+    container.tree.commit();
+    const patch = body(submitted[1]!);
+    expect(patch.tag).toBe(3);
+    if (patch.tag !== 3) throw new Error("expected patch");
+    const moves = patch.value.operations?.filter((operation) => operation.operation?.tag === 3) ?? [];
+    expect(patch.value.operations).toHaveLength(2);
+    // Emission walks final slots right to left.
+    expect(moves.map((operation) => operation.operation?.value)).toEqual([
+      { id: first.id, parentId: parent.id, index: 6 },
+      { id: last.id, parentId: parent.id, index: 0 },
+    ]);
+    expect(childIds(parent)).toEqual([last.id, ...children.slice(1, -1).map((child) => child.id), first.id]);
+  } finally {
+    container.dispose();
+  }
+});
+
+test("a failed reorder commit rolls back links and a second reorder still lands exactly", async () => {
+  const submitted: Uint8Array[] = [];
+  let acceptFrames = true;
+  const container = new RootContainer({
+    surfaceId: 89,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      if (!acceptFrames) return false;
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const parent = withRoot(container.tree, () => hostConfig.createElement("View"));
+    const children: HostNodeInternal[] = [];
+    for (let index = 0; index < 4; index++) {
+      const child = withRoot(container.tree, () => hostConfig.createElement("View"));
+      children.push(child);
+      hostConfig.insertNode(parent, child);
+    }
+    hostConfig.insertNode(container.tree.syntheticRoot, parent);
+    container.tree.commit();
+    expect(submitted).toHaveLength(1);
+    const [a, b, c, d] = children;
+
+    // Reorder b before a, then reject the transport submission.
+    hostConfig.insertNode(parent, b, a);
+    acceptFrames = false;
+    container.tree.commit();
+    await Promise.resolve();
+    expect(submitted).toHaveLength(1);
+    // Sibling links, order, and indexes are all restored; a stale or cyclic
+    // chain would corrupt or hang this walk.
+    expect(childIds(parent)).toEqual(children.map((child) => child.id));
+    expect(children.map((child) => child.index)).toEqual([0, 1, 2, 3]);
+
+    // Second reorder commits and plans against the restored published order.
+    acceptFrames = true;
+    hostConfig.insertNode(parent, c, a);
+    await Promise.resolve();
+    expect(submitted).toHaveLength(2);
+    const patch = body(submitted[1]!);
+    expect(patch.tag).toBe(3);
+    if (patch.tag !== 3) throw new Error("expected patch");
+    expect(patch.value.operations).toHaveLength(1);
+    const move = patch.value.operations?.[0]?.operation;
+    expect(move?.tag).toBe(3);
+    expect(move?.tag === 3 ? move.value : null).toMatchObject({ id: c.id, parentId: parent.id, index: 0 });
+    expect(childIds(parent)).toEqual([c.id, a.id, b.id, d.id]);
+  } finally {
+    container.dispose();
+  }
+});
+
+test("a Solid For reverse reorder plans minimal moves with bounded index work", async () => {
+  const transport = new MemoryTransport();
+  const host = new TestHost(transport);
+  const root = createRoot(transport, { surfaceId: 34 });
+  const size = 64;
+  const [items, setItems] = createSignal<number[]>(Array.from({ length: size }, (_, index) => index));
+  const rows = new Map<number, HostNodeInternal>();
+  root.render(() =>
+    createComponent(View, {
+      children: createComponent(For<number>, {
+        get each() {
+          return items();
+        },
+        children: (item) => {
+          const row = createHostElement("Text", { children: String(item) });
+          rows.set(item, row);
+          return row;
+        },
+      }),
+    }),
+  );
+  await Promise.resolve();
+  const order = () =>
+    host
+      .surface(34)!
+      .nodes.filter((node) => node.kind === "RawText")
+      .map((node) => node.text)
+      .map(Number);
+  expect(order()).toEqual(Array.from({ length: size }, (_, index) => index));
+
+  // Count index writes during the reversal; only the single commit-boundary
+  // materialization may touch them, not every move.
+  let indexWrites = 0;
+  for (const row of rows.values()) {
+    let current = row.index;
+    Object.defineProperty(row, "index", {
+      get: () => current,
+      set(value: number) {
+        indexWrites += 1;
+        current = value;
+      },
+    });
+  }
+  setItems(Array.from({ length: size }, (_, index) => size - 1 - index));
+  await Promise.resolve();
+
+  const patch = body(transport.submitted[transport.submitted.length - 1]!);
+  expect(patch.tag).toBe(3);
+  if (patch.tag !== 3) throw new Error("expected patch");
+  const kinds = { create: 0, move: 0, update: 0, delete: 0 };
+  for (const operation of patch.value.operations ?? []) {
+    if (operation.operation?.tag === 1) kinds.create += 1;
+    else if (operation.operation?.tag === 2) kinds.update += 1;
+    else if (operation.operation?.tag === 3) kinds.move += 1;
+    else if (operation.operation?.tag === 4) kinds.delete += 1;
+  }
+  // Every row keeps its host node; a full reverse retains exactly one row.
+  expect(kinds).toEqual({ create: 0, move: size - 1, update: 0, delete: 0 });
+  expect(indexWrites).toBeLessThanOrEqual(size);
+  expect(order()).toEqual(Array.from({ length: size }, (_, index) => size - 1 - index));
+  // Preorder Text nodes are the retained rows, now in reversed order.
+  const rowIds = host
+    .surface(34)!
+    .nodes.filter((node) => node.kind === "Text")
+    .map((node) => node.id);
+  expect(rowIds).toEqual([...rows.keys()].reverse().map((item) => rows.get(item)!.id));
+  root.unmount();
+});
+
+test("mixed structural operations roll back and recommit cleanly", async () => {
+  const submitted: Uint8Array[] = [];
+  const container = new RootContainer({
+    surfaceId: 90,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const make = () => withRoot(container.tree, () => hostConfig.createElement("View"));
+    const parent = make();
+    const a = make();
+    const b = make();
+    const c = make();
+    for (const child of [a, b, c]) hostConfig.insertNode(parent, child);
+    hostConfig.insertNode(container.tree.syntheticRoot, parent);
+    container.tree.commit();
+    expect(submitted).toHaveLength(1);
+
+    // One transaction mixes a reorder, a cross-parent move, a create, and a delete.
+    const moved = withRoot(container.tree, () => {
+      const node = make();
+      hostConfig.insertNode(parent, c, a);
+      hostConfig.insertNode(container.tree.syntheticRoot, node, parent);
+      hostConfig.insertNode(parent, node, b);
+      hostConfig.removeNode(parent, b);
+      return node;
+    });
+    container.tree.invalid = true;
+    await Promise.resolve();
+    expect(submitted).toHaveLength(1);
+    expect(childIds(parent)).toEqual([a.id, b.id, c.id]);
+    expect(hostConfig.getParentNode(moved)).toBeUndefined();
+    expect([a, b, c].map((child) => child.index)).toEqual([0, 1, 2]);
+
+    // The rolled-back graph still plans a minimal reorder.
+    hostConfig.insertNode(parent, c, a);
+    await Promise.resolve();
+    expect(submitted).toHaveLength(2);
+    const patch = body(submitted[1]!);
+    expect(patch.tag).toBe(3);
+    if (patch.tag !== 3) throw new Error("expected patch");
+    expect(patch.value.operations).toHaveLength(1);
+    const move = patch.value.operations?.[0]?.operation;
+    expect(move?.tag).toBe(3);
+    expect(move?.tag === 3 ? move.value : null).toMatchObject({ id: c.id, parentId: parent.id, index: 0 });
+    expect(childIds(parent)).toEqual([c.id, a.id, b.id]);
+  } finally {
+    container.dispose();
+  }
+});
+
+test("layout observation demand rides snapshots and UPDATE_LAYOUT patches", async () => {
+  const submitted: Uint8Array[] = [];
+  const container = new RootContainer({
+    surfaceId: 91,
+    epoch: 1,
+    scheduleDispatch: (dispatch) => dispatch(),
+    submitFrame: (frame) => {
+      submitted.push(frame);
+      return true;
+    },
+  });
+  try {
+    const view = withRoot(container.tree, () => hostConfig.createElement("View"));
+    // Internal visible-range geometry must not imply layout observation.
+    const passive = withRoot(container.tree, () =>
+      createHostElement("VirtualList", {
+        __data: [],
+        __itemCount: 0,
+        __rangeStart: 0,
+        __rangeEnd: 0,
+        __estimatedItemSize: 48,
+        __onVisibleRange: () => {},
+      }),
+    );
+    hostConfig.insertNode(container.tree.syntheticRoot, view);
+    hostConfig.insertNode(container.tree.syntheticRoot, passive);
+    container.tree.commit();
+    const snapshot = body(submitted[0]!);
+    expect(snapshot.tag).toBe(1);
+    if (snapshot.tag !== 1) throw new Error("expected snapshot");
+    const nodes = snapshot.value.nodes ?? [];
+    expect(nodes.find((node) => node.id === view.id)?.observesLayout).toBe(false);
+    expect(nodes.find((node) => node.id === passive.id)?.observesLayout).toBe(false);
+
+    hostConfig.setProperty(view, "onLayout", () => {});
+    await Promise.resolve();
+    const subscribe = body(submitted[1]!);
+    expect(subscribe.tag).toBe(3);
+    if (subscribe.tag !== 3) throw new Error("expected patch");
+    const layoutUpdates = (subscribe.value.operations ?? [])
+      .map((operation) => operation.operation)
+      .filter(
+        (operation): operation is Extract<WirePatchOperationValue, { tag: 2 }> =>
+          operation?.tag === 2 && ((operation.value.mask ?? 0) & UPDATE_LAYOUT) !== 0,
+      );
+    expect(layoutUpdates).toHaveLength(1);
+    expect(layoutUpdates[0]?.value.id).toBe(view.id);
+    expect(layoutUpdates[0]?.value.observesLayout).toBe(true);
+    expect(view.observesLayout).toBe(true);
+
+    hostConfig.setProperty(view, "onLayout", undefined);
+    hostConfig.setProperty(view, "tooltip", "details");
+    await Promise.resolve();
+    const changes = body(submitted[2]!);
+    expect(changes.tag).toBe(3);
+    if (changes.tag !== 3) throw new Error("expected patch");
+    const viewUpdate = (changes.value.operations ?? [])
+      .map((operation) => operation.operation)
+      .find(
+        (operation): operation is Extract<WirePatchOperationValue, { tag: 2 }> =>
+          operation?.tag === 2 && operation.value.id === view.id,
+      );
+    expect(viewUpdate).toBeDefined();
+    expect((viewUpdate?.value.mask ?? 0) & UPDATE_LAYOUT).toBe(UPDATE_LAYOUT);
+    expect(viewUpdate?.value.observesLayout).toBe(false);
+    expect(view.observesLayout).toBe(false);
   } finally {
     container.dispose();
   }
@@ -599,7 +970,15 @@ test("VirtualList filtering after scrolling keeps its committed range valid", as
       ? [operation.value.hostProperties.value]
       : [];
   });
-  expect(properties).toContainEqual({ itemCount: 1, rangeStart: 0, rangeEnd: 1, estimatedItemSize: 20, overscan: 2 });
+  expect(properties).toContainEqual({
+    itemCount: 1,
+    rangeStart: 0,
+    rangeEnd: 1,
+    estimatedItemSize: 20,
+    overscan: 2,
+    dataRevision: 1,
+    dataEdit: { baseRevision: 0, start: 0, oldCount: 100, newCount: 1 },
+  });
   root.unmount();
 });
 

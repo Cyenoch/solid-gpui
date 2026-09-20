@@ -2,7 +2,7 @@
 export const PROTOCOL_SCHEMA = {
   schema: "protocol.bop",
   root: "Envelope",
-  digest: "912b55d4d924c340c29ac554544886b3de0cda9b2b46e10ce4d5a5bbd20a19a3",
+  digest: "79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc",
   definitions: {
     NodeKind: {
       kind: "enum",
@@ -662,6 +662,22 @@ export const PROTOCOL_SCHEMA = {
             name: "uint32",
           },
         },
+        {
+          id: 6,
+          name: "dataRevision",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 7,
+          name: "dataEdit",
+          type: {
+            kind: "def",
+            name: "VirtualListDataEdit",
+          },
+        },
       ],
     },
     ImageProperties: {
@@ -820,6 +836,43 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 3,
           name: "color",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+      ],
+    },
+    VirtualListDataEdit: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "baseRevision",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 2,
+          name: "start",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 3,
+          name: "oldCount",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 4,
+          name: "newCount",
           type: {
             kind: "scalar",
             name: "uint32",
@@ -1703,6 +1756,14 @@ export const PROTOCOL_SCHEMA = {
             name: "bool",
           },
         },
+        {
+          id: 14,
+          name: "observesLayout",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
       ],
     },
     ClearStyle: {
@@ -1837,6 +1898,14 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 12,
           name: "acceptsPointerMove",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
+        {
+          id: 13,
+          name: "observesLayout",
           type: {
             kind: "scalar",
             name: "bool",

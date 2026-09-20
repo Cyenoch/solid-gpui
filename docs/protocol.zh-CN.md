@@ -1,6 +1,6 @@
-# Solid GPUI 协议 v5
+# Solid GPUI 协议 v6
 
-本文描述 TypeScript 渲染器与 Rust/GPUI 宿主之间已实现的线协议。v5 是两端同步切换到 Bebop 的全新契约。权威 schema 位于 [protocol.bop](../packages/solid-gpui/src/protocol/protocol.bop)，已校验生成绑定分别位于 TypeScript 和 Rust 协议模块。schema-lock.json 将版本 5 固定到 SHA-256 `e0fcd0e7b6c78ce18dce79c5d5d54be7e6fe27a0c717d4b88132ca13f0c2e3b3`，漂移会使生成检查失败。普通包和 Rust 构建消费已提交文件，不调用 bebopc。重新生成与检查：
+本文描述 TypeScript 渲染器与 Rust/GPUI 宿主之间已实现的线协议。v6 为 Bebop 契约新增显式布局订阅和带数据版本的虚拟列表编辑，两端必须同步重建，不接受 v5 载荷。权威 schema 位于 [protocol.bop](../packages/solid-gpui/src/protocol/protocol.bop)，已校验生成绑定分别位于 TypeScript 和 Rust 协议模块。schema-lock.json 将版本 6 固定到 SHA-256 `79b3483d965afe200217f575d8182d7e59670cdc7af19ca3772995e87866ecdc`，漂移会使生成检查失败。普通包和 Rust 构建消费已提交文件，不调用 bebopc。重新生成与检查：
 
 ```sh
 bun run task protocol-codegen
@@ -27,12 +27,12 @@ Rust 在协议边界使用类型化语义消息：Command 包含 CommandMeta 和
 
 ```text
 Envelope {
-  protocolVersion: u32 = 5,
+  protocolVersion: u32 = 6,
   body: Body,
 }
 ```
 
-Body 稳定标签为 1=Snapshot、2=Event、3=Patch、4=Command。解码要求 protocolVersion 存在且为 5、一个已知 body union、无尾随字节，不尝试旧版解码。不提供版本协商、双解码器或宽松回退，两端必须共用 v5 契约。
+Body 稳定标签为 1=Snapshot、2=Event、3=Patch、4=Command。解码要求 protocolVersion 存在且为 6、一个已知 body union、无尾随字节，不尝试旧版解码。不提供版本协商、双解码器或宽松回退，两端必须共用 v6 契约。
 
 Bebop 消息是带长度的记录，字段 ID 单调递增并以 0 结束；数组带有界 u32 数量，字符串和字节数组带有界 u32 字节长度。生成读取器执行前，Rust guard.rs 和 TypeScript bebop-guard.ts 的 schema 派生防护检查：
 
@@ -50,15 +50,19 @@ Extension 的完整身份为 `(providerId, catalogDigest, entryId, entryVersion)
 
 Snapshot 包含 surfaceId、epoch、baseRevision、revision 和完整 nodes；Patch 使用相同 revision 头及有序 operations。首个 Snapshot 的 baseRevision 为零，后续 Patch 匹配当前 revision，且 revision > baseRevision。
 
-Node 携带 id、parentId、index、kind、全部 42 个 Style 槽、可选 RawText text、listenerId、可选带标签 HostProperties、AccessibilityProperties、focusable、selectable、tooltip 和 acceptsPointerMove。NodeKind 为 1=View、2=Text、3=Pressable、4=RawText、5=TextInput、6=VirtualList、7=Image、8=Extension、9=Icon。
+Node 携带 id、parentId、index、kind、全部 42 个 Style 槽、可选 RawText text、listenerId、可选带标签 HostProperties、AccessibilityProperties、focusable、selectable、tooltip、acceptsPointerMove 和 observesLayout。NodeKind 为 1=View、2=Text、3=Pressable、4=RawText、5=TextInput、6=VirtualList、7=Image、8=Extension、9=Icon。
 
 HostProperties 包含：
 
 - TextInput：值、占位文本、多行、禁用、受控状态、编辑序号、选区、marked range、最大长度和反向选区。
-- VirtualList：项数、可见范围、估计尺寸和 overscan。
+- VirtualList：项数、可见范围、估计尺寸、overscan、必需的 `dataRevision`，以及可选的 `dataEdit { baseRevision, start, oldCount, newCount }`。
 - Image：来源、object-fit 代码和备用来源。
 - Drag：拖动类型、导出文件、接受 drag-over/drop 标记。
 - Extension：16 字节 providerId、32 字节 catalogDigest、非零 entryId/entryVersion、有序唯一非零字段和事件 ID。字段支持 bool、i32、u32、有限 f32、有界文本和字节。字段和事件 ID 最多各 256 个；文本及字节的单值与合计均限制 1 MiB。
+
+虚拟列表编辑替换上一已发布数据的一段连续区间。新节点的数据版本为零，不携带编辑。数据版本变更时必须给出基于上一版本的编辑，旧区间合法且结果数量等于 itemCount；等长替换和重排也属于数据变更。仅视口变化时保留原版本与编辑，宿主不会重复应用已消费编辑。完整 Snapshot 提供完整状态，不作为增量编辑执行。无效 Patch 元数据在事务内拒绝，不通过重置列表掩盖错误。
+
+Node 字段 14 `observesLayout` 为必需布尔值。只有显式 `onLayout` 订阅才启用 JS 布局事件，其他事件监听不隐含布局观察。变化的边界按绘制顺序合并到每个 Surface 的一个待执行帧回调，未变化边界在调度前去重。原生选区、虚拟列表范围和弹出层锚点几何不依赖该订阅。Update 字段 13 通过 mask 位 512 修改订阅。
 
 无障碍属性含 role、label、description、disabled、checked、selected、value、expanded、heading level。Style 含尺寸、flex/对齐、间距、颜色、透明度、transition、边框、字体、定位、光标、文本对齐、最多两个 BoxShadow 和字体族。数值布局在线上用 f32，ID、枚举码、mask 和数量用 u32，语义校验约束有限/非负范围及所有权。
 
@@ -77,8 +81,9 @@ Patch 操作为 1=Create、2=Update、3=Move、4=Delete。PatchUpdate 精确保�
 |  64 | selectable   |
 | 128 | tooltip      |
 | 256 | 指针移动能力 |
+| 512 | 布局观察     |
 
-style 位设置时必须携带 style（设置）或空 clearStyle 标记（清除），未设置时两者均省略（不变）。focusable/selectable 同样在更新位未设置时省略，设置时必须存在，包括显式 false。位未设置却出现字段会被拒绝，省略字段转为语义 false 占位。带 mask 的可选字段区分省略清除与不变，显式 false/零保留。可选尾部仍是语义缺失，不是兼容路径。Create 携带完整 Node，Move 重新挂接/排序，Delete 移除子树，树校验和原子回滚保持权威。
+style 位设置时必须携带 style（设置）或空 clearStyle 标记（清除），未设置时两者均省略（不变）。focusable/selectable/acceptsPointerMove/observesLayout 同样在更新位未设置时省略，设置时必须存在，包括显式 false。位未设置却出现字段会被拒绝，省略字段转为语义 false 占位。带 mask 的可选字段区分省略清除与不变，显式 false/零保留。可选尾部仍是语义缺失，不是兼容路径。Create 携带完整 Node，Move 重新挂接/排序，Delete 移除子树，树校验和原子回滚保持权威。
 
 ## 3. 命令与命令值
 
@@ -176,12 +181,12 @@ Focus/Blur 有意保留双形式：View/Pressable 焦点观察者省略载荷，
 
 Rust NativeStateRegistry 拥有 surface、窗口、焦点、输入和保留状态。CommitPump 是有界交接点，接收 runtime 提交载荷并在 registry 前台 owner 应用，只验证和发布完整 Snapshot/Patch 状态。
 
-原生 Patch 使用被修改节点和子列表的事务日志，不再克隆整个节点存储。结构校验与 Extension 合约校验位于同一回滚范围，全部成功后才发布 revision 并更新原生状态。失败时恢复结构、派生文本与旧 revision。内部变更集合包含修改/删除的身份、原始与最终祖先，以及类型化子节点的归属依赖；校验、事件路由、原生实例更新和缓存失效共同消费该集合。结构变更可以访问被移动的兄弟节点和依赖子树，局部属性更新不复制无关节点。首次 Snapshot 仍完整验证树，v5 线协议不变。
+原生 Patch 使用被修改节点和子列表的事务日志，不再克隆整个节点存储。结构校验与 Extension 合约校验位于同一回滚范围，全部成功后才发布 revision 并更新原生状态。失败时恢复结构、派生文本与旧 revision。内部变更集合包含修改/删除的身份、原始与最终祖先，以及类型化子节点的归属依赖；校验、事件路由、原生实例更新和缓存失效共同消费该集合。结构变更可以访问被移动的兄弟节点和依赖子树，局部属性更新不复制无关节点。首次 Snapshot 仍完整验证树。
 
 TypeScript SurfaceRouter 是唯一帧解码和事件路由器，将输入 chunk 分组成各 surface 有序语义事件批次。HostTree 拥有私有 NodeGraph、事务日志、脏属性定稿和 Snapshot/Patch 生产；CommandClient 拥有请求 ID、待处理结果与终止拒绝。HostKind 事实模块拥有允许属性、子规则、投射类别和运行值能力。这些模块不向 Solid 组件暴露传输内部或生成协议记录。
 
 ## 6. 一致性与切换
 
-`bun run task protocol-golden-check` 重新生成代表性的 v5 Snapshot、Patch、全部 40 种 Command、全部 Event 载荷（含双形式 focus/blur）、畸形案例及帧边界，提交 fixture 漂移则失败。TypeScript 生成 ts_to_rust.hex，Rust 独立构造同类语义数据生成 rust_to_ts.hex。Rust 解码并重编码每个 TS 行，TS 结构/语义解码每个 Rust 行并验证规范字节，两端执行 invalid.hex 和 frames.hex 期望。语义错误包含有界 body、operation、node、field 路径，预解码 guard 保持通用有界结构错误。
+`bun run task protocol-golden-check` 重新生成代表性的 v6 Snapshot、Patch、全部 40 种 Command、全部 Event 载荷（含双形式 focus/blur）、畸形案例及帧边界，提交 fixture 漂移则失败。TypeScript 生成 ts_to_rust.hex，Rust 独立构造同类语义数据生成 rust_to_ts.hex。Rust 解码并重编码每个 TS 行，TS 结构/语义解码每个 Rust 行并验证规范字节，两端执行 invalid.hex 和 frames.hex 期望。语义错误包含有界 body、operation、node、field 路径，预解码 guard 保持通用有界结构错误。
 
 可复用带帧 Event writer 为每个 Rust 输出 worker 持有一个有界缓冲区，原地序列化，直接写四字节长度与载荷，flush 流块，避免每事件 payload Vec 加帧复制。TS 适配器使用可复用 BebopView 写入，只复制调用方拥有的返回传输帧。生成 runtime 不暴露给渲染器调用方。

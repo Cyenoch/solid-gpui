@@ -143,13 +143,15 @@ require a real host.
 
 ## Protocol
 
-The renderer speaks the lockstep framed Bebop v5 protocol. Each frame begins
+The renderer speaks the lockstep framed Bebop v6 protocol. Each frame begins
 with a four-byte little-endian payload length and carries a bounded Envelope.
 The canonical schema is
 `src/protocol/protocol.bop`; checked TypeScript bindings and schema metadata
 are generated from it, and the native host consumes matching generated Rust
 bindings. A schema-derived guard rejects malformed fields, unions, enums,
 strings, and repeated values before generated decoding.
+Version 6 adds explicit layout demand and revision-chained VirtualList data
+edits. Rebuild JavaScript and native hosts together; v5 frames are rejected.
 
 ## Repository website
 

@@ -7,7 +7,7 @@ use num_traits::Zero;
 use crate::{
     ActiveTheme,
     plot::{
-        Plot,
+        PathCaches, Plot,
         label::{PlotLabel, TEXT_HEIGHT, TEXT_SIZE, Text},
         polygon,
         shape::{Arc, ArcData, Pie},
@@ -169,22 +169,32 @@ impl<T> Plot for PieChart<T> {
         pie = pie.pad_angle(self.pad_angle);
         let arcs = pie.arcs(&self.data);
 
-        for a in &arcs {
-            let outer_radius = self.get_outer_radius(a, outer_radius);
-            let inner_radius = self.get_inner_radius(a).min(outer_radius);
-            arc.paint(
-                a,
-                if let Some(color_fn) = self.color.as_ref() {
-                    color_fn(a.data)
-                } else {
-                    cx.theme().chart_2
-                },
-                Some(inner_radius),
-                Some(outer_radius),
-                &bounds,
-                window,
-            );
-        }
+        // Each slice's ring segment is tessellated once and reused while its
+        // angles and radii stay the same; each frame only moves it to the
+        // pie's center. Slice i keeps the cache in slot i, so slices at
+        // stable indexes (a pie's slices are ordered by the data) reuse
+        // across frames and replaced slices rebuild by key.
+        let caches = PathCaches::for_paint("pie-chart", window, cx);
+        caches.update(cx, |caches, cx| {
+            for (ix, a) in arcs.iter().enumerate() {
+                let outer_radius = self.get_outer_radius(a, outer_radius);
+                let inner_radius = self.get_inner_radius(a).min(outer_radius);
+                arc.paint_cached(
+                    a,
+                    if let Some(color_fn) = self.color.as_ref() {
+                        color_fn(a.data)
+                    } else {
+                        cx.theme().chart_2
+                    },
+                    Some(inner_radius),
+                    Some(outer_radius),
+                    &bounds,
+                    caches.slot(ix),
+                    window,
+                );
+            }
+            caches.truncate(arcs.len());
+        });
 
         // Draw leader-line labels outside the ring (only when `label` is set).
         let Some(label_fn) = self.label.as_ref() else {

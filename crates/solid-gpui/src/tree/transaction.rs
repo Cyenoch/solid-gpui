@@ -13,6 +13,22 @@ pub(crate) struct PatchChanges {
     pub(crate) affected: HashSet<u32>,
     /// Composition readers and children whose typed ownership may have changed.
     pub(crate) validation: HashSet<u32>,
+    /// Settled-work counters backing the transaction bounds regressions.
+    #[cfg(test)]
+    pub(crate) work: TransactionWork,
+}
+
+/// Test-visible accounting of derived transaction work. Production builds pay
+/// nothing; the bounds regressions assert machine-independent counts.
+#[cfg(test)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TransactionWork {
+    /// Text ancestors whose derived cache was rebuilt.
+    pub(crate) text_derivations: u32,
+    /// Journal capture attempts, deduplicated per identity on storage.
+    pub(crate) journal_captures: u32,
+    /// Sibling index fields written by the final per-parent sync.
+    pub(crate) index_writes: u32,
 }
 
 pub(super) struct PatchTransaction<'a> {
@@ -82,6 +98,8 @@ impl<'a> PatchTransaction<'a> {
             removed: undo.removed.clone(),
             affected,
             validation,
+            #[cfg(test)]
+            work: undo.work,
         }
     }
 
@@ -106,10 +124,16 @@ pub(super) struct PatchUndo {
     pub(super) removed: HashSet<u32>,
     nodes: HashMap<u32, Option<StoredNode>>,
     children: HashMap<u32, Option<Vec<u32>>>,
+    #[cfg(test)]
+    pub(super) work: TransactionWork,
 }
 
 impl PatchUndo {
     pub(super) fn capture_node(&mut self, store: &NodeStore, id: u32) {
+        #[cfg(test)]
+        {
+            self.work.journal_captures += 1;
+        }
         self.nodes
             .entry(id)
             .or_insert_with(|| store.nodes.get(&id).cloned());
@@ -120,21 +144,6 @@ impl PatchUndo {
         self.children
             .entry(id)
             .or_insert_with(|| store.children.get(&id).cloned());
-    }
-
-    pub(super) fn capture_parent(&mut self, store: &NodeStore, parent: u32, first_changed: usize) {
-        self.capture(store, parent);
-        for &child in store
-            .children
-            .get(&parent)
-            .into_iter()
-            .flatten()
-            .skip(first_changed)
-        {
-            // Only the shifted suffix needs saved indexes. Appending to a wide
-            // parent does not visit or clone its existing sibling nodes.
-            self.capture_node(store, child);
-        }
     }
 
     fn rollback(self, store: &mut NodeStore) {

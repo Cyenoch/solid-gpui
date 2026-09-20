@@ -1,0 +1,32 @@
+--- a/vendor/gpui/src/window.rs
++++ b/vendor/gpui/src/window.rs
+@@ -2665,12 +2665,23 @@
+     /// the platform window, then notifies observers. Normally called automatically
+     /// by the platform's resize callback, but exposed publicly for test infrastructure.
+     pub fn bounds_changed(&mut self, cx: &mut App) {
+-        self.scale_factor = self.platform_window.scale_factor();
+-        self.viewport_size = self.platform_window.content_size();
+-        self.display_id = self.platform_window.display().map(|display| display.id());
+-        self.mouse_position = self.platform_window.mouse_position();
+-
+-        self.refresh();
++        let scale_factor = self.platform_window.scale_factor();
++        let viewport_size = self.platform_window.content_size();
++        let display_id = self.platform_window.display().map(|display| display.id());
++        let mouse_position = self.platform_window.mouse_position();
++        let geometry_changed = self.scale_factor != scale_factor
++            || self.viewport_size != viewport_size
++            || self.display_id != display_id;
++        let pointer_changed = self.is_window_hovered() && self.mouse_position != mouse_position;
++
++        self.scale_factor = scale_factor;
++        self.viewport_size = viewport_size;
++        self.display_id = display_id;
++        self.mouse_position = mouse_position;
++
++        if geometry_changed || pointer_changed {
++            self.refresh();
++        }
+ 
+         self.bounds_observers
+             .clone()

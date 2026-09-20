@@ -133,6 +133,13 @@ fn virtual_list() -> VirtualListProperties {
         range_end: 9,
         estimated_item_size: 24.5,
         overscan: 3,
+        data_revision: 1,
+        data_edit: Some(VirtualListDataEdit {
+            base_revision: 0,
+            start: 3,
+            old_count: 2,
+            new_count: 2,
+        }),
     }
 }
 
@@ -208,7 +215,8 @@ fn patch() -> Patch {
             | UPDATE_FOCUSABLE
             | UPDATE_SELECTABLE
             | UPDATE_TOOLTIP
-            | UPDATE_POINTER_MOVE,
+            | UPDATE_POINTER_MOVE
+            | UPDATE_LAYOUT,
         style: Some(full_style()),
         text: Some("new".to_owned()),
         listener_id: 12,
@@ -223,6 +231,7 @@ fn patch() -> Patch {
         selectable: true,
         tooltip: Some("updated".to_owned()),
         accepts_pointer_move: true,
+        observes_layout: true,
     };
     let clear_style = PatchOperation::Update {
         id: 4,
@@ -236,6 +245,7 @@ fn patch() -> Patch {
         selectable: false,
         tooltip: None,
         accepts_pointer_move: false,
+        observes_layout: false,
     };
 
     Patch::new(
@@ -977,7 +987,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     rows.sort();
     let output_text = format!(
-        "# protocol-golden-v5\n# id\tmessage\tpayload_hex\n{}\n",
+        "# protocol-golden-v6\n# id\tmessage\tpayload_hex\n{}\n",
         rows.join("\n")
     );
     fs::write(&output, output_text)?;

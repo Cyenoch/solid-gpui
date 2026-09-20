@@ -8,7 +8,7 @@ use gpui::{
     App, Bounds, FontWeight, ParentElement, Pixels, Point, TextAlign, Window, point, px, size,
 };
 use gpui_component::plot::{
-    AxisLabelSide, AxisText, Grid, IntoPlot, Plot, PlotAxis,
+    AxisLabelSide, AxisText, Grid, IntoPlot, PathCaches, Plot, PlotAxis,
     label::{PlotLabel, Text},
     shape::{Arc, ArcData, Area, Bar, Line, RadialLine},
     tooltip::{CrossLine, Dot, Tooltip},
@@ -663,38 +663,56 @@ impl ChartProps for PlotProps {
 }
 impl Plot for NativePlot {
     fn paint(&mut self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
-        for p in &self.shapes {
-            match p {
-                NativePrimitive::Axis(v) => v.paint(&bounds, window, cx),
-                NativePrimitive::Grid(v) => v.paint(&bounds, window),
-                NativePrimitive::Labels(v) => v.paint(&bounds, window, cx),
-                NativePrimitive::Line(v) => v.paint(&bounds, window),
-                NativePrimitive::Area(v) => v.paint(&bounds, window),
-                NativePrimitive::Bar(v) => v.paint(&bounds, window, cx),
-                NativePrimitive::RadialLine(v) => v.paint(&bounds, window),
-                NativePrimitive::Arc {
-                    shape,
-                    start_angle,
-                    end_angle,
-                    pad_angle,
-                    fill,
-                } => shape.paint(
-                    &ArcData {
-                        data: &(),
-                        index: 0,
-                        value: 0.,
-                        start_angle: *start_angle,
-                        end_angle: *end_angle,
-                        pad_angle: *pad_angle,
-                    },
-                    *fill,
-                    None,
-                    None,
-                    &bounds,
-                    window,
-                ),
+        // Path-based shapes reuse the tessellation of an earlier paint while
+        // their geometry stays the same; each frame only moves the cached
+        // paths into place. Primitive i owns cache slots `2i` and `2i + 1`
+        // (fills/strokes pair up, single-path shapes use the even slot), so
+        // replaced or removed primitives rebuild by key or drop their slots.
+        let caches = PathCaches::for_paint("native-plot-shapes", window, cx);
+        caches.update(cx, |caches, cx| {
+            for (ix, p) in self.shapes.iter().enumerate() {
+                match p {
+                    NativePrimitive::Axis(v) => v.paint(&bounds, window, cx),
+                    NativePrimitive::Grid(v) => v.paint(&bounds, window),
+                    NativePrimitive::Labels(v) => v.paint(&bounds, window, cx),
+                    NativePrimitive::Bar(v) => v.paint(&bounds, window, cx),
+                    NativePrimitive::Line(v) => {
+                        v.paint_cached(&bounds, caches.slot(2 * ix), window)
+                    }
+                    NativePrimitive::Area(v) => {
+                        let (fill, line) = caches.slot_pair(ix);
+                        v.paint_cached(&bounds, fill, line, window);
+                    }
+                    NativePrimitive::RadialLine(v) => {
+                        let (fill, stroke) = caches.slot_pair(ix);
+                        v.paint_cached(&bounds, fill, stroke, window);
+                    }
+                    NativePrimitive::Arc {
+                        shape,
+                        start_angle,
+                        end_angle,
+                        pad_angle,
+                        fill,
+                    } => shape.paint_cached(
+                        &ArcData {
+                            data: &(),
+                            index: 0,
+                            value: 0.,
+                            start_angle: *start_angle,
+                            end_angle: *end_angle,
+                            pad_angle: *pad_angle,
+                        },
+                        *fill,
+                        None,
+                        None,
+                        &bounds,
+                        caches.slot(2 * ix),
+                        window,
+                    ),
+                }
             }
-        }
+            caches.truncate(2 * self.shapes.len());
+        });
     }
 }
 #[crate::native_type]

@@ -418,6 +418,29 @@ impl TestAppContext {
         self.test_window(window_handle).simulate_resize(size);
     }
 
+    /// Simulates the platform moving the window to a new global origin,
+    /// including the client-relative mouse position a real platform re-samples
+    /// when the move is delivered. The moved callback then runs the same
+    /// bounds-changed path as a native move.
+    pub fn simulate_window_move(
+        &self,
+        window_handle: AnyWindowHandle,
+        origin: Point<Pixels>,
+        mouse_position: Point<Pixels>,
+    ) {
+        self.test_window(window_handle)
+            .simulate_move(origin, mouse_position);
+    }
+
+    /// Every popup anchor the window's platform surface was asked to
+    /// reposition to, in delivery order.
+    pub fn repositioned_popup_anchors(
+        &self,
+        window_handle: AnyWindowHandle,
+    ) -> Vec<Bounds<Pixels>> {
+        self.test_window(window_handle).repositioned_popup_anchors()
+    }
+
     /// Simulates a change in whether the platform is presenting the window.
     pub fn simulate_window_visibility_change(
         &self,

@@ -788,6 +788,16 @@ fn wire_host(value: &HostProperties) -> generated::HostProperties<'_> {
             range_end: Some(list.range_end),
             estimated_item_size: Some(list.estimated_item_size),
             overscan: Some(list.overscan),
+            data_revision: Some(list.data_revision),
+            data_edit: list
+                .data_edit
+                .as_ref()
+                .map(|edit| generated::VirtualListDataEdit {
+                    base_revision: Some(edit.base_revision),
+                    start: Some(edit.start),
+                    old_count: Some(edit.old_count),
+                    new_count: Some(edit.new_count),
+                }),
         },
         HostProperties::Image(image) => generated::HostProperties::ImageProperties {
             source: Some(&image.source),
@@ -871,12 +881,36 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
             range_end,
             estimated_item_size,
             overscan,
+            data_revision,
+            data_edit,
         } => {
             let item_count = item_count.ok_or(ProtocolError::InvalidHostProperties)?;
             let range_start = range_start.ok_or(ProtocolError::InvalidHostProperties)?;
             let range_end = range_end.ok_or(ProtocolError::InvalidHostProperties)?;
             let estimated_item_size =
                 estimated_item_size.ok_or(ProtocolError::InvalidHostProperties)?;
+            let data_revision = data_revision.ok_or(ProtocolError::InvalidHostProperties)?;
+            let data_edit = data_edit
+                .map(|edit| -> Result<_, ProtocolError> {
+                    let edit = VirtualListDataEdit {
+                        base_revision: edit
+                            .base_revision
+                            .ok_or(ProtocolError::InvalidHostProperties)?,
+                        start: edit.start.ok_or(ProtocolError::InvalidHostProperties)?,
+                        old_count: edit.old_count.ok_or(ProtocolError::InvalidHostProperties)?,
+                        new_count: edit.new_count.ok_or(ProtocolError::InvalidHostProperties)?,
+                    };
+                    if edit.base_revision >= data_revision
+                        || edit
+                            .start
+                            .checked_add(edit.new_count)
+                            .is_none_or(|end| end > item_count)
+                    {
+                        return Err(ProtocolError::InvalidHostProperties);
+                    }
+                    Ok(edit)
+                })
+                .transpose()?;
             if range_start > range_end
                 || range_end > item_count
                 || !estimated_item_size.is_finite()
@@ -890,6 +924,8 @@ fn decode_host(value: generated::HostProperties<'_>) -> Result<HostProperties, P
                 range_end,
                 estimated_item_size,
                 overscan: overscan.ok_or(ProtocolError::InvalidHostProperties)?,
+                data_revision,
+                data_edit,
             }))
         }
         generated::HostProperties::ImageProperties {
@@ -1011,6 +1047,7 @@ fn wire_node(value: &Node) -> Result<generated::Node<'_>, ProtocolError> {
         selectable: Some(value.selectable),
         tooltip: value.tooltip.as_deref(),
         accepts_pointer_move: Some(value.accepts_pointer_move),
+        observes_layout: Some(value.observes_layout),
     })
 }
 
@@ -1062,6 +1099,10 @@ fn decode_node(value: generated::Node<'_>) -> Result<Node, ProtocolError> {
         .accepts_pointer_move
         .ok_or(ProtocolError::InvalidHostProperties)
         .map_err(|error| error.at(path("acceptsPointerMove")))?;
+    let observes_layout = value
+        .observes_layout
+        .ok_or(ProtocolError::InvalidHostProperties)
+        .map_err(|error| error.at(path("observesLayout")))?;
     Ok(Node {
         id,
         parent_id,
@@ -1076,6 +1117,7 @@ fn decode_node(value: generated::Node<'_>) -> Result<Node, ProtocolError> {
         selectable,
         tooltip: value.tooltip.map(str::to_owned),
         accepts_pointer_move,
+        observes_layout,
     })
 }
 
@@ -1170,6 +1212,7 @@ fn wire_patch_operation(
             selectable,
             tooltip,
             accepts_pointer_move,
+            observes_layout,
         } => generated::PatchOperationValue::PatchUpdate {
             id: Some(*id),
             mask: Some(*mask),
@@ -1240,6 +1283,11 @@ fn wire_patch_operation(
             },
             accepts_pointer_move: if *mask & UPDATE_POINTER_MOVE != 0 {
                 Some(*accepts_pointer_move)
+            } else {
+                None
+            },
+            observes_layout: if *mask & UPDATE_LAYOUT != 0 {
+                Some(*observes_layout)
             } else {
                 None
             },
@@ -1338,6 +1386,7 @@ fn decode_patch_operation(
             selectable,
             tooltip,
             accepts_pointer_move,
+            observes_layout,
         } => {
             let id = id.ok_or_else(structural_error)?;
             let path = |field: &str| format!("patch node {id}.{field}");
@@ -1352,7 +1401,8 @@ fn decode_patch_operation(
                     | UPDATE_FOCUSABLE
                     | UPDATE_SELECTABLE
                     | UPDATE_TOOLTIP
-                    | UPDATE_POINTER_MOVE)
+                    | UPDATE_POINTER_MOVE
+                    | UPDATE_LAYOUT)
                 != 0
             {
                 return Err(invalid("mask"));
@@ -1395,6 +1445,11 @@ fn decode_patch_operation(
             {
                 return Err(invalid("acceptsPointerMove"));
             }
+            if mask & UPDATE_LAYOUT != 0 && observes_layout.is_none()
+                || mask & UPDATE_LAYOUT == 0 && observes_layout.is_some()
+            {
+                return Err(invalid("observesLayout"));
+            }
             Ok(PatchOperation::Update {
                 id,
                 mask,
@@ -1416,6 +1471,7 @@ fn decode_patch_operation(
                 selectable: selectable.unwrap_or(false),
                 tooltip: tooltip.map(str::to_owned),
                 accepts_pointer_move: accepts_pointer_move.unwrap_or(false),
+                observes_layout: observes_layout.unwrap_or(false),
             })
         }
         generated::PatchOperationValue::Unknown => Err(ProtocolError::UnknownPatchOperation(0)),

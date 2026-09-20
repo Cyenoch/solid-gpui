@@ -174,6 +174,8 @@ union HostProperties {
         3 -> uint32 rangeEnd;
         4 -> float32 estimatedItemSize;
         5 -> uint32 overscan;
+        6 -> uint32 dataRevision;
+        7 -> VirtualListDataEdit dataEdit;
     }
     3 -> message ImageProperties {
         1 -> string source;
@@ -199,6 +201,13 @@ union HostProperties {
         2 -> float32 size;
         3 -> uint32 color;
     }
+}
+
+message VirtualListDataEdit {
+    1 -> uint32 baseRevision;
+    2 -> uint32 start;
+    3 -> uint32 oldCount;
+    4 -> uint32 newCount;
 }
 
 message AccessibilityProperties {
@@ -326,6 +335,7 @@ message Node {
     11 -> bool selectable;
     12 -> string tooltip;
     13 -> bool acceptsPointerMove;
+    14 -> bool observesLayout;
 }
 
 message ClearStyle {}
@@ -347,6 +357,7 @@ union PatchOperationValue {
         10 -> bool selectable;
         11 -> string tooltip;
         12 -> bool acceptsPointerMove;
+        13 -> bool observesLayout;
     }
     3 -> message PatchMove {
         1 -> uint32 id;

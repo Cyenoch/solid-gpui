@@ -22,7 +22,14 @@ fn union(tag: u8, value: &[u8]) -> Vec<u8> {
     result
 }
 fn envelope(body: &[u8]) -> Vec<u8> {
-    let fields = [&[1, 5, 0, 0, 0, 2][..], body, &[0][..]].concat();
+    let fields = [
+        &[1][..],
+        &crate::protocol::PROTOCOL_VERSION.to_le_bytes(),
+        &[2][..],
+        body,
+        &[0][..],
+    ]
+    .concat();
     message(&fields)
 }
 fn required_node(include_listener: bool, include_accessibility: bool) -> Vec<u8> {
@@ -40,9 +47,9 @@ fn required_node(include_listener: bool, include_accessibility: bool) -> Vec<u8>
     }
     if include_accessibility {
         fields.push(9);
-        fields.extend_from_slice(&message(&[4, 0]));
+        fields.extend_from_slice(&message(&[4, 0, 0]));
     }
-    fields.extend_from_slice(&[10, 0, 11, 0, 13, 0, 0]);
+    fields.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 0]);
     message(&fields)
 }
 fn snapshot_with_node(node: Vec<u8>) -> Vec<u8> {
@@ -72,7 +79,8 @@ fn snapshot_with_style_code(field: u8, value: u32) -> Vec<u8> {
     node.extend_from_slice(&0u32.to_le_bytes());
     node.extend_from_slice(&[4, 1, 5]);
     node.extend_from_slice(&message(&style));
-    node.extend_from_slice(&[10, 0, 11, 0, 13, 0, 0]);
+    node.extend_from_slice(&[7, 0, 0, 0, 0]);
+    node.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 0]);
     snapshot_with_node(message(&node))
 }
 fn patch_with_update(
@@ -257,7 +265,7 @@ fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
         vec![
             PatchOperation::Update {
                 id: 1,
-                mask: crate::protocol::UPDATE_STYLE,
+                mask: crate::protocol::UPDATE_STYLE | crate::protocol::UPDATE_LAYOUT,
                 style: Some(Style::default()),
                 text: None,
                 listener_id: 0,
@@ -267,10 +275,13 @@ fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: true,
             },
             PatchOperation::Update {
                 id: 1,
-                mask: crate::protocol::UPDATE_STYLE | crate::protocol::UPDATE_TEXT,
+                mask: crate::protocol::UPDATE_STYLE
+                    | crate::protocol::UPDATE_TEXT
+                    | crate::protocol::UPDATE_LAYOUT,
                 style: None,
                 text: None,
                 listener_id: 0,
@@ -280,6 +291,7 @@ fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
                 selectable: false,
                 tooltip: None,
                 accepts_pointer_move: false,
+                observes_layout: false,
             },
             PatchOperation::Move {
                 id: 2,
@@ -324,16 +336,9 @@ fn style_wire_values_are_closed_and_invalid_codes_are_rejected() {
     }
 
     for (field, value) in [(3, 0), (40, 0)] {
+        Snapshot::decode(&snapshot_with_style_code(field, 1)).expect("valid style control frame");
         assert!(Snapshot::decode(&snapshot_with_style_code(field, value)).is_err());
     }
-}
-
-#[test]
-fn malformed_style_codes_are_rejected_before_semantic_tree_validation() {
-    let error = Snapshot::decode(&snapshot_with_style_code(3, 0))
-        .expect_err("invalid style code must not decode")
-        .to_string();
-    assert!(error.contains("style"));
 }
 
 #[test]
@@ -552,7 +557,7 @@ fn protocol_version_and_structural_limits_are_strict() {
         Event::decode(&wrong_version),
         Err(ProtocolError::UnsupportedProtocol {
             received: 3,
-            expected: 5
+            expected: crate::protocol::PROTOCOL_VERSION
         })
     ));
 

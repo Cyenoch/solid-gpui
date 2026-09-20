@@ -1,15 +1,15 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, Bounds, Corners, Hsla, Pixels, SharedString, TextAlign, Window, fill, linear_color_stop,
-    linear_gradient, point, px,
+    App, Bounds, Corners, Hsla, Pixels, Point, SharedString, TextAlign, Window, fill,
+    linear_color_stop, linear_gradient, point, px,
 };
 use gpui_component_macros::IntoPlot;
 
 use crate::{
     ActiveTheme,
     plot::{
-        Plot,
+        PathCaches, Plot, ShapeKey,
         label::{PlotLabel, TEXT_GAP, TEXT_SIZE, Text, measure_text_width, truncate_text_to_width},
         origin_point,
         shape::{Sankey, SankeyAlign, SankeyLink, SankeyValueScale, sankey_link_path},
@@ -370,27 +370,44 @@ impl<T> Plot for SankeyChart<T> {
             })
             .collect();
 
-        // Links first, under the nodes.
-        for link in &graph.links {
-            if link.value <= 0. {
-                continue;
+        // Links first, under the nodes. Each ribbon is tessellated once and
+        // reused while its layout geometry — ribbon centers, end positions
+        // and end widths — stays the same; each frame only moves it to the
+        // plot's origin. Link i keeps the cache in slot i.
+        let caches = PathCaches::for_paint("sankey-chart", window, cx);
+        caches.update(cx, |caches, _| {
+            for (ix, link) in graph.links.iter().enumerate() {
+                if link.value <= 0. {
+                    continue;
+                }
+                let source = &graph.nodes[link.source];
+                let target = &graph.nodes[link.target];
+                let key = ShapeKey::new((
+                    "sankey/ribbon",
+                    source.x1.to_bits(),
+                    target.x0.to_bits(),
+                    link.y0.to_bits(),
+                    link.y1.to_bits(),
+                    (link.source_width.max(self.min_link_width) / 2.).to_bits(),
+                    (link.target_width.max(self.min_link_width) / 2.).to_bits(),
+                ))
+                .finish();
+                let Some(path) = caches.slot(ix).get(key, bounds.origin, || {
+                    sankey_link_path(source, target, link, self.min_link_width, Point::default())
+                }) else {
+                    continue;
+                };
+                window.paint_path(
+                    path,
+                    linear_gradient(
+                        90.,
+                        linear_color_stop(colors[link.source].opacity(self.link_opacity), 0.),
+                        linear_color_stop(colors[link.target].opacity(self.link_opacity), 1.),
+                    ),
+                );
             }
-            let source = &graph.nodes[link.source];
-            let target = &graph.nodes[link.target];
-            let Some(path) =
-                sankey_link_path(source, target, link, self.min_link_width, bounds.origin)
-            else {
-                continue;
-            };
-            window.paint_path(
-                path,
-                linear_gradient(
-                    90.,
-                    linear_color_stop(colors[link.source].opacity(self.link_opacity), 0.),
-                    linear_color_stop(colors[link.target].opacity(self.link_opacity), 1.),
-                ),
-            );
-        }
+            caches.truncate(graph.links.len());
+        });
 
         let corner_radii = Corners::all(self.node_corner_radius.unwrap_or_default());
         for node in &graph.nodes {

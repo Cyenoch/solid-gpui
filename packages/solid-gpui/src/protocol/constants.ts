@@ -6,7 +6,7 @@ import {
   EVENT_PAYLOAD_TAGS,
 } from "./generated/schema-facts";
 
-export const PROTOCOL_VERSION = 5 as const;
+export const PROTOCOL_VERSION = 6 as const;
 
 export const SNAPSHOT_KIND = BODY_TAGS.Snapshot;
 export const EVENT_KIND = BODY_TAGS.Event;
@@ -124,6 +124,7 @@ export const UPDATE_FOCUSABLE = 32 as const;
 export const UPDATE_SELECTABLE = 64 as const;
 export const UPDATE_TOOLTIP = 128 as const;
 export const UPDATE_POINTER_MOVE = 256 as const;
+export const UPDATE_LAYOUT = 512 as const;
 export const COMMAND_KINDS = SCHEMA_COMMAND_KINDS;
 
 export const KEY_MODIFIER_NAMES = {

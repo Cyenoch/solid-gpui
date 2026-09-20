@@ -1,5 +1,5 @@
 use crate::{
-    AnyWindowHandle, AtlasKey, AtlasTextureId, AtlasTile, Bounds, DevicePixels,
+    AnyWindowHandle, AtlasKey, AtlasTextureId, AtlasTile, Bounds, Decorations, DevicePixels,
     DispatchEventResult, GpuSpecs, Pixels, PlatformAtlas, PlatformDisplay,
     PlatformHeadlessRenderer, PlatformInput, PlatformInputHandler, PlatformWindow, Point,
     PromptButton, RequestFrameOptions, Scene, Size, TestPlatform, TextInputConfiguration,
@@ -54,10 +54,15 @@ pub(crate) struct TestWindowState {
     text_input_configurations: Vec<TextInputConfiguration>,
     text_input_state_changes: Vec<TextInputStateChange>,
     is_fullscreen: bool,
+    is_maximized: bool,
+    is_simple_fullscreen: bool,
+    decorations: Decorations,
+    mouse_position: Point<Pixels>,
     scale_factor: f32,
     appearance: WindowAppearance,
     external_drag_files: Vec<(PathBuf, bool)>,
     start_external_drag_result: bool,
+    repositioned_popup_anchors: Vec<Bounds<Pixels>>,
 }
 
 #[derive(Clone)]
@@ -127,11 +132,16 @@ impl TestWindow {
             text_input_configurations: Vec::new(),
             text_input_state_changes: Vec::new(),
             is_fullscreen: false,
+            is_maximized: false,
+            is_simple_fullscreen: false,
+            decorations: Decorations::Server,
+            mouse_position: Point::default(),
             // Preserve the test platform's historical 2x default.
             scale_factor: 2.0,
             appearance: WindowAppearance::Light,
             external_drag_files: Vec::new(),
             start_external_drag_result: false,
+            repositioned_popup_anchors: Vec::new(),
         })))
     }
     pub fn simulate_scheduled_frame(&self) -> bool {
@@ -233,6 +243,77 @@ impl TestWindow {
         self.simulate_resize(size);
     }
 
+    /// Simulates the platform delivering a native move: the global origin and
+    /// the client-relative mouse position are updated, then the `moved`
+    /// callback fires exactly as a real platform would deliver it.
+    pub fn simulate_move(&self, origin: Point<Pixels>, mouse_position: Point<Pixels>) {
+        let callback = {
+            let mut state = self.0.lock();
+            state.bounds.origin = origin;
+            state.mouse_position = mouse_position;
+            state.moved_callback.take()
+        };
+        if let Some(mut callback) = callback {
+            callback();
+            self.0.lock().moved_callback = Some(callback);
+        }
+    }
+
+    /// Simulates maximizing or restoring the window, delivered through the
+    /// resize callback like a real window manager. The client size is left
+    /// unchanged so visual-state handling is exercised independently of size.
+    pub fn simulate_maximized_change(&mut self, maximized: bool) {
+        self.0.lock().is_maximized = maximized;
+        let size = self.bounds().size;
+        self.simulate_resize(size);
+    }
+
+    /// Simulates entering or leaving fullscreen, delivered through the resize
+    /// callback with the client size unchanged.
+    pub fn simulate_fullscreen_change(&mut self, fullscreen: bool) {
+        self.0.lock().is_fullscreen = fullscreen;
+        let size = self.bounds().size;
+        self.simulate_resize(size);
+    }
+
+    /// Simulates entering or leaving simple (borderless) fullscreen, delivered
+    /// through the resize callback with the client size unchanged.
+    pub fn simulate_simple_fullscreen_change(&mut self, simple_fullscreen: bool) {
+        self.0.lock().is_simple_fullscreen = simple_fullscreen;
+        let size = self.bounds().size;
+        self.simulate_resize(size);
+    }
+
+    /// Simulates a decorations reconfigure such as Wayland tiling, delivered
+    /// through the resize callback with the client size unchanged.
+    pub fn simulate_decorations_change(&mut self, decorations: Decorations) {
+        self.0.lock().decorations = decorations;
+        let size = self.bounds().size;
+        self.simulate_resize(size);
+    }
+
+    /// Simulates the window moving to another display, delivered through the
+    /// `moved` callback like a real cross-display move.
+    pub fn simulate_display_change(&self, display: Rc<dyn PlatformDisplay>) {
+        let callback = {
+            let mut state = self.0.lock();
+            state.display = display;
+            state.moved_callback.take()
+        };
+        if let Some(mut callback) = callback {
+            callback();
+            self.0.lock().moved_callback = Some(callback);
+        }
+    }
+
+    /// Every anchor passed to [`PlatformWindow::reposition_popup`], in order.
+    ///
+    /// The test platform has no native popup windows, so repositioning only
+    /// records the request for assertions instead of moving a real surface.
+    pub fn repositioned_popup_anchors(&self) -> Vec<Bounds<Pixels>> {
+        self.0.lock().repositioned_popup_anchors.clone()
+    }
+
     pub(crate) fn simulate_active_status_change(&self, active: bool) {
         let mut lock = self.0.lock();
         let Some(mut callback) = lock.active_status_change_callback.take() else {
@@ -324,11 +405,18 @@ impl PlatformWindow for TestWindow {
     }
 
     fn window_bounds(&self) -> WindowBounds {
-        WindowBounds::Windowed(self.bounds())
+        let state = self.0.lock();
+        if state.is_fullscreen {
+            WindowBounds::Fullscreen(state.bounds)
+        } else if state.is_maximized {
+            WindowBounds::Maximized(state.bounds)
+        } else {
+            WindowBounds::Windowed(state.bounds)
+        }
     }
 
     fn is_maximized(&self) -> bool {
-        false
+        self.0.lock().is_maximized
     }
 
     fn content_size(&self) -> Size<Pixels> {
@@ -353,7 +441,7 @@ impl PlatformWindow for TestWindow {
     }
 
     fn mouse_position(&self) -> Point<Pixels> {
-        Point::default()
+        self.0.lock().mouse_position
     }
 
     fn modifiers(&self) -> crate::Modifiers {
@@ -463,6 +551,14 @@ impl PlatformWindow for TestWindow {
         self.0.lock().is_fullscreen
     }
 
+    fn is_simple_fullscreen(&self) -> bool {
+        self.0.lock().is_simple_fullscreen
+    }
+
+    fn window_decorations(&self) -> Decorations {
+        self.0.lock().decorations
+    }
+
     fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
         // Tests can inspect wakes without delivering a frame synchronously.
         let frame_wake_count = self.0.lock().frame_wake_count.clone();
@@ -569,6 +665,11 @@ impl PlatformWindow for TestWindow {
 
     fn start_window_move(&self) {
         unimplemented!()
+    }
+
+    fn reposition_popup(&mut self, anchor: Bounds<Pixels>) -> anyhow::Result<()> {
+        self.0.lock().repositioned_popup_anchors.push(anchor);
+        Ok(())
     }
 
     fn can_start_external_drag(&self) -> bool {

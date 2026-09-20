@@ -83,6 +83,8 @@ fn soak_snapshot() -> Snapshot {
         range_end: 4,
         estimated_item_size: 24.0,
         overscan: 2,
+        data_revision: 0,
+        data_edit: None,
     }));
     nodes.push(list);
 
@@ -130,6 +132,7 @@ fn patch_for(iteration: usize) -> Patch {
             selectable: false,
             tooltip: None,
             accepts_pointer_move: false,
+            observes_layout: false,
         }],
     )
 }

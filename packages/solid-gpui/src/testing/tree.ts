@@ -1,6 +1,7 @@
 import {
   UPDATE_ACCESSIBILITY,
   UPDATE_LISTENER,
+  UPDATE_LAYOUT,
   UPDATE_PROPERTIES,
   UPDATE_TEXT,
   UPDATE_TOOLTIP,
@@ -59,6 +60,7 @@ export class TestTree {
           const mask = required(update.mask, "update mask");
           if (mask & UPDATE_TEXT) node.text = update.text;
           if (mask & UPDATE_LISTENER) node.listenerId = update.listenerId;
+          if (mask & UPDATE_LAYOUT) node.observesLayout = update.observesLayout;
           if (mask & UPDATE_PROPERTIES) node.hostProperties = update.hostProperties;
           if (mask & UPDATE_ACCESSIBILITY) node.accessibility = update.accessibility;
           if (mask & UPDATE_TOOLTIP) node.tooltip = update.tooltip;

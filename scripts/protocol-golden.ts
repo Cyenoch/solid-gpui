@@ -144,7 +144,15 @@ const input: HostProperties = {
 };
 const virtualList: HostProperties = {
   type: "virtual-list",
-  value: { itemCount: 20, rangeStart: 2, rangeEnd: 9, estimatedItemSize: 24.5, overscan: 3 },
+  value: {
+    itemCount: 20,
+    rangeStart: 2,
+    rangeEnd: 9,
+    estimatedItemSize: 24.5,
+    overscan: 3,
+    dataRevision: 1,
+    dataEdit: { baseRevision: 0, start: 3, oldCount: 2, newCount: 2 },
+  },
 };
 const image: HostProperties = {
   type: "image",
@@ -174,6 +182,7 @@ const node = (
   selectable: false,
   tooltip: null,
   acceptsPointerMove: false,
+  observesLayout: false,
   ...extras,
 });
 const snapshot: Snapshot = {
@@ -204,7 +213,7 @@ const patch: Patch = {
     {
       type: "update",
       id: 4,
-      mask: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256,
+      mask: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512,
       style: fullStyle,
       text: "new",
       listenerId: 12,
@@ -214,6 +223,7 @@ const patch: Patch = {
       selectable: true,
       tooltip: "updated",
       acceptsPointerMove: true,
+      observesLayout: true,
     },
     {
       type: "update",
@@ -228,6 +238,7 @@ const patch: Patch = {
       selectable: false,
       tooltip: null,
       acceptsPointerMove: false,
+      observesLayout: false,
     },
     { type: "move", id: 3, parentId: 1, index: 0 },
     { type: "delete", id: 8 },
@@ -515,7 +526,7 @@ const rows = [
 await mkdir(outputDir, { recursive: true });
 await writeFile(
   resolve(outputDir, "ts_to_rust.hex"),
-  `# protocol-golden-v5\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
+  `# protocol-golden-v6\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
 );
 
 const invalidEvent = encodePayload(
@@ -566,11 +577,11 @@ const invalidRows = [
 ];
 await writeFile(
   resolve(outputDir, "invalid.hex"),
-  `# protocol-golden-v5\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalidRows.join("\n")}\n`,
+  `# protocol-golden-v6\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalidRows.join("\n")}\n`,
 );
 await writeFile(
   resolve(outputDir, "frames.hex"),
-  `# protocol-golden-v5\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\nempty\t00000000\t\tok\tok\ntruncated-header\t00\t\ttruncated\tpending\ntruncated-payload\t04000000\t01\ttruncated\tpending\nmaximum-plus-one\t01000001\t\toversize\toversize\nmaximum-exact\t00000001\t\ttruncated\tpending\n`,
+  `# protocol-golden-v6\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\nempty\t00000000\t\tok\tok\ntruncated-header\t00\t\ttruncated\tpending\ntruncated-payload\t04000000\t01\ttruncated\tpending\nmaximum-plus-one\t01000001\t\toversize\toversize\nmaximum-exact\t00000001\t\ttruncated\tpending\n`,
 );
 
 if (verify) {
@@ -627,4 +638,4 @@ if (verify) {
     if (actual !== tsExpected) throw new Error(`TypeScript frame vector ${id} expected ${tsExpected}, got ${actual}`);
   }
 }
-console.log(`wrote ${rows.length} Bebop v5 golden rows to ${outputDir}`);
+console.log(`wrote ${rows.length} Bebop v6 golden rows to ${outputDir}`);

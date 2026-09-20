@@ -168,12 +168,21 @@ export interface TextInputProperties {
   readonly selectionReversed: boolean;
 }
 
+export interface VirtualListDataEdit {
+  readonly baseRevision: number;
+  readonly start: number;
+  readonly oldCount: number;
+  readonly newCount: number;
+}
+
 export interface VirtualListProperties {
   readonly itemCount: number;
   readonly rangeStart: number;
   readonly rangeEnd: number;
   readonly estimatedItemSize: number;
   readonly overscan: number;
+  readonly dataRevision: number;
+  readonly dataEdit: VirtualListDataEdit | null;
 }
 
 export interface ImageProperties {
@@ -229,6 +238,7 @@ export interface SnapshotNode {
   readonly selectable: boolean;
   readonly tooltip: string | null;
   readonly acceptsPointerMove: boolean;
+  readonly observesLayout: boolean;
 }
 
 export interface Snapshot {
@@ -258,6 +268,7 @@ export interface PatchUpdate {
   readonly selectable: boolean;
   readonly tooltip: string | null;
   readonly acceptsPointerMove: boolean;
+  readonly observesLayout: boolean;
 }
 
 export interface PatchMove {
