@@ -26,16 +26,9 @@ trap 'rm -rf -- "$work_dir"' EXIT
 
 rustc_version="$(cd "$repo_root" && rustc -vV)"
 target="$(python3 -c 'import sys; print(next(line.split(": ", 1)[1] for line in sys.stdin if line.startswith("host: ")))' <<< "$rustc_version")"
-if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
-  generated_date="$(date -u -r "$SOURCE_DATE_EPOCH" +%Y-%m-%d)"
-else
-  generated_date="$(git -C "$repo_root" log -1 --format=%cs -- Cargo.lock Cargo.toml bun.lock package.json packages/solid-gpui/package.json packages/solid-gpui-router/package.json packages/solid-gpui-vite/package.json scripts/tasks.ts scripts/third-party-notices.sh)"
-fi
-[[ -n "$generated_date" ]] || { printf 'unable to determine a stable generation date\n' >&2; exit 1; }
 
 mkdir -p "$(dirname "$output_path")"
-python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.json" "$work_dir/cargo-metadata.json" "$work_dir/bun-workspace.txt" "$target" "$generated_date" <<'PY'
-import datetime as dt
+python3 - "$repo_root" "$output_path" "$work_dir/cargo-deny.json" "$work_dir/cargo-metadata.json" "$work_dir/bun-workspace.txt" "$target" <<'PY'
 import json
 import os
 import re
@@ -51,7 +44,6 @@ from collections import defaultdict
     cargo_metadata_path,
     bun_workspace_path,
     target,
-    generated_date,
 ) = sys.argv[1:]
 
 root = pathlib.Path(repo_root)
@@ -63,13 +55,6 @@ kit_pin_match = re.search(r"gpui-kit\) at `([0-9a-f]{40})`", kit_provenance)
 if kit_pin_match is None:
     raise SystemExit("vendor/gpui-kit/SOLID-GPUI.md does not record the upstream revision")
 kit_pin = kit_pin_match.group(1)
-
-if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", generated_date):
-    raise SystemExit(f"invalid generation date: {generated_date!r}")
-try:
-    dt.date.fromisoformat(generated_date)
-except ValueError as exc:
-    raise SystemExit(f"invalid generation date: {generated_date!r}") from exc
 
 metadata = json.loads(pathlib.Path(cargo_metadata_path).read_text(encoding="utf-8"))
 packages = metadata.get("packages")
@@ -282,7 +267,6 @@ lines = [
     f"The archive embeds the project-owned {project_license} text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.",
     "Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.",
     "",
-    f"**Generated:** {generated_date}",
     "**Generation command:** `bun run task third-party-notices`",
     "",
     "The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.",

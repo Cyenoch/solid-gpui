@@ -78,7 +78,7 @@ export default defineConfig({
 
 `.solid-gpui/tsconfig.json` 由 `prepare` 生成，把 `#native` 和 `@solid-gpui/core/components` 映射到插件实际选中的绑定文件，因此不必手工维护 `paths`；它还携带解析模式、`jsx`，以及 QuickJS runtime 下的无 DOM `lib`/`types` 组合，路径为绝对路径，消费方的 `baseUrl` 无法破坏它。你自己的文件只需加入严格性选项与 `include`。把 `.solid-gpui/` 加入 `.gitignore`。
 
-TypeScript 需要 `jsx: "preserve"` 与 `jsxImportSource: "@solid-gpui/core"`，后者提供宿主元素类型。编译器固定为 `@solidjs/compiler` 2.0.0-rc.6，应用运行时仍为 Solid 1.9.15。
+TypeScript 需要 `jsx: "preserve"` 与 `jsxImportSource: "@solid-gpui/core"`，后者提供宿主元素类型。编译器固定为 `@solidjs/compiler` 2.0.0-rc.9，应用运行时保持最新稳定版 Solid 1.9.15。Windows ARM64 构建宿主使用单独构建的[原生编译器包](hot-reload.zh-CN.md#windows-arm64-native-compiler)。
 
 ## 3. Prepare 原生绑定
 

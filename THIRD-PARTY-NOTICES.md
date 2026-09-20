@@ -6,7 +6,6 @@ The inventory is generated from the resolved Cargo graph with all workspace feat
 The archive embeds the project-owned MIT text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.
 Full third-party license texts are intentionally not copied into this inventory; they remain available from the referenced registry or git source. This keeps the artifact an inventory rather than a large license-text bundle.
 
-**Generated:** 2026-09-17
 **Generation command:** `bun run task third-party-notices`
 
 The host archive keeps this single inventory next to `LICENSE`. The npm tarball remains lean and carries only its own package `LICENSE`; the JavaScript dependency inventory stays in the repository and release archive.
@@ -1701,9 +1700,9 @@ This inventory is the direct output of `bun pm licenses --all` for the root Bun 
 | @shikijs/themes | 4.4.2 | MIT | registry (npm) | runtime |
 | @shikijs/types | 4.4.2 | MIT | registry (npm) | runtime |
 | @shikijs/vscode-textmate | 10.0.2 | MIT | registry (npm) | runtime |
-| @solidjs/compiler | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
-| @solidjs/compiler-darwin-arm64 | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
-| @solidjs/compiler-wasm32-wasi | 2.0.0-rc.6 | MIT | registry (npm) | runtime |
+| @solidjs/compiler | 2.0.0-rc.9 | MIT | registry (npm) | runtime |
+| @solidjs/compiler-darwin-arm64 | 2.0.0-rc.9 | MIT | registry (npm) | runtime |
+| @solidjs/compiler-wasm32-wasi | 2.0.0-rc.9 | MIT | registry (npm) | runtime |
 | @tanstack/history | 1.162.1 | MIT | registry (npm) | runtime |
 | @tanstack/history | 1.162.2 | MIT | registry (npm) | runtime |
 | @tanstack/router-core | 1.171.28 | MIT | registry (npm) | runtime |

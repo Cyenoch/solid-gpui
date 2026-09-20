@@ -8,7 +8,7 @@ for current delivery support.
 
 Vite 8 handles the module graph, file watching, HMR, and production bundling.
 The plugin compiles universal JSX with the official Oxc-based
-`@solidjs/compiler` 2.0.0-rc.6 and lowers TypeScript with `oxc-transform` 0.148.0.
+`@solidjs/compiler` 2.0.0-rc.9 and lowers TypeScript with `oxc-transform` 0.148.0.
 The application runtime remains Solid 1.9.15. In the external Bun workflow,
 Bun executes Vite's ModuleRunner and the application JavaScript in the
 host-owned child. Vite is the only application bundler; Bun and QuickJS execute
@@ -16,6 +16,59 @@ JavaScript. See [Vite integration](vite.md) for direct JS, JSX/TSX, native modul
 and Rust-owned startup. The GPUI host keeps its native window and receives
 a new epoch's Snapshot over the existing stdio connection. This is a native
 application module environment; it does not require HTML, a DOM, or a WebView.
+
+## Windows ARM64 native compiler
+
+The latest stable Solid runtime is `1.9.15`; the compiler independently tracks
+`2.0.0-rc.9`. The upstream compiler does not publish a Windows ARM64 native
+package or automatically resolve one. This repository builds a separate local
+`@solid-gpui/solid-compiler-win32-arm64-msvc` package from the exact upstream
+source without patching Solid or publishing to npm.
+
+On a Windows ARM64 build host, install native ARM64 Bun, Git, Rust 1.95 or newer
+with the MSVC target, and Visual Studio C++ ARM64 tools with a Windows SDK.
+The resulting binding uses the ARM64 Visual C++ runtime (`VCRUNTIME140.dll`).
+From this SDK checkout, after `bun install --frozen-lockfile`:
+
+```powershell
+git clone https://github.com/solidjs/solid.git C:\src\solid-compiler
+git -C C:\src\solid-compiler checkout --detach 9a29b1a07aa3e06ee32afd1fc4c18414b4a558bb
+bun scripts/build-solid-compiler.ts --source C:\src\solid-compiler --output C:\artifacts\solid-compiler
+```
+
+The builder uses the upstream Cargo lockfile and default features, including
+TSRX. Keep the compiler JS package and native package at the same version;
+rebuild the native package when updating the compiler pin. Build output is a
+local `.tgz` and an unpacked package containing the native binding and provenance.
+Nothing is installed or published automatically.
+The output includes the Solid MIT license, Cargo inputs, dependency notices and
+binary SHA-256. `scripts/solid-compiler-licenses.json` preserves version-specific
+upstream notices omitted from crate archives; `json-escape-simd` only declares
+MIT upstream, which is recorded explicitly rather than inventing an attribution.
+Use a fresh output directory; an existing unpacked `package` is not overwritten.
+
+Install the generated `.tgz` in the consuming application with `bun add --dev`
+and its local file path. Before starting Vite, select its binding explicitly:
+
+```powershell
+bun add --dev C:\artifacts\solid-compiler\solid-gpui-solid-compiler-win32-arm64-msvc-2.0.0-rc.9.tgz
+$env:SOLID_COMPILER_NATIVE = (Resolve-Path node_modules/@solid-gpui/solid-compiler-win32-arm64-msvc/compiler.win32-arm64-msvc.node).Path
+bun run build
+```
+
+For SDK source development, install the tarball at the workspace root instead
+and set the same variable before the root build/development command. The variable
+is process-local and inherited by child processes; it must be set before the
+compiler is imported. This uses the upstream `SOLID_COMPILER_NATIVE` entry point,
+not WASM, an x64 process, or an alternative JSX compiler. A missing or unloadable
+explicit binding fails instead of silently selecting another implementation.
+The compiler is a build-time dependency, not an application runtime requirement.
+
+Native Windows 11 ARM64 validation covered a release binding built with Rust
+1.98.1, installing the local tarball, loading under ARM64 Bun 1.4.2 and Node
+24.21.0, a real Vite 8.2.2 TSX production build, source maps and syntax errors,
+and reactive committed text changing from `0` to `1`. This is compiler/build
+evidence, not qualification of native GPUI windows or other Windows versions.
 
 ## Repository development
 

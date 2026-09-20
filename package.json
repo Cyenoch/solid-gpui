@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@jridgewell/remapping": "2.3.5",
-    "@solidjs/compiler": "2.0.0-rc.6",
+    "@solidjs/compiler": "2.0.0-rc.9",
     "@solid-gpui/router": "workspace:*",
     "bebop-tools": "3.2.3",
     "bun-types": "1.4.2",

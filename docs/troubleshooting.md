@@ -200,7 +200,7 @@ prebuilt WebKit must match the pinned revision and target.
 | --- | --- |
 | Windows release cannot find `fxc.exe` | Install the Windows SDK compiler or set `GPUI_FXC_PATH`. Release shaders require DXBC, not DXIL or debug shader substitution. |
 | ARM64 debug cannot find `libcmtd.lib` or `libcpmtd.lib` | Include Microsoft's matching `Microsoft.VC.14.44.17.14.CRT.ARM64.Desktop.debug.base.vsix` in the SDK splat. Verify the official package checksum; keep debug/release CRT libraries separate. |
-| `wasi.initialize is not a function` on Windows ARM64 | The pinned Solid compiler lacks a native ARM64 binding, and its WASM fallback needs a WASI API unavailable in the pinned driver Bun. Build Vite inputs on a supported compiler host, then package the resulting JS. Use the current lazy JSX preload for plain TypeScript commands. |
+| `wasi.initialize is not a function` on Windows ARM64 | The upstream compiler still lacks a Windows ARM64 prebuild. Install the matching [local native compiler package](hot-reload.md#windows-arm64-native-compiler) and set `SOLID_COMPILER_NATIVE` to its absolute `.node` path before starting Vite. This selects the native binding instead of WASM; changing only the package name does not add an upstream loader branch. |
 | `ENAMETOOLONG` during builtin generation | Rebuild with the current embedding patch, which passes relative module inputs from an explicit working directory. |
 | Source extraction fails with Win32 error `1314` | The build account cannot create required symlinks. Have the build-host administrator provision that capability before retrying extraction; runtime users do not need it. |
 

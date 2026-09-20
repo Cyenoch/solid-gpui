@@ -561,6 +561,7 @@ impl ExtensionContent {
     /// node path with an identity boundary; a typed-parent descriptor child
     /// (no erasable element) is a composition contract error, never a silent
     /// skip.
+    #[cfg(feature = "component-runtime")]
     pub(crate) fn native_parts(
         &self,
         cx: &gpui::App,

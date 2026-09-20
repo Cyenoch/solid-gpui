@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "@jridgewell/remapping": "2.3.5",
-    "@solidjs/compiler": "2.0.0-rc.6",
+    "@solidjs/compiler": "2.0.0-rc.9",
     "core-js-pure": "3.50.0",
     "event-target-shim": "6.0.2",
     "oxc-transform": "0.148.0",

@@ -30,7 +30,7 @@ Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一
 
 审计根据 Cargo 元数据、`cargo-deny` 的 JSON 许可清单和 Bun 许可清单重新生成 `THIRD-PARTY-NOTICES.md`。依赖变化后运行 `bun run task third-party-notices` 更新它。每个本地工作区包都必须声明许可证，通常使用 `license.workspace = true`。Vendored GPUI crate 还必须在 `Cargo.toml` 的 `package.metadata.solid-gpui-vendor.source` 中声明上游包 URL；仅在说明文档中记录来源不会填入生成的清单。
 
-清单的生成日期取自最近一次修改生成器所跟踪输入的提交，输入包括依赖清单、锁文件和 `scripts/tasks.ts`。即使依赖版本没有变化，修改这些输入后也要重新生成并运行 `bun run audit`；包测试本身不会校验许可清单。
+清单不包含生成时间戳：相同的已解析依赖和发布元数据必须在提交前后生成完全相同的清单。提交日期或无关任务定义的变化不应使清单失效。重新生成后运行 `bun run audit`；包测试本身不会校验许可清单。
 
 ## 发布验证
 

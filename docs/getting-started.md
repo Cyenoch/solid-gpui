@@ -115,7 +115,9 @@ your strictness and `include`. Add `.solid-gpui/` to `.gitignore`.
 
 TypeScript needs `jsx: "preserve"` and `jsxImportSource: "@solid-gpui/core"`; the
 latter supplies host element types. The compiler is pinned to
-`@solidjs/compiler` 2.0.0-rc.6 while the application runtime remains Solid 1.9.15.
+`@solidjs/compiler` 2.0.0-rc.9 while the application runtime remains Solid 1.9.15,
+the latest stable runtime. Windows ARM64 build hosts use the separately built
+[native compiler package](hot-reload.md#windows-arm64-native-compiler).
 
 ## 3. Prepare native bindings
 

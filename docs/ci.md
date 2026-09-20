@@ -70,10 +70,11 @@ Vendored GPUI crates must also declare their upstream package URL in
 `package.metadata.solid-gpui-vendor.source` in `Cargo.toml`; a prose provenance
 record alone does not populate the generated inventory.
 
-The inventory's generation date follows the latest commit touching the generator's
-tracked inputs, including manifests, lockfiles, and `scripts/tasks.ts`. Regenerate
-and run `bun run audit` after changing those inputs even when dependency versions
-are unchanged; package tests alone do not verify the notice inventory.
+The inventory has no generation timestamp: identical resolved dependencies and
+release metadata must produce identical notices before and after a commit.
+Changes to commit dates or unrelated task definitions must not invalidate it.
+Run `bun run audit` after regenerating; package tests alone do not verify the
+notice inventory.
 
 ## Release qualification
 

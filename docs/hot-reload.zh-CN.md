@@ -2,7 +2,52 @@
 
 外部 Bun 用于快速迭代；内嵌 Bun 是 Bun 应用的预期生产打包运行时；QuickJS 是以 Rust 为主应用的界面运行时。定位见[运行时策略](runtime-strategy.zh-CN.md)，当前交付支持见[分发指南](distribution.zh-CN.md#平台状态与当前证据)。
 
-Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于 Oxc 的官方 `@solidjs/compiler` 2.0.0-rc.6 编译 universal JSX，使用 `oxc-transform` 0.148.0 转换 TypeScript。应用运行时仍为 Solid 1.9.15。Bun 执行 Vite RunnableDevEnvironment/ModuleRunner 和应用 JavaScript。GPUI 宿主保留原生窗口，通过现有 stdio 连接接收新 epoch 的 Snapshot。原生模块环境不需要 HTML、DOM 或 WebView。
+Vite 8 管理模块图、文件监听、HMR 和生产打包。插件使用基于 Oxc 的官方 `@solidjs/compiler` 2.0.0-rc.9 编译 universal JSX，使用 `oxc-transform` 0.148.0 转换 TypeScript。应用运行时保持最新稳定版 Solid 1.9.15，不迁移到 Solid 2 RC。Bun 执行 Vite RunnableDevEnvironment/ModuleRunner 和应用 JavaScript。GPUI 宿主保留原生窗口，通过现有 stdio 连接接收新 epoch 的 Snapshot。原生模块环境不需要 HTML、DOM 或 WebView。
+
+## Windows ARM64 native compiler
+
+Solid 运行时采用最新稳定版 `1.9.15`；编译器独立更新到 `2.0.0-rc.9`。
+上游没有发布 Windows ARM64 原生包，也没有对应的自动加载分支。本仓库从精确的上游
+源码构建独立的本地 `@solid-gpui/solid-compiler-win32-arm64-msvc` 包，不修改 Solid，
+也不发布到 npm。
+
+Windows ARM64 构建宿主需要原生 ARM64 Bun、Git、Rust 1.95 或更高版本及 MSVC
+target，以及带 Windows SDK 的 Visual Studio C++ ARM64 工具。产出的 binding
+依赖 ARM64 Visual C++ runtime（`VCRUNTIME140.dll`）。在 SDK checkout 中运行
+`bun install --frozen-lockfile` 后执行：
+
+```powershell
+git clone https://github.com/solidjs/solid.git C:\src\solid-compiler
+git -C C:\src\solid-compiler checkout --detach 9a29b1a07aa3e06ee32afd1fc4c18414b4a558bb
+bun scripts/build-solid-compiler.ts --source C:\src\solid-compiler --output C:\artifacts\solid-compiler
+```
+
+构建器使用上游 Cargo lockfile 和包含 TSRX 的默认 features。JS 编译器包和原生包
+必须保持相同版本；更新编译器固定版本时需重新构建原生包。输出是本地 `.tgz` 以及
+包含 binding 和来源信息的解包目录，不会自动安装或发布。
+输出包含 Solid MIT 许可、Cargo 输入、依赖许可与二进制 SHA-256。
+`scripts/solid-compiler-licenses.json` 保留 crate 归档遗漏的版本专属上游许可；
+`json-escape-simd` 上游仅声明 MIT，记录中明确说明，不推测版权归属。
+请使用新的输出目录；已有的解包 `package` 目录不会被覆盖。
+
+在应用中使用 `bun add --dev` 加本地 `.tgz` 路径安装，然后在启动 Vite 前指定 binding：
+
+```powershell
+bun add --dev C:\artifacts\solid-compiler\solid-gpui-solid-compiler-win32-arm64-msvc-2.0.0-rc.9.tgz
+$env:SOLID_COMPILER_NATIVE = (Resolve-Path node_modules/@solid-gpui/solid-compiler-win32-arm64-msvc/compiler.win32-arm64-msvc.node).Path
+bun run build
+```
+
+SDK 源码开发则在 workspace 根目录安装 tarball，在根目录构建或开发命令前设置同一
+变量。该变量只作用于当前进程环境并由子进程继承，必须在导入编译器前设置。这里使用
+上游已有的 `SOLID_COMPILER_NATIVE` 入口，不使用 WASM、x64 进程或另一套 JSX 编译器；
+显式 binding 不存在或无法加载时直接失败，不静默回退。编译器只是构建时依赖，
+不是应用运行时前置条件。
+
+Windows 11 ARM64 原生验证覆盖 Rust 1.98.1 release binding、本地 tarball 安装、
+ARM64 Bun 1.4.2 和 Node 24.21.0 加载、真实 Vite 8.2.2 TSX 生产构建、source map
+和语法错误处理，以及提交树文本从 `0` 到 `1` 的响应式更新。
+这些是编译器与构建链证据，不代表原生 GPUI 窗口或其他 Windows 版本已验收。
 
 ## 仓库开发
 

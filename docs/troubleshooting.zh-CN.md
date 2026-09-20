@@ -137,7 +137,7 @@ Windows 使用[静态应用打包器](distribution.zh-CN.md#内嵌-bun-静态应
 | --- | --- |
 | Windows release 找不到 `fxc.exe` | 安装 Windows SDK 编译器或设置 `GPUI_FXC_PATH`。Release 着色器需要 DXBC，不能替换成 DXIL 或 debug 着色器。 |
 | ARM64 debug 找不到 `libcmtd.lib` 或 `libcpmtd.lib` | 在 SDK splat 中加入微软匹配的 `Microsoft.VC.14.44.17.14.CRT.ARM64.Desktop.debug.base.vsix`，核对官方包校验和；不要混用 debug/release CRT 库。 |
-| Windows ARM64 报 `wasi.initialize is not a function` | 固定的 Solid 编译器没有原生 ARM64 binding，其 WASM 路径需要固定版本驱动 Bun 尚未提供的 WASI API。先在编译器支持的宿主生成 Vite 输入，再打包所得 JS；纯 TypeScript 命令使用当前延迟加载 JSX 编译器的 preload。 |
+| Windows ARM64 报 `wasi.initialize is not a function` | 上游编译器仍未提供 Windows ARM64 预编译包。安装匹配版本的[本地原生编译器包](hot-reload.zh-CN.md#windows-arm64-native-compiler)，在启动 Vite 前把 `SOLID_COMPILER_NATIVE` 设为其 `.node` 文件绝对路径，从而选择原生 binding 而非 WASM；仅修改包名不会补齐上游加载器的平台分支。 |
 | 内置模块生成报 `ENAMETOOLONG` | 用当前内嵌补丁重新构建；补丁从明确的工作目录传入相对模块路径。 |
 | 源码解压报 Win32 错误 `1314` | 构建账户无法创建所需符号链接。由构建宿主管理员准备该能力后再重试；运行应用的用户不需要此能力。 |
 

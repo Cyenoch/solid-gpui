@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Updated `@solidjs/compiler` from `2.0.0-rc.6` to `2.0.0-rc.9`, retaining the latest stable `solid-js` runtime at `1.9.15`. Added a local Windows ARM64 native compiler build/package path using the exact upstream source and `SOLID_COMPILER_NATIVE`, without patching or publishing upstream. Synchronized English/Chinese installation, development and troubleshooting guides and regenerated dependency notices.
 - Updated vendored GPUI Kit and its reference pin from `501c7392` to `0e63ea79` (0.6.4 plus subsequent changes), preserving local editing, overlay, virtual-list and geometry-cache seams. Added native InputGroup/Questionnaire bindings, atomic inline tokens, editor search and paste events, Motion sequences, TextView stream fades and interactive pie charts. Controlled metadata now declares alternative `valueProps` so token content and plain values share acknowledgements. Regenerated SDK, website and desktop host catalogs; synchronized English/Chinese guides, executable website examples, navigation, documentation dates and dependency notices.
 
 - Cut over to lockstep protocol v6 with explicit layout subscriptions and identity-aware VirtualList revision spans. Batch sibling indexing and rich-text derivation per atomic commit, emit minimal same-parent moves, retain hinted list state across data edits, suspend delayed-animation frame demand, and retain correctly invalidated chart/plot tessellation. JS and native artifacts must be rebuilt together; no v5 decoder is retained.

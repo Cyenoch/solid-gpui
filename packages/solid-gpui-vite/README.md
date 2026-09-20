@@ -7,6 +7,14 @@ run `bun run task sdk-pack <dir>` and install `solid-gpui-core.tgz` and
 `solid-gpui-vite.tgz` from that run together. Native development tooling requires
 Bun 1.4.2 or newer.
 
+The compiler is pinned to `@solidjs/compiler` 2.0.0-rc.9; applications use the
+latest stable Solid runtime, 1.9.15. Windows ARM64 build hosts can use the
+separately built local native compiler package through upstream's explicit
+`SOLID_COMPILER_NATIVE` binding path. See the
+[native compiler build and installation instructions](../../docs/hot-reload.md#windows-arm64-native-compiler).
+The package is not published, is not selected automatically, and is not needed
+by an already compiled application.
+
 ## Project
 
 ```ts
