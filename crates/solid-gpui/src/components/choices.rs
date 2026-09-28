@@ -342,6 +342,7 @@ pub struct Select {
     committed: Option<String>,
     children: NativeChildren,
     _subscription: Subscription,
+    _dismiss_subscription: Subscription,
 }
 #[crate::component]
 impl NativeView for Select {
@@ -370,7 +371,10 @@ impl NativeView for Select {
         binding(&["value"])
     }
     fn additional_events() -> Vec<EventDefinition> {
-        vec![EventDefinition::new::<ChoiceQuery>("query")]
+        vec![
+            EventDefinition::new::<ChoiceQuery>("query"),
+            EventDefinition::new::<()>("dismiss"),
+        ]
     }
     fn mount(
         props: Self::Props,
@@ -430,6 +434,9 @@ impl NativeView for Select {
                 data_revision: this.props.data_revision,
             });
         });
+        let dismiss_subscription = cx.subscribe(&state, |this, _, _: &gpui::DismissEvent, _| {
+            this.events.related::<()>("dismiss").emit(());
+        });
         Self {
             state,
             props,
@@ -440,6 +447,7 @@ impl NativeView for Select {
             committed: values.first().cloned(),
             children,
             _subscription: subscription,
+            _dismiss_subscription: dismiss_subscription,
         }
     }
     fn update(&mut self, p: Self::Props, window: &mut Window, cx: &mut Context<Self>) {
@@ -1112,7 +1120,11 @@ mod tests {
             });
             let mut reached = false;
             while let Some(event) = fixture.runtime.take_event().unwrap() {
-                if let crate::EventPayload::Extension { fields, .. } = event.payload
+                if let crate::EventPayload::Extension {
+                    event_id: 1,
+                    fields,
+                    ..
+                } = event.payload
                     && let crate::protocol::ExtensionValue::Bytes(bytes) = &fields[0].value
                 {
                     reported.push(

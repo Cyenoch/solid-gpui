@@ -1,5 +1,6 @@
 //! Calendar, date and color pickers keep popup, focus and provisional selection native.
 use super::popups::PopupAnchor;
+use super::time_field::{CivilTime, HourCycle, TimePrecision};
 use super::{ControlSize, primitives::Color};
 use crate::native::{
     ControlledBinding, Deserialize, Event, EventDefinition, NativeChildren, NativeView, Serialize,
@@ -136,7 +137,7 @@ macro_rules! date_props {
     }
 }
 date_props!(CalendarProps {});
-date_props!(DatePickerProps { placeholder: String = String::new(), cleanable: bool = false, format: String = "%Y/%m/%d".into(), disabled: bool = false, appearance: bool = true, size: ControlSize = ControlSize::Medium, presets: Vec<DatePreset> = Vec::new() });
+date_props!(DatePickerProps { placeholder: String = String::new(), cleanable: bool = false, format: String = "%Y/%m/%d".into(), disabled: bool = false, appearance: bool = true, size: ControlSize = ControlSize::Medium, presets: Vec<DatePreset> = Vec::new(), time: Option<CivilTime> = None, time_precision: Option<TimePrecision> = None, hour_cycle: HourCycle = HourCycle::H23 });
 #[crate::native_type]
 #[derive(Clone, Debug)]
 pub struct DatePreset {
@@ -148,6 +149,14 @@ pub struct DatePreset {
 #[serde(rename_all = "camelCase")]
 pub struct DateChange {
     pub value: DateValue,
+    pub edit_seq: u32,
+}
+#[crate::native_type]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DatePickerChange {
+    pub value: DateValue,
+    pub time: Option<CivilTime>,
     pub edit_seq: u32,
 }
 fn weekday(value: u8) -> Weekday {
@@ -335,15 +344,26 @@ impl Render for Calendar {
 pub struct DatePicker {
     state: Entity<gpui_component::date_picker::DatePickerState>,
     props: DatePickerProps,
-    event: Event<DateChange>,
+    event: Event<DatePickerChange>,
     edit_seq: u32,
     _subscription: Subscription,
 }
 #[crate::component]
 impl NativeView for DatePicker {
     type Props = DatePickerProps;
-    type Event = DateChange;
+    type Event = DatePickerChange;
     fn validate_props(p: &Self::Props) -> Result<(), String> {
+        if (p.time_precision.is_some() || p.time.is_some())
+            && matches!(
+                p.value.as_ref().unwrap_or(&p.default_value),
+                DateValue::Range { .. }
+            )
+        {
+            return Err("time and timePrecision are supported only for a single date".into());
+        }
+        if p.time.is_some() && p.value.is_none() {
+            return Err("time requires a controlled value".into());
+        }
         validate_calendar(
             p.number_of_months,
             p.first_day_of_week,
@@ -368,7 +388,7 @@ impl NativeView for DatePicker {
     }
     fn mount(
         props: Self::Props,
-        event: Event<DateChange>,
+        event: Event<DatePickerChange>,
         _: NativeChildren,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -377,6 +397,15 @@ impl NativeView for DatePicker {
             let mut s = gpui_component::date_picker::DatePickerState::new(window, cx)
                 .date_format(props.format.clone())
                 .first_day_of_week(weekday(props.first_day_of_week));
+            s.set_time_options(
+                props.time_precision.map(Into::into),
+                props.hour_cycle.into(),
+                window,
+                cx,
+            );
+            if let Some(time) = &props.time {
+                s = s.default_time(time.native());
+            }
             s.set_disabled_matcher_shared(props.disabled_dates.matcher(), cx);
             s.set_date(
                 props
@@ -398,8 +427,11 @@ impl NativeView for DatePicker {
                 .edit_seq
                 .checked_add(1)
                 .expect("date picker edit sequence exhausted");
-            this.event.emit(DateChange {
-                value: DateValue::from_native(*date),
+            this.event.emit(DatePickerChange {
+                value: DateValue::from_native(date.date()),
+                time: date
+                    .start()
+                    .map(|value| CivilTime::from_native(value.time())),
                 edit_seq: this.edit_seq,
             });
         });
@@ -414,6 +446,16 @@ impl NativeView for DatePicker {
     fn update(&mut self, p: Self::Props, window: &mut Window, cx: &mut Context<Self>) {
         let entering = self.props.value.is_none() && p.value.is_some();
         self.state.update(cx, |s, cx| {
+            if p.time_precision != self.props.time_precision
+                || p.hour_cycle != self.props.hour_cycle
+            {
+                s.set_time_options(
+                    p.time_precision.map(Into::into),
+                    p.hour_cycle.into(),
+                    window,
+                    cx,
+                );
+            }
             if p.format != self.props.format {
                 s.set_date_format(p.format.clone(), cx);
             }
@@ -432,13 +474,26 @@ impl NativeView for DatePicker {
                 s.set_year_range((r.start, r.end_exclusive), cx);
             }
             if p.disabled && !self.props.disabled {
-                s.set_open(false, cx);
+                s.set_open(false, window, cx);
             }
             if let Some(value) = &p.value
                 && (entering || p.ack_edit_seq >= self.edit_seq)
                 && s.date() != value.native()
             {
                 s.set_date(value.native(), window, cx);
+            }
+            if let Some(time) = &p.time
+                && (entering || p.ack_edit_seq >= self.edit_seq)
+                && let Date::Single(Some(date)) = s.date()
+                && s.date_time().start().is_none_or(|value| {
+                    value.time()
+                        != p.time_precision.map_or(time.native(), |precision| {
+                            gpui_component::time_field::TimePrecision::from(precision)
+                                .truncate(time.native())
+                        })
+                })
+            {
+                s.set_date_time(date.and_time(time.native()), window, cx);
             }
         });
         self.props = p;
@@ -447,15 +502,20 @@ impl NativeView for DatePicker {
         "change"
     }
     fn controlled() -> Option<ControlledBinding> {
-        binding()
+        Some(ControlledBinding {
+            value_props: &["value", "time"],
+            event_id: 1,
+            sequence_field: "editSeq",
+            ack_prop: "ackEditSeq",
+        })
     }
     fn commands() -> Vec<ViewCommand<Self>> {
         vec![
-            ViewCommand::new("setOpen", |this, open: bool, _, cx| {
+            ViewCommand::new("setOpen", |this, open: bool, window, cx| {
                 if open && this.props.disabled {
                     return Err("disabled date picker cannot be opened".into());
                 }
-                this.state.update(cx, |s, cx| s.set_open(open, cx));
+                this.state.update(cx, |s, cx| s.set_open(open, window, cx));
                 Ok(())
             }),
             ViewCommand::new("focus", |this, (): (), window, cx| {
@@ -509,91 +569,110 @@ pub struct ColorPickerProps {
     pub size: ControlSize,
 }
 #[crate::native_type]
+#[derive(Clone, Debug, Default)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ColorSelectProps {
+    pub value: Option<Color>,
+    pub default_value: Option<Color>,
+    pub ack_edit_seq: u32,
+    pub accessibility_label: Option<String>,
+    pub featured_colors: Option<Vec<Color>>,
+    pub size: ControlSize,
+    pub placeholder: Option<String>,
+}
+#[crate::native_type]
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ColorChange {
     pub value: Option<Color>,
     pub edit_seq: u32,
 }
-pub struct ColorPicker {
-    state: Entity<gpui_component::color_picker::ColorPickerState>,
-    props: ColorPickerProps,
-    event: Event<ColorChange>,
-    edit_seq: u32,
-    _subscription: Subscription,
-}
-#[crate::component]
-impl NativeView for ColorPicker {
-    type Props = ColorPickerProps;
-    type Event = ColorChange;
-    fn validate_props(p: &Self::Props) -> Result<(), String> {
-        if p.featured_colors.as_ref().is_some_and(|c| c.len() > 256) {
-            return Err("featuredColors is limited to 256 colors".into());
+macro_rules! color_control {
+    ($name:ident, $props:ident) => {
+        pub struct $name {
+            state: Entity<gpui_component::color_picker::ColorPickerState>,
+            props: $props,
+            event: Event<ColorChange>,
+            edit_seq: u32,
+            _subscription: Subscription,
         }
-        Ok(())
-    }
-    fn mount(
-        props: Self::Props,
-        event: Event<ColorChange>,
-        _: NativeChildren,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Self {
-        let state = cx.new(|cx| {
-            let mut s = gpui_component::color_picker::ColorPickerState::new(window, cx);
-            if let Some(color) = props.value.as_ref().or(props.default_value.as_ref()) {
-                s.set_value(color.native(), window, cx);
-            }
-            s
-        });
-        let subscription = cx.subscribe(&state, |this, _, event, _| {
-            let gpui_component::color_picker::ColorPickerEvent::Change(color) = event;
-            this.edit_seq = this
-                .edit_seq
-                .checked_add(1)
-                .expect("color edit sequence exhausted");
-            this.event.emit(ColorChange {
-                value: color.map(Color::from_native),
-                edit_seq: this.edit_seq,
-            });
-        });
-        Self {
-            state,
-            props,
-            event,
-            edit_seq: 0,
-            _subscription: subscription,
-        }
-    }
-    fn update(&mut self, p: Self::Props, window: &mut Window, cx: &mut Context<Self>) {
-        if (p.value != self.props.value || p.ack_edit_seq != self.props.ack_edit_seq)
-            && (self.props.value.is_none() && p.value.is_some() || p.ack_edit_seq >= self.edit_seq)
-        {
-            self.state.update(cx, |s, cx| {
-                let color = p.value.as_ref().map(Color::native);
-                if color != s.value() {
-                    match color {
-                        Some(c) => s.set_value(c, window, cx),
-                        None => s.clear_value(window, cx),
-                    }
+        #[crate::component]
+        impl NativeView for $name {
+            type Props = $props;
+            type Event = ColorChange;
+            fn validate_props(p: &Self::Props) -> Result<(), String> {
+                if p.featured_colors.as_ref().is_some_and(|c| c.len() > 256) {
+                    return Err("featuredColors is limited to 256 colors".into());
                 }
-            });
+                Ok(())
+            }
+            fn mount(
+                props: Self::Props,
+                event: Event<ColorChange>,
+                _: NativeChildren,
+                window: &mut Window,
+                cx: &mut Context<Self>,
+            ) -> Self {
+                let state = cx.new(|cx| {
+                    let mut s = gpui_component::color_picker::ColorPickerState::new(window, cx);
+                    if let Some(color) = props.value.as_ref().or(props.default_value.as_ref()) {
+                        s.set_value(color.native(), window, cx);
+                    }
+                    s
+                });
+                let subscription = cx.subscribe(&state, |this, _, event, _| {
+                    let gpui_component::color_picker::ColorPickerEvent::Change(color) = event;
+                    this.edit_seq = this
+                        .edit_seq
+                        .checked_add(1)
+                        .expect("color edit sequence exhausted");
+                    this.event.emit(ColorChange {
+                        value: color.map(Color::from_native),
+                        edit_seq: this.edit_seq,
+                    });
+                });
+                Self {
+                    state,
+                    props,
+                    event,
+                    edit_seq: 0,
+                    _subscription: subscription,
+                }
+            }
+            fn update(&mut self, p: Self::Props, window: &mut Window, cx: &mut Context<Self>) {
+                if (p.value != self.props.value || p.ack_edit_seq != self.props.ack_edit_seq)
+                    && (self.props.value.is_none() && p.value.is_some()
+                        || p.ack_edit_seq >= self.edit_seq)
+                {
+                    self.state.update(cx, |s, cx| {
+                        let color = p.value.as_ref().map(Color::native);
+                        if color != s.value() {
+                            match color {
+                                Some(c) => s.set_value(c, window, cx),
+                                None => s.clear_value(window, cx),
+                            }
+                        }
+                    });
+                }
+                self.props = p;
+            }
+            fn event_name() -> &'static str {
+                "change"
+            }
+            fn controlled() -> Option<ControlledBinding> {
+                binding()
+            }
+            fn commands() -> Vec<ViewCommand<Self>> {
+                vec![ViewCommand::new("setOpen", |this, open: bool, _, cx| {
+                    this.state.update(cx, |s, cx| s.set_open(open, cx));
+                    Ok(())
+                })]
+            }
         }
-        self.props = p;
-    }
-    fn event_name() -> &'static str {
-        "change"
-    }
-    fn controlled() -> Option<ControlledBinding> {
-        binding()
-    }
-    fn commands() -> Vec<ViewCommand<Self>> {
-        vec![ViewCommand::new("setOpen", |this, open: bool, _, cx| {
-            this.state.update(cx, |s, cx| s.set_open(open, cx));
-            Ok(())
-        })]
-    }
+    };
 }
+color_control!(ColorPicker, ColorPickerProps);
+color_control!(ColorSelect, ColorSelectProps);
 impl Render for ColorPicker {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         let mut v = gpui_component::color_picker::ColorPicker::new(&self.state)
@@ -611,10 +690,25 @@ impl Render for ColorPicker {
         v
     }
 }
+impl Render for ColorSelect {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        use gpui::prelude::FluentBuilder;
+        gpui_component::color_picker::ColorSelect::new(&self.state)
+            .with_size(self.props.size)
+            .when_some(self.props.placeholder.clone(), |v, p| v.placeholder(p))
+            .when_some(self.props.accessibility_label.clone(), |v, p| {
+                v.accessibility_label(p)
+            })
+            .when_some(self.props.featured_colors.as_ref(), |v, colors| {
+                v.featured_colors(colors.iter().map(Color::native).collect())
+            })
+    }
+}
 pub(crate) fn definitions() -> Vec<crate::native::ComponentDefinition> {
     vec![
         __native_component_Calendar(),
         __native_component_DatePicker(),
         __native_component_ColorPicker(),
+        __native_component_ColorSelect(),
     ]
 }

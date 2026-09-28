@@ -14,7 +14,7 @@ Use this order:
 6. [`troubleshooting.md`](troubleshooting.md) — stale bindings, install-hook mistakes, cross-target refusals, and runtime failures.
 7. [`rust-bridge.md`](rust-bridge.md) — export Rust logic and native components, configure desktop hosts, windows, and titlebars.
 8. [`hot-reload.md`](hot-reload.md) — Bun HMR and QuickJS application reload, Rust rebuild watching, persistent development sessions, explicit state contracts, and activation/recovery verification.
-9. [`gpui-components.md`](gpui-components.md) — GPUI Kit controls, InputGroup, Questionnaire, inline tokens, editor search, streamed text, native motion sequences, and application themes.
+9. [`gpui-components.md`](gpui-components.md) — GPUI Kit 0.7 controls, Toolbar, TimeField, ColorSelect, date/time editing, chart axes, text highlights, native motion, and application themes.
 10. [`performance-analysis.md`](performance-analysis.md) — repeatable performance measurement, native commit profiling, and acceptance.
 11. [`scroll-performance.md`](scroll-performance.md) — native layout contracts, regressions, and recorded measurements.
 12. [`keyboard-and-menus.md`](keyboard-and-menus.md) — platform shortcuts, window scope, and system menus.

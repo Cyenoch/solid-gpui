@@ -496,6 +496,11 @@ impl DockArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A panel this area does not own (e.g. dropped from a nested dock) has
+        // no backing entity here; inserting it would strand a ghost tab.
+        if self.panel(panel).is_none() {
+            return;
+        }
         let Some(destination) = self.placement_of_node(target_node(&target)) else {
             return;
         };
@@ -1216,10 +1221,16 @@ impl DockArea {
 
     /// Resize one dock from a pointer position, clamped so neither this dock
     /// nor the one opposite is squeezed below its minimum.
+    ///
+    /// A collapsible bottom dock is the exception: it follows the pointer
+    /// below the minimum down to its closed strip, so closing it by drag is
+    /// one continuous motion. That size is only shown, and
+    /// [`Self::end_dock_resize`] settles it on release.
     fn resize_dock(
         &mut self,
         placement: DockPlacement,
         pointer: Point<Pixels>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let opposite = match placement {
@@ -1230,12 +1241,54 @@ impl DockArea {
         let sizing = DockSizing::new(placement)
             .with_area_bounds(self.bounds)
             .with_opposite_dock_size(opposite.unwrap_or(px(0.)));
-        let size = sizing.clamp(sizing.size_from_pointer(pointer));
+        let size = sizing
+            .size_from_pointer(pointer)
+            .min(sizing.clamp(Pixels::MAX));
 
-        if let Some(pane) = self.docks.get_mut(&placement) {
+        let Some(pane) = self.docks.get_mut(&placement) else {
+            return;
+        };
+        let was_open = pane.dock.is_open();
+        if placement == DockPlacement::Bottom && pane.dock.is_collapsible() && size < PANEL_MIN_SIZE
+        {
+            pane.dock.set_open(size > CLOSED_BOTTOM_STRIP);
+            pane.dock.set_live_size(Some(size.max(CLOSED_BOTTOM_STRIP)));
+        } else {
+            pane.dock.set_open(true);
+            pane.dock.set_live_size(None);
             pane.dock.set_size(size);
-            cx.notify();
         }
+        if pane.dock.is_open() != was_open {
+            self.reconcile(window, cx);
+        }
+        cx.notify();
+    }
+
+    /// Settle a drag that ended below the minimum: nearer the closed strip it
+    /// closes, nearer the minimum it opens at the minimum.
+    fn end_dock_resize(
+        &mut self,
+        placement: DockPlacement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(pane) = self.docks.get_mut(&placement) else {
+            return;
+        };
+        let Some(size) = pane.dock.live_size() else {
+            return;
+        };
+        pane.dock.set_live_size(None);
+
+        let open = size >= (CLOSED_BOTTOM_STRIP + PANEL_MIN_SIZE) / 2.;
+        if open {
+            pane.dock.set_size(PANEL_MIN_SIZE);
+        }
+        if pane.dock.is_open() != open {
+            pane.dock.set_open(open);
+            self.reconcile(window, cx);
+        }
+        cx.notify();
     }
 }
 
@@ -1379,7 +1432,7 @@ impl DockArea {
 
         DockContext {
             placement,
-            size: dock.size(),
+            size: dock.live_size().unwrap_or(dock.size()),
             open: dock.is_open(),
             collapsible: dock.is_collapsible(),
             on_toggle: {
@@ -1388,8 +1441,16 @@ impl DockArea {
                     _ = area.update(cx, |area, cx| area.toggle_dock(placement, window, cx));
                 })
             },
-            on_resize: Rc::new(move |pointer, _, cx| {
-                _ = area.update(cx, |area, cx| area.resize_dock(placement, pointer, cx));
+            on_resize: {
+                let area = area.clone();
+                Rc::new(move |pointer, window, cx| {
+                    _ = area.update(cx, |area, cx| {
+                        area.resize_dock(placement, pointer, window, cx)
+                    });
+                })
+            },
+            on_resize_end: Rc::new(move |window, cx| {
+                _ = area.update(cx, |area, cx| area.end_dock_resize(placement, window, cx));
             }),
         }
     }
@@ -1641,6 +1702,7 @@ pub struct DockContext {
     collapsible: bool,
     on_toggle: DockToggleHandler,
     on_resize: DockResizeHandler,
+    on_resize_end: DockToggleHandler,
 }
 
 impl DockContext {
@@ -1670,6 +1732,12 @@ impl DockContext {
     /// against the area bounds and the opposite dock.
     pub fn resize_to(&self, pointer: Point<Pixels>, window: &mut Window, cx: &mut App) {
         (self.on_resize)(pointer, window, cx);
+    }
+
+    /// End a resize started with [`Self::resize_to`]. A bottom dock dragged
+    /// below its minimum snaps shut or to the minimum, whichever is nearer.
+    pub fn end_resize(&self, window: &mut Window, cx: &mut App) {
+        (self.on_resize_end)(window, cx);
     }
 }
 
@@ -2386,6 +2454,24 @@ mod tests {
         assert!(
             (left - right).abs() <= (left + right) * 0.02,
             "the two halves must be within 2% of each other, got {left} and {right}"
+        );
+    }
+
+    /// Moving a panel this area does not own is a no-op, not a ghost insert.
+    #[gpui::test]
+    fn a_move_of_an_unowned_panel_is_ignored(cx: &mut TestAppContext) {
+        let log = Log::default();
+        let (area, _panels, cx) = one_group(&log, &["Alpha", "Beta"], None, cx);
+        let group = child_node(&area, 0, cx);
+        let before = cx.read(|cx| area.read(cx).dump(cx));
+
+        // A PanelId from nowhere, as if dropped from another DockArea.
+        move_panel_into(&area, PanelId::from_u64(9_999_999), group, None, true, cx);
+
+        let after = cx.read(|cx| area.read(cx).dump(cx));
+        assert_eq!(
+            before, after,
+            "an unowned panel move must not touch the tree"
         );
     }
 

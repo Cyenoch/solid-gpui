@@ -4,35 +4,28 @@ use gpui::{
     AnyElement, App, Bounds, ElementId, Hsla, IntoElement, PathBuilder, Pixels, Point,
     SharedString, Window, fill, point, px,
 };
-use gpui_base::motion::spring;
 use gpui_component_macros::IntoPlot;
-use num_traits::{Num, ToPrimitive};
 use rust_i18n::t;
 
 use crate::{
     ActiveTheme,
     plot::{
-        AXIS_GAP, Grid, PathCaches, Plot, PlotAxis, ShapeKey, origin_point,
-        scale::{Scale, ScaleBand, ScaleLinear, Sealed},
-        tooltip::{CrossLine, PlotHover, Tooltip, TooltipState},
+        Grid, PathCaches, Plot, PlotAxis, ShapeKey, origin_point,
+        scale::{PlotValue, Scale, ScaleBand, ScaleLinear},
+        tooltip::{CrossLine, Tooltip, TooltipState},
     },
 };
 
-use super::{build_band_labels, pointer_spring};
-
-/// The hover a candlestick chart paints, sampled once per frame in [`Plot::hover`].
-#[derive(Clone, Copy)]
-struct CandlestickHover {
-    /// Center of the highlight band along the x axis, springing between candles.
-    center: Pixels,
-}
+use super::{
+    AXIS_GAP, MAX_BAND_WIDTH, TooltipContent, build_band_labels, caller_id, labeled_items,
+};
 
 #[derive(IntoPlot)]
 pub struct CandlestickChart<T, X, Y>
 where
     T: 'static,
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
     data: Vec<T>,
     x: Option<Rc<dyn Fn(&T) -> X>>,
@@ -42,19 +35,22 @@ where
     close: Option<Rc<dyn Fn(&T) -> Y>>,
     tick_margin: usize,
     body_width_ratio: f32,
+    max_band_width: Pixels,
     x_axis: bool,
     grid: bool,
     bullish: Option<Hsla>,
     bearish: Option<Hsla>,
-    id: Option<ElementId>,
-    hover: Option<CandlestickHover>,
+    id: ElementId,
+    interactive: bool,
+    tooltip_content: TooltipContent<T>,
 }
 
 impl<T, X, Y> CandlestickChart<T, X, Y>
 where
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
+    #[track_caller]
     pub fn new<I>(data: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -68,22 +64,86 @@ where
             close: None,
             tick_margin: 1,
             body_width_ratio: 0.8,
+            max_band_width: px(MAX_BAND_WIDTH),
             x_axis: true,
             grid: true,
             bullish: None,
             bearish: None,
-            id: None,
-            hover: None,
+            id: caller_id(),
+            interactive: true,
+            tooltip_content: TooltipContent::default(),
         }
     }
 
-    /// Enable an interactive hover tooltip (a highlight band and the open, high,
-    /// low and close of the hovered candle) for this chart.
+    /// Name this chart's [`ElementId`], replacing the default taken from the
+    /// construction site.
     ///
-    /// The `id` must be unique among sibling elements. Without it, the chart stays a
-    /// non-interactive plot.
+    /// Pass one where a single construction site renders several of these
+    /// charts as siblings: they share the default id, and with it one hover
+    /// state and one path cache. The id must be unique among those siblings.
     pub fn id(mut self, id: impl Into<ElementId>) -> Self {
-        self.id = Some(id.into());
+        self.id = id.into();
+        self
+    }
+
+    /// Turn this chart's interactive layer on or off. On by default.
+    ///
+    /// The layer is the hitbox under the cursor and what it drives: a highlight
+    /// band marks the hovered candle, and a tooltip shows its open, high, low and
+    /// close. Turn it off for a chart that only decorates, or one an element
+    /// above it wants the cursor for: without a hitbox it neither answers the
+    /// mouse nor takes the hover from what sits over it. A chart that is off also
+    /// drops its path cache, which is keyed on the same id.
+    pub fn interactive(mut self, interactive: bool) -> Self {
+        self.interactive = interactive;
+        self
+    }
+
+    /// Set the hover tooltip's title for a datum, instead of its x value.
+    pub fn tooltip_title(mut self, title: impl Fn(&T) -> SharedString + 'static) -> Self {
+        self.tooltip_content.set_title(title);
+        self
+    }
+
+    /// Set the text of each tooltip row's value; the raw number by default.
+    ///
+    /// The closure receives the datum, the row's index (0 to 3 for open, high, low and close) and
+    /// the value the row reads.
+    pub fn tooltip_value(
+        mut self,
+        value: impl Fn(&T, usize, f64) -> SharedString + 'static,
+    ) -> Self {
+        self.tooltip_content.set_value(value);
+        self
+    }
+
+    /// Color each tooltip row's value, such as green or red by its sign; the
+    /// tooltip's text color by default.
+    ///
+    /// The closure receives the same arguments as
+    /// [`tooltip_value`](Self::tooltip_value).
+    pub fn tooltip_value_color<H>(mut self, color: impl Fn(&T, usize, f64) -> H + 'static) -> Self
+    where
+        H: Into<Hsla>,
+    {
+        self.tooltip_content.set_value_color(color);
+        self
+    }
+
+    /// Draw the tooltip box's content for a datum yourself, in place of the
+    /// title and rows, for a layout they cannot express such as a table.
+    ///
+    /// The highlight band and where the box sits stay the chart's, and
+    /// [`tooltip_title`](Self::tooltip_title), [`tooltip_value`](Self::tooltip_value)
+    /// and [`tooltip_value_color`](Self::tooltip_value_color) no longer apply.
+    pub fn tooltip_content<E>(
+        mut self,
+        content: impl Fn(&T, &mut Window, &mut App) -> E + 'static,
+    ) -> Self
+    where
+        E: IntoElement,
+    {
+        self.tooltip_content.set_content(content);
         self
     }
 
@@ -119,6 +179,15 @@ where
 
     pub fn body_width_ratio(mut self, ratio: f32) -> Self {
         self.body_width_ratio = ratio;
+        self
+    }
+
+    /// Keep every candle's band at most `width` wide, so a few candles across
+    /// a wide chart stay narrow.
+    ///
+    /// Default is 30px.
+    pub fn max_band_width(mut self, width: impl Into<Pixels>) -> Self {
+        self.max_band_width = width.into();
         self
     }
 
@@ -166,9 +235,10 @@ where
         let x_fn = self.x.as_ref()?;
         Some(
             ScaleBand::new(
-                self.data.iter().map(|v| x_fn(v)).collect(),
-                vec![0., bounds.size.width.as_f32()],
+                self.data.iter().map(|v| x_fn(v)),
+                [0., bounds.size.width.as_f32()],
             )
+            .max_band_width(self.max_band_width.as_f32())
             .padding_inner(0.4)
             .padding_outer(0.2),
         )
@@ -183,7 +253,7 @@ where
 impl<T, X, Y> Plot for CandlestickChart<T, X, Y>
 where
     X: Eq + Hash + Into<SharedString> + 'static,
-    Y: Copy + PartialOrd + Num + ToPrimitive + Sealed + 'static,
+    Y: PlotValue,
 {
     fn paint(&mut self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
         let (Some(x_fn), Some(open_fn), Some(high_fn), Some(low_fn), Some(close_fn)) = (
@@ -210,7 +280,7 @@ where
             .iter()
             .flat_map(|d| vec![high_fn(d), low_fn(d), open_fn(d), close_fn(d)])
             .collect();
-        let y = ScaleLinear::new(all_values, vec![height, 10.]);
+        let y = ScaleLinear::new(all_values, [height, 10.]);
 
         // Draw X axis
         let mut axis = PlotAxis::new().stroke(cx.theme().border);
@@ -220,7 +290,7 @@ where
                 x_fn.as_ref(),
                 &x,
                 band_width,
-                self.tick_margin,
+                &labeled_items(self.data.len(), None, self.tick_margin),
                 cx.theme().muted_foreground,
             );
             axis = axis.x(height).x_label(labels);
@@ -230,7 +300,7 @@ where
         // Draw grid
         if self.grid {
             Grid::new()
-                .y((0..=3).map(|i| height * i as f32 / 4.0).collect())
+                .y((0..=3).map(|i| height * i as f32 / 4.0))
                 .stroke(cx.theme().border)
                 .dash_array(&[px(4.), px(2.)])
                 .paint(&bounds, window);
@@ -327,7 +397,7 @@ where
     }
 
     fn id(&self) -> Option<ElementId> {
-        self.id.clone()
+        self.interactive.then(|| self.id.clone())
     }
 
     fn tooltip_state(
@@ -344,7 +414,7 @@ where
             return None;
         }
 
-        let index = x.least_index(position.x.as_f32());
+        let index = x.nearest_index(position.x.as_f32());
         let d = self.data.get(index)?;
         let center = x.tick(&x_fn(d))? + x.band_width() / 2.;
 
@@ -355,27 +425,12 @@ where
         ))
     }
 
-    fn hover(&mut self, hover: Option<&PlotHover>, window: &mut Window, cx: &mut App) {
-        self.hover = hover.map(|hover| {
-            // The band slides to the hovered candle; on the first hovered frame it
-            // adopts the candle instead of travelling from where the last hover ended.
-            let center = spring(
-                ("candlestick-chart", "band"),
-                hover.state().cross_line.x,
-                pointer_spring(cx).with_travel(!hover.is_entering()),
-                window,
-                cx,
-            );
-            CandlestickHover { center }
-        });
-    }
-
     fn tooltip(
         &self,
         state: &TooltipState,
         cursor: Point<Pixels>,
         bounds: Bounds<Pixels>,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> Option<AnyElement> {
         let (x_fn, open_fn, high_fn, low_fn, close_fn) = (
@@ -386,33 +441,39 @@ where
             self.close.as_ref()?,
         );
         let d = self.data.get(state.index)?;
-        let title: SharedString = x_fn(d).into();
         let (open, close) = (open_fn(d), close_fn(d));
         let (bullish, bearish) = self.candle_colors(cx);
         let color = if close > open { bullish } else { bearish };
 
         // Highlight the hovered candle with a translucent band the width of its
-        // slot, centered where the band spring has reached rather than snapped to
-        // the candle, and confined to the plot area above the axis labels.
-        let center = self.hover.map_or(state.cross_line.x, |hover| hover.center);
+        // slot, which glides between candles, confined to the plot area above the
+        // axis labels.
         let band_width = self.x_scale(bounds)?.band_width();
-        let cross_line = CrossLine::new(point(center, state.cross_line.y))
+        let cross_line = CrossLine::new(state.cross_line)
             .span(0., self.plot_height(bounds))
             .band(px(band_width));
 
-        let rows = [
-            (t!("Chart.open"), open),
-            (t!("Chart.high"), high_fn(d)),
-            (t!("Chart.low"), low_fn(d)),
-            (t!("Chart.close"), close),
-        ];
-        let mut tooltip = Tooltip::new(cursor, bounds.size)
+        let tooltip = Tooltip::new(cursor, bounds.size)
             .gap(px(8.))
-            .cross_line(cross_line)
-            .title(title);
-        for (label, value) in rows {
-            tooltip = tooltip.row(color, label.to_string(), format!("{}", value.to_f64()?));
-        }
+            .cross_line(cross_line);
+        let tooltip = self.tooltip_content.apply(
+            tooltip,
+            d,
+            || Some(x_fn(d).into()),
+            || {
+                [
+                    (t!("Chart.open"), open),
+                    (t!("Chart.high"), high_fn(d)),
+                    (t!("Chart.low"), low_fn(d)),
+                    (t!("Chart.close"), close),
+                ]
+                .into_iter()
+                .map(|(label, value)| Some((color, label.to_string().into(), value.to_f64()?)))
+                .collect::<Option<Vec<_>>>()
+            },
+            window,
+            cx,
+        )?;
 
         Some(tooltip.into_any_element())
     }

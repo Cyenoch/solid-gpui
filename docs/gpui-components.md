@@ -2,7 +2,7 @@
 
 The SDK exposes generated native components, descriptors, and commands from
 `@solid-gpui/core/components`. The implementation comes from [GPUI Kit](https://github.com/longbridge/gpui-kit)
-at `0e63ea799766c486022a0cecfda6e48c5183a2d7` (0.6.4 plus subsequent changes).
+at `17b2c6a269c3de51a2f0dc97d49f87f0dd9d6571` (0.7.0 plus subsequent changes), with GPUI pinned to 0.3.7.
 Local native state and lifecycle seams are recorded in
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md).
 
@@ -43,7 +43,61 @@ session; an explicit `host` remains externally built. See
 
 ## Coverage
 
-### September 2026 upstream update
+### September 28, 2026: Kit 0.7
+
+New native components are **Toolbar**, **ToolbarGroup**, **TimeField**, and
+**ColorSelect**. Each has an executable website example and generated API table.
+
+- Toolbar owns native arrow-key navigation and accessible grouping. Solid children
+  retain their own size and disabled policy; set Button `size="small"` and
+  `variant="ghost"` for compact commands. The toolbar supplies no background.
+- TimeField retains segment focus and editing across prop changes. `value` and
+  `defaultValue` use `HH:MM:SS` (00:00:00–23:59:59), `precision` is `minute` or
+  `second`, and `hourCycle` is `h23` or `h12`. `onChange` uses the existing edit
+  acknowledgement contract; `getValue()` and `focus()` are native ref commands.
+- ColorSelect shares the native color state engine with ColorPicker but draws a
+  full-width framed field with swatch and hex text. It supports `placeholder`,
+  `accessibilityLabel`, `featuredColors`, controlled value, and `setOpen()`.
+- DatePicker adds `timePrecision`, `hourCycle`, and controlled `time` alongside
+  `value`; time editing supports single dates. `onChange` includes the date and
+  time. Supply a format such as `%Y/%m/%d %H:%M` to show both. These are civil
+  values without timezone conversion; ranges remain date-only in the Solid API.
+- Attachment adds native `onRemove`, `onRetry`, `progress` (0–100), and `tooltip`.
+  Popover adds `arrow` and nonnegative `offset`. Marker adds `alignment`;
+  Textarea supports the shared `size` scale. SettingGroup accepts `variant` and
+  `slots.footer`, outside the group surface. Theme colors add `chartGrid`.
+  Select emits `onDismiss` when an open menu closes, including confirmation.
+  DockArea's `closeButtonVisible` opts into native close controls for closable tabs.
+- LineChart and AreaChart add `yDomain`, `pointCount`, `yAxis`, `yTickCount`,
+  `xTickCount`, `gridColumns`, `gridDashed`, and `referenceLines`. BarChart adds
+  `bandCount`, `bandTickCount`, `paddingInner`, `paddingOuter`, `maxBandWidth`,
+  `minLength`, and `gridDashed`. Point/band counts are bounded to 16,384; grid
+  columns, value ticks and reference lines to 128. Interaction is explicitly
+  disabled when `interactive={false}`, including upstream's new default IDs.
+
+TextView ref commands expose `getSelectedSourceRange()` and a rendered-text
+snapshot via `getRenderedText()`. The latter returns `{ revision, text }` with
+a 256 KiB limit. `setRangeHighlights({ revision, highlights })` accepts at most
+1024 `{ range: { startByte, endByte }, background }` entries;
+`revealRange({ revision, range })` requests native scrolling and
+`clearRangeHighlights()` removes highlights. These ranges index rendered UTF-8
+text, not Markdown source. Stale snapshots and invalid UTF-8 boundaries fail
+before mutation. Parsing is asynchronous: obtain a new snapshot after content
+changes. Reveal is best effort, not confirmation that scrolling occurred; use a
+scrollable TextView for a self-owned viewport. The source selection command
+instead returns offsets in the source document.
+
+The host now uses Base Root's automatically mounted Component window plugin;
+applications must not mount overlay layers again. Existing owner/session tokens
+remain on Component WindowState. Upstream supplies editor/accessibility fixes,
+menu lifecycle fixes, retained Markdown mapping and shaping, and reduced chart,
+tree, table and command work. These are implementation changes, not new JS loops.
+
+The upstream manual is incorporated into [ownership and interaction design](native-composition.md#ownership-and-interaction-design),
+with explicit adaptations for Solid pixel styles, controlled events, managed
+images, task lifetimes, and native cache invalidation.
+
+### Earlier September 2026 update
 
 The 0.6.4-based pin adds InputGroup and Questionnaire, atomic inline input tokens,
 editor search commands, chained native motion, and streamed-text fades. Their
@@ -220,7 +274,7 @@ Simple supported scalars render as a description list; compound or unsupported
 YAML uses the native code-block renderer. Frontmatter is opt-in and requires
 Markdown. It is a display extension, not a general-purpose YAML parser.
 
-`TextView streamFade` fades appended chunks using the native 350 ms policy.
+`TextView streamFade` uses the native 280 ms word fade with 10 ms stagger.
 Use `streamFade={{ durationMs: 350, staggerMs: 30, easing: "easeOut" }}` for
 word-staggered timing, or `false` to disable it. Each timing value is bounded to
 60 seconds; the native renderer compresses stagger for long updates. Keep the
@@ -311,9 +365,9 @@ import {
 | Native family            | JS entry points                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Basic controls           | Alert, Avatar/AvatarGroup, Badge, BaseButton/BaseCheckbox/BaseSwitch/BaseToggle, Button/ButtonGroup, Toggle/ToggleGroup, Checkbox, Clipboard, Icon, Kbd, Label, Link, Pagination, Progress/ProgressCircle, Radio/RadioGroup, Rating, Separator, ShimmerText, Skeleton, Spinner, Switch, Tag                                                     |
-| Editing and choices      | Input, Textarea, Editor, InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText, NumberInput, OtpInput, ColorPicker, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                                                               |
+| Editing and choices      | Input, Textarea, Editor, InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText, NumberInput, OtpInput, TimeField, ColorPicker/ColorSelect, Slider, Calendar, DatePicker, Select, Combobox, Caret                                                                                                                                                               |
 | Data and scrolling       | List/ListItem/ListSeparatorItem, SearchableListItemElement, DataTable, Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption, Tree, VirtualList, MessageScroller, Command, TextView/Text, Scrollable, ScrollShadow, FocusTrap                                                                                       |
-| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, Questionnaire and its compound parts, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar |
+| Composition              | Accordion/AccordionItem, Breadcrumb/BreadcrumbItem, Carousel/CarouselItem, Collapsible, DescriptionList/DescriptionItem/DescriptionText, Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent, Form/Field, GroupBox, Questionnaire and its compound parts, ResizablePanelGroup/ResizablePanel, Stepper/StepperItem, Tab/TabBar, Toolbar/ToolbarGroup |
 | Messages and attachments | All Attachment, Bubble, Marker and Message elements in the generated catalog                                                                                                                                                                                                                                                                    |
 | Navigation and settings  | Sidebar/Header/Footer/ToggleButton/Group/Menu/MenuItem, Settings/SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem, StatusBar, TitleBar, WindowBorder                                                                                                                                                                         |
 | Overlays                 | Dialog/AlertDialog and DialogContent/Description/Footer/Close/Action/Header/Title, Sheet, Popover, HoverCard, Tooltip, PopupMenu, ContextMenu, DropdownMenu, DropdownButton, AppMenuBar, NativeMenu, Notification                                                                                                                               |
@@ -544,7 +598,7 @@ Dialogs, sheets and notifications use native owner/session tokens. Resolving an 
 
 ## Plot data and work limits
 
-Charts compile data on prop commits and perform native hit testing/painting. Line/Area/Bar/Radar expose their native interactive tooltip behavior. The pinned Candlestick/Pie/Sankey APIs have no interactive tooltip setter. Radar labels can use committed child slots; bar fills support native gradients.
+Charts compile data on prop commits and perform native hit testing/painting. Line/Area/Bar/Radar/Pie expose `interactive`; Candlestick and Sankey retain upstream's native tooltip behavior. Rust callback-based custom tooltip renderers are not serialized into JavaScript callbacks. Radar labels can use committed child slots; bar fills support native gradients. Plot primitives now live in Base and are re-exported by Component; the Solid drawing contract continues to use generated DTOs.
 
 Plot coordinates are logical pixels. Radial and arc angles use radians. Native line/area/radial shapes omit null points using the upstream connection semantics; null is never converted to zero. Stack explicitly follows the native algorithm's zero value for missing entries. Pie omits zero/null slices and reports their original input indices. Sankey layout values may be scaled (for example square root); use the original link values for business totals.
 

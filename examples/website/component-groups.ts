@@ -51,6 +51,7 @@ export const componentGroups = [
       "Calendar",
       "Caret",
       "ColorPicker",
+      "ColorSelect",
       "Combobox",
       "DatePicker",
       "Editor",
@@ -61,6 +62,7 @@ export const componentGroups = [
       "Select",
       "Slider",
       "Textarea",
+      "TimeField",
     ],
   },
   {
@@ -94,6 +96,7 @@ export const componentGroups = [
       "ResizablePanelGroup",
       "Stepper",
       "TabBar",
+      "Toolbar",
     ],
   },
   {

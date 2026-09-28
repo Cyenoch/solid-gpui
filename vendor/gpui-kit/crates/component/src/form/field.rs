@@ -167,6 +167,11 @@ impl Field {
         self
     }
 
+    /// Returns whether the form field is visible.
+    pub(super) fn is_visible(&self) -> bool {
+        self.visible
+    }
+
     /// Set the required status of the form field, default is `false`.
     pub fn required(mut self, required: bool) -> Self {
         self.required = required;

@@ -2,13 +2,16 @@
 
 use std::{f32::consts::PI, fmt::Debug};
 
-use gpui::{Bounds, Hsla, Path, PathBuilder, Pixels, Point, Window, point, px};
+use gpui::{Background, Bounds, Path, PathBuilder, Pixels, Point, Window, point, px};
 
 use crate::plot::{PathCache, ShapeKey};
 
 const EPSILON: f32 = 1e-12;
 const HALF_PI: f32 = PI / 2.;
 
+/// One slice of a [`Pie`](super::Pie): its datum and the angles it spans, in
+/// radians with 0 at 12 o'clock and positive angles proceeding clockwise.
+#[non_exhaustive]
 pub struct ArcData<'a, T> {
     pub data: &'a T,
     pub index: usize,
@@ -16,6 +19,21 @@ pub struct ArcData<'a, T> {
     pub start_angle: f32,
     pub end_angle: f32,
     pub pad_angle: f32,
+}
+
+impl<'a, T> ArcData<'a, T> {
+    /// A slice of `data` from `start_angle` to `end_angle`, with no padding.
+    /// Set the remaining fields directly when they matter, e.g. `pad_angle`.
+    pub fn new(data: &'a T, index: usize, value: f32, start_angle: f32, end_angle: f32) -> Self {
+        Self {
+            data,
+            index,
+            value,
+            start_angle,
+            end_angle,
+            pad_angle: 0.,
+        }
+    }
 }
 
 impl<T> Debug for ArcData<'_, T> {
@@ -69,13 +87,7 @@ impl Arc {
         point(r * a.cos(), r * a.sin())
     }
 
-    fn path<T>(
-        &self,
-        arc: &ArcData<T>,
-        inner_radius: Option<f32>,
-        outer_radius: Option<f32>,
-        center: Point<Pixels>,
-    ) -> Option<Path<Pixels>> {
+    fn path<T>(&self, arc: &ArcData<T>, center: Point<Pixels>) -> Option<Path<Pixels>> {
         let start_angle = arc.start_angle - HALF_PI;
         let end_angle = arc.end_angle - HALF_PI;
         let da = end_angle - start_angle;
@@ -86,8 +98,8 @@ impl Arc {
         } else {
             arc.pad_angle
         };
-        let r0 = inner_radius.unwrap_or(self.inner_radius).max(0.);
-        let r1 = outer_radius.unwrap_or(self.outer_radius).max(0.);
+        let r0 = self.inner_radius.max(0.);
+        let r1 = self.outer_radius.max(0.);
 
         let center_x = center.x.as_f32();
         let center_y = center.y.as_f32();
@@ -184,14 +196,9 @@ impl Arc {
     /// The shape key for an arc slice: the cache domain tag, the angles and
     /// the resolved radii. Everything else the path depends on is derived
     /// from these.
-    fn shape_key<T>(
-        &self,
-        arc: &ArcData<T>,
-        inner_radius: Option<f32>,
-        outer_radius: Option<f32>,
-    ) -> u64 {
-        let r0 = inner_radius.unwrap_or(self.inner_radius).max(0.);
-        let r1 = outer_radius.unwrap_or(self.outer_radius).max(0.);
+    fn shape_key<T>(&self, arc: &ArcData<T>) -> u64 {
+        let r0 = self.inner_radius.max(0.);
+        let r1 = self.outer_radius.max(0.);
         ShapeKey::new((
             "arc/fill",
             arc.start_angle.to_bits(),
@@ -204,21 +211,18 @@ impl Arc {
     }
 
     /// Whether the cursor at `position` (relative to the bounds origin) is on
-    /// this arc's slice: within its angles and between `inner_radius` and
-    /// `outer_radius` (this arc's own radii when `None`).
+    /// this arc's slice: within its angles and between this arc's radii.
     pub fn contains<T>(
         &self,
         arc: &ArcData<T>,
         position: Point<f32>,
-        inner_radius: Option<f32>,
-        outer_radius: Option<f32>,
         bounds: &Bounds<Pixels>,
     ) -> bool {
         let dx = position.x - bounds.size.width.as_f32() / 2.;
         let dy = position.y - bounds.size.height.as_f32() / 2.;
         let radius = dx.hypot(dy);
-        let r0 = inner_radius.unwrap_or(self.inner_radius).max(0.);
-        let r1 = outer_radius.unwrap_or(self.outer_radius).max(0.);
+        let r0 = self.inner_radius.max(0.);
+        let r1 = self.outer_radius.max(0.);
         if radius < r0 || radius > r1 {
             return false;
         }
@@ -237,20 +241,16 @@ impl Arc {
     pub fn paint_cached<T>(
         &self,
         arc: &ArcData<T>,
-        color: impl Into<Hsla>,
-        inner_radius: Option<f32>,
-        outer_radius: Option<f32>,
+        fill: impl Into<Background>,
         bounds: &Bounds<Pixels>,
         cache: &mut PathCache,
         window: &mut Window,
     ) {
         let center = Self::center(bounds);
-        if let Some(path) = cache.get(
-            self.shape_key(arc, inner_radius, outer_radius),
-            center,
-            || self.path(arc, inner_radius, outer_radius, point(px(0.), px(0.))),
-        ) {
-            window.paint_path(path, color.into());
+        if let Some(path) = cache.get(self.shape_key(arc), center, || {
+            self.path(arc, point(px(0.), px(0.)))
+        }) {
+            window.paint_path(path, fill);
         }
     }
 
@@ -258,15 +258,13 @@ impl Arc {
     pub fn paint<T>(
         &self,
         arc: &ArcData<T>,
-        color: impl Into<Hsla>,
-        inner_radius: Option<f32>,
-        outer_radius: Option<f32>,
+        fill: impl Into<Background>,
         bounds: &Bounds<Pixels>,
         window: &mut Window,
     ) {
-        let path = self.path(arc, inner_radius, outer_radius, Self::center(bounds));
+        let path = self.path(arc, Self::center(bounds));
         if let Some(path) = path {
-            window.paint_path(path, color.into());
+            window.paint_path(path, fill);
         }
     }
 }
@@ -323,7 +321,7 @@ mod tests {
             pad_angle: 0.,
         };
 
-        let key = arc.shape_key(&slice(0., 1.), None, None);
+        let key = arc.shape_key(&slice(0., 1.));
 
         // The same slice keeps the key, whoever owns the datum.
         let other = ArcData {
@@ -334,17 +332,28 @@ mod tests {
             end_angle: 1.,
             pad_angle: 0.,
         };
-        assert_eq!(key, arc.shape_key(&other, None, None));
+        assert_eq!(key, arc.shape_key(&other));
 
-        // Explicit radii equal to the configured ones resolve to the same
-        // shape, so they keep the key too.
-        assert_eq!(key, arc.shape_key(&slice(0., 1.), Some(10.), Some(20.)));
+        let same = Arc::new().inner_radius(10.).outer_radius(20.);
+        assert_eq!(key, same.shape_key(&slice(0., 1.)));
 
         // Changed angles or radii re-tessellate.
-        assert_ne!(key, arc.shape_key(&slice(0., 1.1), None, None));
-        assert_ne!(key, arc.shape_key(&slice(0.1, 1.), None, None));
-        assert_ne!(key, arc.shape_key(&slice(0., 1.), Some(12.), None));
-        assert_ne!(key, arc.shape_key(&slice(0., 1.), None, Some(25.)));
+        assert_ne!(key, arc.shape_key(&slice(0., 1.1)));
+        assert_ne!(key, arc.shape_key(&slice(0.1, 1.)));
+        assert_ne!(
+            key,
+            Arc::new()
+                .inner_radius(12.)
+                .outer_radius(20.)
+                .shape_key(&slice(0., 1.))
+        );
+        assert_ne!(
+            key,
+            Arc::new()
+                .inner_radius(10.)
+                .outer_radius(25.)
+                .shape_key(&slice(0., 1.))
+        );
     }
 
     #[test]
@@ -359,12 +368,10 @@ mod tests {
             pad_angle: 0.02,
         };
 
-        let local = arc.path(&slice, None, None, point(px(0.), px(0.))).unwrap();
+        let local = arc.path(&slice, point(px(0.), px(0.))).unwrap();
         let center_x = 120.;
         let center_y = 75.;
-        let direct = arc
-            .path(&slice, None, None, point(px(center_x), px(center_y)))
-            .unwrap();
+        let direct = arc.path(&slice, point(px(center_x), px(center_y))).unwrap();
 
         assert_eq!(local.vertices.len(), direct.vertices.len());
         for (a, b) in local.vertices.iter().zip(&direct.vertices) {
@@ -398,16 +405,17 @@ mod tests {
         let bounds = Bounds::new(point(px(0.), px(0.)), size(px(100.), px(100.)));
 
         // 3 o'clock, between the radii.
-        assert!(arc.contains(&right_half, point(80., 50.), None, None, &bounds));
+        assert!(arc.contains(&right_half, point(80., 50.), &bounds));
         // 9 o'clock is the other half.
-        assert!(!arc.contains(&right_half, point(20., 50.), None, None, &bounds));
+        assert!(!arc.contains(&right_half, point(20., 50.), &bounds));
         // Inside the hole and past the rim.
-        assert!(!arc.contains(&right_half, point(55., 50.), None, None, &bounds));
-        assert!(!arc.contains(&right_half, point(95., 50.), None, None, &bounds));
-        // A wider outer radius reaches the same point.
-        assert!(arc.contains(&right_half, point(95., 50.), None, Some(50.), &bounds));
+        assert!(!arc.contains(&right_half, point(55., 50.), &bounds));
+        assert!(!arc.contains(&right_half, point(95., 50.), &bounds));
+        // A wider arc reaches the same point.
+        let wider = Arc::new().inner_radius(10.).outer_radius(50.);
+        assert!(wider.contains(&right_half, point(95., 50.), &bounds));
         // 12 o'clock is the start of this arc, 6 o'clock the start of the next.
-        assert!(arc.contains(&right_half, point(50., 20.), None, None, &bounds));
-        assert!(!arc.contains(&right_half, point(50., 80.), None, None, &bounds));
+        assert!(arc.contains(&right_half, point(50., 20.), &bounds));
+        assert!(!arc.contains(&right_half, point(50., 80.), &bounds));
     }
 }

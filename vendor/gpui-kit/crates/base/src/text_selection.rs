@@ -203,6 +203,15 @@ impl TextSelectionSnapshot {
     }
 }
 
+/// Retained element state proving a participant is still in the window.
+///
+/// A participant reports its geometry from `paint`, which a cached view
+/// (`Entity::cached`) skips: GPUI replays the recorded frame instead. The
+/// element's retained state is replayed with it, so this marker outlives the
+/// frames whose paint never ran, and dies with the frame that drops the
+/// element for good.
+struct RenderedMarker;
+
 /// Per-frame geometry reported by a [`TextSelectionHandle`] participant.
 pub struct TextSelectionRegistration {
     hitbox: Hitbox,
@@ -213,6 +222,7 @@ pub struct TextSelectionRegistration {
     text_bounds: Vec<Bounds<Pixels>>,
     self_scroll: bool,
     selection_edges: Option<(Bounds<Pixels>, Bounds<Pixels>)>,
+    rendered: Option<WeakEntity<RenderedMarker>>,
 }
 
 impl TextSelectionRegistration {
@@ -227,7 +237,43 @@ impl TextSelectionRegistration {
             text_bounds: Vec::new(),
             self_scroll: false,
             selection_edges: None,
+            rendered: None,
         }
+    }
+
+    /// Ties this registration to the retained state of the element reporting
+    /// it, so that a frame replayed from that element's cached view keeps it.
+    ///
+    /// Call this from the reporting element's `prepaint` or `paint`. A
+    /// registration made outside a drawing element cannot be tied to one and
+    /// is swept the first frame it misses, as every registration used to be.
+    pub fn with_rendered_element(
+        mut self,
+        participant: &TextSelectionHandle,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self {
+        self.rendered = Some(
+            window
+                .use_keyed_state(
+                    ElementId::NamedInteger(
+                        "text-selection-participant".into(),
+                        participant.entity_id().as_u64(),
+                    ),
+                    cx,
+                    |_, _| RenderedMarker,
+                )
+                .downgrade(),
+        );
+        self
+    }
+
+    /// Whether the element that reported this registration is still part of
+    /// the window, even if it did not paint the frame that just finished.
+    fn is_rendered(&self) -> bool {
+        self.rendered
+            .as_ref()
+            .is_some_and(|marker| marker.upgrade().is_some())
     }
 
     /// Marks a participant that scrolls its own content in response to
@@ -419,7 +465,25 @@ fn selection_range_for_run(
         return None;
     }
 
+    if run.text.is_empty() {
+        return None;
+    }
+
     let line_height = run.layout.line_height();
+    // Each character is tested with its row's top and height, so a run whose
+    // rows all miss the band, or all lie strictly inside it with no endpoint
+    // on any row, has the same answer for every character. Decide those
+    // without the walk below, which scans the layout twice per character.
+    let (rows_top, rows_bottom) = text_rows_extent(&run.layout, line_height);
+    let band_top = selection_start.y.min(selection_end.y);
+    let band_bottom = selection_start.y.max(selection_end.y);
+    if rows_bottom <= band_top || rows_top > band_bottom {
+        return None;
+    }
+    if band_top < rows_top && band_bottom >= rows_bottom {
+        return Some(0..run.text.len());
+    }
+
     let mut range = None;
     for (offset, character) in run.text.char_indices() {
         let next_offset = offset + character.len_utf8();
@@ -444,6 +508,28 @@ fn selection_range_for_run(
         }
     }
     range
+}
+
+/// The top of the first laid-out row of `text_layout` and the bottom of its
+/// last one, each row `line_height` tall as a selection band test sees it.
+///
+/// Both ends are accumulated the way [`TextLayout::position_for_index`] places
+/// rows, so comparisons against them agree with a per-character walk to the
+/// bit. The last laid-out row may hold no character such a walk tests (a
+/// trailing empty line, or a row whose only character is placed at the end of
+/// the row before it); callers treat the extent as covering, never as exact.
+pub(crate) fn text_rows_extent(text_layout: &TextLayout, line_height: Pixels) -> (Pixels, Pixels) {
+    let top = text_layout.bounds().top();
+    let layout_line_height = text_layout.line_height();
+    let lines = text_layout.line_layouts();
+    let mut last_line_top = top;
+    for line in lines.iter().take(lines.len().saturating_sub(1)) {
+        last_line_top += line.size(layout_line_height).height;
+    }
+    let last_row_top = lines.last().map_or(top, |line| {
+        last_line_top + line.wrap_boundaries.len() as f32 * layout_line_height
+    });
+    (top, last_row_top + line_height)
 }
 
 fn points_for_multi_click(
@@ -1155,14 +1241,21 @@ impl WindowSelectionState {
     /// Registrations are stamped with the current generation while any sibling
     /// is painting. Sweeping only after paint makes registration independent of
     /// whether a participant or the lifecycle element paints first.
+    ///
+    /// A missed generation alone does not mean the participant left the window:
+    /// a cached view replays its recorded frame, painting the same text at the
+    /// same place without running any of its elements. Such a participant keeps
+    /// the registration it last reported, which still describes what is on
+    /// screen; only one whose element GPUI has dropped is swept.
     pub fn finish_frame(&mut self, cx: &mut App) -> Vec<ClearHandler> {
         self.finish_frame_scheduled = false;
         let stale = self
             .participants
             .iter()
             .filter_map(|(id, registration)| {
-                (registration.generation != self.frame_generation)
-                    .then(|| (*id, registration.participant.clone()))
+                (registration.generation != self.frame_generation
+                    && !registration.registration.is_rendered())
+                .then(|| (*id, registration.participant.clone()))
             })
             .collect::<Vec<_>>();
         let mut handlers = Vec::new();

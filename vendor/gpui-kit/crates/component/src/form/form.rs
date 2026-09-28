@@ -141,6 +141,7 @@ impl RenderOnce for Form {
                 self.fields
                     .into_iter()
                     .enumerate()
+                    .filter(|(_, field)| field.is_visible())
                     .map(|(ix, field)| field.map_native(|field| field.props(ix, props))),
             )
             .when_some(self.footer, |this, footer| {
@@ -152,6 +153,7 @@ impl RenderOnce for Form {
                         .child(footer),
                 )
             })
+            .refine_style(&self.style)
     }
 }
 

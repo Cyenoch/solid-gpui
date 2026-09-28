@@ -22,7 +22,7 @@ use std::sync::Arc;
 /// The vendored popup names itself in the debug-bounds map.
 const DIALOG_POPUP_SELECTOR: &str = "dialog-0";
 /// The bottom gap the vendored popup keeps from the window's edge.
-const DIALOG_BOTTOM_GAP: Pixels = px(24.);
+const DIALOG_BOTTOM_GAP: Pixels = px(16.);
 /// A body no window can show in full, so the popup has to clamp.
 const TALL_BODY: Pixels = px(2_000.);
 /// A body shorter than the popup's own title and footer.
@@ -30,12 +30,8 @@ const SHORT_BODY: Pixels = px(40.);
 
 struct Surface;
 impl Render for Surface {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The application host renders this layer; without it an open dialog
-        // never reaches the screen.
-        div()
-            .size_full()
-            .children(Root::render_dialog_layer(window, cx))
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div().size_full()
     }
 }
 
@@ -52,7 +48,7 @@ fn root_window(height: f32, cx: &mut TestAppContext) -> VisualTestContext {
 /// Opens one dialog with a body of `body` height and reports its popup.
 fn draw_dialog(visual: &mut VisualTestContext, body: Pixels) -> Bounds<Pixels> {
     visual.update(|window, cx| {
-        Root::update(window, cx, |root, window, cx| {
+        gpui_component::WindowState::update(window, cx, |root, window, cx| {
             root.open_dialog_owned(
                 move |dialog, _, _| {
                     dialog

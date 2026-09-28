@@ -78,6 +78,7 @@ mod exports {
     #[component]
     pub fn marker(
         #[prop(default)] variant: MarkerVariant,
+        #[prop(default)] alignment: MarkerAlignment,
         #[prop(default)] loading: bool,
         #[prop(default)] loading_style: MarkerLoadingStyle,
         #[prop(default)] status: bool,
@@ -88,6 +89,11 @@ mod exports {
         use gpui_component::marker as m;
         m::Marker::new()
             .id(cx.id())
+            .alignment(match alignment {
+                MarkerAlignment::Start => m::MarkerAlignment::Start,
+                MarkerAlignment::Center => m::MarkerAlignment::Center,
+                MarkerAlignment::End => m::MarkerAlignment::End,
+            })
             .with_variant(match variant {
                 MarkerVariant::Plain => m::MarkerVariant::Plain,
                 MarkerVariant::Separator => m::MarkerVariant::Separator,
@@ -126,3 +132,13 @@ mod exports {
     }
 }
 pub use exports::native_module;
+
+#[crate::native_type]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum MarkerAlignment {
+    #[default]
+    Start,
+    Center,
+    End,
+}

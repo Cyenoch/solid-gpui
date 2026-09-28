@@ -148,13 +148,19 @@ Direct Vite invocations bypass this synchronization.
 Native component dependencies come from `vendor/gpui-kit`; the pinned
 `references/gpui-kit` submodule is used for upstream comparison. The
 [component guide](../../docs/gpui-components.md) describes which GPUI Kit layers
-the host exposes, and is published in both website languages. The 0.6.4-based
-pin includes InputGroup, Questionnaire, inline input tokens, editor search,
-Motion sequences, streamed-text fades, and interactive pie charts. Their examples
+the host exposes, and is published in both website languages. The 0.7.0-based
+pin uses GPUI 0.3.7 and adds Toolbar/ToolbarGroup, TimeField, ColorSelect,
+DatePicker time editing, attachment retry/removal, anchored popover arrows,
+chart axes, and rendered-text highlights. `component-recipes/kit-07.ts` keeps
+the updated usage and previews together. Their examples
 and API tables use generated contracts. The host embeds only Kit's default control
 icons; application icons use the separate offline Iconify catalog. Shell is not
 part of the native or Web host. FPS is the upstream Kit HUD in the desktop host,
 with definitions in the performance guide.
+
+The native composition guide incorporates upstream design, lifecycle, cache and
+image guidance, qualified against Solid's ownership and style contracts. Both
+website languages load the authoritative Markdown sources directly.
 
 See [Web host setup and capabilities](../../docs/web.md) for the toolchain,
 browser requirements, architecture, tests, and deployment instructions.

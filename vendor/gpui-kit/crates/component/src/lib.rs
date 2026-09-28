@@ -1,5 +1,6 @@
 use gpui::App;
 use std::ops::Deref;
+use std::sync::LazyLock;
 
 mod component_traits;
 mod element_ext;
@@ -65,13 +66,7 @@ pub mod progress;
 pub mod questionnaire;
 pub mod radio;
 pub mod rating;
-/// Backwards-compatible resizable component paths.
-pub mod resizable {
-    pub use super::{
-        ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, h_resizable,
-        resizable_panel, v_resizable,
-    };
-}
+pub mod resizable;
 pub mod scroll;
 pub mod searchable_list;
 pub mod select;
@@ -91,23 +86,20 @@ pub mod table;
 pub mod tag;
 pub mod text;
 pub mod theme;
+pub mod toolbar;
 pub mod tooltip;
 pub mod tree;
 
 pub use crate::Disableable;
 pub use element_ext::*;
 pub use global_state::GlobalState;
+pub use gpui_base::Root;
 pub use gpui_base::animation;
-pub(crate) use gpui_base::measurement_enabled as measure_enable;
 #[doc(hidden)]
 pub(crate) use gpui_base::resize_handle;
 pub use gpui_base::{
     AxisExt, Edges, FocusTrapElement, InteractiveElementExt, LengthExt, Measure, OngoingScrollExt,
     Placement, Side, measure, measure_if,
-};
-pub use gpui_base::{
-    ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, h_resizable,
-    resizable_panel, v_resizable,
 };
 pub use gpui_component_macros::icon_named;
 pub use icon::*;
@@ -115,10 +107,14 @@ pub use index_path::IndexPath;
 pub use input::{Rope, RopeExt, RopeLines};
 #[cfg(any(feature = "inspector", debug_assertions))]
 pub use inspector::*;
-pub use root::{OverlayCloseReason, OverlayToken, Root};
+pub use resizable::{
+    ResizablePanel, ResizablePanelEvent, ResizablePanelGroup, ResizableState, h_resizable,
+    resizable_panel, resize_handle_appearance, v_resizable,
+};
+pub use root::{OverlayCloseReason, OverlayToken, WindowState};
 pub use styled::*;
 pub use theme::*;
-pub use time::{calendar, date_picker};
+pub use time::{calendar, date_picker, time_field};
 pub use title_bar::*;
 pub use virtual_list::{VirtualList, VirtualListScrollHandle, h_virtual_list, v_virtual_list};
 pub use window_border::{WindowBorder, window_border, window_paddings};
@@ -163,3 +159,13 @@ pub fn set_locale(locale: &str) {
 
 mod component_child;
 pub use component_child::ComponentChild;
+
+/// Whether measurement logging is enabled, read once per process.
+///
+/// Measurement is a startup debug flag, and the table queries it for every
+/// rendered cell, so cache it instead of reading the environment each call.
+#[inline]
+pub(crate) fn measure_enable() -> bool {
+    static MEASURE_ENABLED: LazyLock<bool> = LazyLock::new(gpui_base::measurement_enabled);
+    *MEASURE_ENABLED
+}

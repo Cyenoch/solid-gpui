@@ -58,7 +58,7 @@ macro_rules! text_props {
 }
 text_props!(InputProps { size: ControlSize = ControlSize::Medium, bordered: bool = true, aria_label: Option<String> = None, masked: bool = false, cleanable: bool = false, mask_toggle: bool = false });
 text_props!(NumberInputProps { size: ControlSize = ControlSize::Medium, step: f64 = 1., min: Option<f64> = None, max: Option<f64> = None });
-text_props!(TextareaProps { bordered: bool = true, aria_label: Option<String> = None, rows: usize = 2, auto_grow: Option<AutoGrow> = None, soft_wrap: bool = true, searchable: bool = false });
+text_props!(TextareaProps { size: ControlSize = ControlSize::Medium, bordered: bool = true, aria_label: Option<String> = None, rows: usize = 2, auto_grow: Option<AutoGrow> = None, soft_wrap: bool = true, searchable: bool = false });
 text_props!(EditorProps { bordered: bool = true, aria_label: Option<String> = None, language: String = String::new(), soft_wrap: bool = true, searchable: bool = true, line_numbers: bool = true, folding: bool = true, indent_guides: bool = true, tab_size: usize = 2, hard_tabs: bool = false, show_whitespaces: bool = false, scroll_beyond_last_line: Option<usize> = None, cursor_surrounding_lines: Option<usize> = None, auto_close: bool = true, smart_indent: bool = true });
 
 #[crate::native_type]
@@ -1434,6 +1434,7 @@ impl MultiLine {
         events: &Event<InputChange>,
     ) -> gpui_component::input::Textarea {
         let mut v = gpui_component::input::Textarea::new(s)
+            .with_size(p.size)
             .disabled(p.disabled)
             .readonly(p.readonly)
             .appearance(p.appearance)

@@ -1,4 +1,4 @@
-use super::{ActiveDialog, ActiveSheet, Root};
+use super::{ActiveDialog, ActiveSheet, WindowState};
 use crate::{
     Placement,
     dialog::{ANIMATION_DURATION, AlertDialog, Dialog},
@@ -35,31 +35,28 @@ mod tests {
         focus: FocusHandle,
     }
     impl Render for Surface {
-        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            div()
-                .size_full()
-                .track_focus(&self.focus)
-                .children(Root::render_sheet_layer(window, cx))
-                .children(Root::render_dialog_layer(window, cx))
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().track_focus(&self.focus)
         }
     }
     fn fixture(
         cx: &mut gpui::TestAppContext,
     ) -> (
-        gpui::Entity<Root>,
+        gpui::Entity<WindowState>,
         &mut gpui::VisualTestContext,
         FocusHandle,
     ) {
         cx.update(crate::init);
         let focus = cx.update(|cx| cx.focus_handle());
-        let (root, cx) = cx.add_window_view({
+        let (_, cx) = cx.add_window_view({
             let focus = focus.clone();
             move |window, cx| {
                 let view = cx.new(|_| Surface { focus });
-                Root::new(view, window, cx)
+                gpui_base::Root::new(view, window, cx)
             }
         });
         cx.update(|window, cx| focus.focus(window, cx));
+        let root = cx.update(|window, cx| WindowState::entity(window, cx).unwrap());
         (root, cx, focus)
     }
     #[gpui::test]
@@ -173,14 +170,15 @@ mod tests {
                             d.title("Confirm then open").on_ok({
                                 let replacement = replacement.clone();
                                 move |_, window, cx| {
-                                    let token = Root::update(window, cx, |root, window, cx| {
-                                        root.open_dialog_owned(
-                                            |d, _, _| d.title("New"),
-                                            |_, _, _| {},
-                                            window,
-                                            cx,
-                                        )
-                                    });
+                                    let token =
+                                        WindowState::update(window, cx, |root, window, cx| {
+                                            root.open_dialog_owned(
+                                                |d, _, _| d.title("New"),
+                                                |_, _, _| {},
+                                                window,
+                                                cx,
+                                            )
+                                        });
                                     *replacement.borrow_mut() = Some(token);
                                     true
                                 }
@@ -278,11 +276,11 @@ impl gpui::Element for OverlayElement {
     }
 }
 
-/// A single Root-owned overlay. Clones address the same layer; closing a retired
+/// A single WindowState-owned overlay. Clones address the same layer; closing a retired
 /// token is harmless and can never remove a newer layer or another owner.
 #[derive(Clone)]
 pub struct OverlayToken {
-    root: WeakEntity<Root>,
+    root: WeakEntity<WindowState>,
     id: u64,
     open: Rc<Cell<bool>>,
 }
@@ -322,7 +320,7 @@ impl OverlayToken {
     }
 }
 
-impl Root {
+impl WindowState {
     fn overlay_lifetime(
         &mut self,
         on_closed: CloseCallback,

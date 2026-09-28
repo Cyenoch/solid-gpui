@@ -205,16 +205,28 @@ mod exports {
     fn attachment(
         #[prop(default)] status: AttachmentStatus,
         #[prop(default)] orientation: Orientation,
+        #[prop(default)] progress: Option<super::super::Percentage>,
+        #[prop(default)] tooltip: Option<String>,
         media: NativeSlot,
         content: NativeSlot,
         actions: NativeSlot,
         on_press: Event<()>,
+        on_remove: Event<()>,
+        on_retry: Event<()>,
         cx: &mut ElementContext,
     ) -> impl IntoElement + Styled {
         attachment::Attachment::new()
             .id(cx.id())
             .status(status.into())
             .axis(orientation.into())
+            .when_some(progress, |v, p| v.progress(p.0))
+            .when_some(tooltip, |v, text| v.tooltip(text))
+            .when(on_remove.is_subscribed(), |v| {
+                v.on_remove(move |_, _, _| on_remove.emit(()))
+            })
+            .when(on_retry.is_subscribed(), |v| {
+                v.on_retry(move |_, _, _| on_retry.emit(()))
+            })
             .when(!media.is_empty(), |v| {
                 v.media(attachment::AttachmentMedia::new().child(media))
             })

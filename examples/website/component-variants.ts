@@ -1,4 +1,5 @@
 import { kitRecipes } from "./component-recipes/gpui-kit.ts";
+import { kit07Recipes } from "./component-recipes/kit-07.ts";
 import { controlsRecipes } from "./component-recipes/controls.ts";
 import { presentationRecipes } from "./component-recipes/presentation.ts";
 import { compositionRecipes } from "./component-recipes/composition.ts";
@@ -23,6 +24,7 @@ export default function Example() {
 });
 export const componentVariants: ComponentVariant[] = [
   ...kitRecipes,
+  ...kit07Recipes,
   {
     component: "ScrollShadow",
     id: "ScrollShadow--vertical",

@@ -1,5 +1,26 @@
 # 原生界面组合
 
+## 所有权与交互设计
+
+以下规则吸收了 GPUI Kit 0.7 的 [Design Guides](https://gpui-kit.com/docs/design-guides)、[Coding Guides](https://gpui-kit.com/docs/coding-guides)、[View Cache](https://gpui-kit.com/docs/view-cache) 与 [Images](https://gpui-kit.com/docs/image)。Rust 示例需要结合生成的 Solid 契约使用，不能逐个方法照搬。
+
+- 先明确任务、操作对象和结果。常用操作保持可见，次要操作放入原生菜单。工具栏、菜单项与快捷键共享应用命令，确保启用状态与结果一致。
+- 内容切换时保留外壳、导航与原生编辑器。Solid 管理业务数据和组合；原生实体管理焦点、选区、撤销、滚动与弹出层会话。使用稳定数据键，避免翻译标签或可变位置作为标识。受控值回传是同步，不应再次触发用户编辑事件。
+- 优先使用语义控件。disabled、readonly、focused、selected、hovered 含义不同。Toolbar 禁用导航不会禁用任意子控件，应用仍需设置子控件的 disabled。
+- 每个滚动区域只有一个有界视口，内容内边距放在视口内部，滚动条贴近区域边缘，弹性祖先允许收缩。对齐边缘共享间距 token，避免像素补丁；圆角裁剪应为焦点环留出空间。
+- 同一区域保持统一密度与排版。Kit 尺寸使用 theme/rem 体系，但 Solid 数值样式长度是逻辑像素。改变基础字号不会缩放任意 Solid 像素值；应用缩放需要自己的响应式尺度，并重新测量换行和虚拟列表内容。Dock zoom 是另一种布局操作。
+- 循环任务与订阅由实际所有者保留。跨 await 使用弱原生句柄，按请求或文档身份拒绝过期结果，昂贵准备工作放到后台执行器。
+
+### 渲染、缓存与图片所有权
+
+Entity 保留状态，RenderOnce 描述被消费的组件值，均不保证跳过布局或绘制。原生视图缓存需要稳定实体/路径、明确外层布局及外部依赖通知；几何/文本缓存键需覆盖内容、字体/rem、尺寸、缩放等几何输入，纯绘制颜色可在路径键之外；Core VirtualList 通过稳定数据身份与视口生命周期避免创建屏外 Solid owner 和原生节点。
+
+父更新不能修复缓存视图缺失的依赖通知。检查外部模型、主题、尺寸、裁剪变化和回放帧中的交互。位置移动会使场景缓存失效，但零原点路径缓存仍可复用。添加缓存前参阅 [Performance analysis](performance-analysis.md)。
+
+解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。上游 `img("relative-key")` 查询 AssetSource，而 Solid core Image 相对路径基于宿主工作目录。Core Image 有自己的有界请求、解码与像素生命周期，不能套用上游默认的应用级缓存或重试策略。解码像素复用与 HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。
+
+验收覆盖键盘、焦点恢复、窄宽布局、明暗主题与长标签。无头状态/几何测试证明确定性行为，真实窗口和辅助技术检查证明平台行为。
+
 ## SwiftUI 与 AppKit 视图承载
 
 Native Module 当前渲染 GPUI 元素和持久 GPUI 视图，没有暴露可嵌入的 AppKit 视图，也不支持与 SwiftUI 双向嵌套。多个 Surface 当前使用独立 GPUI 窗口，这不代表支持在同一个 SwiftUI/AppKit 窗口内放置多个 GPUI 视图。

@@ -1,7 +1,9 @@
 //! Fades streamed text in: the rendered characters an update adds start
 //! transparent and reach full color over [`TextViewMotion::stream_fade`],
 //! as one chunk, or word by word (character by character for CJK) when
-//! [`TextViewMotion::stream_fade_stagger`] separates them.
+//! [`TextViewMotion::stream_fade_stagger`] separates them. An update too
+//! large to light up within one fade goes back to fading as one chunk -- see
+//! [`TextViewMotion::stagger_step`].
 //!
 //! The tracker compares rendered text, not source, so `**bo` completing into
 //! bold `bold` fades the changed glyphs rather than mapping source bytes.
@@ -72,19 +74,32 @@ impl TextViewMotion {
         &self.stream_fade_easing
     }
 
-    /// The start offset between consecutive words of an update `words` long.
+    /// The start offset between consecutive words of an update `words` long: the stagger as
+    /// asked, or nothing.
+    ///
+    /// Staggering only reads as words arriving one after another while the whole update lights
+    /// up well within one [`Self::stream_fade`]. Once the last word would start later than
+    /// that, what is left is a sweep drawn across text that appeared at once -- and an update
+    /// that large (`stream_fade / stream_fade_stagger` words and up) was not typed anyway.
+    /// Squeezing the step to fit only makes the sweep faster, so drop it instead and let the
+    /// update fade as one chunk.
     fn stagger_step(&self, words: usize) -> Duration {
         if words < 2 {
             return Duration::ZERO;
         }
+        let span = self.stream_fade_stagger.as_nanos() * (words as u128 - 1);
+        if span > self.stream_fade.as_nanos() {
+            return Duration::ZERO;
+        }
         self.stream_fade_stagger
-            .min(self.stream_fade / words as u32)
     }
 }
 
 /// Identifies one run of rendered text across re-parses: the source start of
 /// the block that owns it, plus the cell ordinal inside a table.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+///
+/// Keys order as their leaves appear in the document.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub(crate) struct TextLeafKey {
     block_start: usize,
     ordinal: usize,
@@ -114,6 +129,24 @@ impl TextLeafKey {
         Self {
             block_start: table_start,
             ordinal: ordinal + 1,
+        }
+    }
+
+    pub(crate) fn block_start(&self) -> usize {
+        self.block_start
+    }
+
+    /// The index of the table cell the leaf is, among all the cells of its
+    /// table, or `None` when it is not a cell.
+    pub(crate) fn cell_ix(&self) -> Option<usize> {
+        self.ordinal.checked_sub(1)
+    }
+
+    /// The same leaf in its block moved to start at `block_start`.
+    pub(crate) fn moved_to(self, block_start: usize) -> Self {
+        Self {
+            block_start,
+            ordinal: self.ordinal,
         }
     }
 }
@@ -322,7 +355,7 @@ impl StreamFadeTracker {
 }
 
 /// A block's rendered text, in the byte space its highlights use.
-enum TextLeaf<'a> {
+pub(super) enum TextLeaf<'a> {
     Paragraph(&'a Paragraph),
     Code(SharedString),
 }
@@ -357,13 +390,13 @@ impl TextLeaf<'_> {
 
     /// The length of the rendered text `self` shares with `old`, on a char
     /// boundary of `self`.
-    fn common_prefix_len(&self, old: &Self) -> usize {
+    pub(super) fn common_prefix_len(&self, old: &Self) -> usize {
         let prefix = common_prefix_len(self.chunks(), old.chunks());
         floor_char_boundary(self.chunks(), prefix)
     }
 }
 
-fn text_leaves<'a>(block: &'a BlockNode, out: &mut Vec<(TextLeafKey, TextLeaf<'a>)>) {
+pub(super) fn text_leaves<'a>(block: &'a BlockNode, out: &mut Vec<(TextLeafKey, TextLeaf<'a>)>) {
     match block {
         BlockNode::Paragraph(paragraph) => {
             if let Some(span) = paragraph.span {
@@ -573,13 +606,27 @@ mod tests {
     }
 
     #[test]
-    fn stagger_is_compressed_into_one_fade() {
+    fn stagger_holds_while_the_update_lights_up_within_one_fade() {
         let motion = TextViewMotion::default()
             .with_stream_fade(Duration::from_millis(600))
             .with_stream_fade_stagger(Duration::from_millis(100));
         assert_eq!(motion.stagger_step(1), Duration::ZERO);
         assert_eq!(motion.stagger_step(3), Duration::from_millis(100));
-        assert_eq!(motion.stagger_step(30), Duration::from_millis(20));
+        // The 7th word starts at 600 ms, exactly one fade in -- still the stagger as asked.
+        assert_eq!(motion.stagger_step(7), Duration::from_millis(100));
+    }
+
+    #[test]
+    fn an_update_too_large_to_light_up_in_one_fade_fades_as_one_chunk() {
+        let motion = TextViewMotion::default()
+            .with_stream_fade(Duration::from_millis(600))
+            .with_stream_fade_stagger(Duration::from_millis(100));
+        // An 8th word would start past the fade: that is a sweep, not typing.
+        assert_eq!(motion.stagger_step(8), Duration::ZERO);
+        assert_eq!(motion.stagger_step(200), Duration::ZERO);
+        // Without a stagger nothing changes -- every update was already one chunk.
+        let plain = TextViewMotion::default().with_stream_fade(Duration::from_millis(600));
+        assert_eq!(plain.stagger_step(200), Duration::ZERO);
     }
 
     #[test]

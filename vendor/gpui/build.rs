@@ -13,14 +13,12 @@ fn main() {
 
 #[cfg(feature = "windows-manifest")]
 fn embed_resource() {
-    let manifest = std::path::Path::new("resources/windows/gpui.manifest.xml");
-    let rc_file = std::path::Path::new("resources/windows/gpui.rc");
+    let resource_dir = std::path::Path::new("resources/windows");
+    let manifest = resource_dir.join("gpui.manifest.xml");
+    let rc_file = resource_dir.join("gpui.rc");
     println!("cargo:rerun-if-changed={}", manifest.display());
     println!("cargo:rerun-if-changed={}", rc_file.display());
-    let resource_root = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let manifest_path = resource_root.join(manifest).to_string_lossy().replace('\\', "/");
-    let manifest_define = format!("GPUI_MANIFEST=\"{manifest_path}\"");
-    embed_resource::compile(rc_file, [manifest_define])
+    embed_resource::compile(rc_file, embed_resource::ParamsIncludeDirs([resource_dir]))
         .manifest_required()
         .unwrap();
 }

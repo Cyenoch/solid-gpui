@@ -1,3 +1,4 @@
+use crate::root::WindowState;
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
@@ -18,7 +19,6 @@ use crate::{
     ActiveTheme, Placement, StyledExt,
     animation::{EffectTransition, ease_in_out_cubic, ease_out_cubic},
     kbd::Kbd,
-    root::Root,
     text::Text,
 };
 
@@ -266,7 +266,7 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
             let trigger_bounds_cell = trigger_bounds_cell.clone();
             let build_tooltip = build_tooltip.clone();
             move |hovered, window, cx| {
-                if let Some(overlay) = Root::tooltip_overlay(window, cx) {
+                if let Some(overlay) = WindowState::tooltip_overlay(window, cx) {
                     if *hovered {
                         let bounds = trigger_bounds_cell.get();
                         overlay.update(cx, |o: &mut BaseTooltipOverlay, cx| {
@@ -294,7 +294,7 @@ pub trait ManagedTooltipExt: StatefulInteractiveElement + crate::ElementExt + Si
             }
         })
         .on_mouse_down(MouseButton::Left, move |_, window, cx| {
-            if let Some(overlay) = Root::tooltip_overlay(window, cx) {
+            if let Some(overlay) = WindowState::tooltip_overlay(window, cx) {
                 overlay.update(cx, |overlay, cx| {
                     overlay.hide(cx);
                 });

@@ -7,19 +7,19 @@ publish = false
 edition = "2024"
 
 [workspace.dependencies]
-gpui-kit = { path = "crates/kit", version = "0.6.4" }
-gpui-component = { path = "crates/component", version = "0.6.4" }
-gpui-base = { path = "crates/base", version = "0.6.4" }
-gpui-component-macros = { path = "crates/component-macros", version = "0.6.4" }
-gpui-kit-assets = { path = "crates/assets", version = "0.6.4" }
-gpui-fps = { path = "crates/fps", version = "0.6.4" }
+gpui-kit = { path = "crates/kit", version = "0.7.0" }
+gpui-component = { path = "crates/component", version = "0.7.0" }
+gpui-base = { path = "crates/base", version = "0.7.0" }
+gpui-component-macros = { path = "crates/component-macros", version = "0.7.0" }
+gpui-kit-assets = { path = "crates/assets", version = "0.7.0" }
+gpui-fps = { path = "crates/fps", version = "0.7.0" }
 
-gpui = { package = "gpui-pre", version = "0.3.5" }
-gpui_platform = { package = "gpui-pre-platform", version = "0.3.5", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
-gpui_web = { package = "gpui-pre-web", version = "0.3.5" }
-gpui_macros = { package = "gpui-pre-macros", version = "0.3.5" }
-reqwest_client = { package = "gpui-pre-reqwest-client", version = "0.3.5" }
-sum-tree = { package = "gpui-pre-sum-tree", version = "0.3.5" }
+gpui = { package = "gpui-pre", version = "=0.3.7" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.7", features = ["font-kit", "x11", "wayland", "runtime_shaders"] }
+gpui_web = { package = "gpui-pre-web", version = "=0.3.7" }
+gpui_macros = { package = "gpui-pre-macros", version = "=0.3.7" }
+reqwest_client = { package = "gpui-pre-reqwest-client", version = "=0.3.7" }
+sum-tree = { package = "gpui-pre-sum-tree", version = "=0.3.7" }
 reqwest = { version = "0.13.4", default-features = false }
 
 anyhow = "1"

@@ -83,18 +83,17 @@ fn linear_scale(p: LinearScaleRequest) -> Result<LinearScaleResult, String> {
     values(&p.domain)?;
     values(&p.values)?;
     range(p.range, false)?;
-    let s = ScaleLinear::new(p.domain.clone(), p.range.to_vec());
+    let s = ScaleLinear::new(p.domain.clone(), p.range);
     // Native scale extrapolates. Reject overflow instead of serializing NaN/Infinity as null.
     let result = ticks(p.values.iter().map(|v| s.tick(v)))?;
     let domain_ticks = ticks(p.domain.iter().map(|v| s.tick(v)))?;
     let nearest = if let Some(cursor) = p.cursor {
         coordinate(cursor)?;
-        if domain_ticks.iter().any(Option::is_some) {
-            let (index, tick) = s.least_index_with_domain(cursor, &p.domain);
-            Some(ScaleNearest { index, tick })
-        } else {
-            None
-        }
+        domain_ticks
+            .iter()
+            .enumerate()
+            .filter_map(|(index, tick)| tick.map(|tick| ScaleNearest { index, tick }))
+            .min_by(|a, b| (a.tick - cursor).abs().total_cmp(&(b.tick - cursor).abs()))
     } else {
         None
     };
@@ -124,7 +123,7 @@ pub struct CategoricalScaleResult {
 fn point_scale(p: PointScaleRequest) -> Result<CategoricalScaleResult, String> {
     items(p.domain.len() + p.values.len())?;
     range(p.range, true)?;
-    let s = ScalePoint::new(p.domain.clone(), p.range.to_vec());
+    let s = ScalePoint::new(p.domain.clone(), p.range);
     let mut first = HashMap::new();
     for (i, v) in p.domain.iter().enumerate() {
         first.entry(v).or_insert(i);
@@ -139,7 +138,7 @@ fn point_scale(p: PointScaleRequest) -> Result<CategoricalScaleResult, String> {
         if p.domain.is_empty() {
             None
         } else {
-            let index = s.least_index(cursor);
+            let index = s.nearest_index(cursor);
             Some(ScaleNearest {
                 index,
                 tick: s.tick_at(index).expect("nonempty domain"),
@@ -184,7 +183,7 @@ fn band_scale(p: BandScaleRequest) -> Result<CategoricalScaleResult, String> {
         .into_iter()
         .filter(|v| seen.insert(v.clone()))
         .collect::<Vec<_>>();
-    let s = ScaleBand::new(domain.clone(), p.range.to_vec())
+    let s = ScaleBand::new(domain.clone(), p.range)
         .padding_inner(p.padding_inner)
         .padding_outer(p.padding_outer);
     let nearest = if let Some(cursor) = p.cursor {
@@ -192,7 +191,7 @@ fn band_scale(p: BandScaleRequest) -> Result<CategoricalScaleResult, String> {
         if domain.is_empty() {
             None
         } else {
-            let index = s.least_index(cursor);
+            let index = s.nearest_index(cursor);
             Some(ScaleNearest {
                 index,
                 tick: s.tick(&domain[index]).expect("known category"),
@@ -303,14 +302,7 @@ fn arc_centroid(p: ArcCentroidRequest) -> Result<PlotCoordinate, String> {
     let v = Arc::new()
         .inner_radius(p.inner_radius)
         .outer_radius(p.outer_radius)
-        .centroid(&ArcData {
-            data: &(),
-            index: 0,
-            value: 0.,
-            start_angle: p.start_angle,
-            end_angle: p.end_angle,
-            pad_angle: 0.,
-        });
+        .centroid(&ArcData::new(&(), 0, 0., p.start_angle, p.end_angle));
     Ok(PlotCoordinate { x: v.x, y: v.y })
 }
 #[crate::native_type]

@@ -52,7 +52,7 @@ Docs deep links refreshable on static hosting.
 
 ## Rendering and ownership
 
-`crates/solid-gpui-web` uses the pinned gpui-pre 0.3.5 Web platform in
+`crates/solid-gpui-web` uses the pinned gpui-pre 0.3.7 Web platform in
 single-threaded mode. It needs no SharedArrayBuffer or cross-origin isolation
 headers. The upstream wasm_thread dependency still requires the pinned nightly
 at compile time. The host embeds licensed Inter, IBM Plex Sans, Maple Mono, and Noto Sans SC fonts;

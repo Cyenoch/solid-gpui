@@ -17,6 +17,33 @@ add(
   "const [saved, setSaved] = createSignal(false);",
 );
 add(
+  "Toolbar ToolbarGroup",
+  "Group native commands with arrow-key navigation. Solid children keep their own size and disabled state; use small ghost buttons for a compact toolbar.",
+  componentDescriptionsChinese[
+    "Group native commands with arrow-key navigation. Solid children keep their own size and disabled state; use small ghost buttons for a compact toolbar."
+  ],
+  '<N.Toolbar size="small"><N.ToolbarGroup label="History" style={{ flexDirection: "row", gap: 8 }}><N.Button label="Undo" size="small" variant="ghost" onPress={() => setAction("Undo")} /><N.Button label="Redo" size="small" variant="ghost" onPress={() => setAction("Redo")} /></N.ToolbarGroup><N.Separator orientation="vertical" style={{ height: 20 }} /><N.Label text={action()} /></N.Toolbar>',
+  'const [action, setAction] = createSignal("Ready");',
+);
+add(
+  "TimeField",
+  "Edit a time of day with native keyboard segments. Values use HH:MM:SS; precision controls whether seconds are editable and hourCycle controls the display.",
+  componentDescriptionsChinese[
+    "Edit a time of day with native keyboard segments. Values use HH:MM:SS; precision controls whether seconds are editable and hourCycle controls the display."
+  ],
+  '<View style={{ gap: 12 }}><N.TimeField value={time()} precision="second" hourCycle="h12" onChange={(event) => setTime(event.value)} /><N.Label text={time()} /></View>',
+  'const [time, setTime] = createSignal("09:30:15");',
+);
+add(
+  "ColorSelect",
+  "A framed color field with a swatch, hex value and native picker. The whole field opens the palette; controlled updates retain the picker state.",
+  componentDescriptionsChinese[
+    "A framed color field with a swatch, hex value and native picker. The whole field opens the palette; controlled updates retain the picker state."
+  ],
+  '<View style={{ width: 260, gap: 12 }}><N.ColorSelect value={color()} placeholder="Choose a color" accessibilityLabel="Accent color" onChange={(event) => setColor(event.value ?? "#5271ff")} /><N.Label text={color()} /></View>',
+  'const [color, setColor] = createSignal("#5271ff");',
+);
+add(
   "ButtonGroup",
   "Group related actions in a single control.",
   componentDescriptionsChinese["Group related actions in a single control."],

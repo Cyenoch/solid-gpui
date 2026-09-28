@@ -2,7 +2,7 @@
 
 SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与命令。
 实现来自 [GPUI Kit](https://github.com/longbridge/gpui-kit)，固定提交
-`0e63ea799766c486022a0cecfda6e48c5183a2d7`（0.6.4 及后续变更）。本地状态与生命周期接入点记录在
+`17b2c6a269c3de51a2f0dc97d49f87f0dd9d6571`（0.7.0 及后续变更），GPUI 固定为 0.3.7。本地状态与生命周期接入点记录在
 [`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md)。
 
 Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
@@ -38,7 +38,26 @@ const [name, setName] = createSignal("");
 
 ## 覆盖范围
 
-### 2026 年 9 月上游更新
+### 2026 年 9 月 28 日：Kit 0.7
+
+新增 **Toolbar / ToolbarGroup、TimeField、ColorSelect**，均包含可运行 website 示例与生成 API 表。
+
+Select 在菜单关闭（包括确认选择）时触发 `onDismiss`；DockArea 的 `closeButtonVisible` 为可关闭标签启用原生关闭按钮。
+
+- Toolbar 管理原生方向键导航和无障碍分组；Solid 子控件自行管理尺寸与禁用策略。紧凑命令使用 `size="small"`、`variant="ghost"` 的 Button，工具栏本身没有背景。
+- TimeField 跨属性更新保留分段焦点与编辑状态。`value` / `defaultValue` 为 `HH:MM:SS`（00:00:00–23:59:59），`precision` 为 `minute` / `second`，`hourCycle` 为 `h23` / `h12`。`onChange` 使用编辑确认契约，ref 提供 `getValue()` 与 `focus()`。
+- ColorSelect 与 ColorPicker 共用原生颜色状态引擎，以全宽边框字段显示色块与十六进制文本，支持 `placeholder`、`accessibilityLabel`、`featuredColors`、受控值及 `setOpen()`。
+- DatePicker 新增 `timePrecision`、`hourCycle`，以及与 `value` 配合的受控 `time`；仅单日期支持时间编辑。`onChange` 返回日期与时间。使用 `%Y/%m/%d %H:%M` 等格式同时显示二者。这些值不做时区转换，Solid 范围选择仍为纯日期。
+- Attachment 新增 `onRemove`、`onRetry`、`progress`（0–100）与 `tooltip`；Popover 新增 `arrow` 与非负 `offset`；Marker 新增 `alignment`；Textarea 支持 `size`；SettingGroup 支持 `variant` 与位于组表面外的 `slots.footer`；主题颜色新增 `chartGrid`。
+- LineChart / AreaChart 新增 `yDomain`、`pointCount`、`yAxis`、`yTickCount`、`xTickCount`、`gridColumns`、`gridDashed`、`referenceLines`。BarChart 新增 `bandCount`、`bandTickCount`、`paddingInner`、`paddingOuter`、`maxBandWidth`、`minLength`、`gridDashed`。点/带数量上限 16,384，网格列、数值刻度与参考线上限 128。`interactive={false}` 显式关闭交互，不受上游默认 ID 影响。
+
+TextView ref 新增 `getSelectedSourceRange()` 与 `getRenderedText()`。后者返回 `{ revision, text }`，文本上限 256 KiB。`setRangeHighlights({ revision, highlights })` 接受最多 1024 个 `{ range: { startByte, endByte }, background }`；`revealRange({ revision, range })` 请求原生滚动，`clearRangeHighlights()` 清除高亮。范围指向渲染文本的 UTF-8 字节，而非 Markdown 源码。过期快照与非法字节边界在修改前拒绝。解析异步完成，内容变化后重新获取快照。Reveal 是尽力请求，不表示滚动已完成；使用 scrollable TextView 提供独立视口。源码选区命令则返回源文档偏移。
+
+宿主采用 Base Root 自动挂载的 Component 窗口插件，应用不再重复挂载弹层。既有 owner/session token 移到 Component WindowState。上游编辑器/无障碍、菜单生命周期、Markdown 映射与排版、图表/树/表格/命令性能修复直接进入原生实现。
+
+上游经验已整合到 [所有权与交互设计](native-composition.zh-CN.md#所有权与交互设计)，明确 Solid 像素样式、受控事件、托管图片、任务生命周期与原生缓存失效的适用边界。
+
+### 2026 年 9 月较早更新
 
 基于 0.6.4 的固定版本新增 InputGroup、Questionnaire、原子内联输入 token、
 编辑器搜索命令、串联原生动画和流式文本淡入。Solid 契约从适配器生成，
@@ -175,7 +194,7 @@ token 文档预留事件容量：UTF-8 正文最多 32 KiB，token 标识/文本
 支持的简单标量显示为描述列表，复合或不支持的 YAML 显示为原生代码块。
 此能力必须显式开启且仅适用于 Markdown；它不是通用 YAML 解析器。
 
-`TextView streamFade` 使用原生 350 ms 策略淡入追加的文本片段。
+`TextView streamFade` 使用原生 280 ms（逐词交错 10 ms）策略淡入追加的文本片段。
 通过 `streamFade={{ durationMs: 350, staggerMs: 30, easing: "easeOut" }}`
 配置逐词交错动画，或用 `false` 关闭。每个时间值不超过 60 秒，长更新会自动压缩交错间隔。
 保持同一 TextView 挂载并向 `text` 追加内容，原生状态会保留已有文本、选择和淡入进度。
@@ -255,9 +274,9 @@ import {
 | 原生家族        | JS 入口                                                                                                                                                                                                                                                                                                                               |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 基础控件        | Alert、Avatar/AvatarGroup、Badge、BaseButton/BaseCheckbox/BaseSwitch/BaseToggle、Button/ButtonGroup、Toggle/ToggleGroup、Checkbox、Clipboard、Icon、Kbd、Label、Link、Pagination、Progress/ProgressCircle、Radio/RadioGroup、Rating、Separator、ShimmerText、Skeleton、Spinner、Switch、Tag                                           |
-| 编辑与选择      | Input、Textarea、Editor、InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText、NumberInput、OtpInput、ColorPicker、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                                                     |
+| 编辑与选择      | Input、Textarea、Editor、InputGroup/InputGroupTextarea/InputGroupButton/InputGroupText、NumberInput、OtpInput、TimeField、ColorPicker/ColorSelect、Slider、Calendar、DatePicker、Select、Combobox、Caret                                                                                                                                                     |
 | 数据与滚动      | List/ListItem/ListSeparatorItem、SearchableListItemElement、DataTable、Table/TableHeader/TableBody/TableRow/TableHead/TableCell/TableFooter/TableCaption、Tree、VirtualList、MessageScroller、Command、TextView/Text、Scrollable、ScrollShadow、FocusTrap                                                                             |
-| 组合            | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、Questionnaire 及其复合部件、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar |
+| 组合            | Accordion/AccordionItem、Breadcrumb/BreadcrumbItem、Carousel/CarouselItem、Collapsible、DescriptionList/DescriptionItem/DescriptionText、Empty/EmptyHeader/EmptyMedia/EmptyTitle/EmptyDescription/EmptyContent、Form/Field、GroupBox、Questionnaire 及其复合部件、ResizablePanelGroup/ResizablePanel、Stepper/StepperItem、Tab/TabBar、Toolbar/ToolbarGroup |
 | 消息与附件      | 生成目录中的所有 Attachment、Bubble、Marker 和 Message 元素                                                                                                                                                                                                                                                                           |
 | 导航与设置      | Sidebar 及其 Header/Footer/ToggleButton/Group/Menu/MenuItem；Settings、SettingPage/SettingGroup/SettingItem/SettingField/SettingCustomItem；StatusBar、TitleBar、WindowBorder                                                                                                                                                         |
 | 覆盖层          | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                                                                                                                      |
@@ -425,7 +444,7 @@ Dialog、Sheet 和 Notification 使用原生 owner/session token。旧对话框�
 
 ## 绘图数据与工作量限制
 
-图表在属性提交时编译数据，原生执行命中测试与绘制。Line/Area/Bar/Radar 提供原生交互 tooltip；固定版本 Candlestick/Pie/Sankey API 没有交互 tooltip setter。Radar 标签可用已提交子插槽，柱填充支持原生渐变。
+图表在属性提交时编译数据，原生执行命中测试与绘制。Line/Area/Bar/Radar/Pie 暴露 `interactive`；Candlestick 与 Sankey 保留上游原生 tooltip 行为。Rust 回调式自定义 tooltip 不会被序列化成 JavaScript 回调。Radar 标签可用已提交子插槽，柱填充支持原生渐变。Plot 原语移到 Base 并由 Component 重导出，Solid 绘图契约继续使用生成 DTO。
 
 Plot 坐标为逻辑像素，径向与圆弧角度为弧度。原生 line/area/radial 按上游连接语义省略 null 点，不把 null 转为零。Stack 对缺失值明确遵循原生算法的零值。Pie 省略零/null 切片并返回原始输入索引。Sankey 布局值可能被缩放（如开平方），业务汇总应使用原始 link 值。
 

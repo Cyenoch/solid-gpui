@@ -1,11 +1,11 @@
-//! Root-owned modals. Solid owns `open`; each mounted view owns one native token.
+//! WindowState-owned modals. Solid owns `open`; each mounted view owns one native token.
 use super::ButtonVariant;
 use crate::native::{
     ComponentDefinition, Event, EventDefinition, NativeChildren, NativeView, TS, ViewCommand,
 };
 use gpui::{App, Context, IntoElement, ParentElement, Render, WeakEntity, Window, px};
 use gpui_component::dialog::DialogButtonProps;
-use gpui_component::{OverlayCloseReason, OverlayToken, Root};
+use gpui_component::{OverlayCloseReason, OverlayToken, WindowState};
 
 #[crate::native_type]
 #[derive(Clone)]
@@ -338,7 +338,7 @@ impl ModalKind for Dialog {
         cx: &mut App,
     ) -> OverlayToken {
         let closed = on_closed(view.clone(), session);
-        Root::update(window, cx, |root, window, cx| {
+        WindowState::update(window, cx, |root, window, cx| {
             root.open_dialog_owned(
                 move |dialog, _, cx| {
                     let Some(entity) = view.upgrade() else {
@@ -407,7 +407,7 @@ impl ModalKind for AlertDialog {
         cx: &mut App,
     ) -> OverlayToken {
         let closed = on_closed(view.clone(), session);
-        Root::update(window, cx, |root, window, cx| {
+        WindowState::update(window, cx, |root, window, cx| {
             root.open_alert_dialog_owned(
                 move |alert, _, cx| {
                     let Some(entity) = view.upgrade() else {
@@ -474,7 +474,7 @@ impl ModalKind for Sheet {
     ) -> OverlayToken {
         let placement = props.placement;
         let closed = on_closed(view.clone(), session);
-        Root::update(window, cx, |root, window, cx| {
+        WindowState::update(window, cx, |root, window, cx| {
             root.open_sheet_owned(
                 placement.into(),
                 move |sheet, _, cx| {
@@ -545,7 +545,7 @@ impl<M: ModalKind> NativeView for Modal<M> {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        // Component construction can precede installation of the window Root.
+        // Component construction can precede installation of the window WindowState.
         // Deferred mounting also ensures the entity exists before builders read it.
         cx.defer_in(window, |view, window, cx| {
             if view.mounted && M::open(&view.props) && view.token.is_none() {
@@ -713,7 +713,7 @@ mod tests {
             view.update(p.clone(), window, cx);
             p.open = true;
             view.update(p, window, cx);
-            let other = Root::update(window, cx, |root, window, cx| {
+            let other = WindowState::update(window, cx, |root, window, cx| {
                 root.open_dialog_owned(|d, _, _| d.title("other owner"), |_, _, _| {}, window, cx)
             });
             view.unmount(window, cx);

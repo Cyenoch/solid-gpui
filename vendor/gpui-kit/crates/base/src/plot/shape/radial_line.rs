@@ -36,8 +36,8 @@ pub struct RadialLine<T> {
     stroke_width: Pixels,
     dot: bool,
     dot_size: Pixels,
-    dot_fill_color: Hsla,
-    dot_stroke_color: Option<Hsla>,
+    dot_fill: Background,
+    dot_stroke: Option<Hsla>,
 }
 
 impl<T> Default for RadialLine<T> {
@@ -52,8 +52,8 @@ impl<T> Default for RadialLine<T> {
             stroke_width: px(1.),
             dot: false,
             dot_size: px(4.),
-            dot_fill_color: gpui::transparent_black(),
-            dot_stroke_color: None,
+            dot_fill: gpui::transparent_black().into(),
+            dot_stroke: None,
         }
     }
 }
@@ -123,7 +123,7 @@ impl<T> RadialLine<T> {
         self
     }
 
-    /// Show dots on the RadialLine.
+    /// Draw a dot on every point.
     pub fn dot(mut self) -> Self {
         self.dot = true;
         self
@@ -135,16 +135,27 @@ impl<T> RadialLine<T> {
         self
     }
 
-    /// Set the fill color of the dots on the RadialLine.
-    pub fn dot_fill_color(mut self, dot_fill_color: impl Into<Hsla>) -> Self {
-        self.dot_fill_color = dot_fill_color.into();
+    /// Set the fill of the dots on the RadialLine.
+    pub fn dot_fill(mut self, fill: impl Into<Background>) -> Self {
+        self.dot_fill = fill.into();
         self
     }
 
-    /// Set the stroke color of the dots on the RadialLine.
-    pub fn dot_stroke_color(mut self, dot_stroke_color: impl Into<Hsla>) -> Self {
-        self.dot_stroke_color = Some(dot_stroke_color.into());
+    /// Set the 1px border color of the dots on the RadialLine. Defaults to the
+    /// dot fill when it is a solid color.
+    pub fn dot_stroke(mut self, stroke: impl Into<Hsla>) -> Self {
+        self.dot_stroke = Some(stroke.into());
         self
+    }
+
+    #[deprecated(since = "0.7.0", note = "use `dot_fill`")]
+    pub fn dot_fill_color(self, color: impl Into<Hsla>) -> Self {
+        self.dot_fill(color.into())
+    }
+
+    #[deprecated(since = "0.7.0", note = "use `dot_stroke`")]
+    pub fn dot_stroke_color(self, color: impl Into<Hsla>) -> Self {
+        self.dot_stroke(color)
     }
 
     /// Paint a dot on the RadialLine.
@@ -152,9 +163,11 @@ impl<T> RadialLine<T> {
         quad(
             gpui::bounds(dot, size(self.dot_size, self.dot_size)),
             self.dot_size / 2.,
-            self.dot_fill_color,
+            self.dot_fill,
             px(1.),
-            self.dot_stroke_color.unwrap_or(self.dot_fill_color),
+            self.dot_stroke
+                .or_else(|| self.dot_fill.as_solid())
+                .unwrap_or_default(),
             BorderStyle::default(),
         )
     }

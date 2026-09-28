@@ -2,17 +2,18 @@ use futures::Stream as _;
 #[cfg(not(target_family = "wasm"))]
 use std::time::Instant;
 use std::{
-    ops::RangeInclusive,
+    ops::{Range, RangeInclusive},
     pin::Pin,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
     task::Poll,
+    time::Duration,
 };
 #[cfg(target_family = "wasm")]
 use web_time::Instant;
 
 use gpui::{
-    App, AppContext as _, Bounds, Context, FocusHandle, IntoElement, KeyBinding, ListState,
-    ParentElement as _, Pixels, Point, Render, SharedString, Styled as _, Task, Window,
+    App, AppContext as _, Bounds, Context, EntityId, FocusHandle, IntoElement, KeyBinding,
+    ListState, ParentElement as _, Pixels, Point, Render, SharedString, Styled as _, Task, Window,
     prelude::FluentBuilder as _, px,
 };
 
@@ -22,10 +23,13 @@ use crate::{
     input::{self, SelectAll},
     text::{
         CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
-        TableActionsFn, TextViewStyle,
+        RangeHighlight, RangeHighlightError, RenderedText, TableActionsFn, TextViewStyle,
         document::ParsedDocument,
         format,
         node::{self, NodeContext},
+        range_highlight::{
+            LeafRemap, PendingReveal, RangeHighlightFrame, RenderedIndex, RevealRequest,
+        },
         selection_adapter::TextViewSelectionAdapter,
         stream_fade::{StreamFadeTracker, TextViewMotion},
     },
@@ -38,6 +42,8 @@ const MAX_COALESCED_UPDATES_PER_PARSE: usize = 64;
 // Preserve exact first-layout height for small documents while bounding the
 // amount of source parsed synchronously on the UI thread.
 const MAX_SYNC_FULL_REPLACE_BYTES: usize = 4 * 1024;
+// Repaint a streamed fade at about 30 fps, not at the display refresh rate.
+const STREAM_FADE_TICK: Duration = Duration::from_millis(33);
 
 pub(crate) fn init(cx: &mut App) {
     cx.bind_keys(vec![
@@ -89,6 +95,7 @@ pub(super) struct LineSpan {
 
 /// The state of a TextView.
 pub struct TextViewState {
+    entity_id: EntityId,
     pub(super) focus_handle: FocusHandle,
     pub(super) list_state: ListState,
 
@@ -108,6 +115,7 @@ pub struct TextViewState {
     pub(super) code_block_actions: Option<std::sync::Arc<CodeBlockActionsFn>>,
     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
+    pub(super) image_source: Option<std::sync::Arc<super::text_view::ImageSourceFn>>,
     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
 
@@ -122,6 +130,7 @@ pub struct TextViewState {
 
     pub(super) parsed_content: ParsedContent,
     pub(super) stream_fade: StreamFadeTracker,
+    fade_tick: Option<Task<()>>,
     /// Content format (markdown / html), used for bounded synchronous parsing
     /// of small full-replace updates.
     format: TextViewFormat,
@@ -130,6 +139,15 @@ pub struct TextViewState {
     /// string next frame without comparing its bytes.
     element_text: Option<SharedString>,
     revision: usize,
+    /// The revision of the update `parsed_content` was committed from.
+    committed_revision: usize,
+    /// The revision of the last update that replaced the text rather than
+    /// appending to it.
+    full_update_revision: usize,
+    /// The rendered text of `parsed_content`, built when first read.
+    rendered_index: Arc<OnceLock<RenderedIndex>>,
+    range_highlights: Option<Arc<RangeHighlightFrame>>,
+    pub(super) pending_reveal: Option<PendingReveal>,
     pub(super) selection_revision: usize,
     compatible_layout_update: bool,
     layout_text_style: Option<(gpui::TextStyle, Pixels)>,
@@ -171,6 +189,17 @@ impl TextViewState {
 
                         match parsed_update.result {
                             Ok(content) => {
+                                let append =
+                                    parsed_update.selection_compatible && !parsed_update.full_parse;
+                                if append && state.full_update_revision <= state.committed_revision
+                                {
+                                    state.splice_appended_blocks(&content.document);
+                                }
+                                state.reconcile_range_highlights(
+                                    &content.document,
+                                    parsed_update.revision,
+                                    append,
+                                );
                                 state.stream_fade.record(
                                     &state.parsed_content.document,
                                     &content.document,
@@ -203,6 +232,7 @@ impl TextViewState {
         let _parse_task = cx.background_spawn(UpdateFuture::new(rx, tx_result));
 
         let mut this = Self {
+            entity_id: cx.entity_id(),
             focus_handle,
             bounds: Bounds::default(),
             multi_click_selection: None,
@@ -224,6 +254,7 @@ impl TextViewState {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            image_source: None,
             markdown_extensions: Arc::default(),
             is_selecting: false,
             preserve_inline_selection: false,
@@ -231,11 +262,17 @@ impl TextViewState {
             selection_adapter,
             parsed_content: Default::default(),
             stream_fade: StreamFadeTracker::default(),
+            fade_tick: None,
             format,
             parsed_error: None,
             text: text.to_string(),
             element_text: None,
             revision: 0,
+            committed_revision: 0,
+            full_update_revision: 0,
+            rendered_index: Arc::default(),
+            range_highlights: None,
+            pending_reveal: None,
             selection_revision: 0,
             compatible_layout_update: false,
             layout_text_style: None,
@@ -396,6 +433,26 @@ impl TextViewState {
         self.selected_text_in(None)
     }
 
+    /// Return the original Markdown source byte range corresponding to the
+    /// rendered selection.
+    ///
+    /// The range addresses the source passed to this Markdown TextView. It is
+    /// derived from parser positions retained by the rendered inline nodes, so
+    /// identical rendered text maps to the occurrence that was actually
+    /// selected. The result is one contiguous source range, so it includes any
+    /// Markdown delimiters between the selected rendered endpoints. HTML views
+    /// and selections without an exact source mapping return `None`. Select-all
+    /// in a Markdown view returns the full source range.
+    pub fn selected_source_range(&self) -> Option<Range<usize>> {
+        if self.format != TextViewFormat::Markdown {
+            return None;
+        }
+        if self.select_all {
+            return Some(0..self.source().len());
+        }
+        self.parsed_content.document.selected_source_range()
+    }
+
     /// The format to copy in, which is [`SelectionFormat::Plain`] whenever the
     /// requested one cannot be produced.
     ///
@@ -479,6 +536,7 @@ impl TextViewState {
     fn increment_update(&mut self, text: &str, append: bool, cx: &mut Context<Self>) {
         self.revision += 1;
         if !append {
+            self.full_update_revision = self.revision;
             self.selection_revision = self.selection_revision.wrapping_add(1);
         }
         let parse_synchronously = !append && text.len() <= MAX_SYNC_FULL_REPLACE_BYTES;
@@ -503,6 +561,7 @@ impl TextViewState {
         if parse_synchronously {
             match parse_content(self.format, ParsedContent::default(), &update_options) {
                 Ok(content) => {
+                    self.reconcile_range_highlights(&content.document, self.revision, false);
                     self.stream_fade.record(
                         &self.parsed_content.document,
                         &content.document,
@@ -529,6 +588,158 @@ impl TextViewState {
         }
 
         _ = self.tx.try_send(update_options);
+    }
+
+    /// The text this view renders, which [`RangeHighlight`] ranges index.
+    ///
+    /// This is the string plain copy produces, as of the last parse that
+    /// landed; text set since then is not in it until its parse lands.
+    pub fn rendered_text(&self) -> RenderedText {
+        RenderedText::new(
+            self.entity_id,
+            self.committed_revision,
+            self.parsed_content.document.clone(),
+            self.rendered_index.clone(),
+        )
+    }
+
+    /// Replace the range highlights, whose ranges index the current rendered text.
+    ///
+    /// Compute ranges from the current [`Self::rendered_text`] and set them in
+    /// the same update. Search the new text again after its content changes.
+    /// A range crossing blocks paints in both, skipping their separator.
+    /// Text outside every block (separators, custom blocks, HTML blocks, and
+    /// inline objects) is left unpainted. Any invalid range rejects the set.
+    ///
+    /// Highlights follow unchanged text through updates. Text appended while
+    /// streaming keeps earlier highlights; after a table edit, cells in and
+    /// after the edited row lose theirs because cells are known by position.
+    /// Text backgrounds such as `<mark>` paint over a highlight; inline code
+    /// backgrounds paint under it.
+    pub fn set_range_highlights(
+        &mut self,
+        highlights: impl IntoIterator<Item = RangeHighlight>,
+        cx: &mut Context<Self>,
+    ) -> Result<(), RangeHighlightError> {
+        if self.format != TextViewFormat::Markdown {
+            return Err(RangeHighlightError::Unsupported);
+        }
+        let text = self.rendered_text();
+        self.range_highlights = RangeHighlightFrame::new(&text, highlights)?.map(Arc::new);
+        cx.notify();
+        Ok(())
+    }
+
+    /// Scroll the line `range` starts on into view, `range` indexing the
+    /// current rendered text, as with [`Self::set_range_highlights`].
+    ///
+    /// A [`Self::scrollable`] view scrolls itself. Otherwise the nearest
+    /// enclosing `gpui::list` scrolls, as long as the row holding the view is
+    /// laid out, so scroll to that row first when it may be off screen. Any
+    /// other scroll container scrolls through
+    /// [`TextView::on_reveal`](crate::text::TextView::on_reveal). An empty
+    /// range reveals the line of its position; a range in text that belongs
+    /// to no block's text, such as a custom block's, scrolls its whole block
+    /// into a scrollable view.
+    ///
+    /// Only the latest reveal is carried out. It follows the content as
+    /// [range highlights](Self::set_range_highlights) do, and it is dropped
+    /// when its text changes, when the view clamps its lines, or when it
+    /// cannot be shown within a second, so it never scrolls long after it
+    /// was asked for. A whole block taller than the view, scrolled to from
+    /// below, shows its end.
+    ///
+    /// Revealing is best effort: `Ok(())` means the range is valid for the
+    /// current text and the request was taken, not that the view has
+    /// scrolled. A dropped request is not reported.
+    pub fn reveal_range(
+        &mut self,
+        range: Range<usize>,
+        cx: &mut Context<Self>,
+    ) -> Result<(), RangeHighlightError> {
+        if self.format != TextViewFormat::Markdown {
+            return Err(RangeHighlightError::Unsupported);
+        }
+        let text = self.rendered_text();
+        if text.is_empty() && range == (0..0) {
+            // Nothing to reveal in an empty view.
+            self.pending_reveal = None;
+            return Ok(());
+        }
+        let now = cx.background_executor().now();
+        self.pending_reveal = Some(
+            PendingReveal::new(&text, &range, now).ok_or(RangeHighlightError::InvalidRange(0))?,
+        );
+        cx.notify();
+        Ok(())
+    }
+
+    /// Remove all range highlights.
+    pub fn clear_range_highlights(&mut self, cx: &mut Context<Self>) {
+        if self.range_highlights.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// Carry the range highlights over to `new`, the document the update of
+    /// `revision` parsed, before it replaces the current one.
+    ///
+    /// `append` is whether that update parsed only appended text onto the
+    /// document before it. Only when no update has replaced the text since
+    /// the current document was committed was that document the current one,
+    /// so only then do the blocks before its last stay unchanged.
+    fn reconcile_range_highlights(&mut self, new: &ParsedDocument, revision: usize, append: bool) {
+        let tail_only = append && self.full_update_revision <= self.committed_revision;
+        self.committed_revision = revision;
+        self.rendered_index = Arc::default();
+        if self.range_highlights.is_some() || self.pending_reveal.is_some() {
+            let remap = LeafRemap::new(&self.parsed_content.document, new, tail_only);
+            self.range_highlights = self
+                .range_highlights
+                .take()
+                .and_then(|highlights| highlights.remap(&remap))
+                .map(Arc::new);
+            self.pending_reveal = self
+                .pending_reveal
+                .take()
+                .and_then(|reveal| reveal.remap(&remap));
+        }
+    }
+
+    /// Tell the scrollable list which blocks an append replaced, before `new`,
+    /// the appended document, replaces the current one.
+    ///
+    /// An append parses only the current document's last block again, so the
+    /// blocks before it keep their spans and their measured heights. Without
+    /// this, `render_root` resets the list whenever the block count changes,
+    /// which scrolled a streaming view back to the top and measured every
+    /// block again on each new block. Only a grown block count is handled
+    /// here; anything else is left to that reset.
+    fn splice_appended_blocks(&self, new: &ParsedDocument) {
+        let old = &self.parsed_content.document.blocks;
+        let (old_count, new_count) = (old.len(), new.blocks.len());
+        if old_count == 0 || new_count <= old_count || self.list_state.item_count() != old_count {
+            return;
+        }
+
+        // The last block is always measured again: it was parsed again, and
+        // it is no longer the last one.
+        let unchanged = old
+            .iter()
+            .zip(new.blocks.iter())
+            .take(old_count - 1)
+            .take_while(|(old_block, new_block)| {
+                old_block
+                    .span()
+                    .is_some_and(|span| new_block.span() == Some(span))
+            })
+            .count();
+        // Keeps the replaced blocks' heights as hints and the scroll offset
+        // inside them, and has the next layout measure only the blocks that
+        // are not measured.
+        self.list_state.remeasure_items(unchanged..old_count);
+        self.list_state
+            .splice(old_count..old_count, new_count - old_count);
     }
 
     /// Save bounds and unselect if bounds changed.
@@ -752,6 +963,50 @@ pub(crate) enum TextViewMultiClickKind {
     Line,
 }
 
+impl TextViewState {
+    /// Starts a frame of the pending reveal: the line to hand to rendering,
+    /// and the block a scrollable view has to scroll to first, because it is
+    /// off screen or the reveal is of a whole block.
+    fn reveal_frame(
+        &mut self,
+        now: Instant,
+        window: &mut Window,
+    ) -> (Option<RevealRequest>, Option<usize>) {
+        if self.max_lines.is_some()
+            || self
+                .pending_reveal
+                .as_ref()
+                .is_some_and(|reveal| reveal.is_expired(now))
+        {
+            self.pending_reveal = None;
+        }
+        let Some(pending) = &self.pending_reveal else {
+            return (None, None);
+        };
+
+        let block_ix = pending.block_ix(&self.parsed_content.document);
+        let block_off_screen = |ix: usize| {
+            let viewport = self.list_state.viewport_bounds();
+            self.list_state.bounds_for_item(ix).is_none_or(|item| {
+                item.bottom() <= viewport.top() || item.top() >= viewport.bottom()
+            })
+        };
+        let reveal_block = block_ix.filter(|ix| {
+            self.scrollable
+                && (pending.is_block() || !pending.was_laid_out())
+                && block_off_screen(*ix)
+        });
+        let request = pending.request();
+        if pending.is_block() {
+            // A block has no line to wait for.
+            self.pending_reveal = None;
+        } else {
+            window.request_animation_frame();
+        }
+        (request, reveal_block)
+    }
+}
+
 impl Render for TextViewState {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let typography = (window.text_style(), window.rem_size());
@@ -770,9 +1025,16 @@ impl Render for TextViewState {
         self.layout_text_style = Some(typography);
         let state = cx.entity();
         let stream_fade = self.stream_fade.frame(Instant::now(), cx.reduce_motion());
-        if stream_fade.is_some() {
-            window.request_animation_frame();
+        if stream_fade.is_some() && self.fade_tick.is_none() {
+            self.fade_tick = Some(cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(STREAM_FADE_TICK).await;
+                _ = this.update(cx, |state, cx| {
+                    state.fade_tick = None;
+                    cx.notify();
+                });
+            }));
         }
+        let (reveal, reveal_block) = self.reveal_frame(cx.background_executor().now(), window);
         // Built every frame, so everything in it is shared, not copied.
         let node_cx = NodeContext {
             offset: self.parsed_content.node_cx.offset,
@@ -782,11 +1044,14 @@ impl Render for TextViewState {
             code_block_highlighter: self.code_block_highlighter.clone(),
             table_actions: self.table_actions.clone(),
             link_click_handler: self.link_click_handler.clone(),
+            image_source: self.image_source.clone(),
             markdown_extensions: self.markdown_extensions.clone(),
             stream_fade,
+            range_highlights: self.range_highlights.clone(),
+            reveal,
         };
 
-        v_flex()
+        let content = v_flex()
             .w_full()
             // Clamped content must keep its natural height: stretching it to
             // the capped box would hide the overflow the clamp has to measure.
@@ -840,7 +1105,13 @@ impl Render for TextViewState {
                 {
                     TextSelection::clear(window, cx);
                 }
-            })
+            });
+        // After `render_root`, which resets the list when the block count
+        // changed other than by an append, and with it the scroll position.
+        if let Some(block_ix) = reveal_block {
+            self.list_state.scroll_to_reveal_item(block_ix);
+        }
+        content
     }
 }
 
@@ -1014,11 +1285,11 @@ fn parse_content(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::text::MarkdownNode;
+    use crate::text::{MarkdownNode, node::BlockNode};
     use gpui::TestAppContext;
 
     mod stream_fade {
-        use std::{ops::Range, time::Duration};
+        use std::{cell::Cell, ops::Range, rc::Rc, time::Duration};
 
         use gpui::{Entity, TestAppContext};
 
@@ -1213,6 +1484,51 @@ mod tests {
                 assert!(state.stream_fade.frame(Instant::now(), true).is_none());
                 assert!(state.stream_fade.frame(Instant::now(), false).is_none());
             });
+        }
+
+        #[gpui::test]
+        fn a_fade_repaints_on_a_timer_until_nothing_fades(cx: &mut TestAppContext) {
+            struct FadeRoot(Entity<TextViewState>);
+            impl Render for FadeRoot {
+                fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                    crate::text::TextView::new(&self.0)
+                }
+            }
+
+            let state = fading_state("hello", cx);
+            let (_, cx) = cx.add_window_view(|_, _| FadeRoot(state.clone()));
+            let notifies = Rc::new(Cell::new(0));
+            let _subscription = cx.update(|_, cx| {
+                let notifies = notifies.clone();
+                cx.observe(&state, move |_, _| notifies.set(notifies.get() + 1))
+            });
+
+            state.update(cx, |state, cx| state.push_str(" world", cx));
+            cx.run_until_parked();
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            let before = notifies.get();
+
+            cx.executor().advance_clock(STREAM_FADE_TICK / 2);
+            cx.run_until_parked();
+            assert_eq!(notifies.get(), before);
+
+            // Each tick repaints once, and that frame schedules the next tick.
+            for tick in 1..=3 {
+                cx.executor().advance_clock(STREAM_FADE_TICK);
+                cx.run_until_parked();
+                assert_eq!(notifies.get(), before + tick);
+            }
+
+            // Replacing the text drops the fade, so the ticks stop.
+            state.update(cx, |state, cx| state.set_text("other", cx));
+            cx.run_until_parked();
+            cx.executor().advance_clock(STREAM_FADE_TICK);
+            cx.run_until_parked();
+            let after = notifies.get();
+            cx.executor().advance_clock(STREAM_FADE_TICK * 10);
+            cx.run_until_parked();
+            assert_eq!(notifies.get(), after);
+            assert!(state.read_with(cx, |state, _| state.fade_tick.is_none()));
         }
     }
 
@@ -1588,6 +1904,104 @@ mod tests {
     }
 
     #[gpui::test]
+    fn selected_source_range_returns_full_markdown_source_for_select_all(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let markdown = "**quick** value";
+        let state = cx.update(|cx| cx.new(|cx| TextViewState::markdown(markdown, cx)));
+        cx.run_until_parked();
+
+        state.update(cx, |state, cx| state.select_all(cx));
+
+        state.read_with(cx, |state, _| {
+            assert_eq!(state.selected_source_range(), Some(0..markdown.len()));
+        });
+    }
+
+    #[gpui::test]
+    fn selected_source_range_returns_none_for_html(cx: &mut TestAppContext) {
+        cx.update(crate::init);
+        let state = cx.update(|cx| cx.new(|cx| TextViewState::html("<b>quick</b>", cx)));
+        cx.run_until_parked();
+
+        state.update(cx, |state, cx| state.select_all(cx));
+
+        state.read_with(cx, |state, _| {
+            assert_eq!(state.selected_source_range(), None);
+        });
+    }
+
+    #[test]
+    fn selected_source_range_keeps_global_offsets_after_incremental_tail_parse() {
+        let options = UpdateOptions {
+            revision: 1,
+            pending_text: "first\n\nsecond".to_string(),
+            append: false,
+            mode: ParseMode::Replace,
+            markdown_extensions: Arc::default(),
+        };
+        let content = parse_content(TextViewFormat::Markdown, ParsedContent::default(), &options)
+            .expect("initial parse");
+        let content = parse_content(
+            TextViewFormat::Markdown,
+            content,
+            &UpdateOptions {
+                revision: 2,
+                pending_text: "\n\n**écho**".to_string(),
+                append: true,
+                mode: ParseMode::Compatible,
+                markdown_extensions: Arc::default(),
+            },
+        )
+        .expect("incremental parse");
+        let BlockNode::Paragraph(paragraph) = &content.document.blocks[2] else {
+            panic!("expected appended paragraph");
+        };
+        let mut state = paragraph.state.lock().unwrap();
+        state.set_text(paragraph.text().into());
+        state.selection = Some((0.."écho".len()).into());
+        drop(state);
+
+        assert_eq!(content.document.selected_source_range(), Some(17..22));
+    }
+
+    #[test]
+    fn streamed_ordered_list_continuation_preserves_start() {
+        let initial = parse_content(
+            TextViewFormat::Markdown,
+            ParsedContent::default(),
+            &UpdateOptions {
+                revision: 1,
+                pending_text: "3. three".to_string(),
+                append: false,
+                mode: ParseMode::Replace,
+                markdown_extensions: Arc::default(),
+            },
+        )
+        .expect("initial list parse");
+        let continued = parse_content(
+            TextViewFormat::Markdown,
+            initial,
+            &UpdateOptions {
+                revision: 2,
+                pending_text: "\n4. four".to_string(),
+                append: true,
+                mode: ParseMode::Compatible,
+                markdown_extensions: Arc::default(),
+            },
+        )
+        .expect("streamed list continuation parse");
+
+        let BlockNode::List {
+            start, children, ..
+        } = &continued.document.blocks[0]
+        else {
+            panic!("expected streamed ordered list");
+        };
+        assert_eq!(*start, Some(3));
+        assert_eq!(children.len(), 2);
+    }
+
+    #[gpui::test]
     fn parser_revision_reparses_same_name_inline_configuration(cx: &mut TestAppContext) {
         cx.update(crate::init);
         let state = cx.update(|cx| cx.new(|cx| TextViewState::markdown("@member", cx)));
@@ -1655,5 +2069,1003 @@ mod tests {
             assert_eq!(node.name(), "ticker");
             assert_eq!(node.data::<String>().map(String::as_str), Some("TSLA.US"));
         });
+    }
+
+    mod range_highlights {
+        use std::ops::Range;
+
+        use gpui::{Entity, TestAppContext};
+
+        use super::super::*;
+        use crate::text::stream_fade::TextLeafKey;
+
+        fn state(markdown: &str, cx: &mut TestAppContext) -> Entity<TextViewState> {
+            cx.update(crate::init);
+            let state = cx.update(|cx| cx.new(|cx| TextViewState::markdown(markdown, cx)));
+            cx.run_until_parked();
+            state
+        }
+
+        fn highlight(range: Range<usize>) -> RangeHighlight {
+            RangeHighlight::new(range, gpui::hsla(0.15, 1., 0.5, 0.4))
+        }
+
+        /// Highlights `ranges` of the current rendered text.
+        fn set(
+            state: &Entity<TextViewState>,
+            ranges: impl IntoIterator<Item = Range<usize>>,
+            cx: &mut TestAppContext,
+        ) -> Result<(), RangeHighlightError> {
+            state.update(cx, |state, cx| {
+                state.set_range_highlights(ranges.into_iter().map(highlight), cx)
+            })
+        }
+
+        /// The ranges leaf `key` paints, in its own byte space.
+        fn painted(
+            state: &Entity<TextViewState>,
+            key: TextLeafKey,
+            cx: &mut TestAppContext,
+        ) -> Vec<Range<usize>> {
+            state.read_with(cx, |state, _| {
+                state.range_highlights.as_ref().map_or(Vec::new(), |frame| {
+                    frame
+                        .backgrounds(key)
+                        .iter()
+                        .map(|(range, _)| range.clone())
+                        .collect()
+                })
+            })
+        }
+
+        fn has_highlights(state: &Entity<TextViewState>, cx: &mut TestAppContext) -> bool {
+            state.read_with(cx, |state, _| state.range_highlights.is_some())
+        }
+
+        #[gpui::test]
+        fn rendered_text_is_the_plain_copy_text(cx: &mut TestAppContext) {
+            let state = state(
+                "# Title\n\nhello **world** \\*\n\n- item\n\n| a | b |\n|---|---|\n| c | d |\n\n```\nlet x\n```",
+                cx,
+            );
+            state.read_with(cx, |state, _| {
+                assert_eq!(
+                    state.rendered_text().as_str(),
+                    "Title\nhello world *\nitem\na b\nc d\n\nlet x\n"
+                );
+            });
+        }
+
+        #[gpui::test]
+        fn a_match_across_marks_paints_in_its_paragraph(cx: &mut TestAppContext) {
+            let state = state("hello **world**", cx);
+            set(&state, [0.."hello world".len()], cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..11]);
+        }
+
+        #[gpui::test]
+        fn repeated_text_maps_to_the_occurrence_addressed(cx: &mut TestAppContext) {
+            let state = state("foo\n\nfoo", cx);
+            let second = state.read_with(cx, |state, _| {
+                state.rendered_text().as_str().rfind("foo").unwrap()
+            });
+            set(&state, [second..second + 3], cx).unwrap();
+            assert!(painted(&state, TextLeafKey::block(0), cx).is_empty());
+            assert_eq!(painted(&state, TextLeafKey::block(5), cx), [0..3]);
+        }
+
+        #[gpui::test]
+        fn a_range_across_blocks_skips_the_separator(cx: &mut TestAppContext) {
+            let state = state("ab\n\ncd", cx);
+            // "ab\ncd\n": 1..4 is "b\nc".
+            set(&state, [1..4], cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [1..2]);
+            assert_eq!(painted(&state, TextLeafKey::block(4), cx), [0..1]);
+        }
+
+        #[gpui::test]
+        fn table_cells_and_code_blocks_are_leaves(cx: &mut TestAppContext) {
+            let state = state("| a | b |\n|---|---|\n| c | d |\n\n```\nlet x\n```", cx);
+            // "a b\nc d\n\nlet x\n"
+            set(&state, [0..3, 6..7, 9..12], cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::table_cell(0, 0), cx), [0..1]);
+            assert_eq!(painted(&state, TextLeafKey::table_cell(0, 1), cx), [0..1]);
+            assert_eq!(painted(&state, TextLeafKey::table_cell(0, 3), cx), [0..1]);
+            let code_start = "| a | b |\n|---|---|\n| c | d |\n\n".len();
+            assert_eq!(painted(&state, TextLeafKey::block(code_start), cx), [0..3]);
+        }
+
+        #[gpui::test]
+        fn invalid_ranges_reject_the_whole_set(cx: &mut TestAppContext) {
+            let state = state("中文\n\nab", cx);
+            // "中文\nab\n"
+            set(&state, [0.."中".len()], cx).unwrap();
+            let invalid = [Range { start: 6, end: 3 }, 0..1, 0..100];
+            for range in invalid {
+                assert_eq!(
+                    set(&state, [0..3, range.clone()], cx),
+                    Err(RangeHighlightError::InvalidRange(1)),
+                    "{range:?}"
+                );
+            }
+            // The rejected sets left the earlier highlight in place.
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..3]);
+        }
+
+        #[gpui::test]
+        fn text_outside_every_block_is_left_unpainted(cx: &mut TestAppContext) {
+            let source = "foo one\n\n<div>foo two</div>\n\n| foo | x |\n|---|---|\n\nfoo three";
+            let state = state(source, cx);
+            let text = state.read_with(cx, |state, _| state.rendered_text().as_str().to_string());
+            // Every "foo" and " ", an empty range, and the separator after the
+            // first block: the HTML block's text and the separators are not
+            // any block's text, so they paint nothing, but nothing fails.
+            let ranges = text
+                .match_indices("foo")
+                .chain(text.match_indices(' '))
+                .map(|(start, found)| start..start + found.len())
+                .chain([3..3, 7..8])
+                .collect::<Vec<_>>();
+            set(&state, ranges, cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..3, 3..4]);
+            let table = source.find("| foo").unwrap();
+            assert_eq!(
+                painted(&state, TextLeafKey::table_cell(table, 0), cx),
+                [0..3]
+            );
+            let last = source.find("foo three").unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(last), cx), [0..3, 3..4]);
+        }
+
+        #[gpui::test]
+        fn a_later_highlight_paints_over_an_earlier_one(cx: &mut TestAppContext) {
+            let state = state("abcdef", cx);
+            set(&state, [0..6, 2..3], cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..6, 2..3]);
+        }
+
+        #[gpui::test]
+        fn html_text_is_unsupported(cx: &mut TestAppContext) {
+            let html = cx.update(|cx| cx.new(|cx| TextViewState::html("<p>one</p>", cx)));
+            cx.run_until_parked();
+            html.update(cx, |html, cx| {
+                assert_eq!(
+                    html.set_range_highlights([highlight(0..3)], cx),
+                    Err(RangeHighlightError::Unsupported)
+                );
+            });
+        }
+
+        #[gpui::test]
+        fn inline_objects_are_skipped(cx: &mut TestAppContext) {
+            let state = state("x $a$ y", cx);
+            state.update(cx, |state, cx| {
+                let extensions = MarkdownExtensions::default().plugin(
+                    crate::text::markdown_ext::TestInlinePlugin::new("test").parse_with(
+                        |node, _| {
+                            let markdown::mdast::Node::InlineMath(math) = node else {
+                                return None;
+                            };
+                            Some(
+                                crate::text::MarkdownNode::new("formula", ())
+                                    .text(math.value.clone()),
+                            )
+                        },
+                    ),
+                );
+                state.set_markdown_extensions(Arc::new(extensions), cx);
+            });
+            cx.run_until_parked();
+            // "x a y\n", where "a" is the formula.
+            set(&state, [2..3], cx).unwrap();
+            assert!(painted(&state, TextLeafKey::block(0), cx).is_empty());
+            set(&state, [0..5], cx).unwrap();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..2, 3..5]);
+        }
+
+        #[gpui::test]
+        fn push_str_keeps_earlier_blocks_and_clips_the_changed_tail(cx: &mut TestAppContext) {
+            let state = state("first\n\na **b", cx);
+            // "first\na **b\n"
+            set(&state, [0..5, 6..11], cx).unwrap();
+
+            // Closing the emphasis renders the tail as "a bc".
+            state.update(cx, |state, cx| state.push_str("c**", cx));
+            cx.run_until_parked();
+
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..5]);
+            assert_eq!(painted(&state, TextLeafKey::block(7), cx), [0..2]);
+        }
+
+        #[gpui::test]
+        fn push_str_keeps_a_block_whose_text_is_unchanged(cx: &mut TestAppContext) {
+            let state = state("first\n\nsecond", cx);
+            set(&state, [6..12], cx).unwrap();
+            // A setext underline turns the paragraph into a heading at the
+            // same source start, rendering the same text.
+            state.update(cx, |state, cx| state.push_str("\n===", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(7), cx), [0..6]);
+        }
+
+        #[gpui::test]
+        fn push_str_drops_highlights_of_a_leaf_that_is_gone(cx: &mut TestAppContext) {
+            let state = state("first\n\n| a |", cx);
+            set(&state, [0..5, 6..11], cx).unwrap();
+            // A delimiter row turns the paragraph into a table, whose text
+            // lives in cells instead.
+            state.update(cx, |state, cx| state.push_str("\n|---|", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..5]);
+            assert!(painted(&state, TextLeafKey::block(7), cx).is_empty());
+            assert!(painted(&state, TextLeafKey::table_cell(7, 0), cx).is_empty());
+        }
+
+        #[gpui::test]
+        fn replacing_text_drops_highlights_only_where_it_changed(cx: &mut TestAppContext) {
+            let state = state("first\n\nsecond", cx);
+            set(&state, [0..5, 6..12], cx).unwrap();
+            state.update(cx, |state, cx| state.set_text("first\n\nchanged", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..5]);
+            assert!(painted(&state, TextLeafKey::block(7), cx).is_empty());
+
+            let large = "x".repeat(MAX_SYNC_FULL_REPLACE_BYTES + 1);
+            state.update(cx, |state, cx| state.set_text(&large, cx));
+            cx.run_until_parked();
+            assert!(!has_highlights(&state, cx));
+        }
+
+        #[gpui::test]
+        fn a_highlight_follows_its_block_past_an_earlier_edit(cx: &mut TestAppContext) {
+            let state = state("foo\n\nbar\n\nbar", cx);
+            // "foo\nbar\nbar\n": the first "bar", in the block at source 5.
+            set(&state, [4..7], cx).unwrap();
+            // Deleting "foo" moves that "bar" to 0, and the second one to 5.
+            state.update(cx, |state, cx| state.set_text("bar\n\nbar", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..3]);
+            assert!(painted(&state, TextLeafKey::block(5), cx).is_empty());
+
+            let state = self::state("ERROR a\n\nERROR b\n\nERROR c", cx);
+            set(&state, [8..15], cx).unwrap();
+            state.update(cx, |state, cx| state.set_text("ERROR b\n\nERROR c", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..7]);
+            assert!(painted(&state, TextLeafKey::block(9), cx).is_empty());
+        }
+
+        #[gpui::test]
+        fn appending_a_copy_of_the_last_block_keeps_the_highlight_on_it(cx: &mut TestAppContext) {
+            let state = state("a\n\nfoo", cx);
+            // "a\nfoo\n"
+            set(&state, [2..5], cx).unwrap();
+            state.update(cx, |state, cx| state.set_text("a\n\nfoo\n\nfoo", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(3), cx), [0..3]);
+            assert!(painted(&state, TextLeafKey::block(8), cx).is_empty());
+        }
+
+        #[gpui::test]
+        fn deleting_a_table_row_drops_highlights_in_the_rows_it_moves(cx: &mut TestAppContext) {
+            let table = "| a | b |\n|---|---|\n| x | 1 |\n| x | 2 |";
+            let without_middle_row = "| a | b |\n|---|---|\n| x | 2 |";
+            // "a b\nx 1\nx 2\n\n": the last row's cells, then the middle
+            // row's "x".
+            for ranges in [vec![8..9, 10..11], vec![4..5]] {
+                let state = state(table, cx);
+                set(&state, [0..1].into_iter().chain(ranges), cx).unwrap();
+                state.update(cx, |state, cx| state.set_text(without_middle_row, cx));
+                cx.run_until_parked();
+                assert_eq!(painted(&state, TextLeafKey::table_cell(0, 0), cx), [0..1]);
+                for cell in 1..4 {
+                    assert!(
+                        painted(&state, TextLeafKey::table_cell(0, cell), cx).is_empty(),
+                        "cell {cell}"
+                    );
+                }
+            }
+        }
+
+        #[gpui::test]
+        fn streaming_table_rows_keeps_the_highlights_of_earlier_rows(cx: &mut TestAppContext) {
+            let state = state("| a | b |\n|---|---|\n| x | 1 |", cx);
+            // "a b\nx 1\n\n"
+            set(&state, [0..1, 4..5], cx).unwrap();
+            state.update(cx, |state, cx| {
+                state.set_text("| a | b |\n|---|---|\n| x | 1 |\n| y | 2 |", cx)
+            });
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::table_cell(0, 0), cx), [0..1]);
+            assert_eq!(painted(&state, TextLeafKey::table_cell(0, 2), cx), [0..1]);
+        }
+
+        #[gpui::test]
+        fn an_edit_in_an_earlier_block_keeps_later_highlights(cx: &mut TestAppContext) {
+            let state = state("one\n\ntwo", cx);
+            set(&state, [0..3, 4..7], cx).unwrap();
+            state.update(cx, |state, cx| state.set_text("one!\n\ntwo", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..3]);
+            assert_eq!(painted(&state, TextLeafKey::block(6), cx), [0..3]);
+        }
+
+        #[gpui::test]
+        fn an_append_after_a_full_update_compares_every_block(cx: &mut TestAppContext) {
+            let state = state("first\n\nsecond", cx);
+            set(&state, [0..5], cx).unwrap();
+            // An append result whose baseline was a full update that has not
+            // been committed: its earlier blocks are not the current ones.
+            let options = UpdateOptions {
+                revision: 0,
+                pending_text: "FIRST\n\nsecond".to_string(),
+                append: false,
+                mode: ParseMode::Replace,
+                markdown_extensions: Arc::default(),
+            };
+            let new = parse_content(TextViewFormat::Markdown, ParsedContent::default(), &options)
+                .unwrap()
+                .document;
+            state.update(cx, |state, _| {
+                state.full_update_revision = state.committed_revision + 1;
+                let revision = state.committed_revision + 2;
+                state.reconcile_range_highlights(&new, revision, true);
+            });
+            assert!(!has_highlights(&state, cx));
+        }
+
+        #[gpui::test]
+        fn streaming_through_set_text_keeps_highlights(cx: &mut TestAppContext) {
+            let state = state("first\n\nsec", cx);
+            // "first\nsec\n"
+            set(&state, [0..5, 6..9], cx).unwrap();
+            state.update(cx, |state, cx| state.set_text("first\n\nsecond", cx));
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..5]);
+            assert_eq!(painted(&state, TextLeafKey::block(7), cx), [0..3]);
+        }
+
+        #[gpui::test]
+        fn a_full_parse_merged_with_an_append_compares_every_block(cx: &mut TestAppContext) {
+            let state = state("", cx);
+            // The small text is committed at once, and its background parse
+            // merges with the append into one full parse, in which the
+            // definition turns the earlier `[foo]` into the link text `foo`.
+            state.update(cx, |state, cx| {
+                state.set_text("[foo] and some text\n\nmore", cx);
+                let text = state.rendered_text();
+                let some = text.as_str().find("some").unwrap();
+                state
+                    .set_range_highlights([highlight(some..some + 4)], cx)
+                    .unwrap();
+                state.push_str("\n\n[foo]: https://example.com", cx);
+            });
+            cx.run_until_parked();
+            state.read_with(cx, |state, _| {
+                assert!(state.rendered_text().as_str().starts_with("foo and some"));
+            });
+            assert!(painted(&state, TextLeafKey::block(0), cx).is_empty());
+        }
+
+        #[gpui::test]
+        fn a_full_update_before_an_append_drops_replaced_highlights(cx: &mut TestAppContext) {
+            let state = state("first", cx);
+            set(&state, [0..5], cx).unwrap();
+            let large = "x".repeat(MAX_SYNC_FULL_REPLACE_BYTES + 1);
+            state.update(cx, |state, cx| {
+                state.set_text(&large, cx);
+                state.push_str(" tail", cx);
+            });
+            cx.run_until_parked();
+            assert!(!has_highlights(&state, cx));
+        }
+
+        #[gpui::test]
+        fn reparsing_unchanged_text_keeps_highlights(cx: &mut TestAppContext) {
+            let state = state("first", cx);
+            set(&state, [0..5], cx).unwrap();
+            state.update(cx, |state, cx| {
+                state.set_markdown_extensions(
+                    Arc::new(MarkdownExtensions::default().parser_revision(1)),
+                    cx,
+                )
+            });
+            cx.run_until_parked();
+            assert_eq!(painted(&state, TextLeafKey::block(0), cx), [0..5]);
+        }
+
+        pub(super) struct Root {
+            pub(super) state: Entity<TextViewState>,
+        }
+
+        impl Render for Root {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                gpui::div()
+                    .w(px(120.))
+                    .child(crate::text::TextView::new(&self.state).selectable(true))
+            }
+        }
+
+        #[gpui::test]
+        fn highlights_paint_across_inline_code_tables_and_code_blocks(cx: &mut TestAppContext) {
+            cx.update(crate::init);
+            let markdown = "wrapping text with `inline code` and a [link](https://x.y) \
+                            that wraps\n\n| a | b |\n|---|---|\n| c | d |\n\n```\nlet x = 1;\n```";
+            let (root, cx) = cx.add_window_view(|_, cx| Root {
+                state: cx.new(|cx| TextViewState::markdown(markdown, cx)),
+            });
+            cx.run_until_parked();
+            let state = root.read_with(cx, |root, _| root.state.clone());
+            let text = state.read_with(cx, |state, _| state.rendered_text().as_str().to_string());
+            let code = text.find("code").unwrap();
+            let len = text.len();
+            // Part of the inline code, every character, and the whole text.
+            let ranges = [code..code + 2]
+                .into_iter()
+                .chain(text.char_indices().map(|(ix, c)| ix..ix + c.len_utf8()))
+                .chain([0..len])
+                .filter(|range| !text[range.clone()].trim().is_empty());
+            state.update(cx, |state, cx| {
+                state
+                    .set_range_highlights(ranges.map(highlight), cx)
+                    .unwrap();
+            });
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+            assert_eq!(
+                painted(&state, TextLeafKey::block(0), cx)[0],
+                code..code + 2
+            );
+        }
+
+        #[gpui::test]
+        fn clear_range_highlights_removes_them(cx: &mut TestAppContext) {
+            let state = state("first", cx);
+            set(&state, [0..5], cx).unwrap();
+            state.update(cx, |state, cx| state.clear_range_highlights(cx));
+            assert!(!has_highlights(&state, cx));
+        }
+    }
+
+    mod reveal_range {
+        use gpui::{
+            Entity, InteractiveElement as _, ListAlignment, ListState, ScrollHandle,
+            StatefulInteractiveElement as _, TestAppContext, VisualTestContext, div, list,
+        };
+
+        use super::super::*;
+        use crate::text::TextView;
+
+        /// Where the view sits in a 200 × 100 window.
+        #[derive(Clone)]
+        enum Container {
+            /// A scrollable view.
+            Scrollable,
+            /// A fit-content view, second row of an application list.
+            List(ListState),
+            /// A fit-content view in a scrolling `div`, which follows reveals
+            /// through `on_reveal`.
+            Div(ScrollHandle),
+            /// A fit-content view clamped to two lines, second row of a list.
+            Clamped(ListState),
+            /// A fit-content view in nothing that scrolls.
+            Fixed,
+        }
+
+        struct Root {
+            state: Entity<TextViewState>,
+            container: Container,
+        }
+
+        impl Render for Root {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                let state = self.state.clone();
+                let frame = div().w(px(200.)).h(px(100.));
+                let row = |list_state: &ListState, clamp: bool| {
+                    let state = state.clone();
+                    list(list_state.clone(), move |ix, _, _| match ix {
+                        0 => div().h(px(40.)).into_any_element(),
+                        _ => TextView::new(&state)
+                            .when(clamp, |view| view.max_lines(2))
+                            .into_any_element(),
+                    })
+                    .size_full()
+                };
+                match &self.container {
+                    Container::Scrollable => frame
+                        .child(TextView::new(&state).scrollable(true))
+                        .into_any_element(),
+                    Container::List(list_state) => {
+                        frame.child(row(list_state, false)).into_any_element()
+                    }
+                    Container::Clamped(list_state) => {
+                        frame.child(row(list_state, true)).into_any_element()
+                    }
+                    Container::Div(handle) => {
+                        let scroll = handle.clone();
+                        frame
+                            .child(
+                                div()
+                                    .id("scroll")
+                                    .size_full()
+                                    .overflow_y_scroll()
+                                    .track_scroll(handle)
+                                    .child(TextView::new(&state).on_reveal(move |line, _, _| {
+                                        let viewport = scroll.bounds();
+                                        let mut offset = scroll.offset();
+                                        if line.bottom() > viewport.bottom() {
+                                            offset.y -= line.bottom() - viewport.bottom();
+                                        } else if line.top() < viewport.top() {
+                                            offset.y += viewport.top() - line.top();
+                                        }
+                                        scroll.set_offset(offset);
+                                    })),
+                            )
+                            .into_any_element()
+                    }
+                    Container::Fixed => frame.child(TextView::new(&state)).into_any_element(),
+                }
+            }
+        }
+
+        fn window<'a>(
+            markdown: &str,
+            container: Container,
+            cx: &'a mut TestAppContext,
+        ) -> (Entity<TextViewState>, &'a mut VisualTestContext) {
+            cx.update(crate::init);
+            let (root, cx) = cx.add_window_view(|_, cx| Root {
+                state: cx.new(|cx| TextViewState::markdown(markdown, cx)),
+                container,
+            });
+            cx.run_until_parked();
+            draw(cx);
+            let state = root.read_with(cx, |root, _| root.state.clone());
+            (state, cx)
+        }
+
+        fn draw(cx: &mut VisualTestContext) {
+            cx.update(|window, cx| window.draw(cx).clear(cx));
+        }
+
+        /// Asks to reveal the first occurrence of `needle`, then runs `then`
+        /// before anything is drawn.
+        fn request(
+            state: &Entity<TextViewState>,
+            needle: &str,
+            cx: &mut VisualTestContext,
+            then: impl FnOnce(&mut TextViewState, &mut Context<TextViewState>),
+        ) {
+            state.update(cx, |state, cx| {
+                let text = state.rendered_text();
+                let start = text.as_str().find(needle).unwrap();
+                state.reveal_range(start..start + needle.len(), cx).unwrap();
+                then(state, cx);
+            });
+        }
+
+        /// Reveals the first occurrence of `needle` and draws a few frames.
+        fn reveal(state: &Entity<TextViewState>, needle: &str, cx: &mut VisualTestContext) {
+            request(state, needle, cx, |_, _| {});
+            for _ in 0..3 {
+                draw(cx);
+            }
+        }
+
+        fn is_pending(state: &Entity<TextViewState>, cx: &mut VisualTestContext) -> bool {
+            state.read_with(cx, |state, _| state.pending_reveal.is_some())
+        }
+
+        fn scroll_top(
+            state: &Entity<TextViewState>,
+            cx: &mut VisualTestContext,
+        ) -> gpui::ListOffset {
+            state.read_with(cx, |state, _| state.list_state.logical_scroll_top())
+        }
+
+        fn paragraphs(count: usize) -> String {
+            (0..count)
+                .map(|ix| format!("paragraph {ix}"))
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        }
+
+        fn words(count: usize) -> String {
+            (0..count)
+                .map(|ix| format!("w{ix}"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+
+        #[gpui::test]
+        fn a_scrollable_view_scrolls_to_an_offscreen_block(cx: &mut TestAppContext) {
+            let (state, cx) = window(&paragraphs(200), Container::Scrollable, cx);
+            reveal(&state, "paragraph 150", cx);
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert!((140..=150).contains(&top.item_ix), "{top:?}");
+
+            reveal(&state, "paragraph 3", cx);
+            assert!(!is_pending(&state, cx));
+            assert!(scroll_top(&state, cx).item_ix <= 3);
+        }
+
+        #[gpui::test]
+        fn an_append_adding_blocks_keeps_the_scroll_position(cx: &mut TestAppContext) {
+            let (state, cx) = window(&paragraphs(200), Container::Scrollable, cx);
+            reveal(&state, "paragraph 100", cx);
+            let top = scroll_top(&state, cx);
+            assert!(top.item_ix > 0, "{top:?}");
+
+            state.update(cx, |state, cx| state.push_str("\n\nparagraph 200", cx));
+            cx.run_until_parked();
+            draw(cx);
+
+            state.read_with(cx, |state, _| {
+                assert_eq!(state.list_state.item_count(), 201);
+            });
+            assert_unmoved(&state, top, cx);
+        }
+
+        #[gpui::test]
+        fn a_scrollable_view_scrolls_to_a_line_inside_a_long_paragraph(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(400), Container::Scrollable, cx);
+            reveal(&state, "w390", cx);
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert_eq!(top.item_ix, 0);
+            assert!(top.offset_in_item > px(100.), "{top:?}");
+        }
+
+        #[gpui::test]
+        fn revealing_a_visible_line_does_not_scroll(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(400), Container::Scrollable, cx);
+            reveal(&state, "w200", cx);
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(0.), "{top:?}");
+            for word in ["w199", "w198", "w197", "w196"] {
+                reveal(&state, word, cx);
+                assert!(!is_pending(&state, cx));
+                let now = scroll_top(&state, cx);
+                assert_eq!(
+                    (now.item_ix, now.offset_in_item),
+                    (top.item_ix, top.offset_in_item),
+                    "{word}"
+                );
+            }
+        }
+
+        #[gpui::test]
+        fn an_enclosing_list_scrolls_to_a_line_of_a_fit_content_view(cx: &mut TestAppContext) {
+            let outer = ListState::new(2, ListAlignment::Top, px(1000.));
+            let (state, cx) = window(&words(400), Container::List(outer.clone()), cx);
+            reveal(&state, "w390", cx);
+            assert!(!is_pending(&state, cx));
+            let top = outer.logical_scroll_top();
+            assert_eq!(top.item_ix, 1, "{top:?}");
+            assert!(top.offset_in_item > px(100.), "{top:?}");
+        }
+
+        #[gpui::test]
+        fn on_reveal_scrolls_a_container_that_ignores_scroll_requests(cx: &mut TestAppContext) {
+            let handle = ScrollHandle::new();
+            let (state, cx) = window(&words(400), Container::Div(handle.clone()), cx);
+            reveal(&state, "w390", cx);
+            assert!(!is_pending(&state, cx));
+            assert!(handle.offset().y < px(-100.), "{:?}", handle.offset());
+        }
+
+        #[gpui::test]
+        fn a_reveal_that_cannot_be_shown_gives_up(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(4000), Container::Fixed, cx);
+            reveal(&state, "w3990", cx);
+            assert!(is_pending(&state, cx));
+            for _ in 0..10 {
+                draw(cx);
+            }
+            assert!(!is_pending(&state, cx));
+        }
+
+        #[gpui::test]
+        fn a_reveal_not_carried_out_in_time_is_dropped(cx: &mut TestAppContext) {
+            let (state, cx) = window(&paragraphs(200), Container::Scrollable, cx);
+            request(&state, "paragraph 150", cx, |_, cx| {
+                cx.background_executor()
+                    .advance_clock(std::time::Duration::from_secs(2))
+            });
+            draw(cx);
+            assert!(!is_pending(&state, cx));
+            assert_eq!(scroll_top(&state, cx).item_ix, 0);
+        }
+
+        #[gpui::test]
+        fn an_empty_range_reveals_its_line(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(400), Container::Scrollable, cx);
+            reveal(&state, "w390", cx);
+            let top = scroll_top(&state, cx);
+            // A position on a visible line leaves the view where it is.
+            state.update(cx, |state, cx| {
+                let text = state.rendered_text();
+                let start = text.as_str().find("w391").unwrap();
+                state.reveal_range(start..start, cx).unwrap();
+            });
+            for _ in 0..3 {
+                draw(cx);
+            }
+            assert!(!is_pending(&state, cx));
+            let now = scroll_top(&state, cx);
+            assert_eq!(
+                (now.item_ix, now.offset_in_item),
+                (top.item_ix, top.offset_in_item)
+            );
+        }
+
+        #[gpui::test]
+        fn a_position_after_the_last_character_reveals_its_line(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(400), Container::Scrollable, cx);
+            reveal(&state, "w399", cx);
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+            // The end of the text, on the visible last line.
+            state.update(cx, |state, cx| {
+                let text = state.rendered_text();
+                let end = text.as_str().find("w399").unwrap() + "w399".len();
+                state.reveal_range(end..end, cx).unwrap();
+            });
+            for _ in 0..3 {
+                draw(cx);
+            }
+            assert!(!is_pending(&state, cx));
+            let now = scroll_top(&state, cx);
+            assert_eq!(
+                (now.item_ix, now.offset_in_item),
+                (top.item_ix, top.offset_in_item)
+            );
+        }
+
+        /// Reveals `range` of the current text and draws a few frames.
+        fn reveal_at(
+            state: &Entity<TextViewState>,
+            range: impl FnOnce(&str) -> std::ops::Range<usize>,
+            cx: &mut VisualTestContext,
+        ) {
+            state.update(cx, |state, cx| {
+                let text = state.rendered_text();
+                let range = range(text.as_str());
+                state.reveal_range(range, cx).unwrap();
+            });
+            for _ in 0..3 {
+                draw(cx);
+            }
+        }
+
+        fn assert_unmoved(
+            state: &Entity<TextViewState>,
+            top: gpui::ListOffset,
+            cx: &mut VisualTestContext,
+        ) {
+            assert!(!is_pending(state, cx));
+            let now = scroll_top(state, cx);
+            assert_eq!(
+                (now.item_ix, now.offset_in_item),
+                (top.item_ix, top.offset_in_item)
+            );
+        }
+
+        #[gpui::test]
+        fn the_end_of_the_text_and_its_separators_reveal_the_last_line(cx: &mut TestAppContext) {
+            let (state, cx) = window(&words(400), Container::Scrollable, cx);
+            reveal(&state, "w399", cx);
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+            // The end of the text, after the separator that ends the block.
+            reveal_at(&state, |text| text.len()..text.len(), cx);
+            assert_unmoved(&state, top, cx);
+            // Only that separator.
+            reveal_at(&state, |text| text.len() - 1..text.len(), cx);
+            assert_unmoved(&state, top, cx);
+
+            let code = (0..200)
+                .map(|ix| format!("line {ix}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            state.update(cx, |state, cx| {
+                state.set_text(&format!("```\n{code}\n```"), cx)
+            });
+            cx.run_until_parked();
+            reveal(&state, "line 199", cx);
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+            reveal_at(&state, |text| text.len()..text.len(), cx);
+            assert_unmoved(&state, top, cx);
+        }
+
+        #[gpui::test]
+        fn the_end_of_a_block_above_reveals_its_last_line(cx: &mut TestAppContext) {
+            let second = (0..400)
+                .map(|ix| format!("v{ix}"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let markdown = format!("{}\n\n{second}", words(400));
+            let (state, cx) = window(&markdown, Container::Scrollable, cx);
+            reveal(&state, "v399", cx);
+            assert_eq!(scroll_top(&state, cx).item_ix, 1);
+            // The end of the first paragraph, on the separator after it.
+            reveal_at(
+                &state,
+                |text| {
+                    let end = text.find("w399").unwrap() + "w399".len();
+                    end..end
+                },
+                cx,
+            );
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert_eq!(top.item_ix, 0, "{top:?}");
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+        }
+
+        #[gpui::test]
+        fn an_empty_view_has_nothing_to_reveal(cx: &mut TestAppContext) {
+            cx.update(crate::init);
+            let state = cx.update(|cx| cx.new(|cx| TextViewState::markdown("", cx)));
+            cx.run_until_parked();
+            state.update(cx, |state, cx| {
+                assert_eq!(state.reveal_range(0..0, cx), Ok(()));
+                assert!(state.pending_reveal.is_none());
+            });
+        }
+
+        #[gpui::test]
+        fn revealing_a_visible_block_does_not_scroll(cx: &mut TestAppContext) {
+            let markdown = format!("{}\n\n<div>html</div>\n\n{}", words(400), words(400));
+            let (state, cx) = window(&markdown, Container::Scrollable, cx);
+            reveal(&state, "html", cx);
+            // Still in view a little further down.
+            state.update(cx, |state, _| state.list_state.scroll_by(px(30.)));
+            draw(cx);
+            let top = scroll_top(&state, cx);
+            reveal(&state, "html", cx);
+            assert_unmoved(&state, top, cx);
+        }
+
+        #[gpui::test]
+        fn a_line_of_an_inline_flow_counts_as_shown_once_scrolled_to(cx: &mut TestAppContext) {
+            // Inline code every tenth word, so the rows are taller than the
+            // body line and land between pixels.
+            let markdown = (0..400)
+                .map(|ix| {
+                    if ix % 10 == 0 {
+                        format!("`c{ix}`")
+                    } else {
+                        format!("w{ix}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            let (state, cx) = window(&markdown, Container::Scrollable, cx);
+            reveal(&state, "c390", cx);
+            assert!(!is_pending(&state, cx));
+            assert!(scroll_top(&state, cx).offset_in_item > px(1000.));
+        }
+
+        #[gpui::test]
+        fn a_range_starting_on_a_line_break_reveals_the_next_line(cx: &mut TestAppContext) {
+            let code = (0..200)
+                .map(|ix| format!("line {ix}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let (state, cx) = window(&format!("```\n{code}\n```"), Container::Scrollable, cx);
+            reveal(&state, "\nline 190", cx);
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+        }
+
+        #[gpui::test]
+        fn a_range_starting_on_a_line_break_in_an_inline_flow_reveals_the_next_line(
+            cx: &mut TestAppContext,
+        ) {
+            // Inline code lays the paragraph out as an inline flow.
+            let lines = (0..200)
+                .map(|ix| format!("line {ix} `code`"))
+                .collect::<Vec<_>>()
+                .join("\\\n");
+            let (state, cx) = window(&lines, Container::Scrollable, cx);
+            reveal(&state, "\nline 190", cx);
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert!(top.offset_in_item > px(1000.), "{top:?}");
+        }
+
+        #[gpui::test]
+        fn a_reveal_is_dropped_when_its_text_before_it_changes(cx: &mut TestAppContext) {
+            let (state, cx) = window(&paragraphs(200), Container::Scrollable, cx);
+            let target = "first words then the target";
+            let markdown = format!("{target}\n\n{}", paragraphs(200));
+            state.update(cx, |state, cx| state.set_text(&markdown, cx));
+            cx.run_until_parked();
+
+            // Appending to its paragraph keeps it.
+            request(&state, "target", cx, |state, cx| {
+                state.set_text(&markdown.replacen("target", "target and more", 1), cx);
+                assert!(state.pending_reveal.is_some());
+            });
+            // An edit before it in its paragraph drops it.
+            request(&state, "target", cx, |state, cx| {
+                state.set_text(&markdown.replacen("words", "WORDS", 1), cx);
+                assert!(state.pending_reveal.is_none());
+            });
+        }
+
+        #[gpui::test]
+        fn a_clamped_view_does_not_reveal(cx: &mut TestAppContext) {
+            let outer = ListState::new(2, ListAlignment::Top, px(1000.));
+            let (state, cx) = window(&words(400), Container::Clamped(outer.clone()), cx);
+            reveal(&state, "w390", cx);
+            assert!(!is_pending(&state, cx));
+            assert_eq!(outer.logical_scroll_top().item_ix, 0);
+        }
+
+        #[gpui::test]
+        fn text_outside_every_block_reveals_its_block(cx: &mut TestAppContext) {
+            let markdown = format!("{}\n\n<div>html text</div>", paragraphs(100));
+            let (state, cx) = window(&markdown, Container::Scrollable, cx);
+            reveal(&state, "html text", cx);
+            assert!(!is_pending(&state, cx));
+            assert!(
+                scroll_top(&state, cx).item_ix >= 90,
+                "{:?}",
+                scroll_top(&state, cx)
+            );
+        }
+
+        #[gpui::test]
+        fn a_reveal_follows_its_text_past_an_edit_before_it(cx: &mut TestAppContext) {
+            let (state, cx) = window(&paragraphs(200), Container::Scrollable, cx);
+            // An inserted paragraph moves the target down one block.
+            request(&state, "paragraph 150", cx, |state, cx| {
+                state.set_text(&format!("inserted\n\n{}", paragraphs(200)), cx);
+                assert!(state.pending_reveal.is_some());
+            });
+            for _ in 0..3 {
+                draw(cx);
+            }
+            assert!(!is_pending(&state, cx));
+            let top = scroll_top(&state, cx);
+            assert!((141..=151).contains(&top.item_ix), "{top:?}");
+
+            // A reveal whose text changed is dropped.
+            request(&state, "paragraph 150", cx, |state, cx| {
+                state.set_text(&paragraphs(200).replace("paragraph 150", "changed"), cx);
+                assert!(state.pending_reveal.is_none());
+            });
+        }
+
+        #[gpui::test]
+        fn malformed_ranges_and_html_views_are_rejected(cx: &mut TestAppContext) {
+            cx.update(crate::init);
+            let state = cx.update(|cx| cx.new(|cx| TextViewState::markdown("first\n\nsecond", cx)));
+            cx.run_until_parked();
+            state.update(cx, |state, cx| {
+                assert_eq!(
+                    state.reveal_range(std::ops::Range { start: 5, end: 3 }, cx),
+                    Err(RangeHighlightError::InvalidRange(0))
+                );
+                assert_eq!(
+                    state.reveal_range(0..100, cx),
+                    Err(RangeHighlightError::InvalidRange(0))
+                );
+                state.reveal_range(0..5, cx).unwrap();
+            });
+
+            let html = cx.update(|cx| cx.new(|cx| TextViewState::html("<p>one</p>", cx)));
+            cx.run_until_parked();
+            html.update(cx, |html, cx| {
+                assert_eq!(
+                    html.reveal_range(0..3, cx),
+                    Err(RangeHighlightError::Unsupported)
+                );
+            });
+        }
     }
 }

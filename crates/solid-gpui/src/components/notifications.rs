@@ -4,7 +4,7 @@ use crate::native::{
 };
 use gpui::{App, Context, Entity, IntoElement, Render, WeakEntity, Window};
 use gpui_component::{
-    Root,
+    WindowState,
     button::{Button, ButtonVariants},
     notification::{
         Notification as NativeNotification, NotificationDelivery as NativeDelivery,
@@ -91,7 +91,7 @@ struct Notification {
     props: NotificationProps,
     children: NativeChildren,
     event: Event<NotificationClosed>,
-    root: Option<WeakEntity<Root>>,
+    root: Option<WeakEntity<WindowState>>,
     note: Option<Entity<NativeNotification>>,
     key: String,
     session: u32,
@@ -158,7 +158,7 @@ impl Notification {
         self.key = format!("{}:{}", cx.entity_id().as_u64(), self.session);
         self.live = true;
         let note = self.build(cx);
-        self.note = Root::update(window, cx, |root, window, cx| {
+        self.note = WindowState::update(window, cx, |root, window, cx| {
             self.root = Some(cx.entity().downgrade());
             root.push_notification(note, window, cx);
             root.notification
@@ -299,7 +299,7 @@ mod tests {
             view.update(props, window, cx);
             assert_eq!(view.note.as_ref().unwrap().entity_id(), id);
             assert_eq!(view.key, key);
-            Root::update(window, cx, |root, window, cx| {
+            WindowState::update(window, cx, |root, window, cx| {
                 root.push_notification(
                     NativeNotification::new()
                         .id1::<Notification>("another")
@@ -310,7 +310,7 @@ mod tests {
             });
             view.unmount(window, cx);
             assert!(
-                Root::read(window, cx)
+                WindowState::read(window, cx)
                     .notification
                     .read(cx)
                     .notification1::<Notification>("another")

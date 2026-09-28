@@ -140,7 +140,7 @@ pub enum PlotCurve {
     Linear,
     StepAfter,
 }
-impl From<PlotCurve> for gpui_component::plot::StrokeStyle {
+impl From<PlotCurve> for gpui_component::plot::Curve {
     fn from(v: PlotCurve) -> Self {
         match v {
             PlotCurve::Natural => Self::Natural,
@@ -171,6 +171,22 @@ impl From<ChartPoint> for PointDatum {
 #[derive(Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LineChartProps {
+    #[serde(default)]
+    pub y_domain: Option<[f64; 2]>,
+    #[serde(default)]
+    pub point_count: Option<usize>,
+    #[serde(default)]
+    pub y_axis: bool,
+    #[serde(default = "five")]
+    pub y_tick_count: usize,
+    #[serde(default)]
+    pub x_tick_count: Option<usize>,
+    #[serde(default)]
+    pub grid_columns: usize,
+    #[serde(default = "yes")]
+    pub grid_dashed: bool,
+    #[serde(default)]
+    pub reference_lines: Vec<f64>,
     pub data: Vec<ChartPoint>,
     #[serde(default)]
     pub name: Option<String>,
@@ -244,6 +260,22 @@ fn validate_series<'a>(
 #[derive(Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AreaChartProps {
+    #[serde(default)]
+    pub y_domain: Option<[f64; 2]>,
+    #[serde(default)]
+    pub point_count: Option<usize>,
+    #[serde(default)]
+    pub y_axis: bool,
+    #[serde(default = "five")]
+    pub y_tick_count: usize,
+    #[serde(default)]
+    pub x_tick_count: Option<usize>,
+    #[serde(default)]
+    pub grid_columns: usize,
+    #[serde(default = "yes")]
+    pub grid_dashed: bool,
+    #[serde(default)]
+    pub reference_lines: Vec<f64>,
     pub data: Vec<ChartValues>,
     pub series: Vec<ChartSeries>,
     #[serde(default = "one")]
@@ -328,6 +360,20 @@ pub struct BarGradient {
 #[derive(Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BarChartProps {
+    #[serde(default)]
+    pub band_count: Option<usize>,
+    #[serde(default)]
+    pub band_tick_count: Option<usize>,
+    #[serde(default = "yes")]
+    pub grid_dashed: bool,
+    #[serde(default)]
+    pub padding_inner: Option<f32>,
+    #[serde(default)]
+    pub padding_outer: Option<f32>,
+    #[serde(default)]
+    pub max_band_width: Option<f32>,
+    #[serde(default)]
+    pub min_length: f32,
     pub data: Vec<BarChartDatum>,
     #[serde(default)]
     pub name: Option<String>,
@@ -692,6 +738,23 @@ impl ChartProps for LineChartProps {
     type Native = chart::LineChart<PointDatum, SharedString, f64>;
     fn validate(&self) -> Result<(), String> {
         data_len(self.data.len())?;
+        count(self.y_tick_count, 128, "yTickCount")?;
+        if let Some(n) = self.x_tick_count {
+            count(n, MAX_POINTS, "xTickCount")?;
+        }
+        if let Some(n) = self.point_count {
+            count(n, MAX_POINTS, "pointCount")?;
+        }
+        if self.grid_columns > 128 || self.reference_lines.len() > 128 {
+            return Err("grid columns and reference lines are limited to 128".into());
+        }
+        numeric_range(self.reference_lines.iter().copied())?;
+        if let Some([low, high]) = self.y_domain {
+            numeric_range([low, high].into_iter())?;
+            if low >= high {
+                return Err("yDomain must be strictly increasing".into());
+            }
+        }
         count(self.tick_margin, MAX_POINTS, "tickMargin")?;
         numeric_range(self.data.iter().map(|d| d.value))
     }
@@ -701,10 +764,24 @@ impl ChartProps for LineChartProps {
             .y(|d: &PointDatum| d.value)
             .tick_margin(self.tick_margin)
             .x_axis(self.x_axis)
-            .grid(self.grid);
-        if self.interactive {
-            c = c.id("chart");
+            .grid(self.grid)
+            .y_axis(self.y_axis)
+            .y_tick_count(self.y_tick_count)
+            .grid_columns(self.grid_columns)
+            .grid_dashed(self.grid_dashed);
+        if let Some([low, high]) = self.y_domain {
+            c = c.y_domain(low, high);
         }
+        if let Some(n) = self.point_count {
+            c = c.point_count(n);
+        }
+        if let Some(n) = self.x_tick_count {
+            c = c.x_tick_count(n);
+        }
+        for value in self.reference_lines {
+            c = c.reference_line(value);
+        }
+        c = c.id("chart").interactive(self.interactive);
         if let Some(v) = self.name {
             c = c.name(v);
         }
@@ -725,6 +802,23 @@ impl ChartProps for AreaChartProps {
     type Native = chart::AreaChart<ValuesDatum, SharedString, f64>;
     fn validate(&self) -> Result<(), String> {
         data_len(self.data.len())?;
+        count(self.y_tick_count, 128, "yTickCount")?;
+        if let Some(n) = self.x_tick_count {
+            count(n, MAX_POINTS, "xTickCount")?;
+        }
+        if let Some(n) = self.point_count {
+            count(n, MAX_POINTS, "pointCount")?;
+        }
+        if self.grid_columns > 128 || self.reference_lines.len() > 128 {
+            return Err("grid columns and reference lines are limited to 128".into());
+        }
+        numeric_range(self.reference_lines.iter().copied())?;
+        if let Some([low, high]) = self.y_domain {
+            numeric_range([low, high].into_iter())?;
+            if low >= high {
+                return Err("yDomain must be strictly increasing".into());
+            }
+        }
         count(self.tick_margin, MAX_POINTS, "tickMargin")?;
         validate_series(
             self.series.len(),
@@ -739,7 +833,23 @@ impl ChartProps for AreaChartProps {
             .x(|d: &ValuesDatum| d.label.clone())
             .tick_margin(self.tick_margin)
             .x_axis(self.x_axis)
-            .grid(self.grid);
+            .grid(self.grid)
+            .y_axis(self.y_axis)
+            .y_tick_count(self.y_tick_count)
+            .grid_columns(self.grid_columns)
+            .grid_dashed(self.grid_dashed);
+        if let Some([low, high]) = self.y_domain {
+            c = c.y_domain(low, high);
+        }
+        if let Some(n) = self.point_count {
+            c = c.point_count(n);
+        }
+        if let Some(n) = self.x_tick_count {
+            c = c.x_tick_count(n);
+        }
+        for value in self.reference_lines {
+            c = c.reference_line(value);
+        }
         for (i, s) in self.series.into_iter().enumerate() {
             c = c.y(move |d: &ValuesDatum| d.values[i]);
             if let Some(v) = s.name {
@@ -757,15 +867,29 @@ impl ChartProps for AreaChartProps {
                 PlotCurve::StepAfter => c.step_after(),
             };
         }
-        if self.interactive {
-            c = c.id("chart");
-        }
+        c = c.id("chart").interactive(self.interactive);
         c
     }
 }
 impl ChartProps for BarChartProps {
     type Native = chart::BarChart<BarDatum, SharedString, f64>;
     fn validate(&self) -> Result<(), String> {
+        if let Some(n) = self.band_count {
+            count(n, MAX_POINTS, "bandCount")?;
+        }
+        if let Some(n) = self.band_tick_count {
+            count(n, MAX_POINTS, "bandTickCount")?;
+        }
+        if let Some(v) = self.padding_inner {
+            ratio(v, "paddingInner")?;
+        }
+        if let Some(v) = self.padding_outer {
+            ratio(v, "paddingOuter")?;
+        }
+        if let Some(v) = self.max_band_width {
+            length(v, "maxBandWidth")?;
+        }
+        length(self.min_length, "minLength")?;
         data_len(self.data.len())?;
         count(self.tick_margin, MAX_POINTS, "tickMargin")?;
         count(self.value_tick_count, 128, "valueTickCount")?;
@@ -802,7 +926,24 @@ impl ChartProps for BarChartProps {
         .label_axis(self.label_axis)
         .value_axis(self.value_axis)
         .value_tick_count(self.value_tick_count)
-        .grid(self.grid);
+        .grid(self.grid)
+        .grid_dashed(self.grid_dashed)
+        .min_length(self.min_length);
+        if let Some(n) = self.band_count {
+            c = c.band_count(n);
+        }
+        if let Some(n) = self.band_tick_count {
+            c = c.band_tick_count(n);
+        }
+        if let Some(v) = self.padding_inner {
+            c = c.padding_inner(v);
+        }
+        if let Some(v) = self.padding_outer {
+            c = c.padding_outer(v);
+        }
+        if let Some(v) = self.max_band_width {
+            c = c.max_band_width(px(v));
+        }
         let fill = self.fill.as_ref().map(PlotFill::native);
         c = c.fill_optional(move |d: &BarDatum, _, _, _| d.fill.or(fill));
         if let Some(g) = self.gradient {
@@ -822,9 +963,7 @@ impl ChartProps for BarChartProps {
         if let Some(v) = self.name {
             c = c.name(v);
         }
-        if self.interactive {
-            c = c.id("chart");
-        }
+        c = c.id("chart").interactive(self.interactive);
         c
     }
 }
@@ -908,9 +1047,7 @@ impl ChartProps for PieChartProps {
         .outer_radius_fn(move |a| a.data.outer.unwrap_or(outer))
         .pad_angle(self.pad_angle)
         .label_gap(self.label_gap);
-        if self.interactive {
-            c = c.id("chart");
-        }
+        c = c.id("chart").interactive(self.interactive);
         if let Some(name) = self.name {
             c = c.name(name);
         }
@@ -998,9 +1135,7 @@ impl ChartProps for RadarChartProps {
         if self.dot {
             c = c.dot();
         }
-        if self.interactive {
-            c = c.id("chart");
-        }
+        c = c.id("chart").interactive(self.interactive);
         c
     }
 }

@@ -7,7 +7,7 @@ use gpui::{
 
 use super::{Input, TextareaState};
 use crate::native_menu::NativeMenu;
-use crate::{RoleOverride, StyledExt as _};
+use crate::{RoleOverride, Sizable, Size, StyledExt as _};
 
 /// A styled ordinary multi-line text field.
 #[derive(IntoElement)]
@@ -16,6 +16,7 @@ pub struct Textarea {
     token_click_listener: Option<gpui_base::input::InlineTokenClickListener>,
     state: Entity<TextareaState>,
     style: StyleRefinement,
+    size: Size,
     height: Option<DefiniteLength>,
     appearance: bool,
     bordered: bool,
@@ -60,6 +61,7 @@ impl Textarea {
         Self {
             state: state.clone(),
             style: StyleRefinement::default(),
+            size: Size::default(),
             height: None,
             appearance: true,
             bordered: true,
@@ -130,7 +132,9 @@ impl Textarea {
     /// Replace the built-in context menu shown on right-click.
     ///
     /// The closure receives an empty menu and returns the one to show, so it
-    /// decides entirely what appears — the default items are not added.
+    /// decides entirely what appears — the default items are not added. It
+    /// shows only while the state's context menu is enabled, which is the
+    /// default.
     pub fn context_menu(
         mut self,
         f: impl Fn(NativeMenu, &mut Window, &mut App) -> NativeMenu + 'static,
@@ -150,6 +154,13 @@ impl Textarea {
         handler: impl Fn(&gpui::ClipboardItem, &mut Window, &mut App) -> bool + 'static,
     ) -> Self {
         self.paste_handler = Some(Rc::new(handler));
+        self
+    }
+}
+
+impl Sizable for Textarea {
+    fn with_size(mut self, size: impl Into<Size>) -> Self {
+        self.size = size.into();
         self
     }
 }
@@ -177,6 +188,7 @@ impl Textarea {
             .readonly(self.readonly)
             .tab_index(self.tab_index)
             .role(self.role)
+            .with_size(self.size)
             .when_some(self.height, |this, height| this.h(height))
             .when_some(self.accessibility_id, |this, id| this.accessibility_id(id))
             .when_some(self.aria_label, |this, label| this.aria_label(label))

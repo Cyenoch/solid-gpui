@@ -53,14 +53,11 @@ struct BrowserSurface {
     root: Entity<SolidRoot>,
 }
 impl Render for BrowserSurface {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .size_full()
             .font_family("Inter Variable")
             .child(self.root.clone())
-            .children(Root::render_notification_layer(window, cx))
-            .children(Root::render_sheet_layer(window, cx))
-            .children(Root::render_dialog_layer(window, cx))
     }
 }
 
@@ -110,11 +107,7 @@ pub async fn start() -> Result<(), JsValue> {
                         let root = cx.new(|_| SolidRoot::with_extensions(runtime, modules));
                         *slot.borrow_mut() = Some(root.clone());
                         let content = cx.new(|_| BrowserSurface { root });
-                        cx.new(|cx| {
-                            Root::new(content, window, cx)
-                                .bg(gpui::transparent_black())
-                                .bordered(false)
-                        })
+                        cx.new(|cx| Root::new(content, window, cx).bg(gpui::transparent_black()))
                     },
                 )?;
                 let root = root_slot

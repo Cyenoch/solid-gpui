@@ -25,12 +25,9 @@ struct ProviderContent {
 }
 
 impl Render for ProviderContent {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         #[cfg(feature = "frame-profile")]
-        self.frame_profile.record(window);
-        let notification_layer = Root::render_notification_layer(window, cx);
-        let sheet_layer = Root::render_sheet_layer(window, cx);
-        let dialog_layer = Root::render_dialog_layer(window, cx);
+        self.frame_profile.record(_window);
         div()
             .line_height(
                 gpui_base::Theme::global(cx)
@@ -42,9 +39,6 @@ impl Render for ProviderContent {
             .relative()
             .size_full()
             .child(self.solid_root.clone())
-            .children(notification_layer)
-            .children(sheet_layer)
-            .children(dialog_layer)
             .children(self.frame_monitor.as_ref().map(|monitor| {
                 FpsOverlay::new(monitor).offset(gpui::point(gpui::px(56.), gpui::px(8.)))
             }))

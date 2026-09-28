@@ -45,6 +45,8 @@ mod table_elements;
 #[cfg(test)]
 mod test_support;
 mod theme;
+mod time_field;
+mod toolbar;
 mod tree_view;
 mod validation;
 mod value_controls;
@@ -313,6 +315,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
         .chain(motion_view::definitions())
         .chain(value_controls::definitions())
         .chain(pickers::definitions())
+        .chain([time_field::definition()])
         .chain(choices::definitions())
         .chain(questionnaire::definitions())
         .chain(scroll_views::definitions())
@@ -330,6 +333,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
                 .include(table_elements::native_module())
                 .include(content::native_module())
                 .include(empty_states::native_module())
+                .include(toolbar::native_module())
                 .include(extra_elements::native_module())
                 .include(sidebar::native_module())
                 .include(overlays::native_module())

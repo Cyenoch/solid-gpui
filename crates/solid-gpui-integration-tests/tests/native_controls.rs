@@ -271,3 +271,43 @@ fn carousel_keyboard_selection_follows_keyed_items_after_reorder(cx: &mut TestAp
     .unwrap();
     assert!(fixture.events().is_empty());
 }
+
+#[gpui_kit::test]
+fn toolbar_arrows_reach_grouped_solid_buttons_and_keep_activation(cx: &mut TestAppContext) {
+    let fixture = Fixture::new(cx);
+    fixture.snapshot(
+        vec![
+            root_node(),
+            fixture.node("Toolbar", 2, 1, 0, json!({}), false),
+            fixture.node("ToolbarGroup", 3, 2, 0, json!({"label":"History"}), false),
+            fixture.node(
+                "Button",
+                4,
+                3,
+                0,
+                json!({"label":"Undo","size":"small","variant":"ghost"}),
+                true,
+            ),
+            fixture.node(
+                "Button",
+                5,
+                3,
+                1,
+                json!({"label":"Redo","size":"small","variant":"ghost"}),
+                true,
+            ),
+        ],
+        cx,
+    );
+    cx.update_window(fixture.window.into(), |_, window, cx| {
+        window.click(4usize, cx);
+        window.focus_next(cx);
+        window.render_frame(cx);
+        window.press("right", cx);
+        window.render_frame(cx);
+        assert_eq!(window.find(5usize).focused(), Some(true));
+        window.press("enter", cx);
+    })
+    .unwrap();
+    assert_eq!(fixture.events().len(), 2);
+}

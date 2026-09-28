@@ -46,6 +46,8 @@ pub struct SettingGroupProps {
     pub title: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub variant: Option<GroupBoxVariant>,
 }
 #[crate::native_type]
 #[derive(Clone)]
@@ -94,6 +96,17 @@ fn page(p: &SettingPageProps, cx: &mut ElementContext) -> SettingPage {
 }
 fn group(p: &SettingGroupProps, cx: &mut ElementContext) -> SettingGroup {
     let mut group = SettingGroup::new(p.name.clone()).items(cx.typed_children::<SettingItem>());
+    let footer = cx.slot("footer");
+    if !footer.is_empty() {
+        group = group.footer(move |_, _| footer.clone());
+    }
+    if let Some(variant) = p.variant {
+        group = group.variant(match variant {
+            GroupBoxVariant::Normal => gpui_component::group_box::GroupBoxVariant::Normal,
+            GroupBoxVariant::Fill => gpui_component::group_box::GroupBoxVariant::Fill,
+            GroupBoxVariant::Outline => gpui_component::group_box::GroupBoxVariant::Outline,
+        });
+    }
     if let Some(v) = &p.title {
         group = group.title(v.clone());
     }
@@ -415,6 +428,7 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
             vec![],
             group,
         )
+        .with_slots(&["footer"])
         .with_child_type::<SettingItem>()
         .with_validation::<SettingGroupProps>(|p, _| valid_name(&p.name)),
         ComponentDefinition::descriptor::<SettingItemProps, _>("SettingItem", vec![], item)

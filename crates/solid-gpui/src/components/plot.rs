@@ -494,11 +494,11 @@ impl PlotPrimitive {
                     .y(|p| p.y)
                     .stroke(stroke.native())
                     .stroke_width(px(stroke_width))
-                    .stroke_style(curve.into());
+                    .curve(curve.into());
                 if let Some(d) = dots {
-                    s = s.dot().dot_size(px(d.size)).dot_fill_color(d.fill.native());
+                    s = s.dot().dot_size(px(d.size)).dot_fill(d.fill.native());
                     if let Some(v) = d.stroke {
-                        s = s.dot_stroke_color(v.native());
+                        s = s.dot_stroke(v.native());
                     }
                 }
                 NativePrimitive::Line(s)
@@ -517,7 +517,7 @@ impl PlotPrimitive {
                     .y1(|p| p.y)
                     .fill(fill.native())
                     .stroke(stroke.native())
-                    .stroke_style(curve.into()),
+                    .curve(curve.into()),
             ),
             Self::Bar {
                 rows,
@@ -548,13 +548,11 @@ impl PlotPrimitive {
                     .label(|r, origin| {
                         r.labels
                             .iter()
-                            .map(|t| Text {
-                                text: t.text.clone(),
-                                origin: origin + t.origin,
-                                color: t.color,
-                                font_size: t.font_size,
-                                font_weight: t.font_weight,
-                                align: t.align,
+                            .map(|t| {
+                                Text::new(t.text.clone(), origin + t.origin, t.color)
+                                    .font_size(t.font_size)
+                                    .font_weight(t.font_weight)
+                                    .align(t.align)
                             })
                             .collect()
                     })
@@ -581,9 +579,9 @@ impl PlotPrimitive {
                     s = s.fill(v.native());
                 }
                 if let Some(d) = dots {
-                    s = s.dot().dot_size(px(d.size)).dot_fill_color(d.fill.native());
+                    s = s.dot().dot_size(px(d.size)).dot_fill(d.fill.native());
                     if let Some(v) = d.stroke {
-                        s = s.dot_stroke_color(v.native());
+                        s = s.dot_stroke(v.native());
                     }
                 }
                 NativePrimitive::RadialLine(s)
@@ -705,17 +703,12 @@ impl Plot for NativePlot {
                         pad_angle,
                         fill,
                     } => shape.paint_cached(
-                        &ArcData {
-                            data: &(),
-                            index: 0,
-                            value: 0.,
-                            start_angle: *start_angle,
-                            end_angle: *end_angle,
-                            pad_angle: *pad_angle,
+                        &{
+                            let mut arc = ArcData::new(&(), 0, 0., *start_angle, *end_angle);
+                            arc.pad_angle = *pad_angle;
+                            arc
                         },
                         *fill,
-                        None,
-                        None,
                         &bounds,
                         caches.slot(2 * ix),
                         window,

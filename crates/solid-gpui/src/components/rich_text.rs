@@ -3,6 +3,33 @@ use crate::native::{Event, NativeChildren, NativeView, ViewCommand};
 use gpui::{AppContext, Context, Entity, IntoElement, Render, Window};
 use std::time::Duration;
 #[crate::native_type]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TextByteRange {
+    pub start_byte: usize,
+    pub end_byte: usize,
+}
+#[crate::native_type]
+pub struct RenderedTextSnapshot {
+    pub revision: u32,
+    pub text: String,
+}
+#[crate::native_type]
+pub struct TextRangeHighlight {
+    pub range: TextByteRange,
+    pub background: super::primitives::Color,
+}
+#[crate::native_type]
+pub struct TextHighlightsRequest {
+    pub revision: u32,
+    pub highlights: Vec<TextRangeHighlight>,
+}
+#[crate::native_type]
+pub struct TextRevealRequest {
+    pub revision: u32,
+    pub range: TextByteRange,
+}
+#[crate::native_type]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RichTextFormat {
@@ -35,7 +62,7 @@ impl From<TextSelectionFormat> for gpui_component::text::SelectionFormat {
     }
 }
 /// Streamed-text fade policy for a text view. `true` adopts the upstream
-/// theme timing (each appended chunk reaches full color over 350ms along an
+/// theme timing (each appended word reaches full color over 280ms along an
 /// ease-out curve); `false` turns a previously enabled fade off; the explicit
 /// form sets the full motion policy, including an optional word-by-word
 /// stagger that is compressed for long updates. Omitted leaves the retained
@@ -85,6 +112,7 @@ fn markdown_extensions(props: &TextViewProps) -> gpui_component::text::MarkdownE
 fn theme_stream_fade_motion() -> gpui_base::text::TextViewMotion {
     gpui_base::text::TextViewMotion::default()
         .with_stream_fade(gpui_component::text::STREAM_FADE)
+        .with_stream_fade_stagger(gpui_component::text::STREAM_FADE_STAGGER)
         .with_stream_fade_easing(gpui_base::motion::Easing::EaseOut)
 }
 /// The motion policy a props value installs. `None` deliberately leaves the
@@ -116,6 +144,8 @@ pub struct TextView {
     props: TextViewProps,
     event: Event<String>,
     markdown_extensions: gpui_component::text::MarkdownExtensions,
+    rendered_snapshot: Option<gpui_base::text::RenderedText>,
+    snapshot_revision: u32,
 }
 #[crate::component]
 impl NativeView for TextView {
@@ -165,6 +195,8 @@ impl NativeView for TextView {
             state,
             props,
             event,
+            rendered_snapshot: None,
+            snapshot_revision: 0,
         }
     }
     fn update(&mut self, p: Self::Props, _: &mut Window, cx: &mut Context<Self>) {
@@ -195,6 +227,69 @@ impl NativeView for TextView {
     }
     fn commands() -> Vec<ViewCommand<Self>> {
         vec![
+            ViewCommand::new("getSelectedSourceRange", |this, (): (), _, cx| {
+                Ok(this
+                    .state
+                    .read(cx)
+                    .selected_source_range()
+                    .map(|range| TextByteRange {
+                        start_byte: range.start,
+                        end_byte: range.end,
+                    }))
+            }),
+            ViewCommand::new("getRenderedText", |this, (): (), _, cx| {
+                let snapshot = this.state.read(cx).rendered_text();
+                if snapshot.len() > 256 * 1024 {
+                    return Err("rendered text exceeds the 256 KiB command limit".into());
+                }
+                if this.rendered_snapshot.as_ref() != Some(&snapshot) {
+                    this.snapshot_revision = this
+                        .snapshot_revision
+                        .checked_add(1)
+                        .ok_or("text snapshot revision exhausted")?;
+                }
+                let text = snapshot.as_str().to_owned();
+                this.rendered_snapshot = Some(snapshot);
+                Ok(RenderedTextSnapshot {
+                    revision: this.snapshot_revision,
+                    text,
+                })
+            }),
+            ViewCommand::new(
+                "setRangeHighlights",
+                |this, request: TextHighlightsRequest, _, cx| {
+                    this.check_snapshot(request.revision, cx)?;
+                    if request.highlights.len() > 1024 {
+                        return Err("range highlights are limited to 1024".into());
+                    }
+                    this.state
+                        .update(cx, |state, cx| {
+                            state.set_range_highlights(
+                                request.highlights.into_iter().map(|h| {
+                                    gpui_base::text::RangeHighlight::new(
+                                        h.range.start_byte..h.range.end_byte,
+                                        h.background.native(),
+                                    )
+                                }),
+                                cx,
+                            )
+                        })
+                        .map_err(|e| e.to_string())
+                },
+            ),
+            ViewCommand::new("clearRangeHighlights", |this, (): (), _, cx| {
+                this.state
+                    .update(cx, |state, cx| state.clear_range_highlights(cx));
+                Ok(())
+            }),
+            ViewCommand::new("revealRange", |this, request: TextRevealRequest, _, cx| {
+                this.check_snapshot(request.revision, cx)?;
+                this.state
+                    .update(cx, |state, cx| {
+                        state.reveal_range(request.range.start_byte..request.range.end_byte, cx)
+                    })
+                    .map_err(|e| e.to_string())
+            }),
             ViewCommand::new("getSelectedText", |this, (): (), _, cx| {
                 Ok(this.state.read(cx).selected_text())
             }),
@@ -207,6 +302,16 @@ impl NativeView for TextView {
                 Ok(())
             }),
         ]
+    }
+}
+impl TextView {
+    fn check_snapshot(&self, revision: u32, cx: &gpui::App) -> Result<(), String> {
+        if revision != self.snapshot_revision
+            || self.rendered_snapshot.as_ref() != Some(&self.state.read(cx).rendered_text())
+        {
+            return Err("rendered text snapshot is stale; call getRenderedText again".into());
+        }
+        Ok(())
     }
 }
 impl Render for TextView {
@@ -240,6 +345,51 @@ pub(crate) fn definition() -> crate::native::ComponentDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[gpui::test]
+    fn rendered_ranges_reject_stale_snapshots_and_invalid_utf8(cx: &mut gpui::TestAppContext) {
+        let fixture = crate::components::test_support::Fixture::<TextView>::new(
+            props(r#"{"text":"Hello **世界**","scrollable":true}"#),
+            cx,
+        );
+        cx.run_until_parked();
+        fixture.update(cx, |view, _, cx| {
+            let snapshot = view.state.read(cx).rendered_text();
+            assert!(snapshot.as_str().contains("Hello 世界"));
+            view.rendered_snapshot = Some(snapshot);
+            view.snapshot_revision = 1;
+            assert!(view.check_snapshot(1, cx).is_ok());
+            assert!(view.check_snapshot(0, cx).is_err());
+            view.state.update(cx, |state, cx| {
+                assert!(
+                    state
+                        .set_range_highlights(
+                            [gpui_base::text::RangeHighlight::new(
+                                7..9,
+                                gpui::rgb(0xffcc00)
+                            )],
+                            cx
+                        )
+                        .is_err()
+                );
+                state
+                    .set_range_highlights(
+                        [gpui_base::text::RangeHighlight::new(
+                            6..12,
+                            gpui::rgb(0xffcc00),
+                        )],
+                        cx,
+                    )
+                    .unwrap();
+                state.reveal_range(6..12, cx).unwrap();
+                state.set_content(gpui_base::text::TextViewFormat::Markdown, "Replacement", cx);
+            });
+        });
+        cx.run_until_parked();
+        fixture.update(cx, |view, _, cx| {
+            assert!(view.check_snapshot(1, cx).is_err())
+        });
+    }
 
     fn props(json: &str) -> TextViewProps {
         crate::native::decode_json(json.as_bytes()).unwrap()

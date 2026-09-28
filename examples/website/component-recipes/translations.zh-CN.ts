@@ -1,4 +1,38 @@
 export const recipeChinese: Record<string, string> = {
+  "Menu dismissal": "菜单关闭",
+  "Observe native dismissal, including confirmation, separately from value changes.":
+    "独立监听原生菜单关闭（包括确认选择），与值变化事件分开。",
+  "Tab close controls": "标签关闭按钮",
+  "Opt into native close buttons for closable tabs; removing a tab preserves neighboring panes.":
+    "为可关闭标签启用原生关闭按钮；移除标签时保留相邻面板。",
+  "Reserved bands": "预留柱带",
+  "Keep bar widths stable while data loads and show a minimum-length stub for zero values.":
+    "加载数据时保持柱宽稳定，并为零值显示最小长度的短柱。",
+  "Date and time": "日期与时间",
+  "Edit a single date and its time in one native popup; time values have no timezone.":
+    "在同一个原生弹出层中编辑单个日期及其时间；时间值不包含时区。",
+  "Pinned axis and reference line": "固定坐标轴与参考线",
+  "Keep an intraday scale stable as points arrive, with labeled ticks and a previous-close reference.":
+    "追加数据时保持日内刻度稳定，显示刻度标签与前收盘参考线。",
+  "Value axis": "数值轴",
+  "Label the native value axis and keep a fixed range across series updates.":
+    "显示原生数值轴标签，并在系列更新时保持固定范围。",
+  "Retry and remove": "重试与移除",
+  "Native attachment controls expose failed-upload retry, removal and bounded progress.":
+    "原生附件控件支持上传失败后的重试、移除与有界进度。",
+  "Anchored arrow": "锚定箭头",
+  "Keep the native arrow aligned to its trigger while offset and collision handling position the popup.":
+    "偏移与碰撞处理定位弹出层时，原生箭头始终指向触发控件。",
+  "Rendered-text highlights": "渲染文本高亮",
+  "Search rendered text, then highlight and reveal a UTF-8 range using its snapshot revision.":
+    "搜索渲染后的文本，并使用快照版本高亮及定位 UTF-8 字节范围。",
+  "Group footer": "分组页脚",
+  "Place help outside the group surface and override one group's appearance.":
+    "在分组表面之外放置帮助内容，并单独设置该组的外观。",
+  "Centered marker": "居中标记",
+  "Center a transcript marker without changing its content or status semantics.":
+    "将会话标记居中，同时保留内容与状态语义。",
+  "Use the shared native control size scale for multiline editing.": "多行编辑使用统一的原生控件尺寸体系。",
   "Multiline composer": "多行编辑框",
   "Keep the native textarea state inside a shared frame with a footer action.":
     "在共享边框内保留原生文本域状态，并在底部放置操作。",

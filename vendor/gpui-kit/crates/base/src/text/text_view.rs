@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{ops::Range, rc::Rc, sync::Arc};
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
@@ -12,6 +12,7 @@ use crate::StyledExt;
 use crate::text::TextViewFormat;
 use crate::text::markdown_ext::{MarkdownExtensions, MarkdownNode, MarkdownPlugin};
 use crate::text::node::{CodeBlock, TableData};
+use crate::text::range_highlight::{PendingReveal, RevealProgress};
 use crate::text::state::{LineSpan, SelectionFormat, TextViewState};
 use crate::text::stream_fade::TextViewMotion;
 use crate::{GlobalState, TextSelection, text::TextViewStyle};
@@ -74,8 +75,14 @@ impl TextViewDefaults {
 pub(crate) type TableActionsFn =
     dyn Fn(&TableData, &mut Window, &mut App) -> AnyElement + Send + Sync;
 
+pub(crate) type ImageSourceFn = dyn Fn(&gpui::SharedUri) -> gpui::ImageSource + Send + Sync;
+
 pub(crate) type LinkClickHandlerFn =
     dyn Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync;
+
+/// Kept by the element only, so unlike the handlers the state carries, it
+/// may hold a `ScrollHandle`.
+pub(crate) type RevealHandlerFn = dyn Fn(Bounds<Pixels>, &mut Window, &mut App);
 
 pub(crate) fn handle_link_click(
     handler: &Option<Arc<LinkClickHandlerFn>>,
@@ -129,6 +136,8 @@ pub struct TextView {
     code_block_highlighter: Option<Arc<CodeBlockHighlighterFn>>,
     table_actions: Option<Arc<TableActionsFn>>,
     link_click_handler: Option<Arc<LinkClickHandlerFn>>,
+    image_source: Option<Arc<ImageSourceFn>>,
+    reveal_handler: Option<Rc<RevealHandlerFn>>,
     markdown_extensions: Arc<MarkdownExtensions>,
     motion: Option<TextViewMotion>,
 }
@@ -174,6 +183,8 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            image_source: None,
+            reveal_handler: None,
             markdown_extensions: Arc::default(),
             motion: None,
         }
@@ -196,6 +207,8 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            image_source: None,
+            reveal_handler: None,
             markdown_extensions: Arc::default(),
             motion: None,
         }
@@ -218,9 +231,24 @@ impl TextView {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            image_source: None,
+            reveal_handler: None,
             markdown_extensions: Arc::default(),
             motion: None,
         }
+    }
+
+    /// Overrides the source of every document image, including embedded data URLs.
+    ///
+    /// Used for both rendering and intrinsic-size measurement. The returned source
+    /// is authoritative: pending or failed loads never fall back to the document URL.
+    /// Without this override, images use Base's default URI and data URL handling.
+    pub fn image_source<F>(mut self, resolver: F) -> Self
+    where
+        F: Fn(&gpui::SharedUri) -> gpui::ImageSource + Send + Sync + 'static,
+    {
+        self.image_source = Some(Arc::new(resolver));
+        self
     }
 
     /// Set [`TextViewStyle`].
@@ -311,6 +339,23 @@ impl TextView {
         self
     }
 
+    /// Like [`Self::code_block_highlighter`], with a highlighter that can be
+    /// handed to every frame.
+    ///
+    /// A code block reuses its highlights only while the highlighter is the
+    /// same `Arc`, so a view built every frame with a fresh closure
+    /// re-highlights every code block on every frame.
+    #[doc(hidden)]
+    pub fn shared_code_block_highlighter(
+        mut self,
+        highlighter: Arc<
+            dyn Fn(&CodeBlock) -> Vec<(Range<usize>, gpui::HighlightStyle)> + Send + Sync,
+        >,
+    ) -> Self {
+        self.code_block_highlighter = Some(highlighter);
+        self
+    }
+
     /// Set custom actions to be rendered below each Markdown table.
     ///
     /// The closure receives the [`TableData`],
@@ -335,6 +380,22 @@ impl TextView {
         F: Fn(&SharedString, &ClickEvent, &mut Window, &mut App) + Send + Sync + 'static,
     {
         self.link_click_handler = Some(Arc::new(handler));
+        self
+    }
+
+    /// Scroll a container that does not follow scroll requests to the line
+    /// of [`TextViewState::reveal_range`].
+    ///
+    /// A `gpui::list` scrolls to that line by itself; a `div` with
+    /// `overflow_y_scroll`, for one, does not. After a frame in which the
+    /// line was laid out but not visible, the handler receives its bounds in
+    /// window coordinates, to scroll the container, e.g. through its
+    /// `ScrollHandle`, until the line is visible.
+    pub fn on_reveal<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(Bounds<Pixels>, &mut Window, &mut App) + 'static,
+    {
+        self.reveal_handler = Some(Rc::new(handler));
         self
     }
 
@@ -579,6 +640,7 @@ impl Element for TextView {
             state.code_block_highlighter = code_block_highlighter;
             state.table_actions = self.table_actions.clone();
             state.link_click_handler = self.link_click_handler.clone();
+            state.image_source = self.image_source.clone();
             state.set_markdown_extensions(self.markdown_extensions.clone(), cx);
             if let Some(motion) = &self.motion {
                 state.set_motion(motion.clone());
@@ -748,6 +810,25 @@ impl Element for TextView {
         }
         GlobalState::global_mut(cx).text_view_state_stack.pop();
 
+        // Every list has scrolled by now, so the line of a reveal is where
+        // it ends up this frame.
+        if state.read(cx).pending_reveal.is_some() {
+            let progress = state.update(cx, |state, _| {
+                state.pending_reveal.as_mut().map(PendingReveal::progress)
+            });
+            match progress {
+                Some(RevealProgress::Shown) => {
+                    state.update(cx, |state, _| state.pending_reveal = None);
+                }
+                Some(RevealProgress::Hidden(line)) => {
+                    if let Some(handler) = &self.reveal_handler {
+                        handler(line, window, cx);
+                    }
+                }
+                Some(RevealProgress::NotLaidOut) | None => {}
+            }
+        }
+
         if self.selectable {
             let (adapter, scroll_offset, content_bounds, self_scroll, handle_color) = {
                 let state = state.read(cx);
@@ -789,7 +870,7 @@ mod tests {
         AppContext as _, Bounds, ClickEvent, Context, Entity, InteractiveElement as _, IntoElement,
         Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, Overflow, ParentElement as _, Pixels,
         Render, SharedString, StatefulInteractiveElement as _, StyleRefinement, Styled as _,
-        TestAppContext, VisualTestContext, Window, div, point, px,
+        TestAppContext, VisualTestContext, Window, div, point, px, rems,
     };
 
     struct TextViewTestRoot {
@@ -1919,6 +2000,62 @@ mod tests {
     }
 
     #[gpui::test]
+    fn heading_refinement_changes_rendered_heading_geometry(cx: &mut TestAppContext) {
+        struct HeadingStyleRoot;
+
+        impl Render for HeadingStyleRoot {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .flex()
+                    .items_start()
+                    .child(
+                        div()
+                            .debug_selector(|| "default-h1".into())
+                            .child(TextView::markdown("default-h1-view", "# Heading")),
+                    )
+                    .child(div().debug_selector(|| "custom-h1".into()).child(
+                        TextView::markdown("custom-heading-view", "# Heading").style(
+                            TextViewStyle::default().with_heading(|level| {
+                                if level == 1 {
+                                    StyleRefinement::default().pb(rems(2.))
+                                } else {
+                                    StyleRefinement::default()
+                                }
+                            }),
+                        ),
+                    ))
+                    .child(
+                        div()
+                            .debug_selector(|| "default-h2".into())
+                            .child(TextView::markdown("default-h2-view", "## Heading")),
+                    )
+                    .child(div().debug_selector(|| "custom-h2".into()).child(
+                        TextView::markdown("custom-h2-view", "## Heading").style(
+                            TextViewStyle::default().with_heading(|level| {
+                                if level == 1 {
+                                    StyleRefinement::default().pb(rems(2.))
+                                } else {
+                                    StyleRefinement::default()
+                                }
+                            }),
+                        ),
+                    ))
+            }
+        }
+
+        cx.update(crate::init);
+        let (_, cx) = cx.add_window_view(|_, _| HeadingStyleRoot);
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let default_h1 = cx.debug_bounds("default-h1").unwrap();
+        let custom_h1 = cx.debug_bounds("custom-h1").unwrap();
+        let default_h2 = cx.debug_bounds("default-h2").unwrap();
+        let custom_h2 = cx.debug_bounds("custom-h2").unwrap();
+        assert!(custom_h1.size.height > default_h1.size.height);
+        assert_eq!(custom_h2.size.height, default_h2.size.height);
+    }
+
+    #[gpui::test]
     fn max_lines_disables_links_hidden_by_the_clamp(cx: &mut TestAppContext) {
         cx.update(crate::init);
         let (_, cx) = cx.add_window_view(|_, cx| {
@@ -2104,6 +2241,130 @@ mod tests {
                 painted_bottom <= view_bounds.bottom(),
                 "{case}: TextView height did not reserve its painted text;                  painted_bottom={painted_bottom:?}, view={view_bounds:?}"
             );
+        }
+    }
+
+    #[test]
+    fn ordered_markdown_list_start_reaches_layout_marker() {
+        use crate::text::inline::test_fonts::{WideMonoTextSystem, record_shaped_lines};
+        use gpui::TestApp;
+
+        struct MarkdownRoot {
+            text_view: Entity<TextViewState>,
+        }
+
+        impl Render for MarkdownRoot {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div().w(px(400.)).child(TextView::new(&self.text_view))
+            }
+        }
+
+        #[derive(Clone, Copy)]
+        enum Format {
+            Markdown,
+            Html,
+        }
+
+        fn shaped_markers(format: Format, source: &str) -> Vec<String> {
+            let (_, shaped_lines) = record_shaped_lines(|| {
+                let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+                app.update(crate::init);
+                let mut window = app.open_window(|_, cx| MarkdownRoot {
+                    text_view: cx.new(|cx| match format {
+                        Format::Markdown => TextViewState::markdown(source, cx),
+                        Format::Html => TextViewState::html(source, cx),
+                    }),
+                });
+                window.draw();
+                app.run_until_parked();
+                window.draw();
+            });
+
+            let mut markers = shaped_lines
+                .into_iter()
+                .filter(|line| line.ends_with(". "))
+                .collect::<Vec<_>>();
+            markers.dedup();
+            markers
+        }
+
+        let starts_at_one = "1. one\n2. two";
+        assert_eq!(
+            shaped_markers(Format::Markdown, starts_at_one),
+            ["1. ", "2. "]
+        );
+        assert_eq!(
+            shaped_markers(Format::Html, "<ol><li>one</li><li>two</li></ol>"),
+            ["1. ", "2. "]
+        );
+
+        assert_eq!(
+            shaped_markers(Format::Markdown, "3. hello\n4. world"),
+            ["3. ", "4. "]
+        );
+
+        let nested_starts_at_four = "1. outer\n\n   4. nested\n   5. again";
+        assert_eq!(
+            shaped_markers(Format::Markdown, nested_starts_at_four),
+            ["1. ", "D. ", "E. "]
+        );
+
+        let nested_starts_at_zero = "1. outer\n\n   0. zero";
+        assert_eq!(
+            shaped_markers(Format::Markdown, nested_starts_at_zero),
+            ["1. ", "0. "]
+        );
+    }
+
+    /// A line with inline code takes `InlineFlow` and a plain line takes the
+    /// ordinary text path; both must be the same height, or a list with one
+    /// code item is unevenly spaced (#3162). The fractional scale factor and
+    /// zooms give line heights that are not whole logical pixels.
+    #[test]
+    fn inline_code_line_is_as_tall_as_a_plain_line() {
+        use crate::text::inline::test_fonts::{MONO, WideMonoTextSystem};
+        use gpui::{TestApp, rems};
+
+        struct LineRoot {
+            plain: Entity<TextViewState>,
+            code: Entity<TextViewState>,
+            preview_zoom: f32,
+        }
+
+        impl Render for LineRoot {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                div()
+                    .w(px(600.))
+                    .text_size(rems(self.preview_zoom))
+                    .child(TextView::new(&self.plain))
+                    .child(TextView::new(&self.code))
+            }
+        }
+
+        let mut app = TestApp::with_text_system(Arc::new(WideMonoTextSystem));
+        app.update(|cx| {
+            crate::init(cx);
+            crate::Theme::global_mut(cx).tokens.typography.mono = MONO.into();
+        });
+        for scale_factor in [1.6, 2.] {
+            for preview_zoom in [1., 1.25] {
+                let mut window = app.open_window(|_, cx| LineRoot {
+                    plain: cx.new(|cx| TextViewState::markdown("plain body words", cx)),
+                    code: cx.new(|cx| TextViewState::markdown("plain `code` words", cx)),
+                    preview_zoom,
+                });
+                window.simulate_scale_factor_change(scale_factor);
+                window.draw();
+                app.run_until_parked();
+                window.draw();
+                let (plain, code) = window.read(|root, cx| {
+                    (
+                        root.plain.read(cx).bounds().size.height,
+                        root.code.read(cx).bounds().size.height,
+                    )
+                });
+                assert_eq!(code, plain, "scale {scale_factor}, zoom {preview_zoom}");
+            }
         }
     }
 

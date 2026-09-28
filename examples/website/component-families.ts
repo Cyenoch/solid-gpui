@@ -23,4 +23,5 @@ export const componentFamilies = [
   "Stepper StepperItem",
   "TabBar Tab",
   "Table TableBody TableCaption TableCell TableFooter TableHead TableHeader TableRow",
+  "Toolbar ToolbarGroup",
 ].map((family) => family.split(" "));

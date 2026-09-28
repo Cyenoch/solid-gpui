@@ -256,7 +256,7 @@ impl RenderOnce for Sheet {
             .overlay_closable(self.overlay && self.overlay_closable)
             .request_close(move |window, cx| {
                 if let Some(id) = self.overlay_id {
-                    crate::Root::update(window, cx, |root, window, cx| {
+                    crate::WindowState::update(window, cx, |root, window, cx| {
                         root.close_overlay(
                             id,
                             crate::OverlayCloseReason::Dismissed,

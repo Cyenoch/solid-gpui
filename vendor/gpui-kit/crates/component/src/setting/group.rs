@@ -1,11 +1,13 @@
+use std::rc::Rc;
+
 use gpui::{
-    App, IntoElement, ParentElement as _, SharedString, StyleRefinement, Styled, Window,
-    prelude::FluentBuilder as _,
+    AnyElement, App, IntoElement, ParentElement as _, SharedString, StyleRefinement, Styled,
+    Window, prelude::FluentBuilder as _,
 };
 
 use crate::{
     ActiveTheme, ComponentChild, StyledExt,
-    group_box::{GroupBox, GroupBoxVariants},
+    group_box::{GroupBox, GroupBoxVariant, GroupBoxVariants},
     label::Label,
     setting::{RenderOptions, SettingItem},
     v_flex,
@@ -16,6 +18,8 @@ use crate::{
 pub struct SettingGroup {
     pub(super) key: SharedString,
     style: StyleRefinement,
+    footer: Option<Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>>,
+    variant: Option<GroupBoxVariant>,
 
     pub(super) title: Option<SharedString>,
     pub(super) description: Option<SharedString>,
@@ -34,6 +38,8 @@ impl SettingGroup {
         Self {
             key: key.into(),
             style: StyleRefinement::default(),
+            footer: None,
+            variant: None,
             title: None,
             description: None,
             items: Vec::new(),
@@ -53,6 +59,35 @@ impl SettingGroup {
     /// Set the description of the setting group, default is None.
     pub fn description(mut self, description: impl Into<SharedString>) -> Self {
         self.description = Some(description.into());
+        self
+    }
+
+    /// Set the variant of the group surface, overriding the variant set via
+    /// `Settings::with_group_variant` for this group, default is None (use the
+    /// settings-level variant).
+    ///
+    /// For example, `GroupBoxVariant::Normal` presents the items directly,
+    /// without the card surface a global `Outline` or `Fill` default draws
+    /// around the group.
+    pub fn variant(mut self, variant: GroupBoxVariant) -> Self {
+        self.variant = Some(variant);
+        self
+    }
+
+    /// Render supporting content below, and outside, the group's surface.
+    ///
+    /// The footer aligns with the group title and renders as small muted text,
+    /// like a description. It scrolls with the group and follows its search
+    /// visibility; it does not add an independently searchable item or a
+    /// sidebar entry, and a group needs at least one item to be shown.
+    pub fn footer<F, E>(mut self, footer: F) -> Self
+    where
+        E: IntoElement,
+        F: Fn(&mut Window, &mut App) -> E + 'static,
+    {
+        self.footer = Some(Rc::new(move |window, cx| {
+            footer(window, cx).into_any_element()
+        }));
         self
     }
 
@@ -87,12 +122,12 @@ impl SettingGroup {
         self,
         query: &str,
         options: &RenderOptions,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> impl IntoElement + use<> {
         GroupBox::new()
             .id(self.key.clone())
-            .with_variant(options.group_variant())
+            .with_variant(self.variant.unwrap_or(options.group_variant()))
             .when_some(self.title.clone(), |this, title| {
                 this.title(v_flex().gap_1().child(title).when_some(
                     self.description.clone(),
@@ -116,6 +151,7 @@ impl SettingGroup {
                     None
                 }
             }))
+            .when_some(self.footer, |this, footer| this.footer(footer(window, cx)))
             .refine_style(&self.style)
     }
 

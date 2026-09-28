@@ -5,7 +5,7 @@ use gpui::{
     quad, size,
 };
 
-use crate::plot::{PathCache, ShapeKey, StrokeStyle, origin_point};
+use crate::plot::{Curve, PathCache, ShapeKey, origin_point};
 
 #[allow(clippy::type_complexity)]
 pub struct Line<T> {
@@ -14,11 +14,11 @@ pub struct Line<T> {
     y: Box<dyn Fn(&T) -> Option<f32>>,
     stroke: Background,
     stroke_width: Pixels,
-    stroke_style: StrokeStyle,
+    curve: Curve,
     dot: bool,
     dot_size: Pixels,
-    dot_fill_color: Hsla,
-    dot_stroke_color: Option<Hsla>,
+    dot_fill: Background,
+    dot_stroke: Option<Hsla>,
 }
 
 impl<T> Default for Line<T> {
@@ -29,11 +29,11 @@ impl<T> Default for Line<T> {
             y: Box::new(|_| None),
             stroke: Default::default(),
             stroke_width: px(1.),
-            stroke_style: Default::default(),
+            curve: Curve::default(),
             dot: false,
             dot_size: px(4.),
-            dot_fill_color: gpui::transparent_black(),
-            dot_stroke_color: None,
+            dot_fill: gpui::transparent_black().into(),
+            dot_stroke: None,
         }
     }
 }
@@ -82,13 +82,13 @@ impl<T> Line<T> {
         self
     }
 
-    /// Set the stroke style of the Line.
-    pub fn stroke_style(mut self, stroke_style: StrokeStyle) -> Self {
-        self.stroke_style = stroke_style;
+    /// Set how the Line connects its points. Defaults to [`Curve::Natural`].
+    pub fn curve(mut self, curve: Curve) -> Self {
+        self.curve = curve;
         self
     }
 
-    /// Show dots on the Line.
+    /// Draw a dot on every point.
     pub fn dot(mut self) -> Self {
         self.dot = true;
         self
@@ -100,16 +100,27 @@ impl<T> Line<T> {
         self
     }
 
-    /// Set the fill color of the dots on the Line.
-    pub fn dot_fill_color(mut self, dot_fill_color: impl Into<Hsla>) -> Self {
-        self.dot_fill_color = dot_fill_color.into();
+    /// Set the fill of the dots on the Line.
+    pub fn dot_fill(mut self, fill: impl Into<Background>) -> Self {
+        self.dot_fill = fill.into();
         self
     }
 
-    /// Set the stroke color of the dots on the Line.
-    pub fn dot_stroke_color(mut self, dot_stroke_color: impl Into<Hsla>) -> Self {
-        self.dot_stroke_color = Some(dot_stroke_color.into());
+    /// Set the 1px border color of the dots on the Line. Defaults to the dot
+    /// fill when it is a solid color.
+    pub fn dot_stroke(mut self, stroke: impl Into<Hsla>) -> Self {
+        self.dot_stroke = Some(stroke.into());
         self
+    }
+
+    #[deprecated(since = "0.7.0", note = "use `dot_fill`")]
+    pub fn dot_fill_color(self, color: impl Into<Hsla>) -> Self {
+        self.dot_fill(color.into())
+    }
+
+    #[deprecated(since = "0.7.0", note = "use `dot_stroke`")]
+    pub fn dot_stroke_color(self, color: impl Into<Hsla>) -> Self {
+        self.dot_stroke(color)
     }
 
     /// Paint the dots on the Line.
@@ -117,9 +128,11 @@ impl<T> Line<T> {
         quad(
             gpui::bounds(dot, size(self.dot_size, self.dot_size)),
             self.dot_size / 2.,
-            self.dot_fill_color,
+            self.dot_fill,
             px(1.),
-            self.dot_stroke_color.unwrap_or(self.dot_fill_color),
+            self.dot_stroke
+                .or_else(|| self.dot_fill.as_solid())
+                .unwrap_or_default(),
             BorderStyle::default(),
         )
     }
@@ -162,8 +175,8 @@ impl<T> Line<T> {
             return builder.build().ok();
         }
 
-        match self.stroke_style {
-            StrokeStyle::Natural => {
+        match self.curve {
+            Curve::Natural => {
                 builder.move_to(dots[0]);
                 let n = dots.len();
                 for i in 0..n - 1 {
@@ -179,13 +192,13 @@ impl<T> Line<T> {
                     builder.cubic_bezier_to(p2, c1, c2);
                 }
             }
-            StrokeStyle::Linear => {
+            Curve::Linear => {
                 builder.move_to(dots[0]);
                 for p in &dots[1..] {
                     builder.line_to(*p);
                 }
             }
-            StrokeStyle::StepAfter => {
+            Curve::StepAfter => {
                 builder.move_to(dots[0]);
                 for (i, p) in dots.windows(2).enumerate() {
                     builder.line_to(Point::new(p[1].x, p[0].y));
@@ -237,7 +250,7 @@ impl<T> Line<T> {
     pub(crate) fn shape_key(&self, dots: &[Point<Pixels>]) -> u64 {
         let mut key = ShapeKey::new((
             "line/stroke",
-            self.stroke_style,
+            self.curve,
             self.stroke_width.as_f32().to_bits(),
         ));
         for dot in dots {
@@ -295,7 +308,7 @@ mod tests {
             .data(vec![1., 2., 3.])
             .x(|v| Some(*v))
             .y(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .stroke_width(2.);
         let (dots, _) = line.dots(point(px(0.), px(0.)));
         let key = line.shape_key(&dots);
@@ -332,7 +345,7 @@ mod tests {
             .data(vec![1., 2., 4.])
             .x(|v| Some(*v))
             .y(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .stroke_width(2.);
         let (changed_dots, _) = changed.dots(point(px(0.), px(0.)));
         let changed_stroke = changed.build_path(&changed_dots).unwrap();
@@ -365,7 +378,7 @@ mod tests {
             .data(vec![1., 2., 3.])
             .x(|v| Some(*v))
             .y(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Natural)
+            .curve(Curve::Natural)
             .stroke_width(2.);
         cache
             .get(natural.shape_key(&dots), point(px(0.), px(0.)), || {
@@ -380,7 +393,7 @@ mod tests {
             .data(vec![1., 2., 3.])
             .x(|v| Some(*v))
             .y(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .stroke_width(3.);
         cache
             .get(thick.shape_key(&dots), point(px(0.), px(0.)), || {
@@ -415,7 +428,7 @@ mod tests {
             .data(vec![1., 2., 3.])
             .x(|v| Some(*v))
             .y(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .stroke_width(2.)
             .stroke(gpui::red())
             .dot()
@@ -467,13 +480,13 @@ mod tests {
             .x(|d: &(f32, f32)| Some(d.0))
             .y0(30.)
             .y1(|d: &(f32, f32)| Some(d.1))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::black());
         let line = Line::new()
             .data(vec![(0., 30.), (0., 10.), (20., 20.)])
             .x(|d: &(f32, f32)| Some(d.0))
             .y(|d: &(f32, f32)| Some(d.1))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .stroke_width(2.);
         let (dots, _) = line.dots(point(px(0.), px(0.)));
 

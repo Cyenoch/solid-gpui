@@ -2,7 +2,7 @@
 
 use gpui::{Background, Bounds, Path, PathBuilder, Pixels, Point, Window, px};
 
-use crate::plot::{PathCache, ShapeKey, StrokeStyle, origin_point};
+use crate::plot::{Curve, PathCache, ShapeKey, origin_point};
 
 #[allow(clippy::type_complexity)]
 pub struct Area<T> {
@@ -12,7 +12,7 @@ pub struct Area<T> {
     y1: Box<dyn Fn(&T) -> Option<f32>>,
     fill: Background,
     stroke: Background,
-    stroke_style: StrokeStyle,
+    curve: Curve,
 }
 
 impl<T> Default for Area<T> {
@@ -24,7 +24,7 @@ impl<T> Default for Area<T> {
             y1: Box::new(|_| None),
             fill: Default::default(),
             stroke: Default::default(),
-            stroke_style: Default::default(),
+            curve: Curve::default(),
         }
     }
 }
@@ -79,9 +79,10 @@ impl<T> Area<T> {
         self
     }
 
-    /// Set the stroke style of the Area.
-    pub fn stroke_style(mut self, stroke_style: StrokeStyle) -> Self {
-        self.stroke_style = stroke_style;
+    /// Set how the Area's top line connects its points. Defaults to
+    /// [`Curve::Natural`].
+    pub fn curve(mut self, curve: Curve) -> Self {
+        self.curve = curve;
         self
     }
 
@@ -127,8 +128,8 @@ impl<T> Area<T> {
             return (area_builder.build().ok(), line_builder.build().ok());
         }
 
-        match self.stroke_style {
-            StrokeStyle::Natural => {
+        match self.curve {
+            Curve::Natural => {
                 area_builder.move_to(points[0]);
                 line_builder.move_to(points[0]);
                 let n = points.len();
@@ -150,7 +151,7 @@ impl<T> Area<T> {
                     line_builder.cubic_bezier_to(p2, c1, c2);
                 }
             }
-            StrokeStyle::Linear => {
+            Curve::Linear => {
                 area_builder.move_to(points[0]);
                 line_builder.move_to(points[0]);
                 for p in &points[1..] {
@@ -158,7 +159,7 @@ impl<T> Area<T> {
                     line_builder.line_to(*p);
                 }
             }
-            StrokeStyle::StepAfter => {
+            Curve::StepAfter => {
                 area_builder.move_to(points[0]);
                 line_builder.move_to(points[0]);
                 for (i, p) in points.windows(2).enumerate() {
@@ -224,7 +225,7 @@ impl<T> Area<T> {
     pub(crate) fn shape_key(&self, purpose: &'static str) -> u64 {
         let mut key = ShapeKey::new((
             purpose,
-            self.stroke_style,
+            self.curve,
             self.y0.map(f32::to_bits),
             self.data.len(),
         ));
@@ -270,7 +271,7 @@ mod tests {
             .x(|v| Some(*v))
             .y0(90.)
             .y1(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::black())
             .stroke(gpui::blue());
         let local = Bounds::new(Point::default(), size(px(100.), px(100.)));
@@ -301,7 +302,7 @@ mod tests {
             .x(|v| Some(*v))
             .y0(80.)
             .y1(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::black());
         cache
             .get(
@@ -320,7 +321,7 @@ mod tests {
             .x(|v| Some(*v))
             .y0(90.)
             .y1(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::StepAfter)
+            .curve(Curve::StepAfter)
             .fill(gpui::black());
         cache
             .get(
@@ -360,7 +361,7 @@ mod tests {
             .x(|v| Some(*v))
             .y0(90.)
             .y1(|v| Some(*v * 2.))
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::red())
             .stroke(gpui::green());
         assert_eq!(key, recolored.shape_key("area/fill"));
@@ -400,7 +401,7 @@ mod tests {
                 .x(|d: &Nullable| Some(d.0))
                 .y0(30.)
                 .y1(|d: &Nullable| d.1)
-                .stroke_style(StrokeStyle::Linear)
+                .curve(Curve::Linear)
                 .fill(gpui::black())
         };
 
@@ -452,7 +453,7 @@ mod tests {
             .x(|d: &Nullable| Some(d.0))
             .y0(30.)
             .y1(|d: &Nullable| d.1)
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::black());
         let extended = Area::new()
             .data(vec![
@@ -464,7 +465,7 @@ mod tests {
             .x(|d: &Nullable| Some(d.0))
             .y0(30.)
             .y1(|d: &Nullable| d.1)
-            .stroke_style(StrokeStyle::Linear)
+            .curve(Curve::Linear)
             .fill(gpui::black());
         let endpoint = build(0.);
         let keys = [

@@ -88,6 +88,9 @@ mod exports {
         #[prop(default)] open: Option<bool>,
         #[prop(default)] default_open: bool,
         #[prop(default)] anchor: PopupAnchor,
+        #[prop(default = super::super::validation::LogicalPixels(0.))]
+        offset: super::super::validation::LogicalPixels,
+        #[prop(default)] arrow: bool,
         #[prop(default)] mouse_button: PopupMouseButton,
         #[prop(default = true)] appearance: bool,
         #[prop(default = true)] overlay_closable: bool,
@@ -97,6 +100,8 @@ mod exports {
         let content = cx.content();
         gpui_component::popover::Popover::new(cx.id())
             .anchor(gpui::Anchor::from(anchor))
+            .offset(gpui::px(offset.0))
+            .arrow(arrow)
             .mouse_button(mouse_button.into())
             .default_open(default_open)
             .appearance(appearance)

@@ -3,12 +3,12 @@ use std::rc::Rc;
 use gpui::{
     Anchor, AnyElement, App, Context, DismissEvent, ElementId, EventEmitter, FocusHandle,
     Focusable, InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _,
-    Render, RenderOnce, Role, StatefulInteractiveElement as _, Subscription, Window, div,
-    prelude::FluentBuilder as _,
+    Render, RenderOnce, Role, StatefulInteractiveElement as _, StyleRefinement, Styled,
+    Subscription, Window, div, prelude::FluentBuilder as _,
 };
 
 use crate::{
-    DeferredPopover, GlobalState, Popup, Selectable, StyledExt as _,
+    DeferredPopover, GlobalState, Popup, ResolvedPosition, Selectable, StyledExt as _,
     actions::{Cancel, Confirm},
 };
 
@@ -102,7 +102,10 @@ impl PopoverState {
         self.set_open(opening, cx);
 
         if self.open {
-            let state = cx.entity();
+            // Weak: the subscription is stored on this state, so a strong
+            // handle would keep the state, and its deferred-popover
+            // registration, alive after its trigger is gone.
+            let state = cx.entity().downgrade();
             self.tracked_focus_handle
                 .clone()
                 .unwrap_or_else(|| self.focus_handle.clone())
@@ -111,7 +114,7 @@ impl PopoverState {
             self.dismiss_subscription =
                 Some(
                     window.subscribe(&cx.entity(), cx, move |_, _: &DismissEvent, window, cx| {
-                        state.update(cx, |state, cx| state.dismiss(window, cx));
+                        _ = state.update(cx, |state, cx| state.dismiss(window, cx));
                         window.refresh();
                     }),
                 );
@@ -168,12 +171,14 @@ type ContentBuilder =
 #[derive(IntoElement)]
 pub struct Popover {
     id: ElementId,
+    style: StyleRefinement,
     anchor: Anchor,
+    offset: gpui::Pixels,
+    on_position: Option<Box<dyn Fn(ResolvedPosition, gpui::Bounds<gpui::Pixels>)>>,
     default_open: bool,
     open: Option<bool>,
     tracked_focus_handle: Option<FocusHandle>,
     trigger: Option<TriggerBuilder>,
-    trigger_style: Option<gpui::StyleRefinement>,
     content: Option<ContentBuilder>,
     mouse_button: MouseButton,
     overlay_closable: bool,
@@ -184,12 +189,14 @@ impl Popover {
     pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             id: id.into(),
+            style: StyleRefinement::default(),
             anchor: Anchor::TopLeft,
+            offset: gpui::px(0.),
+            on_position: None,
             default_open: false,
             open: None,
             tracked_focus_handle: None,
             trigger: None,
-            trigger_style: None,
             content: None,
             mouse_button: MouseButton::Left,
             overlay_closable: true,
@@ -202,8 +209,18 @@ impl Popover {
         self
     }
 
-    pub fn trigger_style(mut self, style: gpui::StyleRefinement) -> Self {
-        self.trigger_style = Some(style);
+    /// Gap from the trigger along the anchor's outward direction, zero by default.
+    pub fn offset(mut self, offset: gpui::Pixels) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    /// Observe geometry to supply presentation such as a pointer arrow.
+    pub fn on_position(
+        mut self,
+        callback: impl Fn(ResolvedPosition, gpui::Bounds<gpui::Pixels>) + 'static,
+    ) -> Self {
+        self.on_position = Some(Box::new(callback));
         self
     }
 
@@ -273,6 +290,14 @@ impl Popover {
     }
 }
 
+/// Styles the trigger container: the element that takes part in the parent
+/// layout and whose bounds the popup is anchored to.
+impl Styled for Popover {
+    fn style(&mut self) -> &mut StyleRefinement {
+        &mut self.style
+    }
+}
+
 impl RenderOnce for Popover {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let state = window.use_keyed_state(self.id.clone(), cx, |_, cx| {
@@ -293,10 +318,12 @@ impl RenderOnce for Popover {
         };
         let parent_view_id = window.current_view();
         let popup = Popup::new(self.id, trigger(open, window, cx))
-            .when_some(self.trigger_style, |popup, style| {
-                popup.refine_style(&style)
-            })
+            .refine_style(&self.style)
             .anchor(self.anchor)
+            .offset(self.offset)
+            .when_some(self.on_position, |this, callback| {
+                this.on_position(callback)
+            })
             .key_context(CONTEXT)
             .on_action({
                 let state = state.clone();
@@ -351,7 +378,7 @@ impl RenderOnce for Popover {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::{AppContext as _, Context, Render, Styled as _, point, px};
+    use gpui::{AppContext as _, Context, Render, point, px};
     use std::{cell::RefCell, rc::Rc};
 
     /// Popover state lives in element state, which is collected as soon as it

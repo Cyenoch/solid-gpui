@@ -160,6 +160,8 @@ pub struct DockAreaProps {
     pub panel_style: DockPanelStyle,
     #[serde(default = "yes")]
     pub toggle_button_visible: bool,
+    #[serde(default)]
+    pub close_button_visible: bool,
 }
 #[crate::native_type]
 #[derive(Clone)]
@@ -606,6 +608,8 @@ impl DockArea {
         );
         self.skin
             .set_toggle_button_visible(p.toggle_button_visible, cx);
+        self.skin
+            .set_close_button_visible(p.close_button_visible, cx);
     }
 }
 impl NativeView for DockArea {

@@ -137,6 +137,7 @@ pub struct ApplicationThemeColors {
     pub chart_3: Option<Color>,
     pub chart_4: Option<Color>,
     pub chart_5: Option<Color>,
+    pub chart_grid: Option<Color>,
     pub chart_bullish: Option<Color>,
     pub chart_bearish: Option<Color>,
     pub danger: Option<Color>,
@@ -363,6 +364,9 @@ fn apply_application(cx: &mut App) {
         }
         if let Some(value) = config.colors.chart_5 {
             theme.colors.chart_5 = value.native();
+        }
+        if let Some(value) = config.colors.chart_grid {
+            theme.colors.chart_grid = value.native();
         }
         if let Some(value) = config.colors.chart_bullish {
             theme.colors.chart_bullish = value.native();

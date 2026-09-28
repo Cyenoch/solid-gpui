@@ -1,4 +1,10 @@
 export const componentDescriptionsChinese: Record<string, string> = {
+  "Group native commands with arrow-key navigation. Solid children keep their own size and disabled state; use small ghost buttons for a compact toolbar.":
+    "组合支持方向键导航的原生命令。Solid 子控件自行管理尺寸与禁用状态；紧凑工具栏可使用 small 尺寸的 ghost 按钮。",
+  "Edit a time of day with native keyboard segments. Values use HH:MM:SS; precision controls whether seconds are editable and hourCycle controls the display.":
+    "通过原生分段键盘操作编辑时间。值采用 HH:MM:SS；precision 控制是否编辑秒，hourCycle 控制显示制式。",
+  "A framed color field with a swatch, hex value and native picker. The whole field opens the palette; controlled updates retain the picker state.":
+    "带边框的颜色字段显示色块、十六进制值和原生选择器。点击整个字段均可打开调色板；受控更新保留选择器状态。",
   "Share one native frame between an input and aligned text, icons or actions.":
     "让输入控件与对齐的文本、图标或操作共享一个原生边框。",
   "Compose native multi-step questions with choice and freeform answers, validation and submission.":
