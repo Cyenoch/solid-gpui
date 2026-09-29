@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## [0.4.0]
+
+### Upgrade notes
+
+- Keep all four `@solid-gpui` packages and the native sources on 0.4.0. Rebuild
+  the native host and regenerate bindings when upgrading.
+- `@solid-gpui/vite/embedded` now exports `packageEmbeddedApplication`,
+  `EmbeddedPackagingError`, and input/report types. Build scripts that imported
+  graph, manifest, target-resolution, or CLI helpers must use the packaging API.
+
 ### Changed
 
 - Removed the unused protocol codec wrapper, narrowed `@solid-gpui/vite/embedded` to application packaging and its input/report types, and consolidated native export failure tests without repeated Cargo builds. Removed per-component documentation dates and automatic New badges; release changes live here. Condensed website/runtime guidance and corrected the protocol glossary and historical evidence links.

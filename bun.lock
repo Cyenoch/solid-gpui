@@ -48,7 +48,7 @@
     },
     "packages/solid-gpui": {
       "name": "@solid-gpui/core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "dependencies": {
         "bebop": "3.2.3",
       },
@@ -58,7 +58,7 @@
     },
     "packages/solid-gpui-router": {
       "name": "@solid-gpui/router",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "dependencies": {
         "@tanstack/history": "1.162.1",
         "@tanstack/router-core": "1.171.28",
@@ -80,7 +80,7 @@
     },
     "packages/solid-gpui-shiki": {
       "name": "@solid-gpui/shiki",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "dependencies": {
         "shiki": "4.4.2",
       },
@@ -94,7 +94,7 @@
     },
     "packages/solid-gpui-vite": {
       "name": "@solid-gpui/vite",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "bin": {
         "solid-gpui": "./dist/cli.js",
       },

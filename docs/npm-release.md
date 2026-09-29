@@ -108,7 +108,7 @@ first. From the extracted directory, set `VERSION` to the release version:
 
 ```sh
 npm login
-VERSION=0.3.0
+VERSION=0.4.0
 for package in core vite router shiki; do
   npm publish "solid-gpui-$package-$VERSION.tgz" --access public --ignore-scripts || exit 1
 done

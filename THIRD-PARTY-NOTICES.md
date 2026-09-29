@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-This inventory accompanies the host release archive `solid-gpui-host-0.3.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
+This inventory accompanies the host release archive `solid-gpui-host-0.4.0-aarch64-apple-darwin.tar.gz` and the companion Bun packages from this checkout.
 It records each resolved dependency's name, version, SPDX license identifier, and source provenance for the generated release artifacts.
 The inventory is generated from the resolved Cargo graph with all workspace features and `bun pm licenses --all` output; it is not a substitute for the license texts.
 The archive embeds the project-owned MIT text as `LICENSE`. The independently authored local `ztracing` stub and each npm package carry their own `LICENSE`.
@@ -1547,14 +1547,14 @@ These local Cargo records are project-owned rather than third-party dependencies
 
 | Crate | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| desktop-app-host | 0.3.0 | MIT | local (project-owned) |
+| desktop-app-host | 0.4.0 | MIT | local (project-owned) |
 | gpui-iconify | 0.0.0 | MIT | local (project-owned) |
-| solid-gpui | 0.3.0 | MIT | local (project-owned) |
-| solid-gpui-bun-sys | 0.3.0 | MIT | local (project-owned) |
-| solid-gpui-integration-tests | 0.3.0 | MIT | local (project-owned) |
-| solid-gpui-macros | 0.3.0 | MIT | local (project-owned) |
-| solid-gpui-web | 0.3.0 | MIT | local (project-owned) |
-| website-host | 0.3.0 | MIT | local (project-owned) |
+| solid-gpui | 0.4.0 | MIT | local (project-owned) |
+| solid-gpui-bun-sys | 0.4.0 | MIT | local (project-owned) |
+| solid-gpui-integration-tests | 0.4.0 | MIT | local (project-owned) |
+| solid-gpui-macros | 0.4.0 | MIT | local (project-owned) |
+| solid-gpui-web | 0.4.0 | MIT | local (project-owned) |
+| website-host | 0.4.0 | MIT | local (project-owned) |
 
 **Total project-owned Rust crates: 8.**
 
@@ -1840,8 +1840,8 @@ These package manifests declare their project-owned licenses and are not third-p
 
 | Package | Version | License (SPDX) | Source |
 | --- | --- | --- | --- |
-| @solid-gpui/core | 0.3.0 | MIT | local (project-owned) |
-| @solid-gpui/router | 0.3.0 | MIT | local (project-owned) |
-| @solid-gpui/shiki | 0.3.0 | MIT | local (project-owned) |
+| @solid-gpui/core | 0.4.0 | MIT | local (project-owned) |
+| @solid-gpui/router | 0.4.0 | MIT | local (project-owned) |
+| @solid-gpui/shiki | 0.4.0 | MIT | local (project-owned) |
 
 **Total project-owned Bun packages: 3.**
