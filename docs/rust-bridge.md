@@ -53,6 +53,28 @@ detached child tasks are not automatically cancelled with their parent call.
 
 ## Desktop host configuration
 
+### Process runtime shutdown
+
+`ProcessAdapter::request_shutdown()` revokes event input and cancels blocked
+`recv_commit()` calls, including partial frames, independently of kill success.
+Cancelled reads return `Ok(None)`. Unix uses a wake socket; Windows checks pipe
+availability and cancellation before reading. No detached stdout reader is created.
+
+Call `shutdown()` off the UI thread. It attempts cleanup even if the initial
+request fails, preserving both errors when both stages fail.
+`RuntimeStatus::ShutdownRequested` means exit is unconfirmed; `Failed` means an
+unconfirmed shutdown failure (or another runtime failure); `Shutdown` means exit
+was confirmed. If cleanup succeeds after a request error, the error is still
+returned while status reports `Shutdown`.
+
+After failure, join your cancelled commit-reader thread and retain the adapter to
+retry `shutdown()` if exit is unconfirmed. `try_wait()` can inspect/reap the child;
+retrying shutdown also completes writer cleanup. OS rejection cannot guarantee
+termination. Drop attempts final cleanup but does not replace explicit error
+handling. Writer join occurs only after confirmed child exit.
+
+### Application entrypoints
+
 `solid_gpui::run_application(module_factory, runtime)` runs an application-owned runtime
 with the framework's default profile; the host owns shutdown and joins the runtime
 when the application quits.

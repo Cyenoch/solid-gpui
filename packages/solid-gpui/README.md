@@ -141,6 +141,11 @@ component DTOs, and `nativeCalls` plus `reply`/`reject` inspect and settle nativ
 requests without importing the generated protocol. Previous tree views retain
 their revision and epoch for stale-event tests. Unmount roots after each test.
 
+Inspect submitted styles, accessibility/disabled state and virtual-list ranges.
+Inject explicit visible-range, layout and pointer observations through `dispatch`.
+`scrollCommands` and `replyScroll` expose offset queries and scroll actions;
+unanswered requests stay pending. These observations do not simulate GPUI layout.
+
 Run TSX tests through `solid-gpui test` so they share the application's Vite
 configuration and one Solid runtime. The test process keeps Bun's environment
 even for QuickJS applications; this does not relax production UI capabilities.

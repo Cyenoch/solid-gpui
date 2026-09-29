@@ -1,4 +1,5 @@
-import type { HostKind } from "../renderer/types";
+import type { AccessibilityProps, HostKind } from "../renderer/types";
+import type { Style } from "../style";
 
 /** A detached view of one committed node, in native child order. */
 export interface TestNode {
@@ -11,6 +12,18 @@ export interface TestNode {
   readonly placeholder: string | null;
   readonly accessibilityLabel: string | null;
   readonly tooltip: string | null;
+  /** Submitted values, not measured GPUI geometry. Colors use #rrggbbaa. */
+  readonly style: Readonly<Style> | null;
+  readonly accessibility: Readonly<AccessibilityProps>;
+  readonly disabled: boolean;
+  readonly virtualList: Readonly<{
+    itemCount: number;
+    rangeStart: number;
+    rangeEnd: number;
+    estimatedItemSize: number;
+    overscan: number;
+    dataRevision: number;
+  }> | null;
 }
 
 /** The latest committed tree for a Surface; previous views are not mutated. */
@@ -31,6 +44,18 @@ export interface TestCommit {
 }
 
 export type TestEvent =
+  | { readonly type: "visible-range"; readonly start: number; readonly end: number }
+  | { readonly type: "layout"; readonly x: number; readonly y: number; readonly width: number; readonly height: number }
+  | {
+      readonly type: "pointer";
+      readonly action: "down" | "up";
+      readonly button?: "left" | "right" | "middle" | "back" | "forward";
+      readonly x: number;
+      readonly y: number;
+      readonly clickCount?: number;
+      readonly modifiers?: readonly string[];
+    }
+  | { readonly type: "pointer-move"; readonly x: number; readonly y: number; readonly modifiers?: readonly string[] }
   | { readonly type: "press" | "focus" | "blur" }
   | {
       readonly type: "input";
@@ -53,3 +78,19 @@ export interface TestNativeCall {
   /** Opaque bytes, matching Root.invokeNative; use decodeJson for generated DTO calls. */
   readonly args: Uint8Array;
 }
+
+interface TestRequest {
+  readonly surfaceId: number;
+  readonly epoch: number;
+  readonly nodeId: number;
+  readonly requestId: number;
+}
+
+/** Core scrolling requests remain pending until explicitly replied to or rejected. */
+export type TestScrollCommand = TestRequest &
+  (
+    | { readonly type: "get-scroll-offset" }
+    | { readonly type: "scroll-to-end" }
+    | { readonly type: "scroll-to-index"; readonly index: number }
+    | { readonly type: "scroll-to-offset"; readonly offset: number }
+  );

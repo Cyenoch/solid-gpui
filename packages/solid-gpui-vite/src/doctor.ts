@@ -88,11 +88,28 @@ interface CargoContext {
 }
 
 interface CargoGraph {
-  /** Packages Cargo took from a path, i.e. patches that took effect. */
-  readonly patched: Readonly<Record<string, true>>;
+  readonly packages: readonly CargoPackage[];
+  readonly workspaceRoot: string;
   readonly packageNames: readonly string[];
   /** Features enabled on the resolved `solid-gpui` node. */
   readonly sdkFeatures: readonly string[];
+}
+
+interface CargoPackage {
+  readonly id: string;
+  readonly name: string;
+  readonly source: string | null;
+  readonly manifest_path: string;
+}
+
+function sdkWorkspace(manifest: string): TomlDocument | undefined {
+  for (let directory = dirname(manifest); ;) {
+    const candidate = readToml(join(directory, "Cargo.toml"));
+    if (candidate && table(candidate.document.workspace)) return candidate;
+    const parent = dirname(directory);
+    if (parent === directory) return undefined;
+    directory = parent;
+  }
 }
 
 interface DoctorContext {
@@ -309,12 +326,8 @@ function readCargoGraph(cargo: CargoContext): { readonly check: DoctorCheck; rea
     };
   }
   let metadata: {
-    readonly packages?: readonly {
-      readonly id: string;
-      readonly name: string;
-      readonly source: string | null;
-      readonly manifest_path: string;
-    }[];
+    readonly packages?: readonly CargoPackage[];
+    readonly workspace_root: string;
     readonly resolve?: { readonly nodes?: readonly { readonly id: string; readonly features?: readonly string[] }[] };
   };
   try {
@@ -324,21 +337,18 @@ function readCargoGraph(cargo: CargoContext): { readonly check: DoctorCheck; rea
   }
   const packages = metadata.packages ?? [];
   const byId = new Map(packages.map((pkg) => [pkg.id, pkg]));
-  const patched: Record<string, true> = {};
-  for (const pkg of packages) {
-    if (pkg.source === null) patched[pkg.name] = true;
-  }
   // Resolve node ids are package ids, not manifest paths; only feature sets matter here.
   const featuresByName = new Map<string, readonly string[]>();
   for (const node of metadata.resolve?.nodes ?? []) {
     const pkg = byId.get(node.id);
-    if (pkg === undefined || pkg.source !== null) continue;
+    if (pkg === undefined) continue;
     featuresByName.set(pkg.name, node.features ?? []);
   }
   return {
     check: check("cargo-graph", "pass", `resolved ${packages.length} Cargo packages from ${cargo.crate.path}`),
     graph: {
-      patched,
+      packages,
+      workspaceRoot: metadata.workspace_root,
       packageNames: packages.map((pkg) => pkg.name),
       sdkFeatures: featuresByName.get("solid-gpui") ?? [],
     },
@@ -565,17 +575,25 @@ function hostPackageCheck(context: DoctorContext): DoctorCheck {
 function cargoPatchesCheck(context: DoctorContext): DoctorCheck {
   const cargo = context.cargo;
   if (cargo === undefined) return cargoUnavailable(context, "cargo-patches");
-  const required = cargo.sdk === undefined ? {} : patchEntries([cargo.sdk]);
+  const sdks = context.graph?.packages.filter((pkg) => pkg.name === "solid-gpui") ?? [];
+  if (sdks.length > 1)
+    return check("cargo-patches", "fail", "multiple solid-gpui packages are resolved; use one SDK source");
+  const sdk = sdks[0];
+  const workspace = sdk ? sdkWorkspace(sdk.manifest_path) : cargo.sdk;
+  const required = workspace === undefined ? {} : patchEntries([workspace]);
   if (Object.keys(required).length === 0) {
     return check(
       "cargo-patches",
       "warn",
-      "cannot verify platform patches: no SDK checkout with [patch.crates-io] was found",
+      "cannot verify platform patches: the resolved SDK workspace manifest is unavailable",
       {
         details: [`searched up from ${cargo.crate.path}`],
-        hint: "keep solid-gpui as a path dependency of the host crate, or copy its [patch.crates-io] block into your manifest",
+        hint: "run `cargo fetch --locked` and ensure the host resolves solid-gpui from the matching release Git revision or SDK path",
       },
     );
+  }
+  if (sdk?.source?.startsWith("git+")) {
+    return gitPatchesCheck(sdk, required, context.graph!);
   }
   const declared = patchEntries(cargo.effective);
   const platform = PLATFORM_PATCH[process.platform];
@@ -586,7 +604,14 @@ function cargoPatchesCheck(context: DoctorContext): DoctorCheck {
     const actual = declared[name];
     if (actual === undefined || !existsSync(actual)) missing.push(name);
     else if (realpath(actual) !== realpath(expected)) divergent.push(`${name}: ${actual} (the SDK ships ${expected})`);
-    else if (context.graph !== undefined && context.graph.patched[name] !== true) ineffective.push(name);
+    else if (
+      context.graph !== undefined &&
+      !context.graph.packages.some(
+        (pkg) =>
+          pkg.name === name && pkg.source === null && realpath(dirname(pkg.manifest_path)) === realpath(expected),
+      )
+    )
+      ineffective.push(name);
   }
   const block = [
     "[patch.crates-io]",
@@ -625,6 +650,45 @@ function cargoPatchesCheck(context: DoctorContext): DoctorCheck {
     });
   }
   return check("cargo-patches", "pass", `${Object.keys(required).length} Cargo patches match the SDK`);
+}
+
+/** Cargo's resolved source contains the full commit, independent of rev/tag/branch spelling. */
+function gitIdentity(source: string): string | undefined {
+  if (!source.startsWith("git+")) return undefined;
+  const url = new URL(source.slice(4));
+  if (!url.hash) return undefined;
+  url.search = "";
+  url.pathname = url.pathname.replace(/\.git\/?$/, "").replace(/\/$/, "");
+  return url.href;
+}
+
+function gitPatchesCheck(
+  sdk: CargoPackage,
+  required: Readonly<Record<string, string>>,
+  graph: CargoGraph,
+): DoctorCheck {
+  const identity = gitIdentity(sdk.source!);
+  const failures: string[] = [];
+  for (const name of Object.keys(required)) {
+    const resolved = graph.packages.filter((pkg) => pkg.name === name);
+    if (resolved.length === 0) failures.push(`${name}: patch is missing or unused in the resolved graph`);
+    for (const pkg of resolved) {
+      if (!identity || pkg.source === null || gitIdentity(pkg.source) !== identity) {
+        failures.push(`${name}: ${pkg.source ?? pkg.manifest_path} (expected ${sdk.source})`);
+      }
+    }
+  }
+  return failures.length > 0
+    ? check("cargo-patches", "fail", "Cargo patches do not resolve to the host SDK's Git revision", {
+        details: failures,
+        hint: `set all SDK [patch.crates-io] entries in ${join(graph.workspaceRoot, "Cargo.toml")} to the same Git repository and revision as solid-gpui, then update Cargo.lock`,
+      })
+    : check(
+        "cargo-patches",
+        "pass",
+        `${Object.keys(required).length} resolved Cargo patches match the SDK Git revision`,
+        { details: [sdk.source!] },
+      );
 }
 
 function cargoProfilesCheck(context: DoctorContext): DoctorCheck {
@@ -762,7 +826,7 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorReport>
           ? join(root, "Cargo.toml")
           : undefined;
   const nativeManifest = web ? undefined : declaredManifest;
-  const cargo = nativeManifest === undefined || !existsSync(nativeManifest) ? undefined : cargoContext(nativeManifest);
+  let cargo = nativeManifest === undefined || !existsSync(nativeManifest) ? undefined : cargoContext(nativeManifest);
   const declarations = readJson(join(root, ".solid-gpui/tsconfig.json"));
   const declarationsPaths = table(table(declarations?.compilerOptions)?.paths) ?? {};
   const conditions = [
@@ -777,6 +841,26 @@ export async function doctor(options: DoctorOptions = {}): Promise<DoctorReport>
       mapsSpecifierToSource(declarationsPaths, root, specifier, source),
     );
   const graphResult = cargo === undefined ? undefined : readCargoGraph(cargo);
+  if (cargo && graphResult?.graph) {
+    const workspace = readToml(join(graphResult.graph.workspaceRoot, "Cargo.toml"));
+    if (workspace) {
+      const rootConfig =
+        readToml(join(workspace.directory, ".cargo/config.toml")) ??
+        readToml(join(workspace.directory, ".cargo/config"));
+      cargo = {
+        ...cargo,
+        workspace,
+        effective: [
+          workspace,
+          ...(rootConfig ? [rootConfig] : []),
+          ...cargo.effective.filter(
+            (entry) =>
+              entry.path !== cargo!.workspace.path && entry.path !== workspace.path && entry.path !== rootConfig?.path,
+          ),
+        ],
+      };
+    }
+  }
   const context: DoctorContext = {
     root,
     mode: options.mode ?? (declaresSource || typesAgree ? "source" : "dist"),

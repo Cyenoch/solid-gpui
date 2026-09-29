@@ -141,6 +141,12 @@ settings declared by a dependency, so a consuming workspace root must declare th
 itself; see [application build configuration](hot-reload.md#application-build-configuration)
 and [troubleshooting](troubleshooting.md).
 
+For Git native dependencies, doctor reads the SDK manifest in Cargo's managed
+checkout and compares each resolved GPUI patch's repository and full commit with
+`solid-gpui`. Workspace inheritance and root patches need no extra SDK clone.
+Missing/unused patches, registry copies and mismatched revisions fail; unavailable
+offline graphs remain unverified. Path dependencies retain vendor-path checks.
+
 ## JSX and TSX with Vite
 
 ```sh
@@ -382,6 +388,38 @@ event sequences; do not mix it with manually encoded events or clear
 `transport.submitted`. Use a fresh host per test and unmount roots in cleanup.
 It does not calculate native styles/layout, paint pixels, execute Rust handlers,
 or emulate platform services; those still require a real host.
+
+#### Virtual viewports, layout and scrolling
+
+Nodes additionally expose readonly `style`, `accessibility`, `disabled`, and
+`virtualList`. Styles are submitted values, including float32 rounding and
+normalized `#rrggbbaa` colors, not computed layout. Accessibility uses application
+prop names such as `accessibilityRole` and `accessibilityDisabled`. Virtual-list
+descriptors contain `itemCount`, `rangeStart`, `rangeEnd` (exclusive),
+`estimatedItemSize`, `overscan`, and `dataRevision`. Cleared styles and non-list
+descriptors are `null`; previous views remain detached after updates.
+
+`dispatch` also accepts explicit host observations:
+
+- `{ type: "visible-range", start, end }` on VirtualList drives real item owners,
+  cleanup and `onEndReached`.
+- `{ type: "layout", x, y, width, height }` requires a layout-observing node.
+- `{ type: "pointer", action: "down" | "up", x, y, button?, clickCount?, modifiers? }`.
+  Buttons are `left` (default), `right`, `middle`, `back`, or `forward`.
+- `{ type: "pointer-move", x, y, modifiers? }`.
+
+All events and replies share the sequence allocator and preserve captured listener
+revision and epoch. Dispatch does not perform hit testing or enforce native
+disabled-input behavior.
+
+`scrollCommands` records typed `get-scroll-offset`, `scroll-to-offset` (with
+`offset`), `scroll-to-index` (with `index`), and `scroll-to-end` requests with
+Surface, epoch, node and request identity. Await command submission before reading.
+Reply to a narrowed `get-scroll-offset` command with `host.replyScroll(command,
+offset)`; other scrolling commands use `host.replyScroll(command)`.
+`host.reject(command, message)` accepts scrolling requests and native calls.
+Unanswered requests remain pending until normal application cancellation/timeout;
+the host never fabricates success.
 
 ## Consume packages from source
 

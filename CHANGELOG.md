@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## [0.5.0]
+
+### Added
+
+- Extend the public TestHost with committed semantic styles, accessibility and virtual-list descriptors, visible-range/layout/pointer events, and explicit typed scrolling command replies. Events and replies share revision-aware sequencing; unanswered requests remain pending.
+
+### Fixed
+
+- Verify Cargo Git GPUI patches against the resolved host repository and full revision, including workspace inheritance, without requiring a sibling SDK checkout. Detect missing, unused, registry and mismatched patch sources; retain path checks.
+- Cancel blocked process commit reads independently of kill success, attempt cleanup after request errors, and preserve shutdown errors. Process status now distinguishes `ShutdownRequested`, failed cleanup, and confirmed `Shutdown`; callers can join their reader and retry cleanup with retained ownership.
+
+### Upgrade notes
+
+- Keep npm packages and native sources on 0.5.0 and rebuild the host. Exhaustive Rust `RuntimeStatus` matches must handle `ShutdownRequested`.
+
 ## [0.4.1]
 
 ### Added

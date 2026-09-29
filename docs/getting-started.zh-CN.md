@@ -246,7 +246,7 @@ console.log(host.surface(1)?.nodes.filter((node) => node.text !== null));
 root.unmount();
 ```
 
-`TestHost` 可以包装已有 `MemoryTransport`，重放 Snapshot/Patch，并提供节点检查、测试事件、native DTO props 与 native call 应答，无需导入私有协议。事件和回复用法见[测试接口](vite.zh-CN.md#无需导入私有协议即可检查渲染结果)。使用应用的 `solid-gpui test` 运行器；普通 JavaScript 测试可执行 `bun --conditions=browser test`。原生布局、绘制、对话框和平台窗口行为仍需真实显示宿主验证。
+`TestHost` 可以包装已有 `MemoryTransport`，重放 Snapshot/Patch，并提供提交样式、无障碍属性、列表范围、视口/布局/指针事件、显式滚动回复、native DTO props 与 native call 应答，无需导入私有协议。事件和回复用法见[测试接口](vite.zh-CN.md#无需导入私有协议即可检查渲染结果)。使用应用的 `solid-gpui test` 运行器；普通 JavaScript 测试可执行 `bun --conditions=browser test`。原生布局、绘制、对话框和平台窗口行为仍需真实显示宿主验证。
 
 ## 其他消费方式
 

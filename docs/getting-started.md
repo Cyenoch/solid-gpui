@@ -351,7 +351,8 @@ root.unmount();
 ```
 
 `TestHost` wraps an optional existing `MemoryTransport`, replays Snapshot/Patch
-updates and provides node inspection, test events, native DTO props and native-call
+updates and provides committed styles/accessibility/list ranges, viewport/layout/pointer
+events, explicit scrolling replies, native DTO props and native-call
 replies without private protocol imports. See the [testing interface](vite.md#inspect-renderer-output-without-private-protocol-imports)
 for event and reply examples. Use the application's `solid-gpui test` runner;
 plain JavaScript tests run with `bun --conditions=browser test`. Native layout,

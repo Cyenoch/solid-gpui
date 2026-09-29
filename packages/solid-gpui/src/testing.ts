@@ -1,19 +1,24 @@
 import { decodeJson, encodeJson } from "./native";
 import {
   COMMAND_INVOKE_NATIVE,
+  COMMAND_GET_SCROLL_OFFSET,
+  COMMAND_SCROLL_TO_END,
+  COMMAND_SCROLL_TO_INDEX,
+  COMMAND_SCROLL_TO_OFFSET,
   FrameDecoder,
   PROTOCOL_VERSION,
   encodeFrame,
   utf8ByteLength,
   type EventPayload,
+  type CommandValue,
 } from "./protocol";
 import { boundedBebopDecode } from "./protocol/bebop-guard";
 import { Envelope, NodeKind, type Command, type Node as WireNode } from "./protocol/generated/protocol";
 import { MemoryTransport } from "./transport";
 import { TestTree, required } from "./testing/tree";
-import type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface } from "./testing/types";
+import type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface, TestScrollCommand } from "./testing/types";
 
-export type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface } from "./testing/types";
+export type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface, TestScrollCommand } from "./testing/types";
 
 interface Target {
   readonly surfaceId: number;
@@ -31,11 +36,12 @@ export class TestHost {
   private readonly decoder = new FrameDecoder();
   private readonly trees = new Map<number, TestTree>();
   private readonly targets = new WeakMap<TestNode, Target>();
-  private readonly requests = new WeakMap<TestNativeCall, Command>();
+  private readonly requests = new WeakMap<TestNativeCall | TestScrollCommand, Command>();
   private readonly sequences = new Map<string, number>();
   private readonly edits = new Map<string, number>();
   private readonly history: TestCommit[] = [];
   private readonly calls: TestNativeCall[] = [];
+  private readonly scrolling: TestScrollCommand[] = [];
   private cursor = 0;
 
   constructor(readonly transport: MemoryTransport = new MemoryTransport()) {}
@@ -50,6 +56,25 @@ export class TestHost {
   get nativeCalls(): readonly TestNativeCall[] {
     this.read();
     return Object.freeze([...this.calls]);
+  }
+
+  get scrollCommands(): readonly TestScrollCommand[] {
+    this.read();
+    return Object.freeze([...this.scrolling]);
+  }
+
+  /** Offset queries require a finite nonnegative result; scrolling actions require no value. */
+  replyScroll(command: TestScrollCommand & { readonly type: "get-scroll-offset" }, offset: number): void;
+  replyScroll(command: Exclude<TestScrollCommand, { readonly type: "get-scroll-offset" }>): void;
+  replyScroll(command: TestScrollCommand, offset?: number): void {
+    if (command.type === "get-scroll-offset") {
+      if (offset === undefined || !Number.isFinite(offset) || offset < 0)
+        throw new TypeError("A scroll offset reply requires a finite nonnegative offset");
+      this.respond(command, { type: "scroll-offset", value: offset }, null);
+    } else {
+      if (offset !== undefined) throw new TypeError("A scroll action reply has no value");
+      this.respond(command, null, null);
+    }
   }
 
   /** A detached tree view, or undefined before this Surface's first Snapshot. */
@@ -76,6 +101,29 @@ export class TestHost {
     if (listenerId === 0) throw new Error("TestNode has no event listener");
     let payload: EventPayload;
     switch (event.type) {
+      case "visible-range":
+        if (target.node.kind !== NodeKind.VirtualList)
+          throw new TypeError("Visible range events require a VirtualList node");
+        payload = event;
+        break;
+      case "layout":
+        if (!target.node.observesLayout) throw new TypeError("TestNode does not observe layout");
+        payload = event;
+        break;
+      case "pointer":
+        payload = {
+          type: "pointer",
+          action: event.action === "down" ? 1 : 2,
+          button: { left: 1, right: 2, middle: 3, back: 4, forward: 5 }[event.button ?? "left"] as 1 | 2 | 3 | 4 | 5,
+          x: event.x,
+          y: event.y,
+          clickCount: event.clickCount ?? 1,
+          modifiers: event.modifiers ?? [],
+        };
+        break;
+      case "pointer-move":
+        payload = { ...event, modifiers: event.modifiers ?? [] };
+        break;
       case "input": {
         if (target.node.kind !== NodeKind.TextInput) throw new TypeError("Input events require a TextInput node");
         const key = `${target.surfaceId}:${target.epoch}:${node.id}`;
@@ -121,7 +169,7 @@ export class TestHost {
   }
 
   /** Reject one request with the host's domain-error message. */
-  reject(call: TestNativeCall, error: string): void {
+  reject(call: TestNativeCall | TestScrollCommand, error: string): void {
     this.respond(call, null, error);
   }
 
@@ -131,18 +179,14 @@ export class TestHost {
     return target;
   }
 
-  private respond(
-    call: TestNativeCall,
-    value: { type: "bytes"; value: Uint8Array } | null,
-    error: string | null,
-  ): void {
+  private respond(call: TestNativeCall | TestScrollCommand, value: CommandValue | null, error: string | null): void {
     const command = this.requests.get(call);
-    if (!command) throw new Error("Native call belongs to another TestHost or has already been answered");
+    if (!command) throw new Error("Request belongs to another TestHost or has already been answered");
     this.send(call.surfaceId, call.epoch, required(command.afterRevision, "command revision"), call.nodeId, 0, {
       type: "command-result",
       result: {
         requestId: call.requestId,
-        command: COMMAND_INVOKE_NATIVE,
+        command: required(command.kind, "command kind"),
         nodeId: call.nodeId,
         success: error === null,
         error,
@@ -190,6 +234,43 @@ export class TestHost {
           );
         } else if (body.tag === 4) {
           const command = body.value;
+          const identity = {
+            surfaceId: required(command.surfaceId, "surfaceId"),
+            epoch: required(command.epoch, "epoch"),
+            nodeId: required(command.nodeId, "nodeId"),
+            requestId: required(command.requestId, "requestId"),
+          };
+          let scroll: TestScrollCommand | undefined;
+          switch (command.kind) {
+            case COMMAND_GET_SCROLL_OFFSET:
+              scroll = { ...identity, type: "get-scroll-offset" };
+              break;
+            case COMMAND_SCROLL_TO_END:
+              scroll = { ...identity, type: "scroll-to-end" };
+              break;
+            case COMMAND_SCROLL_TO_INDEX:
+              if (command.payload?.tag !== 1) throw new Error("Scroll index is missing its payload");
+              scroll = {
+                ...identity,
+                type: "scroll-to-index",
+                index: required(command.payload.value.first, "scroll index"),
+              };
+              break;
+            case COMMAND_SCROLL_TO_OFFSET:
+              if (command.payload?.tag !== 2) throw new Error("Scroll offset is missing its payload");
+              scroll = {
+                ...identity,
+                type: "scroll-to-offset",
+                offset: required(command.payload.value.value, "scroll offset"),
+              };
+              break;
+          }
+          if (scroll) {
+            Object.freeze(scroll);
+            this.scrolling.push(scroll);
+            this.requests.set(scroll, command);
+            continue;
+          }
           if (command.kind !== COMMAND_INVOKE_NATIVE) continue;
           if (command.payload?.tag !== 12) throw new Error("Native call is missing its payload");
           const value = command.payload.value;

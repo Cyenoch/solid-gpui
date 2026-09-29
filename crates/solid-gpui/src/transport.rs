@@ -1,25 +1,30 @@
 use std::collections::VecDeque;
 use std::io::{self, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 #[cfg(test)]
 use std::time::{Duration, Instant};
 
-use crate::protocol::{Event, MAX_FRAME_LENGTH, ProtocolError, read_frame};
+use crate::protocol::{Event, MAX_FRAME_LENGTH, ProtocolError};
+mod process_reader;
 pub use crate::protocol_tap::ProtocolTap;
+use process_reader::{ProcessReader, ReadCancellation};
 
 /// Build the process-local protocol tap from `SOLID_GPUI_TAP`.
 pub fn protocol_tap_from_env() -> ProtocolTap {
     ProtocolTap::from_env()
 }
 
-/// The terminal state observed at the runtime adapter boundary.
+/// The lifecycle state observed at the runtime adapter boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimeStatus {
     Running,
     Failed,
+    /// Input is revoked and termination was requested; exit is not confirmed yet.
+    ShutdownRequested,
+    /// Host shutdown. ProcessAdapter reports this only after confirmed child exit.
     Shutdown,
     Exited {
         code: Option<i32>,
@@ -29,7 +34,7 @@ pub enum RuntimeStatus {
 
 impl RuntimeStatus {
     pub const fn is_failure(self) -> bool {
-        !matches!(self, Self::Shutdown)
+        !matches!(self, Self::Shutdown | Self::ShutdownRequested)
     }
 }
 
@@ -38,6 +43,9 @@ impl std::fmt::Display for RuntimeStatus {
         match self {
             Self::Running => formatter.write_str("still running after its commit stream closed"),
             Self::Failed => formatter.write_str("runtime failed"),
+            Self::ShutdownRequested => {
+                formatter.write_str("shutdown requested; exit not yet confirmed")
+            }
             Self::Shutdown => formatter.write_str("shut down by the host"),
             Self::Exited { code, signal } => match (code, signal) {
                 (Some(code), _) => write!(formatter, "exited with status {code}"),
@@ -69,6 +77,9 @@ pub trait RuntimeAdapter: Send + Sync {
     /// runtime or its worker threads. Safe to call from the UI/fatal path.
     fn request_shutdown(&self) -> Result<(), ProtocolError>;
     /// Request termination and wait for resource cleanup. Call off the UI thread.
+    /// ProcessAdapter cancels commit reads even when termination fails. On error,
+    /// inspect status and retain the adapter to retry cleanup; an OS error cannot
+    /// guarantee that the child has exited.
     fn shutdown(&self) -> Result<(), ProtocolError>;
     fn status(&self) -> RuntimeStatus;
 
@@ -390,6 +401,10 @@ fn stop_child(
 struct ProcessChildState {
     child: Mutex<Child>,
     shutdown_requested: AtomicBool,
+    shutdown_failed: AtomicBool,
+    exit_confirmed: AtomicBool,
+    #[cfg(test)]
+    faults: Mutex<VecDeque<&'static str>>,
 }
 
 impl ProcessChildState {
@@ -397,15 +412,25 @@ impl ProcessChildState {
         Arc::new(Self {
             child: Mutex::new(child),
             shutdown_requested: AtomicBool::new(false),
+            shutdown_failed: AtomicBool::new(false),
+            exit_confirmed: AtomicBool::new(false),
+            #[cfg(test)]
+            faults: Mutex::new(VecDeque::new()),
         })
     }
 
     fn try_wait(&self) -> io::Result<Option<std::process::ExitStatus>> {
+        #[cfg(test)]
+        self.inject_fault("try_wait")?;
         let mut child = self
             .child
             .lock()
             .map_err(|_| io::Error::other("renderer child lock poisoned"))?;
-        child.try_wait()
+        let status = child.try_wait()?;
+        if status.is_some() {
+            self.exit_confirmed.store(true, Ordering::Release);
+        }
+        Ok(status)
     }
 
     fn stop(&self, mark_shutdown: bool) -> (Result<(), ProtocolError>, bool) {
@@ -419,6 +444,8 @@ impl ProcessChildState {
             || self.try_wait().map(|status| status.map(|_| ())),
             || self.kill(),
             || loop {
+                #[cfg(test)]
+                self.inject_fault("wait")?;
                 if self.try_wait()?.is_some() {
                     return Ok(());
                 }
@@ -428,16 +455,32 @@ impl ProcessChildState {
     }
 
     fn kill(&self) -> io::Result<()> {
+        #[cfg(test)]
+        self.inject_fault("kill")?;
         let mut child = self
             .child
             .lock()
             .map_err(|_| io::Error::other("renderer child lock poisoned"))?;
         // try_wait also handles an already completed child's cached status.
-        if child.try_wait()?.is_none()
-            && let Err(error) = child.kill()
-            && child.try_wait()?.is_none()
-        {
-            return Err(error);
+        if child.try_wait()?.is_some() {
+            self.exit_confirmed.store(true, Ordering::Release);
+            return Ok(());
+        }
+        if let Err(error) = child.kill() {
+            if child.try_wait()?.is_none() {
+                return Err(error);
+            }
+            self.exit_confirmed.store(true, Ordering::Release);
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn inject_fault(&self, operation: &'static str) -> io::Result<()> {
+        let mut faults = self.faults.lock().unwrap();
+        if faults.front() == Some(&operation) {
+            faults.pop_front();
+            return Err(io::Error::other(format!("injected {operation} failure")));
         }
         Ok(())
     }
@@ -450,8 +493,16 @@ impl ProcessChildState {
     }
 
     fn status(&self) -> RuntimeStatus {
-        if self.shutdown_requested.load(Ordering::Acquire) {
+        if self.shutdown_requested.load(Ordering::Acquire)
+            && self.exit_confirmed.load(Ordering::Acquire)
+        {
             return RuntimeStatus::Shutdown;
+        }
+        if self.shutdown_failed.load(Ordering::Acquire) {
+            return RuntimeStatus::Failed;
+        }
+        if self.shutdown_requested.load(Ordering::Acquire) {
+            return RuntimeStatus::ShutdownRequested;
         }
         let exit = (|| {
             for _ in 0..10 {
@@ -487,7 +538,8 @@ impl ProcessChildState {
 /// by the host so renderer logs remain visible without entering the protocol.
 pub struct ProcessAdapter {
     child: Arc<ProcessChildState>,
-    commits: Mutex<ChildStdout>,
+    commits: Mutex<ProcessReader>,
+    commit_cancellation: ReadCancellation,
     events: EventWriter,
     tap: ProtocolTap,
 }
@@ -509,6 +561,13 @@ impl ProcessAdapter {
             .take()
             .ok_or_else(|| io::Error::other("renderer stdin was not piped"))?;
         let child = ProcessChildState::new(child);
+        let (commits, commit_cancellation) = match ProcessReader::new(commits) {
+            Ok(commits) => commits,
+            Err(error) => {
+                let _ = child.stop(true);
+                return Err(error);
+            }
+        };
         let child_for_writer = Arc::clone(&child);
         let on_failure: Arc<dyn Fn() + Send + Sync> =
             Arc::new(move || child_for_writer.stop_after_writer_failure());
@@ -522,6 +581,7 @@ impl ProcessAdapter {
         Ok(Arc::new(Self {
             child,
             commits: Mutex::new(commits),
+            commit_cancellation,
             events,
             tap,
         }))
@@ -545,7 +605,7 @@ impl ProcessAdapter {
 
     pub fn status(&self) -> RuntimeStatus {
         if self.child.shutdown_requested.load(Ordering::Acquire) {
-            return RuntimeStatus::Shutdown;
+            return self.child.status();
         }
         if self.events.failure().is_some() {
             return RuntimeStatus::Failed;
@@ -560,7 +620,7 @@ impl RuntimeAdapter for ProcessAdapter {
             .commits
             .lock()
             .map_err(|_| ProtocolError::Io(io::Error::other("renderer stdout lock poisoned")))?;
-        read_frame(&mut *reader)
+        reader.read_frame(&self.commit_cancellation.cancelled)
     }
 
     fn send_event(&self, event: Event) -> Result<(), ProtocolError> {
@@ -569,17 +629,31 @@ impl RuntimeAdapter for ProcessAdapter {
 
     fn request_shutdown(&self) -> Result<(), ProtocolError> {
         self.child.shutdown_requested.store(true, Ordering::Release);
+        self.commit_cancellation.cancel();
         self.events.close();
-        self.child.kill().map_err(ProtocolError::Io)
+        let result = self.child.kill().map_err(ProtocolError::Io);
+        if result.is_err() {
+            self.child.shutdown_failed.store(true, Ordering::Release);
+        }
+        result
     }
 
     fn shutdown(&self) -> Result<(), ProtocolError> {
-        self.request_shutdown()?;
+        let requested = self.request_shutdown();
         let (result, child_exit_confirmed) = self.child.stop(true);
+        self.child
+            .shutdown_failed
+            .store(!child_exit_confirmed, Ordering::Release);
         if child_exit_confirmed {
             self.events.join();
         }
-        result
+        match (requested, result) {
+            (Err(first), Err(second)) => Err(ProtocolError::Io(io::Error::other(format!(
+                "shutdown request failed: {first}; cleanup failed: {second}"
+            )))),
+            (Err(error), Ok(())) | (Ok(()), Err(error)) => Err(error),
+            (Ok(()), Ok(())) => Ok(()),
+        }
     }
 
     fn status(&self) -> RuntimeStatus {
@@ -710,6 +784,68 @@ impl RuntimeAdapter for InMemoryAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shutdown_attempts_cleanup_after_kill_status_and_wait_failures() {
+        for faults in [
+            vec!["kill"],
+            vec!["kill", "kill"],
+            vec!["try_wait"],
+            vec!["kill", "wait"],
+        ] {
+            let mut command = Command::new("bun");
+            command.args(["-e", "setInterval(() => {}, 1000)"]);
+            let runtime = ProcessAdapter::spawn(command).unwrap();
+            // The wait fault must reach the cleanup wait instead of racing with
+            // a successful initial kill and an already-exited child.
+            runtime.child.faults.lock().unwrap().extend(faults.clone());
+            let result = runtime.shutdown();
+            assert!(result.is_err(), "{faults:?}");
+            assert!(
+                runtime.child.faults.lock().unwrap().is_empty(),
+                "cleanup was skipped: {faults:?}"
+            );
+            assert!(runtime.recv_commit().unwrap().is_none());
+            runtime.shutdown().unwrap();
+            assert_eq!(runtime.status(), RuntimeStatus::Shutdown);
+            assert!(runtime.try_wait().unwrap().is_some());
+        }
+    }
+
+    #[test]
+    fn shutdown_failure_releases_commit_wait_and_can_be_retried() {
+        use std::sync::mpsc;
+        let mut command = Command::new("bun");
+        command.args(["-e", "require('node:fs').writeSync(1, Buffer.from([0,0,0,0,10,0,0,0,1,2])); setInterval(() => {}, 1000)"]);
+        let runtime = ProcessAdapter::spawn(command).unwrap();
+        assert_eq!(runtime.recv_commit().unwrap(), Some(Vec::new()));
+        let (completed, completion) = mpsc::channel();
+        let reader = Arc::clone(&runtime);
+        let worker = thread::spawn(move || completed.send(reader.recv_commit()).unwrap());
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while runtime.commits.try_lock().is_ok() && Instant::now() < deadline {
+            thread::yield_now();
+        }
+        // Poison the process lock to reproduce the public shutdown error path
+        // without relying on operating-system permission failures.
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = runtime.child.child.lock().unwrap();
+            panic!("injected child lock failure");
+        });
+        let shutdown = runtime.shutdown();
+        let cancelled = completion.recv_timeout(Duration::from_secs(1));
+        let status = runtime.status();
+        // Always reclaim the real child, including when the regression is red.
+        runtime.child.child.clear_poison();
+        runtime.shutdown().unwrap();
+        worker.join().unwrap();
+        assert!(shutdown.is_err());
+        assert!(
+            cancelled.is_ok(),
+            "shutdown failure left recv_commit blocked"
+        );
+        assert_eq!(status, RuntimeStatus::Failed);
+    }
 
     fn event(sequence: u32) -> Event {
         Event::press(7, 3, 1, sequence, 1, 1)

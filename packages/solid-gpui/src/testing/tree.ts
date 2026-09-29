@@ -5,9 +5,13 @@ import {
   UPDATE_PROPERTIES,
   UPDATE_TEXT,
   UPDATE_TOOLTIP,
+  UPDATE_STYLE,
 } from "../protocol/constants";
 import { NodeKind, type Node as WireNode, type Patch, type Snapshot } from "../protocol/generated/protocol";
 import type { HostKind } from "../renderer/types";
+import type { AccessibilityProps } from "../renderer/types";
+import { ROLE_CODES } from "../renderer/facts";
+import { committedStyle } from "../protocol/style";
 import type { TestNode, TestSurface } from "./types";
 
 const KINDS: Partial<Record<NodeKind, HostKind>> = {
@@ -59,6 +63,7 @@ export class TestTree {
           const node = { ...this.node(id) };
           const mask = required(update.mask, "update mask");
           if (mask & UPDATE_TEXT) node.text = update.text;
+          if (mask & UPDATE_STYLE) node.style = update.style;
           if (mask & UPDATE_LISTENER) node.listenerId = update.listenerId;
           if (mask & UPDATE_LAYOUT) node.observesLayout = update.observesLayout;
           if (mask & UPDATE_PROPERTIES) node.hostProperties = update.hostProperties;
@@ -107,6 +112,17 @@ export class TestTree {
       const node = this.node(id);
       const kind = required(KINDS[required(node.kind, "node kind")], "supported node kind");
       const input = node.hostProperties?.tag === 1 ? node.hostProperties.value : undefined;
+      const list = node.hostProperties?.tag === 2 ? node.hostProperties.value : undefined;
+      const accessibility: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(node.accessibility ?? {})) {
+        if (value === undefined || typeof value === "function") continue;
+        accessibility[`accessibility${key[0]!.toUpperCase()}${key.slice(1)}`] =
+          key === "role"
+            ? Object.entries(ROLE_CODES).find(([, code]) => code === value)?.[0]
+            : key === "live"
+              ? ["off", "polite", "assertive"][Number(value)]
+              : value;
+      }
       const children = Object.freeze([...this.siblings(id)]);
       const view: TestNode = Object.freeze({
         id,
@@ -118,6 +134,19 @@ export class TestTree {
         placeholder: input?.placeholder ?? null,
         accessibilityLabel: node.accessibility?.label ?? null,
         tooltip: node.tooltip ?? null,
+        style: committedStyle(node.style),
+        accessibility: Object.freeze(accessibility) as Readonly<AccessibilityProps>,
+        disabled: input?.disabled === true || node.accessibility?.disabled === true,
+        virtualList: list
+          ? Object.freeze({
+              itemCount: required(list.itemCount, "itemCount"),
+              rangeStart: required(list.rangeStart, "rangeStart"),
+              rangeEnd: required(list.rangeEnd, "rangeEnd"),
+              estimatedItemSize: required(list.estimatedItemSize, "estimatedItemSize"),
+              overscan: required(list.overscan, "overscan"),
+              dataRevision: required(list.dataRevision, "dataRevision"),
+            })
+          : null,
       });
       capture(view, node);
       nodes.push(view);

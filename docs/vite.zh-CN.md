@@ -331,6 +331,30 @@ Solid batch 完成后才提交请求。该辅助接口管理注入事件的序�
 它不计算原生样式/布局、不绘制像素、不执行 Rust handler，也不模拟平台服务；
 这些行为仍须用真实宿主验证。
 
+#### 虚拟视口、布局与滚动
+
+节点另有只读 `style`、`accessibility`、`disabled` 和 `virtualList`。样式是提交值
+（float32 舍入、`#rrggbbaa` 颜色），不是测量布局。无障碍属性沿用应用属性名。
+列表描述包含 `itemCount`、`rangeStart`、`rangeEnd`（不含结束项）、
+`estimatedItemSize`、`overscan`、`dataRevision`。清除的样式和非列表描述为 `null`。
+
+`dispatch` 支持列表的 `{ type: "visible-range", start, end }`、布局订阅节点的
+`{ type: "layout", x, y, width, height }`、
+`{ type: "pointer", action: "down" | "up", x, y, button?, clickCount?, modifiers? }`
+和 `{ type: "pointer-move", x, y, modifiers? }`。按钮为 `left`（默认）、`right`、
+`middle`、`back`、`forward`。事件和回复共用序号，保留捕获的 revision/epoch；
+不会模拟命中测试或原生禁用输入行为。
+
+`scrollCommands` 记录 `get-scroll-offset`、`scroll-to-offset`（含 `offset`）、
+`scroll-to-index`（含 `index`）和 `scroll-to-end`，以及完整请求身份。等待提交后，
+偏移查询用 `host.replyScroll(command, offset)`，其他滚动动作用
+`host.replyScroll(command)`；`host.reject(command, message)` 支持滚动和 native 请求。
+未回复请求保持 pending，直到正常取消或超时，不会伪造成功。
+
+Git 原生依赖的 doctor 检查读取 Cargo 管理的 SDK checkout，比较实际解析的 GPUI
+patch 仓库和完整提交；支持 workspace 继承和根 patch，无需额外 clone。遗漏、未生效、
+registry 副本及 revision 错配会报告；离线图不可用时报告未核验。Path 模式保留路径检查。
+
 ## 从源码消费包
 
 安装后的包默认解析到构建好的 `dist`，普通用法无需额外配置。要调试或迭代 SDK 内部实现时，需显式选择：

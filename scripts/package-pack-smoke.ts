@@ -42,7 +42,7 @@ async function run(command: readonly string[], cwd: string, env: Record<string, 
   }
 }
 
-const coreRuntimeSource = `import { MemoryTransport, Text, View, createRoot } from "@solid-gpui/core";
+const coreRuntimeSource = `import { MemoryTransport, Text, View, VirtualList, createRoot } from "@solid-gpui/core";
 import { createComponent, createSignal } from "@solid-gpui/core/runtime";
 import { TestHost } from "@solid-gpui/core/testing";
 /** @type {(() => void) | undefined} */
@@ -66,6 +66,22 @@ await Promise.resolve();
 if (!host.surface(1)?.nodes.some((node) => node.text === "Count: 1"))
   throw new Error("packed testing API failed to replay the signal Patch");
 root.unmount();
+const listRoot = createRoot(transport, { surfaceId: 2 });
+/** @type {import("@solid-gpui/core").VirtualListHandle | undefined} */
+let list;
+listRoot.render(() => VirtualList({ data: [0, 1, 2], itemKey: item => item, estimatedItemSize: 20, initialNumToRender: 1, overscan: 0, style: { height: 20 }, renderItem: item => Text({ children: String(item) }), ref: handle => { list = handle; } }));
+const viewport = host.surface(2)?.nodes.find(node => node.kind === "VirtualList");
+if (!viewport || viewport.virtualList?.itemCount !== 3 || viewport.style?.height !== 20) throw new Error("packed list description is missing");
+host.dispatch(viewport, { type: "visible-range", start: 2, end: 3 });
+if (!host.surface(2)?.nodes.some(node => node.text === "2")) throw new Error("packed viewport dispatch failed");
+if (!list) throw new Error("packed list ref is missing");
+const offset = list.getScrollOffset();
+await Promise.resolve();
+const query = host.scrollCommands.at(-1);
+if (query?.type !== "get-scroll-offset") throw new Error("packed scroll query is missing");
+host.replyScroll(query, 40);
+if (await offset !== 40) throw new Error("packed scroll reply failed");
+listRoot.unmount();
 `;
 
 const viewSource = `/** @jsxImportSource @solid-gpui/core */

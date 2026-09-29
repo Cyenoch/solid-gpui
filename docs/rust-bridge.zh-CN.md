@@ -2,7 +2,22 @@
 
 只需 Rust 依赖 `solid-gpui` 和 npm 依赖 `@solid-gpui/core`。Rust 声明定义契约，宿主导出组件、事件、实例 ref 和 Promise 客户端。无需手写字段 ID、JSON 编解码、TypeScript 接口，也不需要独立 schema 或代码生成包。
 
-## 最小应用
+## 进程运行时关闭
+
+`ProcessAdapter::request_shutdown()` 撤销事件输入，并独立于 kill 成功与否取消阻塞的
+`recv_commit()`（包括未完成帧），取消后返回 `Ok(None)`。Unix 使用唤醒 socket；
+Windows 在读取前检查管道可用字节及取消状态，不创建 detached stdout reader。
+
+在 UI 线程之外调用 `shutdown()`。首次请求失败也会继续尝试收尾，并保留两阶段错误。
+`RuntimeStatus::ShutdownRequested` 表示尚未确认退出；`Failed` 表示未确认退出的关闭
+失败或其他运行时失败；`Shutdown` 表示已确认退出。若请求失败但后续收尾成功，仍返回
+原始错误，状态为 `Shutdown`。
+
+失败后可 join 已取消的读取线程；未确认退出时保留 adapter 并重试 `shutdown()`。
+`try_wait()` 可检查并回收子进程，重试 shutdown 还会完成 writer 收尾。OS 拒绝终止时
+不能保证退出；Drop 的最后一次尝试不能替代显式错误处理。仅确认子进程退出后才 join writer。
+
+## 最小应用示例
 
 应用 `Cargo.toml`：
 

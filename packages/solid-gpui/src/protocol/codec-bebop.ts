@@ -174,6 +174,7 @@ import { validateExtensionFields, validateExtensionProperties, validateExtension
 import { framePayload } from "./frame";
 import { encodeColor, validateStyle, type BoxShadowInput, type StyleProp } from "../style";
 import { ProtocolVersionMismatchError, validateEvent } from "./validate";
+import { styleEnum } from "./style";
 
 const NODE_KIND_CODES: Record<SemanticNode["kind"], NodeKind> = {
   View: NodeKind.View,
@@ -284,10 +285,7 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
     gridRows: value.gridRows,
     gridColumnSpan: value.gridColumnSpan,
     gridRowSpan: value.gridRowSpan,
-    flexDirection:
-      value.flexDirection === undefined
-        ? undefined
-        : { row: 1, column: 2, "row-reverse": 3, "column-reverse": 4 }[value.flexDirection],
+    flexDirection: styleEnum("flexDirection", value.flexDirection),
     flexGrow: value.flexGrow === undefined ? undefined : Math.fround(value.flexGrow),
     padding: value.padding === undefined ? undefined : Math.fround(value.padding),
     gap: value.gap === undefined ? undefined : Math.fround(value.gap),
@@ -295,87 +293,36 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
     color: value.color === undefined ? undefined : encodeColor(value.color),
     opacity: value.opacity === undefined ? undefined : Math.fround(value.opacity),
     transition: value.transition === undefined ? undefined : wireTransition(value.transition),
-    justifyContent:
-      value.justifyContent === undefined
-        ? undefined
-        : { "flex-start": 1, center: 2, "flex-end": 3, "space-between": 4, "space-around": 5, "space-evenly": 6 }[
-            value.justifyContent
-          ],
-    alignItems:
-      value.alignItems === undefined
-        ? undefined
-        : { "flex-start": 1, center: 2, "flex-end": 3, stretch: 4, baseline: 5 }[value.alignItems],
+    justifyContent: styleEnum("justifyContent", value.justifyContent),
+    alignItems: styleEnum("alignItems", value.alignItems),
     borderRadius: value.borderRadius === undefined ? undefined : Math.fround(value.borderRadius),
     borderWidth: value.borderWidth === undefined ? undefined : Math.fround(value.borderWidth),
     borderColor: value.borderColor === undefined ? undefined : encodeColor(value.borderColor),
     fontSize: value.fontSize === undefined ? undefined : Math.fround(value.fontSize),
-    fontWeight:
-      value.fontWeight === undefined
-        ? undefined
-        : { normal: 400, medium: 500, semibold: 600, bold: 700, heavy: 900 }[value.fontWeight],
-    overflow: value.overflow === undefined ? undefined : { visible: 1, hidden: 2, scroll: 3 }[value.overflow],
+    fontWeight: styleEnum("fontWeight", value.fontWeight),
+    overflow: styleEnum("overflow", value.overflow),
     lineClamp: value.lineClamp,
-    textOverflow: value.textOverflow === undefined ? undefined : { clip: 1, ellipsis: 2 }[value.textOverflow],
+    textOverflow: styleEnum("textOverflow", value.textOverflow),
     marginTop: value.marginTop === undefined ? undefined : Math.fround(value.marginTop),
     marginRight: value.marginRight === undefined ? undefined : Math.fround(value.marginRight),
     marginBottom: value.marginBottom === undefined ? undefined : Math.fround(value.marginBottom),
     marginLeft: value.marginLeft === undefined ? undefined : Math.fround(value.marginLeft),
-    fontStyle: value.fontStyle === undefined ? undefined : value.fontStyle === "italic" ? 1 : 0,
-    textDecoration:
-      value.textDecoration === undefined
-        ? undefined
-        : value.textDecoration === "none"
-          ? 0
-          : value.textDecoration === "underline"
-            ? 1
-            : 2,
+    fontStyle: styleEnum("fontStyle", value.fontStyle),
+    textDecoration: styleEnum("textDecoration", value.textDecoration),
     lineHeight: value.lineHeight === undefined ? undefined : Math.fround(value.lineHeight),
     minWidth: value.minWidth === undefined ? undefined : Math.fround(value.minWidth),
     maxWidth: value.maxWidth === undefined ? undefined : Math.fround(value.maxWidth),
     minHeight: value.minHeight === undefined ? undefined : Math.fround(value.minHeight),
     maxHeight: value.maxHeight === undefined ? undefined : Math.fround(value.maxHeight),
     flexShrink: value.flexShrink === undefined ? undefined : Math.fround(value.flexShrink),
-    alignSelf:
-      value.alignSelf === undefined
-        ? undefined
-        : { start: 1, end: 2, "flex-start": 3, "flex-end": 4, center: 5, baseline: 6, stretch: 7 }[value.alignSelf],
-    position:
-      value.position === undefined
-        ? undefined
-        : value.position === "relative"
-          ? 0
-          : value.position === "absolute"
-            ? 1
-            : 2,
+    alignSelf: styleEnum("alignSelf", value.alignSelf),
+    position: styleEnum("position", value.position),
     left: value.left === undefined ? undefined : Math.fround(value.left),
     top: value.top === undefined ? undefined : Math.fround(value.top),
     right: value.right === undefined ? undefined : Math.fround(value.right),
     bottom: value.bottom === undefined ? undefined : Math.fround(value.bottom),
-    cursor:
-      value.cursor === undefined
-        ? undefined
-        : {
-            default: 0,
-            text: 1,
-            pointer: 2,
-            grab: 3,
-            grabbing: 4,
-            "not-allowed": 5,
-            "context-menu": 6,
-            crosshair: 7,
-            "vertical-text": 8,
-            alias: 9,
-            copy: 10,
-            "no-drop": 11,
-            move: 12,
-            "ew-resize": 13,
-            "ns-resize": 14,
-            "nesw-resize": 15,
-            "nwse-resize": 16,
-            "col-resize": 17,
-            "row-resize": 18,
-          }[value.cursor],
-    textAlign: value.textAlign === undefined ? undefined : { left: 1, center: 2, right: 3 }[value.textAlign],
+    cursor: styleEnum("cursor", value.cursor),
+    textAlign: styleEnum("textAlign", value.textAlign),
     boxShadow: value.boxShadow === undefined ? undefined : wireShadow(value.boxShadow),
     linearGradient:
       value.linearGradient === undefined
@@ -410,7 +357,7 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
       value.borderBottomLeftRadius === undefined ? undefined : Math.fround(value.borderBottomLeftRadius),
     widthPercent: value.widthPercent === undefined ? undefined : Math.fround(value.widthPercent),
     heightPercent: value.heightPercent === undefined ? undefined : Math.fround(value.heightPercent),
-    flexWrap: value.flexWrap === undefined ? undefined : { nowrap: 0, wrap: 1, "wrap-reverse": 2 }[value.flexWrap],
+    flexWrap: styleEnum("flexWrap", value.flexWrap),
   };
 }
 function wireAccessibility(value: SemanticAccessibilityProperties | null): WireAccessibilityProperties | undefined {

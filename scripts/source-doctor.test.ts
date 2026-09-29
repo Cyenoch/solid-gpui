@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { resolveConfig } from "vite";
 import {
   doctor,
@@ -55,6 +56,120 @@ function checkOf(report: DoctorReport, id: DoctorCheckId): DoctorCheck {
     throw new Error(`no ${id} check in ${report.checks.map((candidate) => candidate.id).join(", ")}`);
   return entry;
 }
+
+test("doctor verifies resolved Git patches against the host revision without a sibling SDK", async () => {
+  const directory = await createConsumer("solid-doctor-git-", ["@solid-gpui/core", "@solid-gpui/vite"]);
+  const sdk = join(directory, "upstream");
+  const app = join(directory, "app");
+  const names = [
+    "gpui-pre",
+    "gpui-pre-reqwest-client",
+    "gpui-pre-web",
+    "gpui-pre-wgpu",
+    "gpui-pre-macos",
+    "gpui-pre-windows",
+    "gpui-pre-linux",
+  ];
+  const run = (args: string[], cwd: string) => {
+    const result = Bun.spawnSync(args, { cwd, stdout: "pipe", stderr: "pipe" });
+    if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+    return result.stdout.toString().trim();
+  };
+  try {
+    for (const name of ["solid-gpui", ...names]) {
+      await mkdir(join(sdk, name, "src"), { recursive: true });
+      await writeFile(join(sdk, name, "src/lib.rs"), "");
+      await writeFile(
+        join(sdk, name, "Cargo.toml"),
+        `[package]\nname = "${name}"\nversion = "0.3.3"\nedition = "2024"\n${name === "solid-gpui" ? `[features]\nquickjs = []\n[dependencies]\n${names.map((name) => `${name} = "=0.3.3"`).join("\n")}` : ""}\n`,
+      );
+    }
+    await writeFile(
+      join(sdk, "Cargo.toml"),
+      `[workspace]\nresolver = "2"\nmembers = [${["solid-gpui", ...names].map((name) => JSON.stringify(name)).join(",")} ]\n[patch.crates-io]\n${names.map((name) => `${name} = { path = "${name}" }`).join("\n")}\n`,
+    );
+    run(["git", "init", "--quiet"], sdk);
+    run(["git", "add", "."], sdk);
+    run(
+      ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "--quiet", "-m", "fixture"],
+      sdk,
+    );
+    const revision = run(["git", "rev-parse", "HEAD"], sdk);
+    const source = `git = "${pathToFileURL(sdk).href}", rev = "${revision}"`;
+    await mkdir(join(app, ".cargo"), { recursive: true });
+    await writeFile(
+      join(app, ".cargo/config.toml"),
+      '[source.crates-io]\nreplace-with = "fixture-registry"\n[source.fixture-registry]\ndirectory = "registry"\n',
+    );
+    for (const name of names) {
+      const crate = join(app, "registry", name);
+      await mkdir(join(crate, "src"), { recursive: true });
+      await writeFile(join(crate, "src/lib.rs"), "");
+      await writeFile(join(crate, "Cargo.toml"), `[package]\nname = "${name}"\nversion = "0.3.3"\nedition = "2024"\n`);
+      await writeFile(join(crate, ".cargo-checksum.json"), '{"files":{},"package":null}');
+    }
+    await mkdir(join(app, "host/src"), { recursive: true });
+    await writeFile(join(app, "host/src/lib.rs"), "");
+    await writeFile(
+      join(app, "host/Cargo.toml"),
+      '[package]\nname = "host"\nversion = "0.0.0"\nedition = "2024"\n[dependencies]\nsolid-gpui.workspace = true\n',
+    );
+    const manifest = (entries: string[]) =>
+      `[workspace]\nresolver = "2"\nmembers = ["host*"]\n[workspace.dependencies]\nsolid-gpui = { ${source}, features = ["quickjs"] }\n[patch.crates-io]\n${entries.join("\n")}\n`;
+    const entries = names.map((name) => `${name} = { ${source} }`);
+    await writeFile(join(app, "Cargo.toml"), manifest(entries));
+    // Fetch only the local Git source; metadata remains offline in doctor itself.
+    run(["cargo", "metadata", "--format-version", "1"], app);
+    const inspect = () =>
+      doctor({
+        root: directory,
+        config: { runtime: "quickjs", native: { manifestPath: "app/host/Cargo.toml", output: ".generated/native.ts" } },
+      });
+    const good = await inspect();
+    expect(checkOf(good, "cargo-graph").status).toBe("pass");
+    expect(checkOf(good, "cargo-patches").status).toBe("pass");
+    expect(checkOf(good, "runtime-capabilities").status).toBe("pass");
+
+    // A same-named path package resolves successfully but is not the Git patch.
+    const replacement = entries.map((entry) =>
+      entry.startsWith("gpui-pre =") ? `gpui-pre = { path = "${join(sdk, "gpui-pre")}" }` : entry,
+    );
+    await writeFile(join(app, "Cargo.toml"), manifest(replacement));
+    const unused = checkOf(await inspect(), "cargo-patches");
+    expect(unused.status).toBe("fail");
+    expect(unused.details?.join("\n")).toContain("gpui-pre");
+
+    await writeFile(join(app, "Cargo.toml"), manifest(entries.filter((entry) => !entry.startsWith("gpui-pre ="))));
+    const missing = await inspect();
+    expect(checkOf(missing, "cargo-graph").status).toBe("pass");
+    expect(checkOf(missing, "cargo-patches").status).toBe("fail");
+    expect(checkOf(missing, "cargo-patches").details?.join("\n")).toContain("registry+");
+
+    run(
+      [
+        "git",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.com",
+        "commit",
+        "--allow-empty",
+        "--quiet",
+        "-m",
+        "other revision",
+      ],
+      sdk,
+    );
+    const other = run(["git", "rev-parse", "HEAD"], sdk);
+    await writeFile(join(app, "Cargo.toml"), manifest(entries.map((entry) => entry.replace(revision, other))));
+    run(["cargo", "metadata", "--format-version", "1"], app);
+    const divergent = checkOf(await inspect(), "cargo-patches");
+    expect(divergent.status).toBe("fail");
+    expect(divergent.details?.join("\n")).toContain(other);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 60_000);
 
 /** The SDK's own `[patch.crates-io]` block, with paths re-rooted at the checkout. */
 async function sdkPatches(): Promise<string> {

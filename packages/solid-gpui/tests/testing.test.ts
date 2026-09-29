@@ -1,6 +1,16 @@
 import { expect, test } from "bun:test";
-import { createRoot, MemoryTransport, Pressable, Text, TextInput, View } from "@solid-gpui/core";
-import { createComponent, createSignal, For } from "@solid-gpui/core/runtime";
+import {
+  createRoot,
+  MemoryTransport,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+  VirtualList,
+  type VirtualListHandle,
+  type StyleProp,
+} from "@solid-gpui/core";
+import { createComponent, createSignal, For, onCleanup } from "@solid-gpui/core/runtime";
 import {
   createNativeClient,
   createNativeComponent,
@@ -16,6 +26,131 @@ const clientDescriptor: NativeClientDescriptor = {
   moduleDigest: Array(32).fill(9),
   commands: [{ id: 1, name: "echo" }],
 };
+
+test("TestHost drives virtual viewport ownership and explicit scroll replies through public APIs", async () => {
+  const host = new TestHost();
+  const root = createRoot(host.transport, { surfaceId: 47 });
+  const cleaned: number[] = [];
+  let list!: VirtualListHandle;
+  let reached = 0;
+  try {
+    root.render(() =>
+      VirtualList({
+        data: [0, 1, 2, 3, 4],
+        itemKey: (item) => item,
+        initialNumToRender: 2,
+        overscan: 0,
+        estimatedItemSize: 20,
+        renderItem: (item) => {
+          onCleanup(() => cleaned.push(item));
+          return Text({ children: String(item) });
+        },
+        ref: (handle) => {
+          list = handle;
+        },
+        onEndReached: () => {
+          reached++;
+        },
+        style: { height: 40, flexGrow: 1 },
+      }),
+    );
+    const initial = host.surface(47)!.nodes.find((node) => node.kind === "VirtualList")!;
+    expect(initial.virtualList).toMatchObject({ itemCount: 5, rangeStart: 0, rangeEnd: 2 });
+    expect(initial.style).toMatchObject({ height: 40, flexGrow: 1 });
+    host.dispatch(initial, { type: "visible-range", start: 3, end: 5 });
+    expect(texts(host.surface(47)!)).toEqual(["3", "4"]);
+    expect(cleaned.sort()).toEqual([0, 1]);
+    expect(reached).toBe(1);
+    let settled = false;
+    const offset = list.getScrollOffset().then((value) => {
+      settled = true;
+      return value;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    const query = host.scrollCommands.find((command) => command.type === "get-scroll-offset")!;
+    if (query.type !== "get-scroll-offset") throw new Error("missing offset query");
+    host.replyScroll(query, 60);
+    await expect(offset).resolves.toBe(60);
+    const restore = list.scrollToOffset(20);
+    await Promise.resolve();
+    const restoreCommand = host.scrollCommands.at(-1)!;
+    expect(restoreCommand).toMatchObject({ type: "scroll-to-offset", offset: 20 });
+    if (restoreCommand.type === "get-scroll-offset") throw new Error("expected scroll action");
+    host.replyScroll(restoreCommand);
+    await restore;
+    const index = list.scrollToIndex(1);
+    await Promise.resolve();
+    const indexCommand = host.scrollCommands.at(-1)!;
+    expect(indexCommand).toMatchObject({ type: "scroll-to-index", index: 1 });
+    if (indexCommand.type === "get-scroll-offset") throw new Error("expected scroll action");
+    host.replyScroll(indexCommand);
+    await index;
+    const end = list.scrollToEnd();
+    await Promise.resolve();
+    host.reject(host.scrollCommands.at(-1)!, "scroll unavailable");
+    await expect(end).rejects.toThrow("scroll unavailable");
+    expect(() => host.replyScroll(query, 0)).toThrow("already been answered");
+    const pending = list.scrollToEnd();
+    await Promise.resolve();
+    root.unmount();
+    await expect(pending).rejects.toThrow();
+  } finally {
+    root.unmount();
+  }
+});
+
+test("TestHost captures committed styles and accessibility and sequences layout, pointer and input", async () => {
+  const host = new TestHost();
+  const root = createRoot(host.transport, { surfaceId: 48 });
+  const [height, setHeight] = createSignal<number | undefined>(80);
+  const received: string[] = [];
+  try {
+    root.render(() =>
+      View({
+        get style(): StyleProp {
+          return height() === undefined
+            ? null
+            : { height: height(), flexDirection: "column", backgroundColor: "#123456" };
+        },
+        accessibilityRole: "group",
+        accessibilityLabel: "Crop",
+        accessibilityDisabled: true,
+        onLayout: (event) => received.push(`layout:${event.width}`),
+        onPointerDown: (event) => received.push(`down:${event.x}`),
+        onPointerMove: (event) => received.push(`move:${event.x}`),
+        children: TextInput({ value: "", onChangeText: (text) => received.push(text) }),
+      }),
+    );
+    const initial = host.surface(48)!.nodes.find((node) => node.accessibilityLabel === "Crop")!;
+    expect(initial.style).toMatchObject({ height: 80, flexDirection: "column", backgroundColor: "#123456ff" });
+    expect(initial.accessibility).toMatchObject({ accessibilityRole: "group", accessibilityDisabled: true });
+    expect(initial.disabled).toBe(true);
+    host.dispatch(initial, { type: "layout", x: 0, y: 0, width: 200, height: 80 });
+    host.dispatch(initial, { type: "pointer", action: "down", x: 10, y: 20 });
+    host.dispatch(initial, { type: "pointer-move", x: 30, y: 40 });
+    host.dispatch(
+      host.surface(48)!.nodes.find((node) => node.kind === "TextInput")!,
+      { type: "input", text: "crop" },
+    );
+    expect(received).toEqual(["layout:200", "down:10", "move:30", "crop"]);
+    const native = createNativeClient<{ echo(value: string): Promise<string> }>(root, clientDescriptor).echo("mixed");
+    await Promise.resolve();
+    host.reply(host.nativeCalls.at(-1)!, encodeJson("reply"));
+    await expect(native).resolves.toBe("reply");
+    host.dispatch(initial, { type: "pointer", action: "down", x: 50, y: 20 });
+    expect(received.at(-1)).toBe("down:50");
+    setHeight(40);
+    await Promise.resolve();
+    expect(host.surface(48)!.nodes.find((node) => node.id === initial.id)!.style?.height).toBe(40);
+    setHeight(undefined);
+    await Promise.resolve();
+    expect(host.surface(48)!.nodes.find((node) => node.id === initial.id)!.style).toBe(null);
+    expect(initial.style?.height).toBe(80);
+  } finally {
+    root.unmount();
+  }
+});
 
 test("TestHost replays creation, moves and subtree deletion without mutating previous views", async () => {
   const transport = new MemoryTransport();
