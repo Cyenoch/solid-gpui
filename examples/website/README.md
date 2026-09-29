@@ -244,7 +244,8 @@ application-specific native module live in `native`; generated bindings live in
 The Guides sidebar publishes these references from the authoritative Markdown
 sources and their `.zh-CN.md` copies:
 
-- [Installation](../../docs/getting-started.md) at `/docs/reference/getting-started` is the authoritative external-consumer sequence: install, prepare, typecheck, develop, test, build, and production preview, with the Cargo requirements and the generated project.
+- [Installation](../../docs/getting-started.md) at `/docs/reference/getting-started` is the authoritative external-consumer sequence: install from npm, prepare, typecheck, develop, test, build, and production preview, with matching native sources, Cargo requirements, and the generated project. Both languages link to the npm maintainer release guide.
+- [Publishing npm packages](../../docs/npm-release.md) at `/docs/reference/npm-release` covers npm Trusted Publisher/GitHub environment setup, first publication, automatic version-tag releases, partial-release recovery, and matching Rust sources.
 - [Distribution](../../docs/distribution.md) at `/docs/reference/distribution` separates the bundle, the native executable, and the distributable, and records verified versus experimental target capability.
 - [Iconify](../../docs/iconify.md) at `/docs/reference/iconify` covers the built-in offline catalog, Solid usage, styling, and application icon registration.
 - [Vite integration](../../docs/vite.md) at `/docs/reference/vite` covers direct JS, JSX/TSX builds, Bun APIs, native modules, the published test runner, artifact lookup, and Rust-owned development.

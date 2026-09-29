@@ -38,23 +38,22 @@ Rust WebAssembly host.
 
 ## Build an application
 
-The SDK is not on a public registry yet. Build matching tarballs from one pinned
-checkout (this repository), then install them into your application. Use
+Install the JavaScript SDK from npm. Use
 [Bun](.bun-version) 1.4.2 or newer, and add the pinned
 [Rust toolchain](rust-toolchain.toml) plus your platform's
 [native build dependencies](docs/distribution.md#build-environment) when the
 application builds a Rust host.
 
 ```sh
-# In the SDK checkout
-bun install --frozen-lockfile
-bun run task sdk-pack ../sdk-tarballs   # solid-gpui-core/-vite/-router/-shiki.tgz
-
-# In your application
 bun init
-bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
-bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
 ```
+
+These commands target the npm release; they require the selected version to have
+been published. The Rust host is built separately from the matching SDK release
+checkout; npm installation does not install a native executable. See
+[Getting started](docs/getting-started.md) for native prerequisites and version alignment.
 
 Point `vite.config.ts` at your entry and native host, extend the generated
 TypeScript project, and run one sequence:

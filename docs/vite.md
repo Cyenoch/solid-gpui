@@ -59,12 +59,9 @@ bundling. QuickJS entries use `EmbeddedTransport` and a `quickjs`-enabled host.
 
 ## Project setup
 
-`@solid-gpui/core` and `solid-js`, plus `@solid-gpui/vite` and Vite 8 as
-development dependencies. The packages are not on a public registry yet: build
-matching tarballs from one pinned SDK checkout with `bun run task sdk-pack <dir>`
-and install `solid-gpui-core.tgz` / `solid-gpui-vite.tgz` from that run (see
-[Getting started](getting-started.md#1-install)). Install by name only once the
-packages are published; today that resolves nothing. Native development tooling runs
+Install `@solid-gpui/core` and `solid-js` from npm, plus `@solid-gpui/vite`, Vite 8,
+TypeScript, and `bun-types` as development dependencies. Keep the SDK packages on
+the same release (see [Getting started](getting-started.md#1-install)). Native development tooling runs
 under Bun 1.4.2 or newer. Set `"type": "module"` in `package.json` and create
 `vite.config.ts`:
 

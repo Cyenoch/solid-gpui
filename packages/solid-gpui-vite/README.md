@@ -1,11 +1,14 @@
 # @solid-gpui/vite
 
 Vite development, builds, and tooling for Solid GPUI applications running in Bun or
-QuickJS. Install this package with `@solid-gpui/core`, `solid-js`, and Vite 8. None
-of the SDK packages are published to a registry yet: from one pinned SDK checkout
-run `bun run task sdk-pack <dir>` and install `solid-gpui-core.tgz` and
-`solid-gpui-vite.tgz` from that run together. Native development tooling requires
-Bun 1.4.2 or newer.
+QuickJS. Install this package from npm with `@solid-gpui/core`, `solid-js`, and
+Vite 8. Keep the SDK packages on the same release. Native development tooling
+requires Bun 1.4.2 or newer and a separately configured matching Rust host.
+
+```sh
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
+```
 
 The compiler is pinned to `@solidjs/compiler` 2.0.0-rc.9; applications use the
 latest stable Solid runtime, 1.9.15. Windows ARM64 build hosts can use the

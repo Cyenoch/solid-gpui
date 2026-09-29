@@ -94,7 +94,7 @@ Cargo 项目。直接由 Rust 启动、`host: false` 和调用方提供的 Vite 
 
 ## 应用集成
 
-安装 `@solid-gpui/core` 与 Vite 8，并加入 `@solid-gpui/vite`——由于这些包尚未发布到 registry，请使用 `bun run task sdk-pack <dir>` 打出的 tarball——然后创建配置：
+从同一 npm 发布版本安装 `@solid-gpui/core` 与 `@solid-gpui/vite`，并加入 Vite 8 和 `solid-js`，然后创建配置：
 
 ```ts
 import { defineConfig } from "vite";

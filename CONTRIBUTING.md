@@ -18,8 +18,9 @@ bun run check
 `scripts/tasks.ts` is the only development and release task graph. The root
 `package.json` exposes common aliases; advanced commands use
 `bun run task <command>`. Keep one root `bun.lock` and do not add package-local
-locks or duplicate package scripts. `bun run task sdk-pack <output>` builds and
-packs all four packages once when you need installable tarballs of the SDK, and
+locks or duplicate package scripts. Application consumers install from npm;
+release tags trigger GitHub Actions to verify, pack, and publish through npm OIDC
+(see [Publishing npm packages](docs/npm-release.md) for one-time configuration).
 `bun run task native-codegen` is the explicit native-binding generation step
 (`package-build` is JavaScript-only).
 

@@ -6,10 +6,10 @@
 
 ## 配置生成器
 
-路由包需与现有 Solid GPUI 应用一起安装。它尚未发布到公共 registry，请与 SDK 其余部分来自同一次 `bun run task sdk-pack <dir>`（见[入门](getting-started.zh-CN.md#1-安装)）：
+从 npm 为现有 Solid GPUI 应用安装路由包，保持相同 SDK 发布版本（见[入门](getting-started.zh-CN.md#1-安装)）：
 
 ```sh
-bun add ../sdk-tarballs/solid-gpui-router.tgz
+bun add --exact @solid-gpui/router
 ```
 
 在 universal JSX 插件之前配置路由插件：

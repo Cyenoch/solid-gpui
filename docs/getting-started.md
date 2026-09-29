@@ -19,7 +19,7 @@ linked from each step:
   with the toolchain in `rust-toolchain.toml`, plus your platform's native build
   dependencies. See [build environment](distribution.md#build-environment).
 - **The SDK's Cargo requirements in your workspace root.** Your host crate depends
-  on the `solid-gpui` crate from the same pinned checkout (a path or git dependency;
+   on the `solid-gpui` crate from the checkout matching the installed npm release (a path or git dependency;
   it is not published to a registry today). Cargo ignores profile
   settings declared by a dependency, so the consuming workspace root must carry the
   `[patch.crates-io]` gpui-pre entries and the debug profiles from this repository's
@@ -29,37 +29,32 @@ linked from each step:
 
 ## 1. Install
 
-The SDK is not published to a public registry yet: `@solid-gpui/core` and
-`@solid-gpui/vite` do not resolve from npm today, and the `solid-gpui` Rust crate is
-consumed from a checkout. Build matching tarballs from one pinned SDK checkout and
-install those; do not mix versions from different runs.
-
-In the SDK checkout:
-
-```sh
-bun install --frozen-lockfile
-bun run task sdk-pack ../sdk-tarballs
-```
-
-That writes `solid-gpui-core.tgz`, `solid-gpui-vite.tgz`, `solid-gpui-router.tgz`,
-and `solid-gpui-shiki.tgz`, without compiling a native host.
-
-In your application:
+Install the JavaScript packages from npm in your application:
 
 ```sh
 bun init
-bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
-bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
 ```
 
 Keep `"type": "module"` in `package.json`. `@solid-gpui/core` is the renderer and
 component package; `@solid-gpui/vite` provides the Vite plugin, the `solid-gpui`
 CLI, and the test entrypoint. Add `@solid-gpui/router` and `@solid-gpui/shiki` from
-the same pack when you need them, and re-run `sdk-pack` plus the install after
-pulling a new SDK revision.
+the same SDK release when you need them. Pin all `@solid-gpui/*` packages to the
+same version and commit the application lockfile. Upgrade them together with the
+matching native host source.
 
-When the packages are published to a registry, the same packages install by name and
-the rest of this sequence is unchanged; that is not the case today. Debugging SDK
+The install commands require a published version; this guide describes the npm
+release path, not a claim that a release has already been published. A registry
+404 means that package/version is unavailable; see [Troubleshooting](troubleshooting.md).
+Maintainers prepare and publish packages using the standard commands in
+[Publishing npm packages](npm-release.md).
+
+The npm packages contain JavaScript, declarations, and SDK sources, not a Rust
+toolchain, native host executable, or the vendored Cargo dependencies. For a
+`native` host, use the SDK checkout at the release's exact source revision for
+the Rust dependency and workspace patches described above. An existing `host`
+executable must likewise match that release. Debugging SDK
 sources directly is a separate, explicit opt-in described in
 [source consumption](vite.md#consume-packages-from-source).
 

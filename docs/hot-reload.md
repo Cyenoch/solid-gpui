@@ -91,9 +91,8 @@ package build workflow before restarting development.
 
 ## Application integration
 
-Install `@solid-gpui/core` and Vite 8 with `@solid-gpui/vite` — from the tarballs a
-`bun run task sdk-pack <dir>` run produces, since the packages are not on a registry
-yet — then create a configuration:
+Install `@solid-gpui/core` and `@solid-gpui/vite` from the same npm release, with
+Vite 8 and `solid-js`, then create a configuration:
 
 ```ts
 import { defineConfig } from "vite";

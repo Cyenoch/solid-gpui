@@ -17,7 +17,7 @@ const chapters = [
     title: "Getting started",
     body: "Build a small app with the components you already expect: containers, text, buttons, and inputs. If you know Solid signals and JSX, you are ready to begin.",
     detail:
-      "Start by cloning the repository and following the installation guide for your platform. Run the native website, then change a component and see your app update. The example below shows the essentials: a signal, some text, and a click handler.",
+      "Follow the installation guide to install the SDK from npm and configure a matching native host. Start development, then change a component and see your app update. The example below shows the essentials: a signal, some text, and a click handler.",
     sample: "Counter",
   },
   {

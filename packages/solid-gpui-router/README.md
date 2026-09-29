@@ -3,6 +3,12 @@
 TanStack Router Core integration for Solid GPUI, with native links and
 memory history for each surface.
 
+```sh
+bun add --exact @solid-gpui/router
+```
+
+Use the same npm release as the application's `@solid-gpui/core` package.
+
 ## File-based routing
 
 Use `solidGpuiRouter()` from `@solid-gpui/router/vite` before the Solid GPUI JSX

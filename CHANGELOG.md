@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Adopted npm installation as the application-consumer path, added public scoped-package metadata, and aligned Shiki with the 0.3.0 SDK. Removed custom SDK/single-package packing tasks in favor of standard package-manager commands, retained packed-consumer verification, and corrected doctor binding-recovery commands. Added tag-triggered GitHub Actions publication through npm OIDC, separate verification/publish jobs, committed-version checks, and exact-archive partial-release recovery. Synchronized npm onboarding and release setup guidance in English and Chinese.
 - Released host child links on root teardown. Managed images now select failure fallbacks from the current prepaint request instead of carrying an earlier source's failure into a pending replacement or resized source-set candidate.
 - Released unused NativePlot path slots on primitive replacement.
 - Fixed strict image-test lint failures after integration: removed an unused import and initialized GIF regression frames directly, preserving their disposal, ordering, timing and pixel assertions.

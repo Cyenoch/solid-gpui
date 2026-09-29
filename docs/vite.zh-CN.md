@@ -54,7 +54,7 @@ QuickJS 使用 `EmbeddedTransport`，宿主需要启用 `quickjs`。
 
 ## 工程初始化
 
-安装 `@solid-gpui/core` 和 `solid-js`，将 `@solid-gpui/vite` 与 Vite 8 加入开发依赖。这些包尚未发布到公共 registry：请用同一份固定的 SDK checkout 执行 `bun run task sdk-pack <dir>`，并安装同一批次的 `solid-gpui-core.tgz` 与 `solid-gpui-vite.tgz`（见[入门](getting-started.zh-CN.md#1-安装)）。只有在包正式发布后才按名称安装；目前按名称安装什么都解析不到。原生开发工具运行在 Bun 1.4.2+
+从 npm 安装 `@solid-gpui/core` 和 `solid-js`，将 `@solid-gpui/vite`、Vite 8、TypeScript 与 `bun-types` 加入开发依赖。SDK 包保持同一发布版本（见[入门](getting-started.zh-CN.md#1-安装)）。原生开发工具运行在 Bun 1.4.2+
 下。在 `package.json` 中设置 `"type": "module"`，创建 `vite.config.ts`：
 
 ```ts

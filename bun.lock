@@ -80,7 +80,7 @@
     },
     "packages/solid-gpui-shiki": {
       "name": "@solid-gpui/shiki",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "shiki": "4.4.2",
       },

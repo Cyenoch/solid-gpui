@@ -262,6 +262,7 @@ const archivePaths = Object.fromEntries(
   packageSpecs.map((spec) => [spec.name, join(temporaryDir, spec.archiveName)]),
 ) as Record<(typeof packageSpecs)[number]["name"], string>;
 const consumerDir = join(temporaryDir, "consumer");
+const releaseVersion = (await Bun.file(join(corePackageDir, "package.json")).json()).version;
 
 try {
   for (const spec of packageSpecs) {
@@ -276,10 +277,24 @@ try {
     const packageJson = files.get("package/package.json");
     if (packageJson === undefined) throw new Error(`missing package manifest in packed ${spec.name}`);
     const manifest = JSON.parse(await packageJson.text()) as {
+      readonly version: string;
+      readonly publishConfig?: { readonly access?: string; readonly registry?: string };
+      readonly scripts?: Record<string, string>;
       readonly dependencies?: Record<string, string>;
       readonly peerDependencies?: Record<string, string>;
       readonly exports: Record<string, string | { readonly "solid-gpui-source"?: string }>;
     };
+    if (manifest.version !== releaseVersion) throw new Error(`packed ${spec.name} is not on SDK ${releaseVersion}`);
+    if (
+      manifest.publishConfig?.access !== "public" ||
+      manifest.publishConfig.registry !== "https://registry.npmjs.org/"
+    )
+      throw new Error(`packed ${spec.name} must publish publicly to npm`);
+    for (const hook of ["preinstall", "install", "postinstall", "prepare"]) {
+      if (manifest.scripts?.[hook]) throw new Error(`packed ${spec.name} must not run an install hook: ${hook}`);
+    }
+    if (spec.name !== "core" && manifest.peerDependencies?.["@solid-gpui/core"] !== `^${releaseVersion}`)
+      throw new Error(`packed ${spec.name} must require core ^${releaseVersion}`);
     for (const [specifier, entry] of Object.entries(manifest.exports)) {
       const source = typeof entry === "object" ? entry["solid-gpui-source"] : undefined;
       if (source && !files.has(`package/${source.replace(/^\.\//, "")}`))

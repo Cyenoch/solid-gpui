@@ -60,8 +60,12 @@ jobs:
       - name: Run candidate development checks
         run: bun run ci
 
-      - name: Pack candidate SDK tarballs (no publish)
-        run: bun run task sdk-pack "$RUNNER_TEMP/solid-gpui-sdk"
+      - name: Pack npm release candidates (no publish)
+        run: |
+          mkdir -p "$RUNNER_TEMP/solid-gpui-sdk"
+          for package in solid-gpui solid-gpui-vite solid-gpui-router solid-gpui-shiki; do
+            (cd "packages/$package" && bun pm pack --destination "$RUNNER_TEMP/solid-gpui-sdk" --quiet)
+          done
 
       - name: Upload candidate package tarballs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

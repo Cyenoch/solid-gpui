@@ -2,6 +2,13 @@
 
 SolidJS universal renderer for native GPUI surfaces.
 
+```sh
+bun add --exact @solid-gpui/core solid-js
+```
+
+Install matching SDK releases from npm. The native host is supplied separately;
+see [Getting started](https://github.com/Cyenoch/solid-gpui/blob/main/docs/getting-started.md).
+
 ```ts
 import { Text, View, createRoot } from "@solid-gpui/core";
 import { StdioTransport } from "@solid-gpui/core/stdio";

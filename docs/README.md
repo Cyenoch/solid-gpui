@@ -7,7 +7,7 @@ guides, components, and Showcase apps. Read the guides below or
 Use this order:
 
 1. [`../README.md`](../README.md) — project overview and a small TSX example.
-2. [`getting-started.md`](getting-started.md) — the authoritative external-consumer sequence: install, prepare, typecheck, develop, test, build, preview, plus the Cargo requirements your workspace root must carry. The SDK is not on a public registry yet, so it starts by packing tarballs from one pinned checkout.
+2. [`getting-started.md`](getting-started.md) — the authoritative external-consumer sequence: install from npm, prepare, typecheck, develop, test, build, preview, plus the matching native source and Cargo requirements your workspace root must carry.
 3. [`../CONTEXT.md`](../CONTEXT.md) — shared domain vocabulary and invariants.
 4. [`vite.md`](vite.md) — plugin options, artifact lookup, the published test runner, source consumption, and native module generation.
 5. [`protocol.md`](protocol.md) — authoritative framed Bebop v6 contract, bounded decoding, and generated binding workflow.
@@ -41,6 +41,7 @@ References:
 
 - [Project brand assets](../assets/branding/README.md) — approved icon and generated Web and desktop formats.
 - [Continuous integration](ci.md) — workflow triggers, dependency caches, audits, and manual release qualification.
+- [Publishing npm packages](npm-release.md) — lockstep versions, package verification, standard npm publication, and matching Rust sources.
 - [Router](router.md) — file-based routing setup, native navigation, and TanStack references.
 - [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.

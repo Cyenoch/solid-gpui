@@ -2,15 +2,14 @@
 
 ## `@solid-gpui/*` 无法从 registry 解析
 
-SDK 包尚未发布到 npm，因此 `bun add @solid-gpui/core` 没有可解析的目标。请从同一份固定 checkout 打出配套 tarball 再安装：
+检查请求的包和版本是否已发布，以及 `@solid-gpui` scope 是否指向 `https://registry.npmjs.org/`。文档中的安装路径要求版本已经发布：
 
 ```sh
-bun run task sdk-pack ../sdk-tarballs     # 在 SDK checkout 中
-bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
-bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
 ```
 
-请确保所有 `@solid-gpui/*` 包来自同一次 `sdk-pack`，使 SDK 处于同一修订。`solid-gpui` Rust crate 同样从该 checkout 以 path 或 git 依赖消费，而不是来自 registry。只有在正式发布之后，按名称安装才是正确做法；其余步骤不变。若要直接基于 SDK 源码运行，请使用显式的 [solid-gpui-source 条件](vite.zh-CN.md#从源码消费包)。
+所有 `@solid-gpui/*` 包保持同一发布版本，Rust 宿主使用该版本的准确源码修订。重新生成原生绑定无法修复 registry 404。版本不可用时应等待发布，或在 SDK 仓库中进行贡献者开发。调试已安装包的 SDK 源码时使用显式的 [solid-gpui-source 条件](vite.zh-CN.md#从源码消费包)。
 
 ## 任务 CLI 无法解析包
 

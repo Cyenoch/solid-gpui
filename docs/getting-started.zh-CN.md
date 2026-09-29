@@ -12,32 +12,23 @@
 
 - **Bun 1.4.2 或更高版本。** Vite 与 `solid-gpui` 工具都在 Bun 下运行；用 `bun --bun vite` 启动 Vite。
 - **仅在应用构建 Rust 宿主时需要 Rust 工具链。** 用 rustup 安装 `rust-toolchain.toml` 指定的工具链，并安装平台原生构建依赖。参见[构建环境](distribution.zh-CN.md#构建环境)。
-- **消费方工作区根需包含 SDK 的 Cargo 要求。** 你的宿主 crate 通过 path 或 git 依赖同一份固定 checkout 中的 `solid-gpui` crate（目前未发布到 registry）。Cargo 会忽略依赖内声明的 profile 设置，因此消费方工作区根必须带上本仓库 `Cargo.toml` 中的 `[patch.crates-io]` gpui-pre 条目与 debug profile（QuickJS 宿主还需 `rquickjs-sys`）。`solid-gpui doctor` 会推导当前生效的依赖、profile 与 patch 要求并报告不一致。
+- **消费方工作区根需包含 SDK 的 Cargo 要求。** 你的宿主 crate 通过 path 或 git 依赖与所安装 npm 版本对应的 checkout 中的 `solid-gpui` crate（目前未发布到 crates.io）。Cargo 会忽略依赖内声明的 profile 设置，因此消费方工作区根必须带上本仓库 `Cargo.toml` 中的 `[patch.crates-io]` gpui-pre 条目与 debug profile（QuickJS 宿主还需 `rquickjs-sys`）。`solid-gpui doctor` 会推导当前生效的依赖、profile 与 patch 要求并报告不一致。
 
 ## 1. 安装
 
-SDK 尚未发布到公共 registry：`@solid-gpui/core` 与 `@solid-gpui/vite` 目前无法从 npm 解析，`solid-gpui` Rust crate 也从 checkout 消费。请用同一份固定的 SDK checkout 打包出配套 tarball 后安装，不要混用不同批次的版本。
-
-在 SDK checkout 中：
-
-```sh
-bun install --frozen-lockfile
-bun run task sdk-pack ../sdk-tarballs
-```
-
-它会写出 `solid-gpui-core.tgz`、`solid-gpui-vite.tgz`、`solid-gpui-router.tgz` 与 `solid-gpui-shiki.tgz`，且不编译原生宿主。
-
-在你的应用中：
+在应用中从 npm 安装 JavaScript 包：
 
 ```sh
 bun init
-bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
-bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
 ```
 
-`package.json` 保持 `"type": "module"`。`@solid-gpui/core` 是渲染器与组件包；`@solid-gpui/vite` 提供 Vite 插件、`solid-gpui` CLI 与测试入口。需要时从同一批次加入 `@solid-gpui/router` 与 `@solid-gpui/shiki`；拉取新的 SDK 修订后重新运行 `sdk-pack` 并重装。
+`package.json` 保持 `"type": "module"`。`@solid-gpui/core` 是渲染器与组件包；`@solid-gpui/vite` 提供 Vite 插件、`solid-gpui` CLI 与测试入口。需要时加入同一 SDK 版本的 `@solid-gpui/router` 与 `@solid-gpui/shiki`。所有 `@solid-gpui/*` 包固定为相同版本，提交应用 lockfile，并与原生宿主源码一起升级。
 
-将来这些包发布到 registry 后可按名称安装，其余步骤不变；目前并非如此。直接调试 SDK 源码是另一个显式选项，见[源码消费](vite.zh-CN.md#从源码消费包)。
+安装命令要求对应版本已发布；这里描述 npm 正式发布路径，并不表示已经完成发布。registry 返回 404 表示包或版本尚不可用，见[故障排查](troubleshooting.zh-CN.md)。维护者使用[发布 npm 包](npm-release.zh-CN.md)中的标准命令准备和发布。
+
+npm 包包含 JavaScript、类型声明和 SDK 源码，不包含 Rust 工具链、原生宿主可执行文件或 vendored Cargo 依赖。使用 `native` 时，Rust 依赖和前述 workspace patches 必须来自该版本准确源码修订的 SDK checkout；既有 `host` 可执行文件也必须与之匹配。直接调试 SDK 源码是另一个显式选项，见[源码消费](vite.zh-CN.md#从源码消费包)。
 
 ## 2. 配置 Vite 与 TypeScript
 

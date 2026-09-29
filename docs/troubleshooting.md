@@ -2,21 +2,19 @@
 
 ## `@solid-gpui/*` does not resolve from a registry
 
-The SDK packages are not published to npm yet, so `bun add @solid-gpui/core` has
-nothing to resolve. Pack matching tarballs from one pinned checkout and install
-those:
+Check that the requested package/version has been published and that the
+`@solid-gpui` scope resolves to `https://registry.npmjs.org/`. The documented
+installation path requires a published release:
 
 ```sh
-bun run task sdk-pack ../sdk-tarballs     # in the SDK checkout
-bun add ../sdk-tarballs/solid-gpui-core.tgz solid-js
-bun add -d ../sdk-tarballs/solid-gpui-vite.tgz vite
+bun add --exact @solid-gpui/core solid-js
+bun add -d --exact @solid-gpui/vite vite typescript bun-types
 ```
 
-Keep every `@solid-gpui/*` package from one `sdk-pack` run so the SDK is a single
-revision. The `solid-gpui` Rust crate is likewise consumed from that checkout as a
-path or git dependency rather than from a registry. Installing a package by name
-becomes correct only once publication happens; the rest of the sequence does not
-change. To run against SDK sources directly instead, use the explicit
+Keep every `@solid-gpui/*` package on the same release and build the Rust host
+from that release's exact source revision. A registry 404 cannot be fixed by
+regenerating native bindings. If the release is not available, wait for publication
+or work in the SDK repository as a contributor. To debug installed SDK sources, use the explicit
 [solid-gpui-source condition](vite.md#consume-packages-from-source).
 
 ## The task CLI cannot resolve a package

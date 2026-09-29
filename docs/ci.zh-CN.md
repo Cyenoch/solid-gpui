@@ -40,10 +40,25 @@ Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一
 
 - [Website Packages](../.github/workflows/website-packages.yml) 在 macOS ARM64、Linux x86-64 和 Windows x86-64 上构建并验证原生归档。
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) 先执行开发检查和审计，再构建并冒烟测试解压后的进程宿主。
-- [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，再通过一次 `sdk-pack` 构建并上传四个包。带版本号的 artifact 内含 `solid-gpui-{core,vite,router,shiki}.tgz`。
+- [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，再对已构建的四个包使用标准 `bun pm pack` 命令。带版本号的 artifact 内含 `solid-gpui-{core,vite,router,shiki}-<version>.tgz`。自动发布由独立的 npm workflow 负责。
 - 手动运行 Embedded Bun 并启用 `candidate` 输入时，先完成轻量检查，再由独立的 macOS 26 作业编译 Bun、运行真实 VM 生命周期测试并验证内嵌发布宿主。
 
 这些工作流上传候选产物，不公开发布。已经压缩的归档上传时不再重复压缩。
+
+### 自动发布 npm 包
+
+[Publish npm packages](../.github/workflows/npm-publish.yml) 在推送 `v*` tag 时触发，
+仅接受稳定的 `vMAJOR.MINOR.PATCH`。它校验已提交版本、core peer 与 changelog，执行
+`package-ci` 和 `bun audit`，再使用 npm 打包。独立的 GitHub-hosted job 下载这些
+准确归档，通过 OIDC 发布并附带 provenance。只有该 job 拥有 `id-token: write`，
+并使用 `npm` environment。Actions 使用 SHA 固定，依赖安装在 publish job 外执行，
+发布串行且不取消正在进行的 release。重跑失败 job 仅跳过归档 integrity 完全一致的已发布包。
+
+为每个 npm 包配置 Trusted Publisher：`Cyenoch/solid-gpui`、workflow
+`npm-publish.yml`、environment `npm`，允许直接 `npm publish`。无需 npm token
+secret。新包需先完成一次手动首次发布才能配置 publisher。设置、首次发布、tag 和
+部分发布恢复见[发布 npm 包](npm-release.zh-CN.md)。打 tag 前仍需原生验证；npm job
+不构建或验证完整的原生应用 release。
 
 `bun run ci` 是开发检查入口。审计与发布验证使用独立命令，日常开发无需构建未使用的发布归档：
 

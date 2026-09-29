@@ -5,9 +5,8 @@ uses one persistent Worker and Shiki 4.4.2's Oniguruma engine. GPUI shapes and
 paints the text; no HTML, DOM or WebView is involved.
 
 ```sh
-# SDK packages are not published to a registry yet: pack them from one pinned
-# checkout with `bun run task sdk-pack <dir>` and install the tarballs together.
-bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
+# Keep the SDK packages on the same npm release.
+bun add --exact @solid-gpui/shiki @solid-gpui/core solid-js
 ```
 
 ```tsx
@@ -131,7 +130,8 @@ From this repository:
 bun run task package-build
 cargo run -p solid-gpui --bin solid-gpui-host -- \
   bun --conditions=browser packages/solid-gpui-shiki/examples/code-block.ts
-bun run task shiki-package-pack target/solid-gpui-shiki.tgz
+bun run task package-build
+(cd packages/solid-gpui-shiki && bun pm pack --dry-run)
 ```
 
 The example uses ordinary functions and needs no JSX compilation. It exercises

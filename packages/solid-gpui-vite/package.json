@@ -5,7 +5,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Cyenoch/solid-gpui.git"
+    "url": "https://github.com/Cyenoch/solid-gpui.git",
+    "directory": "packages/solid-gpui-vite"
+  },
+  "homepage": "https://cyenoch.github.io/solid-gpui/",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "module",
   "bin": {

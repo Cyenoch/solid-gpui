@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { chmod, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -433,6 +433,7 @@ class Tasks {
         "scripts/test-tooling.test.ts",
         "scripts/task-contract.test.ts",
         "scripts/release-prep.test.ts",
+        "scripts/npm-release.test.ts",
       ]),
     ]);
   }
@@ -445,47 +446,6 @@ class Tasks {
     await this.packageBuild();
     await run(["bun", "scripts/website-package.ts", ...(outputPath === undefined ? [] : ["--out", outputPath])]);
   }
-  async packagePack(outputPath: string): Promise<void> {
-    await this.corePackageBuild();
-    await this.packPackage(corePackageDir, outputPath);
-  }
-
-  async routerPackagePack(outputPath: string): Promise<void> {
-    await this.corePackageBuild();
-    await this.routerPackageBuild();
-    await this.packPackage(routerPackageDir, outputPath);
-  }
-
-  async vitePackagePack(outputPath: string): Promise<void> {
-    await this.install();
-    await this.buildVitePackage();
-    await this.packPackage(vitePackageDir, outputPath);
-  }
-
-  async shikiPackagePack(outputPath: string): Promise<void> {
-    await this.corePackageBuild();
-    await this.shikiPackageBuild();
-    await this.packPackage(shikiPackageDir, outputPath);
-  }
-
-  async sdkPack(outputPath: string): Promise<void> {
-    await this.packageBuild();
-    for (const [directory, name] of [
-      [corePackageDir, "core"],
-      [vitePackageDir, "vite"],
-      [routerPackageDir, "router"],
-      [shikiPackageDir, "shiki"],
-    ] as const) {
-      await this.packPackage(directory, join(outputPath, `solid-gpui-${name}.tgz`));
-    }
-  }
-
-  private async packPackage(directory: string, outputPath: string): Promise<void> {
-    const destination = resolve(repoRoot, outputPath);
-    await mkdir(dirname(destination), { recursive: true });
-    await run(["bun", "pm", "pack", "--filename", destination, "--quiet"], { cwd: directory });
-  }
-
   async nativeCI(): Promise<void> {
     await this.nativeCheckCI();
     await this.nativeTestCI();
@@ -697,13 +657,6 @@ addTask("package-typecheck", "Typecheck TypeScript packages", () => tasks.packag
 addTask("api-surface", "Generate public API surface fixtures", () => tasks.apiSurface());
 addTask("package-test", "Run TypeScript package tests", () => tasks.packageTest());
 addTask("package-pack-smoke", "Smoke test packed TypeScript packages", () => tasks.packagePackSmoke());
-addTask("package-pack <output>", "Pack core package", (output) => tasks.packagePack(output));
-addTask("vite-package-pack <output>", "Pack Vite package", (output) => tasks.vitePackagePack(output));
-addTask("router-package-pack <output>", "Pack router package", (output) => tasks.routerPackagePack(output));
-addTask("shiki-package-pack <output>", "Pack Shiki package", (output) => tasks.shikiPackagePack(output));
-addTask("sdk-pack <output>", "Build and pack the matching SDK packages without compiling native hosts", (output) =>
-  tasks.sdkPack(output),
-);
 addTask("native-ci", "Run the native, protocol, and Rust CI suite", () => tasks.nativeCI());
 addTask("native-check-ci", "Check native formatting, schemas, feature configurations, and bindings", () =>
   tasks.nativeCheckCI(),

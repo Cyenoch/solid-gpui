@@ -6,12 +6,11 @@ Bun Worker. QuickJS is not supported yet.
 
 ## Install and initialize
 
-The SDK packages are not on a public registry yet; install the tarballs packed by
-`bun run task sdk-pack <dir>` from one pinned checkout
+Install the packages from npm using the same SDK release
 (see [Getting started](getting-started.md#1-install)):
 
 ```sh
-bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
+bun add --exact @solid-gpui/shiki @solid-gpui/core solid-js
 ```
 
 Create one service per application or explicitly owned feature, before mounting:

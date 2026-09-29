@@ -1842,6 +1842,6 @@ These package manifests declare their project-owned licenses and are not third-p
 | --- | --- | --- | --- |
 | @solid-gpui/core | 0.3.0 | MIT | local (project-owned) |
 | @solid-gpui/router | 0.3.0 | MIT | local (project-owned) |
-| @solid-gpui/shiki | 0.2.0 | MIT | local (project-owned) |
+| @solid-gpui/shiki | 0.3.0 | MIT | local (project-owned) |
 
 **Total project-owned Bun packages: 3.**

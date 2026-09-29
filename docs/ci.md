@@ -93,15 +93,36 @@ Release builds and archives run on demand:
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) runs
   development checks and audits, then builds and smokes the extracted process host.
 - [Release Prep](../.github/workflows/release-prep.yml) synchronizes a candidate
-  version, runs checks and audits, then uses one `sdk-pack` invocation to build
-  and upload the core, Vite, router, and Shiki tarballs. The version-labelled
-  artifact contains `solid-gpui-{core,vite,router,shiki}.tgz`.
+  version, runs checks and audits, then uses standard `bun pm pack` commands on
+  the already-built core, Vite, router, and Shiki packages. The version-labelled
+  artifact contains `solid-gpui-{core,vite,router,shiki}-<version>.tgz`.
+  Automatic publication is owned by the separate npm workflow below.
 - Run Embedded Bun with its `candidate` input enabled to also rehearse the
   embedded release host. After the lightweight checks, a separate macOS 26 job
   builds Bun and runs the real VM lifecycle tests before the release smoke.
 
-These workflows upload candidates without publishing releases. Already compressed
+These qualification workflows upload candidates without publishing releases. Already compressed
 archives are uploaded without another compression pass.
+
+### Automatic npm publication
+
+[Publish npm packages](../.github/workflows/npm-publish.yml) runs on pushed `v*`
+tags and accepts only `vMAJOR.MINOR.PATCH` stable releases. It checks committed
+versions, core peers and changelog against the tag, runs `package-ci` and
+`bun audit`, and packs all four packages with npm. A separate GitHub-hosted job
+downloads those exact archives and publishes through OIDC with provenance.
+Only that job has `id-token: write` and uses the `npm` environment. Actions are
+SHA-pinned, dependency installation runs outside the publish job, and publication
+runs are serialized without cancelling an active release. Re-running failed jobs
+skips only already-published packages with identical archive integrity.
+
+Configure each npm package's trusted publisher for `Cyenoch/solid-gpui`, workflow
+`npm-publish.yml`, environment `npm`, and direct `npm publish`. No npm token secret
+is needed. New packages require one initial manual publication before their
+trusted publishers can be configured. See [Publishing npm packages](npm-release.md)
+for setup, first publication, tagging, and partial-release recovery. Native
+qualification remains a prerequisite before tagging; the npm job does not build
+or qualify full native application releases.
 
 `bun run ci` is the development gate. Audits and release qualification are explicit
 commands so normal development does not build unused release archives:

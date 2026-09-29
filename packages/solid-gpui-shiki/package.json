@@ -1,11 +1,17 @@
 {
   "name": "@solid-gpui/shiki",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shiki syntax highlighting for native Solid GPUI code blocks.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Cyenoch/solid-gpui.git"
+    "url": "https://github.com/Cyenoch/solid-gpui.git",
+    "directory": "packages/solid-gpui-shiki"
+  },
+  "homepage": "https://cyenoch.github.io/solid-gpui/",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "module",
   "main": "./dist/index.js",

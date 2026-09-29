@@ -478,7 +478,7 @@ function sourceMappingCheck(context: DoctorContext): DoctorCheck {
   });
   if (missingBindings.length > 0) {
     return check("source-mapping", "fail", `generated host bindings are missing: ${missingBindings.join(", ")}`, {
-      hint: "run `solid-gpui generate` to write the bindings for the selected host",
+      hint: "run `solid-gpui prepare` to write the bindings for the selected host",
     });
   }
   if (context.mode === "source" && unexported.length > 0) {
@@ -556,7 +556,7 @@ function hostPackageCheck(context: DoctorContext): DoctorCheck {
   }
   if (context.nativeOutput !== undefined && !existsSync(resolve(context.root, context.nativeOutput))) {
     return check("host-package", "warn", `host bindings are not generated yet: ${context.nativeOutput}`, {
-      hint: "run `solid-gpui generate`, or let the Vite plugin export them on the next build",
+      hint: "run `solid-gpui prepare`, or let the Vite plugin export them on the next build",
     });
   }
   return check("host-package", "pass", `native host manifest present: ${context.nativeManifest}`);

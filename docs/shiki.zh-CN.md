@@ -4,10 +4,10 @@
 
 ## 安装与初始化
 
-SDK 包尚未发布到公共 registry；请安装由同一份固定 checkout 执行 `bun run task sdk-pack <dir>` 打出的 tarball（见[入门](getting-started.zh-CN.md#1-安装)）：
+从 npm 安装同一 SDK 发布版本的包（见[入门](getting-started.zh-CN.md#1-安装)）：
 
 ```sh
-bun add ../sdk-tarballs/solid-gpui-shiki.tgz ../sdk-tarballs/solid-gpui-core.tgz solid-js
+bun add --exact @solid-gpui/shiki @solid-gpui/core solid-js
 ```
 
 在挂载前，为应用或显式拥有生命周期的功能创建一个服务：
