@@ -69,7 +69,9 @@ tag 触发 npm workflow。CI 检查四个 manifest、core peer、Rust workspace 
 
 tag 同时提供匹配的 Rust 源码、vendor patches 和 workspace profiles；JavaScript
 包不包含这些原生构建输入。npm gate 验证 JS 包和最小 Rust exporter fixture，不替代
-打 tag 前的 native CI 与 release qualification，也不创建原生应用 release。
+打 tag 前的 native CI 与 release qualification。同一 tag 还触发独立的
+[Website Packages 工作流](ci.zh-CN.md)，将 macOS ARM64、Linux x86-64 和 Windows
+x86-64 的 Gallery Desktop 归档附加到 GitHub Release。npm 与桌面发布分别报告结果、分别重试。
 
 ## 首次发布
 

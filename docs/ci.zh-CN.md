@@ -36,14 +36,20 @@ Linux portal 依赖显式选择 Ashpd 的 `async-io` 后端，与 GPUI 保持一
 
 ## 发布验证
 
-发布构建与归档按需执行：
+发布构建与归档在 tag 推送或手动触发时执行：
 
-- [Website Packages](../.github/workflows/website-packages.yml) 在 macOS ARM64、Linux x86-64 和 Windows x86-64 上构建并验证原生归档。
+- [Website Packages](../.github/workflows/website-packages.yml) 在 macOS ARM64、Linux x86-64 和 Windows x86-64 上构建并验证 Gallery Desktop。推送稳定的 `vMAJOR.MINOR.PATCH` tag 后，三个平台全部通过才把归档和 SHA-256 文件上传到对应 GitHub Release。npm 发布独立运行，可分别重试。
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) 先执行开发检查和审计，再构建并冒烟测试解压后的进程宿主。
 - [Release Prep](../.github/workflows/release-prep.yml) 同步候选版本、执行检查和审计，再对已构建的四个包使用标准 `bun pm pack` 命令。带版本号的 artifact 内含 `solid-gpui-{core,vite,router,shiki}-<version>.tgz`。自动发布由独立的 npm workflow 负责。
 - 手动运行 Embedded Bun 并启用 `candidate` 输入时，先完成轻量检查，再由独立的 macOS 26 作业编译 Bun、运行真实 VM 生命周期测试并验证内嵌发布宿主。
 
-这些工作流上传候选产物，不公开发布。已经压缩的归档上传时不再重复压缩。
+手动运行 Website Packages 时，留空 `tag` 仅上传候选产物；补发已有版本可运行：
+
+```sh
+gh workflow run website-packages.yml --ref main -f tag=v0.4.0
+```
+
+工作流检出指定 tag 并验证已提交的发布版本。只有最终上传 job 有 `contents: write`，校验三个归档后按需创建 draft release，上传六个文件再公开发布。保留已有 release notes，重跑替换同名附件，不取消正在执行的发布。启动方式和签名状态见[分发指南](distribution.zh-CN.md)。其他验证工作流只上传候选产物；已压缩归档不再重复压缩。
 
 ### 自动发布 npm 包
 

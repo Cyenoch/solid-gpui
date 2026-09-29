@@ -82,7 +82,10 @@ The tag also identifies the matching Rust sources, vendor patches, and workspace
 profiles. JavaScript package installation does not install those native inputs.
 The automated npm gate checks JS packages and minimal Rust exporter fixtures;
 it does not replace the native CI and release qualification required before
-tagging. It does not create native application releases.
+tagging. The separate [Website Packages workflow](ci.md#release-qualification)
+runs on the same tag and attaches Gallery Desktop archives for macOS ARM64,
+Linux x86-64, and Windows x86-64 to GitHub Releases. npm and desktop publication
+have independent results and retries.
 
 ## First publication
 

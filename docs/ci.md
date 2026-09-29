@@ -86,10 +86,13 @@ notice inventory.
 
 ## Release qualification
 
-Release builds and archives run on demand:
+Release builds run on tags or on demand:
 
 - [Website Packages](../.github/workflows/website-packages.yml) builds and verifies
-  native archives on macOS ARM64, Linux x86-64, and Windows x86-64.
+  Gallery Desktop archives on macOS ARM64, Linux x86-64, and Windows x86-64.
+  Pushed `vMAJOR.MINOR.PATCH` tags publish all three archives and their SHA-256
+  files to the matching GitHub Release after every platform passes. npm
+  publication runs independently; either workflow can be retried separately.
 - [Host Release Candidate](../.github/workflows/host-release-candidate.yml) runs
   development checks and audits, then builds and smokes the extracted process host.
 - [Release Prep](../.github/workflows/release-prep.yml) synchronizes a candidate
@@ -101,8 +104,22 @@ Release builds and archives run on demand:
   embedded release host. After the lightweight checks, a separate macOS 26 job
   builds Bun and runs the real VM lifecycle tests before the release smoke.
 
-These qualification workflows upload candidates without publishing releases. Already compressed
-archives are uploaded without another compression pass.
+Manual Website Packages runs without a `tag` input upload candidates only. To
+backfill a release, dispatch the workflow from `main` with an existing tag:
+
+```sh
+gh workflow run website-packages.yml --ref main -f tag=v0.4.0
+```
+
+The workflow checks out that exact tag and validates its committed release
+identity before building. Only the final upload job has `contents: write`; it
+checks all three archive checksums, creates a draft release if needed, attaches
+the six files, then publishes the release. Existing release notes are preserved;
+reruns replace matching assets. An active run is not cancelled by another run.
+See [distribution](distribution.md) for launch instructions and signing status.
+
+The other qualification workflows upload candidates without publishing releases.
+Already compressed archives are uploaded without another compression pass.
 
 ### Automatic npm publication
 

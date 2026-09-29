@@ -83,6 +83,14 @@ Iconify. Investigation records belong in `.scratch/`.
 
 ## Desktop development and packaging
 
+Download **Gallery Desktop** from [GitHub Releases](https://github.com/Cyenoch/solid-gpui/releases):
+macOS Apple Silicon (`.zip`), Linux x86-64 (`.tar.gz`, Ubuntu 24.04 baseline), and
+Windows x86-64 (`.zip`). No Bun or Node installation is required. Release tags
+build and attach all three archives plus SHA-256 files after extracted-app checks.
+macOS builds are ad hoc signed without notarization; Windows builds are unsigned.
+See [distribution](../../docs/distribution.md#build-and-verify) for launch
+instructions and desktop verification limits.
+
 ```sh
 bun run website:native:dev
 bun run --cwd examples/website generate:native

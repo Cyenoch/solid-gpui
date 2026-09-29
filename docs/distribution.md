@@ -109,7 +109,7 @@ the runtime. The router's small loading Snapshot alone cannot pass this check.
 | Windows with MSVC | `.zip` containing `solid-gpui-website.exe`     | Open the executable                                             |
 
 Archives identify the version and exact Rust target, such as
-`solid-gpui-website-0.2.0-aarch64-apple-darwin.zip`. They also include license
+`solid-gpui-website-0.4.0-aarch64-apple-darwin.zip`. They also include license
 notices, an internal `SHA256SUMS`, and this guide. Unix archives include the
 observed native library dependencies in `NATIVE-DEPENDENCIES.txt`. A checksum
 detects corruption; publisher authentication requires signing.
@@ -119,14 +119,21 @@ collection of third-party license texts. The package includes that inventory and
 the project's MIT `LICENSE`; assembling and verifying the complete
 redistribution notices remains release work before public distribution.
 
-The `Website Packages` workflow builds native candidates on macOS ARM64,
-Linux x86-64, and Windows x86-64 and uploads the verified archives. It is manually
-triggered for release qualification; normal pull requests use the development
-and cross-platform host checks. See [continuous integration](ci.md) for triggers,
-caching, and the other candidate workflows. Artifacts are
-unsigned candidates, not published releases. These checks do not establish
-display, GPU, accessibility, input-method, menu, or notification correctness on
-Windows/Linux. Qualify those behaviors on real desktop sessions before release.
+Download **Gallery Desktop** (the website's native desktop application) from
+[GitHub Releases](https://github.com/Cyenoch/solid-gpui/releases). The
+`Website Packages` workflow runs alongside npm publication on release tags.
+It builds macOS ARM64, Linux x86-64, and Windows x86-64 archives and attaches them
+with their `.sha256` files only after all three extracted applications pass the
+checks above. Linux builds use Ubuntu 24.04; macOS packages are Apple Silicon,
+not universal binaries. macOS uses an ad hoc signature without notarization;
+Windows packages are unsigned. OS download protection may require explicit user
+approval to open these test builds.
+
+Manual runs can upload candidates only or backfill an existing release tag;
+see [continuous integration](ci.md#release-qualification). Normal pull requests
+use the development and cross-platform host checks. Published archives are
+available for desktop testing: headless checks do not establish display, GPU,
+accessibility, input-method, menu, or notification correctness on real desktops.
 
 ## macOS
 

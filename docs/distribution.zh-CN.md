@@ -56,7 +56,9 @@ bundle 检查在真实 QuickJS VM 计算交付的 JavaScript，在统一 15 秒�
 
 THIRD-PARTY-NOTICES.md 是依赖清单，不是完整第三方许可文本集合。包中包含该清单及项目 MIT LICENSE；公开分发前仍需汇总并验证完整再分发说明。
 
-Website Packages 工作流在 macOS ARM64、Linux x86-64、Windows x86-64 构建并上传已验证候选包，发布验证时手动触发；普通 PR 执行开发和跨平台宿主检查。触发条件、缓存与其他候选工作流见[持续集成](ci.zh-CN.md)。产物是未签名候选，不是公开发布。检查不证明 Windows/Linux 的显示、GPU、无障碍、输入法、菜单或通知正确性，发布前需真实桌面验证。
+从 [GitHub Releases](https://github.com/Cyenoch/solid-gpui/releases) 下载 **Gallery Desktop**（website 的原生桌面应用）。Website Packages 工作流随版本 tag 触发，与 npm 发布并行；macOS ARM64、Linux x86-64、Windows x86-64 的解压自检全部通过后，才上传三个归档及对应 `.sha256` 文件。Linux 基线为 Ubuntu 24.04；macOS 为 Apple Silicon，不是通用二进制，仅有 ad hoc 签名、未经公证；Windows 未签名。系统下载保护可能要求用户明确允许打开测试版本。
+
+手动运行可仅上传候选或补发已有 tag，见[持续集成](ci.zh-CN.md)。普通 PR 执行开发和跨平台宿主检查。发布的归档用于真实桌面测试；无界面自检不证明显示、GPU、无障碍、输入法、菜单或通知行为正确。
 
 ## macOS
 
