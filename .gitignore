@@ -14,3 +14,4 @@ target/
 .DS_Store
 .xwin-cache/
 .solid-gpui/
+.openchamber/
