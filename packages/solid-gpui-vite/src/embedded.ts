@@ -45,49 +45,9 @@
  */
 
 export { EmbeddedPackagingError } from "./embedded/errors.ts";
-export {
-  EMBEDDED_GRAPH_TARGETS,
-  EMBEDDED_TARGETS,
-  embeddedEntryPointIdentity,
-  embeddedSourceRoot,
-  embeddedWorkerIdentity,
-  graphTargetSpec,
-  resolveEmbeddedTarget,
-} from "./embedded/targets.ts";
-export type {
-  EmbeddedGraphTarget,
-  EmbeddedGraphTargetSpec,
-  EmbeddedQualification,
-  EmbeddedTargetSpec,
-} from "./embedded/targets.ts";
-export {
-  extractGraphPayload,
-  packageEmbeddedGraph,
-  parseStandaloneGraph,
-  writeEmbeddedGraphArtifacts,
-} from "./embedded/graph.ts";
-export type {
-  EmbeddedEntryIdentity,
-  EmbeddedEntryRole,
-  EmbeddedGraph,
-  EmbeddedGraphFile,
-  PackageEmbeddedGraphOptions,
-  PackagedEmbeddedGraph,
-  WriteEmbeddedGraphOptions,
-} from "./embedded/graph.ts";
-export {
-  assertAbortPanicStrategy,
-  mergePatchTables,
-  mergeProfileTables,
-  resolveEmbeddedApplication,
-  writeGeneratedApplication,
-} from "./embedded/manifest.ts";
-export type {
-  EmbeddedApplication,
-  GeneratedApplication,
-  ResolvedApplication,
-  WriteGeneratedApplicationOptions,
-} from "./embedded/manifest.ts";
+export type { EmbeddedGraphTarget, EmbeddedQualification } from "./embedded/targets.ts";
+export type { EmbeddedEntryIdentity, EmbeddedEntryRole } from "./embedded/graph.ts";
+export type { EmbeddedApplication } from "./embedded/manifest.ts";
 export { packageEmbeddedApplication } from "./embedded/package.ts";
 export type {
   EmbeddedPackagingArtifacts,
@@ -95,7 +55,3 @@ export type {
   EmbeddedPackagingReport,
   EmbeddedProfile,
 } from "./embedded/package.ts";
-export { readPinnedBunBuild } from "./embedded/sdk.ts";
-export type { PinnedBunBuild } from "./embedded/sdk.ts";
-export { EMBEDDED_USAGE, runEmbeddedCommand } from "./embedded/command.ts";
-export type { EmbeddedCommandContext } from "./embedded/command.ts";

@@ -40,18 +40,17 @@ of at most `0.85` (ratio `0.7964`, a `20.36%` benefit) and the Event p95 guard.
 Its Event p95 ratio is `0.7626x` for CPU and `0.7250x` for wall time. Protobuf
 reaches only `1.98%` composite benefit and regresses Event p95; FlatBuffers
 reaches only `7.62%` composite benefit. MessagePack is the current baseline,
-not a migration candidate. The final evidence and calculation inputs are
-[the consolidated evaluation](../../.scratch/protocol-benchmark/comparison/evaluation.md)
-and the [final comparison result](../../.scratch/protocol-benchmark/comparison/results/comparison-final.json)
-(with the [rendered report](../../.scratch/protocol-benchmark/comparison/results/comparison-final.md)).
+not a migration candidate. These historical measurements summarize the original
+evaluation; its raw reports were local investigation artifacts and are not
+available in the checkout.
 
 ## Acceptance evidence
 
 The post-cutover production gate was rerun against the optimized production
 tree with five fresh processes, 20 warm-up rounds, 120 measured rounds, and
-the actual A/B/C/D directions. The [fresh machine-readable result](../../.scratch/protocol-benchmark/bebop/post-cutover/results/post-cutover-final.json)
-and [rendered report](../../.scratch/protocol-benchmark/bebop/post-cutover/results/post-cutover-final.md)
-supersede the prior failed Event-p95 run.
+the actual A/B/C/D directions. The recorded summary below superseded the prior
+failed Event-p95 run; it is historical evidence, not a reproducible benchmark
+artifact or a claim about current performance.
 
 - Weighted composite: `0.1566x` (limit `<=0.85`).
 - Weighted requested allocation bytes: `0.0527x`.

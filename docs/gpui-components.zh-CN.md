@@ -30,7 +30,7 @@ const [name, setName] = createSignal("");
 
 生成文件 `packages/solid-gpui/src/components.ts` 是 API 参考，不要手工修改。`bun run task native-codegen` 从真实 Rust 宿主生成 SDK 与 website 绑定，`bun run task native-codegen-check` 验证一致性。自定义组件、属性、事件和命令使用同一生成器。
 
-每个组件的文档都记录创建时间与上次更新时间。website 把这两个日期保存在 `examples/website/component-introduced.ts`，要求每个生成的组件都有记录，并在页面上显示该页最早的创建日期与最新的更新日期，以及每个 API Reference 条目自身的一对日期；页面复制的 Markdown 同样包含它们。创建日期位于标记窗口（`newBadgeWindowDays`）内、且不早于 `newBadgeEpoch` 时，组件导航与该组件页会标记 **New**（新增）；更早的日期永不标记，因此启用规则不会把既有目录一次性全部标记为新。为新组件撰写文档时补上当天日期，修改既有文档时更新其更新时间。
+网站从这些绑定生成 API 表，并根据 SDK 检查示例。示例与翻译来源见[网站内容索引](../examples/website/README.md#content-ownership)，发布变化见 [CHANGELOG.md](../CHANGELOG.md)。
 
 配置 Vite 的 `native` 或显式 `host` 后，`@solid-gpui/core/components` 与 Motion
 会使用所选宿主导出的组件契约。`native` 还会自动重建 Rust 变化并替换开发会话，

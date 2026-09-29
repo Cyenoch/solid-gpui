@@ -4,21 +4,15 @@
 
 编写方式与运行时选择独立：JavaScript 可直接运行，JSX/TSX 只使用 Vite 编译。Bun 保留自己的 API，运行时不选择第二套编译器。见 [Vite 集成](vite.zh-CN.md)。
 
-## 定位
+## 应用所有权
 
-| 运行时 | 主要定位 | 应用职责 |
-| --- | --- | --- |
-| 外部 Bun | 快速迭代，包括 Vite 热重载 | Bun 可以实现领域逻辑与服务，也可以调用 Rust Native Module |
-| 内嵌 Bun | 依赖 Bun 服务的应用以单一自包含可执行文件交付 | 保留 Bun 应用模型，在原生宿主内运行 Bun/JSC，并从镜像中直接执行应用 |
-| 内嵌 QuickJS | 主要能力由 Rust 实现的应用界面运行时 | JSX/TSX 负责界面组合、交互和响应式展示状态，Rust 负责领域能力与系统服务 |
-
-界面状态仍是真正的应用代码：信号、事件处理、路由、局部验证和展示计算应按需放在 JSX/TSX。QuickJS 的定位不是静态标记，而是让文件、网络、长期领域任务等主要能力由 Rust 实现，通过 Native Module 暴露，避免在 QuickJS 中重建 Bun/Node 服务。
+产品对比见[选择运行时](runtimes.zh-CN.md)。Solid 负责界面组合、交互与响应式展示状态。应用服务可以位于 Bun 或 Rust Native Module；QuickJS 应用使用 Rust 服务。
 
 三种模式共用 Solid 通用渲染器和原生契约。GPUI 始终负责窗口、输入、布局与绘制。应用职责分配和进程结构是两个独立决定，参见 [ADR-0017](adr/0017-runtime-engines.md)。
 
 ## 内嵌 Bun 静态产物
 
-`solid-gpui embedded package`（公开 CLI）、`@solid-gpui/vite/embedded` 的 `packageEmbeddedApplication`，以及本仓库 checkout 内的入口（`bun packages/solid-gpui-vite/src/embedded/command.ts`，npm 脚本 `embedded:package`）是同一驱动的三条入口。它为每个目标生成一个应用可执行文件：GPUI 宿主、Bun/JSC 运行时，以及序列化后的应用及其声明的资源和 Worker 入口，全部位于同一个原生镜像中。它不需要另行提供 Bun 或 Node 可执行文件、JavaScript 目录树、`node_modules` 或 Bun/JSC 动态库。消费方显式传入 `sdkRoot`（拥有固定 Bun/Rust 后端的 SDK checkout）与自己的 Cargo 输入（`application.manifest`、`.package`、`.features`、`.main`），因此不会复制任何仓库私有文件。固定版本的序列化器是**构建期**输入，不是运行时依赖；操作系统库及其他目标/配置特有的原生依赖仍需验证。该工作流整体保持实验性：没有任何目标被声明为受支持或已验证，唯一的验证证据是分发指南中的[平台状态表](distribution.zh-CN.md#平台状态与当前证据)。Windows 打包仍为实验性，Linux 仅到原生准备：命令、前置条件与发布步骤见[分发指南](distribution.zh-CN.md#内嵌-bun-静态应用)。
+打包器将 GPUI 宿主、Bun/JSC 与应用声明的模块图组合进单一原生镜像。公开入口与应用输入统一见[分发指南](distribution.zh-CN.md#内嵌-bun-静态应用)。
 
 ### 单一镜像，单一依赖图
 
@@ -56,20 +50,6 @@ Solid 应用仍由 Vite 编译。随后打包器用固定版本的 Bun 序列化
 - **Linux 打包仅为准备阶段**，公开的 Windows 支持在通过[验收门槛](distribution.zh-CN.md#windows-验收门槛)前保持实验性。
 
 打包限制的完整权威清单见[分发指南](distribution.zh-CN.md#运行时与打包限制)。
-
-## 构建期输入与目标机器要求
-
-| 输入或要求 | 构建机 | 目标机器 |
-| --- | --- | --- |
-| 固定版本 Bun 源码 | 需要：在该修订号上浅克隆并应用 `bun_embed.patch` 与内嵌覆盖 | 从不需要 |
-| 固定版本 Bun 可执行文件 | 作为序列化器使用；若报告的修订号与固定值不符则拒绝继续 | 从不需要，也不会被打包 |
-| 工具链 | Bun 固定版本对应的 rustup 工具链、Bun 图所需的 C/C++ 与 LLVM、Ninja 1.13.0，以及目标 sysroot/SDK | 不需要 |
-| 预编译 WebKit/JSC | 作为该目标变体的构建输入下载；不从源码编译 | 不作为附属文件分发，其代码已在可执行文件内 |
-| 应用 JavaScript | Vite 产物被序列化进图 | 可执行文件旁边不需要 |
-| 运行期文件 | — | 不需要任何 Bun 或 Node 文件；可执行文件本身就是应用 |
-| 操作系统库 | — | 原生镜像的正常系统依赖（窗口系统、GPU 驱动、系统提供的 ICU/DirectX 模块） |
-
-`--source`、`--macos-sdk`、`--deployment-target`、`--winsysroot`、`--base-executable`、`--main`、`--assets` 与 `--workers` 用于显式提供固定检出目录、交叉目标 sysroot、应用自有 Rust 宿主入口或目标平台的 Bun 基础可执行文件，而不是靠推断。跨目标序列化在没有 `--base-executable` 时会拒绝执行，因为固定版本并不保证可以静默下载另一个基础镜像。
 
 ## 预期流程
 

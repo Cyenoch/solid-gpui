@@ -1,6 +1,5 @@
 import { componentFamilies } from "./component-families.ts";
 import { componentGroups } from "./component-groups.ts";
-import { componentDocumentation, isNewComponent } from "./component-introduced.ts";
 import { previewNotes } from "./component-previews.ts";
 import { componentVariants } from "./component-variants.ts";
 import ts from "typescript-api";
@@ -34,8 +33,6 @@ export function componentEntries() {
       const name = declaration.name.getText(file);
       const example = componentExamples.find((example) => example.names.includes(name));
       if (!example?.descriptionChinese) throw new Error(`Missing component documentation: ${name}`);
-      const documentation = componentDocumentation[name];
-      if (!documentation) throw new Error(`Missing component documentation dates: ${name}`);
       const properties = fields(call.typeArguments![0]);
       const events = fields(call.typeArguments![1]);
       const commands = fields(call.typeArguments![2]);
@@ -47,8 +44,6 @@ export function componentEntries() {
       result.push({
         name,
         id: name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase(),
-        documentation,
-        isNew: isNewComponent(documentation.created),
         description: example.description,
         previewNote: previewNotes[name],
         previewWidth: /^(Table|DataTable|DockArea|Settings|Setting|Resizable|TextView|Editor|Message)/.test(name)
@@ -75,9 +70,6 @@ export function componentEntries() {
       });
     }
   }
-  const dated = new Set(result.map((entry) => entry.name));
-  const stale = Object.keys(componentDocumentation).filter((name) => !dated.has(name));
-  if (stale.length) throw new Error(`Documentation dates without a component: ${stale.join(", ")}`);
   return result;
 }
 
@@ -112,28 +104,15 @@ export function componentCatalog() {
       return {
         ...entry,
         group: groups.get(entry.name)!.label,
-        members: members.map(({ name, id, documentation, isNew, properties, events, commands, slots, children }) => ({
+        members: members.map(({ name, id, properties, events, commands, slots, children }) => ({
           name,
           id,
-          documentation,
-          isNew,
           properties,
           events,
           commands,
           slots,
           children,
         })),
-        documentation: {
-          created: members
-            .map((member) => member.documentation.created)
-            .sort()
-            .at(0)!,
-          updated: members
-            .map((member) => member.documentation.updated)
-            .sort()
-            .at(-1)!,
-        },
-        isNew: members.some((member) => member.isNew),
         examples: [
           ...new Map(members.flatMap((member) => member.examples).map((example) => [example.source, example])).values(),
         ],

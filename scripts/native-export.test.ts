@@ -3,10 +3,10 @@ import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { build } from "vite";
-import { exportNativeBindings } from "../packages/solid-gpui-vite/src/native-export";
+import { exportHostBindings } from "../packages/solid-gpui-vite/src/native-export";
 import { solidGpui } from "../packages/solid-gpui-vite/src";
 
-test("Vite exports an actual Rust host before resolving #native, preserves stable outputs and rejects stale/failed generation", async () => {
+test("Vite builds an actual Rust host and exports its catalog before resolving #native", async () => {
   const directory = await mkdtemp(join(tmpdir(), "solid-native-export-"));
   const manifestPath = join(directory, "Cargo.toml");
   const source = join(directory, "src/main.rs");
@@ -43,19 +43,6 @@ test("Vite exports an actual Rust host before resolving #native, preserves stabl
     expect(code, stderr).toBe(0);
     expect(stdout.trim()).toBe("42");
     expect(await readFile(output, "utf8")).toBe("export const answer = 42;\n");
-    const before = await stat(output);
-    await exportNativeBindings({ manifestPath, output });
-    expect((await stat(output)).ino).toBe(before.ino);
-    await exportNativeBindings({ manifestPath, output, check: true });
-    await writeFile(output, "export const stale = true;\n");
-    await expect(exportNativeBindings({ manifestPath, output, check: true })).rejects.toThrow("stale or missing");
-    expect(await readFile(output, "utf8")).toContain("stale");
-    await writeFile(source, 'fn main() { println!("export const =;"); }');
-    await expect(exportNativeBindings({ manifestPath, output })).rejects.toThrow("Failed to format native bindings");
-    expect(await readFile(output, "utf8")).toBe("export const stale = true;\n");
-    await writeFile(source, "fn main() { std::process::exit(7); }");
-    await expect(exportNativeBindings({ manifestPath, output })).rejects.toThrow();
-    expect(await readFile(output, "utf8")).toContain("stale");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -113,11 +100,27 @@ console.log(\`\${answer}:\${catalog}\`);
     expect(first.code, first.stderr).toBe(0);
     expect(first.stdout).toBe("7:7");
 
+    const configuredHost = { command: process.execPath, args: [host] };
+    const before = await stat(generated);
+    await exportHostBindings(configuredHost, { output: generated });
+    expect((await stat(generated)).ino).toBe(before.ino);
+    await exportHostBindings(configuredHost, { output: generated, check: true });
+
     // A rebuilt host supplies its new catalog, at the default or an overridden output.
     await writeFile(host, hostSource(9));
     await buildHost("src/host-catalog.ts");
     expect(await readFile(join(directory, "src/host-catalog.ts"), "utf8")).toBe("export const answer = 9;\n");
     expect((await runApplication()).stdout).toBe("9:9");
+
+    await expect(exportHostBindings(configuredHost, { output: generated, check: true })).rejects.toThrow(
+      "stale or missing",
+    );
+    expect(await readFile(generated, "utf8")).toBe("export const answer = 7;\n");
+    await writeFile(host, 'console.log("export const =;");');
+    await expect(exportHostBindings(configuredHost, { output: generated })).rejects.toThrow(
+      "Failed to format native bindings",
+    );
+    expect(await readFile(generated, "utf8")).toBe("export const answer = 7;\n");
 
     // A host without an exporter fails generation; the SDK's checked-in catalog never substitutes.
     await writeFile(host, 'console.error("missing --export-native support");\nprocess.exit(3);\n');

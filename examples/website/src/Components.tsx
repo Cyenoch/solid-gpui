@@ -19,9 +19,6 @@ type Entry = (typeof catalog)[number];
 type Field = Entry["properties"][number];
 /** A sidebar row: either a group caption or a component page. */
 type NavRow = { kind: "group"; label: string } | { kind: "entry"; entry: Entry };
-/** Documentation dates as one line, shared by the page, its API entries and copied Markdown. */
-const documented = (documentation: Entry["documentation"]) =>
-  `${t("Created")} ${documentation.created} · ${t("Updated")} ${documentation.updated}`;
 export function Components(props: {
   route: string;
   width: number;
@@ -80,7 +77,7 @@ export function Components(props: {
     "Next steps",
   ]);
   const source = () =>
-    `# ${current().name}\n\n${documented(current().documentation)}\n\n${description()}\n\n## Usage\n\n\`\`\`tsx\n${current().source}\`\`\`\n\n` +
+    `# ${current().name}\n\n${description()}\n\n## Usage\n\n\`\`\`tsx\n${current().source}\`\`\`\n\n` +
     current()
       .examples.map(
         (example) => `## ${t(example.title)}\n\n${t(example.description)}\n\n\`\`\`tsx\n${example.source}\n\`\`\``,
@@ -90,7 +87,7 @@ export function Components(props: {
     current()
       .members.map(
         (member) =>
-          `### ${member.name}\n\n${documented(member.documentation)}\n\n` +
+          `### ${member.name}\n\n` +
           [
             ["Properties", member.properties],
             ["Events", member.events],
@@ -194,7 +191,6 @@ export function Components(props: {
                       translate={false}
                       label={row.entry.name}
                       active={row.entry.id === current().id}
-                      isNew={row.entry.isNew}
                       onPress={() => navigate(row.entry)}
                     />
                   )
@@ -234,9 +230,6 @@ export function Components(props: {
                           </PageHeading>
                           <Copy size={16} color={colors.muted}>
                             {description()}
-                          </Copy>
-                          <Copy size={13} color={colors.muted}>
-                            {documented(current().documentation)}
                           </Copy>
                           <ComponentPreview
                             unavailable={current().previewNote}
@@ -369,9 +362,6 @@ export function Components(props: {
                                 ) : null}
                                 <Copy size={13} color={colors.muted}>
                                   {member.children ? "Accepts child content." : "Does not accept child content."}
-                                </Copy>
-                                <Copy size={13} color={colors.muted}>
-                                  {documented(member.documentation)}
                                 </Copy>
                                 {member.slots.length ? (
                                   <Copy size={13}>

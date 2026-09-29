@@ -2,20 +2,21 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { EmbeddedPackagingError, packageEmbeddedApplication } from "../packages/solid-gpui-vite/src/embedded";
 import {
-  EmbeddedPackagingError,
   assertAbortPanicStrategy,
+  mergePatchTables,
+  mergeProfileTables,
+  resolveEmbeddedApplication,
+  writeGeneratedApplication,
+} from "../packages/solid-gpui-vite/src/embedded/manifest";
+import {
   embeddedEntryPointIdentity,
   embeddedSourceRoot,
   embeddedWorkerIdentity,
-  mergePatchTables,
-  mergeProfileTables,
-  packageEmbeddedApplication,
-  resolveEmbeddedApplication,
   resolveEmbeddedTarget,
-  runEmbeddedCommand,
-  writeGeneratedApplication,
-} from "../packages/solid-gpui-vite/src/embedded";
+} from "../packages/solid-gpui-vite/src/embedded/targets";
+import { runEmbeddedCommand } from "../packages/solid-gpui-vite/src/embedded/command";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const fixtureRoot = join(repoRoot, "fixtures/embedded-custom-host");

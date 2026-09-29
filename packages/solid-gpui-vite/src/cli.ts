@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { doctor, formatDoctorReport } from "./doctor.ts";
-import { EMBEDDED_USAGE, runEmbeddedCommand } from "./embedded.ts";
+import { EMBEDDED_USAGE, runEmbeddedCommand } from "./embedded/command.ts";
 import { checkProject, prepareProject, previewApplication, type PreparedProject } from "./project.ts";
 import { runTests } from "./test.ts";
 

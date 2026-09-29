@@ -33,7 +33,9 @@ const [name, setName] = createSignal("");
 
 The generated file is the API reference: `packages/solid-gpui/src/components.ts`. Do not edit it. `bun run task native-codegen` generates SDK and website host bindings from their actual Rust hosts; `bun run task native-codegen-check` verifies them. Custom native components, props, events and commands use the same generator.
 
-Every component's documentation records when it was written and when it last changed. The website keeps both dates in `examples/website/component-introduced.ts`, requires them for every generated component, and shows the page's earliest creation and latest update date plus each API Reference entry's own pair — on the page and in the Markdown copied from it. A component is marked **New** in the component navigation while its creation date is inside the badge window (`newBadgeWindowDays`) and not before `newBadgeEpoch`; earlier dates are never marked, so the rule does not relabel an established catalog. Add the current date when you document a new component and bump the update date when you change one.
+The website derives API tables from those bindings and checks its examples against
+the SDK. See the [website content map](../examples/website/README.md#content-ownership)
+for example and translation sources, and [CHANGELOG.md](../CHANGELOG.md) for release changes.
 
 With Vite's `native` or explicit `host` option, `@solid-gpui/core/components` and
 Motion resolve their contracts from the configured host's exported bindings.

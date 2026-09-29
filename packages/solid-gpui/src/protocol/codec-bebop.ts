@@ -171,7 +171,7 @@ import type {
   TextInputEventData as SemanticTextInputEventData,
 } from "./types";
 import { validateExtensionFields, validateExtensionProperties, validateExtensionValue } from "./types";
-import { bytesFrom, FrameDecoder, framePayload, type FrameChunk } from "./frame";
+import { framePayload } from "./frame";
 import { encodeColor, validateStyle, type BoxShadowInput, type StyleProp } from "../style";
 import { ProtocolVersionMismatchError, validateEvent } from "./validate";
 
@@ -1713,27 +1713,4 @@ export function classifyPayload(payload: Uint8Array): MessageClassification {
     return { kind: "unknown" };
   }
 }
-export interface ProtocolCodec {
-  encodeFrame(message: OutboundMessage): Uint8Array;
-  push(chunk: FrameChunk): SemanticEvent[];
-}
-export class BebopProtocolCodec implements ProtocolCodec {
-  private readonly frames: FrameDecoder;
-  constructor(maxFrameSize?: number) {
-    this.frames = new FrameDecoder(maxFrameSize);
-  }
-  encodeFrame(message: OutboundMessage): Uint8Array {
-    return encodeFrame(message);
-  }
-  push(chunk: FrameChunk): SemanticEvent[] {
-    const events: SemanticEvent[] = [];
-    for (const payload of this.frames.push(bytesFrom(chunk))) {
-      const event = decodeEvent(payload);
-      if (event === null) throw new Error("received malformed event frame");
-      events.push(event);
-    }
-    return events;
-  }
-}
-
 export { framePayload, MAX_FRAME_SIZE, PROTOCOL_VERSION, EVENT_KIND, PATCH_KIND, SNAPSHOT_KIND };

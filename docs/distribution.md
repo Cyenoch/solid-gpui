@@ -239,6 +239,10 @@ where `application` is the application-owned Cargo input:
 package's features, and `main` is a Rust entry `include!`d into the generated bin
 crate.
 
+The public library exports `packageEmbeddedApplication`, `EmbeddedPackagingError`,
+and the types describing its inputs and report. Graph parsing, Cargo manifest
+merging, SDK pin discovery, and CLI dispatch are internal implementation details.
+
 The driver prepares a patched checkout of the pinned Bun revision, builds Bun's
 native graph against prebuilt WebKit, serializes the Vite-built application entry
 with the pinned Bun serializer, and compiles the application's Rust crate graph

@@ -114,6 +114,8 @@ desktop entry 按[Desktop Entry 标准](https://specifications.freedesktop.org/d
 其中 `application` 是应用自有的 Cargo 输入：`{ manifest, package, features?, main? }`。
 `manifest` 是应用清单（包或工作区根），`package` 是其包名，`features` 追加该包的 feature，`main` 是被 `include!` 进生成 bin crate 的 Rust 入口。
 
+公开库导出 `packageEmbeddedApplication`、`EmbeddedPackagingError` 及其输入和报告类型。模块图解析、Cargo 清单合并、SDK 固定版本发现和 CLI 分发属于内部实现。
+
 驱动在缓存目录准备带补丁的固定版本 Bun checkout，用 Bun 自己的构建脚本配合预编译 WebKit 构建原生图，用固定版本 Bun 序列化器序列化已构建的 Vite 入口，再把应用自身的 Rust crate 图与原生图一起编译。可执行文件写入 `--output` 并返回报告：输出路径及其 SHA-256、模块图 SHA-256、Rust triple 与图目标、profile、提取出的原生清单（若有）、类型化的 `entry` 身份（`role: "application"`、来源、身份）以及每个 `workers` 身份。生成的 Rust 暴露 `BUN_EMBEDDED_ENTRY` 与 `BUN_EMBEDDED_WORKERS`。打印结果中这些身份以 `Entry:` 与 `Worker:` 行给出虚拟图键。应用可用 `@solid-gpui/core/embedded` 的 `completeEmbedded(code)` 报告自身退出码（以 `supportsEmbeddedCompletion()` 探测支持），宿主经 `EmbeddedBunAdapter::result()` 读取，即使 VM 退出状态只有一个字节也能保留完整 `u32`。
 
 ### 静态打包输入

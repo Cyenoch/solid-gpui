@@ -1,8 +1,5 @@
 import { recipeChinese } from "../component-recipes/translations.zh-CN";
 export const chinese: Record<string, string> = {
-  New: "新增",
-  Created: "创建于",
-  Updated: "更新于",
   Horizontal: "横向",
   Vertical: "纵向",
   "Virtualized list": "虚拟化列表",

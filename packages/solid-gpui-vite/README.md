@@ -161,6 +161,14 @@ to Bun rather than this CLI. For renderer inspection and event/native-call
 interaction, use `TestHost` from `@solid-gpui/core/testing`; see the
 [testing guide](../../docs/vite.md#testing).
 
+## Embedded Bun packaging
+
+Use `packageEmbeddedApplication` from `@solid-gpui/vite/embedded` for an
+application-owned build script, or `solid-gpui embedded package` from the CLI.
+The library exposes the packaging operation, `EmbeddedPackagingError`, and its
+input/report types. See [distribution](../../docs/distribution.md#embedded-bun-static-applications)
+for inputs, examples, and experimental target qualification.
+
 ## Source consumption
 
 Ordinary use resolves to `dist`. To run against SDK sources, add the plugin and pass

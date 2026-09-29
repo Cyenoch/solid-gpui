@@ -11,19 +11,11 @@ JavaScript can run directly; JSX/TSX uses Vite, the sole application bundler.
 Bun retains Bun APIs in development and built applications. Runtime choice does
 not select a second compiler. See [Vite integration](vite.md).
 
-## Positioning
+## Application ownership
 
-| Runtime          | Primary role                                                              | Application responsibilities                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| External Bun     | Rapid iteration and development, including Vite hot reload                 | Bun may own domain logic and services, or call Rust Native Modules.                                                           |
-| Embedded Bun     | Production packaging for Bun applications as one self-contained executable | Keep the Bun application model while running Bun/JSC inside the native host and evaluating the application from the image.     |
-| Embedded QuickJS | UI runtime for applications whose main capabilities live in Rust          | JSX/TSX owns UI composition, interaction, and reactive presentation state; Rust owns domain capabilities and system services.   |
-
-UI state is still real application code: signals, event handlers, routing, local
-validation, and presentation calculations belong in JSX/TSX. The QuickJS role
-does not mean static markup; it means that files, networking, long-running domain
-work, and other principal capabilities are implemented in Rust and exposed
-through Native Modules instead of recreating Bun/Node services inside QuickJS.
+Use [Choose a runtime](runtimes.md) for the product comparison. Solid owns UI
+composition, interaction, and reactive presentation state. Application services
+may live in Bun or in Rust Native Modules; QuickJS applications use Rust services.
 
 All three modes use the same Solid universal renderer and native contracts. GPUI
 owns native windows, input, layout, and painting in every mode. Application
@@ -32,27 +24,9 @@ ownership and process topology are separate decisions, as recorded in
 
 ## Embedded Bun static product
 
-`solid-gpui embedded package` (public CLI), `packageEmbeddedApplication` from
-`@solid-gpui/vite/embedded`, and this repository's checkout-local entry
-(`bun packages/solid-gpui-vite/src/embedded/command.ts`, npm script
-`embedded:package`) are three routes to one driver. It produces one application executable per target: the
-GPUI host, the Bun/JSC
-runtime, and the serialized application with its declared assets and Worker
-entries, in a single native image. It needs no separate Bun or Node executable,
-JavaScript tree, `node_modules`, or Bun/JSC shared library. A consumer passes an
-explicit `sdkRoot` (the SDK checkout owning the pinned Bun/Rust backend) and its
-own Cargo input (`application.manifest`, `.package`, `.features`, `.main`), so no
-repository-private file is copied. The pinned serializer
-is a **build-time** input, not a runtime dependency. OS libraries and any other
-target/profile-specific native dependencies still need qualification. Everything
-in this workflow stays experimental; no target is claimed as supported or verified,
-and the [platform status
-table](distribution.md#platform-status-and-current-evidence) in the distribution
-guide is the only evidence. Windows
-packaging is experimental and Linux stops at native preparation — see that
-section for what each target has proven, and
-[distribution](distribution.md#embedded-bun-static-applications) for commands,
-prerequisites, and release steps.
+The packager combines the GPUI host, Bun/JSC, and the application's declared
+module graph in one native image. Public entrypoints and application inputs are
+documented in [distribution](distribution.md#embedded-bun-static-applications).
 
 ### One native image, one dependency graph
 
@@ -172,26 +146,6 @@ build rather than silently compile or substitute an unrelated engine.
 
 The full authoritative list of packaging limits is in
 [distribution](distribution.md#runtime-and-packaging-limits).
-
-## Build-time inputs and destination requirements
-
-| Input or requirement        | Build machine                                                                                                       | Destination machine                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Pinned Bun source           | Needed: shallow checkout at the pinned revision with `bun_embed.patch` and the embedding overlays applied.            | Never needed.                                                                                        |
-| Pinned Bun executable       | Needed as the serializer, and it fails closed unless it reports the pinned revision.                                  | Never needed; not embedded.                                                                          |
-| Toolchain                   | rustup toolchain from the Bun pin, C/C++ and LLVM for Bun's graph, Ninja 1.13.0, plus the target sysroot/SDK.        | Not needed.                                                                                          |
-| Prebuilt WebKit/JSC         | Downloaded as build input for the target variant; never compiled from source.                                        | Not shipped as a sidecar; its code is inside the executable.                                          |
-| Application JavaScript      | Vite output serialized into the graph.                                                                               | Not needed beside the executable.                                                                    |
-| Runtime files               | —                                                                                                                    | None from Bun or Node. The executable is the application.                                             |
-| OS libraries                | —                                                                                                                    | Normal system dependencies of the native image (window system, GPU driver, OS-provided ICU/DirectX modules). |
-
-The `--source`, `--macos-sdk`, `--deployment-target`, `--winsysroot`,
-`--base-executable`, `--main`, `--assets`, and `--workers` options exist so a
-pinned checkout, a cross-target sysroot, an application-specific Rust host entry,
-or a target-platform Bun base executable can be supplied explicitly instead of
-being inferred. Cross-target serialization refuses to proceed without
-`--base-executable`, because the pin does not cover a silent download of a
-different base.
 
 ## Intended workflow
 

@@ -22,7 +22,7 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **NoExtensions**: The default empty Extension Adapter Registry. It rejects an Extension whose catalog identity has no adapter before the candidate tree is published.
 
-**Commit Batch**: One atomic exchange produced after a completed Solid host update. Protocol v5 encodes the first update for a surface epoch as a complete Snapshot and later updates as a Patch. Host mutations are never exposed as partial wire state.
+**Commit Batch**: One atomic exchange produced after a completed Solid host update. The first update for a surface epoch is a complete Snapshot and later updates are Patches. Host mutations are never exposed as partial wire state.
 
 **Native Event**: A semantic notification from a native surface to the matching Solid root. It is ordered by surface, epoch, revision, and event sequence; it is not a browser event.
 
@@ -44,12 +44,11 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **Transactional Snapshot**: The host-facing description that is published only after validation succeeds. This follows the same useful ownership principle as GPUI Shell's script snapshot/materialization seam while retaining this project's cross-process protocol.
 
-**Golden Vector**: A checked fixture proving producer bytes and cross-language semantic equivalence for the canonical v5 schema.
+**Golden Vector**: A checked fixture proving producer bytes and cross-language semantic equivalence for the canonical wire schema.
 
-**Canonical Wire Schema**: `packages/solid-gpui/src/protocol/protocol.bop`, the single source for the Bebop v5 Envelope, body tags, command/event kinds, node fields, host properties, styles, menus, and typed command values. Checked TypeScript/Rust bindings and schema metadata are generated from it.
-**Schema Digest Lock**: `packages/solid-gpui/src/protocol/schema-lock.json` pins
-protocol version `5` and the SHA-256 digest of `protocol.bop`; generated
-bindings are checked against that canonical schema.
+**Canonical Wire Schema**: The single source for the wire Envelope, body tags, command/event kinds, node fields, host properties, styles, menus, and typed command values. Both languages' bindings derive from it; the current contract is documented in [Protocol](docs/protocol.md).
+
+**Schema Digest Lock**: The exact protocol version and schema digest that keep generated bindings aligned with the canonical wire schema.
 
 **Semantic Protocol DTOs**: Rust owns typed `CommandMeta`/`CommandOperation`,
 `EventMeta`/`EventPayload`, `Event::event_kind()`, and closed style enums.

@@ -86,13 +86,7 @@ const referenceNavigation = [...referenceDocs].sort(
   (a, b) => (referenceOrder.get(a.id) ?? referenceOrder.size) - (referenceOrder.get(b.id) ?? referenceOrder.size),
 );
 
-export function NavItem(props: {
-  label: string;
-  translate?: boolean;
-  active?: boolean;
-  isNew?: boolean;
-  onPress: () => void;
-}) {
+export function NavItem(props: { label: string; translate?: boolean; active?: boolean; onPress: () => void }) {
   const [hovered, setHovered] = createSignal(false);
   const [focused, setFocused] = createSignal(false);
   return (
@@ -100,7 +94,7 @@ export function NavItem(props: {
       focusable
       accessibilityRole="link"
       accessibilitySelected={props.active}
-      accessibilityLabel={props.isNew ? `${props.label} (New)` : props.label}
+      accessibilityLabel={props.label}
       onPress={props.onPress}
       onHoverChange={setHovered}
       onFocus={() => setFocused(true)}
@@ -139,26 +133,6 @@ export function NavItem(props: {
         >
           {props.label}
         </Copy>
-        {() =>
-          props.isNew ? (
-            <Copy
-              size={10}
-              color={colors.bg}
-              style={{
-                lineHeight: 15,
-                // The line box centres the font's ascent and descent, which leaves a
-                // cap-height label looking a pixel high; the asymmetric inset re-centres it.
-                paddingTop: 2,
-                paddingLeft: 5,
-                paddingRight: 5,
-                borderRadius: 4,
-                backgroundColor: colors.text,
-              }}
-            >
-              New
-            </Copy>
-          ) : null
-        }
       </View>
     </Pressable>
   );

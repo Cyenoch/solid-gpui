@@ -35,10 +35,7 @@ test("strict parser rejects malformed declarations instead of silently skipping 
   );
 });
 
-test("schema digest is deterministic for the exact source bytes", () => {
-  expect(schemaDigest("message Envelope { 1 -> uint32 protocolVersion; 2 -> uint32 body; }\n")).toBe(
-    schemaDigest("message Envelope { 1 -> uint32 protocolVersion; 2 -> uint32 body; }\n"),
-  );
+test("schema digest includes trailing whitespace in the source bytes", () => {
   expect(schemaDigest("message Envelope { 1 -> uint32 protocolVersion; 2 -> uint32 body; }\n")).not.toBe(
     schemaDigest("message Envelope { 1 -> uint32 protocolVersion; 2 -> uint32 body; }"),
   );
