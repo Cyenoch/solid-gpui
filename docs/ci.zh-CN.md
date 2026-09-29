@@ -51,6 +51,8 @@ gh workflow run website-packages.yml --ref main -f tag=v0.4.0
 
 工作流检出指定 tag 并验证已提交的发布版本。只有最终上传 job 有 `contents: write`，校验三个归档后按需创建 draft release，上传六个文件再公开发布。保留已有 release notes，重跑替换同名附件，不取消正在执行的发布。启动方式和签名状态见[分发指南](distribution.zh-CN.md)。其他验证工作流只上传候选产物；已压缩归档不再重复压缩。
 
+原生目录摘要包含嵌入的 Rust 源码字节，`.gitattributes` 因此固定 Rust 文件以 LF 检出。Windows 打包还在 checkout 前关闭 Git 自动 CRLF 转换，覆盖缺少 attributes 文件的旧 tag 补发；否则同一 commit 的宿主也可能拒绝已提交的 JS 绑定。
+
 ### 自动发布 npm 包
 
 [Publish npm packages](../.github/workflows/npm-publish.yml) 在推送 `v*` tag 时触发，

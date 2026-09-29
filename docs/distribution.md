@@ -46,6 +46,11 @@ in `rust-toolchain.toml`. Run builds from the repository root; the packaging tas
 installs the committed Bun workspace lock before building. Build on the operating
 system and architecture you intend to ship.
 
+Preserve LF line endings in Rust sources. This checkout enforces them through
+`.gitattributes`; when building older tags on Windows, set
+`git config --global core.autocrlf false` before cloning. Native contract hashes
+include embedded source bytes and must match the generated JavaScript bindings.
+
 - **macOS:** Install Xcode and select its developer directory. The selected
   toolchain must provide the macOS SDK, C/C++ compiler, and Metal tools. Verify
   `xcrun --sdk macosx --find clang`, `xcrun --sdk macosx --find metal`, and

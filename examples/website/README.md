@@ -91,6 +91,10 @@ macOS builds are ad hoc signed without notarization; Windows builds are unsigned
 See [distribution](../../docs/distribution.md#build-and-verify) for launch
 instructions and desktop verification limits.
 
+Rust checkout line endings must remain LF because native contract identities
+include source bytes. The repository attributes and Windows release workflow
+enforce this, including release backfills.
+
 ```sh
 bun run website:native:dev
 bun run --cwd examples/website generate:native

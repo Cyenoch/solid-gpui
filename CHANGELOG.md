@@ -6,6 +6,10 @@
 
 - Release tags now build Gallery Desktop (the website's standalone QuickJS application) for macOS ARM64, Linux x86-64, and Windows x86-64, then attach verified archives and SHA-256 files to GitHub Releases. Manual runs can backfill an existing tag or produce candidates only.
 
+### Fixed
+
+- Preserve LF Rust source checkouts so Windows desktop packages retain the native contract identities in committed JavaScript bindings. Release backfills disable automatic CRLF conversion before checking out older tags.
+
 ## [0.4.0]
 
 ### Upgrade notes

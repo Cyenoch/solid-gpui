@@ -1,0 +1,2 @@
+# Native contracts embed Rust source bytes and must match across build hosts.
+*.rs text eol=lf
