@@ -69,6 +69,11 @@ harness = false
 required-features = ["host"]
 
 [[test]]
+name = "host_background_platform"
+harness = false
+required-features = ["test-support"]
+
+[[test]]
 name = "host_embedded_counter"
 required-features = ["embedded-bun"]
 

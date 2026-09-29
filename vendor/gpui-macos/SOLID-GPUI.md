@@ -16,3 +16,15 @@ Window-movement corrections:
 
 Shared bounds invalidation and native qualification guidance live in
 [`docs/performance-analysis.md`](../../docs/performance-analysis.md).
+
+Blurred backgrounds (issue #3):
+
+- Use an ordinary `NSVisualEffectView` with Sidebar material and explicit
+  BehindWindow blending. Preserve Active state, content autoresizing and the
+  existing remove/recreate lifecycle behind the Metal view.
+- Remove the BlurredView subclass and its updateLayer override. AppKit owns
+  material layers, desktop tinting, saturation and accessibility adaptation;
+  no private layer classes or filter descriptions are inspected or mutated.
+- The desktop-only `host_background_platform` test covers the real host's native
+  material and view lifecycle. See the [background guide](../../docs/rust-bridge.md#macos-blurred-window-backgrounds)
+  for visual qualification and application alpha requirements.

@@ -99,6 +99,22 @@ solid_gpui::run_application_with_profile(profile, runtime);
 
 样式设置会覆盖 TitleBar 原生默认值，包括左内边距。全屏不会增加额外内边距。原生 TitleBar 处理空白区域拖拽与 macOS `titlebar_double_click`，遵循系统偏好。接管鼠标按下事件的控件不会触发标题栏拖拽或双击缩放；核心 `Pressable` 也会接管此原生默认动作。自定义标题栏的应用需要在 `solid-gpui` 之外同时依赖固定版本的 `gpui-component`。
 
+### macOS 窗口背景模糊
+
+创建时将 `WindowOptions::window_background` 设为 `WindowBackgroundAppearance::Blurred`，或在原生窗口代码中调用 `window.set_background_appearance(...)`。macOS 会在 GPUI Metal 视图后安装一个 AppKit `NSVisualEffectView`，使用 `Sidebar` 材质、`BehindWindow` 混合和 `Active` 状态，失焦后仍保持效果。`Opaque` 和 `Transparent` 都会移除效果；只有 `Opaque` 会恢复不透明原生窗口。
+
+GPUI 根节点/provider 背景与预期透明区域必须允许 alpha 透出。不透明的根节点、标题栏或侧栏会遮住原生效果。阅读/内容区可保持不透明；降低整个窗口的 opacity 还会淡化前景文字和控件，不是模糊设置。
+
+材质色调、饱和度、对比度和辅助功能行为由 AppKit 管理。外观随 macOS、浅色/深色模式、桌面颜色及“降低透明度”设置变化；不要依赖无色模糊或绕过系统设置。provider 遵循 Apple 的 [`NSVisualEffectView` 指南](https://developer.apple.com/documentation/appkit/nsvisualeffectview)，仅使用公开材质属性，不覆写 `updateLayer` 或修改私有 Core Animation 滤镜。
+
+需要桌面会话的生命周期检查：
+
+```sh
+cargo test --locked -p solid-gpui --features test-support --test host_background_platform
+```
+
+检查覆盖原生视图所有权、材质、混合、重复启用、移除、重建和调整尺寸。视觉验收还需在支持的 macOS 版本上，从干净进程启动，将高对比文字置于窗口后方，验证开关、重启、移动、缩放、焦点变化，以及“降低透明度”的开关状态。原生属性断言不能证明合成器的模糊质量。
+
 ## 请求取消与截止时间
 
 生成客户端方法的第二个参数是 `NativeCallOptions`：

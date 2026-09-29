@@ -2,12 +2,16 @@
 
 ## Unreleased
 
+## [0.4.1]
+
 ### Added
 
 - Release tags now build Gallery Desktop (the website's standalone QuickJS application) for macOS ARM64, Linux x86-64, and Windows x86-64, then attach verified archives and SHA-256 files to GitHub Releases. Manual runs can backfill an existing tag or produce candidates only.
 
 ### Fixed
 
+- Use AppKit's Sidebar material for macOS blurred window backgrounds and remove the custom visual-effect layer/filter rewriting. Native material tint and accessibility behavior remain system-owned; application content must allow alpha through to reveal the effect.
+- Restore the vendored GPUI line-clamp regression's font-generation setup so the GPUI test suite compiles against 0.3.7; reverified the existing window-movement invalidation fix.
 - Preserve LF Rust source checkouts so Windows desktop packages retain the native contract identities in committed JavaScript bindings. Release backfills disable automatic CRLF conversion before checking out older tags.
 
 ## [0.4.0]

@@ -9,7 +9,8 @@ Local changes:
   and use crate-relative test paths; the published crate refers outside its package.
 
 - Include the line limit in wrapped text cache identity, so changing a line clamp
-  cannot reuse incompatible geometry within or across frames.
+  cannot reuse incompatible geometry within or across frames. The regression
+  constructs the cache with the font-generation counter required by GPUI 0.3.7.
 
 - Preserve virtual List height hints on first layout and width changes. Width
   changes invalidate measured rows while retaining estimates for unmeasured

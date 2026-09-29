@@ -15,7 +15,7 @@ exclude = ["references/zed", "references/gpui-kit", "vendor/gpui-kit"]
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.4.0"
+version = "0.4.1"
 description = "Solid GPUI renders Solid trees into one or more native GPUI surfaces."
 keywords = ["solid", "gpui", "native-ui"]
 categories = ["gui"]

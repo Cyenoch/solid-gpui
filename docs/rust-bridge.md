@@ -161,6 +161,39 @@ or double-click zoom; core `Pressable` also claims that native default action.
 An application that customizes the titlebar adds the pinned `gpui-component`
 dependency alongside `solid-gpui`.
 
+### macOS blurred window backgrounds
+
+Set `WindowOptions::window_background` to `WindowBackgroundAppearance::Blurred`
+at creation, or call `window.set_background_appearance(...)` from native window
+code. On macOS this installs one AppKit `NSVisualEffectView` behind GPUI's Metal
+view, using the `Sidebar` material, `BehindWindow` blending and `Active` state.
+The effect remains active when the window loses focus. `Opaque` and `Transparent`
+remove the effect; only `Opaque` restores an opaque native window.
+
+The GPUI root/provider background and the intended translucent regions must allow
+alpha through. An opaque root, header or sidebar hides the native effect. Keep
+reading/content areas opaque where appropriate; reducing the whole window's
+opacity also fades foreground text and controls and is not a blur setting.
+
+AppKit owns the material tint, saturation, contrast and accessibility behavior.
+The appearance can vary with macOS, light/dark mode, desktop colors and **Reduce
+transparency**. Do not depend on a colorless blur or bypass system settings.
+The provider uses public material properties without overriding `updateLayer`
+or editing private Core Animation filters, following Apple's
+[`NSVisualEffectView` guidance](https://developer.apple.com/documentation/appkit/nsvisualeffectview).
+
+The display-backed lifecycle check is:
+
+```sh
+cargo test --locked -p solid-gpui --features test-support --test host_background_platform
+```
+
+It checks native view ownership, material, blending, repeated enable, removal,
+recreation and resizing. Visual acceptance additionally requires high-contrast
+text behind a cleanly launched window, off/on toggling, relaunch, movement,
+resizing, focus changes and Reduce transparency on/off on supported macOS
+versions. Native property assertions do not prove compositor blur quality.
+
 ## Request cancellation and deadlines
 
 Generated client methods accept a second `NativeCallOptions` argument:

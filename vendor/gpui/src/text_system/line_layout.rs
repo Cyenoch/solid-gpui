@@ -1084,7 +1084,10 @@ mod tests {
 
     #[test]
     fn changing_line_clamp_relayouts_within_and_across_frames() {
-        let cache = LineLayoutCache::new(Arc::new(crate::NoopTextSystem));
+        let cache = LineLayoutCache::new(
+            Arc::new(crate::NoopTextSystem),
+            Arc::new(AtomicUsize::new(0)),
+        );
         let text = "one two three four five six seven eight";
         let runs = [FontRun {
             len: text.len(),
