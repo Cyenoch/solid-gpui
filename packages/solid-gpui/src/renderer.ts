@@ -1,4 +1,5 @@
 import { generationHost, afterGenerationActivation } from "./generation";
+import { applyRef, type RefCallback } from "./refs";
 import type { NativeCallOptions } from "./native-call";
 import { createRoot as createSolidRoot, createSignal, runWithOwner, type Owner } from "solid-js";
 // The renderer is worthless without a client Solid instance to observe signals.
@@ -172,7 +173,15 @@ export function mountPopupSurface(
 
 function normalizeRefProps(props: HostProps): HostProps {
   const ref = props.ref;
-  if (ref === undefined || typeof ref === "function") return props;
+  if (ref == null || ref === false) return props;
+  if (typeof ref === "function" || Array.isArray(ref)) {
+    const callback = (node: HostNodeInternal): void => applyRef(ref as RefCallback<HostNodeInternal>, node);
+    return new Proxy(props, {
+      get(target, property, receiver) {
+        return property === "ref" ? callback : Reflect.get(target, property, receiver);
+      },
+    });
+  }
   if (typeof ref === "object" && ref !== null && "current" in ref) {
     const callback = (node: HostNodeInternal): void => {
       ref.current = node;
@@ -183,7 +192,7 @@ function normalizeRefProps(props: HostProps): HostProps {
       },
     });
   }
-  throw new TypeError("Solid GPUI ref must be a callback or mutable ref object");
+  throw new TypeError("Solid GPUI ref must be a callback, callback array, or mutable ref object");
 }
 
 export function createHostElement(type: HostKind, props: HostProps = {}): HostNodeInternal {

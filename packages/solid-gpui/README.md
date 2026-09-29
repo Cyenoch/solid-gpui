@@ -33,6 +33,11 @@ Import `For`, `Index`, `Show`, `Switch`, and `Match` from
 runtime implementations with native element types; direct `solid-js` control-flow
 declarations describe DOM children instead. Native JSX does not accept DOM nodes.
 
+JSX callback, forwarded, and assignment refs share the runtime's `applyRef` ABI.
+Callbacks preserve the Solid owner without tracking signal reads; nested callback
+arrays compose in order. See [JSX refs](../../docs/vite.md#jsx-refs) for handle
+types and cleanup semantics.
+
 `@solid-gpui/core/runtime` is the client entry for every reactive helper, taken
 from the one Solid instance the renderer uses:
 

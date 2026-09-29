@@ -92,6 +92,8 @@ export const setProp = solidRenderer.setProp;
 export const mergeProps = solidRenderer.mergeProps;
 export const use = solidRenderer.use;
 
+export { applyRef, type Ref } from "./refs";
+
 // Solid control flow is host-independent; these types describe native children.
 export type Component<Props = {}> = (props: Props) => SolidChild;
 

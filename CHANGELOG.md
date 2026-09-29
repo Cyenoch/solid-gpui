@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [0.5.1]
+
+### Fixed
+
+- Export the JSX compiler's `applyRef` helper from the public runtime so component callback, forwarded, and assignment refs load and build correctly. Support ordered nested callback arrays and expose `Ref<T>` for wrapper props.
+- Invoke host ref callbacks without reactive dependency tracking while preserving their Solid owner and `onCleanup` lifecycle. Verify real TSX from installed package archives through the public test runner and production Bun/QuickJS builds, including native VirtualList handle command replies.
+
+### Upgrade notes
+
+- Keep all four npm packages and matching native sources on 0.5.1. Ref callback return values are ignored; use `onCleanup` for cleanup. VirtualList and TextInput refs are invoked at mount and are not cleared at unmount.
+
 ## [0.5.0]
 
 ### Added

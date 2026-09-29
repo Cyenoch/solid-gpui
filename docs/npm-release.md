@@ -61,6 +61,9 @@ notices. The CI gate builds packages and runs the packed-consumer smoke: actual
 archives are installed in a temporary application to verify exports, types,
 Vite builds, native binding export, and the public test runner. Its minimal Rust
 exporter does not qualify native windows or platform rendering.
+The ref fixture compiles real TSX against installed archives through both the
+public test runner and production Bun/QuickJS bundles, verifying callback,
+forwarded, assignment, and array refs with native list command replies.
 
 Commit the release changes and merge them into `main`. Tag that checked commit:
 

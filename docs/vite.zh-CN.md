@@ -18,6 +18,23 @@ Solid GPUI 支持两种编写方式：直接写 JavaScript 并运行，或者写
 | **原生可执行文件** | Cargo（由插件 `native` 或你自己的构建触发） | 渲染 bundle 的 GPUI 宿主。                                                                                                                  |
 | **可分发包**       | 你自己的打包脚本                            | 可执行文件加 bundle、资源、许可与签名。见[分发](distribution.zh-CN.md)。                                                                    |
 
+## JSX ref
+
+固定版本的 JSX 编译器与 `@solid-gpui/core/runtime` 共享包含 `applyRef` 的 ref ABI。
+回调变量、`ref={props.capture}` 转发形式和 `ref={list}` 赋值形式均支持公开测试运行器
+与生产构建。`core` 与 `vite` 请使用相同 SDK 版本；0.5.1 修复了 0.5.0 缺少
+`applyRef` 导出的问题。
+
+ref 接收 SDK 宿主 handle，而非原始 GPUI 对象。回调同步执行，保留当前 Solid owner，
+且不收集响应式依赖。通过回调中的 `onCleanup` 注册 owner 生命周期清理；回调返回值
+会被忽略。`VirtualList` 与 `TextInput` 每次挂载调用一次 ref，卸载时不清空赋值目标，
+也不额外传入 `undefined`。生成的原生组件保留其既有的卸载通知（`undefined`）。
+
+ref 变量或转发属性也可以保存嵌套回调数组：按数组顺序将同一 handle 传给每个回调，
+跳过 `null`、`undefined` 和 `false`。请先将数组保存为变量，再传给 JSX ref。
+数组用于组合回调，不是赋值目标集合。包装组件可以使用 runtime 导出的 `Ref<T>`
+声明 ref 属性。完整示例见[英文指南](vite.md#jsx-refs)。
+
 ## 不用打包器的 JavaScript
 
 用 `createComponent` 和响应式 getter 代替 JSX：

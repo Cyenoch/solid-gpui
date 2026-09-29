@@ -363,6 +363,7 @@ try {
   await Promise.all([
     Bun.write(join(consumerDir, "core-runtime.js"), coreRuntimeSource),
     Bun.write(join(consumerDir, "view.tsx"), viewSource),
+    Bun.write(join(consumerDir, "jsx-refs.tsx"), Bun.file(join(vitePackageDir, "fixtures/jsx-refs.tsx"))),
     Bun.write(join(consumerDir, "router.ts"), routerSource),
     Bun.write(
       join(consumerDir, "generate-routes.ts"),
@@ -421,6 +422,8 @@ rolldownOptions: { output: { entryFileNames: process.env.SOLID_GPUI_OUTPUT } } }
   for (const [runtime, entry, output] of [
     ["bun", "view.tsx", "bun-app.js"],
     ["quickjs", "view.tsx", "quickjs-app.js"],
+    ["bun", "jsx-refs.tsx", "jsx-refs.js"],
+    ["quickjs", "jsx-refs.tsx", "quickjs-refs.js"],
     ["bun", "router.ts", "bundled-router.js"],
     ["bun", "shiki.ts", "bundled-shiki.js"],
   ]) {
@@ -431,6 +434,8 @@ rolldownOptions: { output: { entryFileNames: process.env.SOLID_GPUI_OUTPUT } } }
     });
   }
   await run(["bun", "dist/bundled-router.js"], consumerDir);
+  await run(["bun", "dist/jsx-refs.js"], consumerDir);
+  await run(["bun", "dist/quickjs-refs.js"], consumerDir);
   await run(["bun", "dist/bundled-shiki.js"], consumerDir);
   const typecheck = [
     "bunx",
@@ -511,13 +516,18 @@ test("installed tooling preserves JSX, assets, native imports and shared reactiv
     JSON.stringify({
       extends: "./.solid-gpui/tsconfig.json",
       compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, types: ["bun-types", "vite/client"] },
-      include: ["dx-app.tsx", "dx.test.tsx"],
+      include: ["dx-app.tsx", "dx.test.tsx", "jsx-refs.tsx", "jsx-refs.test.tsx"],
     }),
   );
   await run(["bun", "run", "solid-gpui", "prepare", "--config", "dx.config.ts"], consumerDir);
+  await Bun.write(
+    join(consumerDir, "jsx-refs.test.tsx"),
+    'import { test } from "bun:test"; test("published JSX ref ABI", async () => { await import("./jsx-refs"); });\n',
+  );
   await run(["bun", "run", "solid-gpui", "prepare", "--check", "--config", "dx.config.ts"], consumerDir);
   await run(["bunx", "--no-install", "tsc", "--project", "tsconfig.json"], consumerDir);
   await run(["bun", "run", "solid-gpui", "test", "--config", "dx.config.ts", "dx.test.tsx"], consumerDir);
+  await run(["bun", "run", "solid-gpui", "test", "--config", "dx.config.ts", "jsx-refs.test.tsx"], consumerDir);
   console.log("core, Vite, router and Shiki package tarball consumer smoke passed");
 } finally {
   await rm(temporaryDir, { recursive: true, force: true });

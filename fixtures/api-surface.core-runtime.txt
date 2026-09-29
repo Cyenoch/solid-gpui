@@ -1,6 +1,7 @@
 # api-surface-v1
 # name	kind
 Accessor	type
+applyRef	value
 batch	value
 catchError	value
 children	value
@@ -49,6 +50,7 @@ Owner	both
 Part	type
 produce	value
 reconcile	value
+Ref	type
 render	value
 Resource	type
 ResourceReturn	type

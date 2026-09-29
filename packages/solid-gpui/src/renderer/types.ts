@@ -1,4 +1,5 @@
 import type { NativeCallOptions } from "../native-call";
+import type { Ref } from "../refs";
 import type {
   AccessibilityProperties,
   CommandKind,
@@ -100,7 +101,7 @@ export interface TextInputProps extends AccessibilityProps {
   readonly maxLength?: number;
   readonly style?: StyleProp;
   readonly children?: SolidChild;
-  readonly ref?: (handle: TextInputHandle) => void;
+  readonly ref?: Ref<TextInputHandle>;
 }
 export interface TextInputEvent {
   readonly type: "change" | "selection" | "focus" | "blur";
@@ -133,7 +134,7 @@ export interface VirtualListProps<T> extends AccessibilityProps {
   readonly style?: StyleProp;
   /** Producer exposes the current data array by reference for delta baselines. */
   readonly __data?: readonly T[];
-  readonly ref?: (handle: VirtualListHandle) => void;
+  readonly ref?: Ref<VirtualListHandle>;
 }
 export interface VirtualListHandle extends HostNode {
   scrollToIndex(index: number): Promise<void>;

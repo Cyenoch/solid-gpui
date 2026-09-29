@@ -1401,7 +1401,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-app-host"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "gpui-component",
  "solid-gpui",
@@ -6525,7 +6525,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "ashpd",
  "bebop",
@@ -6572,7 +6572,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui-bun-sys"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -6580,7 +6580,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui-integration-tests"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "gpui-kit",
  "serde_json",
@@ -6589,7 +6589,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui-macros"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -6602,7 +6602,7 @@ dependencies = [
 
 [[package]]
 name = "solid-gpui-web"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "futures",
  "gpui-component",
@@ -7984,7 +7984,7 @@ dependencies = [
 
 [[package]]
 name = "website-host"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "embed-resource",
  "gpui-component",

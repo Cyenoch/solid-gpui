@@ -57,6 +57,41 @@ ES module: it cannot resolve npm packages or external imports. Direct execution
 does not compile or silently bundle that input. Use Vite when dependencies need
 bundling. QuickJS entries use `EmbeddedTransport` and a `quickjs`-enabled host.
 
+## JSX refs
+
+The pinned JSX compiler and `@solid-gpui/core/runtime` share a ref ABI, including
+`applyRef`. Callback identifiers, forwarded refs such as `ref={props.capture}`,
+and assignment refs such as `ref={list}` work in both the public test runner and
+production bundles. Keep `@solid-gpui/core` and `@solid-gpui/vite` on the same SDK
+release; 0.5.1 fixes the missing `applyRef` export in 0.5.0.
+
+```tsx
+import { Text, VirtualList, type VirtualListHandle } from "@solid-gpui/core";
+
+let list!: VirtualListHandle;
+const content = <VirtualList
+  ref={list}
+  data={["First", "Second"]}
+  itemKey={item => item}
+  estimatedItemSize={24}
+  renderItem={item => <Text>{item}</Text>}
+/>;
+// Call list methods after the content has mounted in a Surface.
+```
+
+Refs receive the SDK's host handle, not a raw GPUI object. Callbacks run
+synchronously with their current Solid owner and without dependency tracking.
+Use `onCleanup` inside a callback for owner-bound cleanup; callback return values
+are ignored. `VirtualList` and `TextInput` invoke refs once per mount and do not
+clear assignment refs or call them with `undefined` on unmount. Generated native
+components retain their own documented unmount notification (`undefined`).
+
+A ref variable or forwarded property can also contain nested callback arrays;
+callbacks run in array order with the same handle, skipping `null`, `undefined`,
+and `false`. Store the array in a variable before passing it as a JSX ref. This
+is callback composition, not an array of assignment targets. The runtime exports
+`Ref<T>` for wrapper component prop types.
+
 ## Project setup
 
 Install `@solid-gpui/core` and `solid-js` from npm, plus `@solid-gpui/vite`, Vite 8,
