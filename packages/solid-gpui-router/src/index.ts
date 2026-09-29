@@ -9,11 +9,9 @@ import {
   type StyleProp,
 } from "@solid-gpui/core";
 import { createComponent, lazy } from "@solid-gpui/core/runtime";
-import { createMemoryHistory, type RouterHistory } from "@tanstack/history";
 import {
   BaseRootRoute,
   BaseRoute,
-  RouterCore,
   isNotFound,
   isRedirect,
   notFound,
@@ -64,6 +62,8 @@ import {
   useContext,
   type Accessor,
 } from "solid-js";
+import { NativeHistory } from "./history";
+import { NativeRouterCore } from "./router-core";
 
 export { isNotFound, isRedirect, notFound, redirect };
 export { lazyFn } from "@tanstack/router-core";
@@ -378,7 +378,7 @@ export type NativeRouterOptions<
     TRouteTree,
     TTrailingSlashOption,
     TDefaultStructuralSharingOption,
-    RouterHistory,
+    NativeHistory,
     TDehydrated
   >,
   NativeOnlyOption | "defaultPreload"
@@ -391,9 +391,7 @@ export type NativeRouterInstance<
   TTrailingSlashOption extends TrailingSlashOption = "never",
   TDefaultStructuralSharingOption extends boolean = false,
   TDehydrated extends Record<string, any> = Record<string, any>,
-> = NativeRouter<
-  RouterCore<TRouteTree, TTrailingSlashOption, TDefaultStructuralSharingOption, RouterHistory, TDehydrated>
->;
+> = NativeRouter<NativeRouterCore<TRouteTree, TTrailingSlashOption, TDefaultStructuralSharingOption, TDehydrated>>;
 
 const disableNativeScrollRestoration = (): false => false;
 
@@ -406,16 +404,8 @@ export function createRouter<
   options: NativeRouterOptions<TRouteTree, TTrailingSlashOption, TDefaultStructuralSharingOption, TDehydrated>,
 ): NativeRouterInstance<TRouteTree, TTrailingSlashOption, TDefaultStructuralSharingOption, TDehydrated> {
   const { initialEntries = ["/"], ...routerOptions } = options;
-  if (initialEntries.length === 0) throw new TypeError("initialEntries must contain at least one route");
-
-  const history = createMemoryHistory({ initialEntries: [...initialEntries] });
-  const router = new RouterCore<
-    TRouteTree,
-    TTrailingSlashOption,
-    TDefaultStructuralSharingOption,
-    RouterHistory,
-    TDehydrated
-  >(
+  const history = new NativeHistory(initialEntries);
+  const router = new NativeRouterCore<TRouteTree, TTrailingSlashOption, TDefaultStructuralSharingOption, TDehydrated>(
     {
       ...routerOptions,
       history,
@@ -432,7 +422,7 @@ export function createRouter<
       TRouteTree,
       TTrailingSlashOption,
       TDefaultStructuralSharingOption,
-      RouterHistory,
+      NativeHistory,
       TDehydrated
     >,
     nativeStoreFactory,
@@ -444,7 +434,7 @@ export function createRouter<
     TRouteTree,
     TTrailingSlashOption,
     TDefaultStructuralSharingOption,
-    RouterHistory,
+    NativeHistory,
     TDehydrated
   >;
   router.update(nativeOptions);

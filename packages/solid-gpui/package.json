@@ -1,6 +1,6 @@
 {
   "name": "@solid-gpui/core",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "SolidJS renderer for native GPUI surfaces.",
   "keywords": [
     "solidjs",

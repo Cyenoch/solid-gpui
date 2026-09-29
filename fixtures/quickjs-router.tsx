@@ -167,9 +167,57 @@ const router = createRouter({ routeTree: layout.addChildren([home, search, slow,
 try {
   root.render(() => <RouterProvider router={router} />);
   await router.load();
+  let blockerCalls = 0;
+  const unblock = router.history.block({
+    blockerFn: async () => {
+      blockerCalls++;
+      return true;
+    },
+    enableBeforeUnload: false,
+  });
+  const initialState = router.state;
+  await router.navigate({ to: "/search", search: { q: "blocked" } });
+  await router.navigate({ to: "/search", search: { q: "blocked" }, replace: true });
+  assert(blockerCalls === 2 && router.state === initialState, "native blockers preserve route state");
+  unblock();
   await router.navigate({ to: "/search", search: { q: "中文 🌍" } });
   assert(router.latestLocation.search.q === "中文 🌍", "search navigation");
   assert(router.stores.getMatchStore("/search").get()?.loaderData === "中文 🌍", "search loader data");
+
+  const searchLocation = router.history.location;
+  const stopBack = router.history.block({ blockerFn: () => true });
+  await router.history.back();
+  await router.history.go(-1);
+  assert(router.history.location === searchLocation, "native back and go blockers");
+  stopBack();
+  await router.history.back();
+  const homeLocation = router.history.location;
+  const stopForward = router.history.block({ blockerFn: () => true });
+  await router.history.forward();
+  assert(router.history.location === homeLocation, "native forward blocker");
+  await router.history.forward({ ignoreBlocker: true });
+  stopForward();
+  assert(router.history.location === searchLocation, "native ignoreBlocker restores the same entry");
+
+  let confirm!: (blocked: boolean) => void;
+  const stopPending = router.history.block({
+    blockerFn: () =>
+      new Promise<boolean>((resolve) => {
+        confirm = resolve;
+      }),
+  });
+  const pending = router.navigate({ to: "/" });
+  await router.navigate({ to: "/search", search: { q: "newer" }, ignoreBlocker: true });
+  await pending;
+  confirm(false);
+  await Promise.resolve();
+  assert(router.latestLocation.search.q === "newer", "obsolete confirmation cannot navigate");
+  const removed = router.navigate({ to: "/" });
+  stopPending();
+  await removed;
+  confirm(false);
+  await Promise.resolve();
+  assert(router.latestLocation.pathname === "/search", "unregister cancels pending navigation");
 
   const loading = router.navigate({ to: "/slow" });
   await started;

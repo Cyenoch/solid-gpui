@@ -3,6 +3,11 @@
 TanStack Router Core integration for Solid GPUI, with native links and
 memory history for each surface.
 
+Native history supports synchronous and asynchronous navigation blockers in Bun
+and QuickJS, including back/forward/go. See the
+[blocking contract](../../docs/router.md#block-native-navigation) for cancellation,
+concurrent requests, `ignoreBlocker`, and window-close boundaries.
+
 ```sh
 bun add --exact @solid-gpui/router
 ```

@@ -190,6 +190,24 @@ if (firstRouter.latestLocation.pathname !== "/settings" || secondRouter.latestLo
 }
 if (firstTransport.submitted.length <= firstFrameCount) throw new Error("packed router emitted no navigation Patch");
 if (secondTransport.submitted.length !== secondFrameCount) throw new Error("packed router updated the inactive window");
+if (typeof document !== "undefined") throw new Error("packed native router must run without a DOM");
+let blockerCalls = 0;
+const unblock = firstRouter.history.block({
+  blockerFn: async () => { blockerCalls++; return true; },
+  enableBeforeUnload: false,
+});
+const blockedState = firstRouter.state;
+await firstRouter.navigate({ to: "/" });
+await firstRouter.navigate({ to: "/", replace: true });
+await firstRouter.history.back();
+await firstRouter.history.go(-1);
+if (blockerCalls !== 4 || firstRouter.state !== blockedState) throw new Error("packed router bypassed native blockers");
+await firstRouter.history.back({ ignoreBlocker: true });
+const backLocation = firstRouter.history.location;
+await firstRouter.history.forward();
+if (firstRouter.history.location !== backLocation) throw new Error("packed forward bypassed native blocker");
+unblock();
+await firstRouter.navigate({ to: "/settings" });
 firstRoot.unmount();
 secondRoot.unmount();
 `;

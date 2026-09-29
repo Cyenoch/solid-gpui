@@ -223,6 +223,54 @@ TanStack Router Core. Import `redirect` and `notFound` from `@solid-gpui/router`
 Routes can provide native `pendingComponent`, `errorComponent`, and
 `notFoundComponent`; built-in native views cover the default states.
 
+## Block native navigation
+
+`router.history.block()` works without a DOM in Bun and QuickJS. It covers typed
+`router.navigate()` (push and replace), `Link`, `BackButton`, and direct history
+`push`, `replace`, `back`, `forward`, and `go` calls. Return `true` to prevent
+navigation or `false` to allow it; the result may be a promise.
+
+```ts
+import { onCleanup } from "@solid-gpui/core/runtime";
+import { useRouter } from "@solid-gpui/router";
+
+// Inside a route component; the application owns isDirty and confirmDiscard.
+const router = useRouter();
+const unblock = router.history.block({
+  blockerFn: async ({ currentLocation, nextLocation, action }) => {
+    if (!isDirty()) return false;
+    return !(await confirmDiscard());
+  },
+  enableBeforeUnload: false,
+});
+onCleanup(unblock);
+```
+
+The SDK owns the native memory stack and checks a transition before changing its
+location, index, entries, route loaders, or mounted route owners. Blocking leaves
+those intact; approval commits once. Blockers run in registration order and stop
+at the first `true`. They receive the current and proposed history locations and
+the action (`PUSH`, `REPLACE`, `BACK`, `FORWARD`, or `GO`).
+
+- A newer navigation cancels an older pending decision. The older call settles
+  without committing, even if its confirmation promise resolves later. This also
+  applies when mixing typed navigation with direct history calls.
+- Unregistering a blocker cancels a pending navigation that captured that
+  registration. New registrations apply to subsequent requests. Destroying the
+  history on provider unmount cancels pending decisions and releases registrations.
+- `{ ignoreBlocker: true }` bypasses all blockers for that request and supersedes
+  a pending decision. Use it only when the application already approved leaving.
+- A blocker exception or rejected promise rejects the navigation call without
+  changing history. Applications own confirmation UI, error handling, and closing
+  any obsolete dialogs; cancelling a navigation does not abort application promises.
+- Native history mutation methods return `Promise<void>` and settle after the
+  history decision/commit. `router.navigate()` additionally waits for RouterCore
+  loading. A resolved promise alone does not indicate that navigation was allowed.
+- Traversal clamps to the stack bounds. A traversal that stays on the current
+  entry cancels an older pending request without invoking blockers or subscribers.
+- `enableBeforeUnload` has no native effect. Window close and application quit
+  confirmation use the host's lifecycle APIs, separately from route navigation.
+
 ## Lazy routes and platform boundaries
 
 To defer a route component, keep data options in its normal route file and put

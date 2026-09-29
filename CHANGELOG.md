@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## [0.5.2]
+
+### Fixed
+
+- Fix native router blockers silently bypassed without a DOM (#8). SDK-owned memory history checks push, replace, back, forward, and go before mutation, and the RouterCore adapter waits for confirmation before loading routes. New requests supersede pending decisions; unregister and destroy cancel them; `ignoreBlocker` explicitly bypasses checks. Native history methods return promises and propagate confirmation failures. Verify mounted owner preservation, installed Bun packages, and the real QuickJS VM.
+
+### Upgrade notes
+
+- Keep all four npm packages and matching native sources on 0.5.2. Native navigation blockers return `true` to cancel and `false` to proceed. Await direct history methods to handle asynchronous confirmation errors; window-close confirmation remains a separate host lifecycle concern.
+
 ## [0.5.1]
 
 ### Fixed

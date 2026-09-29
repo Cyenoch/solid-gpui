@@ -171,6 +171,42 @@ Embedded Bun 和 QuickJS 使用应用对应的 transport 与挂载生命周期�
 
 loader、`beforeLoad`、搜索参数验证、重定向和 not-found 遵循 TanStack Router Core。从 `@solid-gpui/router` 导入 `redirect` 与 `notFound`。路由可提供原生 `pendingComponent`、`errorComponent` 和 `notFoundComponent`，未提供时使用内置原生状态视图。
 
+## 阻止原生导航
+
+`router.history.block()` 在无 DOM 的 Bun 和 QuickJS 中生效，覆盖
+`router.navigate()` 的 push/replace、`Link`、`BackButton`，以及 history 的
+`push`、`replace`、`back`、`forward`、`go`。返回 `true` 阻止，返回 `false`
+放行，也可以返回 Promise。
+
+```ts
+import { onCleanup } from "@solid-gpui/core/runtime";
+import { useRouter } from "@solid-gpui/router";
+
+// Inside a route component; the application owns isDirty and confirmDiscard.
+const router = useRouter();
+const unblock = router.history.block({
+  blockerFn: async () => isDirty() && !(await confirmDiscard()),
+  enableBeforeUnload: false,
+});
+onCleanup(unblock);
+```
+
+SDK 原生 history 在修改位置、索引、历史条目、加载路由或替换页面 owner 之前确认。
+阻止时这些状态保持不变，批准后只提交一次。多个 blocker 按注册顺序执行，首个
+`true` 结束检查；参数包含当前位置、目标位置和导航 action。
+
+- 新导航取代旧的待确认导航；旧调用立即结束，迟到的确认结果不能再提交。typed
+  navigation 与直接 history 操作共用此规则。
+- 取消注册会取消捕获了该注册的待确认导航；新注册只影响后续请求。Provider
+  卸载时销毁 history，取消待确认导航并释放注册。
+- `{ ignoreBlocker: true }` 跳过本次所有 blocker，同时取代旧请求。
+- blocker 抛错或拒绝 Promise 时，导航调用拒绝且 history 不变。应用负责确认
+  UI、错误处理和关闭过期弹窗；导航取消不会中止应用自身的 Promise。
+- 原生 history 修改方法返回 `Promise<void>`，等待确认与 history 提交；
+  `router.navigate()` 还等待 RouterCore 加载。Promise 正常结束不代表一定放行。
+- 遍历限制在历史栈边界；停留在当前条目的操作取消旧请求，不调用 blocker 或订阅者。
+- `enableBeforeUnload` 在原生端无效。关闭窗口或退出应用须使用 host 生命周期 API。
+
 ## 延迟加载与平台边界
 
 将数据选项保留在普通路由文件，UI 选项移入匹配的 `.lazy.tsx` 文件，并从普通文件中移除 `component`：
