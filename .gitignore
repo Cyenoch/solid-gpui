@@ -4,6 +4,8 @@ node_modules/
 dist/
 /examples/website/dist-native/
 /examples/website/dist-embedded/
+/examples/website/dist-reference/
+/examples/website/src/wasm
 target/
 *.frame
 *.frames

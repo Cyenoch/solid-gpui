@@ -8,6 +8,7 @@ publish = false
 
 [features]
 distribution = ["solid-gpui/quickjs"]
+native-acceptance = ["solid-gpui/native-acceptance"]
 
 [[bin]]
 name = "website-host"
@@ -17,6 +18,11 @@ path = "src/main.rs"
 name = "solid-gpui-website"
 path = "src/distribution.rs"
 required-features = ["distribution"]
+
+[[bin]]
+name = "website-acceptance"
+path = "src/acceptance.rs"
+required-features = ["native-acceptance"]
 
 [dependencies]
 solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }

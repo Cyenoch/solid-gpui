@@ -44,6 +44,7 @@ References:
 - [Publishing npm packages](npm-release.md) — lockstep versions, package verification, standard npm publication, and matching Rust sources.
 - [Router](router.md) — file-based routing setup, native navigation, and TanStack references.
 - [Native text selection and search](text-selection.md) — cross-paragraph Unicode selection, copy, generated surface service, and virtual row lifecycle.
+- [Reference application](reference-application.md) — shared multi-pane timeline/history app, pinned provenance, ownership, and native acceptance workload.
 - [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
 - [Iconify](iconify.md) — embedded icons, size and color, reactive usage, and application icon registration.

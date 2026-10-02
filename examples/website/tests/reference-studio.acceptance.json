@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "entry": "tests/reference-studio.application.tsx",
+  "mount": "mountReferenceStudio",
+  "bundleConfig": "vite.reference.config.ts",
+  "deadlineMs": 300000,
+  "serialOnly": true,
+  "initialWindow": { "width": 1280, "height": 720 },
+  "data": { "tracks": 240, "clips": 480, "history": 10000, "overscan": 2, "maxLiveRowOwners": 40 },
+  "requiredCapabilities": [
+    "paintedBounds",
+    "hitTestedClick",
+    "nativeTyping",
+    "nativeWheel",
+    "nativeDragDrop",
+    "nativeResize",
+    "clipboard",
+    "crossElementSelection",
+    "cleanup"
+  ],
+  "retainedLocators": [
+    "studio.shell",
+    "studio.navigation",
+    "studio.timeline.pane",
+    "studio.history.pane",
+    "studio.inspector",
+    "studio.tracks",
+    "studio.history.list",
+    "studio.clip.title",
+    "studio.note.draft"
+  ],
+  "locators": {
+    "track": "studio.track.track-{index}",
+    "reorder": "studio.reorder.track-{index}",
+    "clip": "studio.clip.clip-{index}-{a|b}",
+    "review": "studio.history.history-{index}",
+    "paragraph": "studio.text.history-{index}.{paragraph}",
+    "selectionStart": "studio.text.history-0.0",
+    "selectionEnd": "studio.text.history-0.1",
+    "draft": "studio.note.draft",
+    "title": "studio.clip.title",
+    "status": "studio.status"
+  },
+  "invariants": [
+    "Nonempty first painted rows have positive clipped bounds; dataset counts never stand in for paint.",
+    "Wheel changes native offset and a row's painted position/identity; peak live row owners <= 40.",
+    "History Last makes history-9999 painted and reachable; search at the end clamps the range.",
+    "Unicode controlled input preserves CJK, astral characters and combining marks after save and a subsequent action.",
+    "Clip drop changes its containing business track; track drop reorders actual rows; subsequent click still dispatches.",
+    "Route switches and 1280 -> 560 -> 1280 resizes preserve pane/input/list node IDs and timeline scroll offset.",
+    "Native cross-element selection copies text from both separate paragraphs; whole-review Copy also uses the native clipboard.",
+    "Surface closure leaves zero live row owners, native input/list resources, selection/search state and preview resources."
+  ],
+  "previewIntegration": {
+    "owner": "ticket07 generated NativeView consumer",
+    "slot": "ReferenceStudioProps.preview",
+    "requiredEvidence": [
+      "painted recorded commands",
+      "host-owned media frame advance",
+      "cancellation before unmount",
+      "resource release after close"
+    ],
+    "forbidden": ["per-frame data URLs", "raw pointers", "JS paint callbacks", "unbounded frame queues"]
+  }
+}

@@ -10,7 +10,7 @@ APIs; this example shows them composed into one application.
 ## Overview
 
 - One native window containing a router-driven SolidJS tree: a titlebar shell plus
-  the Home and Settings routes.
+  the Home, Settings, and shared Reference Studio routes.
 - `desktop-app-host` (Rust) configures the native window and titlebar options, registers the
   embedded brand icon before the window opens, and exposes the `desktop` native
   module with the `serviceCount` command.
@@ -101,6 +101,16 @@ example has no trusted feed, key, install path, or relaunch authority. Applicati
 opt in from Rust after packaging; see [Signed application updates](../../docs/signed-updates.md)
 for the signed release format, local fixture qualification, atomic macOS install,
 rollback, platform limits, and explicit restart policy.
+
+## Reference application
+
+The Studio link opens the same exact local TSX modules as the website Showcase:
+a virtualized 240-track timeline, 10,000 review entries, controlled Unicode clip
+editing and notes, native drag/drop, and copy. The stable shell retains panes and
+input/list identities across `/studio/timeline` and `/studio/history`. Window
+resize updates an explicit size store. See
+[Reference application](../../docs/reference-application.md) for provenance,
+adaptations, lifecycle rules, and native acceptance requirements.
 
 ## File roles
 

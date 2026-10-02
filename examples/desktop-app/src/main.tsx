@@ -1,5 +1,17 @@
 /// <reference types="vite/client" />
-import { Column, Icon, Image, Row, Text, View, mountApplication, type Root } from "@solid-gpui/core";
+import {
+  Column,
+  Icon,
+  Image,
+  Row,
+  Text,
+  View,
+  mountApplication,
+  createWindowSizeStore,
+  useWindowSize,
+  type WindowSizeStore,
+  type Root,
+} from "@solid-gpui/core";
 import {
   Button,
   Dialog,
@@ -11,9 +23,21 @@ import {
   createClient,
   type ApplicationTheme,
 } from "@solid-gpui/core/components";
-import { createSignal, For, Show, onCleanup } from "@solid-gpui/core/runtime";
+import { createMemo, createSignal, For, Show, onCleanup } from "@solid-gpui/core/runtime";
 import { StdioTransport } from "@solid-gpui/core/stdio";
-import { createRootRoute, createRoute, createRouter, RouterProvider, Outlet, Link } from "@solid-gpui/router";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+  Outlet,
+  Link,
+  useLocation,
+  useRouter,
+} from "@solid-gpui/router";
+import { ReferenceStudio, createReferenceStudioState } from "../../website/src/showcase/ReferenceStudio";
+import { StudioPreview } from "../../website/src/showcase/StudioPreview.native";
+import type { ReferenceStudioState } from "../../website/src/showcase/reference/state";
 import { useNative, applicationIcons } from "./native";
 import cover from "../assets/cover.png?inline";
 
@@ -240,7 +264,16 @@ function Settings() {
     </View>
   );
 }
-function Shell(props: { onFullscreen: () => void }) {
+function Shell(props: {
+  onFullscreen: () => void;
+  copyText: (text: string) => Promise<void>;
+  size: WindowSizeStore;
+  studio: ReferenceStudioState;
+}) {
+  const location = useLocation();
+  const router = useRouter();
+  const size = useWindowSize(props.size);
+  const studioActive = createMemo(() => location().pathname.startsWith("/studio/"));
   return (
     <View
       style={{
@@ -275,15 +308,32 @@ function Shell(props: { onFullscreen: () => void }) {
           <Link to="/settings">
             <Text>Settings</Text>
           </Link>
+          <Link to="/studio/timeline">
+            <Text>Studio</Text>
+          </Link>
           <Input placeholder="Title bar input" style={{ width: 160 }} />
           <Button label="Fullscreen" onPress={props.onFullscreen} />
         </View>
       </TitleBar>
-      <Scrollable style={{ flexDirection: "column", flexGrow: 1, height: 0, minHeight: 0, minWidth: 0 }}>
-        <View style={{ flexDirection: "column", flexShrink: 0, minWidth: 0 }}>
-          <Outlet />
-        </View>
-      </Scrollable>
+      {() =>
+        studioActive() ? (
+          <ReferenceStudio
+            state={props.studio}
+            width={size().width}
+            height={Math.max(480, size().height - 88)}
+            view={location().pathname === "/studio/history" ? "history" : "timeline"}
+            navigate={(view) => void router.navigate({ to: `/studio/${view}` })}
+            copyText={props.copyText}
+            preview={() => <StudioPreview title={props.studio.selectedClip().label} />}
+          />
+        ) : (
+          <Scrollable style={{ flexDirection: "column", flexGrow: 1, height: 0, minHeight: 0, minWidth: 0 }}>
+            <View style={{ flexDirection: "column", flexShrink: 0, minWidth: 0 }}>
+              <Outlet />
+            </View>
+          </Scrollable>
+        )
+      }
       <View
         style={{
           height: 40,
@@ -305,12 +355,23 @@ mountApplication<string>({
   setup(previous = "/") {
     let mountedRoot: Root | undefined;
     let active = true;
+    const size = createWindowSizeStore({ width: 1024, height: 720 });
+    const studio = createReferenceStudioState();
     onCleanup(() => {
       active = false;
       mountedRoot = undefined;
     });
     const rootRoute = createRootRoute({
-      component: () => <Shell onFullscreen={() => void mountedRoot?.toggleFullscreen()} />,
+      component: () => (
+        <Shell
+          onFullscreen={() => void mountedRoot?.toggleFullscreen()}
+          size={size}
+          studio={studio}
+          copyText={(text) =>
+            mountedRoot ? mountedRoot.setClipboardText(text) : Promise.reject(new Error("Window is closed"))
+          }
+        />
+      ),
     });
     const home = createRoute({ getParentRoute: () => rootRoute, path: "/", component: Home });
     const settings = createRoute({
@@ -318,11 +379,28 @@ mountApplication<string>({
       path: "/settings",
       component: Settings,
     });
-    const router = createRouter({ routeTree: rootRoute.addChildren([home, settings]), initialEntries: [previous] });
+    const studioTimeline = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/studio/timeline",
+      component: () => null,
+    });
+    const studioHistory = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/studio/history",
+      component: () => null,
+    });
+    const router = createRouter({
+      routeTree: rootRoute.addChildren([home, settings, studioTimeline, studioHistory]),
+      initialEntries: [previous],
+    });
     return {
       render: () => <RouterProvider router={router} />,
+      rootOptions: { onWindowResize: (width, height, scaleFactor) => size.set(width, height, scaleFactor) },
       onMount(root) {
         mountedRoot = root;
+        void root.getWindowSize().then(([width, height]) => {
+          if (active) size.set(width, height);
+        }).catch((error) => { if (active) console.error("Window size failed:", error); });
         const native = createClient(root);
         void native
           .setTheme("dark")

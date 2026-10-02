@@ -1,5 +1,12 @@
 import { recipeChinese } from "../component-recipes/translations.zh-CN";
 export const chinese: Record<string, string> = {
+  "Reference application": "参考应用",
+  "Reference Studio": "参考工作室",
+  "Studio History": "工作室历史",
+  "Source and acceptance guide": "源码与验收指南",
+  "Copy source": "复制源码",
+  "Edit a 240-track cut alongside ten thousand review notes.": "编辑 240 个轨道，同时查看一万条评审记录。",
+  "Keep the same editing panes while browsing a large review history.": "浏览大量评审历史时保留相同的编辑窗格。",
   Horizontal: "横向",
   Vertical: "纵向",
   "Virtualized list": "虚拟化列表",
