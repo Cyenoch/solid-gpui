@@ -91,6 +91,9 @@ Merge this committed branch into `integrate/comparison-adoption` from the owner
 session. Ticket 02 should preserve `./compiler`, optional Vite peer metadata,
 manifest-driven compiler build, and the two narrow task/check changes when
 reconciling `package.json`, `scripts/tasks.ts`, and `scripts/package-pack-smoke.ts`.
+The Bun workspace lock's Vite optional-peer metadata is updated narrowly too;
+its pre-existing core `^0.5.1` entries are outside this ticket's version work and
+should be reconciled by the integrator with ticket 02's packaging changes.
 Other tickets may edit the same Vite/component guides, translations, website
 README/config, and Unreleased changelog: combine their topical changes with
 these compiler/provenance sections. The final combined native patch inventory
@@ -99,3 +102,7 @@ must add any vendor paths changed by other tickets after the recorded baseline.
 Before reporting, this owner commits all delivery files and merges
 `integrate/comparison-adoption` **into this ticket branch**. This owner does not
 merge into the integration branch and does not publish.
+
+The merge was executed after implementation commit `3c08361b`: the integration
+tip was still `e879b662`, so Git reported **Already up to date**. Integration and
+baseline ancestry both passed, and no integration-branch write occurred.
