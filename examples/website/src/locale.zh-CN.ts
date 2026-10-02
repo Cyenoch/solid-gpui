@@ -234,7 +234,7 @@ export const chapterChinese: Record<string, { body: string; detail: string }> = 
   reactivity: {
     body: "用信号管理变化的值，例如计数、当前选项或表单内容。在 JSX 中读取信号，界面便会随它更新。",
     detail:
-      "把状态放在使用它的组件附近。用 createMemo 计算派生值，用 onCleanup 清理定时器和订阅。Solid 更新受影响的绑定，原生宿主原子应用这些变更。布局与绘制由 GPUI 负责，因此修改文字也可能使周围内容重新排版。试试下面的计数器。",
+      "把状态放在使用它的组件附近。用 createMemo 计算派生值，用 onCleanup 清理定时器和订阅。Solid 更新受影响的绑定，原生宿主原子应用这些变更。固定尺寸的静态原生区域可保留未变化内容，输入和资源仍保持实时更新。布局与绘制由 GPUI 负责，因此修改文字也可能使周围内容重新排版。试试下面的计数器。",
   },
   layout: {
     body: "用 View 组合组件，通过 flexDirection 排成行或列，再用 gap、paddingX 和 paddingY 添加间距。尺寸支持像素、显式 rem/percent 长度与 auto。",

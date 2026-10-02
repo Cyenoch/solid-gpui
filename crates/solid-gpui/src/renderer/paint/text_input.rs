@@ -142,7 +142,7 @@ pub(super) fn rich_text_parts(
         runs.push(RunStyle {
             len: content.len(),
             style: if child.kind == crate::tree::KIND_TEXT {
-                child.style.clone()
+                child.style.as_deref().cloned()
             } else {
                 style.cloned()
             },
@@ -986,6 +986,11 @@ pub(super) fn render_rich_text(
 ) -> AnyElement {
     let parts = rich_text_parts(root, node, style);
     let mut element = div().id(ElementId::Integer(node.id as u64));
+    #[cfg(test)]
+    {
+        let id = node.id;
+        element = element.debug_selector(move || format!("solid-gpui-primitive-{id}"));
+    }
     if node.id == 1 {
         element = element.size_full().flex().flex_col();
     }

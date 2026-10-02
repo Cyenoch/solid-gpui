@@ -275,7 +275,7 @@ fn can_move_to(store: &NodeStore, id: u32, parent_id: u32) -> bool {
         return false;
     }
     if parent.kind == KIND_TEXT && node.kind == KIND_TEXT {
-        if !nested_style_compatible(node.style.as_ref()) {
+        if !nested_style_compatible(node.style.as_deref()) {
             return false;
         }
         let mut stack = store.children.get(&node.id).cloned().unwrap_or_default();

@@ -1,5 +1,9 @@
 # 原生验收测试
 
+保留原生基础区域重放同一绘制场景代次的观察结果。缓存 miss 记录新的文字和裁剪
+几何，hit 恢复已经绘制的事实，不把当前 store 文字作为绘制证据。移除区域后下一帧
+移除观察数据。因此无关提交后定位器和几何仍可用，内容检查仍能发现区域更新停滞。
+
 `@solid-gpui/core/testing` 的 `NativeAcceptance` 让 Bun 测试拥有一个显式启动的
 原生 host。应用仍使用普通 `createRoot`、Snapshot/Patch 解码器、生产
 `NativeStateRegistry`、`SolidRoot`、GPUI 布局/绘制和原生输入处理器。

@@ -18,6 +18,11 @@ Entity 保留状态，RenderOnce 描述被消费的组件值，均不保证跳�
 
 父更新不能修复缓存视图缺失的依赖通知。检查外部模型、主题、尺寸、裁剪变化和回放帧中的交互。位置移动会使场景缓存失效，但零原点路径缓存仍可复用。添加缓存前参阅 [Performance analysis](performance-analysis.md)。
 
+Core View 有固定像素宽高、`flexShrink: 0`、hidden overflow 且只包含静态原生能力
+时可自动拥有保留区域。输入、监听器、选区、异步资源、动画保持实时路径；intrinsic
+文字继续测量并可重排相邻内容。参阅[区域契约](performance-analysis.zh-CN.md#原生基础区域的保留归属)
+了解归属、失效、辅助功能和 popup 行为，应用无需缓存开关。
+
 解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。Core Image
 相对路径基于宿主工作目录，并拥有有界请求、解码与像素生命周期。解码像素复用与
 HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。

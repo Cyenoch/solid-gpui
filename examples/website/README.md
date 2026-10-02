@@ -132,4 +132,9 @@ the website's QuickJS release path; Embedded Bun has its own
 
 Use `bun run task website-native-profile` with the
 [performance measurement workflow](../../docs/performance-analysis.md).
+For a serial production A/B/B/A region workload after compilation, use
+`bun scripts/native-region-compare.ts BASELINE_BINARY CANDIDATE_BINARY NEW_DIRECTORY`
+from the repository root. The guide documents visible-content checks and the
+static definite-size region boundary; protocol checks alone do not prove a
+painted update or native scroll displacement.
 Workflow triggers and release qualification live in [CI](../../docs/ci.md).

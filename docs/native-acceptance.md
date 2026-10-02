@@ -1,5 +1,12 @@
 # Native acceptance testing
 
+Retained native primitive regions replay the observations captured by the same
+painted scene generation. Cache misses record fresh text and clipped geometry;
+hits restore those painted facts without reading current store text as proof
+of paint. Removing a region removes its observations on the next frame. This
+keeps locators and geometry available across unrelated commits and allows
+painted-content checks to detect stale region updates.
+
 `NativeAcceptance` from `@solid-gpui/core/testing` lets a Bun test own an explicitly
 launched native host. The application still uses `createRoot`, the ordinary
 Snapshot/Patch decoder, production `NativeStateRegistry`, `SolidRoot`, GPUI

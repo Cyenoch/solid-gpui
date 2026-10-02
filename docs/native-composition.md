@@ -45,6 +45,14 @@ external-model and theme changes, resize, clipping, and controls in replayed fra
 Scene reuse can miss when the origin moves while a zero-origin path cache still
 hits. See [performance analysis](performance-analysis.md) before adding a cache.
 
+Core Views with definite pixel width/height, `flexShrink: 0` and hidden overflow
+can own automatic retained regions when all descendants have static native
+capabilities. Inputs, listeners, selection, async resources and animations remain
+live. Intrinsic text still measures and can reflow adjacent content. See the
+[region contract](performance-analysis.md#retained-native-primitive-regions) for
+ownership, invalidation, accessibility and popup behavior; applications do not
+need a cache flag.
+
 Reserve an image's layout box before decoding. Use Image for multicolor artwork
 and Icon for theme-colored glyphs. Core Image resolves relative filesystem paths
 against the host working directory and owns bounded fetch/decode and decoded-image

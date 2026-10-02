@@ -300,6 +300,73 @@ mod tests {
     const INLINE_PNG: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8DwHwQBEPgD/U6VwW8AAAAASUVORK5CYII=";
 
     #[gpui::test]
+    fn async_image_inside_definite_pane_remains_live_beside_retained_region(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        let window = cx.open_window(gpui::size(gpui::px(400.), gpui::px(300.)), |_, _| {
+            SolidRoot::new(crate::InMemoryAdapter::new())
+        });
+        let root = window.root(cx).unwrap();
+        let mut nodes = vec![crate::Node::new(1, 0, 0, crate::KIND_VIEW)];
+        for (id, index) in [(2, 0), (3, 1)] {
+            let mut pane = crate::Node::new(id, 1, index, crate::KIND_VIEW);
+            pane.style = Some(Style {
+                width: Some(180.),
+                height: Some(100.),
+                flex_shrink: Some(0.),
+                overflow: Some(crate::OverflowCode::Hidden),
+                ..Style::default()
+            });
+            nodes.push(pane);
+            if id == 2 {
+                let text = crate::Node::new(4, 2, 0, crate::KIND_TEXT);
+                let mut raw = crate::Node::new(5, 4, 0, crate::KIND_RAW_TEXT);
+                raw.text = Some("Static sibling".into());
+                nodes.extend([text, raw]);
+            } else {
+                let mut image = crate::Node::new(6, 3, 0, crate::KIND_IMAGE);
+                image.style = Some(Style {
+                    width: Some(120.),
+                    height: Some(80.),
+                    ..Style::default()
+                });
+                image.host_properties = Some(HostProperties::Image(crate::ImageProperties {
+                    source: INLINE_PNG.into(),
+                    object_fit: 2,
+                    fallback_source: None,
+                    sources: Vec::new(),
+                }));
+                nodes.push(image);
+            }
+        }
+        root.update(cx, |root, cx| {
+            root.apply_decoded_message(
+                crate::DecodedMessage::Snapshot(crate::Snapshot::new(1, 1, 0, 1, nodes)),
+                cx,
+            )
+        })
+        .unwrap();
+        draw(cx, window);
+        root.read_with(cx, |root, _| {
+            assert!(root.regions.contains(2));
+            assert!(!root.regions.contains(3));
+        });
+        window
+            .update(cx, |_, window, cx| {
+                assert!(window.has_image_atlas_entry(&loaded_pixels(INLINE_PNG, cx)))
+            })
+            .unwrap();
+        root.update(cx, |root, _| root.primitive_constructions.set(0));
+        root.update(cx, |_, cx| cx.notify());
+        cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
+            .unwrap();
+        cx.run_until_parked();
+        root.read_with(cx, |root, _| {
+            assert!(root.primitive_constructions.get() < 10)
+        });
+    }
+
+    #[gpui::test]
     fn image_fetches_are_bounded_and_queued_loads_cancel(cx: &mut gpui::TestAppContext) {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let starts = Arc::new(AtomicUsize::new(0));

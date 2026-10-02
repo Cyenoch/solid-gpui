@@ -47,6 +47,99 @@ pub(crate) struct PaintedInput {
 
 pub(crate) type Observations = Rc<RefCell<BTreeMap<u32, PaintedNode>>>;
 
+/// Observations belong to the same scene generation as the retained region.
+/// A cache hit replays these already-painted facts; it never infers current
+/// geometry or text from an unpainted store revision.
+#[derive(Default)]
+pub(super) struct RetainedObservations {
+    pub(super) generation: u64,
+    pub(super) ids: Vec<u32>,
+    nodes: Vec<PaintedNode>,
+}
+
+pub(super) fn retained(
+    element: AnyElement,
+    observations: Observations,
+    retained: Rc<RefCell<RetainedObservations>>,
+) -> AnyElement {
+    let generation = retained.borrow().generation;
+    RetainedElement {
+        element,
+        observations,
+        retained,
+        generation,
+    }
+    .into_any()
+}
+
+struct RetainedElement {
+    element: AnyElement,
+    observations: Observations,
+    retained: Rc<RefCell<RetainedObservations>>,
+    generation: u64,
+}
+
+impl IntoElement for RetainedElement {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl Element for RetainedElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.element.request_layout(window, cx), ())
+    }
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.element.prepaint(window, cx);
+    }
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut (),
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.element.paint(window, cx);
+        let mut retained = self.retained.borrow_mut();
+        let mut observations = self.observations.borrow_mut();
+        if retained.generation == self.generation {
+            observations.extend(retained.nodes.iter().map(|node| (node.id, node.clone())));
+        } else {
+            retained.nodes = retained
+                .ids
+                .iter()
+                .filter_map(|id| observations.get(id).cloned())
+                .collect();
+        }
+    }
+}
+
 impl SolidRoot {
     pub(crate) fn enable_acceptance(&mut self) {
         self.acceptance = Some(Default::default());

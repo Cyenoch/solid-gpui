@@ -43,6 +43,11 @@ mod input;
 mod native_call_lifecycle_tests;
 mod native_calls;
 pub(crate) mod paint;
+#[cfg(all(test, feature = "native-acceptance"))]
+mod region_acceptance_tests;
+#[cfg(test)]
+mod region_tests;
+mod regions;
 mod virtual_lists;
 use crate::profile;
 
@@ -223,6 +228,8 @@ pub struct SolidRoot {
     /// Coalesces bounds-driven popup reconciles queued before they run.
     popup_reconcile_scheduled: bool,
     store: NodeStore,
+    regions: regions::Regions,
+    retain_regions_this_frame: bool,
     runtime: Arc<dyn RuntimeAdapter>,
     next_sequence: Arc<AtomicU32>,
     extension_registry: Rc<dyn ExtensionRegistry>,
@@ -243,6 +250,10 @@ pub struct SolidRoot {
     input_run_assembly_count: Cell<usize>,
     #[cfg(test)]
     input_shape_count: Cell<usize>,
+    #[cfg(test)]
+    primitive_constructions: Cell<usize>,
+    #[cfg(test)]
+    painted_text: Rc<RefCell<HashMap<u32, String>>>,
     #[cfg(test)]
     input_content_assembly_time: Cell<Duration>,
     #[cfg(test)]
@@ -299,6 +310,8 @@ impl SolidRoot {
             last_painted_revision: None,
             popup_reconcile_scheduled: false,
             store: NodeStore::empty(),
+            regions: regions::Regions::default(),
+            retain_regions_this_frame: false,
             runtime,
             next_sequence,
             extension_registry,
@@ -319,6 +332,10 @@ impl SolidRoot {
             input_run_assembly_count: Cell::new(0),
             #[cfg(test)]
             input_shape_count: Cell::new(0),
+            #[cfg(test)]
+            primitive_constructions: Cell::new(0),
+            #[cfg(test)]
+            painted_text: Rc::default(),
             #[cfg(test)]
             input_content_assembly_time: Cell::new(Duration::ZERO),
             #[cfg(test)]
@@ -742,6 +759,7 @@ impl SolidRoot {
                 self.extension_instances.remove(&id);
             }
         }
+        self.regions.reconcile(&self.store, changes.as_ref(), cx);
         cx.notify();
         Ok(())
     }
@@ -878,6 +896,8 @@ impl SolidRoot {
             self.pending_visible_ranges.borrow_mut().remove(id);
             self.rendered_bounds.borrow_mut().remove(id);
             self.rich_text_parts_cache.borrow_mut().remove(id);
+            #[cfg(test)]
+            self.painted_text.borrow_mut().remove(id);
         }
         if self
             .active_input
@@ -900,6 +920,9 @@ impl SolidRoot {
     }
 
     fn reset_native_state(&mut self) {
+        self.regions.clear();
+        #[cfg(test)]
+        self.painted_text.borrow_mut().clear();
         self.pending_native_calls.clear();
         extensions::revoke_all_events(&self.extension_event_state);
         self.extension_instances.clear();
@@ -1276,6 +1299,9 @@ impl SolidRoot {
 impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _profile = profile::span(profile::Stage::Render);
+        // GPUI's cached prepaint currently does not replay AccessKit nodes.
+        // Popup anchors also need current renderer-owned geometry each frame.
+        self.retain_regions_this_frame = !window.is_a11y_active() && self.popup_anchors.is_empty();
         self.rendered_bounds.borrow_mut().clear();
         #[cfg(feature = "native-acceptance")]
         if let Some(nodes) = &self.acceptance {
@@ -1295,6 +1321,7 @@ impl Render for SolidRoot {
         self.ensure_focus_observers(window, cx);
         self.process_commands(window, cx);
         self.prepare_animation_frame(window, cx);
+        self.regions.prepare_frame(&self.store, &self.animation);
         let entity = cx.entity();
         let content = self
             .store
