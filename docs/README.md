@@ -48,6 +48,8 @@ References:
 - [Iconify](iconify.md) — embedded icons, size and color, reactive usage, and application icon registration.
 - [Recorded paint and live frames](paint-media.md) — bounded native diagrams, CPU pixel uploads, clipping, transforms, and resource ownership.
 - [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
+- [Native acceptance testing](native-acceptance.md) — opt-in public JS control of production native layout/paint/input, stable locators, owned teardown, macOS GPU screenshots and explicit platform limits.
+- [Signed application updates](signed-updates.md) — opt-in trusted native service, signed feed/archive contract, macOS atomic exchange, rollback, and application-managed restart.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
 - [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source used for implementation comparison.

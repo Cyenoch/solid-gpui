@@ -112,13 +112,15 @@ release; 0.5.1 fixes the missing `applyRef` export in 0.5.0.
 import { Text, VirtualList, type VirtualListHandle } from "@solid-gpui/core";
 
 let list!: VirtualListHandle;
-const content = <VirtualList
-  ref={list}
-  data={["First", "Second"]}
-  itemKey={item => item}
-  estimatedItemSize={24}
-  renderItem={item => <Text>{item}</Text>}
-/>;
+const content = (
+  <VirtualList
+    ref={list}
+    data={["First", "Second"]}
+    itemKey={(item) => item}
+    estimatedItemSize={24}
+    renderItem={(item) => <Text>{item}</Text>}
+  />
+);
 // Call list methods after the content has mounted in a Surface.
 ```
 
@@ -453,7 +455,7 @@ test("press updates the committed text", () => {
 | `new TestHost(transport?)`                     | Uses the supplied `MemoryTransport`, including already-submitted frames, or creates one.                                                                                                                                                                                              |
 | `surface(id)`                                  | Returns the latest committed Surface, or `undefined` before its first Snapshot. `nodes` is preorder, including the synthetic root; each node exposes kind, parent/ordered child IDs, text, input value, placeholder, accessibility label and tooltip. Previous views are not mutated. |
 | `commits`                                      | Ordered Snapshot/Patch metadata: type, Surface, epoch and revision. Wire tags and update masks stay private.                                                                                                                                                                          |
-| `dispatch(node, event)`                        | Sends `press`, `focus`, `blur`, `input` (`text`, optional UTF-8-byte selection offsets), or `native` (`eventId`, JSON `value`). The captured node's revision and epoch are retained, so stale-event behavior remains testable.                                                        |
+| `dispatch(node, event)`                        | Sends `press`, `focus`, `blur`, `input` (`text`, optional UTF-16 code-unit selection offsets), or `native` (`eventId`, JSON `value`). Input defaults to `text.length` and emits native-order change then selection. Captured revision and epoch remain intact.                        |
 | `nativeProps(node)`                            | Decodes the JSON DTO props of a `createNativeComponent` node.                                                                                                                                                                                                                         |
 | `nativeCalls`                                  | Observed module-function and component-method requests: Surface, epoch, node/request IDs, module identity, function ID and opaque `args`. Use the public `decodeJson` from `@solid-gpui/core/native` for generated DTO calls.                                                         |
 | `reply(call, bytes)` / `reject(call, message)` | Settles that exact request through the real event path; JSON DTO replies use `encodeJson(value)`. Responses can arrive out of order; a request cannot be answered twice or through another TestHost.                                                                                  |
@@ -466,6 +468,14 @@ event sequences; do not mix it with manually encoded events or clear
 `transport.submitted`. Use a fresh host per test and unmount roots in cleanup.
 It does not calculate native styles/layout, paint pixels, execute Rust handlers,
 or emulate platform services; those still require a real host.
+
+TextInput nodes expose `inputState` (`ackEditSeq`, `selectionStart`,
+`selectionEnd`) for inspecting the committed controlled acknowledgement.
+Selections use UTF-16 code units: `新值🙂` ends at 4. Use
+[`NativeAcceptance`](native-acceptance.md) from the same testing export for real
+native painted geometry, hit-tested click/type/drag/wheel, owned clock/cleanup,
+and macOS GPU screenshots. Its explicitly launched executable reuses the
+production native paths and reports unsupported capabilities.
 
 #### Virtual viewports, layout and scrolling
 

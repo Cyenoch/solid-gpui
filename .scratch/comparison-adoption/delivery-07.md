@@ -139,5 +139,7 @@ seven website tests passed; three compiler tests passed with the source conditio
 The final-source WASM host was rebuilt and wasm-bindgen/frontend output regenerated
 so the source-derived native catalog matches the final generated bindings. The
 build retains the existing generated wasm-bindgen eval/chunk-size warnings and
-existing WASM ProcessReader dead-field warning. This branch does not merge itself
-into integration and publishes nothing.
+existing WASM ProcessReader dead-field warning. Also merged integration tip
+`f1c3835b` (native acceptance and signed updater) before final reporting, preserving
+all changelog and bilingual documentation navigation entries. This branch does
+not merge itself into integration and publishes nothing.

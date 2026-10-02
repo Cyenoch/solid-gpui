@@ -284,12 +284,15 @@ pub(crate) fn apply_style_to_extension<E: gpui::Styled>(
 impl SolidRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
         let element = self.render_node_content(node, entity);
-        match self.style_for_node(node) {
+        let element = match self.style_for_node(node) {
             Some(style) if border::has_edge_colors(style) => {
                 border::BorderElement::new(element, style).into_any()
             }
             _ => element,
-        }
+        };
+        #[cfg(feature = "native-acceptance")]
+        let element = super::acceptance::observe(self, node, element);
+        element
     }
 
     fn render_node_content(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {

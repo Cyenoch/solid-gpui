@@ -21,7 +21,7 @@ All worktrees are below `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/
 | 07 | `07-paint-media` | `ses_f05059a57ffeHzvbUN55kpP7mi` | Implementing |
 | 08 | `08-signed-updater` | `ses_f05059a57ffdT9YjVlSHhDM0CB` | Implementing |
 | 09 | `09-reference-application` | `ses_f05059a4fffeVoD8VDxsQpVOpq` | Implementing |
-| 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Implementing |
+| 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Merged `91a6376`; focused compiler and website checks passed |
 
 Implementation branches are prefixed `adopt/`. Agents must commit focused changes, update their delivery note, and merge the integration tip before reporting. Integration merges are serialized. No agents write implementation files in the main workspace.
 
@@ -51,3 +51,13 @@ Implementation branches are prefixed `adopt/`. Agents must commit focused change
 - [ ] Tickets resolved with actual checks and platform limitations; clean commits and final delivery record.
 
 Network publication, upstream messages, public release creation and modification of the user's running installed app are not part of this integration task. Release tooling and update behavior are made concrete and locally reviewable.
+
+## Merge and check record
+
+### Ticket 10 — canonical compiler and provenance
+
+Merged `adopt/10-compiler-docs` commits `3c08361b`/`4045d953` with merge `91a63761081f330dde4decd6ee0326fb94f8b36b`; no conflicts. The merger ran three compiler checks and six website/content/runtime checks against source without rebuilding dist; all passed. The feature owner additionally ran package compilation, compiler tarball consumer without Vite, tooling types, and the native line-clamp cache regression; see `delivery-10.md`.
+
+The standalone upstream patch contains standard blank context lines (one space) that `git diff --check` reports as trailing whitespace inside the patch artifact; preserve valid patch syntax rather than edit those lines. Production source/docs pass whitespace checks.
+
+Preserve `./compiler`, optional Vite peer metadata and compiler pack-smoke wiring when ticket 02 lands. Final website typecheck/build requires generated WASM bindings. Extend the new `vendor/GPUI-SOURCES.md` inventory for later native vendor edits. Current machine has Bun 1.4.2, Rust 1.98.1, the required WASM nightly installed, wasm-bindgen available, and Xcode Metal compiler discoverable.
