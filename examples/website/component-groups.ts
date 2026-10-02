@@ -76,6 +76,7 @@ export const componentGroups = [
       "Scrollable",
       "Table",
       "Text",
+      "TextSelectionObserver",
       "TextView",
       "Tree",
       "VirtualList",

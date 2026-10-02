@@ -276,6 +276,12 @@ function Editor() {
 
 ## 数据限制与生成
 
+`native::CommandDefinition::renderer` 声明针对发起调用的 SolidRoot、Window 与
+Context<SolidRoot> 的有界前台命令，适合 Surface 选区等即时状态。使用相同的生成
+JSON 契约与严格模块身份，不能阻塞或重新借用所属 renderer Entity。NativeModules
+自动加入核心[文本选择服务](text-selection.zh-CN.md)。现有 foreground 命令保留
+Window/App 边界。
+
 原生组件 props 和命令 DTO 中，值为 `undefined` 的可选对象字段会递归省略。例如 `{ items: [{ key: "mode", label: "Mode", description: undefined }] }` 编码时不包含 `description`，不需要应用自行清洗。数组中的 `undefined` 和稀疏项仍被拒绝，不会转换为 `null`。这不改变 QuickJS 独立的[捕获状态契约](capture-state.zh-CN.md)。
 
 每个 DTO 限制 1 MiB，必须是普通 JSON 数据。循环、非有限数、安全整数范围外的整数、BigInt、类实例、未知字段和无效枚举均被拒绝。JS 回调、GPUI Entity 和线程对象不跨运行时边界。领域约束应写在 Rust DTO 的 Deserialize 实现中，例如内置 Percentage 的 0–100 验证。

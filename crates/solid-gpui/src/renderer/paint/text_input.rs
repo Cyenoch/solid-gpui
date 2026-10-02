@@ -677,14 +677,21 @@ impl Element for SelectableTextElement {
             line_starts: super::super::input::line_starts(&self.text),
             line_height,
         };
-        let selection = text_layout
-            .selection_bounds_per_line(selection, bounds)
+        let mut highlights: Vec<_> = root
+            .search_ranges(self.node_id)
             .into_iter()
-            .map(|bounds| fill(bounds, rgba(0x2d6cdf66)))
+            .flat_map(|range| text_layout.selection_bounds_per_line(range, bounds))
+            .map(|bounds| fill(bounds, rgba(0xfacc1566)))
             .collect();
+        highlights.extend(
+            text_layout
+                .selection_bounds_per_line(selection, bounds)
+                .into_iter()
+                .map(|bounds| fill(bounds, rgba(0x2d6cdf66))),
+        );
         SelectableTextPrepaint {
             text: text_layout,
-            selection,
+            selection: highlights,
             content: self.text.clone(),
         }
     }
@@ -708,7 +715,11 @@ impl Element for SelectableTextElement {
         let text = std::mem::take(&mut prepaint.text);
         let content = prepaint.content.clone();
         let node_id = self.node_id;
+        let clip = bounds.intersect(&window.content_mask().bounds);
         self.entity.update(cx, |root, _| {
+            if clip.size.width > px(0.) && clip.size.height > px(0.) {
+                root.document_text_clips.insert(node_id, clip);
+            }
             root.selectable_text_layouts.insert(
                 node_id,
                 super::super::input::TextInputLayout {
@@ -1109,6 +1120,8 @@ pub(super) fn render_selectable(
     style: Option<&Style>,
 ) -> AnyElement {
     let node_id = node.id;
+    let epoch = root.store.epoch();
+    let revision = root.store.revision();
     let parts = rich_text_parts(root, node, style);
     let text = parts.text.clone();
     let focus = root
@@ -1144,35 +1157,81 @@ pub(super) fn render_selectable(
     selectable = selectable.on_mouse_down(MouseButton::Left, move |event, window, app| {
         window.focus(&mouse_focus, app);
         mouse_entity.update(app, |root, cx| {
-            root.begin_selectable_text_selection(node_id, event.position, cx);
+            if root.store.epoch() != epoch || root.store.revision() != revision {
+                return;
+            }
+            root.begin_document_selection(
+                node_id,
+                event.position,
+                event.modifiers.shift,
+                event.click_count,
+                cx,
+            );
         });
     });
     let mouse_entity = entity.clone();
     selectable = selectable.on_mouse_move(move |event, _, app| {
         if event.dragging() {
             mouse_entity.update(app, |root, cx| {
-                root.update_selectable_text_selection(node_id, event.position, cx);
+                if root.store.epoch() != epoch || root.store.revision() != revision {
+                    return;
+                }
+                root.drag_document_selection(event.position, cx);
             });
         }
     });
     let mouse_entity = entity.clone();
     selectable = selectable.on_mouse_up(MouseButton::Left, move |_, _, app| {
-        mouse_entity.update(app, |root, _| root.end_selectable_text_selection(node_id));
+        mouse_entity.update(app, |root, _| {
+            if root.store.epoch() == epoch {
+                root.end_document_selection();
+            }
+        });
     });
     let mouse_entity = entity.clone();
     selectable = selectable.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
-        mouse_entity.update(app, |root, _| root.end_selectable_text_selection(node_id));
+        mouse_entity.update(app, |root, _| {
+            if root.store.epoch() == epoch {
+                root.end_document_selection();
+            }
+        });
     });
     let key_entity = entity.clone();
     selectable = selectable.on_key_down(move |event, _, app| {
+        if key_entity.read(app).store.epoch() != epoch
+            || key_entity.read(app).store.revision() != revision
+        {
+            return;
+        }
         let modifiers = event.keystroke.modifiers;
         if !event.is_held
             && !modifiers.shift
             && (modifiers.platform || modifiers.control)
             && event.keystroke.key.eq_ignore_ascii_case("c")
-            && let Some(text) = key_entity.read(app).selected_selectable_text(node_id)
+            && let Ok(selection) = key_entity.read(app).text_selection_snapshot()
+            && !selection.text.is_empty()
         {
-            app.write_to_clipboard(ClipboardItem::new_string(text));
+            app.write_to_clipboard(ClipboardItem::new_string(selection.text));
+            app.stop_propagation();
+        } else if (modifiers.platform || modifiers.control)
+            && !modifiers.alt
+            && event.keystroke.key.eq_ignore_ascii_case("a")
+            && key_entity.update(app, |root, cx| root.select_document_all(cx))
+        {
+            app.stop_propagation();
+        } else if !modifiers.platform
+            && !modifiers.control
+            && !modifiers.alt
+            && key_entity.update(app, |root, cx| {
+                root.navigate_document_selection(&event.keystroke.key, modifiers.shift, cx)
+            })
+        {
+            app.stop_propagation();
+        } else if event.keystroke.key == "escape" {
+            key_entity.update(app, |root, cx| {
+                root.clear_text_selection();
+                cx.notify();
+            });
             app.stop_propagation();
         }
     });

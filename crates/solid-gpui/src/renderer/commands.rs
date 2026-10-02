@@ -352,7 +352,10 @@ impl SolidRoot {
                             false,
                         );
                     }
-                    if let Some(result) = module.invoke_foreground(function_id, &args, window, cx) {
+                    if let Some(result) = module
+                        .invoke_renderer(function_id, &args, self, window, cx)
+                        .or_else(|| module.invoke_foreground(function_id, &args, window, cx))
+                    {
                         return match result {
                             Ok(bytes) if bytes.len() <= crate::native::MAX_NATIVE_CALL_BYTES => {
                                 (true, None, Some(CommandValue::Bytes(bytes)), false)

@@ -10,10 +10,19 @@ type Handler =
     dyn Fn(Vec<u8>, &NativeExecutor) -> BoxFuture<'static, Result<Vec<u8>, String>> + Send + Sync;
 type UiHandler =
     dyn Fn(&[u8], &mut gpui::Window, &mut gpui::App) -> Result<Vec<u8>, String> + Send + Sync;
+type RendererHandler = dyn Fn(
+        &[u8],
+        &mut crate::SolidRoot,
+        &mut gpui::Window,
+        &mut gpui::Context<crate::SolidRoot>,
+    ) -> Result<Vec<u8>, String>
+    + Send
+    + Sync;
 #[derive(Clone)]
 enum CommandHandler {
     Worker(Arc<Handler>),
     Foreground(Arc<UiHandler>),
+    Renderer(Arc<RendererHandler>),
 }
 #[derive(Clone)]
 pub struct CommandDefinition {
@@ -22,6 +31,24 @@ pub struct CommandDefinition {
     handler: CommandHandler,
 }
 impl CommandDefinition {
+    /// A bounded command on the invoking surface's native renderer.
+    pub fn renderer<I: DeserializeOwned + TS + 'static, O: Serialize + TS + 'static>(
+        name: &'static str,
+        function: fn(
+            I,
+            &mut crate::SolidRoot,
+            &mut gpui::Window,
+            &mut gpui::Context<crate::SolidRoot>,
+        ) -> Result<O, String>,
+    ) -> Self {
+        Self {
+            name,
+            describe: |types| (types.collect::<I>(), types.collect::<O>()),
+            handler: CommandHandler::Renderer(Arc::new(move |bytes, root, window, cx| {
+                encode_json(&function(decode_json(bytes)?, root, window, cx)?)
+            })),
+        }
+    }
     /// Run synchronous work on Tokio's blocking pool. Cancelling its request
     /// discards the result, but an already-running closure must return on its own.
     /// Such work retains its global admission permit until it actually finishes.
@@ -101,6 +128,22 @@ struct Commands {
     executor: Arc<NativeExecutor>,
 }
 impl NativeModule for Commands {
+    fn invoke_renderer(
+        &self,
+        id: u32,
+        args: &[u8],
+        root: &mut crate::SolidRoot,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<crate::SolidRoot>,
+    ) -> Option<Result<Vec<u8>, String>> {
+        match &self.entries.get(id.wrapping_sub(1) as usize)?.handler {
+            CommandHandler::Renderer(handler) => Some(
+                super::identity::request_json(args, self.build_digest)
+                    .and_then(|json| handler(json, root, window, cx)),
+            ),
+            _ => None,
+        }
+    }
     fn module_id(&self) -> [u8; 16] {
         self.id
     }
@@ -119,7 +162,7 @@ impl NativeModule for Commands {
                 super::identity::request_json(args, self.build_digest)
                     .and_then(|json| handler(json, window, cx)),
             ),
-            CommandHandler::Worker(_) => None,
+            CommandHandler::Worker(_) | CommandHandler::Renderer(_) => None,
         }
     }
     fn invoke(&self, id: u32, args: &[u8]) -> Result<Vec<u8>, String> {
@@ -139,7 +182,7 @@ impl NativeModule for Commands {
         match self.entries.get(id.wrapping_sub(1) as usize) {
             Some(command) => match &command.handler {
                 CommandHandler::Worker(handler) => handler(args, &self.executor),
-                CommandHandler::Foreground(_) => Box::pin(async {
+                CommandHandler::Foreground(_) | CommandHandler::Renderer(_) => Box::pin(async {
                     Err("native UI command requires a mounted foreground window".into())
                 }),
             },
@@ -497,6 +540,8 @@ impl ExtensionRegistry for ModuleDefinition {
 }
 
 /// Explicit module composition. The same collection supplies host registration and exports.
+/// Includes the core `solid-gpui-text` surface service automatically; callers
+/// supply only their application/provider modules.
 ///
 /// All modules share a lazily started Tokio runtime with timer and I/O drivers.
 /// At most 128 asynchronous and blocking commands may be in flight across the
@@ -512,6 +557,7 @@ pub struct NativeModules {
 }
 impl NativeModules {
     pub fn new(mut modules: Vec<ModuleDefinition>) -> Self {
+        modules.push(super::text::native_module());
         assert_eq!(
             modules.iter().map(|m| m.id).collect::<BTreeSet<_>>().len(),
             modules.len(),

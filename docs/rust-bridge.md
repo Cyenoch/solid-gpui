@@ -443,6 +443,14 @@ produce explicit errors.
 
 ## Data limits and generation
 
+`native::CommandDefinition::renderer` declares a bounded foreground command on
+the invoking `SolidRoot`, `Window`, and `Context<SolidRoot>`. Use it for
+surface-owned selection or similar immediate renderer state. It follows the same
+generated JSON contract and strict module identity as worker commands; it must
+not block or look up/reborrow the owning renderer entity. `NativeModules` adds
+the core [text selection service](text-selection.md) automatically. Existing
+foreground commands retain their Window/App seam.
+
 Optional object members whose value is `undefined` are omitted recursively from
 native component props and command DTOs. For example,
 `{ items: [{ key: "mode", label: "Mode", description: undefined }] }` encodes

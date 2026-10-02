@@ -60,10 +60,10 @@ impl Render for Region {
             // box fills that allocation and applies padding/paint exactly once.
             let mut content = node.clone();
             let style = Arc::make_mut(content.style.as_mut().expect("region has definite style"));
-            style.width = None;
-            style.height = None;
-            style.width_percent = Some(100.0);
-            style.height_percent = Some(100.0);
+            style.width = Some(100.0);
+            style.height = Some(100.0);
+            style.width_unit = Some(crate::protocol::LengthUnit::Percent);
+            style.height_unit = Some(crate::protocol::LengthUnit::Percent);
             style.margin_top = None;
             style.margin_right = None;
             style.margin_bottom = None;
@@ -87,12 +87,18 @@ fn static_node(node: &StoredNode) -> bool {
         && !node.focusable
         && !node.selectable
         && !node.observes_layout
+        && !node.observes_hover
         && !node.accepts_pointer_move
         && node.host_properties.is_none()
         && node.tooltip.is_none()
         && node.style.as_ref().is_none_or(|style| {
             style.transition.is_none()
                 && style.overflow != Some(OverflowCode::Scroll)
+                && style.overflow_x != Some(OverflowCode::Scroll)
+                && style.overflow_y != Some(OverflowCode::Scroll)
+                && style.hover.is_none()
+                && style.active.is_none()
+                && style.focus_visible.is_none()
                 && style.position != Some(PositionCode::Overlay)
         })
 }
@@ -104,9 +110,13 @@ fn definite_region(node: &StoredNode) -> bool {
         && node.style.as_ref().is_some_and(|style| {
             style.width.is_some()
                 && style.height.is_some()
-                && style.width_percent.is_none()
-                && style.height_percent.is_none()
+                && style.width_unit.unwrap_or(crate::protocol::LengthUnit::Pixels)
+                    == crate::protocol::LengthUnit::Pixels
+                && style.height_unit.unwrap_or(crate::protocol::LengthUnit::Pixels)
+                    == crate::protocol::LengthUnit::Pixels
                 && style.overflow == Some(OverflowCode::Hidden)
+                && style.overflow_x.is_none_or(|axis| axis == OverflowCode::Hidden)
+                && style.overflow_y.is_none_or(|axis| axis == OverflowCode::Hidden)
                 && style.flex_shrink == Some(0.0)
                 && style.flex_grow.is_none_or(|grow| grow == 0.0)
                 && style.min_width.is_none()
@@ -125,6 +135,9 @@ fn ancestors_allow_retention(store: &NodeStore, node: &StoredNode) -> bool {
             || node.host_properties.is_some()
             || node.style.as_ref().is_some_and(|style| {
                 style.transition.is_some()
+                    || style.hover.is_some()
+                    || style.active.is_some()
+                    || style.focus_visible.is_some()
                     || style.opacity.is_some_and(|opacity| opacity != 1.0)
                     || style.position == Some(PositionCode::Overlay)
             })

@@ -847,12 +847,6 @@ impl SolidRoot {
                     self.selectable_text_layouts.remove(id);
                 }
             }
-            if let Some((id, _)) = self.selectable_text_drag_anchor
-                && ids.contains(&id)
-                && !self.selectable_text_selections.contains_key(&id)
-            {
-                self.selectable_text_drag_anchor = None;
-            }
             for id in ids {
                 let Some(node) = self.store.get(*id) else {
                     continue;
@@ -899,12 +893,6 @@ impl SolidRoot {
                 .get(*id)
                 .is_some_and(|node| node.kind == KIND_TEXT && node.selectable)
         });
-        if self
-            .selectable_text_drag_anchor
-            .is_some_and(|(id, _)| !self.selectable_text_selections.contains_key(&id))
-        {
-            self.selectable_text_drag_anchor = None;
-        }
         for node in self
             .store
             .iter()
@@ -1196,77 +1184,6 @@ impl SolidRoot {
         }
     }
 
-    fn selectable_text_index_for_point(&self, node_id: u32, point: Point<Pixels>) -> Option<usize> {
-        let layout = self.selectable_text_layouts.get(&node_id)?;
-        let local = point.relative_to(&layout.bounds.origin);
-        Some(
-            layout
-                .text
-                .closest_index_for_point(local)
-                .min(layout.content.len()),
-        )
-    }
-
-    pub(super) fn begin_selectable_text_selection(
-        &mut self,
-        node_id: u32,
-        point: Point<Pixels>,
-        cx: &mut Context<Self>,
-    ) {
-        let index = self
-            .selectable_text_index_for_point(node_id, point)
-            .unwrap_or_default();
-        self.selectable_text_drag_anchor = Some((node_id, index));
-        self.selectable_text_selections
-            .insert(node_id, index..index);
-        cx.notify();
-    }
-
-    pub(super) fn update_selectable_text_selection(
-        &mut self,
-        node_id: u32,
-        point: Point<Pixels>,
-        cx: &mut Context<Self>,
-    ) {
-        let Some((anchor_node, anchor)) = self.selectable_text_drag_anchor else {
-            return;
-        };
-        if anchor_node != node_id {
-            return;
-        }
-        let head = self
-            .selectable_text_index_for_point(node_id, point)
-            .unwrap_or(anchor);
-        let (selection, _) = selection_from_anchor(anchor, head);
-        if self.selectable_text_selections.get(&node_id) == Some(&selection) {
-            return;
-        }
-        self.selectable_text_selections.insert(node_id, selection);
-        cx.notify();
-    }
-
-    pub(super) fn end_selectable_text_selection(&mut self, node_id: u32) {
-        if self
-            .selectable_text_drag_anchor
-            .is_some_and(|(anchor_node, _)| anchor_node == node_id)
-        {
-            self.selectable_text_drag_anchor = None;
-        }
-    }
-
-    pub(super) fn selected_selectable_text(&self, node_id: u32) -> Option<String> {
-        let node = self.store.get(node_id)?;
-        let text = node.text_content.as_deref()?;
-        let range = self.selectable_text_selections.get(&node_id)?;
-        if range.start >= range.end
-            || range.end > text.len()
-            || !text.is_char_boundary(range.start)
-            || !text.is_char_boundary(range.end)
-        {
-            return None;
-        }
-        Some(text[range.clone()].to_owned())
-    }
     pub(super) fn handle_text_input_navigation(
         &mut self,
         node_id: u32,

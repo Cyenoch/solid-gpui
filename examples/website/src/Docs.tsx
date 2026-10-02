@@ -65,6 +65,7 @@ const referenceLabels: Record<string, string> = {
   "capture-state": "Preserve UI state",
   router: "Router",
   "keyboard-and-menus": "Keyboard & menus",
+  "text-selection": "Text selection & search",
   "native-composition": "Native UI composition",
   "paint-media": "Paint & live frames",
   "native-acceptance": "Native acceptance",

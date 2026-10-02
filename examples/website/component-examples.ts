@@ -11,6 +11,16 @@ function add(names: string, description: string, descriptionChinese: string, jsx
   });
 }
 add(
+  "TextSelectionObserver",
+  "Observe native cross-paragraph selection revisions and search committed selectable text without mirroring native ranges in JavaScript.",
+  componentDescriptionsChinese[
+    "Observe native cross-paragraph selection revisions and search committed selectable text without mirroring native ranges in JavaScript."
+  ],
+  '<View style={{ gap: 12 }}><N.TextSelectionObserver onSelectionChange={event => setStatus(`${event.selectedParagraphs} selected paragraphs`)} /><CoreText selectable>Hello <CoreText style={{ color: "#5271ff" }}>🙂 新值</CoreText></CoreText><CoreText selectable>A second searchable paragraph with é.</CoreText><N.Button label="Find searchable" onPress={async () => { const result = await native.searchText({ query: "searchable" }); if (result.matches.length) await native.selectTextSearchMatch({ textRevision: result.textRevision, searchRevision: result.searchRevision, matchIndex: 0 }); }} /><N.Label text={status()} /></View>',
+  'const native = N.useNative(); const [status, setStatus] = createSignal("Drag across paragraphs, then copy.");',
+);
+componentExamples[0].source = 'import { Text as CoreText } from "@solid-gpui/core";\n' + componentExamples[0].source;
+add(
   "Button",
   "A button for actions, with variants, loading and disabled states.",
   componentDescriptionsChinese["A button for actions, with variants, loading and disabled states."],

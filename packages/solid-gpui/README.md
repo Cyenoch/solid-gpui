@@ -26,6 +26,12 @@ createRoot(new StdioTransport()).render(() => createComponent(App, {}));
 
 Host rendering is transactional: the first update emits a Snapshot and later signal updates emit incremental Patches. GPUI owns native layout, input, focus, and painting.
 
+Core `Text selectable` paragraphs share native cross-element selection and copy
+within their Surface. The generated native client provides bounded Unicode text
+selection/search commands and optional revision notifications. See
+[native text selection and search](../../docs/text-selection.md) for styled text,
+virtualization, and lifecycle rules.
+
 Write JavaScript directly without a bundler, or use the separate `@solid-gpui/vite` package to compile JSX/TSX with the pinned official Oxc-based Solid universal compiler. TypeScript `jsxImportSource: "@solid-gpui/core"` supplies host element types only; it is not an automatic JSX runtime.
 
 Import `For`, `Index`, `Show`, `Switch`, and `Match` from

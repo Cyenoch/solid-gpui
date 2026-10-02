@@ -6,6 +6,10 @@ Solid owns application composition and reactive state. The native host owns
 rendering, transient interaction state, and bounded resources. Use the generated
 Solid contracts to configure native behavior.
 
+Core selectable Text paragraphs participate in one native document selection and
+search per Surface. See [text selection and search](text-selection.md) for copy,
+Unicode offsets, styled runs, generated services and virtual row cleanup.
+
 - Start with the task, its object, and its result. Keep frequent commands visible;
   use native menus for secondary actions. Share one application command between
   toolbar buttons, menu items, and shortcuts so enabled state and outcomes agree.
