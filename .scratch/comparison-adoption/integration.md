@@ -12,14 +12,14 @@ All worktrees are below `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/
 
 | Ticket | Branch/worktree suffix | Agent session | State |
 | --- | --- | --- | --- |
-| 01 | `01-native-acceptance` | `ses_f05081953ffeN4aQ8DSP0ruwr5` | Implementing |
+| 01 | `01-native-acceptance` | `ses_f05081953ffeN4aQ8DSP0ruwr5` | Merged `67e8c37`; final combined native qualification pending |
 | 02 | `02-delivery` | `ses_f05081953ffdcg3qfb1jmdkR5L` | Implementing |
 | 03 | `03-contract-identity` | `ses_f05081949ffe0gqOTtORiGOJUl` | Implementing |
 | 04 | `04-style-contract` | `ses_f05081949ffd2btrvc76HWGHTa` | Implementing |
 | 05 | `05-native-performance` | `ses_f05081948ffexDinEwHi4cp7io` | Implementing |
 | 06 | `06-selection-search` | `ses_f05059a58ffesWtaKj9ntSXmgY` | Implementing |
 | 07 | `07-paint-media` | `ses_f05059a57ffeHzvbUN55kpP7mi` | Implementing |
-| 08 | `08-signed-updater` | `ses_f05059a57ffdT9YjVlSHhDM0CB` | Implementing |
+| 08 | `08-signed-updater` | `ses_f05059a57ffdT9YjVlSHhDM0CB` | Merged `f1c3835`; owner fixing two review findings |
 | 09 | `09-reference-application` | `ses_f05059a4fffeVoD8VDxsQpVOpq` | Implementing |
 | 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Merged `91a6376`; focused compiler and website checks passed |
 
@@ -61,3 +61,15 @@ Merged `adopt/10-compiler-docs` commits `3c08361b`/`4045d953` with merge `91a637
 The standalone upstream patch contains standard blank context lines (one space) that `git diff --check` reports as trailing whitespace inside the patch artifact; preserve valid patch syntax rather than edit those lines. Production source/docs pass whitespace checks.
 
 Preserve `./compiler`, optional Vite peer metadata and compiler pack-smoke wiring when ticket 02 lands. Final website typecheck/build requires generated WASM bindings. Extend the new `vendor/GPUI-SOURCES.md` inventory for later native vendor edits. Current machine has Bun 1.4.2, Rust 1.98.1, the required WASM nightly installed, wasm-bindgen available, and Xcode Metal compiler discoverable.
+
+### Tickets 01 and 08 — native acceptance and signed updates
+
+Merged ticket 01 tip `f7104b00` with `67e8c376de22455d890e18d4237d0e55c3048a4f`, then ticket 08 tip `41dbbab6` with `f1c3835b54f420cb4dd08761c8212d76bbd2c696`. Preserved both changelog/docs entries and Cargo gates. Eighteen focused helper/schema/compiler/website tests, core/desktop types, locked offline Cargo metadata and changed Rust formatting passed after merge; dependency notices regenerated identically. No full suite or native runtime requalification was repeated by merger.
+
+Ticket 08 independent review found two concrete transitions needing correction: status reads the pre-swap transaction without installation serialization; cleanup removes the recovery record before candidate cleanup succeeds. Owner is implementing serialized status and durable cleanup-state recovery with failure-injection tests. The fixes must land before updater acceptance. macOS installation is implemented; Windows/Linux explicitly reject installation authority, and physical/relaunch/power-loss qualification is not claimed.
+
+Ticket 03 must migrate updater `with_contract` to its canonical semantic-version interface, preserving the explicitly non-abortable blocking commit command. Ticket 05 must preserve native acceptance painted observations through region reuse. Ticket 09 owns the accessibility forwarding fix for core VirtualList.
+
+### Project wording constraint
+
+The user requested no project copy about learning from comparator projects. All active agents received this constraint. Public comments/docs/UI should describe this project's capabilities and design only; legal source attribution and concise fixture provenance remain. The historical research is archived outside the repository at `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-research-20261001`. Remove the in-repository research after final agents finish using it, and neutralize internal implementation notes that retain comparison narrative.
