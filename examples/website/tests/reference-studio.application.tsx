@@ -8,6 +8,7 @@ import {
 } from "@solid-gpui/core";
 import { createRootRoute, createRoute, createRouter, RouterProvider, useLocation, useRouter } from "@solid-gpui/router";
 import { ReferenceStudio, createReferenceStudioState } from "../src/showcase/ReferenceStudio";
+import { StudioPreview } from "../src/showcase/StudioPreview.native";
 
 /** Production controls and router, isolated from documentation virtualization for native qualification. */
 export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
@@ -29,7 +30,8 @@ export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
           height={dimensions().height}
           view={location().pathname === "/studio/history" ? "history" : "timeline"}
           navigate={(view) => void router.navigate({ to: `/studio/${view}` })}
-          copyText={(text) => root.setClipboardText(text)}
+      copyText={(text) => root.setClipboardText(text)}
+      preview={() => <StudioPreview title={state.selectedClip().label} />}
           onListHandle={(kind, handle) => {
             if (handle) lists.set(kind, handle);
             else lists.delete(kind);

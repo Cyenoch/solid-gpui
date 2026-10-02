@@ -39,8 +39,8 @@ export function StudioPreview(props: { title: string }) {
   onMount(() => { void advance(); });
   onCleanup(() => { active = false; frame = undefined; });
   return <View accessibilityLabel="studio.preview" style={{ gap: 6, minWidth: 0 }}>
-    <RecordedPaint accessibilityLabel="studio.preview.recording" recording={recording()} viewportHeight={64} />
-    <LiveFrame accessibilityLabel="studio.preview.frame" viewportHeight={108} fit="contain" ref={(value) => { frame = value; }} />
+    <View accessibilityLabel="studio.preview.recording"><RecordedPaint recording={recording()} viewportHeight={64} /></View>
+    <View accessibilityLabel="studio.preview.frame"><LiveFrame viewportHeight={108} fit="contain" ref={(value) => { frame = value; }} /></View>
     <Pressable accessibilityLabel="studio.preview.advance" accessibilityRole="button" focusable disabled={pending()} onPress={() => { void advance(); }}
       style={{ padding: 7, minHeight: 32, borderWidth: 1, borderColor: "#3C3944", borderRadius: 5 }}>
       <Text style={{ color: "#ECEAF1", fontSize: 12 }}>{pending() ? "Loading frame…" : "Advance preview"}</Text>
