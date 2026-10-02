@@ -1,5 +1,11 @@
 # Rust 组件与 JavaScript 调用
 
+需要捕获应用服务状态时，可注册 `CommandDefinition::blocking(name, closure)`
+或 `CommandDefinition::asynchronous`。`blocking` 与 `sync` 共享执行许可和
+`NativeCallContext` 协作取消语义，并允许闭包捕获 `Arc`。可选的
+[签名更新服务](signed-updates.zh-CN.md)通过该接口在原生侧保留可信配置与文件资源，
+同时导出生成的 JavaScript 客户端。
+
 只需 Rust 依赖 `solid-gpui` 和 npm 依赖 `@solid-gpui/core`。Rust 声明定义契约，宿主导出组件、事件、实例 ref 和 Promise 客户端。无需手写字段 ID、JSON 编解码、TypeScript 接口，也不需要独立 schema 或代码生成包。
 
 ## 进程运行时关闭

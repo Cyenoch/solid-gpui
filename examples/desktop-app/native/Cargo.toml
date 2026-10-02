@@ -6,5 +6,5 @@ license.workspace = true
 publish = false
 
 [dependencies]
-solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component"] }
+solid-gpui = { path = "../../../crates/solid-gpui", features = ["gpui-component", "signed-updater"] }
 gpui-component.workspace = true

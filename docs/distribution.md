@@ -221,6 +221,9 @@ ditto -c -k --keepParent "Solid GPUI.app" Website-notarization.zip
 QuickJS is an interpreter; this package does not embed Bun's JSC/JIT runtime.
 App icons, document associations, entitlements, sandboxing, updates, and installer
 branding belong to the application being shipped and need their own validation.
+The optional [signed update service](signed-updates.md) uses an explicit trusted
+feed/key and a separate `app-tar-v1` packaging contract. It supports macOS atomic
+bundle exchange and rollback; restart remains application-managed.
 
 ## Linux
 
@@ -284,10 +287,10 @@ matrix.
 Three routes reach the same driver. An application uses the public CLI or the
 library; this repository uses the script.
 
-| Route | Use |
-| --- | --- |
-| `solid-gpui embedded package [flags]` | Public CLI shipped with `@solid-gpui/vite`. |
-| `packageEmbeddedApplication({ sdkRoot, ... })` from `@solid-gpui/vite/embedded` | Library API for a build script; returns the packaging report. |
+| Route                                                                                          | Use                                                                   |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `solid-gpui embedded package [flags]`                                                          | Public CLI shipped with `@solid-gpui/vite`.                           |
+| `packageEmbeddedApplication({ sdkRoot, ... })` from `@solid-gpui/vite/embedded`                | Library API for a build script; returns the packaging report.         |
 | `bun packages/solid-gpui-vite/src/embedded/command.ts [flags]` (npm script `embedded:package`) | This repository's checkout-local entry, same flags plus `--sdk-root`. |
 
 A consumer passes `sdkRoot` explicitly: an SDK checkout that owns the pinned
@@ -347,21 +350,21 @@ solid-gpui embedded package \
   --output "$PWD/dist/app/solid-gpui-embedded-app.exe"
 ```
 
-| Argument | Meaning |
-| --- | --- |
-| `--entry` (required) | Absolute path to the single ESM file the Vite production build emits; its basename names the graph entry. |
-| `--bun` (required) | Absolute path to a Bun built from the revision pinned in `crates/solid-gpui-bun-sys/bun-build.json`. The driver reads `bun --revision` and refuses any other commit with no override, because the serialized payload carries no format version. Nothing here builds, downloads, or installs the serializer for you. |
-| `--output` (required) | Executable to write; parent directories are created and its SHA-256 is printed. |
-| `--target <triple>` | Rust triple; defaults to the host triple of the pinned `nightly-2026-07-20` toolchain. Supported: `aarch64-`/`x86_64-apple-darwin`, `x86_64-`/`aarch64-pc-windows-msvc`, and `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`. Anything else is rejected. |
-| `--profile debug\|release` | Defaults to `release`; `debug` selects Bun's `debug-no-asan` native profile and Cargo's `dev` profile. |
-| `--source <dir>`, `--cache <dir>` | Reuse an existing checkout of the pinned revision, and choose where the prepared checkout is kept (default `target/bun-static`). The cache name derives from the pin, the embedding patch, and the overlay sources, so a changed pin always rebuilds. |
+| Argument                                                                     | Meaning                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--entry` (required)                                                         | Absolute path to the single ESM file the Vite production build emits; its basename names the graph entry.                                                                                                                                                                                                                                                            |
+| `--bun` (required)                                                           | Absolute path to a Bun built from the revision pinned in `crates/solid-gpui-bun-sys/bun-build.json`. The driver reads `bun --revision` and refuses any other commit with no override, because the serialized payload carries no format version. Nothing here builds, downloads, or installs the serializer for you.                                                  |
+| `--output` (required)                                                        | Executable to write; parent directories are created and its SHA-256 is printed.                                                                                                                                                                                                                                                                                      |
+| `--target <triple>`                                                          | Rust triple; defaults to the host triple of the pinned `nightly-2026-07-20` toolchain. Supported: `aarch64-`/`x86_64-apple-darwin`, `x86_64-`/`aarch64-pc-windows-msvc`, and `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`. Anything else is rejected.                                                                                                               |
+| `--profile debug\|release`                                                   | Defaults to `release`; `debug` selects Bun's `debug-no-asan` native profile and Cargo's `dev` profile.                                                                                                                                                                                                                                                               |
+| `--source <dir>`, `--cache <dir>`                                            | Reuse an existing checkout of the pinned revision, and choose where the prepared checkout is kept (default `target/bun-static`). The cache name derives from the pin, the embedding patch, and the overlay sources, so a changed pin always rebuilds.                                                                                                                |
 | `--manifest <file>`, `--package <name>`, `--main <file>`, `--feature <name>` | Application-owned Cargo input: the manifest to build (package or workspace root), its package name, the Rust entry `include!`d into the generated bin crate (`--main` is required alongside `--manifest`; on its own it replaces the default entry), and repeatable `--feature` values added to that package. Without them the driver builds the default host entry. |
-| `--assets <file>`, `--workers <entry>` | Repeatable. `--assets` values become `--asset` arguments and `--workers` values become extra serializer entry points. Declare every resource and Worker the application loads at run time; a `new Worker` or computed import is not discovered automatically. |
-| `--base-executable <file>` | Same-revision Bun for the target platform, required whenever `--target` is not this host's platform and architecture; otherwise the serializer would need a base executable the pin does not cover and stops instead. |
-| `--macos-sdk <dir>`, `--deployment-target <version>`, `--winsysroot <dir>` | Forwarded to Bun's build script as `--macos-sdk=`, `--osx-deployment-target=`, and `--winsysroot=`. |
-| `--ninja <file>` | Ninja to use when it is not on `PATH`. |
-| `--prepare-only` | Build only the native graph, print the `embed-native.json` path, and build no application. The only mode that works for Linux; the three required arguments must still be present although it uses none of them. |
-| `--help` | Print the argument list. |
+| `--assets <file>`, `--workers <entry>`                                       | Repeatable. `--assets` values become `--asset` arguments and `--workers` values become extra serializer entry points. Declare every resource and Worker the application loads at run time; a `new Worker` or computed import is not discovered automatically.                                                                                                        |
+| `--base-executable <file>`                                                   | Same-revision Bun for the target platform, required whenever `--target` is not this host's platform and architecture; otherwise the serializer would need a base executable the pin does not cover and stops instead.                                                                                                                                                |
+| `--macos-sdk <dir>`, `--deployment-target <version>`, `--winsysroot <dir>`   | Forwarded to Bun's build script as `--macos-sdk=`, `--osx-deployment-target=`, and `--winsysroot=`.                                                                                                                                                                                                                                                                  |
+| `--ninja <file>`                                                             | Ninja to use when it is not on `PATH`.                                                                                                                                                                                                                                                                                                                               |
+| `--prepare-only`                                                             | Build only the native graph, print the `embed-native.json` path, and build no application. The only mode that works for Linux; the three required arguments must still be present although it uses none of them.                                                                                                                                                     |
+| `--help`                                                                     | Print the argument list.                                                                                                                                                                                                                                                                                                                                             |
 
 ### Static packaging prerequisites
 
@@ -390,7 +393,7 @@ access; caches never skip version or patch validation.
   `src/jsc/bindings/c-bindings.cpp`), so the native embed library cannot be built
   with that SDK on this machine. Overrides, no code change: the packager's existing
   `--macos-sdk /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
-  --deployment-target 26.5`, and, for anything that configures Bun itself (for
+--deployment-target 26.5`, and, for anything that configures Bun itself (for
   example `cargo build/test --features embedded-bun`, which runs
   `crates/solid-gpui-bun-sys/build.rs`), the `SOLID_GPUI_BUN_MACOS_SDK` and
   `SOLID_GPUI_BUN_DEPLOYMENT_TARGET` environment variables. Ninja 1.13.0 must be on
@@ -506,15 +509,15 @@ directly and owns everything the default entry provides.
 
 ### Platform status and current evidence
 
-| Target | Current state |
-| --- | --- |
-| macOS ARM64, debug | Built and run end to end: a headless two-session probe with counter input and clean shutdown, plus a real GPUI window that accepted interaction. Not standalone; see the limitations below. |
-| Windows x64, debug | Cross-linked on macOS, then run alone in a Windows 11 ARM64 virtual machine with no Bun or Node. Two in-process sessions reproduced the same input and shutdown result. |
-| macOS ARM64, release | Not built or qualified. |
-| Windows x64, release | Not built or qualified. |
-| Windows ARM64, debug | Cross-linked through the full packager; two graph/input/restart sessions passed natively in a Windows 11 ARM64 VM. No GUI or physical-device qualification. |
+| Target                 | Current state                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS ARM64, debug     | Built and run end to end: a headless two-session probe with counter input and clean shutdown, plus a real GPUI window that accepted interaction. Not standalone; see the limitations below.                                                                                                                                                                                                                                            |
+| Windows x64, debug     | Cross-linked on macOS, then run alone in a Windows 11 ARM64 virtual machine with no Bun or Node. Two in-process sessions reproduced the same input and shutdown result.                                                                                                                                                                                                                                                                |
+| macOS ARM64, release   | Not built or qualified.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Windows x64, release   | Not built or qualified.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Windows ARM64, debug   | Cross-linked through the full packager; two graph/input/restart sessions passed natively in a Windows 11 ARM64 VM. No GUI or physical-device qualification.                                                                                                                                                                                                                                                                            |
 | Windows ARM64, release | Built natively with matching MSVC 14.44 headers/libraries, the pinned release JSC, and real SDK DXBC generation. Passed the full graph probe headlessly as an independent standard user and from a read-only installation. A separate user-controlled GUI run confirmed expected markers, counter interaction, resize, and normal closure. Broader desktop, physical-device, dependency-closure, and signing requirements remain open. |
-| Linux | `--prepare-only` native preparation only. |
+| Linux                  | `--prepare-only` native preparation only.                                                                                                                                                                                                                                                                                                                                                                                              |
 
 The probe is a real Vite-compiled Solid UI: Solid JSX, a dynamic `import()`, an
 explicitly embedded `node:worker_threads` Worker, a resource read through
@@ -595,14 +598,14 @@ release-build/basic-GUI, independent-standard-user headless, and read-only-insta
 headless checks. Those results do not qualify broader GUI/device coverage,
 dependency closure, or signing; see [platform status](#platform-status-and-current-evidence).
 
-| Gate | Implementation | Evidence required |
-| --- | --- | --- |
-| Independent standard user | An operator-provisioned local non-administrator account, distinct from the build/test account. | Different user SID, reviewed membership, non-elevated token, and a passing application probe. A filtered administrator is not a standard user. |
-| Read-only EXE directory | The verified candidate in an operator-provisioned read/execute-only location, including a Unicode/spaces path, launched in place with working files, logs and TEMP outside it. | Create-new in the directory and non-truncating write-open of the EXE both fail with access denied; startup/input/shutdown pass and the EXE hash is unchanged. |
-| Dependency closure | Apply the static gate below, then inspect actual module loads and file accesses for the application's declared scenarios on each supported OS/architecture. | Normal/delay imports reviewed; runtime, graphics, fonts, configuration and resources separately recorded. Sampling is not exhaustive tracing. |
-| Release | `--profile release`, the pinned release JSC product, and the Windows SDK DXBC compiler on a capable build host. | The release EXE itself passes the application probe, import audit, and user-controlled GUI scenarios; debug evidence is insufficient. |
-| Signing | An explicitly selected publisher certificate and RFC 3161 endpoint after the final link, verified before publishing. | SignTool returns zero for sign and verify, the signer matches, a timestamp is present, and checksums describe the signed bytes. |
-| Native ARM64 | The same pinned Bun base and application built for `aarch64-pc-windows-msvc`, never a reused x64 base; keep x64 and ARM64 bases, outputs, and evidence separate. | PE machine is ARM64, the probe passes on ARM64 Windows, and `IsWow64Process2` reports process machine `0` and native machine `0xAA64`. |
+| Gate                      | Implementation                                                                                                                                                                 | Evidence required                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Independent standard user | An operator-provisioned local non-administrator account, distinct from the build/test account.                                                                                 | Different user SID, reviewed membership, non-elevated token, and a passing application probe. A filtered administrator is not a standard user.                |
+| Read-only EXE directory   | The verified candidate in an operator-provisioned read/execute-only location, including a Unicode/spaces path, launched in place with working files, logs and TEMP outside it. | Create-new in the directory and non-truncating write-open of the EXE both fail with access denied; startup/input/shutdown pass and the EXE hash is unchanged. |
+| Dependency closure        | Apply the static gate below, then inspect actual module loads and file accesses for the application's declared scenarios on each supported OS/architecture.                    | Normal/delay imports reviewed; runtime, graphics, fonts, configuration and resources separately recorded. Sampling is not exhaustive tracing.                 |
+| Release                   | `--profile release`, the pinned release JSC product, and the Windows SDK DXBC compiler on a capable build host.                                                                | The release EXE itself passes the application probe, import audit, and user-controlled GUI scenarios; debug evidence is insufficient.                         |
+| Signing                   | An explicitly selected publisher certificate and RFC 3161 endpoint after the final link, verified before publishing.                                                           | SignTool returns zero for sign and verify, the signer matches, a timestamp is present, and checksums describe the signed bytes.                               |
+| Native ARM64              | The same pinned Bun base and application built for `aarch64-pc-windows-msvc`, never a reused x64 base; keep x64 and ARM64 bases, outputs, and evidence separate.               | PE machine is ARM64, the probe passes on ARM64 Windows, and `IsWow64Process2` reports process machine `0` and native machine `0xAA64`.                        |
 
 Run the account commands in the test account itself, never from an elevated helper:
 

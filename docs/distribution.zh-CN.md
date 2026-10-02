@@ -1,5 +1,9 @@
 # 分发原生应用
 
+可选的[签名更新服务](signed-updates.zh-CN.md)需要应用显式配置信任 feed/密钥，
+并采用独立的 `app-tar-v1` 打包合同。支持 macOS 原子 bundle 交换和回滚，
+重启由应用管理；不会自动启用或修改开发中的应用。
+
 运行时策略将内嵌 Bun 用于依赖 Bun 服务的生产应用，QuickJS 用于主要能力由 Rust 实现的应用，外部 Bun 用于快速开发。本指南第一部分记录 QuickJS website 打包，这是仓库目前唯一交付并验证的流水线。第二部分记录实验性的内嵌 Bun 静态打包流程，它把 Bun/JSC 运行时与应用模块图链接进单个可执行文件；目前只有有限的运行时验证，不构成发布支持。输入与当前验证门槛见[内嵌 Bun 静态应用](#内嵌-bun-静态应用)，预期职责见[运行时策略](runtime-strategy.zh-CN.md)。
 
 website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust 可执行文件并由 QuickJS 执行，生产包不带内联 source map。用户无需 Bun、Node、仓库 checkout 或旁置 JavaScript bundle。Rust 拥有原生服务和渲染，同一界面组合也可在开发时通过 Bun 执行。
@@ -122,10 +126,10 @@ desktop entry 按[Desktop Entry 标准](https://specifications.freedesktop.org/d
 
 同一驱动有三条入口：应用使用公开 CLI 或库，本仓库使用脚本。
 
-| 入口 | 用途 |
-| --- | --- |
-| `solid-gpui embedded package [flags]` | 随 `@solid-gpui/vite` 发布的公开 CLI。 |
-| `@solid-gpui/vite/embedded` 的 `packageEmbeddedApplication({ sdkRoot, ... })` | 供构建脚本使用的库 API，返回打包报告。 |
+| 入口                                                                                          | 用途                                                        |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `solid-gpui embedded package [flags]`                                                         | 随 `@solid-gpui/vite` 发布的公开 CLI。                      |
+| `@solid-gpui/vite/embedded` 的 `packageEmbeddedApplication({ sdkRoot, ... })`                 | 供构建脚本使用的库 API，返回打包报告。                      |
 | `bun packages/solid-gpui-vite/src/embedded/command.ts [flags]`（npm 脚本 `embedded:package`） | 本仓库 checkout 内的入口，参数相同并额外接受 `--sdk-root`。 |
 
 消费方需显式传入 `sdkRoot`：即拥有固定 Bun/Rust 后端的 SDK checkout。这是受支持的接缝——消费方不导入仓库私有文件，也不复制该驱动。库参数为
@@ -162,21 +166,21 @@ solid-gpui embedded package \
 
 将 `WINDOWS_SYSROOT` 设为已准备好的 Windows SDK/CRT 目录。
 
-| 参数 | 含义 |
-| --- | --- |
-| `--entry`（必需） | Vite 生产构建产出的单一 ESM 应用入口的绝对路径。序列化器以该文件名命名模块图入口。 |
-| `--bun`（必需） | 由 `crates/solid-gpui-bun-sys/bun-build.json` 固定版本构建的 Bun 可执行文件绝对路径。驱动读取 `bun --revision`，拒绝任何其他 commit，且无法关闭该检查：序列化载荷本身不带格式版本，仓库也不会替你构建、下载或安装该序列化器。 |
-| `--output`（必需） | 输出可执行文件路径。父目录会自动创建，并打印结果的 SHA-256。 |
-| `--target <triple>` | 目标 Rust triple，默认取固定 `nightly-2026-07-20` rustup 工具链报告的宿主 triple。支持 `aarch64-`/`x86_64-apple-darwin`、`x86_64-`/`aarch64-pc-windows-msvc` 以及 `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`，其他 triple 直接拒绝。 |
-| `--profile debug\|release` | 默认 `release`。`debug` 使用 Bun 的 `debug-no-asan` 原生配置和 Cargo 的 `dev` 配置。 |
-| `--source <dir>`、`--cache <dir>` | 复用已有的固定版本 checkout 而不重新克隆固定仓库，并指定准备好的 checkout 存放位置（默认 `target/bun-static`）。目录名由固定版本、内嵌补丁与覆盖源码派生，pin 变化必然重建。 |
+| 参数                                                                         | 含义                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--entry`（必需）                                                            | Vite 生产构建产出的单一 ESM 应用入口的绝对路径。序列化器以该文件名命名模块图入口。                                                                                                                                                                     |
+| `--bun`（必需）                                                              | 由 `crates/solid-gpui-bun-sys/bun-build.json` 固定版本构建的 Bun 可执行文件绝对路径。驱动读取 `bun --revision`，拒绝任何其他 commit，且无法关闭该检查：序列化载荷本身不带格式版本，仓库也不会替你构建、下载或安装该序列化器。                          |
+| `--output`（必需）                                                           | 输出可执行文件路径。父目录会自动创建，并打印结果的 SHA-256。                                                                                                                                                                                           |
+| `--target <triple>`                                                          | 目标 Rust triple，默认取固定 `nightly-2026-07-20` rustup 工具链报告的宿主 triple。支持 `aarch64-`/`x86_64-apple-darwin`、`x86_64-`/`aarch64-pc-windows-msvc` 以及 `x86_64-`/`aarch64-unknown-linux-gnu`/`-musl`，其他 triple 直接拒绝。                |
+| `--profile debug\|release`                                                   | 默认 `release`。`debug` 使用 Bun 的 `debug-no-asan` 原生配置和 Cargo 的 `dev` 配置。                                                                                                                                                                   |
+| `--source <dir>`、`--cache <dir>`                                            | 复用已有的固定版本 checkout 而不重新克隆固定仓库，并指定准备好的 checkout 存放位置（默认 `target/bun-static`）。目录名由固定版本、内嵌补丁与覆盖源码派生，pin 变化必然重建。                                                                           |
 | `--manifest <file>`、`--package <name>`、`--main <file>`、`--feature <name>` | 应用自有的 Cargo 输入：要构建的清单（包或工作区根）、其包名、被 `include!` 进生成 bin crate 的 Rust 入口（`--manifest` 必须与 `--main` 同时给出；单独给出 `--main` 时替换默认入口），以及可重复的 `--feature` 追加到该包。不传时驱动构建默认宿主入口。 |
-| `--assets <file>`、`--workers <entry>` | 可重复。`--assets` 转为 `--asset` 参数，`--workers` 转为序列化器额外入口。运行时加载的每个资源和 Worker 都要在此声明；`new Worker` 或动态计算的 import 不会被自动发现。 |
-| `--base-executable <file>` | 同固定版本的目标平台 Bun。当 `--target` 与本机平台架构不同时必需：否则序列化器需要下载 pin 未覆盖的 base 可执行文件，此时它会直接停止。 |
-| `--macos-sdk <dir>`、`--deployment-target <version>`、`--winsysroot <dir>` | 以 `--macos-sdk=`、`--osx-deployment-target=`、`--winsysroot=` 转发给 Bun 构建脚本。 |
-| `--ninja <file>` | 当 ninja 不在 `PATH` 时指定。 |
-| `--prepare-only` | 只配置并构建原生图，打印 `embed-native.json` 路径，不构建应用。这是 Linux 目标目前唯一可用的模式；三个必需参数仍须提供，尽管该模式不会用到它们。 |
-| `--help` | 打印参数列表。 |
+| `--assets <file>`、`--workers <entry>`                                       | 可重复。`--assets` 转为 `--asset` 参数，`--workers` 转为序列化器额外入口。运行时加载的每个资源和 Worker 都要在此声明；`new Worker` 或动态计算的 import 不会被自动发现。                                                                                |
+| `--base-executable <file>`                                                   | 同固定版本的目标平台 Bun。当 `--target` 与本机平台架构不同时必需：否则序列化器需要下载 pin 未覆盖的 base 可执行文件，此时它会直接停止。                                                                                                                |
+| `--macos-sdk <dir>`、`--deployment-target <version>`、`--winsysroot <dir>`   | 以 `--macos-sdk=`、`--osx-deployment-target=`、`--winsysroot=` 转发给 Bun 构建脚本。                                                                                                                                                                   |
+| `--ninja <file>`                                                             | 当 ninja 不在 `PATH` 时指定。                                                                                                                                                                                                                          |
+| `--prepare-only`                                                             | 只配置并构建原生图，打印 `embed-native.json` 路径，不构建应用。这是 Linux 目标目前唯一可用的模式；三个必需参数仍须提供，尽管该模式不会用到它们。                                                                                                       |
+| `--help`                                                                     | 打印参数列表。                                                                                                                                                                                                                                         |
 
 ### 静态打包前置条件
 
@@ -226,15 +230,15 @@ solid-gpui embedded package \
 
 ### 平台状态与当前证据
 
-| 目标 | 当前状态 |
-| --- | --- |
-| macOS ARM64 debug | 已端到端构建并运行：无显示的两个会话探针完成计数输入并干净退出，另有真实 GPUI 窗口接受交互。它不是自包含的，限制见下文。 |
-| Windows x64 debug | 在 macOS 上用固定工具链交叉链接，单独复制到未安装 Bun 与 Node 的 Windows 11 ARM64 虚拟机运行；两次同进程会话复现了相同的输入与退出结果。 |
-| macOS ARM64 release | 未构建、未验证。 |
-| Windows x64 release | 未构建、未验证。 |
-| Windows ARM64 debug | 经完整打包器交叉链接，在 Windows 11 ARM64 虚拟机中原生通过两个模块图、输入和重启会话。尚无 GUI 或实体设备验收。 |
+| 目标                  | 当前状态                                                                                                                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| macOS ARM64 debug     | 已端到端构建并运行：无显示的两个会话探针完成计数输入并干净退出，另有真实 GPUI 窗口接受交互。它不是自包含的，限制见下文。                                                                                                                                                       |
+| Windows x64 debug     | 在 macOS 上用固定工具链交叉链接，单独复制到未安装 Bun 与 Node 的 Windows 11 ARM64 虚拟机运行；两次同进程会话复现了相同的输入与退出结果。                                                                                                                                       |
+| macOS ARM64 release   | 未构建、未验证。                                                                                                                                                                                                                                                               |
+| Windows x64 release   | 未构建、未验证。                                                                                                                                                                                                                                                               |
+| Windows ARM64 debug   | 经完整打包器交叉链接，在 Windows 11 ARM64 虚拟机中原生通过两个模块图、输入和重启会话。尚无 GUI 或实体设备验收。                                                                                                                                                                |
 | Windows ARM64 release | 使用匹配的 MSVC 14.44 头文件/库、固定 release JSC 与真实 SDK DXBC 生成，在 Windows 上原生构建。完整模块图探针在独立标准用户下、以及从只读安装目录通过。另一次用户控制的 GUI 运行确认了预期标记、计数交互、缩放与正常关闭。更广泛的桌面、实体设备、依赖闭包与签名要求仍未完成。 |
-| Linux | 仅 `--prepare-only` 原生准备。 |
+| Linux                 | 仅 `--prepare-only` 原生准备。                                                                                                                                                                                                                                                 |
 
 该探针是真实的 Vite 编译 Solid 界面：Solid JSX、动态 `import()`、显式嵌入的 `node:worker_threads` Worker、通过 `Bun.embeddedFiles` 读取的资源、三次计数输入与干净退出。主 VM 与 Worker 都拒绝原生提取，默认 `fork()`/`cluster.fork()` 拒绝把宿主当解释器而外部系统命令仍可执行；固定版本序列化器会把 Vite 的动态 chunk 合并进入口，因此这不是最终模块图含独立动态模块记录的证据。这些是针对指定 fixture 的检查，不等于完整文件系统追踪或应用依赖闭包。
 
@@ -260,14 +264,14 @@ solid-gpui embedded package \
 
 Windows ARM64 release 候选已通过原生架构、release 构建与基本 GUI、独立标准用户无界面、只读安装无界面检查。这些结果不代表更广泛的 GUI/设备覆盖、依赖闭包或签名通过；范围见[平台状态](#平台状态与当前证据)。
 
-| 门槛 | 实施方式 | 所需证据 |
-| --- | --- | --- |
-| 独立标准用户 | 使用操作者预先准备、不同于构建/原测试账户的本地非管理员账户。 | SID 不同、账户组归属已核查、令牌未提升，且实际应用探针通过。UAC 过滤后的管理员不算标准用户。 |
-| 只读 EXE 目录 | 将已校验候选放到预先准备的只读/可执行位置，包含 Unicode 与空格路径；原地启动，工作文件、日志和 TEMP 位于其他可写目录。 | 目录中新建文件与对 EXE 的非截断写打开均因权限拒绝失败；启动、输入、关闭通过，EXE 哈希不变。 |
-| 依赖闭包 | 先执行下述静态门禁，再在每个声明支持的 OS/架构上检查应用场景的实际模块加载及文件访问。 | 普通/延迟导入经过审核；运行时、图形、字体、配置、资源分别有证据。采样不等于完整跟踪。 |
-| Release | 用 `--profile release`、固定 release JSC 产物和可执行 Windows SDK DXBC 编译器构建。 | release EXE 本身通过应用探针、导入审计及用户控制的 GUI 场景，不能借用 debug 证据。 |
-| 签名 | 最终链接后，显式选择发布者证书及 RFC 3161 服务，验证后再发布。 | SignTool 签名和验证都返回零、签署者匹配、时间戳存在，校验和对应签名后的字节。 |
-| 原生 ARM64 | 同固定版本的 Bun 基座和应用都构建为 `aarch64-pc-windows-msvc`，不复用 x64 基座；x64 与 ARM64 的基座、输出和证据必须分开保存。 | PE machine 为 ARM64，探针在 ARM64 Windows 通过，`IsWow64Process2` 返回 process machine `0`、native machine `0xAA64`。 |
+| 门槛          | 实施方式                                                                                                                      | 所需证据                                                                                                              |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 独立标准用户  | 使用操作者预先准备、不同于构建/原测试账户的本地非管理员账户。                                                                 | SID 不同、账户组归属已核查、令牌未提升，且实际应用探针通过。UAC 过滤后的管理员不算标准用户。                          |
+| 只读 EXE 目录 | 将已校验候选放到预先准备的只读/可执行位置，包含 Unicode 与空格路径；原地启动，工作文件、日志和 TEMP 位于其他可写目录。        | 目录中新建文件与对 EXE 的非截断写打开均因权限拒绝失败；启动、输入、关闭通过，EXE 哈希不变。                           |
+| 依赖闭包      | 先执行下述静态门禁，再在每个声明支持的 OS/架构上检查应用场景的实际模块加载及文件访问。                                        | 普通/延迟导入经过审核；运行时、图形、字体、配置、资源分别有证据。采样不等于完整跟踪。                                 |
+| Release       | 用 `--profile release`、固定 release JSC 产物和可执行 Windows SDK DXBC 编译器构建。                                           | release EXE 本身通过应用探针、导入审计及用户控制的 GUI 场景，不能借用 debug 证据。                                    |
+| 签名          | 最终链接后，显式选择发布者证书及 RFC 3161 服务，验证后再发布。                                                                | SignTool 签名和验证都返回零、签署者匹配、时间戳存在，校验和对应签名后的字节。                                         |
+| 原生 ARM64    | 同固定版本的 Bun 基座和应用都构建为 `aarch64-pc-windows-msvc`，不复用 x64 基座；x64 与 ARM64 的基座、输出和证据必须分开保存。 | PE machine 为 ARM64，探针在 ARM64 Windows 通过，`IsWow64Process2` 返回 process machine `0`、native machine `0xAA64`。 |
 
 账户检查在测试账户自身执行，不能通过提升的辅助进程执行：
 

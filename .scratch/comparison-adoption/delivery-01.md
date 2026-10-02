@@ -77,7 +77,7 @@ No canonical wire generation is required for this ticket.
 - Dedicated Cargo `native-acceptance` feature/bin and `host::acceptance::run(profile)` reuse production NativeStateRegistry/SolidRoot admission, extension catalog, layout, paint and event paths. Native points pass to Window::dispatch_event; text/keys use native dispatch_keystroke.
 - Paint observer wraps actual renderer elements, preserves their native layout IDs, records clipped bounds only during paint, and has no production cost when the opt-in Cargo feature is absent. No fake styles, DOM runtime, pointer serialization, or N-API pump.
 - Separate bounded, versioned length-prefixed JSON automation packets carry canonical framed commit/event bytes. Only an explicitly launched process enables it; no listener is automatically enabled from piped stdin. Bounded queues: 256 commits/4 MiB, 4096 events/4 MiB, 16 MiB packet, 32 feedback turns. One owned native foreground context per process; process input is lock-step, so autonomous timers require advanceClock/actions.
-- Epoch/revision/listener target checks preserve callback generation safety. Owned empty-frame teardown follows inspected GPUIX lifetime evidence but uses this repo's byte/native host seams.
+- Epoch/revision/listener target checks preserve callback generation safety. Owned empty-frame teardown uses the byte/native host seams.
 
 ## Checks and evidence
 
