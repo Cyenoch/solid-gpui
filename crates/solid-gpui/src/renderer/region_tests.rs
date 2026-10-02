@@ -145,6 +145,13 @@ fn retained_content_and_inherited_layout_update_then_release_on_removal(cx: &mut
                 .width,
             px(240.0)
         );
+        draw(cx, window.into());
+        root.read_with(cx, |root, _| {
+            assert!(
+                root.retain_regions_this_frame,
+                "stable geometry resumes region reuse"
+            );
+        });
     }
     root.update(cx, |root, cx| {
         root.apply_decoded_message(

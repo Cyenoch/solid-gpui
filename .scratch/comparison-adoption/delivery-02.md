@@ -32,8 +32,15 @@ Portable archive, corrupted acquisition, exact-version scaffold, project
 preparation/preview, compiler and tooling tests passed. Final package/tool/fixture
 typechecks passed. The Rust workspace gate passed 459 tests, with two existing
 ignored experiments/documentation cases; extracted admission and build-provenance
-regressions are included. Local paired-artifact and four clean-consumer checks
-are the remaining integration qualification, recorded in `integration.md`.
+regressions are included. Paired artifacts from commit `b8828b67` and all four
+clean consumers passed on macOS aarch64 in development mode. Stock QuickJS,
+stock Bun, custom Rust QuickJS, and custom Rust Bun each installed the exact
+local tarballs, prepared bindings, typechecked, passed their counter test, built,
+packaged, and passed extracted-runtime-contract admission. Both custom hosts
+also served the generated Rust greeting in their selected VM and survived the
+owned preview check. No process from the user's installed application was used.
+Artifacts remain in ignored `dist/delivery-local/`; the retained standalone
+projects are outside the SDK under the directory recorded in `integration.md`.
 
 ## Documentation and limits
 

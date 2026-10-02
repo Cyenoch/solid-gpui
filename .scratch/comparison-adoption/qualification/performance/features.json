@@ -1,0 +1,17 @@
+{
+  "gpui": [
+    "default",
+    "font-kit",
+    "profiler",
+    "wayland",
+    "windows-manifest",
+    "x11"
+  ],
+  "solid_gpui": [
+    "component-runtime",
+    "default",
+    "frame-profile",
+    "gpui-component",
+    "host"
+  ]
+}

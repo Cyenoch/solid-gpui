@@ -373,7 +373,8 @@ bun scripts/native-region-compare.ts /absolute/baseline-profile /absolute/candid
 ```
 
 The runner hashes both executables, disables the HUD, preserves A/B/B/A logs,
-and bounds each run to 60 seconds. It performs 360 verified counter commits,
+and bounds each run to 60 seconds. On macOS it uses matching temporary app
+contexts. It rejects runs without sustained native construction. It performs 360 verified counter commits,
 500 rows and repeated narrow/wide resizing with a 480-pixel clipped region
 inside a live scroll pane. Inspect `Count: 360`, edit the input, press the button,
 reach the final row and verify actual displacement with a separate `--hold`
@@ -381,6 +382,23 @@ run. Confirm screenshots/rendered text through the native acceptance seam;
 encoded commit assertions alone cannot reject frozen painted content. Retain
 CPU draw, construction and input-to-present separately, record scale/display
 rate and load, and do not infer physical trackpad latency from synthetic input.
+
+The measurement and GPU qualification share `scripts/native-region-workload.ts`.
+Run `bun --conditions=browser scripts/qualify-native-region.ts /absolute/solid-gpui-acceptance .scratch/region-correctness`
+to verify painted counter changes, Unicode input, wheel displacement, final-row
+reachability and resize before timing. The comparison uses continuous native
+resize because an occluded desktop window may not provide normal presentation
+callbacks. Its accepted metric is native construction span totals; unavailable
+CPU draw/cadence/input-to-present data must remain unqualified.
+
+A viewport change bypasses region wrappers for that frame: GPUI invalidates
+their scene keys, so constructing both a root and a missed region adds work.
+Stable geometry resumes reuse. Compare total root-plus-region construction,
+not the mean of their differently counted spans.
+The final local A/B/B/A continuous-resize sample did not establish a speed
+improvement: candidate construction totals were 194.700/190.468 ms versus
+control 180.933/137.178 ms after two warmup intervals. Control drift prevents
+a stable percentage claim. See the ticket's raw artifacts and explicit limits.
 
 ### Immutable native style ownership
 
@@ -398,7 +416,7 @@ cargo build --locked -p solid-gpui --example style-storage-profile
 target/debug/examples/style-storage-profile > .scratch/style-storage.jsonl
 ```
 
-At the October 2026 baseline, Style occupied 496 bytes and StoredNode 784;
+In the pre-v7 allocation experiment, Style occupied 496 bytes and StoredNode 784;
 shared storage reduces StoredNode to 296. For 10,000 styled paragraphs plus raw
 text, mount allocation bytes decreased 30.0 → 19.1 MB; 1,000 text journals
 decreased 3.59 → 1.64 MB. Heap styles avoid journal font/shadow copies. Compact
@@ -407,7 +425,10 @@ A bounded weak cross-node interner saved more mount memory but added unique
 drag lookup work and was rejected; no interning code ships. Raw allocation
 results and the experiment decision live under `.scratch/comparison-adoption/`.
 Elapsed values collected during concurrent builds are diagnostic, not accepted
-CPU or end-to-end performance evidence. Re-run serially after integration.
+CPU or end-to-end performance evidence. The final v7 serial probe reports
+Style 600 bytes and StoredNode 304 bytes; compact mount allocates 20.408 MB and
+1,000 text journals allocate 1.672 MB. These are current allocation observations,
+not a new inline-style baseline or a display performance claim.
 
 ### Batched work and retained geometry
 

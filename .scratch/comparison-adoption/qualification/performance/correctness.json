@@ -1,0 +1,10 @@
+{
+  "kind": "macOS GPU native test rendering",
+  "rows": 500,
+  "counter": "Count: 361",
+  "input": "Native edit 字幕 🙂",
+  "finalRow": "Unchanged row 500",
+  "appRuns": 1,
+  "screenshot": "region-correctness.png",
+  "productionWindowAutomation": "unbundled/temp app window unavailable to computer-use service; no timing from failed hold run retained"
+}

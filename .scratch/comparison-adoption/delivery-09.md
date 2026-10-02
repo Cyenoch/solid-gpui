@@ -35,7 +35,10 @@ manufactured counts derived from the Surface count.
 Reports and a visually inspected Metal screenshot live under
 `qualification/reference/`. The screenshot shows actual timeline/history,
 recorded graphics and CPU frame pixels. Final reruns after review tightening
-are recorded in the integration tracker.
+passed in 1,311 ms (deterministic) and 4,414 ms (Metal), with peak 20 row owners.
+The final WASM/browser Showcase and authoritative guide also rendered without
+console errors; `qualification/reference/reference-website.png` records that
+browser check.
 
 ## Synchronization and limits
 

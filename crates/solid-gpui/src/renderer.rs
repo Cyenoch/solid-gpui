@@ -1307,11 +1307,16 @@ impl SolidRoot {
 impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _profile = profile::span(profile::Stage::Render);
+        let viewport = window.viewport_size();
+        let viewport = (f32::from(viewport.width), f32::from(viewport.height));
         // GPUI's cached prepaint currently does not replay AccessKit nodes.
         // Popup anchors also need current renderer-owned geometry each frame.
         self.retain_regions_this_frame = !window.is_a11y_active()
             && self.popup_anchors.is_empty()
-            && !self.document_text.requires_live_geometry();
+            && !self.document_text.requires_live_geometry()
+            && self
+                .last_painted_viewport
+                .is_none_or(|previous| previous == viewport);
         self.rendered_bounds.borrow_mut().clear();
         #[cfg(feature = "native-acceptance")]
         if let Some(nodes) = &self.acceptance {
@@ -1319,11 +1324,10 @@ impl Render for SolidRoot {
         }
         self.selectable_text_layouts.clear();
         self.document_text_clips.clear();
-        let viewport = window.viewport_size();
         // Record what this paint corresponds to so a later bounds change can
         // tell a passive owner move (painted geometry still current) from a
         // change that must re-layout before popup anchors mean anything.
-        self.last_painted_viewport = Some((f32::from(viewport.width), f32::from(viewport.height)));
+        self.last_painted_viewport = Some(viewport);
         self.last_painted_revision = Some(self.store.revision());
         if let Some(observer) = self.popup_observer.clone() {
             cx.defer(move |cx| observer(cx));

@@ -1,0 +1,38 @@
+{
+  "profile": "release; thin LTO; codegen-units=1",
+  "nativeSource": "GPUI 0.3.7 local vendor patches",
+  "viewport": "500 rows; 800/801 continuous resize, plus 560/1280/800 x600; scale2",
+  "hardware": {
+    "displays": [
+      {
+        "_name": "Color LCD",
+        "spdisplays_display_type": "spdisplays_built-in-liquid-retina-xdr",
+        "spdisplays_main": "spdisplays_yes",
+        "spdisplays_pixelresolution": "spdisplays_3456x2234Retina"
+      },
+      {
+        "_name": "Mi Monitor",
+        "spdisplays_pixelresolution": "6016 x 3384",
+        "spdisplays_resolution": "3008 x 1692 @ 100.00Hz"
+      }
+    ],
+    "cpuCount": "18",
+    "memoryBytes": "68719476736"
+  },
+  "displayRate": "external Mi Monitor reports 100Hz; built-in current refresh rate not reported",
+  "monitor": false,
+  "otherCompilation": "none during accepted comparison",
+  "workloadHashes": {
+    "scripts/native-region-workload.ts": "fc01251787ece555c8a84936e3b49ac44c09b2487c29f67e772fd0e084e2b93f",
+    "scripts/native-commit-profile.ts": "938a0901136e27dc79d5f52aec64a84d6105831b65dbe0288331762614084917",
+    "scripts/native-region-compare.ts": "6eb29002c53047c97d2c24aa9d9f55fff396b789139c5af144b6284a6712e3bd"
+  },
+  "accepted": "construction attribution only; first two aggregate intervals excluded",
+  "limits": [
+    "No accepted idle presentation comparison; insufficient sustained draws",
+    "No physical FPS, IME, or trackpad latency qualification",
+    "Computer-use could not bind the owned production window; shared workload passed macOS Metal acceptance instead"
+  ],
+  "allocationProbe": "actual NodeStore release example; linked test-support through dev dependency, not used as production display metric",
+  "measurementToolPostRunChange": "bundle creation serialized to make failure cleanup race-free; workload/native args/measurement unchanged"
+}

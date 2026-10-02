@@ -1,0 +1,16 @@
+--- candidate/renderer.rs
++++ control/renderer.rs
+@@ -1311,12 +1311,7 @@
+         let viewport = (f32::from(viewport.width), f32::from(viewport.height));
+         // GPUI's cached prepaint currently does not replay AccessKit nodes.
+         // Popup anchors also need current renderer-owned geometry each frame.
+-        self.retain_regions_this_frame = !window.is_a11y_active()
+-            && self.popup_anchors.is_empty()
+-            && !self.document_text.requires_live_geometry()
+-            && self
+-                .last_painted_viewport
+-                .is_none_or(|previous| previous == viewport);
++        self.retain_regions_this_frame = false;
+         self.rendered_bounds.borrow_mut().clear();
+         #[cfg(feature = "native-acceptance")]
+         if let Some(nodes) = &self.acceptance {

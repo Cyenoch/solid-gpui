@@ -54,6 +54,6 @@ References:
 - [Signed application updates](signed-updates.md) — opt-in trusted native service, signed feed/archive contract, macOS atomic exchange, rollback, and application-managed restart.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
-- [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source used for implementation comparison.
+- [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source.
 - [Vendored GPUI inventory](../vendor/GPUI-SOURCES.md) — actual 0.3.7 crate archive provenance, local changed paths, and patch ownership.
 - [Zed GPUI source](../references/zed/crates/gpui/) — pinned GPUI implementation reference.

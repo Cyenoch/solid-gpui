@@ -1,0 +1,11 @@
+{"style_bytes":600,"stored_node_bytes":304,"optional_style_bytes":600}
+{"phase":"compact_mount","allocations":110047,"allocated_bytes":20407704,"released_bytes":18905256,"elapsed_us":8539}
+{"phase":"compact_text_journal","allocations":16000,"allocated_bytes":1672232,"released_bytes":2596216,"elapsed_us":784}
+{"phase":"compact_equal_style","allocations":5000,"allocated_bytes":1372000,"released_bytes":2284000,"elapsed_us":309}
+{"phase":"compact_drag_style","allocations":6000,"allocated_bytes":1988000,"released_bytes":2900000,"elapsed_us":340}
+{"phase":"compact_collapse","allocations":0,"allocated_bytes":0,"released_bytes":19003336,"elapsed_us":1673}
+{"phase":"heap_mount","allocations":110047,"allocated_bytes":20407704,"released_bytes":18905256,"elapsed_us":7538}
+{"phase":"heap_text_journal","allocations":16000,"allocated_bytes":1672232,"released_bytes":2596216,"elapsed_us":644}
+{"phase":"heap_equal_style","allocations":7000,"allocated_bytes":1405000,"released_bytes":2350000,"elapsed_us":411}
+{"phase":"heap_drag_style","allocations":8000,"allocated_bytes":2021000,"released_bytes":2966000,"elapsed_us":390}
+{"phase":"heap_collapse","allocations":0,"allocated_bytes":0,"released_bytes":19333336,"elapsed_us":1534}

@@ -30,7 +30,7 @@ struct Region {
 
 impl Render for Region {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let _profile = profile::span(profile::Stage::Render);
+        let _profile = profile::region_span();
         let Some(root) = self.root.upgrade() else {
             return div().into_any();
         };

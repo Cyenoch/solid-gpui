@@ -112,6 +112,40 @@ generation rechecks and serialized performance evidence remain in progress.
 Reference deterministic and Metal workloads passed real paint/input/selection/
 search, responsive layout, clip business ownership, bounded rows and preview
 staging cancellation/release. Peak live row owners: 20. Reports and screenshot
-are in `qualification/reference/`; tightening frame-advance and minimum-width
-lane regressions requires a final focused rerun. No physical input/display or
-other-platform qualification is implied.
+are in `qualification/reference/`. Final frame-advance/minimum-width reruns passed:
+1,311 ms deterministic and 4,414 ms Metal. Exact GPU resize screenshot dimensions
+passed. WASM release and frontend builds passed, as did SDK/website/desktop
+generation checks and dependency-notice comparison. The browser Showcase and
+authoritative reference guide rendered with no console errors. No physical
+input/display or other-platform qualification is implied.
+
+### Paired local delivery
+
+Source checkpoint: `b8828b67`. Ignored artifacts are in `dist/delivery-local/`;
+manifest `solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json` pins the full source
+commit and hashes. The stock host was explicitly built with
+`gpui-component,quickjs`. Four clean consumers passed in **development** mode:
+stock QuickJS/Bun and custom Rust QuickJS/Bun. Each verified preparation, types,
+counter behavior, build, portable packaging and extracted runtime/contracts.
+Custom hosts additionally passed generated greeting checks and owned preview.
+Standalone projects are retained at
+`/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-bUD8zV`.
+This is local runtime/contract qualification, not release or physical-display
+qualification. No artifact was published.
+
+### Measured region counterexample and final policy
+
+Shared 500-row workload GPU correctness passed Count 361, Unicode edits, native
+wheel displacement, final-row reachability and repeated resizing. No production
+computer-use window binding was available; failed hold timing is not accepted.
+Ordinary submission A/B/B/A lacked sustained draws and is explicitly rejected.
+The bounded continuous-resize comparison provides construction attribution only.
+Root and region counters are separated and macOS temporary contexts are cleaned.
+
+The measured missed-region overhead led to a viewport-change live-path rule;
+stable frames resume reuse. Final eight region tests, 459 workspace tests (two
+existing ignored), and all-target Clippy passed. Final release A/B/B/A and style
+allocation evidence is in `qualification/performance/`; see `delivery-05.md`.
+There is no accepted resize speed gain or display FPS/physical-latency claim.
+Remaining work is regeneration/rechecks, refreshed paired artifacts for this
+native policy, final documentation/status commit and clean checkout.

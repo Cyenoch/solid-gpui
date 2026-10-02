@@ -19,6 +19,8 @@ pub(crate) struct Span {
     stage: Stage,
     #[cfg(any(test, feature = "frame-profile"))]
     started: web_time::Instant,
+    #[cfg(any(test, feature = "frame-profile"))]
+    region: bool,
 }
 
 impl Span {
@@ -28,13 +30,23 @@ impl Span {
 }
 
 pub(crate) fn span(stage: Stage) -> Span {
+    measured_span(stage, false)
+}
+
+pub(crate) fn region_span() -> Span {
+    measured_span(Stage::Render, true)
+}
+
+fn measured_span(stage: Stage, region: bool) -> Span {
     #[cfg(not(any(test, feature = "frame-profile")))]
-    let _ = stage;
+    let _ = (stage, region);
     Span {
         #[cfg(any(test, feature = "frame-profile"))]
         stage,
         #[cfg(any(test, feature = "frame-profile"))]
         started: web_time::Instant::now(),
+        #[cfg(any(test, feature = "frame-profile"))]
+        region,
     }
 }
 
@@ -48,6 +60,9 @@ mod enabled {
     pub(crate) struct Samples {
         pub(crate) elapsed: [Duration; 9],
         pub(crate) count: [usize; 9],
+        root_renders: usize,
+        region_renders: usize,
+        region_elapsed: Duration,
         started: Instant,
     }
 
@@ -56,6 +71,9 @@ mod enabled {
             Self {
                 elapsed: [Duration::ZERO; 9],
                 count: [0; 9],
+                root_renders: 0,
+                region_renders: 0,
+                region_elapsed: Duration::ZERO,
                 started: Instant::now(),
             }
         }
@@ -80,15 +98,24 @@ mod enabled {
         fn drop(&mut self) {
             SAMPLES.with(|samples| {
                 let mut samples = samples.borrow_mut();
-                samples.elapsed[self.stage as usize] += self.started.elapsed();
+                let elapsed = self.started.elapsed();
+                samples.elapsed[self.stage as usize] += elapsed;
                 samples.count[self.stage as usize] += 1;
+                if matches!(self.stage, Stage::Render) {
+                    if self.region {
+                        samples.region_renders += 1;
+                        samples.region_elapsed += elapsed;
+                    } else {
+                        samples.root_renders += 1;
+                    }
+                }
                 // Aggregate diagnostics instead of logging on every native event.
                 if cfg!(all(feature = "frame-profile", not(test)))
                     && matches!(self.stage, Stage::Commit | Stage::Render)
                     && samples.started.elapsed() >= Duration::from_millis(500)
                 {
                     eprintln!(
-                        "solid_commit_stages: interval_ms={} commit={:.3}ms queue={:.3}ms decode={:.3}ms dependencies={:.3}ms tree={:.3}ms validate={:.3}ms reconcile={:.3}ms extensions={:.3}ms render={:.3}ms counts={:?}",
+                        "solid_commit_stages: interval_ms={} commit={:.3}ms queue={:.3}ms decode={:.3}ms dependencies={:.3}ms tree={:.3}ms validate={:.3}ms reconcile={:.3}ms extensions={:.3}ms render={:.3}ms counts={:?} root_renders={} region_renders={} region_render_ms={:.3}",
                         samples.started.elapsed().as_millis(),
                         samples.milliseconds(Stage::Commit),
                         samples.milliseconds(Stage::Queue),
@@ -100,6 +127,9 @@ mod enabled {
                         samples.milliseconds(Stage::Extensions),
                         samples.milliseconds(Stage::Render),
                         samples.count,
+                        samples.root_renders,
+                        samples.region_renders,
+                        samples.region_elapsed.as_secs_f64() * 1000.0,
                     );
                     *samples = Samples::default();
                 }

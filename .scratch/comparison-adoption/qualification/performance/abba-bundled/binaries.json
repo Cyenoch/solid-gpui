@@ -1,0 +1,23 @@
+{
+  "identities": [
+    {
+      "path": "/private/tmp/solid-gpui-region-binaries-b8828b67/control-profile",
+      "sha256": "76dbe389b55cba0ea83ef57066ccf43cbe71ae9d23bc8ee9d672effb22feb24b"
+    },
+    {
+      "path": "/private/tmp/solid-gpui-region-binaries-b8828b67/candidate-profile",
+      "sha256": "28b76467874b227467310171513b553872e13918be02f1bc032dc676ea5703b0"
+    }
+  ],
+  "order": [
+    "baseline",
+    "candidate",
+    "candidate",
+    "baseline"
+  ],
+  "platform": "darwin",
+  "date": "2026-10-02T12:53:23.486Z",
+  "hud": false,
+  "launch": "matched temporary macOS app bundles",
+  "workload": "360 commits; 500 rows; 800/560/1280/800 x 600; --regions"
+}

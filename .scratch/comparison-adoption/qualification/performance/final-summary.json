@@ -1,0 +1,116 @@
+{
+  "metric": "native root and region construction; excludes layout/paint/present",
+  "warmup": "first two aggregate intervals excluded",
+  "runs": [
+    {
+      "run": "0-baseline.log",
+      "rootConstructionMs": 180.933,
+      "regionConstructionMs": 0.0,
+      "totalConstructionMs": 180.933,
+      "rootRenders": 322,
+      "regionRenders": 0,
+      "meanRootConstructionMs": 0.5619,
+      "report": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "regions": true,
+        "resizeEachUpdate": true,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.13179200000013225,
+        "signal_to_frame_p95_ms": 0.21958300000005693,
+        "synchronous_reaction_p95_ms": 0.12545899999986432
+      }
+    },
+    {
+      "run": "1-candidate.log",
+      "rootConstructionMs": 185.832,
+      "regionConstructionMs": 8.868,
+      "totalConstructionMs": 194.7,
+      "rootRenders": 327,
+      "regionRenders": 13,
+      "meanRootConstructionMs": 0.5683,
+      "report": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "regions": true,
+        "resizeEachUpdate": true,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.14087500000005093,
+        "signal_to_frame_p95_ms": 0.22191700000030323,
+        "synchronous_reaction_p95_ms": 0.113999999999578
+      }
+    },
+    {
+      "run": "2-candidate.log",
+      "rootConstructionMs": 185.013,
+      "regionConstructionMs": 5.455,
+      "totalConstructionMs": 190.468,
+      "rootRenders": 318,
+      "regionRenders": 8,
+      "meanRootConstructionMs": 0.5818,
+      "report": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "regions": true,
+        "resizeEachUpdate": true,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.13762499999938882,
+        "signal_to_frame_p95_ms": 0.23262499999964348,
+        "synchronous_reaction_p95_ms": 0.11733299999923474
+      }
+    },
+    {
+      "run": "3-baseline.log",
+      "rootConstructionMs": 137.178,
+      "regionConstructionMs": 0.0,
+      "totalConstructionMs": 137.178,
+      "rootRenders": 329,
+      "regionRenders": 0,
+      "meanRootConstructionMs": 0.417,
+      "report": {
+        "mode": "native-stdio",
+        "rows": 500,
+        "regions": true,
+        "resizeEachUpdate": true,
+        "viewport": {
+          "width": 800,
+          "height": 600,
+          "scaleFactor": 2
+        },
+        "updates": 360,
+        "appRuns": 1,
+        "operations": 360,
+        "frameBytes": 32652,
+        "signal_to_frame_p50_ms": 0.09512499999982538,
+        "signal_to_frame_p95_ms": 0.1836249999996653,
+        "synchronous_reaction_p95_ms": 0.09820800000011332
+      }
+    }
+  ],
+  "drawCadenceQualification": "unavailable: idle/occluded presentation attempts rejected",
+  "sourceNativeChange": "bypass wrappers on changed viewport; separate root/region attribution"
+}

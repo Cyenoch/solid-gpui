@@ -1,5 +1,19 @@
 # 应用性能分析
 
+原生测量与 GPU 验收共用 `scripts/native-region-workload.ts`。
+可运行 `bun --conditions=browser scripts/qualify-native-region.ts /absolute/solid-gpui-acceptance .scratch/region-correctness`
+验证计数绘制、Unicode 输入、滚动位移、末行可达与 resize 后再计时。
+被遮挡的桌面窗口可能不提供正常 presentation 回调，比较工具因此使用连续原生 resize，
+检查实际 construction 次数；只接受 root 与 region construction 总量，不推断 draw、
+FPS 或物理输入延迟。Viewport 变化的那一帧跳过 region wrapper，几何稳定后恢复复用。
+最终连续 resize 的 A/B/B/A 没有证明提速：去掉两个 warmup interval 后，candidate
+construction 总量为 194.700/190.468 ms，control 为 180.933/137.178 ms。
+Control 本身有漂移，不能宣称稳定百分比收益。
+
+旧 allocation 实验使用 v7 前的数据结构。最终 v7 串行 probe 的 Style 为 600 字节，
+StoredNode 为 304 字节，compact mount 分配 20.408 MB，1,000 次 text journal 分配
+1.672 MB。这是当前分配观察，不是新的 inline baseline，也不是显示性能指标。
+
 本流程供开发者和代理使用。先确认用户动作执行了预期工作，再测量性能。通用规则见 [GPUI 性能技能](../.agents/skills/gpui-performance/SKILL.md)，Solid 应用约定见 [solid-gpui 技能](../.agents/skills/solid-gpui/SKILL.md)，历史事件与数据见[滚动性能](scroll-performance.zh-CN.md)。
 
 ## 1. 标识测量环境
@@ -233,7 +247,7 @@ target/debug/examples/style-storage-profile > .scratch/style-storage.jsonl
 ```
 
 探针使用真实 NodeStore/原子事务，计数前准备输入，collapse 前验证 revision/text/style。
-2026 年 10 月基线 Style 496 字节、StoredNode 784 字节；共享后 StoredNode 296 字节。
+v7 前实验的基线 Style 496 字节、StoredNode 784 字节；当时共享后 StoredNode 296 字节。
 10,000 个段落加 raw text 的 mount 分配 30.0→19.1 MB，1,000 个 text journal
 3.59→1.64 MB。堆字段不再随 journal 复制；compact drag 每次变化多一个分配，
 但总字节减少。弱跨节点 interner 虽进一步节省 mount，独特 drag 增加查询工作，

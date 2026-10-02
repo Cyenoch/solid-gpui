@@ -51,7 +51,7 @@ serialized by integrator after parallel compilation; no timing claim here.
 Real NodeStore/transaction probe: `crates/solid-gpui/examples/style-storage-profile.rs`.
 Inputs prepared before counting; final revision/text/style checked; mount,
 text journals, equal styles, unique drag styles and collapse counted.
-Current Style=496 bytes; StoredNode 784→296 bytes. Allocation results:
+Pre-v7 experiment: Style=496 bytes; StoredNode 784→296 bytes. Allocation results:
 
 | Phase | Inline baseline | Immutable shared candidate |
 | --- | ---: | ---: |
@@ -116,3 +116,42 @@ remains and each cached region replays its captured painted nodes. Cache misses
 replace captures from actual paint; deletion releases captures. The combined
 `native-acceptance` regression passes painted text/bounds reuse, fresh edits,
 bounded primitive construction and removal.
+
+## Final integration measurement
+
+`qualification/performance/` retains native correctness screenshots/reports,
+feature lists, executable hashes, workload hashes, the single control override,
+raw A/B/B/A logs, current allocations and construction summaries. Production
+binaries use release/thin-LTO, GPUI 0.3.7, `frame-profile`, no test support,
+matching temporary macOS app contexts, HUD off and scale 2. All compilation
+ended before measurement. The shared 500-row workload passes actual Metal
+paint, Count 360->361, hit-tested click, Unicode editing, native wheel
+displacement, row 500 reachability and repeated resize.
+
+Ordinary/occluded submission runs had insufficient sustained draws and were
+rejected. Continuous native resize supplies a valid construction counterexample,
+not display cadence. Root and region counters/totals are now separate; cleanup
+removes owned temporary bundles on success or failure. Before the final policy,
+candidate aggregate construction cost exceeded the live control. Viewport-change
+frames now bypass missed region wrappers and stable frames resume reuse; eight
+focused native region regressions pass.
+
+Final A/B/B/A root construction means: control 0.562/0.417 ms, candidate
+0.568/0.582 ms; candidate additionally reconstructed 13/8 regions after warmup.
+Construction totals: control 180.933/137.178 ms, candidate 194.700/190.468 ms.
+The runs show no resize speed improvement and significant control drift. Do
+not report a pooled p95, CPU draw, display FPS or physical latency from these
+construction samples. Retained stable-viewport work bounds remain established
+by deterministic construction/paint/input regressions, not this counterexample.
+
+Final v7 allocation probe: Style 600 bytes, StoredNode 304; compact mount
+20,407,704 allocated bytes; 1,000 text journals 1,672,232; equal styles
+1,372,000; unique drag styles 1,988,000. Collapse allocated zero and released
+19,003,336 bytes. This current ownership attribution is not a new inline baseline
+or a physical presentation metric. No global interner ships.
+
+Computer-use could not bind the production window; its failed hold measurement
+is not accepted timing. Shared-workload GPU tests establish content correctness,
+but physical OS input, IME, idle presentation, Windows/Linux, and display
+performance remain unqualified. Final source suites/Clippy passed after policy
+changes; generation and local paired delivery are requalified by integration.
