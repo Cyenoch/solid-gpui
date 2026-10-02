@@ -53,6 +53,11 @@ The catalog requires an example for every generated component and exactly one
 navigation group per page. Tests type-check examples against the SDK. Release
 changes belong in [CHANGELOG.md](../../CHANGELOG.md).
 
+The Low-level drawing group includes an interactive RecordedPaint workflow diagram
+and an acknowledged LiveFrame CPU stream. Their executable source lives in
+`component-recipes/paint-media.ts`; both use the generated native contracts. See
+[paint and frame ownership](../../docs/paint-media.md) for budgets and platform limits.
+
 English guides are authoritative. Website guides require a `.zh-CN.md` copy with
 a localized level-one heading. `src/Docs.tsx` owns shortened navigation labels;
 translate those in `src/locale.zh-CN.ts`. Both languages load the authoritative

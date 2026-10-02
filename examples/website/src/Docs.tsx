@@ -66,6 +66,7 @@ const referenceLabels: Record<string, string> = {
   router: "Router",
   "keyboard-and-menus": "Keyboard & menus",
   "native-composition": "Native UI composition",
+  "paint-media": "Paint & live frames",
   "native-acceptance": "Native acceptance",
   distribution: "Distribution",
   "signed-updates": "Signed updates",
