@@ -415,6 +415,7 @@ fn update_for(store: &NodeStore, rng: &mut Rng) -> Option<PatchOperation> {
         tooltip,
         accepts_pointer_move,
         observes_layout,
+        observes_hover: false,
     })
 }
 
@@ -491,6 +492,7 @@ fn next_operation(store: &NodeStore, rng: &mut Rng, next_id: &mut u32) -> PatchO
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     })
 }
 

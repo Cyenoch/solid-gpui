@@ -66,10 +66,10 @@ application-owned relative path.
 
 ### Home route layout and paint
 
-A cover image stretched to fill a fixed-height hero block with `widthPercent` and
-`heightPercent`, a gradient overlay drawn with `linearGradient` stops that fade
+A cover image stretched to fill a fixed-height hero block with explicit percent
+`width` and `height` lengths, a gradient overlay drawn with `linearGradient` stops that fade
 into the page background, and a row of cards that reflows because each carries
-`minWidth` with `flexGrow`. A single button calls `serviceCount` and renders the
+`minWidth`, `flexBasis` and `flexGrow`, plus X/Y padding. A single button calls `serviceCount` and renders the
 returned value, so the Rust round trip is visible in the UI. See
 [Layout and paint](../../docs/native-composition.md#layout-and-paint).
 
@@ -94,18 +94,18 @@ so the icon needs no file at runtime. See
 
 ## File roles
 
-| Path                            | Role                                                                                                              |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `src/main.tsx`                  | Application entry: theme, router, titlebar shell, Home and Settings routes, `mountApplication` setup.             |
-| `src/native.ts`                 | Generated from the built host. Do not edit; run `bun run generate` instead.                                        |
-| `src/integration.test.tsx`      | Renders the real application tree under `bun run test`, including the inlined cover asset and the registered icon. |
+| Path                            | Role                                                                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                  | Application entry: theme, router, titlebar shell, Home and Settings routes, `mountApplication` setup.                                                            |
+| `src/native.ts`                 | Generated from the built host. Do not edit; run `bun run generate` instead.                                                                                      |
+| `src/integration.test.tsx`      | Renders the real application tree under `bun run test`, including the inlined cover asset and the registered icon.                                               |
 | `native/src/main.rs`            | Rust host: window options and titlebar, embedded icon, `desktop` native module, and `solid_gpui::runtime::vite::Vite` startup for both `dev:rust` and `preview`. |
-| `native/Cargo.toml`             | The `desktop-app-host` crate manifest, a member of the workspace.                                                 |
-| `vite.config.ts`                | Vite root, the `solidGpui` plugin options, and `solidGpuiSource()` for workspace-source aliases.                  |
-| `.solid-gpui/`                  | Generated TypeScript project and artifact record. Not committed; recreated by `generate` and `build`.             |
-| `assets/cover.png`              | Cover image imported with `?inline`, so Vite embeds it in the bundle; no runtime file.                            |
-| `assets/brand.svg`              | Brand icon compiled into the executable.                                                                          |
-| `tsconfig.json`, `package.json` | Type checking, the generated-project `extends`, and the scripts above.                                            |
+| `native/Cargo.toml`             | The `desktop-app-host` crate manifest, a member of the workspace.                                                                                                |
+| `vite.config.ts`                | Vite root, the `solidGpui` plugin options, and `solidGpuiSource()` for workspace-source aliases.                                                                 |
+| `.solid-gpui/`                  | Generated TypeScript project and artifact record. Not committed; recreated by `generate` and `build`.                                                            |
+| `assets/cover.png`              | Cover image imported with `?inline`, so Vite embeds it in the bundle; no runtime file.                                                                           |
+| `assets/brand.svg`              | Brand icon compiled into the executable.                                                                                                                         |
+| `tsconfig.json`, `package.json` | Type checking, the generated-project `extends`, and the scripts above.                                                                                           |
 
 `src/native.ts` is exported whenever a Vite session prepares the host. Regenerate
 it alone with `bun run generate`, and use `bun run check:generated` to fail on a

@@ -31,9 +31,9 @@ const chapters = [
   {
     id: "layout",
     title: "Layout & styling",
-    body: "Group components with View. Arrange them in rows or columns with flexDirection, and add space with gap and padding. Dimensions use pixels.",
+    body: "Group components with View. Arrange rows or columns with flexDirection and add space with gap, paddingX and paddingY. Dimensions support pixels, explicit rem/percent lengths and auto.",
     detail:
-      "Give scrollable sections a height, allow text to wrap, and test your layout in a smaller window. The example below switches between a row and a column.",
+      "Give scrollable sections a height and use overflowX/overflowY for each axis. Native hover, active and focusVisible refinements change paint without JavaScript state. Test your layout in a smaller window; the example below switches between a row and a column.",
     sample: "Layout",
   },
   {

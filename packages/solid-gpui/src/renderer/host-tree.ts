@@ -212,6 +212,7 @@ export class HostTree implements RootOwner {
         tooltip: node.tooltip,
         acceptsPointerMove: node.acceptsPointerMove,
         observesLayout: node.observesLayout,
+        observesHover: node.hoverCallback !== undefined,
       });
     }
     if (operations.length === 0) return null;
@@ -241,6 +242,7 @@ export class HostTree implements RootOwner {
       tooltip: node.tooltip,
       acceptsPointerMove: node.acceptsPointerMove,
       observesLayout: node.observesLayout,
+      observesHover: node.hoverCallback !== undefined,
     };
   }
 }

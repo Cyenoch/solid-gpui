@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add strict X/Y spacing, explicit px/rem/percent/auto dimensions, flex basis,
+  aspect ratio and independent overflow axes. Core View and Pressable support
+  native hover, active and keyboard focus-visible paint refinements; hover
+  callbacks subscribe explicitly. Protocol v7 requires rebuilding both peers.
+  Replace widthPercent/heightPercent with explicit percent lengths.
+
+## Unreleased
+
 ## [0.5.2]
 
 ### Fixed

@@ -245,6 +245,7 @@ fn typed_children_and_slots_render_updates_without_remount_and_retire_with_owner
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     };
     window
         .update(cx, |root, window, cx| {

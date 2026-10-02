@@ -17,7 +17,7 @@ test("migration styles survive producer validation and the wire with explicit ze
     borderWidth: 0,
     borderBottomWidth: 1,
     borderBottomColor: "#D4688C",
-    widthPercent: 50,
+    width: { unit: "percent", value: 50 },
     minWidth: 300,
     flexWrap: "wrap",
     linearGradient: {
@@ -41,7 +41,8 @@ test("migration styles survive producer validation and the wire with explicit ze
   expect(result.borderBottomWidth).toBe(1);
   expect(result.borderBottomColor).toBe(0xd4688cff);
   expect(result.flexWrap).toBe(1);
-  expect(result.widthPercent).toBe(50);
+  expect(result.width).toBe(50);
+  expect(result.widthUnit).toBe(2);
   expect(result.linearGradient).toEqual({
     angle: 180,
     startColor: 0x13121700,
@@ -53,7 +54,7 @@ test("migration styles survive producer validation and the wire with explicit ze
 });
 
 test("migration styles reject ambiguous sizes and malformed gradients before publication", () => {
-  expect(() => validateStyle({ width: 100, widthPercent: 50 })).toThrow("mutually exclusive");
+  expect(() => validateStyle({ width: "50%" } as unknown as Style)).toThrow("explicit");
   expect(() => validateStyle({ paddingLeft: -1 })).toThrow();
   expect(() =>
     validateStyle({

@@ -42,11 +42,11 @@ impl AnimationState {
             background_from: style.background_rgba,
             background_target: style.background_rgba,
             background_active: false,
-            width_from: style.width,
-            width_target: style.width,
+            width_from: pixel_dimension(style.width, style.width_unit),
+            width_target: pixel_dimension(style.width, style.width_unit),
             width_active: false,
-            height_from: style.height,
-            height_target: style.height,
+            height_from: pixel_dimension(style.height, style.height_unit),
+            height_target: pixel_dimension(style.height, style.height_unit),
             height_active: false,
             start: Instant::now(),
             delay: Duration::ZERO,
@@ -80,8 +80,8 @@ impl AnimationState {
             self.values(now, false);
         let next_opacity = style.opacity.unwrap_or(1.0);
         let next_background = style.background_rgba;
-        let next_width = style.width;
-        let next_height = style.height;
+        let next_width = pixel_dimension(style.width, style.width_unit);
+        let next_height = pixel_dimension(style.height, style.height_unit);
         self.opacity_from = if transition.properties & crate::protocol::TRANSITION_OPACITY != 0 {
             sampled_opacity
         } else {
@@ -371,6 +371,9 @@ fn animation_now(cx: &App) -> Instant {
     cx.background_executor().now()
 }
 
+fn pixel_dimension(value: Option<f32>, unit: Option<crate::protocol::LengthUnit>) -> Option<f32> {
+    value.filter(|_| unit.is_none_or(|v| v == crate::protocol::LengthUnit::Pixels))
+}
 fn interpolate_length(
     from: Option<f32>,
     target: Option<f32>,
@@ -433,9 +436,12 @@ fn animation_target_changed_for_properties(
     (properties & crate::protocol::TRANSITION_OPACITY != 0 && previous.opacity != current.opacity)
         || (properties & crate::protocol::TRANSITION_BACKGROUND_COLOR != 0
             && previous.background_rgba != current.background_rgba)
-        || (properties & crate::protocol::TRANSITION_WIDTH != 0 && previous.width != current.width)
+        || (properties & crate::protocol::TRANSITION_WIDTH != 0
+            && pixel_dimension(previous.width, previous.width_unit)
+                != pixel_dimension(current.width, current.width_unit))
         || (properties & crate::protocol::TRANSITION_HEIGHT != 0
-            && previous.height != current.height)
+            && pixel_dimension(previous.height, previous.height_unit)
+                != pixel_dimension(current.height, current.height_unit))
 }
 impl SolidRoot {
     pub(super) fn prune_animation_states(&mut self) {
@@ -746,6 +752,7 @@ mod tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 })
                 .collect(),
         ))

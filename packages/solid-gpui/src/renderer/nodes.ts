@@ -10,6 +10,7 @@ import {
   UPDATE_ACCESSIBILITY,
   UPDATE_FOCUSABLE,
   UPDATE_LAYOUT,
+  UPDATE_HOVER,
   UPDATE_SELECTABLE,
   UPDATE_LISTENER,
   UPDATE_STYLE,
@@ -267,8 +268,38 @@ function equalStyle(a: HostNodeInternal["style"], b: HostNodeInternal["style"]):
   if (a === b) return true;
   if (a == null || b == null) return false;
   return (
-    a.width === b.width &&
-    a.height === b.height &&
+    equalLength(a.width, b.width) &&
+    equalLength(a.height, b.height) &&
+    a.paddingX === b.paddingX &&
+    a.paddingY === b.paddingY &&
+    a.margin === b.margin &&
+    a.marginX === b.marginX &&
+    a.marginY === b.marginY &&
+    a.overflowX === b.overflowX &&
+    a.overflowY === b.overflowY &&
+    equalLength(a.flexBasis, b.flexBasis) &&
+    a.aspectRatio === b.aspectRatio &&
+    equalInteraction(a.hover, b.hover) &&
+    equalInteraction(a.active, b.active) &&
+    equalInteraction(a.focusVisible, b.focusVisible) &&
+    a.paddingTop === b.paddingTop &&
+    a.paddingRight === b.paddingRight &&
+    a.paddingBottom === b.paddingBottom &&
+    a.paddingLeft === b.paddingLeft &&
+    a.borderTopWidth === b.borderTopWidth &&
+    a.borderRightWidth === b.borderRightWidth &&
+    a.borderBottomWidth === b.borderBottomWidth &&
+    a.borderLeftWidth === b.borderLeftWidth &&
+    a.borderTopLeftRadius === b.borderTopLeftRadius &&
+    a.borderTopRightRadius === b.borderTopRightRadius &&
+    a.borderBottomRightRadius === b.borderBottomRightRadius &&
+    a.borderBottomLeftRadius === b.borderBottomLeftRadius &&
+    a.borderTopColor === b.borderTopColor &&
+    a.borderRightColor === b.borderRightColor &&
+    a.borderBottomColor === b.borderBottomColor &&
+    a.borderLeftColor === b.borderLeftColor &&
+    a.flexWrap === b.flexWrap &&
+    equalGradient(a.linearGradient, b.linearGradient) &&
     a.gridColumns === b.gridColumns &&
     a.gridRows === b.gridRows &&
     a.gridColumnSpan === b.gridColumnSpan &&
@@ -294,10 +325,10 @@ function equalStyle(a: HostNodeInternal["style"], b: HostNodeInternal["style"]):
     a.fontStyle === b.fontStyle &&
     a.textDecoration === b.textDecoration &&
     a.lineHeight === b.lineHeight &&
-    a.minWidth === b.minWidth &&
-    a.maxWidth === b.maxWidth &&
-    a.minHeight === b.minHeight &&
-    a.maxHeight === b.maxHeight &&
+    equalLength(a.minWidth, b.minWidth) &&
+    equalLength(a.maxWidth, b.maxWidth) &&
+    equalLength(a.minHeight, b.minHeight) &&
+    equalLength(a.maxHeight, b.maxHeight) &&
     a.flexShrink === b.flexShrink &&
     a.alignSelf === b.alignSelf &&
     a.position === b.position &&
@@ -316,6 +347,35 @@ function equalStyle(a: HostNodeInternal["style"], b: HostNodeInternal["style"]):
   );
 }
 
+function equalLength(a: import("../style").Length | undefined, b: import("../style").Length | undefined): boolean {
+  return a === b || (typeof a === "object" && typeof b === "object" && a.unit === b.unit && a.value === b.value);
+}
+function equalInteraction(
+  a: import("../style").InteractionStyle | undefined,
+  b: import("../style").InteractionStyle | undefined,
+): boolean {
+  return (
+    a === b ||
+    (a !== undefined &&
+      b !== undefined &&
+      a.backgroundColor === b.backgroundColor &&
+      a.color === b.color &&
+      a.borderColor === b.borderColor &&
+      a.opacity === b.opacity)
+  );
+}
+function equalGradient(
+  a: import("../style").LinearGradient | undefined,
+  b: import("../style").LinearGradient | undefined,
+): boolean {
+  return (
+    a === b ||
+    (a !== undefined &&
+      b !== undefined &&
+      a.angle === b.angle &&
+      a.stops.every((v, i) => v.color === b.stops[i]!.color && v.position === b.stops[i]!.position))
+  );
+}
 function equalHostProperties(a: HostProperties | null, b: HostProperties | null): boolean {
   if (a === b) return true;
   if (a === null || b === null || a.type !== b.type) return false;
@@ -1156,6 +1216,7 @@ export class NodeGraph {
     const previousTooltip = node.tooltip;
     const previousAcceptsPointerMove = node.acceptsPointerMove;
     const previousObservesLayout = node.observesLayout;
+    const previousObservesHover = node.hoverCallback !== undefined;
     this.setNodeProps(node, props);
     let mask = 0;
     if (!equalStyle(previousStyle, node.style)) mask |= UPDATE_STYLE;
@@ -1166,6 +1227,7 @@ export class NodeGraph {
     if (previousTooltip !== node.tooltip) mask |= UPDATE_TOOLTIP;
     if (previousAcceptsPointerMove !== node.acceptsPointerMove) mask |= UPDATE_POINTER_MOVE;
     if (previousObservesLayout !== node.observesLayout) mask |= UPDATE_LAYOUT;
+    if (previousObservesHover !== (node.hoverCallback !== undefined)) mask |= UPDATE_HOVER;
     if (!equalHostProperties(previousProperties, node.hostProperties)) mask |= UPDATE_PROPERTIES;
     if (!equalAccessibility(previousAccessibility, node.accessibility)) mask |= UPDATE_ACCESSIBILITY;
     return mask;
@@ -1410,6 +1472,7 @@ export class NodeGraph {
         tooltip: node.tooltip,
         acceptsPointerMove: node.acceptsPointerMove,
         observesLayout: node.observesLayout,
+        observesHover: node.hoverCallback !== undefined,
       });
       let childIndex = 0;
       for (let child = node.firstChild; child !== null; child = child.nextSibling) {

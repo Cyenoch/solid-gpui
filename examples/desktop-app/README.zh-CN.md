@@ -50,7 +50,7 @@ bun run preview           # solid-gpui preview：用已构建宿主运行已构�
 
 ### 首页布局与绘制
 
-首屏让封面图用 `widthPercent` 与 `heightPercent` 填满固定高度的首屏区块，用 `linearGradient` 色标让渐变层淡入页面背景，并用带 `minWidth` 与 `flexGrow` 的卡片自动换行。单个按钮调用 `serviceCount` 并渲染返回值，因此 Rust 往返在界面上可见。见[布局与绘制](../../docs/native-composition.zh-CN.md#布局与绘制)。
+首屏让封面图用显式 percent `width` 与 `height` 填满固定高度区块，用 `linearGradient` 色标让渐变层淡入页面背景，并用带 `minWidth`、`flexBasis`、`flexGrow` 和 X/Y 内边距的卡片自动换行。单个按钮调用 `serviceCount` 并渲染返回值，因此 Rust 往返在界面上可见。见[布局与绘制](../../docs/native-composition.zh-CN.md#布局与绘制)。
 
 ### 有边界的设置页
 
@@ -62,18 +62,18 @@ Settings 路由由固定表头、可滚动的 14 行表单和固定表尾组成�
 
 ## 文件职责
 
-| 路径                            | 职责                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------------ |
-| `src/main.tsx`                  | 应用入口：主题、路由器、标题栏外壳、Home 与 Settings 路由、`mountApplication` 配置。 |
-| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应运行 `bun run generate`。                             |
-| `src/integration.test.tsx`      | 在 `bun run test` 下渲染真实应用树，覆盖内联封面资源与已注册图标。                     |
+| 路径                            | 职责                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                  | 应用入口：主题、路由器、标题栏外壳、Home 与 Settings 路由、`mountApplication` 配置。                                                        |
+| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应运行 `bun run generate`。                                                                                   |
+| `src/integration.test.tsx`      | 在 `bun run test` 下渲染真实应用树，覆盖内联封面资源与已注册图标。                                                                          |
 | `native/src/main.rs`            | Rust 宿主：窗口配置与标题栏、内嵌图标、`desktop` 原生模块，以及 `dev:rust` 与 `preview` 共用的 `solid_gpui::runtime::vite::Vite` 启动路径。 |
-| `native/Cargo.toml`             | `desktop-app-host` crate 清单，workspace 成员。                                      |
-| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及 `solidGpuiSource()` 的工作区源码别名。        |
-| `.solid-gpui/`                  | 生成的 TypeScript 工程与产物记录。不提交；由 `generate` 与 `build` 重新生成。          |
-| `assets/cover.png`              | 以 `?inline` 导入的封面图，由 Vite 内联进 bundle，无需运行时文件。                    |
-| `assets/brand.svg`              | 编译进可执行文件的品牌图标。                                                         |
-| `tsconfig.json`、`package.json` | 类型检查、生成工程的 `extends` 与上面的脚本。                                        |
+| `native/Cargo.toml`             | `desktop-app-host` crate 清单，workspace 成员。                                                                                             |
+| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及 `solidGpuiSource()` 的工作区源码别名。                                                              |
+| `.solid-gpui/`                  | 生成的 TypeScript 工程与产物记录。不提交；由 `generate` 与 `build` 重新生成。                                                               |
+| `assets/cover.png`              | 以 `?inline` 导入的封面图，由 Vite 内联进 bundle，无需运行时文件。                                                                          |
+| `assets/brand.svg`              | 编译进可执行文件的品牌图标。                                                                                                                |
+| `tsconfig.json`、`package.json` | 类型检查、生成工程的 `extends` 与上面的脚本。                                                                                               |
 
 Vite 每次准备会话都会导出 `src/native.ts`；单独生成用 `bun run generate`，用
 `bun run check:generated` 可在文件过期时失败而不是写入。

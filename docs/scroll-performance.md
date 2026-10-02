@@ -37,7 +37,7 @@ footers outside the viewport and prevent them from shrinking:
 import { Text, View } from "@solid-gpui/core";
 import { Scrollable } from "@solid-gpui/core/components";
 
-<View style={{ heightPercent: 100, flexDirection: "column", minHeight: 0 }}>
+<View style={{ height: { unit: "percent", value: 100 }, flexDirection: "column", minHeight: 0 }}>
   <View style={{ height: 48, flexShrink: 0 }}>
     <Text>Settings</Text>
   </View>

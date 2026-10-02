@@ -21,7 +21,14 @@ const application = mountApplication({
               height={160}
               slots={{ trigger: <Text>Outer</Text> }}
               content={() => (
-                <View style={{ padding: 20, widthPercent: 100, heightPercent: 100, backgroundColor: "#ffffff" }}>
+                <View
+                  style={{
+                    padding: 20,
+                    width: { unit: "percent", value: 100 },
+                    height: { unit: "percent", value: 100 },
+                    backgroundColor: "#ffffff",
+                  }}
+                >
                   <Text>Parent stays open</Text>
                   <SystemPopover
                     open={nested()}
@@ -45,7 +52,12 @@ const application = mountApplication({
                       }, 500);
                       return (
                         <View
-                          style={{ padding: 16, widthPercent: 100, heightPercent: 100, backgroundColor: "#eaf1fb" }}
+                          style={{
+                            padding: 16,
+                            width: { unit: "percent", value: 100 },
+                            height: { unit: "percent", value: 100 },
+                            backgroundColor: "#eaf1fb",
+                          }}
                         >
                           <Text>Nested stays open</Text>
                         </View>

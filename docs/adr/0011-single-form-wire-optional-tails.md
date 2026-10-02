@@ -5,7 +5,7 @@
 
 > Historical note: The v3 positional tuple and optional-tail rules below are
 > retained as historical context; the active wire contract is the accepted
-> [Bebop v6 contract](../protocol.md), retaining ADR-0014's codec/lockstep policy.
+> [Bebop v7 contract](../protocol.md), retaining ADR-0014's codec/lockstep policy.
 
 ## Context
 

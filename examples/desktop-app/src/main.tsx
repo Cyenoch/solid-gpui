@@ -82,7 +82,11 @@ function Home() {
   return (
     <Column style={{ padding: 24, gap: 20 }}>
       <View style={{ height: 230, position: "relative", borderRadius: 12, overflow: "hidden" }}>
-        <Image source={cover} objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
+        <Image
+          source={cover}
+          objectFit="cover"
+          style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }}
+        />
         <View
           style={{
             position: "absolute",
@@ -141,7 +145,16 @@ function Home() {
         ].map((row) => (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
             {row.map((label) => (
-              <View style={{ width: 0, minWidth: 300, flexGrow: 1, padding: 12, backgroundColor: palette.surface }}>
+              <View
+                style={{
+                  flexBasis: 0,
+                  minWidth: 300,
+                  flexGrow: 1,
+                  paddingX: 12,
+                  paddingY: 8,
+                  backgroundColor: palette.surface,
+                }}
+              >
                 <Text>{label}</Text>
               </View>
             ))}
@@ -206,7 +219,7 @@ function Shell(props: { onFullscreen: () => void }) {
   return (
     <View
       style={{
-        heightPercent: 100,
+        height: { unit: "percent", value: 100 },
         flexDirection: "column",
         backgroundColor: palette.background,
         color: palette.foreground,

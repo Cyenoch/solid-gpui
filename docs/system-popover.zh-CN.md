@@ -31,7 +31,12 @@ export function EditName() {
           <View
             accessibilityRole="dialog"
             accessibilityLabel="Edit name"
-            style={{ padding: 20, gap: 12, widthPercent: 100, heightPercent: 100 }}
+            style={{
+              padding: 20,
+              gap: 12,
+              width: { unit: "percent", value: 100 },
+              height: { unit: "percent", value: 100 },
+            }}
           >
             <TextInput accessibilityLabel="Name" value={name()} onChangeText={setName} />
             <Pressable focusable onPress={() => setOpen(false)}>

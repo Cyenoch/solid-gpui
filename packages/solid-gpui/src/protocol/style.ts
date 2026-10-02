@@ -65,8 +65,27 @@ export function committedStyle(wire: WireStyle | undefined): Readonly<Style> | n
   if (!wire) return null;
   const style: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(wire)) {
+    if (key.endsWith("Unit")) continue;
     if (typeof value !== "number" && typeof value !== "string") continue;
     style[key] = enumTables[key] ? enumTables[key][Number(value)] : /color$/i.test(key) ? color(Number(value)) : value;
+  }
+  for (const key of ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight"] as const) {
+    if (wire[key] !== undefined) style[key] = committedLength(wire[key]!, wire[`${key}Unit`]!);
+  }
+  if (wire.flexBasis) style.flexBasis = committedLength(wire.flexBasis.value!, wire.flexBasis.unit!);
+  for (const key of ["overflowX", "overflowY"] as const) {
+    if (wire[key] !== undefined) style[key] = ENUMS.overflow[wire[key]! as 1 | 2 | 3];
+  }
+  for (const key of ["hover", "active", "focusVisible"] as const) {
+    const value = wire[key];
+    if (value)
+      style[key] = Object.freeze(
+        Object.fromEntries(
+          Object.entries(value)
+            .filter(([, v]) => v !== undefined)
+            .map(([k, v]) => [k, k === "opacity" ? v : color(Number(v))]),
+        ),
+      );
   }
   if (wire.transition) {
     const value = wire.transition;
@@ -96,4 +115,18 @@ export function committedStyle(wire: WireStyle | undefined): Readonly<Style> | n
     });
   }
   return Object.freeze(style) as Readonly<Style>;
+}
+function committedLength(value: number, unit: number): import("../style").Length {
+  switch (unit) {
+    case 0:
+      return value;
+    case 1:
+      return Object.freeze({ unit: "rem", value });
+    case 2:
+      return Object.freeze({ unit: "percent", value });
+    case 3:
+      return "auto";
+    default:
+      throw new TypeError("Committed dimension requires a supported native unit");
+  }
 }

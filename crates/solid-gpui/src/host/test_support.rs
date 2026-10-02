@@ -1401,6 +1401,7 @@ pub fn pressable_focusable_update_roundtrip(cx: &mut TestAppContext) {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     )
     .encode()

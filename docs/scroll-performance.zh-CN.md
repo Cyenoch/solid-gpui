@@ -25,7 +25,7 @@ Surface 根是占满窗口的列；普通 `View` 在样式选择 flex 或 grid �
 import { Text, View } from "@solid-gpui/core";
 import { Scrollable } from "@solid-gpui/core/components";
 
-<View style={{ heightPercent: 100, flexDirection: "column", minHeight: 0 }}>
+<View style={{ height: { unit: "percent", value: 100 }, flexDirection: "column", minHeight: 0 }}>
   <View style={{ height: 48, flexShrink: 0 }}>
     <Text>Settings</Text>
   </View>

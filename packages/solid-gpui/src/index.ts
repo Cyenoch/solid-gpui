@@ -119,6 +119,8 @@ export {
   type TransportTerminationListener,
 } from "./transport";
 export {
+  type Length,
+  type InteractionStyle,
   type BoxShadow,
   type BoxShadowInput,
   createStyleSheet,

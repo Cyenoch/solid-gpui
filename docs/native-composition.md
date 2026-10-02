@@ -2,11 +2,8 @@
 
 ## Ownership and interaction design
 
-The GPUI Kit 0.7 guides on [design](https://gpui-kit.com/docs/design-guides),
-[coding](https://gpui-kit.com/docs/coding-guides),
-[view caches](https://gpui-kit.com/docs/view-cache), and
-[images](https://gpui-kit.com/docs/image) inform these rules. Adapt their Rust
-examples to the generated Solid contracts rather than translating method names.
+Solid components use declared native contracts. Composition, input state and
+resource ownership follow the rules below.
 
 - Start with the task, its object, and its result. Keep frequent commands visible;
   use native menus for secondary actions. Share one application command between
@@ -36,11 +33,11 @@ examples to the generated Solid contracts rather than translating method names.
 An Entity retains state; RenderOnce describes a consumed component value. Neither
 promises that layout or paint is skipped. Distinguish three mechanisms:
 
-| Mechanism | Saves | Required ownership |
-| --- | --- | --- |
-| Native view cache | Rebuilding an unchanged subtree | Stable entity/path, definite outer layout, notifications for external dependencies |
-| Geometry/text cache | Recomputing paths, shaping, or measurements | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
-| Core VirtualList | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle |
+| Mechanism           | Saves                                            | Required ownership                                                                                               |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Native view cache   | Rebuilding an unchanged subtree                  | Stable entity/path, definite outer layout, notifications for external dependencies                               |
+| Geometry/text cache | Recomputing paths, shaping, or measurements      | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
+| Core VirtualList    | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle                                                     |
 
 A parent update cannot repair a missing notification inside a cached view. Check
 external-model and theme changes, resize, clipping, and controls in replayed frames.
@@ -255,19 +252,70 @@ see [Rust integration](rust-bridge.md#request-cancellation-and-deadlines).
 These style fields are validated in TypeScript and Rust, encoded by the canonical
 Bebop schema, and applied by the native renderer:
 
-| Capability              | API                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| Padding edges           | `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft`                                       |
-| Border edges            | `borderTopWidth`/`borderTopColor`, and corresponding right/bottom/left fields                      |
-| Corner radii            | `borderTopLeftRadius`, `borderTopRightRadius`, `borderBottomRightRadius`, `borderBottomLeftRadius` |
-| Wrapping                | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                   |
-| Proportional dimensions | `widthPercent`, `heightPercent` (50 means 50%)                                                     |
-| Background gradient     | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                     |
+The [native style sample](../fixtures/style-contract.ts) demonstrates unit sizing,
+axis scrolling and state paint. Launch it with
+`solid-gpui-host bun --conditions=browser fixtures/style-contract.ts`; it closes
+after five seconds. The website's shared buttons use native state paint, and its
+layout preview uses X/Y spacing and flex basis.
 
-Edge and corner values override shorthands, including explicit zero. Percent and
-pixel values for the same dimension are mutually exclusive. Percent dimensions
-are relative to the containing layout block. Existing `flexGrow`, `flexShrink`,
-`minWidth`, and `maxWidth` remain useful for proportional layout.
+| Capability               | API                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Padding edges            | `paddingTop`, `paddingRight`, `paddingBottom`, `paddingLeft`                                                                                           |
+| Border edges             | `borderTopWidth`/`borderTopColor`, and corresponding right/bottom/left fields                                                                          |
+| Corner radii             | `borderTopLeftRadius`, `borderTopRightRadius`, `borderBottomRightRadius`, `borderBottomLeftRadius`                                                     |
+| Wrapping                 | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                                                                       |
+| Native lengths           | `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `flexBasis`: a number, `"auto"`, or `{ unit: "px" \| "rem" \| "percent", value }` |
+| Axis spacing             | `paddingX`, `paddingY`, `margin`, `marginX`, `marginY`                                                                                                 |
+| Aspect ratio             | `aspectRatio`: positive finite width/height ratio, used when an axis is automatic                                                                      |
+| Axis overflow            | `overflowX`, `overflowY`: `"visible"`, `"hidden"`, or `"scroll"`                                                                                       |
+| Native interaction paint | `hover`, `active`, `focusVisible`: `{ backgroundColor?, color?, borderColor?, opacity? }`                                                              |
+| Background gradient      | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                                                                         |
+
+Spacing precedence is physical side > X/Y axis > all-sides shorthand, independent
+of object key order; explicit zero wins. Border edges and corners override their
+shorthands. Axis overflow overrides `overflow` for that axis. Numeric dimensions
+are logical pixels; `rem` uses the native window's root font size, and `percent`
+uses the containing layout axis (50 means 50%). `"auto"` delegates sizing to native
+layout. `flexBasis` sets the initial main-axis size before grow/shrink. Spacing,
+font sizes, radii, borders and offsets remain numeric pixels. Unit strings such as
+`"50%"`, `"12px"`, `em`, viewport units, `calc`, and unknown fields are rejected.
+The separate `widthPercent`/`heightPercent` fields have been removed.
+
+Interaction refinements are supported on core `View` and `Pressable` only.
+`focusVisible` requires `focusable`; disabled controls suppress refinements.
+GPUI owns hover hit testing, mouse-button active state and keyboard focus visibility
+under the stable native node identity. Styling needs no callback, Solid signal,
+commit, or JavaScript hover transition. For overlapping properties the order is
+base < focus-visible < hover < active, matching the linked GPUI implementation.
+Keyboard focus is visible only while the native window's last input was keyboard;
+mouse input clears it. Hover is suppressed during native drag and touch input.
+State refinements accept only the four paint fields above, with hex colors and
+opacity in [0, 1]. Nested states, layout changes and transitions are rejected.
+State background colors cannot combine with `linearGradient`, and state border
+colors cannot combine with per-edge border colors. Ordinary width/height
+transitions accept only pixel dimensions; percent, rem and auto are rejected
+when selected for interpolation. Generated native controls own their own state
+styling; applying these core refinements to an Extension is an error.
+
+```tsx
+<Pressable
+  focusable
+  onPress={save}
+  style={{
+    paddingX: 16,
+    paddingY: 8,
+    borderWidth: 1,
+    borderColor: "#00000000",
+    backgroundColor: "#26344A",
+    color: "#FFFFFF",
+    hover: { backgroundColor: "#344866" },
+    active: { backgroundColor: "#182235" },
+    focusVisible: { borderColor: "#82B4FF" },
+  }}
+>
+  <Text>Save changes</Text>
+</Pressable>
+```
 
 Gradients use degrees clockwise from up; 180 paints top-to-bottom. Colors accept
 `#RRGGBB` or `#RRGGBBAA`. Stops are strictly increasing positions in [0, 1]. The
@@ -277,7 +325,11 @@ the original layout box, including corner arcs; they do not introduce flex items
 
 ```tsx
 <View style={{ position: "relative", height: 230, overflow: "hidden" }}>
-  <Image source="assets/cover.png" objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
+  <Image
+    source="assets/cover.png"
+    objectFit="cover"
+    style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }}
+  />
   <View
     style={{
       position: "absolute",

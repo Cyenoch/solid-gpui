@@ -133,6 +133,7 @@ fn patch_for(iteration: usize) -> Patch {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     )
 }

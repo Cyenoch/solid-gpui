@@ -117,10 +117,49 @@ pub(super) fn validate_node_shape(node: &Node) -> Result<(), TreeError> {
         });
     }
     validate_host_properties_shape(node.id, node.kind, node.host_properties.as_ref())?;
+    if node.observes_hover
+        && (!matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) || node.listener_id == 0)
+    {
+        return Err(TreeError::InvalidProperties {
+            node_id: node.id,
+            reason: "hover observation requires a View or Pressable listener",
+        });
+    }
+    validate_interaction_style(
+        node.id,
+        node.kind,
+        node.focusable,
+        node.accessibility.as_ref(),
+        node.style.as_ref(),
+    )?;
     validate_accessibility_shape(node.id, node.accessibility.as_ref())?;
     Ok(())
 }
 
+pub(super) fn validate_interaction_style(
+    node_id: u32,
+    kind: u32,
+    focusable: bool,
+    accessibility: Option<&AccessibilityProperties>,
+    style: Option<&Style>,
+) -> Result<(), TreeError> {
+    let Some(style) = style else { return Ok(()) };
+    if (style.hover.is_some() || style.active.is_some() || style.focus_visible.is_some())
+        && !matches!(kind, KIND_VIEW | KIND_PRESSABLE)
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "interaction styles require View or Pressable",
+        });
+    }
+    if style.focus_visible.is_some() && !focusable && !accessibility.is_some_and(|v| v.disabled) {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "focusVisible requires focusable=true",
+        });
+    }
+    Ok(())
+}
 pub(super) fn validate_interaction(
     node_id: u32,
     kind: u32,
@@ -401,8 +440,13 @@ pub(super) fn validate_nested_text_style(
     unsupported!(border_top_right_radius, "borderTopRightRadius");
     unsupported!(border_bottom_right_radius, "borderBottomRightRadius");
     unsupported!(border_bottom_left_radius, "borderBottomLeftRadius");
-    unsupported!(width_percent, "widthPercent");
-    unsupported!(height_percent, "heightPercent");
+    unsupported!(flex_basis, "flexBasis");
+    unsupported!(aspect_ratio, "aspectRatio");
+    unsupported!(overflow_x, "overflowX");
+    unsupported!(overflow_y, "overflowY");
+    unsupported!(hover, "hover");
+    unsupported!(active, "active");
+    unsupported!(focus_visible, "focusVisible");
     unsupported!(flex_wrap, "flexWrap");
     unsupported!(linear_gradient, "linearGradient");
     unsupported!(border_top_color, "borderTopColor");
@@ -584,6 +628,76 @@ pub(super) fn validate_reachable(
 
 pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), TreeError> {
     let Some(style) = style else { return Ok(()) };
+    if style
+        .aspect_ratio
+        .is_some_and(|v| !v.is_finite() || v <= 0.)
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "aspectRatio must be positive and finite",
+        });
+    }
+    for (value, unit) in [
+        (style.width, style.width_unit),
+        (style.height, style.height_unit),
+        (style.min_width, style.min_width_unit),
+        (style.max_width, style.max_width_unit),
+        (style.min_height, style.min_height_unit),
+        (style.max_height, style.max_height_unit),
+    ] {
+        if unit.is_some() && value.is_none()
+            || value.is_some_and(|value| {
+                !(crate::protocol::StyleLength {
+                    value,
+                    unit: unit.unwrap_or(crate::protocol::LengthUnit::Pixels),
+                })
+                .is_valid()
+            })
+        {
+            return Err(TreeError::InvalidStyle {
+                node_id,
+                reason: "invalid explicit length",
+            });
+        }
+    }
+    if style.flex_basis.is_some_and(|v| !v.is_valid())
+        || [&style.hover, &style.active, &style.focus_visible]
+            .into_iter()
+            .flatten()
+            .any(|v| {
+                !v.is_valid()
+                    || (v.background_rgba.is_some() && style.linear_gradient.is_some())
+                    || (v.border_color_rgba.is_some()
+                        && [
+                            style.border_top_color,
+                            style.border_right_color,
+                            style.border_bottom_color,
+                            style.border_left_color,
+                        ]
+                        .into_iter()
+                        .any(|v| v.is_some()))
+            })
+    {
+        return Err(TreeError::InvalidStyle {
+            node_id,
+            reason: "invalid interaction refinement or flex basis",
+        });
+    }
+    if let Some(transition) = &style.transition {
+        for (mask, unit) in [
+            (crate::protocol::TRANSITION_WIDTH, style.width_unit),
+            (crate::protocol::TRANSITION_HEIGHT, style.height_unit),
+        ] {
+            if transition.properties & mask != 0
+                && unit.is_some_and(|v| v != crate::protocol::LengthUnit::Pixels)
+            {
+                return Err(TreeError::InvalidStyle {
+                    node_id,
+                    reason: "dimension transitions require pixels",
+                });
+            }
+        }
+    }
     if style.position == Some(PositionCode::Overlay)
         && (style.right.is_some() || style.bottom.is_some())
     {
@@ -605,8 +719,6 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
         .linear_gradient
         .as_ref()
         .is_some_and(|v| !v.is_valid())
-        || style.width.is_some() && style.width_percent.is_some()
-        || style.height.is_some() && style.height_percent.is_some()
     {
         return Err(TreeError::InvalidStyle {
             node_id,
@@ -641,8 +753,6 @@ pub(super) fn validate_style(node_id: u32, style: Option<&Style>) -> Result<(), 
         style.border_top_right_radius,
         style.border_bottom_right_radius,
         style.border_bottom_left_radius,
-        style.width_percent,
-        style.height_percent,
         style.border_radius,
         style.border_width,
         style.opacity,

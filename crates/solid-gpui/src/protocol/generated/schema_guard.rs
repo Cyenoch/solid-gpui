@@ -580,1215 +580,1314 @@ const FIELDS_30: &[Field] = &[
         type_id: 111,
     },
 ];
-const FIELDS_31: &[Field] = &[
+const FIELDS_32: &[Field] = &[
     Field {
         id: 1,
-        name: "width",
+        name: "unit",
         type_id: 112,
     },
     Field {
         id: 2,
-        name: "height",
+        name: "value",
         type_id: 113,
+    },
+];
+const FIELDS_33: &[Field] = &[
+    Field {
+        id: 1,
+        name: "backgroundColor",
+        type_id: 114,
+    },
+    Field {
+        id: 2,
+        name: "color",
+        type_id: 115,
+    },
+    Field {
+        id: 3,
+        name: "borderColor",
+        type_id: 116,
+    },
+    Field {
+        id: 4,
+        name: "opacity",
+        type_id: 117,
+    },
+];
+const FIELDS_34: &[Field] = &[
+    Field {
+        id: 1,
+        name: "width",
+        type_id: 118,
+    },
+    Field {
+        id: 2,
+        name: "height",
+        type_id: 119,
     },
     Field {
         id: 3,
         name: "flexDirection",
-        type_id: 114,
+        type_id: 120,
     },
     Field {
         id: 4,
         name: "flexGrow",
-        type_id: 115,
+        type_id: 121,
     },
     Field {
         id: 5,
         name: "padding",
-        type_id: 116,
+        type_id: 122,
     },
     Field {
         id: 6,
         name: "gap",
-        type_id: 117,
+        type_id: 123,
     },
     Field {
         id: 7,
         name: "backgroundColor",
-        type_id: 118,
+        type_id: 124,
     },
     Field {
         id: 8,
         name: "color",
-        type_id: 119,
+        type_id: 125,
     },
     Field {
         id: 9,
         name: "opacity",
-        type_id: 120,
+        type_id: 126,
     },
     Field {
         id: 10,
         name: "transition",
-        type_id: 121,
+        type_id: 127,
     },
     Field {
         id: 11,
         name: "justifyContent",
-        type_id: 122,
+        type_id: 128,
     },
     Field {
         id: 12,
         name: "alignItems",
-        type_id: 123,
+        type_id: 129,
     },
     Field {
         id: 13,
         name: "borderRadius",
-        type_id: 124,
+        type_id: 130,
     },
     Field {
         id: 14,
         name: "borderWidth",
-        type_id: 125,
+        type_id: 131,
     },
     Field {
         id: 15,
         name: "borderColor",
-        type_id: 126,
+        type_id: 132,
     },
     Field {
         id: 16,
         name: "fontSize",
-        type_id: 127,
+        type_id: 133,
     },
     Field {
         id: 17,
         name: "fontWeight",
-        type_id: 128,
+        type_id: 134,
     },
     Field {
         id: 18,
         name: "overflow",
-        type_id: 129,
+        type_id: 135,
     },
     Field {
         id: 19,
         name: "lineClamp",
-        type_id: 130,
+        type_id: 136,
     },
     Field {
         id: 20,
         name: "textOverflow",
-        type_id: 131,
+        type_id: 137,
     },
     Field {
         id: 21,
         name: "marginTop",
-        type_id: 132,
+        type_id: 138,
     },
     Field {
         id: 22,
         name: "marginRight",
-        type_id: 133,
+        type_id: 139,
     },
     Field {
         id: 23,
         name: "marginBottom",
-        type_id: 134,
+        type_id: 140,
     },
     Field {
         id: 24,
         name: "marginLeft",
-        type_id: 135,
+        type_id: 141,
     },
     Field {
         id: 25,
         name: "fontStyle",
-        type_id: 136,
+        type_id: 142,
     },
     Field {
         id: 26,
         name: "textDecoration",
-        type_id: 137,
+        type_id: 143,
     },
     Field {
         id: 27,
         name: "lineHeight",
-        type_id: 138,
+        type_id: 144,
     },
     Field {
         id: 28,
         name: "minWidth",
-        type_id: 139,
+        type_id: 145,
     },
     Field {
         id: 29,
         name: "maxWidth",
-        type_id: 140,
+        type_id: 146,
     },
     Field {
         id: 30,
         name: "minHeight",
-        type_id: 141,
+        type_id: 147,
     },
     Field {
         id: 31,
         name: "maxHeight",
-        type_id: 142,
+        type_id: 148,
     },
     Field {
         id: 32,
         name: "flexShrink",
-        type_id: 143,
+        type_id: 149,
     },
     Field {
         id: 33,
         name: "alignSelf",
-        type_id: 144,
+        type_id: 150,
     },
     Field {
         id: 34,
         name: "position",
-        type_id: 145,
+        type_id: 151,
     },
     Field {
         id: 35,
         name: "left",
-        type_id: 146,
+        type_id: 152,
     },
     Field {
         id: 36,
         name: "top",
-        type_id: 147,
+        type_id: 153,
     },
     Field {
         id: 37,
         name: "right",
-        type_id: 148,
+        type_id: 154,
     },
     Field {
         id: 38,
         name: "bottom",
-        type_id: 149,
+        type_id: 155,
     },
     Field {
         id: 39,
         name: "cursor",
-        type_id: 150,
+        type_id: 156,
     },
     Field {
         id: 40,
         name: "textAlign",
-        type_id: 151,
+        type_id: 157,
     },
     Field {
         id: 41,
         name: "boxShadow",
-        type_id: 152,
+        type_id: 158,
     },
     Field {
         id: 42,
         name: "fontFamily",
-        type_id: 153,
+        type_id: 159,
     },
     Field {
         id: 43,
         name: "paddingTop",
-        type_id: 154,
+        type_id: 160,
     },
     Field {
         id: 44,
         name: "paddingRight",
-        type_id: 155,
+        type_id: 161,
     },
     Field {
         id: 45,
         name: "paddingBottom",
-        type_id: 156,
+        type_id: 162,
     },
     Field {
         id: 46,
         name: "paddingLeft",
-        type_id: 157,
+        type_id: 163,
     },
     Field {
         id: 47,
         name: "borderTopWidth",
-        type_id: 158,
+        type_id: 164,
     },
     Field {
         id: 48,
         name: "borderRightWidth",
-        type_id: 159,
+        type_id: 165,
     },
     Field {
         id: 49,
         name: "borderBottomWidth",
-        type_id: 160,
+        type_id: 166,
     },
     Field {
         id: 50,
         name: "borderLeftWidth",
-        type_id: 161,
+        type_id: 167,
     },
     Field {
         id: 51,
         name: "borderTopLeftRadius",
-        type_id: 162,
+        type_id: 168,
     },
     Field {
         id: 52,
         name: "borderTopRightRadius",
-        type_id: 163,
+        type_id: 169,
     },
     Field {
         id: 53,
         name: "borderBottomRightRadius",
-        type_id: 164,
+        type_id: 170,
     },
     Field {
         id: 54,
         name: "borderBottomLeftRadius",
-        type_id: 165,
+        type_id: 171,
     },
     Field {
         id: 55,
-        name: "widthPercent",
-        type_id: 166,
+        name: "widthUnit",
+        type_id: 172,
     },
     Field {
         id: 56,
-        name: "heightPercent",
-        type_id: 167,
+        name: "heightUnit",
+        type_id: 173,
     },
     Field {
         id: 57,
         name: "flexWrap",
-        type_id: 168,
+        type_id: 174,
     },
     Field {
         id: 58,
         name: "linearGradient",
-        type_id: 169,
+        type_id: 175,
     },
     Field {
         id: 59,
         name: "borderTopColor",
-        type_id: 170,
+        type_id: 176,
     },
     Field {
         id: 60,
         name: "borderRightColor",
-        type_id: 171,
+        type_id: 177,
     },
     Field {
         id: 61,
         name: "borderBottomColor",
-        type_id: 172,
+        type_id: 178,
     },
     Field {
         id: 62,
         name: "borderLeftColor",
-        type_id: 173,
+        type_id: 179,
     },
     Field {
         id: 63,
         name: "gridColumns",
-        type_id: 174,
+        type_id: 180,
     },
     Field {
         id: 64,
         name: "gridRows",
-        type_id: 175,
+        type_id: 181,
     },
     Field {
         id: 65,
         name: "gridColumnSpan",
-        type_id: 176,
+        type_id: 182,
     },
     Field {
         id: 66,
         name: "gridRowSpan",
-        type_id: 177,
+        type_id: 183,
+    },
+    Field {
+        id: 67,
+        name: "flexBasis",
+        type_id: 184,
+    },
+    Field {
+        id: 68,
+        name: "overflowX",
+        type_id: 185,
+    },
+    Field {
+        id: 69,
+        name: "overflowY",
+        type_id: 186,
+    },
+    Field {
+        id: 70,
+        name: "hover",
+        type_id: 187,
+    },
+    Field {
+        id: 71,
+        name: "active",
+        type_id: 188,
+    },
+    Field {
+        id: 72,
+        name: "focusVisible",
+        type_id: 189,
+    },
+    Field {
+        id: 73,
+        name: "minWidthUnit",
+        type_id: 190,
+    },
+    Field {
+        id: 74,
+        name: "maxWidthUnit",
+        type_id: 191,
+    },
+    Field {
+        id: 75,
+        name: "minHeightUnit",
+        type_id: 192,
+    },
+    Field {
+        id: 76,
+        name: "maxHeightUnit",
+        type_id: 193,
+    },
+    Field {
+        id: 77,
+        name: "aspectRatio",
+        type_id: 194,
     },
 ];
-const FIELDS_32: &[Field] = &[
+const FIELDS_35: &[Field] = &[
     Field {
         id: 1,
         name: "id",
-        type_id: 178,
+        type_id: 195,
     },
     Field {
         id: 2,
         name: "parentId",
-        type_id: 179,
+        type_id: 196,
     },
     Field {
         id: 3,
         name: "index",
-        type_id: 180,
+        type_id: 197,
     },
     Field {
         id: 4,
         name: "kind",
-        type_id: 181,
+        type_id: 198,
     },
     Field {
         id: 5,
         name: "style",
-        type_id: 182,
+        type_id: 199,
     },
     Field {
         id: 6,
         name: "text",
-        type_id: 183,
+        type_id: 200,
     },
     Field {
         id: 7,
         name: "listenerId",
-        type_id: 184,
+        type_id: 201,
     },
     Field {
         id: 8,
         name: "hostProperties",
-        type_id: 185,
+        type_id: 202,
     },
     Field {
         id: 9,
         name: "accessibility",
-        type_id: 186,
+        type_id: 203,
     },
     Field {
         id: 10,
         name: "focusable",
-        type_id: 187,
+        type_id: 204,
     },
     Field {
         id: 11,
         name: "selectable",
-        type_id: 188,
+        type_id: 205,
     },
     Field {
         id: 12,
         name: "tooltip",
-        type_id: 189,
+        type_id: 206,
     },
     Field {
         id: 13,
         name: "acceptsPointerMove",
-        type_id: 190,
+        type_id: 207,
     },
     Field {
         id: 14,
         name: "observesLayout",
-        type_id: 191,
-    },
-];
-const FIELDS_33: &[Field] = &[];
-const FIELDS_35: &[Field] = &[Field {
-    id: 1,
-    name: "node",
-    type_id: 192,
-}];
-const FIELDS_36: &[Field] = &[
-    Field {
-        id: 1,
-        name: "id",
-        type_id: 193,
-    },
-    Field {
-        id: 2,
-        name: "mask",
-        type_id: 194,
-    },
-    Field {
-        id: 3,
-        name: "style",
-        type_id: 195,
-    },
-    Field {
-        id: 4,
-        name: "clearStyle",
-        type_id: 196,
-    },
-    Field {
-        id: 5,
-        name: "text",
-        type_id: 197,
-    },
-    Field {
-        id: 6,
-        name: "listenerId",
-        type_id: 198,
-    },
-    Field {
-        id: 7,
-        name: "hostProperties",
-        type_id: 199,
-    },
-    Field {
-        id: 8,
-        name: "accessibility",
-        type_id: 200,
-    },
-    Field {
-        id: 9,
-        name: "focusable",
-        type_id: 201,
-    },
-    Field {
-        id: 10,
-        name: "selectable",
-        type_id: 202,
-    },
-    Field {
-        id: 11,
-        name: "tooltip",
-        type_id: 203,
-    },
-    Field {
-        id: 12,
-        name: "acceptsPointerMove",
-        type_id: 204,
-    },
-    Field {
-        id: 13,
-        name: "observesLayout",
-        type_id: 205,
-    },
-];
-const FIELDS_37: &[Field] = &[
-    Field {
-        id: 1,
-        name: "id",
-        type_id: 206,
-    },
-    Field {
-        id: 2,
-        name: "parentId",
-        type_id: 207,
-    },
-    Field {
-        id: 3,
-        name: "index",
         type_id: 208,
     },
+    Field {
+        id: 15,
+        name: "observesHover",
+        type_id: 209,
+    },
 ];
+const FIELDS_36: &[Field] = &[];
 const FIELDS_38: &[Field] = &[Field {
     id: 1,
-    name: "id",
-    type_id: 209,
-}];
-const FIELDS_39: &[Field] = &[Field {
-    id: 1,
-    name: "operation",
+    name: "node",
     type_id: 210,
 }];
-const FIELDS_40: &[Field] = &[
+const FIELDS_39: &[Field] = &[
     Field {
         id: 1,
-        name: "kind",
+        name: "id",
         type_id: 211,
     },
     Field {
         id: 2,
-        name: "resizable",
+        name: "mask",
         type_id: 212,
     },
     Field {
         id: 3,
-        name: "minWidth",
+        name: "style",
         type_id: 213,
     },
     Field {
         id: 4,
-        name: "minHeight",
+        name: "clearStyle",
         type_id: 214,
     },
-];
-const FIELDS_41: &[Field] = &[
     Field {
-        id: 1,
-        name: "id",
+        id: 5,
+        name: "text",
         type_id: 215,
     },
     Field {
-        id: 2,
-        name: "label",
+        id: 6,
+        name: "listenerId",
         type_id: 216,
     },
-];
-const FIELDS_42: &[Field] = &[
     Field {
-        id: 1,
-        name: "title",
+        id: 7,
+        name: "hostProperties",
         type_id: 217,
     },
     Field {
-        id: 2,
-        name: "items",
+        id: 8,
+        name: "accessibility",
+        type_id: 218,
+    },
+    Field {
+        id: 9,
+        name: "focusable",
         type_id: 219,
     },
-];
-const FIELDS_44: &[Field] = &[];
-const FIELDS_45: &[Field] = &[
     Field {
-        id: 1,
-        name: "name",
+        id: 10,
+        name: "selectable",
         type_id: 220,
     },
     Field {
-        id: 2,
-        name: "disabled",
+        id: 11,
+        name: "tooltip",
         type_id: 221,
     },
     Field {
-        id: 3,
-        name: "checked",
+        id: 12,
+        name: "acceptsPointerMove",
         type_id: 222,
     },
+    Field {
+        id: 13,
+        name: "observesLayout",
+        type_id: 223,
+    },
+    Field {
+        id: 14,
+        name: "observesHover",
+        type_id: 224,
+    },
 ];
-const FIELDS_46: &[Field] = &[Field {
-    id: 1,
-    name: "menu",
-    type_id: 223,
-}];
-const FIELDS_47: &[Field] = &[Field {
-    id: 1,
-    name: "value",
-    type_id: 224,
-}];
-const FIELDS_48: &[Field] = &[
+const FIELDS_40: &[Field] = &[
     Field {
         id: 1,
-        name: "keystrokes",
+        name: "id",
         type_id: 225,
     },
     Field {
         id: 2,
-        name: "actionName",
+        name: "parentId",
         type_id: 226,
     },
+    Field {
+        id: 3,
+        name: "index",
+        type_id: 227,
+    },
 ];
-const FIELDS_50: &[Field] = &[
+const FIELDS_41: &[Field] = &[Field {
+    id: 1,
+    name: "id",
+    type_id: 228,
+}];
+const FIELDS_42: &[Field] = &[Field {
+    id: 1,
+    name: "operation",
+    type_id: 229,
+}];
+const FIELDS_43: &[Field] = &[
+    Field {
+        id: 1,
+        name: "kind",
+        type_id: 230,
+    },
+    Field {
+        id: 2,
+        name: "resizable",
+        type_id: 231,
+    },
+    Field {
+        id: 3,
+        name: "minWidth",
+        type_id: 232,
+    },
+    Field {
+        id: 4,
+        name: "minHeight",
+        type_id: 233,
+    },
+];
+const FIELDS_44: &[Field] = &[
+    Field {
+        id: 1,
+        name: "id",
+        type_id: 234,
+    },
+    Field {
+        id: 2,
+        name: "label",
+        type_id: 235,
+    },
+];
+const FIELDS_45: &[Field] = &[
+    Field {
+        id: 1,
+        name: "title",
+        type_id: 236,
+    },
+    Field {
+        id: 2,
+        name: "items",
+        type_id: 238,
+    },
+];
+const FIELDS_47: &[Field] = &[];
+const FIELDS_48: &[Field] = &[
+    Field {
+        id: 1,
+        name: "name",
+        type_id: 239,
+    },
+    Field {
+        id: 2,
+        name: "disabled",
+        type_id: 240,
+    },
+    Field {
+        id: 3,
+        name: "checked",
+        type_id: 241,
+    },
+];
+const FIELDS_49: &[Field] = &[Field {
+    id: 1,
+    name: "menu",
+    type_id: 242,
+}];
+const FIELDS_50: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 243,
+}];
+const FIELDS_51: &[Field] = &[
+    Field {
+        id: 1,
+        name: "keystrokes",
+        type_id: 244,
+    },
+    Field {
+        id: 2,
+        name: "actionName",
+        type_id: 245,
+    },
+];
+const FIELDS_53: &[Field] = &[
     Field {
         id: 1,
         name: "first",
-        type_id: 227,
+        type_id: 246,
     },
     Field {
         id: 2,
         name: "second",
-        type_id: 228,
+        type_id: 247,
     },
 ];
-const FIELDS_51: &[Field] = &[Field {
+const FIELDS_54: &[Field] = &[Field {
     id: 1,
     name: "value",
-    type_id: 229,
+    type_id: 248,
 }];
-const FIELDS_52: &[Field] = &[Field {
+const FIELDS_55: &[Field] = &[Field {
     id: 1,
     name: "value",
-    type_id: 230,
+    type_id: 249,
 }];
-const FIELDS_53: &[Field] = &[
+const FIELDS_56: &[Field] = &[
     Field {
         id: 1,
         name: "path",
-        type_id: 231,
+        type_id: 250,
     },
     Field {
         id: 2,
         name: "content",
-        type_id: 232,
+        type_id: 251,
     },
 ];
-const FIELDS_54: &[Field] = &[
+const FIELDS_57: &[Field] = &[
     Field {
         id: 1,
         name: "title",
-        type_id: 233,
+        type_id: 252,
     },
     Field {
         id: 2,
         name: "width",
-        type_id: 234,
+        type_id: 253,
     },
     Field {
         id: 3,
         name: "height",
-        type_id: 235,
+        type_id: 254,
     },
     Field {
         id: 4,
         name: "options",
-        type_id: 236,
+        type_id: 255,
     },
 ];
-const FIELDS_55: &[Field] = &[
+const FIELDS_58: &[Field] = &[
     Field {
         id: 1,
         name: "title",
-        type_id: 237,
+        type_id: 256,
     },
     Field {
         id: 2,
         name: "directories",
-        type_id: 238,
+        type_id: 257,
     },
     Field {
         id: 3,
         name: "multiple",
-        type_id: 239,
+        type_id: 258,
     },
 ];
-const FIELDS_56: &[Field] = &[
+const FIELDS_59: &[Field] = &[
     Field {
         id: 1,
         name: "title",
-        type_id: 240,
+        type_id: 259,
     },
     Field {
         id: 2,
         name: "body",
-        type_id: 241,
+        type_id: 260,
     },
     Field {
         id: 3,
         name: "actions",
-        type_id: 243,
+        type_id: 262,
     },
 ];
-const FIELDS_57: &[Field] = &[Field {
+const FIELDS_60: &[Field] = &[Field {
     id: 1,
     name: "menus",
-    type_id: 245,
+    type_id: 264,
 }];
-const FIELDS_58: &[Field] = &[Field {
+const FIELDS_61: &[Field] = &[Field {
     id: 1,
     name: "bindings",
-    type_id: 247,
+    type_id: 266,
 }];
-const FIELDS_59: &[Field] = &[
+const FIELDS_62: &[Field] = &[
     Field {
         id: 1,
         name: "format",
-        type_id: 248,
+        type_id: 267,
     },
     Field {
         id: 2,
         name: "bytes",
-        type_id: 250,
+        type_id: 269,
     },
 ];
-const FIELDS_60: &[Field] = &[
+const FIELDS_63: &[Field] = &[
     Field {
         id: 1,
         name: "requestId",
-        type_id: 251,
+        type_id: 270,
     },
     Field {
         id: 2,
         name: "allow",
-        type_id: 252,
-    },
-];
-const FIELDS_61: &[Field] = &[
-    Field {
-        id: 1,
-        name: "moduleId",
-        type_id: 254,
-    },
-    Field {
-        id: 2,
-        name: "moduleDigest",
-        type_id: 256,
-    },
-    Field {
-        id: 3,
-        name: "functionId",
-        type_id: 257,
-    },
-    Field {
-        id: 4,
-        name: "args",
-        type_id: 259,
-    },
-];
-const FIELDS_62: &[Field] = &[Field {
-    id: 1,
-    name: "requestId",
-    type_id: 260,
-}];
-const FIELDS_63: &[Field] = &[
-    Field {
-        id: 1,
-        name: "keepAlive",
-        type_id: 261,
-    },
-    Field {
-        id: 2,
-        name: "quit",
-        type_id: 262,
-    },
-    Field {
-        id: 3,
-        name: "acknowledgedSequence",
-        type_id: 263,
+        type_id: 271,
     },
 ];
 const FIELDS_64: &[Field] = &[
     Field {
         id: 1,
-        name: "anchorNodeId",
-        type_id: 264,
+        name: "moduleId",
+        type_id: 273,
     },
     Field {
         id: 2,
-        name: "width",
-        type_id: 265,
+        name: "moduleDigest",
+        type_id: 275,
     },
     Field {
         id: 3,
-        name: "height",
-        type_id: 266,
+        name: "functionId",
+        type_id: 276,
     },
     Field {
         id: 4,
-        name: "placement",
-        type_id: 267,
-    },
-    Field {
-        id: 5,
-        name: "gap",
-        type_id: 268,
+        name: "args",
+        type_id: 278,
     },
 ];
 const FIELDS_65: &[Field] = &[Field {
     id: 1,
     name: "requestId",
-    type_id: 269,
+    type_id: 279,
 }];
-const FIELDS_67: &[Field] = &[Field {
-    id: 1,
-    name: "value",
-    type_id: 270,
-}];
-const FIELDS_68: &[Field] = &[
+const FIELDS_66: &[Field] = &[
     Field {
         id: 1,
-        name: "width",
-        type_id: 271,
+        name: "keepAlive",
+        type_id: 280,
     },
     Field {
         id: 2,
-        name: "height",
-        type_id: 272,
+        name: "quit",
+        type_id: 281,
+    },
+    Field {
+        id: 3,
+        name: "acknowledgedSequence",
+        type_id: 282,
     },
 ];
-const FIELDS_69: &[Field] = &[Field {
+const FIELDS_67: &[Field] = &[
+    Field {
+        id: 1,
+        name: "anchorNodeId",
+        type_id: 283,
+    },
+    Field {
+        id: 2,
+        name: "width",
+        type_id: 284,
+    },
+    Field {
+        id: 3,
+        name: "height",
+        type_id: 285,
+    },
+    Field {
+        id: 4,
+        name: "placement",
+        type_id: 286,
+    },
+    Field {
+        id: 5,
+        name: "gap",
+        type_id: 287,
+    },
+];
+const FIELDS_68: &[Field] = &[Field {
     id: 1,
-    name: "value",
-    type_id: 273,
+    name: "requestId",
+    type_id: 288,
 }];
 const FIELDS_70: &[Field] = &[Field {
     id: 1,
     name: "value",
-    type_id: 274,
-}];
-const FIELDS_71: &[Field] = &[Field {
-    id: 1,
-    name: "paths",
-    type_id: 276,
-}];
-const FIELDS_72: &[Field] = &[Field {
-    id: 1,
-    name: "value",
-    type_id: 277,
-}];
-const FIELDS_73: &[Field] = &[
-    Field {
-        id: 1,
-        name: "format",
-        type_id: 278,
-    },
-    Field {
-        id: 2,
-        name: "bytes",
-        type_id: 280,
-    },
-];
-const FIELDS_74: &[Field] = &[
-    Field {
-        id: 1,
-        name: "x",
-        type_id: 281,
-    },
-    Field {
-        id: 2,
-        name: "y",
-        type_id: 282,
-    },
-    Field {
-        id: 3,
-        name: "width",
-        type_id: 283,
-    },
-    Field {
-        id: 4,
-        name: "height",
-        type_id: 284,
-    },
-];
-const FIELDS_75: &[Field] = &[
-    Field {
-        id: 1,
-        name: "fullscreen",
-        type_id: 285,
-    },
-    Field {
-        id: 2,
-        name: "maximized",
-        type_id: 286,
-    },
-];
-const FIELDS_76: &[Field] = &[Field {
-    id: 1,
-    name: "value",
-    type_id: 287,
-}];
-const FIELDS_77: &[Field] = &[Field {
-    id: 1,
-    name: "value",
     type_id: 289,
 }];
-const FIELDS_79: &[Field] = &[
+const FIELDS_71: &[Field] = &[
     Field {
         id: 1,
-        name: "text",
+        name: "width",
         type_id: 290,
     },
     Field {
         id: 2,
-        name: "selectionStart",
+        name: "height",
         type_id: 291,
     },
-    Field {
-        id: 3,
-        name: "selectionEnd",
-        type_id: 292,
-    },
-    Field {
-        id: 4,
-        name: "markedStart",
-        type_id: 293,
-    },
-    Field {
-        id: 5,
-        name: "markedEnd",
-        type_id: 294,
-    },
-    Field {
-        id: 6,
-        name: "editSeq",
-        type_id: 295,
-    },
-    Field {
-        id: 7,
-        name: "reversed",
-        type_id: 296,
-    },
 ];
-const FIELDS_80: &[Field] = &[
+const FIELDS_72: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 292,
+}];
+const FIELDS_73: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 293,
+}];
+const FIELDS_74: &[Field] = &[Field {
+    id: 1,
+    name: "paths",
+    type_id: 295,
+}];
+const FIELDS_75: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 296,
+}];
+const FIELDS_76: &[Field] = &[
     Field {
         id: 1,
-        name: "requestId",
+        name: "format",
         type_id: 297,
     },
     Field {
         id: 2,
+        name: "bytes",
+        type_id: 299,
+    },
+];
+const FIELDS_77: &[Field] = &[
+    Field {
+        id: 1,
+        name: "x",
+        type_id: 300,
+    },
+    Field {
+        id: 2,
+        name: "y",
+        type_id: 301,
+    },
+    Field {
+        id: 3,
+        name: "width",
+        type_id: 302,
+    },
+    Field {
+        id: 4,
+        name: "height",
+        type_id: 303,
+    },
+];
+const FIELDS_78: &[Field] = &[
+    Field {
+        id: 1,
+        name: "fullscreen",
+        type_id: 304,
+    },
+    Field {
+        id: 2,
+        name: "maximized",
+        type_id: 305,
+    },
+];
+const FIELDS_79: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 306,
+}];
+const FIELDS_80: &[Field] = &[Field {
+    id: 1,
+    name: "value",
+    type_id: 308,
+}];
+const FIELDS_82: &[Field] = &[
+    Field {
+        id: 1,
+        name: "text",
+        type_id: 309,
+    },
+    Field {
+        id: 2,
+        name: "selectionStart",
+        type_id: 310,
+    },
+    Field {
+        id: 3,
+        name: "selectionEnd",
+        type_id: 311,
+    },
+    Field {
+        id: 4,
+        name: "markedStart",
+        type_id: 312,
+    },
+    Field {
+        id: 5,
+        name: "markedEnd",
+        type_id: 313,
+    },
+    Field {
+        id: 6,
+        name: "editSeq",
+        type_id: 314,
+    },
+    Field {
+        id: 7,
+        name: "reversed",
+        type_id: 315,
+    },
+];
+const FIELDS_83: &[Field] = &[
+    Field {
+        id: 1,
+        name: "requestId",
+        type_id: 316,
+    },
+    Field {
+        id: 2,
         name: "command",
-        type_id: 298,
+        type_id: 317,
     },
     Field {
         id: 3,
         name: "nodeId",
-        type_id: 299,
+        type_id: 318,
     },
     Field {
         id: 4,
         name: "success",
-        type_id: 300,
+        type_id: 319,
     },
     Field {
         id: 5,
         name: "error",
-        type_id: 301,
+        type_id: 320,
     },
     Field {
         id: 6,
         name: "value",
-        type_id: 302,
-    },
-];
-const FIELDS_81: &[Field] = &[
-    Field {
-        id: 1,
-        name: "start",
-        type_id: 303,
-    },
-    Field {
-        id: 2,
-        name: "end",
-        type_id: 304,
-    },
-];
-const FIELDS_82: &[Field] = &[Field {
-    id: 1,
-    name: "generation",
-    type_id: 305,
-}];
-const FIELDS_83: &[Field] = &[
-    Field {
-        id: 1,
-        name: "key",
-        type_id: 306,
-    },
-    Field {
-        id: 2,
-        name: "modifiers",
-        type_id: 308,
-    },
-    Field {
-        id: 3,
-        name: "action",
-        type_id: 309,
+        type_id: 321,
     },
 ];
 const FIELDS_84: &[Field] = &[
     Field {
         id: 1,
-        name: "button",
-        type_id: 310,
+        name: "start",
+        type_id: 322,
+    },
+    Field {
+        id: 2,
+        name: "end",
+        type_id: 323,
+    },
+];
+const FIELDS_85: &[Field] = &[Field {
+    id: 1,
+    name: "generation",
+    type_id: 324,
+}];
+const FIELDS_86: &[Field] = &[
+    Field {
+        id: 1,
+        name: "key",
+        type_id: 325,
     },
     Field {
         id: 2,
         name: "modifiers",
-        type_id: 312,
+        type_id: 327,
     },
     Field {
         id: 3,
         name: "action",
-        type_id: 313,
-    },
-    Field {
-        id: 4,
-        name: "clickCount",
-        type_id: 314,
-    },
-    Field {
-        id: 5,
-        name: "x",
-        type_id: 315,
-    },
-    Field {
-        id: 6,
-        name: "y",
-        type_id: 316,
+        type_id: 328,
     },
 ];
-const FIELDS_85: &[Field] = &[
+const FIELDS_87: &[Field] = &[
     Field {
         id: 1,
-        name: "modifiers",
-        type_id: 318,
-    },
-    Field {
-        id: 2,
-        name: "x",
-        type_id: 319,
-    },
-    Field {
-        id: 3,
-        name: "y",
-        type_id: 320,
-    },
-];
-const FIELDS_86: &[Field] = &[
-    Field {
-        id: 1,
-        name: "deltaKind",
-        type_id: 321,
-    },
-    Field {
-        id: 2,
-        name: "dx",
-        type_id: 322,
-    },
-    Field {
-        id: 3,
-        name: "dy",
-        type_id: 323,
-    },
-    Field {
-        id: 4,
-        name: "x",
-        type_id: 324,
-    },
-    Field {
-        id: 5,
-        name: "y",
-        type_id: 325,
-    },
-    Field {
-        id: 6,
-        name: "modifiers",
-        type_id: 327,
-    },
-];
-const FIELDS_87: &[Field] = &[Field {
-    id: 1,
-    name: "text",
-    type_id: 328,
-}];
-const FIELDS_88: &[Field] = &[
-    Field {
-        id: 1,
-        name: "width",
+        name: "button",
         type_id: 329,
     },
     Field {
         id: 2,
-        name: "height",
-        type_id: 330,
-    },
-    Field {
-        id: 3,
-        name: "scaleFactor",
+        name: "modifiers",
         type_id: 331,
     },
-];
-const FIELDS_89: &[Field] = &[Field {
-    id: 1,
-    name: "active",
-    type_id: 332,
-}];
-const FIELDS_90: &[Field] = &[Field {
-    id: 1,
-    name: "action",
-    type_id: 333,
-}];
-const FIELDS_91: &[Field] = &[Field {
-    id: 1,
-    name: "appearance",
-    type_id: 334,
-}];
-const FIELDS_92: &[Field] = &[
-    Field {
-        id: 1,
-        name: "x",
-        type_id: 335,
-    },
-    Field {
-        id: 2,
-        name: "y",
-        type_id: 336,
-    },
     Field {
         id: 3,
-        name: "width",
-        type_id: 337,
+        name: "action",
+        type_id: 332,
     },
     Field {
         id: 4,
-        name: "height",
-        type_id: 338,
+        name: "clickCount",
+        type_id: 333,
+    },
+    Field {
+        id: 5,
+        name: "x",
+        type_id: 334,
+    },
+    Field {
+        id: 6,
+        name: "y",
+        type_id: 335,
     },
 ];
-const FIELDS_93: &[Field] = &[Field {
-    id: 1,
-    name: "dragType",
-    type_id: 339,
-}];
-const FIELDS_94: &[Field] = &[Field {
-    id: 1,
-    name: "dragType",
-    type_id: 340,
-}];
-const FIELDS_95: &[Field] = &[Field {
-    id: 1,
-    name: "paths",
-    type_id: 342,
-}];
-const FIELDS_96: &[Field] = &[
+const FIELDS_88: &[Field] = &[
     Field {
         id: 1,
-        name: "tag",
+        name: "modifiers",
+        type_id: 337,
+    },
+    Field {
+        id: 2,
+        name: "x",
+        type_id: 338,
+    },
+    Field {
+        id: 3,
+        name: "y",
+        type_id: 339,
+    },
+];
+const FIELDS_89: &[Field] = &[
+    Field {
+        id: 1,
+        name: "deltaKind",
+        type_id: 340,
+    },
+    Field {
+        id: 2,
+        name: "dx",
+        type_id: 341,
+    },
+    Field {
+        id: 3,
+        name: "dy",
+        type_id: 342,
+    },
+    Field {
+        id: 4,
+        name: "x",
         type_id: 343,
     },
     Field {
-        id: 2,
-        name: "actionId",
+        id: 5,
+        name: "y",
         type_id: 344,
     },
-];
-const FIELDS_97: &[Field] = &[
     Field {
-        id: 1,
-        name: "x",
-        type_id: 345,
-    },
-    Field {
-        id: 2,
-        name: "y",
+        id: 6,
+        name: "modifiers",
         type_id: 346,
     },
 ];
-const FIELDS_98: &[Field] = &[Field {
+const FIELDS_90: &[Field] = &[Field {
     id: 1,
-    name: "requestId",
+    name: "text",
     type_id: 347,
 }];
-const FIELDS_99: &[Field] = &[
+const FIELDS_91: &[Field] = &[
     Field {
         id: 1,
-        name: "eventId",
+        name: "width",
         type_id: 348,
     },
     Field {
         id: 2,
-        name: "fields",
+        name: "height",
+        type_id: 349,
+    },
+    Field {
+        id: 3,
+        name: "scaleFactor",
         type_id: 350,
+    },
+];
+const FIELDS_92: &[Field] = &[Field {
+    id: 1,
+    name: "active",
+    type_id: 351,
+}];
+const FIELDS_93: &[Field] = &[Field {
+    id: 1,
+    name: "action",
+    type_id: 352,
+}];
+const FIELDS_94: &[Field] = &[Field {
+    id: 1,
+    name: "appearance",
+    type_id: 353,
+}];
+const FIELDS_95: &[Field] = &[
+    Field {
+        id: 1,
+        name: "x",
+        type_id: 354,
+    },
+    Field {
+        id: 2,
+        name: "y",
+        type_id: 355,
+    },
+    Field {
+        id: 3,
+        name: "width",
+        type_id: 356,
+    },
+    Field {
+        id: 4,
+        name: "height",
+        type_id: 357,
+    },
+];
+const FIELDS_96: &[Field] = &[Field {
+    id: 1,
+    name: "dragType",
+    type_id: 358,
+}];
+const FIELDS_97: &[Field] = &[Field {
+    id: 1,
+    name: "dragType",
+    type_id: 359,
+}];
+const FIELDS_98: &[Field] = &[Field {
+    id: 1,
+    name: "paths",
+    type_id: 361,
+}];
+const FIELDS_99: &[Field] = &[
+    Field {
+        id: 1,
+        name: "tag",
+        type_id: 362,
+    },
+    Field {
+        id: 2,
+        name: "actionId",
+        type_id: 363,
     },
 ];
 const FIELDS_100: &[Field] = &[
     Field {
         id: 1,
+        name: "x",
+        type_id: 364,
+    },
+    Field {
+        id: 2,
+        name: "y",
+        type_id: 365,
+    },
+];
+const FIELDS_101: &[Field] = &[Field {
+    id: 1,
+    name: "requestId",
+    type_id: 366,
+}];
+const FIELDS_102: &[Field] = &[
+    Field {
+        id: 1,
+        name: "eventId",
+        type_id: 367,
+    },
+    Field {
+        id: 2,
+        name: "fields",
+        type_id: 369,
+    },
+];
+const FIELDS_103: &[Field] = &[
+    Field {
+        id: 1,
         name: "targetSurfaceId",
-        type_id: 351,
+        type_id: 370,
     },
     Field {
         id: 2,
         name: "reason",
-        type_id: 352,
+        type_id: 371,
     },
     Field {
         id: 3,
         name: "urls",
-        type_id: 354,
+        type_id: 373,
     },
 ];
-const FIELDS_101: &[Field] = &[
+const FIELDS_104: &[Field] = &[
     Field {
         id: 1,
         name: "protocolVersion",
-        type_id: 355,
+        type_id: 374,
     },
     Field {
         id: 2,
         name: "body",
-        type_id: 356,
+        type_id: 375,
     },
 ];
 
@@ -1862,238 +1961,238 @@ const BRANCHES_17: &[Branch] = &[
         definition: 23,
     },
 ];
-const BRANCHES_34: &[Branch] = &[
+const BRANCHES_37: &[Branch] = &[
     Branch {
         id: 1,
-        definition: 35,
-    },
-    Branch {
-        id: 2,
-        definition: 36,
-    },
-    Branch {
-        id: 3,
-        definition: 37,
-    },
-    Branch {
-        id: 4,
         definition: 38,
     },
-];
-const BRANCHES_43: &[Branch] = &[
-    Branch {
-        id: 1,
-        definition: 44,
-    },
     Branch {
         id: 2,
-        definition: 45,
+        definition: 39,
     },
     Branch {
         id: 3,
-        definition: 46,
-    },
-];
-const BRANCHES_49: &[Branch] = &[
-    Branch {
-        id: 1,
-        definition: 50,
-    },
-    Branch {
-        id: 2,
-        definition: 51,
-    },
-    Branch {
-        id: 3,
-        definition: 52,
+        definition: 40,
     },
     Branch {
         id: 4,
+        definition: 41,
+    },
+];
+const BRANCHES_46: &[Branch] = &[
+    Branch {
+        id: 1,
+        definition: 47,
+    },
+    Branch {
+        id: 2,
+        definition: 48,
+    },
+    Branch {
+        id: 3,
+        definition: 49,
+    },
+];
+const BRANCHES_52: &[Branch] = &[
+    Branch {
+        id: 1,
         definition: 53,
     },
     Branch {
-        id: 5,
+        id: 2,
         definition: 54,
     },
     Branch {
-        id: 6,
+        id: 3,
         definition: 55,
     },
     Branch {
-        id: 7,
+        id: 4,
         definition: 56,
     },
     Branch {
-        id: 8,
+        id: 5,
         definition: 57,
     },
     Branch {
-        id: 9,
+        id: 6,
         definition: 58,
     },
     Branch {
-        id: 10,
+        id: 7,
         definition: 59,
     },
     Branch {
-        id: 11,
+        id: 8,
         definition: 60,
     },
     Branch {
-        id: 12,
+        id: 9,
         definition: 61,
     },
     Branch {
-        id: 13,
+        id: 10,
         definition: 62,
     },
     Branch {
-        id: 14,
+        id: 11,
         definition: 63,
     },
     Branch {
-        id: 15,
+        id: 12,
         definition: 64,
     },
     Branch {
-        id: 16,
-        definition: 65,
-    },
-];
-const BRANCHES_66: &[Branch] = &[
-    Branch {
-        id: 1,
-        definition: 67,
-    },
-    Branch {
-        id: 2,
-        definition: 68,
-    },
-    Branch {
-        id: 3,
-        definition: 69,
-    },
-    Branch {
-        id: 4,
-        definition: 70,
-    },
-    Branch {
-        id: 5,
-        definition: 71,
-    },
-    Branch {
-        id: 6,
-        definition: 72,
-    },
-    Branch {
-        id: 7,
-        definition: 73,
-    },
-    Branch {
-        id: 8,
-        definition: 74,
-    },
-    Branch {
-        id: 9,
-        definition: 75,
-    },
-    Branch {
-        id: 10,
-        definition: 76,
-    },
-    Branch {
-        id: 11,
-        definition: 77,
-    },
-];
-const BRANCHES_78: &[Branch] = &[
-    Branch {
-        id: 1,
-        definition: 79,
-    },
-    Branch {
-        id: 2,
-        definition: 80,
-    },
-    Branch {
-        id: 3,
-        definition: 81,
-    },
-    Branch {
-        id: 4,
-        definition: 82,
-    },
-    Branch {
-        id: 5,
-        definition: 83,
-    },
-    Branch {
-        id: 6,
-        definition: 84,
-    },
-    Branch {
-        id: 7,
-        definition: 85,
-    },
-    Branch {
-        id: 8,
-        definition: 86,
-    },
-    Branch {
-        id: 9,
-        definition: 87,
-    },
-    Branch {
-        id: 10,
-        definition: 88,
-    },
-    Branch {
-        id: 11,
-        definition: 89,
-    },
-    Branch {
-        id: 12,
-        definition: 90,
-    },
-    Branch {
         id: 13,
-        definition: 91,
+        definition: 65,
     },
     Branch {
         id: 14,
-        definition: 92,
+        definition: 66,
     },
     Branch {
         id: 15,
-        definition: 93,
+        definition: 67,
     },
     Branch {
         id: 16,
+        definition: 68,
+    },
+];
+const BRANCHES_69: &[Branch] = &[
+    Branch {
+        id: 1,
+        definition: 70,
+    },
+    Branch {
+        id: 2,
+        definition: 71,
+    },
+    Branch {
+        id: 3,
+        definition: 72,
+    },
+    Branch {
+        id: 4,
+        definition: 73,
+    },
+    Branch {
+        id: 5,
+        definition: 74,
+    },
+    Branch {
+        id: 6,
+        definition: 75,
+    },
+    Branch {
+        id: 7,
+        definition: 76,
+    },
+    Branch {
+        id: 8,
+        definition: 77,
+    },
+    Branch {
+        id: 9,
+        definition: 78,
+    },
+    Branch {
+        id: 10,
+        definition: 79,
+    },
+    Branch {
+        id: 11,
+        definition: 80,
+    },
+];
+const BRANCHES_81: &[Branch] = &[
+    Branch {
+        id: 1,
+        definition: 82,
+    },
+    Branch {
+        id: 2,
+        definition: 83,
+    },
+    Branch {
+        id: 3,
+        definition: 84,
+    },
+    Branch {
+        id: 4,
+        definition: 85,
+    },
+    Branch {
+        id: 5,
+        definition: 86,
+    },
+    Branch {
+        id: 6,
+        definition: 87,
+    },
+    Branch {
+        id: 7,
+        definition: 88,
+    },
+    Branch {
+        id: 8,
+        definition: 89,
+    },
+    Branch {
+        id: 9,
+        definition: 90,
+    },
+    Branch {
+        id: 10,
+        definition: 91,
+    },
+    Branch {
+        id: 11,
+        definition: 92,
+    },
+    Branch {
+        id: 12,
+        definition: 93,
+    },
+    Branch {
+        id: 13,
         definition: 94,
     },
     Branch {
-        id: 17,
+        id: 14,
         definition: 95,
     },
     Branch {
-        id: 18,
+        id: 15,
         definition: 96,
     },
     Branch {
-        id: 19,
+        id: 16,
         definition: 97,
     },
     Branch {
-        id: 20,
+        id: 17,
         definition: 98,
     },
     Branch {
-        id: 21,
+        id: 18,
         definition: 99,
     },
     Branch {
-        id: 22,
+        id: 19,
         definition: 100,
+    },
+    Branch {
+        id: 20,
+        definition: 101,
+    },
+    Branch {
+        id: 21,
+        definition: 102,
+    },
+    Branch {
+        id: 22,
+        definition: 103,
     },
 ];
 
@@ -2102,7 +2201,7 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
-    TypeSpec::Definition { definition: 32 },
+    TypeSpec::Definition { definition: 35 },
     TypeSpec::Array { element: 4 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
@@ -2111,12 +2210,12 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 2 },
-    TypeSpec::Definition { definition: 78 },
+    TypeSpec::Definition { definition: 81 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
-    TypeSpec::Definition { definition: 39 },
+    TypeSpec::Definition { definition: 42 },
     TypeSpec::Array { element: 18 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
@@ -2124,7 +2223,7 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 3 },
-    TypeSpec::Definition { definition: 49 },
+    TypeSpec::Definition { definition: 52 },
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("int32"),
     TypeSpec::Scalar("uint32"),
@@ -2210,6 +2309,12 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("float32"),
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("uint32"),
@@ -2264,8 +2369,8 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Definition { definition: 31 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 30 },
     TypeSpec::Scalar("uint32"),
@@ -2276,11 +2381,22 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
+    TypeSpec::Definition { definition: 32 },
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Definition { definition: 33 },
+    TypeSpec::Definition { definition: 33 },
+    TypeSpec::Definition { definition: 33 },
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 0 },
-    TypeSpec::Definition { definition: 31 },
+    TypeSpec::Definition { definition: 34 },
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 17 },
@@ -2290,25 +2406,27 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("bool"),
-    TypeSpec::Definition { definition: 32 },
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Definition { definition: 31 },
-    TypeSpec::Definition { definition: 33 },
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Definition { definition: 17 },
-    TypeSpec::Definition { definition: 26 },
     TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
+    TypeSpec::Definition { definition: 35 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 34 },
+    TypeSpec::Definition { definition: 36 },
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Definition { definition: 17 },
+    TypeSpec::Definition { definition: 26 },
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Definition { definition: 37 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("uint32"),
@@ -2316,48 +2434,48 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Definition { definition: 47 },
-    TypeSpec::Array { element: 218 },
+    TypeSpec::Definition { definition: 50 },
+    TypeSpec::Array { element: 237 },
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("bool"),
-    TypeSpec::Definition { definition: 42 },
+    TypeSpec::Definition { definition: 45 },
+    TypeSpec::Definition { definition: 46 },
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 43 },
     TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Definition { definition: 40 },
-    TypeSpec::Scalar("string"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Definition { definition: 41 },
-    TypeSpec::Array { element: 242 },
-    TypeSpec::Definition { definition: 42 },
-    TypeSpec::Array { element: 244 },
-    TypeSpec::Definition { definition: 48 },
-    TypeSpec::Array { element: 246 },
+    TypeSpec::Definition { definition: 44 },
+    TypeSpec::Array { element: 261 },
+    TypeSpec::Definition { definition: 45 },
+    TypeSpec::Array { element: 263 },
+    TypeSpec::Definition { definition: 51 },
+    TypeSpec::Array { element: 265 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 249 },
+    TypeSpec::Array { element: 268 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 253 },
+    TypeSpec::Array { element: 272 },
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 255 },
+    TypeSpec::Array { element: 274 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 258 },
+    TypeSpec::Array { element: 277 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("bool"),
@@ -2374,11 +2492,11 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Array { element: 275 },
+    TypeSpec::Array { element: 294 },
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 279 },
+    TypeSpec::Array { element: 298 },
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
@@ -2387,45 +2505,45 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("bool"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("byte"),
-    TypeSpec::Array { element: 288 },
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("bool"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Definition { definition: 66 },
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Scalar("string"),
     TypeSpec::Array { element: 307 },
+    TypeSpec::Scalar("string"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("bool"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Definition { definition: 69 },
+    TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Array { element: 311 },
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("string"),
-    TypeSpec::Array { element: 317 },
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("uint32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
-    TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("string"),
     TypeSpec::Array { element: 326 },
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Array { element: 330 },
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Array { element: 336 },
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("uint32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("float32"),
+    TypeSpec::Scalar("string"),
+    TypeSpec::Array { element: 345 },
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("float32"),
     TypeSpec::Scalar("float32"),
@@ -2440,7 +2558,7 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Array { element: 341 },
+    TypeSpec::Array { element: 360 },
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("float32"),
@@ -2448,11 +2566,11 @@ pub(crate) static TYPES: &[TypeSpec] = &[
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 16 },
-    TypeSpec::Array { element: 349 },
+    TypeSpec::Array { element: 368 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Scalar("string"),
     TypeSpec::Scalar("string"),
-    TypeSpec::Array { element: 353 },
+    TypeSpec::Array { element: 372 },
     TypeSpec::Scalar("uint32"),
     TypeSpec::Definition { definition: 4 },
 ];
@@ -2589,284 +2707,297 @@ pub(crate) static DEFINITIONS: &[Definition] = &[
         name: "LinearGradient",
         fields: FIELDS_30,
     },
-    Definition::Message {
-        name: "Style",
-        fields: FIELDS_31,
+    Definition::Enum {
+        name: "LengthUnit",
+        base: "uint32",
+        values: &[0, 1, 2, 3],
     },
     Definition::Message {
-        name: "Node",
+        name: "Length",
         fields: FIELDS_32,
     },
     Definition::Message {
-        name: "ClearStyle",
+        name: "InteractionStyle",
         fields: FIELDS_33,
     },
-    Definition::Union {
-        branches: BRANCHES_34,
+    Definition::Message {
+        name: "Style",
+        fields: FIELDS_34,
     },
     Definition::Message {
-        name: "PatchCreate",
+        name: "Node",
         fields: FIELDS_35,
     },
     Definition::Message {
-        name: "PatchUpdate",
+        name: "ClearStyle",
         fields: FIELDS_36,
     },
-    Definition::Message {
-        name: "PatchMove",
-        fields: FIELDS_37,
+    Definition::Union {
+        branches: BRANCHES_37,
     },
     Definition::Message {
-        name: "PatchDelete",
+        name: "PatchCreate",
         fields: FIELDS_38,
     },
     Definition::Message {
-        name: "PatchOperation",
+        name: "PatchUpdate",
         fields: FIELDS_39,
     },
     Definition::Message {
-        name: "WindowOpenOptions",
+        name: "PatchMove",
         fields: FIELDS_40,
     },
     Definition::Message {
-        name: "NotificationActionDefinition",
+        name: "PatchDelete",
         fields: FIELDS_41,
     },
     Definition::Message {
-        name: "MenuDefinition",
+        name: "PatchOperation",
         fields: FIELDS_42,
     },
-    Definition::Union {
-        branches: BRANCHES_43,
+    Definition::Message {
+        name: "WindowOpenOptions",
+        fields: FIELDS_43,
     },
     Definition::Message {
-        name: "MenuSeparator",
+        name: "NotificationActionDefinition",
         fields: FIELDS_44,
     },
     Definition::Message {
-        name: "MenuAction",
+        name: "MenuDefinition",
         fields: FIELDS_45,
     },
-    Definition::Message {
-        name: "MenuSubmenu",
-        fields: FIELDS_46,
+    Definition::Union {
+        branches: BRANCHES_46,
     },
     Definition::Message {
-        name: "MenuItem",
+        name: "MenuSeparator",
         fields: FIELDS_47,
     },
     Definition::Message {
-        name: "KeybindingDefinition",
+        name: "MenuAction",
         fields: FIELDS_48,
     },
-    Definition::Union {
-        branches: BRANCHES_49,
+    Definition::Message {
+        name: "MenuSubmenu",
+        fields: FIELDS_49,
     },
     Definition::Message {
-        name: "U32PairCommand",
+        name: "MenuItem",
         fields: FIELDS_50,
     },
     Definition::Message {
-        name: "FloatCommand",
+        name: "KeybindingDefinition",
         fields: FIELDS_51,
     },
-    Definition::Message {
-        name: "TextCommand",
-        fields: FIELDS_52,
+    Definition::Union {
+        branches: BRANCHES_52,
     },
     Definition::Message {
-        name: "StringPairCommand",
+        name: "U32PairCommand",
         fields: FIELDS_53,
     },
     Definition::Message {
-        name: "OpenSurfaceCommand",
+        name: "FloatCommand",
         fields: FIELDS_54,
     },
     Definition::Message {
-        name: "FileDialogOpenCommand",
+        name: "TextCommand",
         fields: FIELDS_55,
     },
     Definition::Message {
-        name: "NotificationCommand",
+        name: "StringPairCommand",
         fields: FIELDS_56,
     },
     Definition::Message {
-        name: "MenusCommand",
+        name: "OpenSurfaceCommand",
         fields: FIELDS_57,
     },
     Definition::Message {
-        name: "KeybindingsCommand",
+        name: "FileDialogOpenCommand",
         fields: FIELDS_58,
     },
     Definition::Message {
-        name: "ClipboardImageCommand",
+        name: "NotificationCommand",
         fields: FIELDS_59,
     },
     Definition::Message {
-        name: "CloseResolutionCommand",
+        name: "MenusCommand",
         fields: FIELDS_60,
     },
     Definition::Message {
-        name: "InvokeNativeCommand",
+        name: "KeybindingsCommand",
         fields: FIELDS_61,
     },
     Definition::Message {
-        name: "CancelNativeCommand",
+        name: "ClipboardImageCommand",
         fields: FIELDS_62,
     },
     Definition::Message {
-        name: "ConfigureApplicationCommand",
+        name: "CloseResolutionCommand",
         fields: FIELDS_63,
     },
     Definition::Message {
-        name: "OpenPopupCommand",
+        name: "InvokeNativeCommand",
         fields: FIELDS_64,
     },
     Definition::Message {
-        name: "ClosePopupCommand",
+        name: "CancelNativeCommand",
         fields: FIELDS_65,
     },
-    Definition::Union {
-        branches: BRANCHES_66,
+    Definition::Message {
+        name: "ConfigureApplicationCommand",
+        fields: FIELDS_66,
     },
     Definition::Message {
-        name: "NumberValue",
+        name: "OpenPopupCommand",
         fields: FIELDS_67,
     },
     Definition::Message {
-        name: "PairValue",
+        name: "ClosePopupCommand",
         fields: FIELDS_68,
     },
-    Definition::Message {
-        name: "BoolValue",
-        fields: FIELDS_69,
+    Definition::Union {
+        branches: BRANCHES_69,
     },
     Definition::Message {
-        name: "TextValue",
+        name: "NumberValue",
         fields: FIELDS_70,
     },
     Definition::Message {
-        name: "PathsValue",
+        name: "PairValue",
         fields: FIELDS_71,
     },
     Definition::Message {
-        name: "FileTextValue",
+        name: "BoolValue",
         fields: FIELDS_72,
     },
     Definition::Message {
-        name: "ImageValue",
+        name: "TextValue",
         fields: FIELDS_73,
     },
     Definition::Message {
-        name: "BoundsValue",
+        name: "PathsValue",
         fields: FIELDS_74,
     },
     Definition::Message {
-        name: "WindowStateValue",
+        name: "FileTextValue",
         fields: FIELDS_75,
     },
     Definition::Message {
-        name: "ScrollOffsetValue",
+        name: "ImageValue",
         fields: FIELDS_76,
     },
     Definition::Message {
-        name: "BytesValue",
+        name: "BoundsValue",
         fields: FIELDS_77,
     },
-    Definition::Union {
-        branches: BRANCHES_78,
+    Definition::Message {
+        name: "WindowStateValue",
+        fields: FIELDS_78,
     },
     Definition::Message {
-        name: "TextInputEventData",
+        name: "ScrollOffsetValue",
         fields: FIELDS_79,
     },
     Definition::Message {
-        name: "CommandResult",
+        name: "BytesValue",
         fields: FIELDS_80,
     },
-    Definition::Message {
-        name: "VisibleRangeEvent",
-        fields: FIELDS_81,
+    Definition::Union {
+        branches: BRANCHES_81,
     },
     Definition::Message {
-        name: "AnimationCompleteEvent",
+        name: "TextInputEventData",
         fields: FIELDS_82,
     },
     Definition::Message {
-        name: "KeyEvent",
+        name: "CommandResult",
         fields: FIELDS_83,
     },
     Definition::Message {
-        name: "PointerEvent",
+        name: "VisibleRangeEvent",
         fields: FIELDS_84,
     },
     Definition::Message {
-        name: "PointerMoveEvent",
+        name: "AnimationCompleteEvent",
         fields: FIELDS_85,
     },
     Definition::Message {
-        name: "ScrollEvent",
+        name: "KeyEvent",
         fields: FIELDS_86,
     },
     Definition::Message {
-        name: "SubmitEvent",
+        name: "PointerEvent",
         fields: FIELDS_87,
     },
     Definition::Message {
-        name: "WindowResizeEvent",
+        name: "PointerMoveEvent",
         fields: FIELDS_88,
     },
     Definition::Message {
-        name: "WindowActivationEvent",
+        name: "ScrollEvent",
         fields: FIELDS_89,
     },
     Definition::Message {
-        name: "ActionEvent",
+        name: "SubmitEvent",
         fields: FIELDS_90,
     },
     Definition::Message {
-        name: "WindowAppearanceEvent",
+        name: "WindowResizeEvent",
         fields: FIELDS_91,
     },
     Definition::Message {
-        name: "LayoutEvent",
+        name: "WindowActivationEvent",
         fields: FIELDS_92,
     },
     Definition::Message {
-        name: "DragOverEvent",
+        name: "ActionEvent",
         fields: FIELDS_93,
     },
     Definition::Message {
-        name: "DragDropEvent",
+        name: "WindowAppearanceEvent",
         fields: FIELDS_94,
     },
     Definition::Message {
-        name: "ExternalFileDropEvent",
+        name: "LayoutEvent",
         fields: FIELDS_95,
     },
     Definition::Message {
-        name: "NotificationResponseEvent",
+        name: "DragOverEvent",
         fields: FIELDS_96,
     },
     Definition::Message {
-        name: "PointerDownOutsideEvent",
+        name: "DragDropEvent",
         fields: FIELDS_97,
     },
     Definition::Message {
-        name: "CloseRequestedEvent",
+        name: "ExternalFileDropEvent",
         fields: FIELDS_98,
     },
     Definition::Message {
-        name: "ExtensionEvent",
+        name: "NotificationResponseEvent",
         fields: FIELDS_99,
     },
     Definition::Message {
-        name: "ApplicationActivationEvent",
+        name: "PointerDownOutsideEvent",
         fields: FIELDS_100,
     },
     Definition::Message {
-        name: "Envelope",
+        name: "CloseRequestedEvent",
         fields: FIELDS_101,
     },
+    Definition::Message {
+        name: "ExtensionEvent",
+        fields: FIELDS_102,
+    },
+    Definition::Message {
+        name: "ApplicationActivationEvent",
+        fields: FIELDS_103,
+    },
+    Definition::Message {
+        name: "Envelope",
+        fields: FIELDS_104,
+    },
 ];
-pub(crate) const ROOT_DEFINITION: usize = 101;
+pub(crate) const ROOT_DEFINITION: usize = 104;

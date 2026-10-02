@@ -178,6 +178,7 @@ fn update(number: u32, listener: u32, entry: u32) -> PatchOperation {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     }
 }
 fn patch(revision: u32, operations: Vec<PatchOperation>) -> DecodedMessage {

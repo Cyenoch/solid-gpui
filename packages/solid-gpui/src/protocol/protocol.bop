@@ -258,6 +258,25 @@ message LinearGradient {
     5 -> float32 endPosition;
 }
 
+enum LengthUnit : uint32 {
+    Pixels = 0;
+    Rems = 1;
+    Percent = 2;
+    Auto = 3;
+}
+
+message Length {
+    1 -> LengthUnit unit;
+    2 -> float32 value;
+}
+
+message InteractionStyle {
+    1 -> uint32 backgroundColor;
+    2 -> uint32 color;
+    3 -> uint32 borderColor;
+    4 -> float32 opacity;
+}
+
 message Style {
     1 -> float32 width;
     2 -> float32 height;
@@ -313,8 +332,8 @@ message Style {
     52 -> float32 borderTopRightRadius;
     53 -> float32 borderBottomRightRadius;
     54 -> float32 borderBottomLeftRadius;
-    55 -> float32 widthPercent;
-    56 -> float32 heightPercent;
+    55 -> LengthUnit widthUnit;
+    56 -> LengthUnit heightUnit;
     57 -> uint32 flexWrap;
     58 -> LinearGradient linearGradient;
     59 -> uint32 borderTopColor;
@@ -326,6 +345,17 @@ message Style {
     64 -> uint32 gridRows;
     65 -> uint32 gridColumnSpan;
     66 -> uint32 gridRowSpan;
+    67 -> Length flexBasis;
+    68 -> uint32 overflowX;
+    69 -> uint32 overflowY;
+    70 -> InteractionStyle hover;
+    71 -> InteractionStyle active;
+    72 -> InteractionStyle focusVisible;
+    73 -> LengthUnit minWidthUnit;
+    74 -> LengthUnit maxWidthUnit;
+    75 -> LengthUnit minHeightUnit;
+    76 -> LengthUnit maxHeightUnit;
+    77 -> float32 aspectRatio;
 }
 
 message Node {
@@ -343,6 +373,7 @@ message Node {
     12 -> string tooltip;
     13 -> bool acceptsPointerMove;
     14 -> bool observesLayout;
+    15 -> bool observesHover;
 }
 
 message ClearStyle {}
@@ -365,6 +396,7 @@ union PatchOperationValue {
         11 -> string tooltip;
         12 -> bool acceptsPointerMove;
         13 -> bool observesLayout;
+        14 -> bool observesHover;
     }
     3 -> message PatchMove {
         1 -> uint32 id;

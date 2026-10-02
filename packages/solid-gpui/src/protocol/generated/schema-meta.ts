@@ -2,7 +2,7 @@
 export const PROTOCOL_SCHEMA = {
   schema: "protocol.bop",
   root: "Envelope",
-  digest: "67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d",
+  digest: "de5fe6c96c85953d91bc06d40e6353f65c2c071e78d696dc1c1a55ed8d344d59",
   definitions: {
     NodeKind: {
       kind: "enum",
@@ -1156,6 +1156,70 @@ export const PROTOCOL_SCHEMA = {
         },
       ],
     },
+    LengthUnit: {
+      kind: "enum",
+      base: "uint32",
+      values: [0, 1, 2, 3],
+      names: ["Pixels", "Rems", "Percent", "Auto"],
+    },
+    Length: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "unit",
+          type: {
+            kind: "def",
+            name: "LengthUnit",
+          },
+        },
+        {
+          id: 2,
+          name: "value",
+          type: {
+            kind: "scalar",
+            name: "float32",
+          },
+        },
+      ],
+    },
+    InteractionStyle: {
+      kind: "message",
+      fields: [
+        {
+          id: 1,
+          name: "backgroundColor",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 2,
+          name: "color",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 3,
+          name: "borderColor",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 4,
+          name: "opacity",
+          type: {
+            kind: "scalar",
+            name: "float32",
+          },
+        },
+      ],
+    },
     Style: {
       kind: "message",
       fields: [
@@ -1593,18 +1657,18 @@ export const PROTOCOL_SCHEMA = {
         },
         {
           id: 55,
-          name: "widthPercent",
+          name: "widthUnit",
           type: {
-            kind: "scalar",
-            name: "float32",
+            kind: "def",
+            name: "LengthUnit",
           },
         },
         {
           id: 56,
-          name: "heightPercent",
+          name: "heightUnit",
           type: {
-            kind: "scalar",
-            name: "float32",
+            kind: "def",
+            name: "LengthUnit",
           },
         },
         {
@@ -1685,6 +1749,94 @@ export const PROTOCOL_SCHEMA = {
           type: {
             kind: "scalar",
             name: "uint32",
+          },
+        },
+        {
+          id: 67,
+          name: "flexBasis",
+          type: {
+            kind: "def",
+            name: "Length",
+          },
+        },
+        {
+          id: 68,
+          name: "overflowX",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 69,
+          name: "overflowY",
+          type: {
+            kind: "scalar",
+            name: "uint32",
+          },
+        },
+        {
+          id: 70,
+          name: "hover",
+          type: {
+            kind: "def",
+            name: "InteractionStyle",
+          },
+        },
+        {
+          id: 71,
+          name: "active",
+          type: {
+            kind: "def",
+            name: "InteractionStyle",
+          },
+        },
+        {
+          id: 72,
+          name: "focusVisible",
+          type: {
+            kind: "def",
+            name: "InteractionStyle",
+          },
+        },
+        {
+          id: 73,
+          name: "minWidthUnit",
+          type: {
+            kind: "def",
+            name: "LengthUnit",
+          },
+        },
+        {
+          id: 74,
+          name: "maxWidthUnit",
+          type: {
+            kind: "def",
+            name: "LengthUnit",
+          },
+        },
+        {
+          id: 75,
+          name: "minHeightUnit",
+          type: {
+            kind: "def",
+            name: "LengthUnit",
+          },
+        },
+        {
+          id: 76,
+          name: "maxHeightUnit",
+          type: {
+            kind: "def",
+            name: "LengthUnit",
+          },
+        },
+        {
+          id: 77,
+          name: "aspectRatio",
+          type: {
+            kind: "scalar",
+            name: "float32",
           },
         },
       ],
@@ -1799,6 +1951,14 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 14,
           name: "observesLayout",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
+        {
+          id: 15,
+          name: "observesHover",
           type: {
             kind: "scalar",
             name: "bool",
@@ -1946,6 +2106,14 @@ export const PROTOCOL_SCHEMA = {
         {
           id: 13,
           name: "observesLayout",
+          type: {
+            kind: "scalar",
+            name: "bool",
+          },
+        },
+        {
+          id: 14,
+          name: "observesHover",
           type: {
             kind: "scalar",
             name: "bool",

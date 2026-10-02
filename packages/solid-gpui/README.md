@@ -160,15 +160,17 @@ require a real host.
 
 ## Protocol
 
-The renderer speaks the lockstep framed Bebop v6 protocol. Each frame begins
+The renderer speaks the lockstep framed Bebop v7 protocol. Each frame begins
 with a four-byte little-endian payload length and carries a bounded Envelope.
 The canonical schema is
 `src/protocol/protocol.bop`; checked TypeScript bindings and schema metadata
 are generated from it, and the native host consumes matching generated Rust
 bindings. A schema-derived guard rejects malformed fields, unions, enums,
 strings, and repeated values before generated decoding.
-Version 6 adds explicit layout demand and revision-chained VirtualList data
-edits. Rebuild JavaScript and native hosts together; v5 frames are rejected.
+Version 7 adds explicit native length units, flex basis, axis overflow and native
+hover/active/focus-visible paint refinements. Rebuild JavaScript and native hosts
+together; older frames are rejected. See [layout and paint](../../docs/native-composition.md#layout-and-paint)
+for spacing precedence, supported units and state-style constraints.
 
 ## Repository website
 

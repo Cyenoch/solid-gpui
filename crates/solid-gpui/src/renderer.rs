@@ -59,6 +59,8 @@ mod resize_tests;
 #[cfg(test)]
 mod scroll_tests;
 #[cfg(test)]
+mod style_contract_tests;
+#[cfg(test)]
 use crate::protocol::{Easing, TextInputProperties};
 use animation::AnimationBook;
 #[cfg(test)]
@@ -995,8 +997,8 @@ impl SolidRoot {
 
     fn node_can_receive_focus(node: &StoredNode) -> bool {
         match node.kind {
-            KIND_VIEW => node.focusable,
-            KIND_PRESSABLE | KIND_TEXT => node.focusable && node.listener_id != 0,
+            KIND_VIEW | KIND_PRESSABLE => node.focusable,
+            KIND_TEXT => node.focusable && node.listener_id != 0,
             KIND_TEXT_INPUT => matches!(
                 node.host_properties.as_ref(),
                 Some(HostProperties::TextInput(input)) if !input.disabled
@@ -1586,6 +1588,7 @@ mod input_tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     }],
                 )
                 .encode()
@@ -1677,6 +1680,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         )
         .encode()
@@ -2215,6 +2219,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         let patch_payload = patch.encode().expect("encode animation patch");
@@ -2313,6 +2318,7 @@ mod input_tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     },
                     PatchOperation::Create(Node::new(3, 1, 1, KIND_VIEW)),
                     PatchOperation::Move {
@@ -2355,6 +2361,7 @@ mod input_tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect("estimated size patch");
@@ -2435,6 +2442,7 @@ mod input_tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect("grow VirtualList");
@@ -2479,6 +2487,7 @@ mod input_tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect("shrink VirtualList");
@@ -2519,6 +2528,7 @@ mod input_tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect("restore VirtualList");
@@ -2691,6 +2701,7 @@ mod input_tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 },
             ],
         );
@@ -3311,6 +3322,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -3443,6 +3455,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -3798,6 +3811,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         let text_payload = text_patch.encode().expect("encode text update");
@@ -4238,6 +4252,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -4318,6 +4333,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         root.update(cx, |root, cx| {
@@ -4348,6 +4364,7 @@ mod input_tests {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         );
         root.update(cx, |root, cx| {

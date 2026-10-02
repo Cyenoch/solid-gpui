@@ -33,6 +33,7 @@ import {
   WindowOpenOptions as WireWindowOpenOptions,
   WindowAppearance,
   NodeKind,
+  LengthUnit,
   type CommandPayload,
   type CommandValue,
   type ExtensionField as WireExtensionField,
@@ -133,6 +134,7 @@ import {
   UPDATE_LISTENER,
   UPDATE_POINTER_MOVE,
   UPDATE_LAYOUT,
+  UPDATE_HOVER,
   UPDATE_PROPERTIES,
   UPDATE_SELECTABLE,
   UPDATE_STYLE,
@@ -275,12 +277,43 @@ function wireShadow(value: BoxShadowInput): WireBoxShadowSet {
   );
   return { values };
 }
+function wireLength(value: import("../style").Length | undefined): { unit: LengthUnit; value: number } | undefined {
+  if (value === undefined) return undefined;
+  if (value === "auto") return { unit: LengthUnit.Auto, value: 0 };
+  if (typeof value === "number") return { unit: LengthUnit.Pixels, value: Math.fround(value) };
+  return {
+    unit: { px: LengthUnit.Pixels, rem: LengthUnit.Rems, percent: LengthUnit.Percent }[value.unit],
+    value: Math.fround(value.value),
+  };
+}
+function wireInteraction(value: import("../style").InteractionStyle | undefined) {
+  if (value === undefined) return undefined;
+  return {
+    backgroundColor: value.backgroundColor === undefined ? undefined : encodeColor(value.backgroundColor),
+    color: value.color === undefined ? undefined : encodeColor(value.color),
+    borderColor: value.borderColor === undefined ? undefined : encodeColor(value.borderColor),
+    opacity: value.opacity === undefined ? undefined : Math.fround(value.opacity),
+  };
+}
 function wireStyle(value: StyleProp): WireStyle | undefined {
   if (value == null) return undefined;
   validateStyle(value);
+  const width = wireLength(value.width);
+  const height = wireLength(value.height);
+  const minWidth = wireLength(value.minWidth);
+  const maxWidth = wireLength(value.maxWidth);
+  const minHeight = wireLength(value.minHeight);
+  const maxHeight = wireLength(value.maxHeight);
   return {
-    width: value.width === undefined ? undefined : Math.fround(value.width),
-    height: value.height === undefined ? undefined : Math.fround(value.height),
+    width: width?.value,
+    widthUnit: width?.unit,
+    height: height?.value,
+    heightUnit: height?.unit,
+    flexBasis: wireLength(value.flexBasis),
+    aspectRatio: optionalF32(value.aspectRatio),
+    hover: wireInteraction(value.hover),
+    active: wireInteraction(value.active),
+    focusVisible: wireInteraction(value.focusVisible),
     gridColumns: value.gridColumns,
     gridRows: value.gridRows,
     gridColumnSpan: value.gridColumnSpan,
@@ -301,19 +334,25 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
     fontSize: value.fontSize === undefined ? undefined : Math.fround(value.fontSize),
     fontWeight: styleEnum("fontWeight", value.fontWeight),
     overflow: styleEnum("overflow", value.overflow),
+    overflowX: styleEnum("overflow", value.overflowX ?? value.overflow),
+    overflowY: styleEnum("overflow", value.overflowY ?? value.overflow),
     lineClamp: value.lineClamp,
     textOverflow: styleEnum("textOverflow", value.textOverflow),
-    marginTop: value.marginTop === undefined ? undefined : Math.fround(value.marginTop),
-    marginRight: value.marginRight === undefined ? undefined : Math.fround(value.marginRight),
-    marginBottom: value.marginBottom === undefined ? undefined : Math.fround(value.marginBottom),
-    marginLeft: value.marginLeft === undefined ? undefined : Math.fround(value.marginLeft),
+    marginTop: optionalF32(value.marginTop ?? value.marginY ?? value.margin),
+    marginRight: optionalF32(value.marginRight ?? value.marginX ?? value.margin),
+    marginBottom: optionalF32(value.marginBottom ?? value.marginY ?? value.margin),
+    marginLeft: optionalF32(value.marginLeft ?? value.marginX ?? value.margin),
     fontStyle: styleEnum("fontStyle", value.fontStyle),
     textDecoration: styleEnum("textDecoration", value.textDecoration),
     lineHeight: value.lineHeight === undefined ? undefined : Math.fround(value.lineHeight),
-    minWidth: value.minWidth === undefined ? undefined : Math.fround(value.minWidth),
-    maxWidth: value.maxWidth === undefined ? undefined : Math.fround(value.maxWidth),
-    minHeight: value.minHeight === undefined ? undefined : Math.fround(value.minHeight),
-    maxHeight: value.maxHeight === undefined ? undefined : Math.fround(value.maxHeight),
+    minWidth: minWidth?.value,
+    minWidthUnit: minWidth?.unit,
+    maxWidth: maxWidth?.value,
+    maxWidthUnit: maxWidth?.unit,
+    minHeight: minHeight?.value,
+    minHeightUnit: minHeight?.unit,
+    maxHeight: maxHeight?.value,
+    maxHeightUnit: maxHeight?.unit,
     flexShrink: value.flexShrink === undefined ? undefined : Math.fround(value.flexShrink),
     alignSelf: styleEnum("alignSelf", value.alignSelf),
     position: styleEnum("position", value.position),
@@ -340,10 +379,10 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
     borderBottomColor: value.borderBottomColor === undefined ? undefined : encodeColor(value.borderBottomColor),
     borderLeftColor: value.borderLeftColor === undefined ? undefined : encodeColor(value.borderLeftColor),
 
-    paddingTop: value.paddingTop === undefined ? undefined : Math.fround(value.paddingTop),
-    paddingRight: value.paddingRight === undefined ? undefined : Math.fround(value.paddingRight),
-    paddingBottom: value.paddingBottom === undefined ? undefined : Math.fround(value.paddingBottom),
-    paddingLeft: value.paddingLeft === undefined ? undefined : Math.fround(value.paddingLeft),
+    paddingTop: optionalF32(value.paddingTop ?? value.paddingY),
+    paddingRight: optionalF32(value.paddingRight ?? value.paddingX),
+    paddingBottom: optionalF32(value.paddingBottom ?? value.paddingY),
+    paddingLeft: optionalF32(value.paddingLeft ?? value.paddingX),
     borderTopWidth: value.borderTopWidth === undefined ? undefined : Math.fround(value.borderTopWidth),
     borderRightWidth: value.borderRightWidth === undefined ? undefined : Math.fround(value.borderRightWidth),
     borderBottomWidth: value.borderBottomWidth === undefined ? undefined : Math.fround(value.borderBottomWidth),
@@ -355,10 +394,11 @@ function wireStyle(value: StyleProp): WireStyle | undefined {
       value.borderBottomRightRadius === undefined ? undefined : Math.fround(value.borderBottomRightRadius),
     borderBottomLeftRadius:
       value.borderBottomLeftRadius === undefined ? undefined : Math.fround(value.borderBottomLeftRadius),
-    widthPercent: value.widthPercent === undefined ? undefined : Math.fround(value.widthPercent),
-    heightPercent: value.heightPercent === undefined ? undefined : Math.fround(value.heightPercent),
     flexWrap: styleEnum("flexWrap", value.flexWrap),
   };
+}
+function optionalF32(value: number | undefined): number | undefined {
+  return value === undefined ? undefined : Math.fround(value);
 }
 function wireAccessibility(value: SemanticAccessibilityProperties | null): WireAccessibilityProperties | undefined {
   if (value === null) return undefined;
@@ -465,6 +505,7 @@ function wireNode(value: SemanticNode): WireNode {
     tooltip: value.tooltip ?? undefined,
     acceptsPointerMove: value.acceptsPointerMove,
     observesLayout: value.observesLayout,
+    observesHover: value.observesHover ?? false,
   };
 }
 function wireSnapshot(value: SemanticSnapshot): WireSnapshot {
@@ -515,6 +556,7 @@ function wirePatchOperation(value: SemanticPatchOperation): WirePatchOperation {
       tooltip: value.mask & UPDATE_TOOLTIP ? (value.tooltip ?? undefined) : undefined,
       acceptsPointerMove: value.mask & UPDATE_POINTER_MOVE ? value.acceptsPointerMove : undefined,
       observesLayout: value.mask & UPDATE_LAYOUT ? value.observesLayout : undefined,
+      observesHover: value.mask & UPDATE_HOVER ? (value.observesHover ?? false) : undefined,
     }),
   };
 }

@@ -60,7 +60,7 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
   if (live !== undefined && live !== "off" && (role === undefined || role === "generic" || value === undefined))
     throw new TypeError("A live region requires a semantic role and accessibilityValue");
   const inputDisabled =
-    kind === "TextInput" && Object.hasOwn(props, "disabled") ? (props as TextInputProps).disabled : undefined;
+    (kind === "TextInput" || kind === "Pressable") && Object.hasOwn(props, "disabled") ? props.disabled : undefined;
   assertAccessibilityText("accessibilityLabel", label, 1024);
   assertAccessibilityText("accessibilityDescription", description, MAX_CLIPBOARD_TEXT_BYTES);
   assertAccessibilityText("accessibilityValue", value, MAX_CLIPBOARD_TEXT_BYTES);
@@ -83,7 +83,7 @@ export function accessibilityFor(kind: HostKind, props: HostProps): Accessibilit
     role: role === undefined ? 0 : ROLE_CODES[role],
     label: label ?? null,
     description: description ?? null,
-    disabled: disabled ?? inputDisabled ?? false,
+    disabled: inputDisabled === true || disabled === true,
     checked: checked ?? null,
     selected: selected ?? null,
     value: value ?? null,
@@ -380,6 +380,8 @@ export function validateProps(kind: HostKind, props: HostProps): void {
     if (props.onLayout !== undefined && typeof props.onLayout !== "function")
       throw new TypeError("Extension onLayout must be a function");
     if (props.style !== undefined) validateStyle(props.style);
+    if (props.style?.hover || props.style?.active || props.style?.focusVisible)
+      throw new TypeError("interaction styles require View or Pressable");
     accessibilityFor(kind, props);
     return;
   }
@@ -393,6 +395,11 @@ export function validateProps(kind: HostKind, props: HostProps): void {
   )
     throw new TypeError(`${kind} onLayout must be a function`);
   if (kind !== "RawText") validateStyle(props.style);
+  if (props.style?.hover || props.style?.active || props.style?.focusVisible) {
+    if (kind !== "View" && kind !== "Pressable") throw new TypeError("interaction styles require View or Pressable");
+    if (props.style.focusVisible && props.focusable !== true)
+      throw new TypeError("focusVisible requires focusable=true");
+  }
   if (kind === "Text" && props.onPress !== undefined && typeof props.onPress !== "function")
     throw new TypeError("Text onPress must be a function");
   if (kind === "Text" && props.selectable !== undefined && typeof props.selectable !== "boolean")
