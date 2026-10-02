@@ -1,6 +1,7 @@
 import { componentDescriptionsChinese } from "./component-examples.zh-CN.ts";
+import { paintMediaExamples } from "./component-recipes/paint-media.ts";
 type Example = { names: string[]; description: string; descriptionChinese: string; source: string };
-export const componentExamples: Example[] = [];
+export const componentExamples: Example[] = [...paintMediaExamples];
 function add(names: string, description: string, descriptionChinese: string, jsx: string, setup = "") {
   componentExamples.push({
     names: names.split(" "),

@@ -170,6 +170,7 @@ export const chinese: Record<string, string> = {
   Router: "路由",
   "Keyboard & menus": "键盘与菜单",
   "Native UI composition": "原生界面组合",
+  "Paint & live frames": "绘制与实时帧",
   "System popovers": "系统弹层",
   Distribution: "分发应用",
   "Web setup": "Web 配置",

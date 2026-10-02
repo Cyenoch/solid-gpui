@@ -36,18 +36,18 @@ startup classification, and retained navigation without DOM globals. Follow the
 
 ## Content ownership
 
-| Content | Source |
-| --- | --- |
-| Reference guides | `../../docs/*.md` and explicit `.zh-CN.md` translations, loaded by `src/documentation.ts` |
-| Component API | Generated `../../packages/solid-gpui/src/components.ts`, read by `component-catalog.ts` |
-| Component examples | `component-examples.ts`, `component-variants.ts`, and `component-recipes/` |
-| Component translations | `component-examples.zh-CN.ts`, recipe translations, and `src/locale.zh-CN.ts` |
-| Preview availability | `component-previews.ts`; only the active compiled example mounts |
-| Navigation | `component-groups.ts` for page groups; `component-families.ts` for compound parts |
-| Showcase | `src/showcase`; displayed source and running previews share modules |
-| Routes | `src/routes`; regenerate and commit `src/routeTree.gen.ts` with `bun run routes:generate` |
-| Static code highlighting | `src/snippets.ts` and `build-highlights.ts` |
-| Branding | [Approved assets](../../assets/branding/README.md) |
+| Content                  | Source                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| Reference guides         | `../../docs/*.md` and explicit `.zh-CN.md` translations, loaded by `src/documentation.ts` |
+| Component API            | Generated `../../packages/solid-gpui/src/components.ts`, read by `component-catalog.ts`   |
+| Component examples       | `component-examples.ts`, `component-variants.ts`, and `component-recipes/`                |
+| Component translations   | `component-examples.zh-CN.ts`, recipe translations, and `src/locale.zh-CN.ts`             |
+| Preview availability     | `component-previews.ts`; only the active compiled example mounts                          |
+| Navigation               | `component-groups.ts` for page groups; `component-families.ts` for compound parts         |
+| Showcase                 | `src/showcase`; displayed source and running previews share modules                       |
+| Routes                   | `src/routes`; regenerate and commit `src/routeTree.gen.ts` with `bun run routes:generate` |
+| Static code highlighting | `src/snippets.ts` and `build-highlights.ts`                                               |
+| Branding                 | [Approved assets](../../assets/branding/README.md)                                        |
 
 The catalog requires an example for every generated component and exactly one
 navigation group per page. Tests type-check examples against the SDK. Release
@@ -59,6 +59,11 @@ Reference Studio and Studio History share retained editing panes, 240 tracks, an
 source provenance, explicit adaptations, and the executable native acceptance
 workload. `bun scripts/check-reference-provenance.ts` checks immutable source
 identity; native interaction checks run serially after compilation.
+
+The Low-level drawing group includes an interactive RecordedPaint workflow diagram
+and an acknowledged LiveFrame CPU stream. Their executable source lives in
+`component-recipes/paint-media.ts`; both use the generated native contracts. See
+[paint and frame ownership](../../docs/paint-media.md) for budgets and platform limits.
 
 English guides are authoritative. Website guides require a `.zh-CN.md` copy with
 a localized level-one heading. `src/Docs.tsx` owns shortened navigation labels;

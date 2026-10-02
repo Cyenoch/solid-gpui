@@ -67,6 +67,7 @@ const referenceLabels: Record<string, string> = {
   "reference-application": "Reference application",
   "keyboard-and-menus": "Keyboard & menus",
   "native-composition": "Native UI composition",
+  "paint-media": "Paint & live frames",
   distribution: "Distribution",
   web: "Web setup",
   "rust-bridge": "Rust integration",

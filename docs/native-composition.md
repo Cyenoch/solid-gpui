@@ -36,11 +36,11 @@ examples to the generated Solid contracts rather than translating method names.
 An Entity retains state; RenderOnce describes a consumed component value. Neither
 promises that layout or paint is skipped. Distinguish three mechanisms:
 
-| Mechanism | Saves | Required ownership |
-| --- | --- | --- |
-| Native view cache | Rebuilding an unchanged subtree | Stable entity/path, definite outer layout, notifications for external dependencies |
-| Geometry/text cache | Recomputing paths, shaping, or measurements | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
-| Core VirtualList | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle |
+| Mechanism           | Saves                                            | Required ownership                                                                                               |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Native view cache   | Rebuilding an unchanged subtree                  | Stable entity/path, definite outer layout, notifications for external dependencies                               |
+| Geometry/text cache | Recomputing paths, shaping, or measurements      | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
+| Core VirtualList    | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle                                                     |
 
 A parent update cannot repair a missing notification inside a cached view. Check
 external-model and theme changes, resize, clipping, and controls in replayed frames.
@@ -54,6 +54,10 @@ against the host working directory. Core Image owns bounded fetch/decode and
 decoded-image lifetimes; upstream's default application-wide cache and retry
 policy do not describe this provider. Decoded-pixel reuse and HTTP response
 caching are separate layers. See [Images](#images) and [Iconify](iconify.md).
+
+Use [RecordedPaint and LiveFrame](paint-media.md) for retained diagrams or decoded
+CPU frame streams. They own bounded geometry/pixels on a mounted native view;
+the generated ref scopes frame replacement and disposal to its Surface epoch.
 
 Review keyboard operation, focus restoration, narrow/wide layouts, both themes,
 and longer labels. Headless state/geometry checks establish deterministic behavior;

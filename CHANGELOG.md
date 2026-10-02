@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Add generated `RecordedPaint` native quads, convex paths, and text with bounded retained geometry, resize/DPI feedback, theme colors, clipping, and scale/translation. Add `LiveFrame` with owned RGBA CPU frame replacement, chunked uploads, atomic presentation, clear/dispose, epoch release, and a shared host memory budget. The website includes executable diagram and frame-stream consumers with bilingual guides.
+
 ## [0.5.2]
 
 ### Fixed
