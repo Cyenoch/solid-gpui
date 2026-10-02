@@ -44,7 +44,7 @@ export async function verifyRuntime() {
         : [];
     })[0];
     if (!showcaseSidebar) throw new Error("Showcase sidebar was not mounted");
-    for (const id of ["account", "collections", "workspace"]) {
+    for (const id of ["account", "collections", "workspace", "reference-studio", "reference-studio-history"]) {
       transport.submitted.length = 0;
       await router.navigate({ to: `/showcase/${id}` });
       if (!transport.submitted.length) throw new Error(`Showcase did not update: ${id}`);

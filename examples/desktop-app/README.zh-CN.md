@@ -6,12 +6,17 @@
 
 ## 概述
 
-- 一个原生窗口承载路由器驱动的 SolidJS 树：标题栏外壳加上 Home 与 Settings 两个路由。
+- 一个原生窗口承载路由器驱动的 SolidJS 树：标题栏外壳加上 Home、Settings 与共用的 Reference Studio 路由。
 - `desktop-app-host`（Rust）配置原生窗口与标题栏选项，在窗口打开前注册内嵌品牌图标，并暴露带 `serviceCount` 命令的 `desktop` 原生模块。
 - `@solid-gpui/vite` 构建该宿主并把 bindings 导出到 `src/native.ts`，TypeScript 由此获得组件目录和 `serviceCount` 的签名。
 - 渲染完全离线：封面图由 Vite 以内联方式写入 bundle（`?inline`），品牌图标编译进可执行文件。
 
 ## 运行示例
+
+Studio 链接打开与网站 Showcase 相同的 TSX：240 个轨道、10,000 条评审记录、
+受控 Unicode 编辑、原生拖放和复制。稳定外壳在 `/studio/timeline` 与
+`/studio/history` 间保留窗格及输入/列表身份。窗口调整更新显式尺寸存储。
+来源、适配、生命周期与原生验收要求见[参考应用](../../docs/reference-application.zh-CN.md)。
 
 使用仓库固定版本的 Bun 和 Rust 工具链。各平台构建前提见[构建环境](../../docs/distribution.zh-CN.md#构建环境)。
 

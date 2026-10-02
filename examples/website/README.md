@@ -53,6 +53,13 @@ The catalog requires an example for every generated component and exactly one
 navigation group per page. Tests type-check examples against the SDK. Release
 changes belong in [CHANGELOG.md](../../CHANGELOG.md).
 
+Reference Studio and Studio History share retained editing panes, 240 tracks, and
+10,000 review notes with the desktop example. See the
+[reference application guide](../../docs/reference-application.md) for pinned
+source provenance, explicit adaptations, and the executable native acceptance
+workload. `bun scripts/check-reference-provenance.ts` checks immutable source
+identity; native interaction checks run serially after compilation.
+
 English guides are authoritative. Website guides require a `.zh-CN.md` copy with
 a localized level-one heading. `src/Docs.tsx` owns shortened navigation labels;
 translate those in `src/locale.zh-CN.ts`. Both languages load the authoritative

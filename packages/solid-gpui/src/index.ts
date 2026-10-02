@@ -229,6 +229,36 @@ export function VirtualList<T>(props: VirtualListProps<T>): SolidChild {
     createHostElement("View", { key: row.key, children: props.renderItem(row.item, row.index) }),
   );
   const node = createHostElement("VirtualList", {
+    get accessibilityLabel() {
+      return props.accessibilityLabel;
+    },
+    get accessibilityRole() {
+      return props.accessibilityRole;
+    },
+    get accessibilityDescription() {
+      return props.accessibilityDescription;
+    },
+    get accessibilityDisabled() {
+      return props.accessibilityDisabled;
+    },
+    get accessibilityChecked() {
+      return props.accessibilityChecked;
+    },
+    get accessibilitySelected() {
+      return props.accessibilitySelected;
+    },
+    get accessibilityValue() {
+      return props.accessibilityValue;
+    },
+    get accessibilityExpanded() {
+      return props.accessibilityExpanded;
+    },
+    get accessibilityLevel() {
+      return props.accessibilityLevel;
+    },
+    get accessibilityLive() {
+      return props.accessibilityLive;
+    },
     get style() {
       return props.style;
     },

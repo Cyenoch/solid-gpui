@@ -99,7 +99,10 @@ export function websiteConfig(desktop = false, embedded = false) {
     resolve: {
       alias: [
         ...(desktop
-          ? [{ find: "./HeroVisual", replacement: resolve(import.meta.dirname, "src/HeroVisual.native.tsx") }]
+          ? [
+              { find: "./HeroVisual", replacement: resolve(import.meta.dirname, "src/HeroVisual.native.tsx") },
+              { find: "./showcase/StudioPreview", replacement: resolve(import.meta.dirname, "src/showcase/StudioPreview.native.tsx") },
+            ]
           : []),
         { find: "assert", replacement: "assert/" },
       ],

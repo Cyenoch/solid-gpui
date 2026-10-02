@@ -26,6 +26,8 @@ test("documented previews render without DOM globals and component navigation re
     if (!environment || !isRunnableDevEnvironment(environment)) throw new Error("Missing runnable Vite environment");
     const fixture = await environment.runner.import(resolve(root, "tests/runtime.fixture.tsx"));
     await fixture.verifyRuntime();
+    const studio = await environment.runner.import(resolve(root, "tests/reference-studio.fixture.tsx"));
+    await studio.verifyReferenceStudio();
   } finally {
     await server.close();
   }

@@ -64,6 +64,7 @@ const referenceLabels: Record<string, string> = {
   "hot-reload": "Development workflow",
   "capture-state": "Preserve UI state",
   router: "Router",
+  "reference-application": "Reference application",
   "keyboard-and-menus": "Keyboard & menus",
   "native-composition": "Native UI composition",
   distribution: "Distribution",
