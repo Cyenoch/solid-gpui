@@ -1,9 +1,9 @@
 # 入门
 
-最简单的入口是工具包自带、与安装版本严格配对的模板：
+独立模板目前是未发布的本地候选。安装生成的 candidate tooling tarball 并使用其 CLI，将 DELIVERY_MANIFEST 设为配对 manifest 的绝对路径。公开 0.5.2 没有这些 API。模板获取并验证准确配对的 core/tooling tarball，不会安装旧公开版本：
 
 ```sh
-bunx --package @solid-gpui/vite@0.5.2 solid-gpui create my-app --runtime quickjs
+solid-gpui create my-app --runtime quickjs --manifest "$DELIVERY_MANIFEST"
 cd my-app
 bun install
 bun run host:install
