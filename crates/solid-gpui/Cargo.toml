@@ -74,6 +74,11 @@ harness = false
 required-features = ["test-support"]
 
 [[test]]
+name = "host_paint_media_platform"
+harness = false
+required-features = ["gpui-component", "test-support"]
+
+[[test]]
 name = "host_embedded_counter"
 required-features = ["embedded-bun"]
 

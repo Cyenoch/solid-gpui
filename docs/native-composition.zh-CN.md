@@ -19,6 +19,9 @@ Entity 保留状态，RenderOnce 描述被消费的组件值，均不保证跳�
 
 解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。上游 `img("relative-key")` 查询 AssetSource，而 Solid core Image 相对路径基于宿主工作目录。Core Image 有自己的有界请求、解码与像素生命周期，不能套用上游默认的应用级缓存或重试策略。解码像素复用与 HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。
 
+保留图表或已解码 CPU 帧流使用 [RecordedPaint 与 LiveFrame](paint-media.zh-CN.md)。
+几何与像素由挂载原生视图持有并受预算约束；生成 ref 将帧替换与释放限定在所属 Surface epoch。
+
 验收覆盖键盘、焦点恢复、窄宽布局、明暗主题与长标签。无头状态/几何测试证明确定性行为，真实窗口和辅助技术检查证明平台行为。
 
 ## SwiftUI 与 AppKit 视图承载

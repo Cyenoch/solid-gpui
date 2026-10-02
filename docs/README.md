@@ -46,6 +46,7 @@ References:
 - [Routing and shared application state](../packages/solid-gpui-router/README.md) — surface navigation and application scope.
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
 - [Iconify](iconify.md) — embedded icons, size and color, reactive usage, and application icon registration.
+- [Recorded paint and live frames](paint-media.md) — bounded native diagrams, CPU pixel uploads, clipping, transforms, and resource ownership.
 - [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
