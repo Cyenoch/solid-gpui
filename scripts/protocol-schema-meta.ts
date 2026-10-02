@@ -473,17 +473,17 @@ export async function generateProtocolArtifacts(
     readonly schema?: string;
     readonly sha256?: string;
   };
-  if (lock.protocolVersion !== 6 || lock.schema !== schema.schema)
-    throw new Error("schema lock must explicitly identify protocol v6 and protocol.bop");
+  if (lock.protocolVersion !== 7 || lock.schema !== schema.schema)
+    throw new Error("schema lock must explicitly identify protocol v7 and protocol.bop");
   if (lock.sha256 !== digest) {
     if (!options.acceptSchemaDigest) {
       throw new Error(
-        `protocol.bop digest ${digest} is not accepted for v6; update schema-lock.json deliberately or pass --accept-schema-digest`,
+        `protocol.bop digest ${digest} is not accepted for v7; update schema-lock.json deliberately or pass --accept-schema-digest`,
       );
     }
     await writeFile(
       lockPath,
-      `${JSON.stringify({ protocolVersion: 6, schema: schema.schema, sha256: digest }, null, 2)}\n`,
+      `${JSON.stringify({ protocolVersion: 7, schema: schema.schema, sha256: digest }, null, 2)}\n`,
     );
   }
   const metadata = schemaMetadata(schema, digest);

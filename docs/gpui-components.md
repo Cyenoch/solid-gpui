@@ -411,7 +411,7 @@ ownership of its native scrolling and `ScrollShadow` borrows that viewport for
 fades, `scrollbarVisibility`, `scrollTo`, `getScrollPosition`, and `onScroll`;
 there is no outer scroll area or duplicate scrollbar. Bound the parent viewport
 (including height for horizontal virtual lists), and let the direct child fill
-it with `style={{ widthPercent: 100, heightPercent: 100 }}`.
+it with `style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }}`.
 
 This delegation is deliberately narrow: only exactly one matching-axis direct
 child is recognized. Wrappers, multiple children, nested lists, and mismatched

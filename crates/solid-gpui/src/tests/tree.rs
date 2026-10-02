@@ -121,6 +121,7 @@ fn accessibility_patch_updates_validate_role_and_checked_constraints() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     );
     assert!(matches!(
@@ -165,6 +166,7 @@ fn accessibility_patch_updates_a_valid_label() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     );
     store
@@ -221,6 +223,7 @@ fn accessibility_patch_can_clear_existing_properties() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         ))
         .expect("accessibility removal");
@@ -625,6 +628,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         ))
         .unwrap();
@@ -660,6 +664,7 @@ fn patches_update_text_and_style_without_rebuilding_unrelated_nodes() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         ))
         .unwrap();
@@ -730,6 +735,7 @@ fn malformed_patch_rolls_back_and_delete_removes_subtree() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             },
             PatchOperation::Delete { id: 999 },
         ],
@@ -803,6 +809,7 @@ fn rejected_patch_restores_created_nodes_and_ancestor_text_caches() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         },
         PatchOperation::Create(created),
         PatchOperation::Move {
@@ -869,6 +876,7 @@ fn patch_stats_scale_with_changed_nodes() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         ))
         .unwrap();
@@ -1235,6 +1243,7 @@ fn tree_rejects_invalid_virtual_list_property_patch() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     );
     assert!(matches!(
@@ -1293,6 +1302,7 @@ fn props_update(revision: u32, props: Option<HostProperties>) -> Patch {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     )
 }
@@ -1454,6 +1464,7 @@ fn layout_observation_binds_through_the_update_mask() {
                 id: 1,
                 mask: UPDATE_LAYOUT,
                 observes_layout: true,
+                observes_hover: false,
                 style: None,
                 text: None,
                 listener_id: 0,
@@ -1546,6 +1557,7 @@ fn pressable_focusable_patch_is_accepted() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     );
     store.apply_patch(patch).expect("Pressable focusable patch");
@@ -1583,6 +1595,7 @@ fn interaction_patches_validate_retained_capabilities_before_publishing() {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     };
     for operation in [
         update(2, UPDATE_LISTENER, false),
@@ -1656,6 +1669,7 @@ fn tooltip_snapshot_and_patch_apply_for_view_and_pressable() {
                 tooltip: Some("Updated view hint".to_owned()),
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         ))
         .expect("tooltip patch applies");
@@ -1693,6 +1707,7 @@ fn pointer_move_capability_requires_interactive_listener_and_can_be_cleared() {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     );
     store
@@ -1758,6 +1773,7 @@ fn extension_listener_survives_property_updates_and_can_be_replaced() {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect(

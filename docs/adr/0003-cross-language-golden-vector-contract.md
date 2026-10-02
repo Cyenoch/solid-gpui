@@ -4,7 +4,7 @@
 - **Date:** 2026-08-25
 
 > Historical note: The v3 tuple and golden-vector rules below are retained as
-> historical context; the active wire contract is [Bebop v6](../protocol.md),
+> historical context; the active wire contract is [Bebop v7](../protocol.md),
 > retaining the codec and lockstep policy selected in ADR-0014.
 
 ## Context

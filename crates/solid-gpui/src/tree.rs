@@ -6,9 +6,9 @@ use thiserror::Error;
 use crate::protocol::{
     AccessibilityProperties, HostProperties, Node, Patch, PatchOperation, PositionCode, Snapshot,
     Style, TRANSITION_BACKGROUND_COLOR, TRANSITION_HEIGHT, TRANSITION_OPACITY, TRANSITION_WIDTH,
-    UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_LAYOUT, UPDATE_LISTENER, UPDATE_POINTER_MOVE,
-    UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE, UPDATE_TEXT, UPDATE_TOOLTIP,
-    VirtualListProperties, generated_facts,
+    UPDATE_ACCESSIBILITY, UPDATE_FOCUSABLE, UPDATE_HOVER, UPDATE_LAYOUT, UPDATE_LISTENER,
+    UPDATE_POINTER_MOVE, UPDATE_PROPERTIES, UPDATE_SELECTABLE, UPDATE_STYLE, UPDATE_TEXT,
+    UPDATE_TOOLTIP, VirtualListProperties, generated_facts,
 };
 mod transaction;
 #[cfg(test)]
@@ -136,6 +136,7 @@ pub struct StoredNode {
     pub tooltip: Option<Arc<str>>,
     pub accepts_pointer_move: bool,
     pub observes_layout: bool,
+    pub observes_hover: bool,
     pub accessibility_id: Arc<str>,
     child_len: usize,
 }
@@ -333,6 +334,7 @@ impl NodeStore {
                     tooltip: node.tooltip.map(Arc::<str>::from),
                     accepts_pointer_move: node.accepts_pointer_move,
                     observes_layout: node.observes_layout,
+                    observes_hover: node.observes_hover,
                     accessibility_id: Arc::<str>::from(format!("solid-gpui-node-{}", node.id)),
                     child_len: 0,
                 },
@@ -430,6 +432,7 @@ impl NodeStore {
                     tooltip,
                     accepts_pointer_move,
                     observes_layout,
+                    observes_hover,
                 } => self.apply_update(
                     operation_index,
                     *id,
@@ -444,6 +447,7 @@ impl NodeStore {
                     tooltip.clone(),
                     *accepts_pointer_move,
                     *observes_layout,
+                    *observes_hover,
                     undo,
                     stats,
                     &mut affected_parents,
@@ -559,6 +563,7 @@ impl NodeStore {
             tooltip: node.tooltip.clone().map(Arc::<str>::from),
             accepts_pointer_move: node.accepts_pointer_move,
             observes_layout: node.observes_layout,
+            observes_hover: node.observes_hover,
             accessibility_id: Arc::<str>::from(format!("solid-gpui-node-{}", node.id)),
             child_len: 0,
         };
@@ -595,6 +600,7 @@ impl NodeStore {
         tooltip: Option<String>,
         accepts_pointer_move: bool,
         observes_layout: bool,
+        observes_hover: bool,
         undo: &mut PatchUndo,
         stats: &mut PatchStats,
         parents: &mut HashSet<u32>,
@@ -611,7 +617,8 @@ impl NodeStore {
                     | UPDATE_SELECTABLE
                     | UPDATE_TOOLTIP
                     | UPDATE_POINTER_MOVE
-                    | UPDATE_LAYOUT)
+                    | UPDATE_LAYOUT
+                    | UPDATE_HOVER)
                 != 0
         {
             return Err(TreeError::InvalidPatchOperation {
@@ -752,6 +759,40 @@ impl NodeStore {
                 reason: "invalid style",
             })?;
         }
+        validate_interaction_style(
+            id,
+            node.kind,
+            if mask & UPDATE_FOCUSABLE != 0 {
+                focusable
+            } else {
+                node.focusable
+            },
+            if mask & UPDATE_ACCESSIBILITY != 0 {
+                accessibility.as_ref()
+            } else {
+                node.accessibility.as_ref()
+            },
+            if mask & UPDATE_STYLE != 0 {
+                style.as_ref()
+            } else {
+                node.style.as_ref()
+            },
+        )
+        .map_err(|_| TreeError::InvalidPatchOperation {
+            operation,
+            reason: "invalid interaction style",
+        })?;
+        if (if mask & UPDATE_HOVER != 0 {
+            observes_hover
+        } else {
+            node.observes_hover
+        }) && (!matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) || resulting_listener == 0)
+        {
+            return Err(TreeError::InvalidPatchOperation {
+                operation,
+                reason: "hover observation requires a View or Pressable listener",
+            });
+        }
         undo.capture_node(self, id);
         let target = self.nodes.get_mut(&id).expect("validated node");
         if mask & UPDATE_STYLE != 0 {
@@ -777,6 +818,9 @@ impl NodeStore {
         }
         if mask & UPDATE_LAYOUT != 0 {
             target.observes_layout = observes_layout;
+        }
+        if mask & UPDATE_HOVER != 0 {
+            target.observes_hover = observes_hover;
         }
         if mask & UPDATE_ACCESSIBILITY != 0 {
             target.accessibility = accessibility;

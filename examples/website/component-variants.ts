@@ -57,7 +57,7 @@ export default function Example() {
 import { ScrollShadow, Label } from "@solid-gpui/core/components";
 const data = Array.from({ length: 10000 }, (_, index) => ({ id: index, label: \`Project \${index + 1}\` }));
 export default function Example() {
-  return <ScrollShadow axis="vertical" style={{ height: 240 }}><VirtualList data={data} itemKey={(item) => item.id} estimatedItemSize={32} style={{ widthPercent: 100, heightPercent: 100 }} renderItem={(item) => <View style={{ height: 32, justifyContent: "center", paddingLeft: 12, paddingRight: 14 }}><Label text={item.label} /></View>} /></ScrollShadow>;
+  return <ScrollShadow axis="vertical" style={{ height: 240 }}><VirtualList data={data} itemKey={(item) => item.id} estimatedItemSize={32} style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }} renderItem={(item) => <View style={{ height: 32, justifyContent: "center", paddingLeft: 12, paddingRight: 14 }}><Label text={item.label} /></View>} /></ScrollShadow>;
 }`,
   },
   example(

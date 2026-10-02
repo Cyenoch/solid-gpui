@@ -238,8 +238,22 @@ fn wire_style(value: &Style) -> Result<generated::Style<'_>, ProtocolError> {
         border_top_right_radius: value.border_top_right_radius,
         border_bottom_right_radius: value.border_bottom_right_radius,
         border_bottom_left_radius: value.border_bottom_left_radius,
-        width_percent: value.width_percent,
-        height_percent: value.height_percent,
+        width_unit: wire_length_unit(value.width, value.width_unit),
+        height_unit: wire_length_unit(value.height, value.height_unit),
+        min_width_unit: wire_length_unit(value.min_width, value.min_width_unit),
+        max_width_unit: wire_length_unit(value.max_width, value.max_width_unit),
+        min_height_unit: wire_length_unit(value.min_height, value.min_height_unit),
+        max_height_unit: wire_length_unit(value.max_height, value.max_height_unit),
+        flex_basis: value.flex_basis.map(|v| generated::Length {
+            unit: wire_length_unit(Some(v.value), Some(v.unit)),
+            value: Some(v.value),
+        }),
+        aspect_ratio: value.aspect_ratio,
+        overflow_x: value.overflow_x.map(u32::from),
+        overflow_y: value.overflow_y.map(u32::from),
+        hover: value.hover.as_ref().map(wire_interaction),
+        active: value.active.as_ref().map(wire_interaction),
+        focus_visible: value.focus_visible.as_ref().map(wire_interaction),
         flex_wrap: value.flex_wrap.map(u32::from),
     };
     validate_style_value(&wire)?;
@@ -255,6 +269,39 @@ where
         .transpose()
         .map_err(|_| ProtocolError::InvalidStyle)
 }
+fn wire_length_unit(value: Option<f32>, unit: Option<LengthUnit>) -> Option<generated::LengthUnit> {
+    unit.or(value.map(|_| LengthUnit::Pixels))
+        .map(|unit| match unit {
+            LengthUnit::Pixels => generated::LengthUnit::Pixels,
+            LengthUnit::Rems => generated::LengthUnit::Rems,
+            LengthUnit::Percent => generated::LengthUnit::Percent,
+            LengthUnit::Auto => generated::LengthUnit::Auto,
+        })
+}
+fn decode_length_unit(unit: Option<generated::LengthUnit>) -> Option<LengthUnit> {
+    unit.map(|v| match v {
+        generated::LengthUnit::Pixels => LengthUnit::Pixels,
+        generated::LengthUnit::Rems => LengthUnit::Rems,
+        generated::LengthUnit::Percent => LengthUnit::Percent,
+        generated::LengthUnit::Auto => LengthUnit::Auto,
+    })
+}
+fn wire_interaction(value: &InteractionStyle) -> generated::InteractionStyle {
+    generated::InteractionStyle {
+        background_color: value.background_rgba,
+        color: value.color_rgba,
+        border_color: value.border_color_rgba,
+        opacity: value.opacity,
+    }
+}
+fn decode_interaction(value: generated::InteractionStyle) -> InteractionStyle {
+    InteractionStyle {
+        background_rgba: value.background_color,
+        color_rgba: value.color,
+        border_color_rgba: value.border_color,
+        opacity: value.opacity,
+    }
+}
 
 fn invalid_style_code<T>(value: Option<u32>) -> bool
 where
@@ -263,6 +310,71 @@ where
     value.is_some_and(|value| T::try_from(value).is_err())
 }
 fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolError> {
+    if value
+        .aspect_ratio
+        .is_some_and(|v| !v.is_finite() || v <= 0.)
+    {
+        return Err(ProtocolError::InvalidStyle);
+    }
+    for (amount, unit) in [
+        (value.width, value.width_unit),
+        (value.height, value.height_unit),
+        (value.min_width, value.min_width_unit),
+        (value.max_width, value.max_width_unit),
+        (value.min_height, value.min_height_unit),
+        (value.max_height, value.max_height_unit),
+    ] {
+        if amount.is_some() != unit.is_some()
+            || amount
+                .zip(decode_length_unit(unit))
+                .is_some_and(|(value, unit)| !StyleLength { unit, value }.is_valid())
+        {
+            return Err(ProtocolError::InvalidStyle);
+        }
+    }
+    if let Some(length) = &value.flex_basis {
+        if length.value.is_none()
+            || length.unit.is_none()
+            || !(StyleLength {
+                unit: decode_length_unit(length.unit).unwrap(),
+                value: length.value.unwrap(),
+            })
+            .is_valid()
+        {
+            return Err(ProtocolError::InvalidStyle);
+        }
+    }
+    for refinement in [&value.hover, &value.active, &value.focus_visible]
+        .into_iter()
+        .flatten()
+    {
+        if !decode_interaction(refinement.clone()).is_valid()
+            || (refinement.background_color.is_some() && value.linear_gradient.is_some())
+            || (refinement.border_color.is_some()
+                && [
+                    value.border_top_color,
+                    value.border_right_color,
+                    value.border_bottom_color,
+                    value.border_left_color,
+                ]
+                .into_iter()
+                .any(|v| v.is_some()))
+        {
+            return Err(ProtocolError::InvalidStyle);
+        }
+    }
+    if let Some(transition) = &value.transition {
+        for (mask, unit) in [
+            (TRANSITION_WIDTH, value.width_unit),
+            (TRANSITION_HEIGHT, value.height_unit),
+        ] {
+            if transition.property_mask.is_some_and(|v| v & mask != 0)
+                && unit.is_some_and(|v| v != generated::LengthUnit::Pixels)
+            {
+                return Err(ProtocolError::InvalidStyle);
+            }
+        }
+    }
     if value.linear_gradient.as_ref().is_some_and(|v| {
         v.angle.is_none()
             || v.start_color.is_none()
@@ -297,8 +409,6 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
         value.border_top_right_radius,
         value.border_bottom_right_radius,
         value.border_bottom_left_radius,
-        value.width_percent,
-        value.height_percent,
         value.width,
         value.height,
         value.flex_grow,
@@ -322,8 +432,6 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
         .into_iter()
         .flatten()
         .any(|amount| !amount.is_finite() || amount < 0.0)
-        || value.width.is_some() && value.width_percent.is_some()
-        || value.height.is_some() && value.height_percent.is_some()
         || invalid_style_code::<crate::protocol::FlexWrapCode>(value.flex_wrap)
         || value.opacity.is_some_and(|opacity| opacity > 1.0)
     {
@@ -356,6 +464,8 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
         || invalid_style_code::<AlignItemsCode>(value.align_items)
         || invalid_style_code::<FontWeightCode>(value.font_weight)
         || invalid_style_code::<OverflowCode>(value.overflow)
+        || invalid_style_code::<OverflowCode>(value.overflow_x)
+        || invalid_style_code::<OverflowCode>(value.overflow_y)
         || value
             .line_clamp
             .is_some_and(|code| !(1..=100).contains(&code))
@@ -459,8 +569,26 @@ fn decode_style(value: generated::Style<'_>) -> Result<Style, ProtocolError> {
         border_top_right_radius: value.border_top_right_radius,
         border_bottom_right_radius: value.border_bottom_right_radius,
         border_bottom_left_radius: value.border_bottom_left_radius,
-        width_percent: value.width_percent,
-        height_percent: value.height_percent,
+        width_unit: decode_length_unit(value.width_unit).filter(|v| *v != LengthUnit::Pixels),
+        height_unit: decode_length_unit(value.height_unit).filter(|v| *v != LengthUnit::Pixels),
+        min_width_unit: decode_length_unit(value.min_width_unit)
+            .filter(|v| *v != LengthUnit::Pixels),
+        max_width_unit: decode_length_unit(value.max_width_unit)
+            .filter(|v| *v != LengthUnit::Pixels),
+        min_height_unit: decode_length_unit(value.min_height_unit)
+            .filter(|v| *v != LengthUnit::Pixels),
+        max_height_unit: decode_length_unit(value.max_height_unit)
+            .filter(|v| *v != LengthUnit::Pixels),
+        flex_basis: value.flex_basis.map(|v| StyleLength {
+            unit: decode_length_unit(v.unit).unwrap(),
+            value: v.value.unwrap(),
+        }),
+        aspect_ratio: value.aspect_ratio,
+        overflow_x: decode_style_code(value.overflow_x)?,
+        overflow_y: decode_style_code(value.overflow_y)?,
+        hover: value.hover.map(decode_interaction),
+        active: value.active.map(decode_interaction),
+        focus_visible: value.focus_visible.map(decode_interaction),
         flex_wrap: decode_style_code(value.flex_wrap)?,
     })
 }
@@ -1093,6 +1221,7 @@ fn wire_node(value: &Node) -> Result<generated::Node<'_>, ProtocolError> {
         tooltip: value.tooltip.as_deref(),
         accepts_pointer_move: Some(value.accepts_pointer_move),
         observes_layout: Some(value.observes_layout),
+        observes_hover: Some(value.observes_hover),
     })
 }
 
@@ -1144,6 +1273,9 @@ fn decode_node(value: generated::Node<'_>) -> Result<Node, ProtocolError> {
         .accepts_pointer_move
         .ok_or(ProtocolError::InvalidHostProperties)
         .map_err(|error| error.at(path("acceptsPointerMove")))?;
+    let observes_hover = value
+        .observes_hover
+        .ok_or(ProtocolError::InvalidHostProperties)?;
     let observes_layout = value
         .observes_layout
         .ok_or(ProtocolError::InvalidHostProperties)
@@ -1163,6 +1295,7 @@ fn decode_node(value: generated::Node<'_>) -> Result<Node, ProtocolError> {
         tooltip: value.tooltip.map(str::to_owned),
         accepts_pointer_move,
         observes_layout,
+        observes_hover,
     })
 }
 
@@ -1258,6 +1391,7 @@ fn wire_patch_operation(
             tooltip,
             accepts_pointer_move,
             observes_layout,
+            observes_hover,
         } => generated::PatchOperationValue::PatchUpdate {
             id: Some(*id),
             mask: Some(*mask),
@@ -1333,6 +1467,11 @@ fn wire_patch_operation(
             },
             observes_layout: if *mask & UPDATE_LAYOUT != 0 {
                 Some(*observes_layout)
+            } else {
+                None
+            },
+            observes_hover: if *mask & UPDATE_HOVER != 0 {
+                Some(*observes_hover)
             } else {
                 None
             },
@@ -1432,6 +1571,7 @@ fn decode_patch_operation(
             tooltip,
             accepts_pointer_move,
             observes_layout,
+            observes_hover,
         } => {
             let id = id.ok_or_else(structural_error)?;
             let path = |field: &str| format!("patch node {id}.{field}");
@@ -1447,7 +1587,8 @@ fn decode_patch_operation(
                     | UPDATE_SELECTABLE
                     | UPDATE_TOOLTIP
                     | UPDATE_POINTER_MOVE
-                    | UPDATE_LAYOUT)
+                    | UPDATE_LAYOUT
+                    | UPDATE_HOVER)
                 != 0
             {
                 return Err(invalid("mask"));
@@ -1495,6 +1636,11 @@ fn decode_patch_operation(
             {
                 return Err(invalid("observesLayout"));
             }
+            if mask & UPDATE_HOVER != 0 && observes_hover.is_none()
+                || mask & UPDATE_HOVER == 0 && observes_hover.is_some()
+            {
+                return Err(invalid("observesHover"));
+            }
             Ok(PatchOperation::Update {
                 id,
                 mask,
@@ -1517,6 +1663,7 @@ fn decode_patch_operation(
                 tooltip: tooltip.map(str::to_owned),
                 accepts_pointer_move: accepts_pointer_move.unwrap_or(false),
                 observes_layout: observes_layout.unwrap_or(false),
+                observes_hover: observes_hover.unwrap_or(false),
             })
         }
         generated::PatchOperationValue::Unknown => Err(ProtocolError::UnknownPatchOperation(0)),

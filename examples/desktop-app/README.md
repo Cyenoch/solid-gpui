@@ -66,10 +66,10 @@ application-owned relative path.
 
 ### Home route layout and paint
 
-A cover image stretched to fill a fixed-height hero block with `widthPercent` and
-`heightPercent`, a gradient overlay drawn with `linearGradient` stops that fade
+A cover image stretched to fill a fixed-height hero block with explicit percent
+`width` and `height` lengths, a gradient overlay drawn with `linearGradient` stops that fade
 into the page background, and a row of cards that reflows because each carries
-`minWidth` with `flexGrow`. A single button calls `serviceCount` and renders the
+`minWidth`, `flexBasis` and `flexGrow`, plus X/Y padding. A single button calls `serviceCount` and renders the
 returned value, so the Rust round trip is visible in the UI. See
 [Layout and paint](../../docs/native-composition.md#layout-and-paint).
 

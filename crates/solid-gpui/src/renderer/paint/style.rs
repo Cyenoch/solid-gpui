@@ -45,10 +45,10 @@ fn apply_style_with_cursor<E: Styled>(
         element = element.row_span(span as u16);
     }
     if let Some(width) = style.width {
-        element = element.w(px(width));
+        element = element.w(native_length(width, style.width_unit));
     }
     if let Some(height) = style.height {
-        element = element.h(px(height));
+        element = element.h(native_length(height, style.height_unit));
     }
     if let Some(position) = style.position {
         element = if position == PositionCode::Absolute {
@@ -82,6 +82,12 @@ fn apply_style_with_cursor<E: Styled>(
     if let Some(grow) = style.flex_grow {
         element.style().flex_grow = Some(grow);
     }
+    if let Some(basis) = style.flex_basis {
+        element.style().flex_basis = Some(native_length(basis.value, Some(basis.unit)));
+    }
+    if let Some(value) = style.aspect_ratio {
+        element.style().aspect_ratio = Some(value);
+    }
     if let Some(padding) = style.padding {
         element = element.p(px(padding));
     }
@@ -101,16 +107,16 @@ fn apply_style_with_cursor<E: Styled>(
         element = element.ml(px(margin));
     }
     if let Some(min_width) = style.min_width {
-        element = element.min_w(px(min_width));
+        element = element.min_w(native_length(min_width, style.min_width_unit));
     }
     if let Some(max_width) = style.max_width {
-        element = element.max_w(px(max_width));
+        element = element.max_w(native_length(max_width, style.max_width_unit));
     }
     if let Some(min_height) = style.min_height {
-        element = element.min_h(px(min_height));
+        element = element.min_h(native_length(min_height, style.min_height_unit));
     }
     if let Some(max_height) = style.max_height {
-        element = element.max_h(px(max_height));
+        element = element.max_h(native_length(max_height, style.max_height_unit));
     }
     if let Some(shrink) = style.flex_shrink {
         element.style().flex_shrink = Some(shrink);
@@ -190,12 +196,6 @@ fn apply_style_with_cursor<E: Styled>(
     if let Some(value) = style.border_bottom_left_radius {
         element = element.rounded_bl(px(value));
     }
-    if let Some(value) = style.width_percent {
-        element = element.w(gpui::relative(value / 100.));
-    }
-    if let Some(value) = style.height_percent {
-        element = element.h(gpui::relative(value / 100.));
-    }
     if let Some(value) = style.flex_wrap {
         element = element.flex();
         element.style().flex_wrap = Some(match value {
@@ -225,6 +225,12 @@ fn apply_style_with_cursor<E: Styled>(
                 element
             }
         };
+    }
+    if let Some(value) = style.overflow_x {
+        element.style().overflow.x = Some(native_overflow(value));
+    }
+    if let Some(value) = style.overflow_y {
+        element.style().overflow.y = Some(native_overflow(value));
     }
     if let Some(background) = style.background_rgba {
         element = element.bg(rgba(background));
@@ -313,8 +319,10 @@ pub(super) fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>)
     }
     if let Some(line_clamp) = style.line_clamp {
         element.text_style().line_clamp = Some(line_clamp as usize);
-        if style.overflow.is_none() {
+        if style.overflow.is_none() && style.overflow_x.is_none() {
             element.style().overflow.x = Some(gpui::Overflow::Hidden);
+        }
+        if style.overflow.is_none() && style.overflow_y.is_none() {
             element.style().overflow.y = Some(gpui::Overflow::Hidden);
         }
     }
@@ -340,6 +348,40 @@ pub(super) fn apply_text_style<E: Styled>(mut element: E, style: Option<&Style>)
         });
     }
     element
+}
+fn native_length(value: f32, unit: Option<crate::protocol::LengthUnit>) -> gpui::Length {
+    use crate::protocol::LengthUnit;
+    match unit.unwrap_or(LengthUnit::Pixels) {
+        LengthUnit::Pixels => px(value).into(),
+        LengthUnit::Rems => gpui::rems(value).into(),
+        LengthUnit::Percent => gpui::relative(value / 100.).into(),
+        LengthUnit::Auto => gpui::Length::Auto,
+    }
+}
+fn native_overflow(value: OverflowCode) -> gpui::Overflow {
+    match value {
+        OverflowCode::Visible => gpui::Overflow::Visible,
+        OverflowCode::Hidden => gpui::Overflow::Hidden,
+        OverflowCode::Scroll => gpui::Overflow::Scroll,
+    }
+}
+pub(super) fn apply_interaction(
+    mut refinement: gpui::StyleRefinement,
+    style: &crate::protocol::InteractionStyle,
+) -> gpui::StyleRefinement {
+    if let Some(v) = style.background_rgba {
+        refinement = refinement.bg(rgba(v));
+    }
+    if let Some(v) = style.color_rgba {
+        refinement = refinement.text_color(rgba(v));
+    }
+    if let Some(v) = style.border_color_rgba {
+        refinement = refinement.border_color(rgba(v));
+    }
+    if let Some(v) = style.opacity {
+        refinement = refinement.opacity(v);
+    }
+    refinement
 }
 
 pub(super) fn text_run(
@@ -413,7 +455,8 @@ mod tests {
             border_top_right_radius: Some(0.),
             border_width: Some(0.),
             border_bottom_width: Some(1.),
-            width_percent: Some(50.),
+            width: Some(50.),
+            width_unit: Some(crate::protocol::LengthUnit::Percent),
             flex_wrap: Some(crate::protocol::FlexWrapCode::Wrap),
             ..Style::default()
         };

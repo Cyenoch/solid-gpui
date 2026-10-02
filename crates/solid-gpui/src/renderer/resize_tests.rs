@@ -300,6 +300,7 @@ fn native_resize_feedback_loop(cx: &mut TestAppContext) {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     }],
                 );
                 let payload = patch.encode().expect("encode probe mutation");
@@ -454,6 +455,7 @@ fn native_grid_tracks_and_spans_relayout_after_patch(cx: &mut TestAppContext) {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }],
     )
     .encode()

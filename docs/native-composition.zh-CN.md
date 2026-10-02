@@ -146,22 +146,54 @@ const application = mountApplication({
 
 以下样式字段由 TypeScript 与 Rust 验证，通过规范 Bebop schema 编码，并由原生渲染器应用：
 
-| 能力       | API                                                                                                |
-| ---------- | -------------------------------------------------------------------------------------------------- |
-| 各边内边距 | `paddingTop`、`paddingRight`、`paddingBottom`、`paddingLeft`                                       |
-| 各边边框   | `borderTopWidth` / `borderTopColor`，以及右、下、左对应字段                                        |
-| 独立圆角   | `borderTopLeftRadius`、`borderTopRightRadius`、`borderBottomRightRadius`、`borderBottomLeftRadius` |
-| 换行       | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                   |
-| 比例尺寸   | `widthPercent`、`heightPercent`，50 表示 50%                                                       |
-| 背景渐变   | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                     |
+[原生样式示例](../fixtures/style-contract.ts) 展示单位尺寸、轴向滚动与状态绘制。运行 `solid-gpui-host bun --conditions=browser fixtures/style-contract.ts`，窗口五秒后关闭。网站的共享按钮使用原生状态绘制，布局预览使用 X/Y 间距与 flexBasis。
 
-各边与圆角值覆盖简写，显式零值也生效。同一维度的百分比与像素值互斥；百分比相对包含布局块计算。`flexGrow`、`flexShrink`、`minWidth` 和 `maxWidth` 仍用于比例布局。
+| 能力         | API                                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 各边内边距   | `paddingTop`、`paddingRight`、`paddingBottom`、`paddingLeft`                                                                                      |
+| 各边边框     | `borderTopWidth` / `borderTopColor`，以及右、下、左对应字段                                                                                       |
+| 独立圆角     | `borderTopLeftRadius`、`borderTopRightRadius`、`borderBottomRightRadius`、`borderBottomLeftRadius`                                                |
+| 换行         | `flexWrap: "nowrap" \| "wrap" \| "wrap-reverse"`                                                                                                  |
+| 原生长度     | `width`、`height`、`minWidth`、`maxWidth`、`minHeight`、`maxHeight`、`flexBasis`：数字、`"auto"` 或 `{ unit: "px" \| "rem" \| "percent", value }` |
+| 轴向间距     | `paddingX`、`paddingY`、`margin`、`marginX`、`marginY`                                                                                            |
+| 宽高比       | `aspectRatio`：正数、有限的宽/高比例，用于自动尺寸轴                                                                                              |
+| 轴向溢出     | `overflowX`、`overflowY`：`"visible"`、`"hidden"` 或 `"scroll"`                                                                                   |
+| 原生状态绘制 | `hover`、`active`、`focusVisible`：`{ backgroundColor?, color?, borderColor?, opacity? }`                                                         |
+| 背景渐变     | `linearGradient: { angle, stops: [{ color, position }, { color, position }] }`                                                                    |
+
+间距优先级为物理边 > X/Y 轴 > 全边简写，与对象键顺序无关，显式零值也生效。边框与圆角独立值覆盖简写。`overflowX/Y` 覆盖对应轴的 `overflow`。数字长度使用逻辑像素；`rem` 使用原生窗口根字体大小；`percent` 相对包含布局轴计算，50 表示 50%。`"auto"` 由原生布局决定。`flexBasis` 指定 grow/shrink 之前的主轴初始尺寸。间距、字体大小、圆角、边框与位置偏移仍只支持数字像素。`"50%"`、`"12px"`、`em`、视口单位、`calc` 和未知字段会报错；独立的 `widthPercent`/`heightPercent` 字段已移除。
+
+状态样式仅支持核心 `View` 与 `Pressable`。`focusVisible` 要求 `focusable`，禁用控件不应用状态样式。GPUI 在稳定的原生节点身份下拥有 hover 命中测试、鼠标按键 active 与键盘焦点可见性，不需要回调、Solid signal、commit 或 JavaScript hover 状态切换。同一属性的优先级为基础 < focus-visible < hover < active。窗口最近一次输入为键盘时才显示键盘焦点；鼠标输入清除可见性。拖动与触摸输入期间不显示 hover。状态对象仅支持表中的四个绘制字段，颜色必须为十六进制，opacity 范围为 [0, 1]。嵌套状态、布局变化和状态 transition 会被拒绝；状态背景不能与 `linearGradient` 组合，状态边框颜色不能与独立边框颜色组合。普通 width/height transition 只对像素尺寸插值，选中 rem、百分比或 auto 尺寸时会报错。生成原生控件自行拥有状态样式，Extension 使用这些核心状态字段会报错。
+
+```tsx
+<Pressable
+  focusable
+  onPress={save}
+  style={{
+    paddingX: 16,
+    paddingY: 8,
+    borderWidth: 1,
+    borderColor: "#00000000",
+    backgroundColor: "#26344A",
+    color: "#FFFFFF",
+    hover: { backgroundColor: "#344866" },
+    active: { backgroundColor: "#182235" },
+    focusVisible: { borderColor: "#82B4FF" },
+  }}
+>
+  <Text>Save changes</Text>
+</Pressable>
+```
 
 渐变角度从向上方向顺时针计算，180 表示自上而下。颜色接受 `#RRGGBB` 或 `#RRGGBBAA`，色标位置在 [0, 1] 内严格递增。链接的 GPUI 原语只支持两个色标，更多色标会被明确拒绝。各边颜色通过原始布局盒周围的四条有界原生路径绘制，包含圆角，不增加 flex 子项。
 
 ```tsx
 <View style={{ position: "relative", height: 230, overflow: "hidden" }}>
-  <Image source="assets/cover.png" objectFit="cover" style={{ widthPercent: 100, heightPercent: 100 }} />
+  <Image
+    source="assets/cover.png"
+    objectFit="cover"
+    style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }}
+  />
   <View
     style={{
       position: "absolute",

@@ -304,7 +304,7 @@ import {
 - 宿主每个窗口安装一次 Root、NotificationList、文本选择层、模态层及主题。Dialog、Sheet 和 Notification 使用该 Root。
 - Scrollbar 与 ScrollableMask 由 Scrollable 和列表/表格/消息滚动 API 集成，并使用对应原生滚动句柄。FocusTrapContainer 是 FocusTrap 的实现，DropdownMenuPopover 是 DropdownMenu 的实现。
 
-**ScrollShadow** 提供带动态边缘淡出的滚动区域。默认情况下它拥有滚动视口、滚动条和原生句柄。它可以改为借用一个**直接子项**的视口：该子项必须是来自 `@solid-gpui/core` 的核心 `VirtualList`，或来自 `@solid-gpui/core/components` 的生成原生 `VirtualList`，且方向必须与 `ScrollShadow` 的轴匹配。此时列表继续拥有自己的原生滚动，`ScrollShadow` 借用该视口来控制淡出、`scrollbarVisibility`、`scrollTo`、`getScrollPosition` 和 `onScroll`；不会创建外层滚动区域或重复滚动条。父视口需要限定尺寸（横向虚拟列表也需要限定高度），直接子项使用 `style={{ widthPercent: 100, heightPercent: 100 }}` 填满视口。
+**ScrollShadow** 提供带动态边缘淡出的滚动区域。默认情况下它拥有滚动视口、滚动条和原生句柄。它可以改为借用一个**直接子项**的视口：该子项必须是来自 `@solid-gpui/core` 的核心 `VirtualList`，或来自 `@solid-gpui/core/components` 的生成原生 `VirtualList`，且方向必须与 `ScrollShadow` 的轴匹配。此时列表继续拥有自己的原生滚动，`ScrollShadow` 借用该视口来控制淡出、`scrollbarVisibility`、`scrollTo`、`getScrollPosition` 和 `onScroll`；不会创建外层滚动区域或重复滚动条。父视口需要限定尺寸（横向虚拟列表也需要限定高度），直接子项使用 `style={{ width: { unit: "percent", value: 100 }, height: { unit: "percent", value: 100 } }}` 填满视口。
 
 这种委托范围刻意保持狭窄：只识别一个方向匹配的直接子项。包装器、多个子项、嵌套列表和方向不匹配的子项不会被自动发现，并继续使用独立 `ScrollShadow` 行为。核心 `VirtualList` 的 data/renderItem 形式会虚拟化 Solid owner 和宿主节点；生成的原生 `VirtualList` 子项只虚拟化原生行的绘制，仍会创建所有提供的 Solid 子项。不要把大数据集展开成 JSX 子项；这类工作负载应使用核心 data/renderItem 形式。
 

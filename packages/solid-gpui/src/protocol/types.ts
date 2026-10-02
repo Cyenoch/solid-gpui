@@ -246,6 +246,7 @@ export interface SnapshotNode {
   readonly tooltip: string | null;
   readonly acceptsPointerMove: boolean;
   readonly observesLayout: boolean;
+  readonly observesHover?: boolean;
 }
 
 export interface Snapshot {
@@ -276,6 +277,7 @@ export interface PatchUpdate {
   readonly tooltip: string | null;
   readonly acceptsPointerMove: boolean;
   readonly observesLayout: boolean;
+  readonly observesHover?: boolean;
 }
 
 export interface PatchMove {

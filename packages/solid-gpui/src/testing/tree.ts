@@ -2,6 +2,7 @@ import {
   UPDATE_ACCESSIBILITY,
   UPDATE_LISTENER,
   UPDATE_LAYOUT,
+  UPDATE_HOVER,
   UPDATE_PROPERTIES,
   UPDATE_TEXT,
   UPDATE_TOOLTIP,
@@ -66,6 +67,7 @@ export class TestTree {
           if (mask & UPDATE_STYLE) node.style = update.style;
           if (mask & UPDATE_LISTENER) node.listenerId = update.listenerId;
           if (mask & UPDATE_LAYOUT) node.observesLayout = update.observesLayout;
+          if (mask & UPDATE_HOVER) node.observesHover = update.observesHover;
           if (mask & UPDATE_PROPERTIES) node.hostProperties = update.hostProperties;
           if (mask & UPDATE_ACCESSIBILITY) node.accessibility = update.accessibility;
           if (mask & UPDATE_TOOLTIP) node.tooltip = update.tooltip;

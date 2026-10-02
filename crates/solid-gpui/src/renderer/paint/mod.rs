@@ -318,6 +318,19 @@ impl SolidRoot {
             element = element.size_full().flex().flex_col();
         }
         element = style::apply_style(element, style);
+        if !node.accessibility.as_ref().is_some_and(|v| v.disabled) {
+            if let Some(value) = style.and_then(|v| v.hover.as_ref()) {
+                element = element.hover(|s| style::apply_interaction(s, value));
+            }
+            if let Some(value) = style.and_then(|v| v.active.as_ref()) {
+                element = element.active(|s| style::apply_interaction(s, value));
+                // GPUI inserts a hitbox for mouse listeners, but not active style alone.
+                element = element.on_mouse_down(MouseButton::Left, |_, _, _| {});
+            }
+            if let Some(value) = style.and_then(|v| v.focus_visible.as_ref()) {
+                element = element.focus_visible(|s| style::apply_interaction(s, value));
+            }
+        }
         if node.kind == KIND_RAW_TEXT || node.kind == KIND_TEXT {
             element = style::apply_text_style(element, style);
         }
@@ -352,7 +365,7 @@ impl SolidRoot {
 
         if matches!(node.kind, KIND_VIEW | KIND_PRESSABLE | KIND_TEXT)
             && node.focusable
-            && (node.kind == KIND_VIEW || node.listener_id != 0)
+            && (node.kind != KIND_TEXT || node.listener_id != 0)
         {
             let focus = self
                 .focus_handles
@@ -424,10 +437,6 @@ impl SolidRoot {
                 });
             }
         }
-        if node.kind == KIND_PRESSABLE {
-            element =
-                element.on_mouse_down(MouseButton::Left, |_, window, _| window.prevent_default());
-        }
         if node.kind == KIND_PRESSABLE && node.listener_id != 0 {
             let runtime = Arc::clone(&self.runtime);
             let sequence = Arc::clone(&self.next_sequence);
@@ -496,19 +505,21 @@ impl SolidRoot {
                     );
                 });
             }
-            let runtime = Arc::clone(&self.runtime);
-            let sequence = Arc::clone(&self.next_sequence);
-            element = element.on_hover(move |_, _, _| {
-                let event = Event::hover(
-                    surface_id,
-                    epoch,
-                    revision,
-                    sequence.fetch_add(1, Ordering::Relaxed),
-                    node_id,
-                    listener_id,
-                );
-                send_event_or_exit(runtime.as_ref(), "hover event", event);
-            });
+            if node.observes_hover {
+                let runtime = Arc::clone(&self.runtime);
+                let sequence = Arc::clone(&self.next_sequence);
+                element = element.on_hover(move |_, _, _| {
+                    let event = Event::hover(
+                        surface_id,
+                        epoch,
+                        revision,
+                        sequence.fetch_add(1, Ordering::Relaxed),
+                        node_id,
+                        listener_id,
+                    );
+                    send_event_or_exit(runtime.as_ref(), "hover event", event);
+                });
+            }
         }
         if (node.kind == KIND_VIEW || node.kind == KIND_PRESSABLE)
             && node.accepts_pointer_move

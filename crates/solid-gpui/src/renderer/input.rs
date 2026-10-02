@@ -19,10 +19,8 @@ use crate::tree::{KIND_PRESSABLE, KIND_TEXT, KIND_VIEW};
 
 use super::SolidRoot;
 fn focus_handle_required(node: &crate::tree::StoredNode) -> bool {
-    (node.kind == KIND_VIEW && node.focusable)
-        || (matches!(node.kind, KIND_PRESSABLE | KIND_TEXT)
-            && node.focusable
-            && node.listener_id != 0)
+    (matches!(node.kind, KIND_VIEW | KIND_PRESSABLE) && node.focusable)
+        || (node.kind == KIND_TEXT && node.focusable && node.listener_id != 0)
         || (node.kind == KIND_TEXT && node.selectable)
 }
 

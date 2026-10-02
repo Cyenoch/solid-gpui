@@ -49,7 +49,7 @@ fn required_node(include_listener: bool, include_accessibility: bool) -> Vec<u8>
         fields.push(9);
         fields.extend_from_slice(&message(&[4, 0, 0]));
     }
-    fields.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 0]);
+    fields.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 15, 0, 0]);
     message(&fields)
 }
 fn snapshot_with_node(node: Vec<u8>) -> Vec<u8> {
@@ -233,6 +233,55 @@ fn root_node() -> Node {
 }
 
 #[test]
+fn style_contract_decode_rejects_missing_units_invalid_states_and_historical_version() {
+    let snapshot = Snapshot::new(1, 1, 0, 1, vec![root_node()]);
+    let bytes = snapshot.encode().unwrap();
+    let styled = |style: Vec<u8>| {
+        let node = required_node(true, false);
+        let fields = [&node[4..21], &[5], &message(&style), &node[21..]].concat();
+        snapshot_with_node(message(&fields))
+    };
+    for payload in [
+        styled([&[1][..], &100f32.to_le_bytes(), &[0]].concat()),
+        styled(
+            [
+                &[67][..],
+                &message(
+                    &[
+                        &[1][..],
+                        &3u32.to_le_bytes(),
+                        &[2],
+                        &1f32.to_le_bytes(),
+                        &[0],
+                    ]
+                    .concat(),
+                ),
+                &[0],
+            ]
+            .concat(),
+        ),
+        styled(
+            [
+                &[70][..],
+                &message(&[&[4][..], &1.1f32.to_le_bytes(), &[0]].concat()),
+                &[0],
+            ]
+            .concat(),
+        ),
+    ] {
+        assert!(
+            Snapshot::decode(&payload)
+                .unwrap_err()
+                .to_string()
+                .contains("style")
+        );
+    }
+    let mut old = bytes;
+    old[5..9].copy_from_slice(&6u32.to_le_bytes());
+    assert!(Snapshot::decode(&old).is_err(), "v6 has no decoder path");
+}
+
+#[test]
 fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
     let mut input = Node::new(2, 1, 0, 5);
     input.listener_id = 7;
@@ -276,6 +325,7 @@ fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: true,
+                observes_hover: false,
             },
             PatchOperation::Update {
                 id: 1,
@@ -292,6 +342,7 @@ fn snapshot_and_patch_round_trip_with_presence_and_full_style() {
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             },
             PatchOperation::Move {
                 id: 2,

@@ -952,9 +952,11 @@ pub(super) fn render_text_input(
     input_element = input_element.on_mouse_up_out(MouseButton::Left, move |_, _, app| {
         mouse_entity.update(app, |root, _| root.end_text_input_selection(input_id));
     });
-    let bounded_height = style
-        .and_then(|style| style.height.or(style.max_height))
-        .is_some();
+    let bounded_height = style.is_some_and(|style| {
+        (style.height.is_some() && style.height_unit != Some(crate::protocol::LengthUnit::Auto))
+            || (style.max_height.is_some()
+                && style.max_height_unit != Some(crate::protocol::LengthUnit::Auto))
+    });
     let input_element = input_element
         .child(TextInputElement {
             entity: entity.clone(),

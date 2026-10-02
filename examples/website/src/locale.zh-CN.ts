@@ -237,8 +237,9 @@ export const chapterChinese: Record<string, { body: string; detail: string }> = 
       "把状态放在使用它的组件附近。用 createMemo 计算派生值，用 onCleanup 清理定时器和订阅。Solid 更新受影响的绑定，原生宿主原子应用这些变更。布局与绘制由 GPUI 负责，因此修改文字也可能使周围内容重新排版。试试下面的计数器。",
   },
   layout: {
-    body: "用 View 组合组件，通过 flexDirection 排成行或列，再用 gap 和 padding 添加间距。尺寸以像素为单位。",
-    detail: "为滚动区域设置高度，让文字自然换行，并检查小窗口中的布局。试试下方示例，切换横向与纵向排列。",
+    body: "用 View 组合组件，通过 flexDirection 排成行或列，再用 gap、paddingX 和 paddingY 添加间距。尺寸支持像素、显式 rem/percent 长度与 auto。",
+    detail:
+      "为滚动区域设置高度，使用 overflowX/overflowY 指定各轴行为。原生 hover、active 与 focusVisible 直接改变绘制，无需 JavaScript 状态。检查小窗口布局，并试试下方示例的横向与纵向排列。",
   },
   input: {
     body: "通过 value 和 onChangeText 将 TextInput 连接到信号，用它实时预览、校验表单或保存结果。",

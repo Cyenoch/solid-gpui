@@ -308,8 +308,10 @@ fn scroll_shadow_composes_with_windowed_virtual_list(cx: &mut TestAppContext) {
     let mut list = Node::new(3, 2, 0, KIND_VIRTUAL_LIST);
     list.listener_id = 3;
     list.style = Some(Style {
-        width_percent: Some(100.),
-        height_percent: Some(100.),
+        width: Some(100.),
+        width_unit: Some(crate::protocol::LengthUnit::Percent),
+        height: Some(100.),
+        height_unit: Some(crate::protocol::LengthUnit::Percent),
         ..Default::default()
     });
     list.host_properties = Some(HostProperties::VirtualList(VirtualListProperties {
@@ -621,8 +623,10 @@ fn scroll_shadow_native_list_decoration_follows_reparenting(cx: &mut TestAppCont
         br#"{"orientation":"horizontal","itemSize":100}"#,
     );
     list.style = Some(Style {
-        width_percent: Some(100.),
-        height_percent: Some(100.),
+        width: Some(100.),
+        width_unit: Some(crate::protocol::LengthUnit::Percent),
+        height: Some(100.),
+        height_unit: Some(crate::protocol::LengthUnit::Percent),
         ..Default::default()
     });
     let mut nodes = vec![Node::new(1, 0, 0, KIND_VIEW), shadow, list];

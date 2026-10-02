@@ -200,11 +200,33 @@ const snapshot: Snapshot = {
     node(1, 0, 0, "View", { style: fullStyle, accessibility }),
     node(2, 1, 0, "Text", { style: fullStyle, selectable: true }),
     node(3, 2, 0, "RawText", { text: "Hello 😀" }),
-    node(4, 1, 1, "Pressable", { listenerId: 7, tooltip: "Press to open", acceptsPointerMove: true, accessibility }),
+    node(4, 1, 1, "Pressable", {
+      listenerId: 7,
+      tooltip: "Press to open",
+      acceptsPointerMove: true,
+      observesHover: true,
+      accessibility,
+    }),
     node(5, 1, 2, "TextInput", { listenerId: 8, hostProperties: input }),
     node(6, 1, 3, "VirtualList", { hostProperties: virtualList }),
     node(7, 1, 4, "Image", { hostProperties: image }),
-    node(8, 1, 5, "View", { style: { widthPercent: 50, heightPercent: 100 }, listenerId: 11, hostProperties: drag }),
+    node(8, 1, 5, "View", {
+      style: {
+        width: { unit: "percent", value: 50 },
+        height: { unit: "percent", value: 100 },
+        minWidth: { unit: "rem", value: 2 },
+        maxWidth: "auto",
+        flexBasis: { unit: "px", value: 40 },
+        overflowX: "hidden",
+        overflowY: "scroll",
+        hover: { backgroundColor: "#112233", opacity: 0.8 },
+        active: { color: "#445566" },
+        focusVisible: { borderColor: "#778899" },
+      },
+      focusable: true,
+      listenerId: 11,
+      hostProperties: drag,
+    }),
   ],
 };
 const patch: Patch = {
@@ -218,7 +240,7 @@ const patch: Patch = {
     {
       type: "update",
       id: 4,
-      mask: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512,
+      mask: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024,
       style: fullStyle,
       text: "new",
       listenerId: 12,
@@ -229,6 +251,7 @@ const patch: Patch = {
       tooltip: "updated",
       acceptsPointerMove: true,
       observesLayout: true,
+      observesHover: false,
     },
     {
       type: "update",
@@ -531,7 +554,7 @@ const rows = [
 await mkdir(outputDir, { recursive: true });
 await writeFile(
   resolve(outputDir, "ts_to_rust.hex"),
-  `# protocol-golden-v6\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
+  `# protocol-golden-v7\n# id\tmessage\tpayload_hex\n${rows.join("\n")}\n`,
 );
 
 const invalidEvent = encodePayload(
@@ -582,11 +605,11 @@ const invalidRows = [
 ];
 await writeFile(
   resolve(outputDir, "invalid.hex"),
-  `# protocol-golden-v6\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalidRows.join("\n")}\n`,
+  `# protocol-golden-v7\n# id\tmessage\tpayload_hex\trust_expected\tts_expected\n${invalidRows.join("\n")}\n`,
 );
 await writeFile(
   resolve(outputDir, "frames.hex"),
-  `# protocol-golden-v6\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\nempty\t00000000\t\tok\tok\ntruncated-header\t00\t\ttruncated\tpending\ntruncated-payload\t04000000\t01\ttruncated\tpending\nmaximum-plus-one\t01000001\t\toversize\toversize\nmaximum-exact\t00000001\t\ttruncated\tpending\n`,
+  `# protocol-golden-v7\n# id\theader_hex\tpayload_hex\trust_expected\tts_expected\nempty\t00000000\t\tok\tok\ntruncated-header\t00\t\ttruncated\tpending\ntruncated-payload\t04000000\t01\ttruncated\tpending\nmaximum-plus-one\t01000001\t\toversize\toversize\nmaximum-exact\t00000001\t\ttruncated\tpending\n`,
 );
 
 if (verify) {
@@ -643,4 +666,4 @@ if (verify) {
     if (actual !== tsExpected) throw new Error(`TypeScript frame vector ${id} expected ${tsExpected}, got ${actual}`);
   }
 }
-console.log(`wrote ${rows.length} Bebop v6 golden rows to ${outputDir}`);
+console.log(`wrote ${rows.length} Bebop v7 golden rows to ${outputDir}`);

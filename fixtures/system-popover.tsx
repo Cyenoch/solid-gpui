@@ -18,7 +18,15 @@ mountApplication<{ name: string; open: boolean }>({
         await root.resize(560, 340);
       },
       render: () => (
-        <View style={{ widthPercent: 100, heightPercent: 100, padding: 24, gap: 16, backgroundColor: "#101827" }}>
+        <View
+          style={{
+            width: { unit: "percent", value: 100 },
+            height: { unit: "percent", value: 100 },
+            padding: 24,
+            gap: 16,
+            backgroundColor: "#101827",
+          }}
+        >
           <Text style={{ color: "#ffffff", fontSize: 22 }}>Owned native popovers</Text>
           <Text style={{ color: "#bac8de" }}>Move this window near a screen edge, then edit the shared name.</Text>
           <Text style={{ color: "#ffffff" }}>Saved name: {name()}</Text>
@@ -47,8 +55,8 @@ mountApplication<{ name: string; open: boolean }>({
                   accessibilityRole="dialog"
                   accessibilityLabel="Edit name"
                   style={{
-                    widthPercent: 100,
-                    heightPercent: 100,
+                    width: { unit: "percent", value: 100 },
+                    height: { unit: "percent", value: 100 },
                     padding: 20,
                     gap: 12,
                     borderRadius: 12,
@@ -60,7 +68,13 @@ mountApplication<{ name: string; open: boolean }>({
                     value={name()}
                     onChangeText={setName}
                     accessibilityLabel="Name"
-                    style={{ widthPercent: 100, height: 36, backgroundColor: "#ffffff", color: "#172033", padding: 8 }}
+                    style={{
+                      width: { unit: "percent", value: 100 },
+                      height: 36,
+                      backgroundColor: "#ffffff",
+                      color: "#172033",
+                      padding: 8,
+                    }}
                   />
                   <Pressable focusable onPress={() => setOpen(false)} style={button}>
                     <Text style={{ color: "#ffffff" }}>Save {name()}</Text>
@@ -72,7 +86,14 @@ mountApplication<{ name: string; open: boolean }>({
                     height={100}
                     slots={{ trigger: <Text style={{ color: "#2563eb" }}>Open nested popover</Text> }}
                     content={() => (
-                      <View style={{ padding: 16, backgroundColor: "#ffffff", widthPercent: 100, heightPercent: 100 }}>
+                      <View
+                        style={{
+                          padding: 16,
+                          backgroundColor: "#ffffff",
+                          width: { unit: "percent", value: 100 },
+                          height: { unit: "percent", value: 100 },
+                        }}
+                      >
                         <Text>Shared name: {name()}</Text>
                       </View>
                     )}

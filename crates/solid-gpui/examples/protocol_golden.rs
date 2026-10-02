@@ -1,7 +1,7 @@
 use std::fs;
 
 use solid_gpui::protocol::{
-    EVENT_LAYOUT, KeyAction, KeyEvent, UPDATE_FOCUSABLE, UPDATE_SELECTABLE,
+    EVENT_LAYOUT, KeyAction, KeyEvent, LengthUnit, UPDATE_FOCUSABLE, UPDATE_SELECTABLE,
 };
 use solid_gpui::*;
 
@@ -23,8 +23,19 @@ fn full_style() -> Style {
         border_right_color: Some(0x2c2b33ff),
         border_bottom_color: Some(0x131217ff),
         border_left_color: Some(0xe07b9eff),
-        width_percent: None,
-        height_percent: None,
+        width_unit: None,
+        height_unit: None,
+        min_width_unit: None,
+        max_width_unit: None,
+        min_height_unit: None,
+        max_height_unit: None,
+        flex_basis: None,
+        aspect_ratio: None,
+        overflow_x: Some(OverflowCode::Hidden),
+        overflow_y: Some(OverflowCode::Hidden),
+        hover: None,
+        active: None,
+        focus_visible: None,
         flex_wrap: Some(solid_gpui::protocol::FlexWrapCode::Wrap),
         linear_gradient: Some(solid_gpui::protocol::LinearGradient {
             angle: 180.,
@@ -163,6 +174,7 @@ fn snapshot() -> Snapshot {
     pressable.listener_id = 7;
     pressable.tooltip = Some("Press to open".to_owned());
     pressable.accepts_pointer_move = true;
+    pressable.observes_hover = true;
     pressable.accessibility = Some(accessibility());
 
     let mut input = node(5, 1, 2, KIND_TEXT_INPUT);
@@ -186,11 +198,37 @@ fn snapshot() -> Snapshot {
 
     let mut drag = node(8, 1, 5, KIND_VIEW);
     drag.style = Some(Style {
-        width_percent: Some(50.),
-        height_percent: Some(100.),
+        width: Some(50.),
+        width_unit: Some(LengthUnit::Percent),
+        height: Some(100.),
+        height_unit: Some(LengthUnit::Percent),
+        min_width: Some(2.),
+        min_width_unit: Some(LengthUnit::Rems),
+        max_width: Some(0.),
+        max_width_unit: Some(LengthUnit::Auto),
+        flex_basis: Some(StyleLength {
+            unit: LengthUnit::Pixels,
+            value: 40.,
+        }),
+        overflow_x: Some(OverflowCode::Hidden),
+        overflow_y: Some(OverflowCode::Scroll),
+        hover: Some(InteractionStyle {
+            background_rgba: Some(0x112233ff),
+            opacity: Some(0.8),
+            ..Default::default()
+        }),
+        active: Some(InteractionStyle {
+            color_rgba: Some(0x445566ff),
+            ..Default::default()
+        }),
+        focus_visible: Some(InteractionStyle {
+            border_color_rgba: Some(0x778899ff),
+            ..Default::default()
+        }),
         ..Style::default()
     });
     drag.listener_id = 11;
+    drag.focusable = true;
     drag.host_properties = Some(HostProperties::Drag(DragProperties {
         drag_type: Some("card".to_owned()),
         export_files: Some(vec!["assets/logo.png".to_owned()]),
@@ -211,6 +249,7 @@ fn patch() -> Patch {
     let created = node(9, 1, 6, KIND_TEXT);
 
     let updated = PatchOperation::Update {
+        observes_hover: false,
         id: 4,
         mask: UPDATE_STYLE
             | UPDATE_TEXT
@@ -221,7 +260,8 @@ fn patch() -> Patch {
             | UPDATE_SELECTABLE
             | UPDATE_TOOLTIP
             | UPDATE_POINTER_MOVE
-            | UPDATE_LAYOUT,
+            | UPDATE_LAYOUT
+            | UPDATE_HOVER,
         style: Some(full_style()),
         text: Some("new".to_owned()),
         listener_id: 12,
@@ -251,6 +291,7 @@ fn patch() -> Patch {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     };
 
     Patch::new(
@@ -992,7 +1033,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     rows.sort();
     let output_text = format!(
-        "# protocol-golden-v6\n# id\tmessage\tpayload_hex\n{}\n",
+        "# protocol-golden-v7\n# id\tmessage\tpayload_hex\n{}\n",
         rows.join("\n")
     );
     fs::write(&output, output_text)?;

@@ -58,7 +58,7 @@ bun run preview           # solid-gpui preview：用已构建宿主运行已构�
 
 ### 首页布局与绘制
 
-首屏让封面图用 `widthPercent` 与 `heightPercent` 填满固定高度的首屏区块，用 `linearGradient` 色标让渐变层淡入页面背景，并用带 `minWidth` 与 `flexGrow` 的卡片自动换行。单个按钮调用 `serviceCount` 并渲染返回值，因此 Rust 往返在界面上可见。见[布局与绘制](../../docs/native-composition.zh-CN.md#布局与绘制)。
+首屏让封面图用显式 percent `width` 与 `height` 填满固定高度区块，用 `linearGradient` 色标让渐变层淡入页面背景，并用带 `minWidth`、`flexBasis`、`flexGrow` 和 X/Y 内边距的卡片自动换行。单个按钮调用 `serviceCount` 并渲染返回值，因此 Rust 往返在界面上可见。见[布局与绘制](../../docs/native-composition.zh-CN.md#布局与绘制)。
 
 ### 有边界的设置页
 

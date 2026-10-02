@@ -1,4 +1,4 @@
-# Solid GPUI protocol v6
+# Solid GPUI protocol v7
 
 Rust-owned native module props and invocation arguments carry a separate `SGN`
 format-2 envelope inside existing byte fields: four header bytes (`53 47 4e 02`),
@@ -10,14 +10,15 @@ mismatched build envelopes fail closed. This native adapter format does not add
 Bebop fields or a historical decoder. See [Rust integration](rust-bridge.md#native-contract-and-build-identities).
 
 This is the implemented wire contract between the TypeScript renderer and the
-Rust/GPUI host. Protocol v6 is a lockstep Bebop contract with explicit layout
-subscriptions and identity-aware virtual-list edits. Rebuild both peers together;
-v5 payloads are not accepted. The canonical wire schema is
+Rust/GPUI host. Protocol v7 is a lockstep Bebop contract with explicit native length
+units, flex basis, independent overflow axes and native interaction paint refinements.
+It retains explicit layout subscriptions and identity-aware virtual-list edits.
+Rebuild both peers together; older payloads are rejected. The canonical wire schema is
 [`packages/solid-gpui/src/protocol/protocol.bop`](../packages/solid-gpui/src/protocol/protocol.bop);
 checked generated bindings are under the TypeScript and Rust protocol seams.
 `packages/solid-gpui/src/protocol/schema-lock.json` pins the schema SHA-256
-digest (`67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d`)
-for protocol version `6`; codegen checks fail on drift.
+digest (`de5fe6c96c85953d91bc06d40e6353f65c2c071e78d696dc1c1a55ed8d344d59`)
+for protocol version `7`; codegen checks fail on drift.
 Normal package and Rust builds consume those checked files and do not invoke
 `bebopc`. Regenerate and check them with:
 
@@ -61,16 +62,16 @@ The root Bebop record is:
 
 ```text
 Envelope {
-  protocolVersion: u32 = 6,
+  protocolVersion: u32 = 7,
   body: Body,
 }
 ```
 
 `Body` uses the stable message tags `1=Snapshot`, `2=Event`, `3=Patch`, and
 `4=Command`. Every decoder requires `protocolVersion` to be present and equal
-to `6`, requires one known body union, rejects trailing bytes, and never
+to `7`, requires one known body union, rejects trailing bytes, and never
 attempts a legacy decode. There is no version negotiation, dual decoder, or
-permissive fallback; peers must use the same v6 contract.
+permissive fallback; peers must use the same v7 contract.
 
 Bebop messages are length-delimited records with monotonically ordered field
 IDs and a terminating field ID `0`; arrays carry a bounded u32 item count;
@@ -113,10 +114,10 @@ complete `nodes` array. `Patch` contains the same revision header and ordered
 rules: a first snapshot has base revision zero, later patches match the current
 revision, and `revision > baseRevision`.
 
-`Node` carries every current field: `id`, `parentId`, `index`, `kind`, all 42
+`Node` carries every current field: `id`, `parentId`, `index`, `kind`, all canonical
 Style slots, optional RawText `text`, `listenerId`, optional tagged
 `HostProperties`, optional `AccessibilityProperties`, `focusable`,
-`selectable`, `tooltip`, `acceptsPointerMove`, and `observesLayout`. `NodeKind` is
+`selectable`, `tooltip`, `acceptsPointerMove`, `observesLayout`, and `observesHover`. `NodeKind` is
 `1=View`, `2=Text`, `3=Pressable`, `4=RawText`, `5=TextInput`,
 `6=VirtualList`, `7=Image`, `8=Extension`, and `9=Icon`.
 
@@ -159,13 +160,28 @@ surface, with unchanged bounds rejected before scheduling. Internal selection,
 virtual-list range tracking, and popup anchor geometry remain independent of this
 subscription. Update field 13 changes the subscription through mask bit 512.
 
+`observesHover` is required on Node (field 15). Only `onHoverChange` enables
+JavaScript hover events; native state paint and other listeners do not subscribe.
+Update field 14 uses mask bit 1024, with the same exact boolean presence rules.
+The subscription requires a View or Pressable with a nonzero listener identity.
+
 Accessibility carries role, label, description, disabled, checked, selected,
 value, expanded, and heading level. Style contains width/height, flex and
 alignment enums, spacing, colors, opacity, transition, borders, typography,
 positioning, cursor, text alignment, up to two BoxShadow values, and font
 family. Styles also include per-edge padding, border widths/colors,
-per-corner radii, percentage width/height, wrapping, and a bounded two-stop
-linear gradient. Percent and pixel dimensions are mutually exclusive. Gradient
+per-corner radii, explicit length units, wrapping, and a bounded two-stop
+linear gradient. Dimensions retain their f32 value slots; each present dimension
+requires its corresponding `LengthUnit` (0=pixels, 1=rems, 2=percent, 3=auto).
+Auto requires zero. Style fields 55/56 are now width/height units; the former
+separate percentage slots have been removed. Fields 67..72 add flexBasis
+(`Length { unit, value }`), overflowX/Y, hover, active and focusVisible; fields
+73..76 supply min/max dimension units; field 77 is a positive finite aspect ratio.
+InteractionStyle contains only RGBA
+background/text/border colors and opacity. Unknown units or malformed pairs,
+invalid refinements and incompatible gradient/edge-color combinations are
+rejected before tree publication. Spacing authoring shorthands lower to existing
+side fields; no utility tokens or stylesheet cascade cross the wire. Gradient
 angles are 0..=360 degrees, stops are strictly increasing in 0..=1, and colors
 are RGBA u32 values. `flexWrap` uses 0=no-wrap, 1=wrap, 2=wrap-reverse; omission
 retains the native default. Edge/corner values override their shorthands,
@@ -182,23 +198,24 @@ alternate unset representation.
 Patch operations are `1=Create`, `2=Update`, `3=Move`, and `4=Delete`.
 `PatchUpdate` preserves mask presence exactly:
 
-| Bit | Field                   |
-| --: | ----------------------- |
-|   1 | style                   |
-|   2 | text                    |
-|   4 | listener                |
-|   8 | host properties         |
-|  16 | accessibility           |
-|  32 | focusable               |
-|  64 | selectable              |
-| 128 | tooltip                 |
-| 256 | pointer-move capability |
-| 512 | layout observation      |
+|  Bit | Field                   |
+| ---: | ----------------------- |
+|    1 | style                   |
+|    2 | text                    |
+|    4 | listener                |
+|    8 | host properties         |
+|   16 | accessibility           |
+|   32 | focusable               |
+|   64 | selectable              |
+|  128 | tooltip                 |
+|  256 | pointer-move capability |
+|  512 | layout observation      |
+| 1024 | hover observation       |
 
 An Update with the style bit set carries either `style` (set) or the empty
 `clearStyle` marker (clear); with the bit unset, both are omitted (unchanged).
 
-`focusable`, `selectable`, `acceptsPointerMove`, and `observesLayout` follow the same exact presence rule: each field is
+`focusable`, `selectable`, `acceptsPointerMove`, `observesLayout`, and `observesHover` follow the same exact presence rule: each field is
 omitted when its update bit is clear and is present (including explicit
 `false`) when its bit is set. Decoders reject a field when its bit is
 clear and materialize an omitted field as the semantic `false` placeholder.
@@ -378,7 +395,7 @@ generated protocol records to Solid components.
 
 ## 6. Conformance and cutover
 
-`bun run task protocol-golden-check` regenerates representative v6 Snapshot,
+`bun run task protocol-golden-check` regenerates representative v7 Snapshot,
 Patch, all 40 Command kinds, all Event payload forms (including both focus/blur
 forms), malformed cases, and frame boundaries, then fails if committed fixtures
 drift. TypeScript authors `ts_to_rust.hex`; Rust independently constructs the

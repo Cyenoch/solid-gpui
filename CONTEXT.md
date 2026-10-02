@@ -44,7 +44,7 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **Host-Owned Input Model**: Native text, selection, marked text, caret geometry, scrolling, and undo history. SolidJS owns controlled values and callbacks; transient editing state stays native.
 
-**Transactional Snapshot**: The host-facing description that is published only after validation succeeds. Candidate state is validated before it becomes visible across the runtime boundary.
+**Transactional Snapshot**: The host-facing description published only after validation succeeds, before any candidate state becomes visible to the native renderer.
 
 **Golden Vector**: A checked fixture proving producer bytes and cross-language semantic equivalence for the canonical wire schema.
 

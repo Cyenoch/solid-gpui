@@ -56,16 +56,11 @@ export function Button(props: {
   active?: boolean;
   style?: Style;
 }) {
-  const [hovered, setHovered] = createSignal(false);
-  const [focused, setFocused] = createSignal(false);
   return (
     <Pressable
       focusable
       disabled={props.disabled}
       onPress={props.onPress}
-      onHoverChange={setHovered}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
       style={{
         flexShrink: 0,
         minHeight: props.compact ? 32 : props.ghost ? 36 : 40,
@@ -73,17 +68,18 @@ export function Button(props: {
         justifyContent: "center",
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: focused() ? colors.muted : props.primary ? colors.text : props.ghost ? "#00000000" : colors.line,
+        borderColor: props.primary ? colors.text : props.ghost ? "#00000000" : colors.line,
         backgroundColor: props.primary
-          ? hovered()
-            ? "#d4d4d8"
-            : colors.text
-          : hovered() || props.active
+          ? colors.text
+          : props.active
             ? colors.secondary
             : props.ghost
               ? "#00000000"
               : colors.panel,
         opacity: props.disabled ? 0.5 : 1,
+        hover: { backgroundColor: props.primary ? "#d4d4d8" : colors.secondary },
+        active: { backgroundColor: props.primary ? "#a1a1aa" : colors.bg },
+        focusVisible: { borderColor: colors.muted },
         ...props.style,
       }}
     >
@@ -170,7 +166,9 @@ export function LayoutDemo(props: { compact?: boolean } = {}) {
         ).map((item) => (
           <View
             style={{
-              padding: props.compact ? 4 : 10,
+              paddingX: props.compact ? 4 : 10,
+              paddingY: props.compact ? 4 : 8,
+              flexBasis: 0,
               flexGrow: 1,
               minWidth: 0,
               minHeight: 0,

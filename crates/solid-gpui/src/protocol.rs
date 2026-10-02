@@ -10,7 +10,7 @@ pub(crate) mod generated_facts;
 mod guard;
 mod wire;
 
-pub const PROTOCOL_VERSION: u32 = 6;
+pub const PROTOCOL_VERSION: u32 = 7;
 pub const SNAPSHOT_MESSAGE: u32 = generated_facts::BODY_SNAPSHOT;
 pub const EVENT_MESSAGE: u32 = generated_facts::BODY_EVENT;
 pub const PATCH_MESSAGE: u32 = generated_facts::BODY_PATCH;
@@ -109,6 +109,7 @@ pub const UPDATE_SELECTABLE: u32 = 64;
 pub const UPDATE_TOOLTIP: u32 = 128;
 pub const UPDATE_POINTER_MOVE: u32 = 256;
 pub const UPDATE_LAYOUT: u32 = 512;
+pub const UPDATE_HOVER: u32 = 1024;
 pub const MAX_FRAME_LENGTH: usize = 16 * 1024 * 1024;
 pub const MAX_EXTENSION_FIELDS: usize = 256;
 pub const MAX_EXTENSION_EVENTS: usize = 256;
@@ -121,7 +122,7 @@ pub const TRANSITION_WIDTH: u32 = 4;
 pub const TRANSITION_HEIGHT: u32 = 8;
 
 /// A complete immutable renderer commit. It is encoded as
-/// `Envelope{protocolVersion:6, body: Snapshot}`.
+/// `Envelope{protocolVersion:7, body: Snapshot}`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Snapshot {
     pub surface_id: u32,
@@ -158,7 +159,7 @@ impl Snapshot {
 }
 
 /// An atomic incremental commit. It is encoded as
-/// `Envelope{protocolVersion:6, body: Patch}`.
+/// `Envelope{protocolVersion:7, body: Patch}`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Patch {
     pub surface_id: u32,
@@ -184,6 +185,7 @@ pub enum PatchOperation {
         tooltip: Option<String>,
         accepts_pointer_move: bool,
         observes_layout: bool,
+        observes_hover: bool,
     },
     Move {
         id: u32,
@@ -649,6 +651,7 @@ pub struct Node {
     pub tooltip: Option<String>,
     pub accepts_pointer_move: bool,
     pub observes_layout: bool,
+    pub observes_hover: bool,
 }
 
 impl Node {
@@ -668,6 +671,7 @@ impl Node {
             tooltip: None,
             accepts_pointer_move: false,
             observes_layout: false,
+            observes_hover: false,
         }
     }
 }
@@ -826,8 +830,19 @@ pub struct Style {
     pub border_top_right_radius: Option<f32>,
     pub border_bottom_right_radius: Option<f32>,
     pub border_bottom_left_radius: Option<f32>,
-    pub width_percent: Option<f32>,
-    pub height_percent: Option<f32>,
+    pub width_unit: Option<LengthUnit>,
+    pub height_unit: Option<LengthUnit>,
+    pub min_width_unit: Option<LengthUnit>,
+    pub max_width_unit: Option<LengthUnit>,
+    pub min_height_unit: Option<LengthUnit>,
+    pub max_height_unit: Option<LengthUnit>,
+    pub flex_basis: Option<StyleLength>,
+    pub aspect_ratio: Option<f32>,
+    pub overflow_x: Option<OverflowCode>,
+    pub overflow_y: Option<OverflowCode>,
+    pub hover: Option<InteractionStyle>,
+    pub active: Option<InteractionStyle>,
+    pub focus_visible: Option<InteractionStyle>,
     pub flex_wrap: Option<FlexWrapCode>,
     pub grid_columns: Option<u32>,
     pub grid_rows: Option<u32>,
@@ -910,6 +925,34 @@ closed_code!(FlexDirectionCode {
     RowReverse = 3,
     ColumnReverse = 4,
 });
+closed_code!(LengthUnit { Pixels = 0, Rems = 1, Percent = 2, Auto = 3 });
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StyleLength {
+    pub unit: LengthUnit,
+    pub value: f32,
+}
+impl StyleLength {
+    pub fn is_valid(self) -> bool {
+        self.value.is_finite()
+            && self.value >= 0.
+            && (self.unit != LengthUnit::Auto || self.value == 0.)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct InteractionStyle {
+    pub background_rgba: Option<u32>,
+    pub color_rgba: Option<u32>,
+    pub border_color_rgba: Option<u32>,
+    pub opacity: Option<f32>,
+}
+impl InteractionStyle {
+    pub fn is_valid(&self) -> bool {
+        self.opacity
+            .is_none_or(|v| v.is_finite() && (0. ..=1.).contains(&v))
+    }
+}
 closed_code!(JustifyContentCode {
     FlexStart = 1,
     Center = 2,

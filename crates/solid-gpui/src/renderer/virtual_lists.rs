@@ -471,6 +471,7 @@ mod tests {
                     tooltip: None,
                     accepts_pointer_move: false,
                     observes_layout: false,
+                    observes_hover: false,
                 }],
             ))
             .expect("VirtualList patch");
@@ -575,6 +576,7 @@ mod tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     },
                     PatchOperation::Update {
                         id: 2,
@@ -598,6 +600,7 @@ mod tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     },
                 ],
             ))
@@ -738,6 +741,7 @@ mod tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     },
                     PatchOperation::Delete { id: 2 },
                     PatchOperation::Create(created),
@@ -763,6 +767,7 @@ mod tests {
                         tooltip: None,
                         accepts_pointer_move: false,
                         observes_layout: false,
+                        observes_hover: false,
                     },
                 ],
             ))

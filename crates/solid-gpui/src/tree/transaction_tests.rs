@@ -33,6 +33,7 @@ fn text_update() -> PatchOperation {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     }
 }
 
@@ -50,6 +51,7 @@ fn raw_text_update(id: u32, text: &str) -> PatchOperation {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     }
 }
 
@@ -120,6 +122,7 @@ fn clearing_raw_text_is_rejected_at_the_operation_before_deferred_aggregation() 
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             },
             PatchOperation::Delete { id: 6 },
         ],
@@ -461,6 +464,7 @@ fn layout_update(id: u32, observes_layout: bool) -> PatchOperation {
         id,
         mask: UPDATE_LAYOUT,
         observes_layout,
+        observes_hover: false,
         style: None,
         text: None,
         listener_id: 0,
@@ -496,8 +500,9 @@ fn observes_layout_binds_updates_and_rolls_back_with_failed_transactions() {
             4,
             vec![PatchOperation::Update {
                 id: 2,
-                mask: UPDATE_LAYOUT | 1024,
+                mask: UPDATE_LAYOUT | 2048,
                 observes_layout: true,
+                observes_hover: false,
                 style: None,
                 text: None,
                 listener_id: 0,
@@ -545,6 +550,7 @@ fn observes_layout_binds_updates_and_rolls_back_with_failed_transactions() {
                     id: 2,
                     mask: UPDATE_STYLE | UPDATE_LAYOUT,
                     observes_layout: true,
+                    observes_hover: false,
                     style: Some(Style {
                         color_rgba: Some(0xff0000ff),
                         ..Style::default()

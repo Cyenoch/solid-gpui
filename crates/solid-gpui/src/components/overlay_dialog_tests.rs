@@ -222,6 +222,7 @@ fn show_footer_height(
                 tooltip: None,
                 accepts_pointer_move: false,
                 observes_layout: false,
+                observes_hover: false,
             }],
         )),
     );

@@ -25,6 +25,15 @@ export type JustifyContent = "flex-start" | "center" | "flex-end" | "space-betwe
 export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
 export type FontWeight = "normal" | "medium" | "semibold" | "bold" | "heavy";
 export type Overflow = "visible" | "hidden" | "scroll";
+/** Native dimensions. Numbers are logical pixels; percent is 0..100+ of the containing axis. */
+export type Length = number | "auto" | { readonly unit: "px" | "rem" | "percent"; readonly value: number };
+/** Paint-only refinements keep hover/press changes from moving their own hit targets. */
+export interface InteractionStyle {
+  readonly backgroundColor?: string;
+  readonly color?: string;
+  readonly borderColor?: string;
+  readonly opacity?: number;
+}
 export type FontStyle = "normal" | "italic";
 export interface BoxShadow {
   readonly offsetX: number;
@@ -77,8 +86,6 @@ export interface Style {
   readonly borderTopRightRadius?: number;
   readonly borderBottomRightRadius?: number;
   readonly borderBottomLeftRadius?: number;
-  readonly widthPercent?: number;
-  readonly heightPercent?: number;
   readonly flexWrap?: "nowrap" | "wrap" | "wrap-reverse";
   /** Equal native grid tracks and item spans, each from 1 through 64. */
   readonly gridColumns?: number;
@@ -86,8 +93,21 @@ export interface Style {
   readonly gridColumnSpan?: number;
   readonly gridRowSpan?: number;
 
-  readonly width?: number;
-  readonly height?: number;
+  readonly width?: Length;
+  readonly height?: Length;
+  readonly flexBasis?: Length;
+  /** Positive width/height ratio, used when native layout resolves an automatic axis. */
+  readonly aspectRatio?: number;
+  readonly paddingX?: number;
+  readonly paddingY?: number;
+  readonly margin?: number;
+  readonly marginX?: number;
+  readonly marginY?: number;
+  readonly overflowX?: Overflow;
+  readonly overflowY?: Overflow;
+  readonly hover?: InteractionStyle;
+  readonly active?: InteractionStyle;
+  readonly focusVisible?: InteractionStyle;
   readonly flexDirection?: FlexDirection;
   readonly flexGrow?: number;
   readonly padding?: number;
@@ -109,10 +129,10 @@ export interface Style {
   readonly fontStyle?: FontStyle;
   readonly textDecoration?: TextDecoration;
   readonly lineHeight?: number;
-  readonly minWidth?: number;
-  readonly maxWidth?: number;
-  readonly minHeight?: number;
-  readonly maxHeight?: number;
+  readonly minWidth?: Length;
+  readonly maxWidth?: Length;
+  readonly minHeight?: Length;
+  readonly maxHeight?: Length;
   readonly flexShrink?: number;
   readonly alignSelf?: AlignSelf;
   readonly position?: Position;
@@ -152,8 +172,18 @@ const STYLE_KEYS: Record<string, true> = {
   borderTopRightRadius: true,
   borderBottomRightRadius: true,
   borderBottomLeftRadius: true,
-  widthPercent: true,
-  heightPercent: true,
+  flexBasis: true,
+  aspectRatio: true,
+  paddingX: true,
+  paddingY: true,
+  margin: true,
+  marginX: true,
+  marginY: true,
+  overflowX: true,
+  overflowY: true,
+  hover: true,
+  active: true,
+  focusVisible: true,
   flexWrap: true,
   gridColumns: true,
   gridRows: true,
@@ -231,7 +261,7 @@ function validateBoxShadow(value: unknown, index: number): BoxShadow {
     throw new TypeError(`boxShadow[${index}] must be an object`);
   }
   for (const key of Object.keys(value)) {
-    if (!BOX_SHADOW_KEYS[key]) throw new TypeError(`Unsupported boxShadow field: ${key}`);
+    if (!Object.hasOwn(BOX_SHADOW_KEYS, key)) throw new TypeError(`Unsupported boxShadow field: ${key}`);
   }
   const shadow = value as BoxShadow;
   assertF32Number(`boxShadow[${index}].offsetX`, shadow.offsetX, false);
@@ -274,9 +304,71 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     throw new TypeError("style must be an object, null, or undefined");
   }
   for (const key of Object.keys(value)) {
-    if (!STYLE_KEYS[key]) throw new TypeError(`Unsupported style field: ${key}`);
+    if (!Object.hasOwn(STYLE_KEYS, key)) throw new TypeError(`Unsupported style field: ${key}`);
   }
   const style = value as Style;
+  if (style.aspectRatio !== undefined) {
+    assertNumber("aspectRatio", style.aspectRatio, true);
+    if (Math.fround(style.aspectRatio) <= 0) throw new TypeError("aspectRatio must be positive in float32");
+  }
+  for (const key of ["paddingX", "paddingY", "margin", "marginX", "marginY"] as const) {
+    if (style[key] !== undefined) assertNumber(key, style[key], true);
+  }
+  for (const key of ["width", "height", "minWidth", "maxWidth", "minHeight", "maxHeight", "flexBasis"] as const) {
+    const length = style[key];
+    if (length === undefined || length === "auto") continue;
+    if (typeof length === "number") assertNumber(key, length, true);
+    else {
+      if (
+        !length ||
+        typeof length !== "object" ||
+        Array.isArray(length) ||
+        Object.keys(length).some((field) => field !== "unit" && field !== "value") ||
+        !["px", "rem", "percent"].includes(length.unit)
+      )
+        throw new TypeError(`${key} must be a number, auto, or an explicit px/rem/percent length`);
+      assertNumber(`${key}.value`, length.value, true);
+    }
+  }
+  for (const key of ["overflowX", "overflowY"] as const) {
+    if (style[key] !== undefined && !["visible", "hidden", "scroll"].includes(style[key]))
+      throw new TypeError(`${key} is invalid`);
+  }
+  for (const key of ["hover", "active", "focusVisible"] as const) {
+    const refinement = style[key];
+    if (refinement === undefined) continue;
+    if (!refinement || typeof refinement !== "object" || Array.isArray(refinement))
+      throw new TypeError(`${key} must be a paint refinement object`);
+    for (const field of Object.keys(refinement)) {
+      if (!["backgroundColor", "color", "borderColor", "opacity"].includes(field))
+        throw new TypeError(`Unsupported ${key} style field: ${field}`);
+    }
+    validateStyle(refinement);
+  }
+  if (style.transition) {
+    for (const key of ["width", "height"] as const) {
+      const length = style[key];
+      if (
+        length !== undefined &&
+        typeof length !== "number" &&
+        (length === "auto" || length.unit !== "px") &&
+        (style.transition.properties === undefined || style.transition.properties.includes(key))
+      )
+        throw new TypeError(`transition ${key} requires pixel lengths`);
+    }
+  }
+  if (
+    (style.hover?.borderColor || style.active?.borderColor || style.focusVisible?.borderColor) &&
+    [style.borderTopColor, style.borderRightColor, style.borderBottomColor, style.borderLeftColor].some(
+      (v) => v !== undefined,
+    )
+  )
+    throw new TypeError("interaction borderColor cannot be combined with per-edge border colors");
+  if (
+    (style.hover?.backgroundColor || style.active?.backgroundColor || style.focusVisible?.backgroundColor) &&
+    style.linearGradient
+  )
+    throw new TypeError("interaction backgroundColor cannot be combined with linearGradient");
   if (style.linearGradient !== undefined) {
     const gradient = style.linearGradient;
     if (
@@ -317,17 +409,9 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     assertNumber("borderBottomRightRadius", style.borderBottomRightRadius, true);
   if (style.borderBottomLeftRadius !== undefined)
     assertNumber("borderBottomLeftRadius", style.borderBottomLeftRadius, true);
-  if (style.widthPercent !== undefined) assertNumber("widthPercent", style.widthPercent, true);
-  if (style.heightPercent !== undefined) assertNumber("heightPercent", style.heightPercent, true);
-  if (style.width !== undefined && style.widthPercent !== undefined)
-    throw new TypeError("width and widthPercent are mutually exclusive");
-  if (style.height !== undefined && style.heightPercent !== undefined)
-    throw new TypeError("height and heightPercent are mutually exclusive");
   if (style.flexWrap !== undefined && !["nowrap", "wrap", "wrap-reverse"].includes(style.flexWrap))
     throw new TypeError("flexWrap is invalid");
 
-  if (style.width !== undefined) assertNumber("width", style.width, true);
-  if (style.height !== undefined) assertNumber("height", style.height, true);
   if (
     style.position !== undefined &&
     style.position !== "relative" &&
@@ -355,10 +439,6 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     ["marginBottom", style.marginBottom],
     ["marginLeft", style.marginLeft],
     ["lineHeight", style.lineHeight],
-    ["minWidth", style.minWidth],
-    ["maxWidth", style.maxWidth],
-    ["minHeight", style.minHeight],
-    ["maxHeight", style.maxHeight],
     ["flexShrink", style.flexShrink],
   ] as const) {
     if (amount !== undefined) assertNumber(name, amount, true);
@@ -480,6 +560,10 @@ export function validateStyle(value: StyleProp): Style | null | undefined {
     const transition = style.transition;
     if (transition === null || typeof transition !== "object" || Array.isArray(transition))
       throw new TypeError("transition must be an object");
+    for (const field of Object.keys(transition)) {
+      if (!["durationMs", "delayMs", "easing", "properties", "onComplete"].includes(field))
+        throw new TypeError(`Unsupported transition field: ${field}`);
+    }
     assertNumber("transition.durationMs", transition.durationMs, true);
     if (!Number.isInteger(transition.durationMs) || transition.durationMs > 0xffff_ffff)
       throw new TypeError("transition.durationMs must be a u32");
@@ -578,7 +662,23 @@ export function createStyleSheet<T extends Record<string, Style>>(recipes: T): N
   const result: Record<string, Style> = {};
   for (const [name, recipe] of Object.entries(recipes)) {
     validateStyle(recipe);
-    result[name] = Object.freeze({ ...recipe });
+    const copy = { ...recipe };
+    for (const key of [
+      "hover",
+      "active",
+      "focusVisible",
+      "width",
+      "height",
+      "minWidth",
+      "maxWidth",
+      "minHeight",
+      "maxHeight",
+      "flexBasis",
+    ] as const) {
+      const value = copy[key];
+      if (value !== undefined && typeof value === "object") Object.assign(copy, { [key]: Object.freeze({ ...value }) });
+    }
+    result[name] = Object.freeze(copy);
   }
   return Object.freeze(result) as NamedStyles<T>;
 }
