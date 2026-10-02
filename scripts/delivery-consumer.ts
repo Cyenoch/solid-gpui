@@ -1,0 +1,90 @@
+#!/usr/bin/env bun
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { parseArgs } from "node:util";
+
+const repo = resolve(import.meta.dirname, "..");
+async function run(command: string[], cwd: string): Promise<void> {
+  console.error(`$ ${command.join(" ")}`);
+  const child = Bun.spawn(command, { cwd, env: process.env, stdio: ["ignore", "inherit", "inherit"] });
+  if ((await child.exited) !== 0) throw new Error(`Consumer command failed: ${command[0]}`);
+}
+
+const { values } = parseArgs({
+  options: {
+    manifest: { type: "string" },
+    mode: { type: "string" },
+    "stock-only": { type: "boolean" },
+    "native-only": { type: "boolean" },
+    keep: { type: "boolean" },
+  },
+  strict: true,
+});
+if (!values.manifest) throw new Error("Pass --manifest <delivery.json or manifest-path.txt>");
+const manifestPath = resolve(
+  values.manifest.endsWith(".txt") ? (await readFile(values.manifest, "utf8")).trim() : values.manifest,
+);
+const temporary = await mkdtemp(
+  join(process.env.SOLID_GPUI_CONSUMER_TEMP ?? tmpdir(), "solid-gpui-delivery-consumer-"),
+);
+const mode = values.mode ?? "production";
+try {
+  const cli = join(repo, "packages/solid-gpui-vite/dist/cli.js");
+  for (const [name, runtime, native] of [
+    ...(!values["native-only"]
+      ? [
+          ["stock-quickjs", "quickjs", false],
+          ["stock-bun", "bun", false],
+        ]
+      : []),
+    ...(!values["stock-only"] ? [["rust-quickjs", "quickjs", true]] : []),
+  ] as const) {
+    const root = join(temporary, name);
+    await run(
+      [
+        process.execPath,
+        cli,
+        "create",
+        root,
+        "--runtime",
+        runtime,
+        "--manifest",
+        manifestPath,
+        ...(native ? ["--native"] : []),
+      ],
+      repo,
+    );
+    await run([process.execPath, "install"], root);
+    const consumerCli = join(root, "node_modules/@solid-gpui/vite/dist/cli.js");
+    if (!native) await run([process.execPath, consumerCli, "host", "install", "--manifest", manifestPath], root);
+    await run([process.execPath, consumerCli, "prepare", "--mode", mode], root);
+    await run([process.execPath, "run", "typecheck"], root);
+    await run([process.execPath, consumerCli, "test", "src/counter.test.tsx"], root);
+    await run([process.execPath, "run", "build", "--mode", mode], root);
+    await run([process.execPath, consumerCli, "package", "--name", name, "--mode", mode], root);
+    // The extracted app check is a real VM/protocol check, not a physical display assertion.
+    if (native) {
+      const artifacts = JSON.parse(await readFile(join(root, ".solid-gpui/artifacts.json"), "utf8"));
+      const binary = artifacts.native.executable;
+      await run([process.execPath, consumerCli, "preview", "--mode", mode, "--", "--help"], root);
+      await writeFile(
+        join(root, "src/service.tsx"),
+        `import { mountApplication, Text } from "@solid-gpui/core";\nimport { EmbeddedTransport } from "@solid-gpui/core/embedded";\nimport { createSignal, onMount } from "@solid-gpui/core/runtime";\nimport { useNative } from "#native";\nmountApplication({ transport: () => new EmbeddedTransport(), setup: () => ({ render: () => {\n  const native = useNative(); const [message, setMessage] = createSignal("pending");\n  onMount(async () => setMessage(await native.greeting()));\n  return <Text>{message()}</Text>;\n} }) });\n`,
+      );
+      await writeFile(
+        join(root, "vite.service.config.ts"),
+        (await readFile(join(root, "vite.config.ts"), "utf8")).replace(
+          'entry: "src/app.tsx"',
+          'entry: "src/service.tsx"',
+        ),
+      );
+      await run([process.execPath, "run", "build", "--mode", mode, "--config", "vite.service.config.ts"], root);
+      const serviceArtifacts = JSON.parse(await readFile(join(root, ".solid-gpui/artifacts.json"), "utf8"));
+      await run([binary, "--check-app", "quickjs", serviceArtifacts.bundle, "Hello from Rust"], root);
+    }
+  }
+  console.log(`Clean consumer delivery verified outside the SDK: ${temporary}`);
+} finally {
+  if (!values.keep) await rm(temporary, { recursive: true, force: true });
+}

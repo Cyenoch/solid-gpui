@@ -1,6 +1,53 @@
 # Getting started
 
-One sequence takes a clean external checkout of your own application from install
+The simplest application starts from the installed tooling's versioned template:
+
+```sh
+bunx --package @solid-gpui/vite@0.5.2 solid-gpui create my-app --runtime quickjs
+cd my-app
+bun install
+bun run host:install
+bun run generate
+bun run typecheck
+bun run dev
+```
+
+The stock TypeScript path needs Bun for tooling and a paired prebuilt native host;
+it needs no Rust toolchain. QuickJS executes the UI inside that host and supplies
+no Bun/Node services. Select `--runtime bun` explicitly when application services
+need Bun; its portable package also requires Bun on the destination. Solid owns
+composition and reactive state; GPUI owns rendering and native input state.
+
+`create` uses the exact installed SDK version and pins both npm packages. Templates
+ship in that package; no moving `main` or `latest` template is fetched. `host:install`
+is an explicit acquisition step, with release version, target, protocol/schema,
+file sizes, SHA-256 and host-exported bindings checked. It fails if that release's
+artifact is unavailable. Installation and Vite never compile or download a native
+host, and there is no automatic source fallback. For an unpublished/local paired
+candidate, use `solid-gpui host install --manifest /absolute/path/delivery.json`.
+These delivery assets require the new candidate workflow; existing 0.5.2 releases
+do not imply that the new assets have been published.
+
+Application-owned Rust modules use the same template with `--native`:
+
+```sh
+solid-gpui create rust-app --native --runtime quickjs --manifest /absolute/path/delivery.json
+```
+
+This explicitly acquires the manifest's exact SDK source archive, generates root
+Cargo patches/profiles from its authoritative manifest, and creates a real Rust
+service and host. Install the paired Rust toolchain and platform build dependencies.
+After the first Cargo resolution, commit `Cargo.lock` and set `native.locked: true`.
+Preserve the SDK source archive/manifest for repeatable offline builds. The generated
+source stays in `.solid-gpui/sdk`; no caller needs to reproduce SDK vendor knowledge.
+
+Production uses `bun run test`, `bun run build`, `bun run preview`, and
+`bun run package`. Packaging reads the actual Vite artifact record and checks the
+extracted runtime and native contracts outside the source tree. See
+[generic application packaging](distribution.md#generic-application-packaging)
+for resource declarations, signing and platform qualification.
+
+For an existing application, one sequence takes a clean external checkout from install
 to a running desktop window: install, prepare, typecheck, develop, test, build, and
 preview the production bundle. Advanced integration stays in its own guides and is
 linked from each step:
@@ -18,7 +65,7 @@ linked from each step:
 - **A Rust toolchain only when the application builds a Rust host.** Install rustup
   with the toolchain in `rust-toolchain.toml`, plus your platform's native build
   dependencies. See [build environment](distribution.md#build-environment).
-- **The SDK's Cargo requirements in your workspace root.** Your host crate depends
+- **For manually configured Rust hosts, the SDK's Cargo requirements in your workspace root.** Your host crate depends
    on the `solid-gpui` crate from the checkout matching the installed npm release (a path or git dependency;
   it is not published to a registry today). Cargo ignores profile
   settings declared by a dependency, so the consuming workspace root must carry the

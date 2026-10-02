@@ -3,7 +3,24 @@
 Vite development, builds, and tooling for Solid GPUI applications running in Bun or
 QuickJS. Install this package from npm with `@solid-gpui/core`, `solid-js`, and
 Vite 8. Keep the SDK packages on the same release. Native development tooling
-requires Bun 1.4.2 or newer and a separately configured matching Rust host.
+requires Bun 1.4.2 or newer and a matching native host.
+
+`solid-gpui create my-app --runtime quickjs` creates this exact SDK version's
+standalone TypeScript template. Its `host:install` explicitly acquires the paired
+prebuilt stock host; no Rust toolchain or install-time build is required. Add
+`--native` for paired SDK sources, generated Cargo root requirements and a real
+application-owned Rust service. `--runtime bun` preserves Bun services explicitly.
+The new release assets must be generated/published before the default acquisition
+URL is available; local candidates use `--manifest <delivery.json>`.
+
+`stockHost(root)` and `installStockHost({ root?, manifest? })` from
+`@solid-gpui/vite/delivery` return/select verified exact-version artifacts using
+the ordinary host/project plan. `solid-gpui package --name my-app` and
+`packageApplication()` from `@solid-gpui/vite/package` package already-built
+recorded artifacts, extract them outside the source tree and verify their real
+runtime/native contract. They never build, sign or publish. See
+[Getting started](../../docs/getting-started.md) and
+[Distribution](../../docs/distribution.md#generic-application-packaging).
 
 ```sh
 bun add --exact @solid-gpui/core solid-js

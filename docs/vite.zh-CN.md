@@ -1,5 +1,7 @@
 # Vite 集成
 
+CLI 新增 `create`、`host install`、`package`。`solid-gpui create <directory> --runtime quickjs` 创建安装版本的 stock 模板，`--native` 显式获取配对源码并生成自有 Rust 宿主。stock 配置从 `@solid-gpui/vite/delivery` 调用 `stockHost(import.meta.dirname)`；先显式运行 `solid-gpui host install`。它验证准确版本、schema 和 checksum，然后返回普通 host options，所有绑定与产物路径仍由同一 Vite project 负责。`--manifest <local-file-or-https-url>` 支持离线或未发布候选；缺失产物失败，不编译 Rust 回退。见[入门](getting-started.zh-CN.md)与[通用应用打包](distribution.zh-CN.md#通用应用打包)。
+
 Solid GPUI 支持两种编写方式：直接写 JavaScript 并运行，或者写 JSX/TSX，
 交给 Vite 编译。Bun 和 QuickJS 是执行 runtime；Vite 是唯一支持的应用打包器。
 不提供 TSX 直接运行命令、内置打包器或 Bun compile 路径。

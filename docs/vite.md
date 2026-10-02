@@ -6,7 +6,7 @@ runtimes. Vite is the only supported application bundler. There is no direct
 TSX launcher, built-in bundler, or Bun compile path.
 
 `@solid-gpui/vite` is the tooling package. It provides this Vite plugin, the
-`solid-gpui` CLI (`prepare`, `preview`, `doctor`, `test`), the
+`solid-gpui` CLI (`create`, `host install`, `package`, `prepare`, `preview`, `doctor`, `test`), the
 `@solid-gpui/vite/test` runner, and the `@solid-gpui/vite/artifacts` and
 `@solid-gpui/vite/project` helpers. [Getting started](getting-started.md) walks the
 full sequence; this guide covers the option surface and the advanced paths.
@@ -93,6 +93,17 @@ is callback composition, not an array of assignment targets. The runtime exports
 `Ref<T>` for wrapper component prop types.
 
 ## Project setup
+
+Use `solid-gpui create <directory> --runtime quickjs` for the exact-version stock
+template, or add `--native` for the paired SDK source and application-owned Rust
+host. The stock template calls `stockHost(import.meta.dirname)` from
+`@solid-gpui/vite/delivery`. Run `solid-gpui host install` explicitly first;
+selection verifies the installed release/schema/checksums and returns ordinary
+`host` options. The normal project plan exports bindings and owns every generated
+path. Use `--manifest <local-file-or-https-url>` for offline/unpublished candidates.
+The acquisition path never runs Cargo or substitutes a source build. See
+[Getting started](getting-started.md) and
+[application packaging](distribution.md#generic-application-packaging).
 
 Install `@solid-gpui/core` and `solid-js` from npm, plus `@solid-gpui/vite`, Vite 8,
 TypeScript, and `bun-types` as development dependencies. Keep the SDK packages on

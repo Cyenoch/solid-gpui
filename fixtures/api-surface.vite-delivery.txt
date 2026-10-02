@@ -1,0 +1,15 @@
+# api-surface-v1
+# name	kind
+DeliveryFile	type
+deliveryHash	value
+DeliveryManifest	type
+deliveryRun	value
+deliveryVersion	value
+installStockHost	value
+InstallStockHostOptions	type
+readDeliveryManifest	value
+scaffoldApplication	value
+ScaffoldOptions	type
+stockHost	value
+stockTarget	value
+verifyStockHost	value

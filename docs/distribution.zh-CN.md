@@ -16,6 +16,21 @@ website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust �
 
 ## 构建环境
 
+## 通用应用打包
+
+```sh
+bun run build
+solid-gpui package --name my-app
+```
+
+`@solid-gpui/vite/package` 的 `packageApplication({ name, root?, configFile?, mode?, output?, assets?, licenses? })` 读取权威 `.solid-gpui/artifacts.json` 并与同一 Vite project 比较，复制已构建宿主及完整 Vite 输出。`packages/` 包含便携 tar.gz、SHA-256、相对路径的 macOS/Linux/Windows launcher、应用元数据、原生 catalog、许可与文件清单。`assets` 为目录，复制到 `assets/<basename>`；默认许可输入是应用的 LICENSE 与 THIRD-PARTY-NOTICES.md，发布前补全许可文本。此命令不构建、下载、签名或发布。
+
+归档在源码目录外解压，逐文件验证，执行版本、catalog 与 `--check-app <bun|quickjs> <bundle>`。QuickJS 检查 PATH 为空；Bun 只暴露选定 Bun 的目录。真实 runtime 必须提交包含内容的有效树、匹配原生标识，并按时关闭。这是无显示 runtime/contract 检查，不验证几何、物理输入、前台 native service、应用特定异步加载或目标机器图形驱动。使用与构建相同的 `--mode`，拒绝异平台和解释型宿主。
+
+QuickJS 便携包无需另装 Bun/Node。Bun 应用保留显式运行时选择，目标 PATH 需有 Bun 1.4.2+，不自动转换成 QuickJS 或声明内嵌 Bun 已验证。macOS 拒绝未打包的非系统动态库；Linux 记录动态依赖；Windows 仍需 DLL 与干净机器验证。归档未签名，原生安装器、品牌、签名和公证由应用负责。
+
+手动 Standalone Delivery Candidates workflow 从单个准确 commit 生成配对 stock host、原始导出绑定、SDK 源码归档、checksum 与 manifest，构建 macOS ARM64/x64、Linux x64、Windows x64 候选，验证仓库外的 packed stock QuickJS、stock Bun 与自有 Rust consumer。仅上传 workflow candidate，不发布 release。获取路径固定为安装版本的 v<version>，或显式本地 manifest/HTTPS URL；SHA-256 相对于可信 manifest 检查完整性。缺失产物直接失败，无源码回退。
+
 Rust 源码需保持 LF 换行，当前仓库通过 `.gitattributes` 保证。Windows 构建旧 tag 时，请在 clone 前设置 `git config --global core.autocrlf false`；原生契约摘要包含嵌入源码字节，必须与生成的 JavaScript 绑定一致。
 
 安装 `.bun-version` 固定的 Bun 和 `rust-toolchain.toml` 指定的 rustup 工具链。从仓库根目录构建，打包任务在构建前按提交的工作区锁安装依赖。在准备发布的操作系统与架构上构建。

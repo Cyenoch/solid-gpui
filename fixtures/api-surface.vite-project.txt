@@ -1,6 +1,7 @@
 # api-surface-v1
 # name	kind
 assertHostRunsLocally	value
+assertRecordedConfiguration	value
 checkProject	value
 createSolidGpuiProject	value
 loadProject	value

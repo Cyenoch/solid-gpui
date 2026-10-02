@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+protocol_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["protocolVersion"])' "$repo_root/packages/solid-gpui/src/protocol/schema-lock.json")"
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-host-candidate-smoke.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
@@ -87,11 +88,11 @@ console.log(`snapshot commit observed: ${frames[0].byteLength} bytes`);
 
 run_process_smoke error
 run_process_smoke info
-python3 - "$smoke_root/info.stderr" <<'PY'
+python3 - "$smoke_root/info.stderr" "$protocol_version" <<'PY'
 import re
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-if re.search(r"solid-gpui-host: starting mode=Process protocol=v5 entry=sh pid=\d+", text) is None:
+if re.search(r"solid-gpui-host: starting mode=Process protocol=v" + re.escape(sys.argv[2]) + r" entry=sh pid=\d+", text) is None:
     raise SystemExit("missing info startup diagnostic with mode/entry/pid")
 if "solid-gpui-host: renderer" in text and "fatal" in text:
     raise SystemExit("fatal renderer diagnostic appeared during startup smoke")
@@ -99,7 +100,7 @@ PY
 
 version_output="$($binary --version)"
 help_output="$($binary --help)"
-[[ "$version_output" == "solid-gpui-host $metadata protocol=v5" ]] || { printf 'unexpected candidate version: %s\n' "$version_output" >&2; exit 1; }
+[[ "$version_output" == "solid-gpui-host $metadata protocol=v$protocol_version" ]] || { printf 'unexpected candidate version: %s\n' "$version_output" >&2; exit 1; }
 case "$help_output" in
   *"--version"*"--runtime process"*) ;;
   *) printf 'candidate help output is incomplete\n' >&2; exit 1 ;;

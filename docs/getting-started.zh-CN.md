@@ -1,5 +1,25 @@
 # 入门
 
+最简单的入口是工具包自带、与安装版本严格配对的模板：
+
+```sh
+bunx --package @solid-gpui/vite@0.5.2 solid-gpui create my-app --runtime quickjs
+cd my-app
+bun install
+bun run host:install
+bun run generate
+bun run typecheck
+bun run dev
+```
+
+默认 TypeScript 应用使用预构建 stock host，不需要 Rust 工具链。Bun 用于开发工具；QuickJS 在原生宿主内部执行 UI，不提供 Bun/Node 服务。需要 Bun 服务时显式选择 `--runtime bun`，该便携包的目标机器也需要 Bun。Solid 拥有组合与响应式状态，GPUI 拥有原生渲染与输入状态。
+
+`create` 只使用当前安装包的准确版本模板，固定 core/vite 版本，不读取移动的 main/latest。`host:install` 是显式获取步骤，验证发布版本、目标、协议/schema、大小、SHA-256 和宿主导出的绑定。目标发布产物缺失会报错，不回退源码；安装与 Vite 不会自动下载或编译宿主。本地未发布候选使用 `solid-gpui host install --manifest /absolute/path/delivery.json`。新增产物由 candidate workflow 生成；已有 0.5.2 发布不表示这些新增产物已发布。
+
+自有 Rust 模块使用 `solid-gpui create rust-app --native --runtime quickjs --manifest /absolute/path/delivery.json`。它显式获取配对 SDK 源码归档，从权威 Cargo manifest 生成根 patches/profiles，创建真实 Rust service 和宿主。安装配对 Rust 工具链及平台依赖；首次解析后提交 Cargo.lock 并设置 `native.locked: true`。保存源码归档与 manifest，SDK 在 `.solid-gpui/sdk`，无需手工复制 vendor 知识。
+
+生产流程：`bun run test`、`bun run build`、`bun run preview`、`bun run package`。打包读取真实 Vite artifact record，并在源码目录外验证解压后的 runtime 和原生契约。资源、签名和平台验证见[通用应用打包](distribution.zh-CN.md#通用应用打包)。
+
 从零开始的外部应用只需一条顺序：安装、prepare、类型检查、开发、测试、构建，以及预览生产 bundle。进阶集成各自成篇，并在每一步中链接：
 
 - [Vite 集成](vite.zh-CN.md) — 插件完整选项面、`host: false` 与自定义 transport。

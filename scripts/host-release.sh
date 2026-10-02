@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+protocol_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["protocolVersion"])' "$repo_root/packages/solid-gpui/src/protocol/schema-lock.json")"
 package_name="solid-gpui-host"
 
 metadata="$(
@@ -170,7 +171,7 @@ check() {
     *) fail "extracted host help output is incomplete" ;;
   esac
   version_output="$(cd "$extracted" && ./$package_name --version)"
-  [[ "$version_output" == "$package_name $version protocol=v5" ]] ||
+  [[ "$version_output" == "$package_name $version protocol=v$protocol_version" ]] ||
     fail "unexpected version output: $version_output"
 
   printf 'host release check passed: %s\n' "$archive"
