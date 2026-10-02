@@ -75,8 +75,12 @@ custom conditions in `bunfig.toml`.
 ## Runtime selection
 
 External Bun is the rapid development runtime. Embedded Bun is the intended
-production packaging runtime for Bun-based applications; its current embedding
-is macOS-only and its release pipeline remains separate work. QuickJS targets
+production packaging runtime for Bun-based applications. The direct Rust
+`embedded-bun` library feature supports macOS only; the separate static packager
+also reaches experimental Windows targets. Its build and runtime evidence does
+not establish supported Windows delivery. The authoritative
+[distribution matrix](../../docs/distribution.md#platform-status-and-current-evidence)
+records target qualification. QuickJS targets
 applications whose main capabilities live in Rust, with JSX/TSX responsible for
 UI composition and reactive presentation state. Rust owns GPUI rendering in
 every mode. See [runtime strategy](../../docs/runtime-strategy.md).

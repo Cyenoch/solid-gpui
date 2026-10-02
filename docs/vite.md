@@ -11,7 +11,10 @@ TSX launcher, built-in bundler, or Bun compile path.
 `@solid-gpui/vite/project` helpers. [Getting started](getting-started.md) walks the
 full sequence; this guide covers the option surface and the advanced paths.
 
-Three different things are produced along the way, and only the third is a
+The [compiler-only API](#compiler-only-api) exposes the same JSX/TSX transform
+independently of Vite's lifecycle.
+
+Four different things are produced along the way, and only the fourth is a
 deliverable:
 
 | Artifact              | Produced by                                         | Contains                                                                                                                                                                                            |
@@ -56,6 +59,46 @@ or `QuickJsAdapter::from_source`. Its current loader requires one self-contained
 ES module: it cannot resolve npm packages or external imports. Direct execution
 does not compile or silently bundle that input. Use Vite when dependencies need
 bundling. QuickJS entries use `EmbeddedTransport` and a `quickjs`-enabled host.
+
+## Compiler-only API
+
+For editors, source processors, and custom tooling, import the small public
+compiler subpath. Vite uses this exact implementation too:
+
+```ts
+import { compile, type CompileResult } from "@solid-gpui/vite/compiler";
+
+const source = `import { Text } from "@solid-gpui/core";
+export const greeting = <Text>Hello</Text>;`;
+const result: CompileResult = compile(source, "src/Greeting.tsx");
+// Write result.code as an ES module and result.map as its .map file.
+```
+
+| Interface | Contract |
+| --- | --- |
+| `compile(source: string, filename: string): CompileResult` | Synchronous compilation of one `.jsx` or `.tsx` module. Pass the authored filename without a query or fragment. Unsupported extensions and invalid source throw. |
+| `CompileResult.code: string` | JavaScript ES module using universal JSX helpers from `@solid-gpui/core/runtime`. Imports remain for the caller to resolve. |
+| `CompileResult.map: string` | JSON source map with the original filename and source content. TSX composes JSX lowering and TypeScript erasure back to the authored locations. |
+
+The pinned Solid compiler emits universal code for the stable Solid 1.9 runtime;
+it does not change application runtime versions. TypeScript erasure removes
+explicit type imports and `declare` fields while preserving runtime imports and
+JavaScript class fields. Control-flow components such as `Show` and `For` must be
+imported explicitly from `@solid-gpui/core/runtime`; compiler auto-imports for
+Solid 2 are disabled. The existing [ref ABI](#jsx-refs) is shared with Vite.
+
+Importing this subpath loads no Vite lifecycle, renderer, or Rust host. Core and
+Vite are optional peers so a compiler-only tool can install just
+`@solid-gpui/vite`. Its pinned compiler/native binding dependencies still run on
+the build machine; see [Windows ARM64 compiler builds](hot-reload.md#windows-arm64-native-compiler).
+Install matching core and Solid packages when executing compiled code, and use
+the client `browser` resolution condition with one Solid instance.
+
+This operation adds no HMR acceptance, resolves no aliases or `#native` imports,
+does not bundle or typecheck, and does not select Bun/QuickJS or prepare native
+bindings. Vite remains the supported application bundler and owns those project
+operations. For an additional transform, compose its map with `result.map` so
+diagnostics keep pointing to the authored JSX/TSX.
 
 ## JSX refs
 
