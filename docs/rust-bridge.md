@@ -20,7 +20,7 @@ solid-gpui = { path = "path/to/solid-gpui/crates/solid-gpui", features = ["gpui-
 ```rust
 use solid_gpui::native_module;
 
-#[native_module(name = "my-app")]
+#[native_module(name = "my-app", version = "1.0.0")]
 mod app {
     #[command]
     fn greet(name: String) -> Result<String, String> {
@@ -299,6 +299,31 @@ function Page() {
 Use `createClient(root)` outside a component. Do not call `useNative()` inside
 an asynchronous callback: it must capture the Solid owner during component
 initialization. Diagnostics go to stderr; stdout carries protocol frames.
+
+## Native contract and build identities
+
+Every `#[native_module]` requires an explicit `version = "major.minor.patch"`.
+Direct registrations use `ModuleDefinition::new(name, version, components,
+commands)`. Bump the version for changes to defaults, validation, lifecycle, or
+other observable behavior; DTO, slot, event, and method changes already change
+the canonical contract digest. Component registrations can additionally use
+`with_semantic_version` for their own behavioral version.
+
+The exporter records canonical interface metadata separately from build provenance
+in `nativeIdentity` (or numbered exports in composed modules). The build digest
+includes the exact SDK version, normalized SDK source/dependency inputs, and
+selected implementations. Source comments affect build provenance; DTO documentation
+and implementation text do not enter contract identity. LF/CRLF checkout differences
+affect neither lock. Use `with_implementation(include_str!("service.rs"))` for
+additional source inputs outside an annotated module.
+
+Generated components and clients carry both locks automatically. Rust callers
+constructing native props or invocation arguments directly use
+`encode_native_request(module.build_digest(), &dto)`. Missing envelopes, wrong
+builds, and wrong contracts are rejected before mutation or dispatch. Results
+and events remain strict JSON. This portable source-build identity does not hash
+the executable or every application dependency; package the exact selected host
+and bundle and preserve release/artifact verification.
 
 ## Custom Rust components
 

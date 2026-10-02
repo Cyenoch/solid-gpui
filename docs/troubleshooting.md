@@ -122,6 +122,14 @@ digests, and the host's name for that entry. Entry IDs can change between
 catalogs, so the reported host entry is not necessarily the renderer's component.
 A missing adapter instead points to an unregistered module or unsupported host.
 
+`native build mismatch` is a separate failure: the interface matches, but the
+binding's selected implementation or exact SDK provenance differs from the host.
+The diagnostic prints renderer and host build digests. Regenerate from the running
+host, rebuild the application bundle, and deploy the paired artifacts. Comment-only
+implementation edits can trigger this check while leaving catalog identity equal;
+LF/CRLF checkout differences are normalized. A missing build envelope means stale
+bindings or a direct Rust caller that needs `encode_native_request`.
+
 Use the host path printed by Vite to check which executable is running. Enable
 the required Cargo features and register the module in that host. With `native`
 configured, saving a corrected Rust source or Cargo manifest rebuilds the host

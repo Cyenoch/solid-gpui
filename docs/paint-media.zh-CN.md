@@ -5,6 +5,11 @@ NativeView 组件。组件 host 与网站 WASM host 通过
 `solid_gpui::components::native_module()` 注册；自定义 host 必须注册同一模块并
 生成匹配绑定。它们沿用现有 Extension 与原生命令协议。
 
+两个组件均声明行为版本 `1.0.0`。生成绑定包含规范契约身份与所选 host 的构建身份，
+并将 props 和 ref 命令参数封装为严格的原生请求。直接 Rust 测试使用
+`encode_native_request(module.build_digest(), &dto)`；缺失信封或过期构建在准入前
+被拒绝。host 注册与重新生成见[原生契约身份](rust-bridge.zh-CN.md)。
+
 ## 保留绘制
 
 Solid 响应式构造 `PaintRecording`，原生代码在树发布前验证完整记录，在记录变化时
@@ -39,7 +44,7 @@ scene 缓存。卸载释放记录。
 ## CPU 帧所有权
 
 `LiveFrame` 的挂载原生组件实例拥有资源。生成的 ref 是带 surface、epoch、node、
-module 与 catalog 身份的能力，不暴露全局图像 ID 或原生地址。新挂载/epoch 创建
+module、catalog 与 build 身份的能力，不暴露全局图像 ID 或原生地址。新挂载/epoch 创建
 新所有者；关闭、移除或替换组件释放可见帧与暂存帧，并在最后一个 scene 所有者释放
 时清理 GPUI 图像 atlas。
 

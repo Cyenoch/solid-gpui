@@ -118,11 +118,12 @@ the six files, then publishes the release. Existing release notes are preserved;
 reruns replace matching assets. An active run is not cancelled by another run.
 See [distribution](distribution.md) for launch instructions and signing status.
 
-Rust sources use LF checkout via `.gitattributes`: native catalog identities
-include embedded Rust source bytes. Windows packaging disables Git's automatic
-CRLF conversion before checkout, including when backfilling older tags that lack
-the attributes file. Otherwise a host can reject the committed JS bindings even
-when both were built from the same commit.
+Native catalog identity covers exported contracts and explicit semantic versions.
+Separate build envelopes enforce the exact SDK/source provenance used to generate
+bindings, and the extracted website bundle check validates both identities.
+LF/CRLF inputs normalize to one current build identity. `.gitattributes` keeps the
+repository LF convention; Windows checkout policy also supports older release
+tags whose combined identities still depended on raw source bytes.
 
 The other qualification workflows upload candidates without publishing releases.
 Already compressed archives are uploaded without another compression pass.

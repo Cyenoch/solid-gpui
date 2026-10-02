@@ -45,9 +45,13 @@ mod executor;
 mod executor;
 mod type_validation;
 pub use cancellation::NativeCallContext;
+mod identity;
 mod json_guard;
 mod module;
 pub use component::*;
+pub use identity::encode_native_request;
+#[cfg(feature = "component-runtime")]
+pub(crate) use identity::validated_request_json;
 mod scroll;
 pub use module::*;
 pub use scroll::*;

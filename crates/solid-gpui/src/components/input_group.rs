@@ -337,6 +337,6 @@ pub(crate) fn definitions() -> Vec<ComponentDefinition> {
         ),
     ]
     .into_iter()
-    .map(|definition| definition.with_contract(include_str!("input_group.rs")))
+    .map(|definition| definition.with_implementation(include_str!("input_group.rs")))
     .collect()
 }

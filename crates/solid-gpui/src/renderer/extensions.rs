@@ -127,6 +127,8 @@ pub enum ExtensionError {
         "native contract mismatch for {module}: {reason}; rebuild the host and regenerate bindings from that executable"
     )]
     ContractMismatch { module: String, reason: String },
+    #[error("native build admission failed for {component}: {reason}")]
+    BuildMismatch { component: String, reason: String },
     #[error("extension node {node_id} has invalid properties: {reason}")]
     InvalidProperties { node_id: u32, reason: String },
     #[error("extension node {node_id} has invalid children: {reason}")]

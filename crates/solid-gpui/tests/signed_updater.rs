@@ -142,7 +142,10 @@ mod macos {
         let module = definition
             .native_module(definition.id(), definition.digest())
             .unwrap();
-        let result = module.invoke(command, &serde_json::to_vec(&value).unwrap())?;
+        let result = module.invoke(
+            command,
+            &solid_gpui::native::encode_native_request(definition.build_digest(), &value).unwrap(),
+        )?;
         Ok(serde_json::from_slice(&result).unwrap())
     }
 
@@ -341,7 +344,10 @@ mod macos {
         let module = definition
             .native_module(definition.id(), definition.digest())
             .unwrap();
-        let call = module.invoke_async(command, b"null".to_vec());
+        let call = module.invoke_async(
+            command,
+            solid_gpui::native::encode_native_request(definition.build_digest(), &()).unwrap(),
+        );
         started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
         drop(call);
         let end = std::time::Instant::now() + Duration::from_secs(1);
@@ -460,7 +466,14 @@ fn disabled_updater_exports_the_real_contract_without_install_authority() {
     let dispatcher = module.native_module(module.id(), module.digest()).unwrap();
     assert_eq!(
         dispatcher
-            .invoke(command, br#"{"token":"untrusted"}"#)
+            .invoke(
+                command,
+                &solid_gpui::native::encode_native_request(
+                    module.build_digest(),
+                    &serde_json::json!({"token":"untrusted"})
+                )
+                .unwrap()
+            )
             .unwrap_err(),
         "signed updater is disabled"
     );

@@ -20,7 +20,9 @@ website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust �
 
 ## 构建环境
 
-Rust 源码需保持 LF 换行，当前仓库通过 `.gitattributes` 保证。Windows 构建旧 tag 时，请在 clone 前设置 `git config --global core.autocrlf false`；原生契约摘要包含嵌入源码字节，必须与生成的 JavaScript 绑定一致。
+原生契约摘要描述导出接口和显式行为版本。独立构建摘要锁定精确 SDK 版本、规范化 SDK 源码/依赖输入及选定实现；props 和调用的构建封装必须匹配后才会被接纳。请从选定宿主重新生成绑定，并配对宿主和 bundle。LF/CRLF 被规范化；仓库 LF attributes 保留为检出约定，旧 tag 仍需其 LF 策略。源码构建锁不能替代可执行文件校验和、签名或目标平台验证。
+
+这些身份变化描述本地源码候选。版本字符串仍为已发布的 `0.5.2`；SDK 源码摘要区分此候选与旧发布构建。本地构建或生成绑定不表示有新版本或预构建产物可下载。
 
 安装 `.bun-version` 固定的 Bun 和 `rust-toolchain.toml` 指定的 rustup 工具链。从仓库根目录构建，打包任务在构建前按提交的工作区锁安装依赖。在准备发布的操作系统与架构上构建。
 

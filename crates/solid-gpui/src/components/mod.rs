@@ -143,7 +143,7 @@ impl<'de> Deserialize<'de> for Percentage {
     }
 }
 
-#[crate::native_module(name = "gpui-component")]
+#[crate::native_module(name = "gpui-component", version = "1.0.0")]
 mod controls {
     use super::*;
     use crate::native::{ElementContext, Event};
@@ -354,5 +354,5 @@ pub fn native_module() -> crate::native::ModuleDefinition {
                 .with_component(notifications::definition()),
             |module, definition| module.with_component(definition),
         )
-        .with_contract(include_str!("icon_source.rs"))
+        .with_implementation(include_str!("icon_source.rs"))
 }

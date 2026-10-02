@@ -104,9 +104,11 @@ macOS builds are ad hoc signed without notarization; Windows builds are unsigned
 See [distribution](../../docs/distribution.md#build-and-verify) for launch
 instructions and desktop verification limits.
 
-Rust checkout line endings must remain LF because native contract identities
-include source bytes. The repository attributes and Windows release workflow
-enforce this, including release backfills.
+Native contract digests describe exported interfaces and behavioral versions;
+separate build envelopes lock generated bindings to the selected implementation
+and exact SDK provenance. LF/CRLF source differences are normalized. Regenerate
+bindings after implementation changes even when the contract digest stays equal.
+The extracted bundle check validates both identities. See [native identities](../../docs/rust-bridge.md#native-contract-and-build-identities).
 
 ```sh
 bun run website:native:dev

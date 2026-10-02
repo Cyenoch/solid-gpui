@@ -1,5 +1,6 @@
 //! Actual native raster acceptance, distinct from TestAppContext scene assertions.
 use gpui::*;
+use solid_gpui::native::{decode_json, encode_native_request};
 use solid_gpui::protocol::{
     Command, CommandMeta, CommandOperation, DecodedMessage, ExtensionField, ExtensionProperties,
     ExtensionValue,
@@ -17,6 +18,7 @@ fn extension(
     index: u32,
     props: &[u8],
 ) -> Node {
+    let props: serde_json::Value = decode_json(props).unwrap();
     let mut node = Node::new(node_id, 1, index, solid_gpui::KIND_EXTENSION);
     node.host_properties = Some(HostProperties::Extension(ExtensionProperties {
         provider_id: module.id(),
@@ -25,7 +27,9 @@ fn extension(
         entry_version: 1,
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(props.to_vec()),
+            value: ExtensionValue::Bytes(
+                encode_native_request(module.build_digest(), &props).unwrap(),
+            ),
         }],
         event_ids: Arc::from([]),
     }));
@@ -36,6 +40,7 @@ fn main() {
         let module = solid_gpui::components::native_module();
         let id = module.id();
         let digest = module.digest();
+        let build_digest = module.build_digest();
         let mut parent = Node::new(1, 0, 0, solid_gpui::KIND_VIEW);
         parent.style = Some(Style { width: Some(320.), height: Some(240.),
             background_rgba: Some(0x000000ff), ..Default::default() });
@@ -59,7 +64,7 @@ fn main() {
             root.apply_decoded_message_in_window(DecodedMessage::Command(Command::new(
                 CommandMeta { surface_id: 1, epoch: 1, after_revision: 1, request_id: 1, node_id: 3 },
                 CommandOperation::InvokeNative { module_id: id, module_digest: digest, function_id: 7,
-                    args: br#"{"sequence":1,"width":1,"height":1,"rgba":[0,0,255,255]}"#.to_vec() })), window, cx).unwrap();
+                    args: encode_native_request(build_digest, &serde_json::json!({"sequence":1,"width":1,"height":1,"rgba":[0,0,255,255]})).unwrap() })), window, cx).unwrap();
         })).unwrap();
         cx.spawn(async move |cx| {
             cx.background_executor().timer(Duration::from_millis(250)).await;
@@ -88,7 +93,7 @@ fn main() {
                 for (request_id, function_id) in [(2, 3), (3, 4)] {
                     root.apply_decoded_message_in_window(DecodedMessage::Command(Command::new(
                         CommandMeta { surface_id: 1, epoch: 1, after_revision: 1, request_id, node_id: 3 },
-                        CommandOperation::InvokeNative { module_id: id, module_digest: digest, function_id, args: b"null".to_vec() })), window, cx).unwrap();
+                        CommandOperation::InvokeNative { module_id: id, module_digest: digest, function_id, args: encode_native_request(build_digest, &()).unwrap() })), window, cx).unwrap();
                 }
             })).unwrap();
             handle.update(cx, |_, window, cx| {

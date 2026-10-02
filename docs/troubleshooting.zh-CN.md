@@ -95,6 +95,8 @@ Extension 的 provider、catalog digest、entry ID 和版本必须与宿主完�
 名称。不同目录的 entry ID 可能重新分配，因此显示的宿主名称不一定是 renderer
 尝试使用的组件。缺少适配器则需要检查宿主是否注册了该模块、是否支持相应组件。
 
+`native build mismatch` 是独立错误：接口相同，但绑定的选定实现或精确 SDK 来源与宿主不同。诊断会打印两端构建摘要；请从实际宿主重新生成绑定、重建 bundle 并配对分发。仅修改实现注释也会触发构建检查而保持目录身份相同；LF/CRLF 差异被规范化。缺少构建封装意味着绑定过期，或直接 Rust 调用应改用 `encode_native_request`。
+
 先根据 Vite 打印的 host 路径确认实际可执行文件，启用所需 Cargo feature，并在
 该宿主注册模块。配置 `native` 后，保存修正后的 Rust 源码或 Cargo manifest 会
 重建宿主及 bindings；`#native` 和 `@solid-gpui/core/components` 都使用这份输出。

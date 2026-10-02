@@ -27,7 +27,7 @@ impl From<TabVariant> for gpui_component::tab::TabVariant {
     }
 }
 
-#[crate::native_module(name = "gpui-component")]
+#[crate::native_module(name = "gpui-component", version = "1.0.0")]
 mod exports {
     use super::*;
     use crate::native::{ElementContext, Event, NativeItems, NativeSlot};

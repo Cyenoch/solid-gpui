@@ -7,7 +7,12 @@ use crate::{
 };
 use gpui::{AnyElement, App, AppContext, Context, Entity, IntoElement, Render, Window};
 use serde::de::DeserializeOwned;
-use std::{any::Any, collections::BTreeMap, marker::PhantomData, rc::Rc};
+use std::{
+    any::Any,
+    collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
+    rc::Rc,
+};
 
 pub struct Event<T> {
     sink: ExtensionEventSink,
@@ -316,6 +321,7 @@ type CompositionValidator = dyn Fn(&dyn Any, &ExtensionChildSummary) -> Result<(
 type CommandSignature = fn(&mut Types) -> (String, String);
 type Mount = dyn Fn(
     u32,
+    [u8; 32],
     Box<dyn Any>,
     ExtensionEventSink,
     NativeChildren,
@@ -327,7 +333,9 @@ pub struct ComponentDefinition {
     pub(crate) props: fn(&mut Types) -> String,
     pub(crate) events: Vec<EventDefinition>,
     pub(crate) commands: Vec<(&'static str, CommandSignature)>,
-    pub(crate) source: &'static str,
+    pub(crate) implementations: BTreeSet<[u8; 32]>,
+    pub(crate) semantic_version: &'static str,
+    pub(crate) build_digest: [u8; 32],
     pub(crate) children: bool,
     pub(crate) slots: &'static [&'static str],
     pub(crate) element_type: Option<std::any::TypeId>,
@@ -353,7 +361,10 @@ impl ExtensionChildSummary<'_> {
     pub fn native_props<P: DeserializeOwned>(&self) -> Result<Vec<P>, String> {
         self.properties
             .iter()
-            .map(|props| decode_json(property_bytes(props.ok_or("expected native child props")?)?))
+            .map(|props| {
+                let bytes = property_bytes(props.ok_or("expected native child props")?)?;
+                decode_json(super::identity::validated_request_json(bytes)?)
+            })
             .collect()
     }
 }
@@ -381,8 +392,16 @@ impl ComponentDefinition {
         });
         self
     }
-    pub fn with_contract(mut self, source: &'static str) -> Self {
-        self.source = source;
+    /// Selected implementation provenance, independent of the exported contract.
+    pub fn with_implementation(mut self, source: &'static str) -> Self {
+        self.implementations
+            .insert(super::identity::source_digest(source));
+        self
+    }
+    /// Bump when validation, defaults, lifecycle or other observable semantics change.
+    pub fn with_semantic_version(mut self, version: &'static str) -> Self {
+        super::identity::semantic_version(version);
+        self.semantic_version = version;
         self
     }
     pub fn with_children(mut self, children: bool) -> Self {
@@ -482,7 +501,9 @@ impl ComponentDefinition {
             props: Types::collect::<P>,
             events,
             commands: Vec::new(),
-            source: "",
+            implementations: BTreeSet::new(),
+            semantic_version: "1.0.0",
+            build_digest: [0; 32],
             children: true,
             slots: &[],
             element_type: Some(std::any::TypeId::of::<E>()),
@@ -493,8 +514,9 @@ impl ComponentDefinition {
             prop_names: None,
             controlled: None,
             decode: decode::<P>,
-            mount: Box::new(move |node_id, props, sink, content, _, _| {
+            mount: Box::new(move |node_id, build_digest, props, sink, content, _, _| {
                 Box::new(ElementInstance::<P, E> {
+                    build_digest,
                     node_id,
                     props: *props.downcast::<P>().unwrap(),
                     sink,
@@ -531,7 +553,9 @@ impl ComponentDefinition {
             props: Types::collect::<V::Props>,
             events,
             commands,
-            source: "",
+            implementations: BTreeSet::new(),
+            semantic_version: "1.0.0",
+            build_digest: [0; 32],
             children: V::accepts_children(),
             slots: V::slots(),
             // A retained view is identified by its entity type, so compound
@@ -551,7 +575,7 @@ impl ComponentDefinition {
             prop_names: None,
             controlled: V::controlled(),
             decode: decode_view::<V>,
-            mount: Box::new(move |_, props, sink, children, window, cx| {
+            mount: Box::new(move |_, build_digest, props, sink, children, window, cx| {
                 let props = *props.downcast::<V::Props>().unwrap();
                 let entity = cx.new(|cx| {
                     cx.on_release_in(window, |view: &mut V, window, cx| view.unmount(window, cx))
@@ -570,7 +594,11 @@ impl ComponentDefinition {
                 });
                 let mut commands = V::commands();
                 commands.sort_by_key(|m| m.name);
-                Box::new(ViewInstance::<V> { entity, commands })
+                Box::new(ViewInstance::<V> {
+                    entity,
+                    commands,
+                    build_digest,
+                })
             }),
         }
     }
@@ -621,8 +649,13 @@ impl ExtensionAdapter for ComponentDefinition {
                     .into(),
             });
         }
-        let decoded = property_bytes(props)
-            .and_then(|bytes| (self.decode)(bytes))
+        let json = property_bytes(props)
+            .and_then(|bytes| super::identity::request_json(bytes, self.build_digest))
+            .map_err(|reason| ExtensionError::BuildMismatch {
+                component: self.name.into(),
+                reason,
+            })?;
+        let decoded = (self.decode)(json)
             .map_err(|reason| ExtensionError::InvalidProperties { node_id, reason })?;
         (self.validate_composition)(decoded.as_ref(), &children)
             .map_err(|reason| ExtensionError::InvalidChildren { node_id, reason })?;
@@ -650,10 +683,17 @@ impl ExtensionAdapter for ComponentDefinition {
         window: &mut Window,
         cx: &mut App,
     ) -> Option<Box<dyn ExtensionInstance>> {
-        let props = (self.decode)(property_bytes(props).expect("validated props"))
-            .expect("validated native props");
+        let props = (self.decode)(
+            super::identity::request_json(
+                property_bytes(props).expect("validated props"),
+                self.build_digest,
+            )
+            .expect("validated build"),
+        )
+        .expect("validated native props");
         Some((self.mount)(
             node_id,
+            self.build_digest,
             props,
             sink,
             NativeChildren {
@@ -666,6 +706,7 @@ impl ExtensionAdapter for ComponentDefinition {
     }
 }
 struct ElementInstance<P, E> {
+    build_digest: [u8; 32],
     content: NativeChildren,
     node_id: u32,
     props: P,
@@ -683,7 +724,11 @@ impl<P: DeserializeOwned + 'static, E: 'static> ExtensionInstance for ElementIns
         _: &mut Window,
         _: &mut App,
     ) {
-        self.props = decode_json(property_bytes(props).unwrap()).expect("validated native props");
+        self.props = decode_json(
+            super::identity::request_json(property_bytes(props).unwrap(), self.build_digest)
+                .expect("validated build"),
+        )
+        .expect("validated native props");
         self.sink = sink;
     }
     fn render(&self, context: ExtensionRenderContext<'_>) -> AnyElement {
@@ -715,6 +760,7 @@ impl<P, E> ElementInstance<P, E> {
 }
 
 struct ViewInstance<V: NativeView> {
+    build_digest: [u8; 32],
     entity: Entity<V>,
     commands: Vec<ViewCommand<V>>,
 }
@@ -726,7 +772,11 @@ impl<V: NativeView> ExtensionInstance for ViewInstance<V> {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let props = decode_json(property_bytes(props).unwrap()).expect("validated native props");
+        let props = decode_json(
+            super::identity::request_json(property_bytes(props).unwrap(), self.build_digest)
+                .expect("validated build"),
+        )
+        .expect("validated native props");
         self.entity.update(cx, |view, cx| {
             view.update(props, window, cx);
             cx.notify();
@@ -755,6 +805,7 @@ impl<V: NativeView> ExtensionInstance for ViewInstance<V> {
         window: &mut Window,
         cx: &mut App,
     ) -> Result<Vec<u8>, String> {
+        let args = super::identity::request_json(args, self.build_digest)?;
         let command = self
             .commands
             .get(id.wrapping_sub(1) as usize)

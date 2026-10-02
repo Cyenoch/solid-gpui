@@ -6,6 +6,13 @@ them through `solid_gpui::components::native_module()`. Custom hosts must regist
 that module and export matching bindings. These capabilities use the existing
 Extension and native-call contracts.
 
+Both components declare behavioral version `1.0.0`. Generated bindings include
+the canonical contract identity and the selected host's build identity, and wrap
+props and ref-command arguments in the strict native request envelope. Direct
+Rust fixtures use `encode_native_request(module.build_digest(), &dto)`; missing
+envelopes or stale builds are rejected before admission. See
+[native contract identity](rust-bridge.md) for host registration and regeneration.
+
 ## Recorded drawing
 
 Solid constructs a `PaintRecording` reactively. Native code validates the complete
@@ -71,7 +78,7 @@ stale scene geometry. Removing the component releases its recording.
 
 `LiveFrame` owns its resource on the mounted native component instance. Its
 generated ref is the capability: commands carry surface, epoch, node, module,
-and catalog identity. No globally transferable image ID or native address is
+catalog, and build identity. No globally transferable image ID or native address is
 exposed. A new mount or epoch creates a fresh owner; closing/removing/replacing
 the component releases its visible and staging frames and drops GPUI image-atlas
 resources when their final native scene owner is released.

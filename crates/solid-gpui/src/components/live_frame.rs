@@ -384,7 +384,9 @@ impl Render for LiveFrame {
     }
 }
 pub(super) fn definition() -> ComponentDefinition {
-    ComponentDefinition::view::<LiveFrame>("LiveFrame").with_contract(include_str!("live_frame.rs"))
+    ComponentDefinition::view::<LiveFrame>("LiveFrame")
+        .with_semantic_version("1.0.0")
+        .with_implementation(include_str!("live_frame.rs"))
 }
 
 #[cfg(test)]
@@ -403,9 +405,11 @@ mod tests {
         use crate::{HostProperties, InMemoryAdapter, Node, Snapshot, SolidRoot};
         use std::rc::Rc;
         cx.update(gpui_component::init);
-        let module = crate::native::ModuleDefinition::new("frame-test", vec![definition()], vec![]);
+        let module =
+            crate::native::ModuleDefinition::new("frame-test", "1.0.0", vec![definition()], vec![]);
         let id = module.id();
         let digest = module.digest();
+        let build_digest = module.build_digest();
         let entry = module.component_id("LiveFrame").unwrap();
         let runtime = InMemoryAdapter::new();
         let window = cx.open_window(gpui::size(px(200.), px(100.)), {
@@ -422,7 +426,16 @@ mod tests {
                 entry_version: 1,
                 fields: vec![ExtensionField {
                     id: 1,
-                    value: ExtensionValue::Bytes(b"{}".to_vec()),
+                    value: ExtensionValue::Bytes(
+                        crate::native::encode_native_request(
+                            build_digest,
+                            &LiveFrameProps {
+                                viewport_height: super::super::recorded_paint::default_height(),
+                                fit: FrameFit::default(),
+                            },
+                        )
+                        .unwrap(),
+                    ),
                 }],
                 event_ids: Arc::from([]),
             }));
@@ -434,7 +447,7 @@ mod tests {
                 vec![Node::new(1, 0, 0, crate::KIND_VIEW), frame],
             ))
         };
-        let command = |epoch, request_id, function_id, args: Vec<u8>| {
+        let command = |epoch, request_id, function_id, args: serde_json::Value| {
             DecodedMessage::Command(Command::new(
                 CommandMeta {
                     surface_id: 1,
@@ -447,7 +460,7 @@ mod tests {
                     module_id: id,
                     module_digest: digest,
                     function_id,
-                    args,
+                    args: crate::native::encode_native_request(build_digest, &args).unwrap(),
                 },
             ))
         };
@@ -467,7 +480,7 @@ mod tests {
                 1,
                 1,
                 7,
-                br#"{"sequence":1,"width":1,"height":1,"rgba":[255,0,0,255]}"#.to_vec(),
+                serde_json::json!({"sequence":1,"width":1,"height":1,"rgba":[255,0,0,255]}),
             ),
             cx,
         );
@@ -484,7 +497,7 @@ mod tests {
                 1,
                 2,
                 7,
-                br#"{"sequence":2,"width":1,"height":1,"rgba":[0,255,0,255]}"#.to_vec(),
+                serde_json::json!({"sequence":2,"width":1,"height":1,"rgba":[0,255,0,255]}),
             ),
             cx,
         );
@@ -501,11 +514,11 @@ mod tests {
                 2,
                 3,
                 7,
-                br#"{"sequence":1,"width":1,"height":1,"rgba":[0,0,255,255]}"#.to_vec(),
+                serde_json::json!({"sequence":1,"width":1,"height":1,"rgba":[0,0,255,255]}),
             ),
             cx,
         );
-        apply(command(2, 4, 4, b"null".to_vec()), cx);
+        apply(command(2, 4, 4, serde_json::Value::Null), cx);
         cx.update(|cx| assert_eq!(cx.global::<FrameBudget>().0.load(Ordering::Relaxed), 0));
     }
 

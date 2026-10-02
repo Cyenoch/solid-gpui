@@ -9,6 +9,10 @@
 - Add the opt-in application-owned `signed-updater` native service with generated clients, a pinned Ed25519 feed/key and exact release identities, bounded cancellable downloads, strict USTAR extraction, atomic macOS bundle exchange, persistent rollback, and explicit application-managed restart. Default hosts keep updates disabled; other native platforms reject installation authority.
 - Export `compile(source, filename)` and `CompileResult` from `@solid-gpui/vite/compiler`, using the canonical universal JSX/TSX transform and composed authored source maps. Vite and website preview compilation share this implementation; compiler-only tools can install it without Vite or a native host.
 
+### Changed
+
+- Separate canonical native contract identity, including explicit behavioral semantic versions, from the selected implementation and SDK build identity. Native props and calls require a strict build envelope; regenerate bindings and rebuild the selected host together. Replace `with_contract` with `with_implementation` and require a version in native module registrations, including the recorded-paint and live-frame contracts.
+
 ### Fixed
 
 - Correct TestHost input selections to UTF-16 code units and mirror native change/selection order; expose committed controlled edit acknowledgements.

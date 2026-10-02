@@ -91,6 +91,20 @@ fn check_bundle(runtime: &solid_gpui::QuickJsAdapter) {
                     )
                     .into());
                 }
+                let [
+                    solid_gpui::protocol::ExtensionField {
+                        id: 1,
+                        value: solid_gpui::protocol::ExtensionValue::Bytes(bytes),
+                    },
+                ] = properties.fields.as_slice()
+                else {
+                    return Err("Website native props are missing their build envelope".into());
+                };
+                modules
+                    .validate_build(properties.provider_id, bytes)
+                    .map_err(|error| {
+                        format!("Website node {} has a stale native build: {error}", node.id)
+                    })?;
                 sdk_present |= properties.provider_id == sdk_id;
             }
             if sdk_present {

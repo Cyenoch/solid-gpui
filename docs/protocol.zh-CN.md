@@ -1,5 +1,7 @@
 # Solid GPUI 协议 v6
 
+Rust 原生模块 props 与调用参数在现有 bytes 字段中携带独立 `SGN` format-2 封装：四字节头 `53 47 4e 02`、32 字节构建摘要、严格 JSON DTO。事件与结果仍为 JSON，封装计入原有字节预算。目录/模块摘要描述规范导出契约和显式语义版本，构建接纳检查规范化的选定实现和精确 SDK 来源。缺失或不匹配的封装会直接拒绝；不新增 Bebop 字段，不保留旧版解码器。详见 [Rust 集成](rust-bridge.zh-CN.md)。
+
 本文描述 TypeScript 渲染器与 Rust/GPUI 宿主之间已实现的线协议。v6 为 Bebop 契约新增显式布局订阅和带数据版本的虚拟列表编辑，两端必须同步重建，不接受 v5 载荷。权威 schema 位于 [protocol.bop](../packages/solid-gpui/src/protocol/protocol.bop)，已校验生成绑定分别位于 TypeScript 和 Rust 协议模块。schema-lock.json 将版本 6 固定到 SHA-256 `67cb7354b185f9ff16e28ea4c321c57ee53d610c0eaa0a3ea96012f18463a47d`，漂移会使生成检查失败。普通包和 Rust 构建消费已提交文件，不调用 bebopc。重新生成与检查：
 
 ```sh

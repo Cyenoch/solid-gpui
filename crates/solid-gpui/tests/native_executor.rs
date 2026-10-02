@@ -1,6 +1,6 @@
 use solid_gpui::{
     ExtensionRegistry,
-    native::{CommandDefinition, ModuleDefinition, NativeModules},
+    native::{CommandDefinition, ModuleDefinition, NativeModules, encode_native_request},
 };
 use std::time::Duration;
 use tokio::{
@@ -12,6 +12,7 @@ use tokio::{
 fn ordinary_callers_can_run_tokio_timers_and_network_io() {
     let definition = ModuleDefinition::new(
         "io",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::asynchronous(
             "roundtrip",
@@ -47,9 +48,10 @@ fn ordinary_callers_can_run_tokio_timers_and_network_io() {
         .native_module(definition.id(), definition.digest())
         .unwrap();
     assert!(tokio::runtime::Handle::try_current().is_err());
-    assert_eq!(module.invoke(1, b"null").unwrap(), br#""ping""#);
+    let args = encode_native_request(definition.build_digest(), &()).unwrap();
+    assert_eq!(module.invoke(1, &args).unwrap(), br#""ping""#);
     assert_eq!(
-        futures::executor::block_on(module.invoke_async(1, b"null".to_vec())).unwrap(),
+        futures::executor::block_on(module.invoke_async(1, args)).unwrap(),
         br#""ping""#
     );
 }
@@ -59,6 +61,7 @@ fn composed_modules_share_one_runtime_and_panics_are_request_errors() {
     let make = |name| {
         ModuleDefinition::new(
             name,
+            "1.0.0",
             vec![],
             vec![
                 CommandDefinition::asynchronous("runtime", |(): (), _context| async {
@@ -80,20 +83,22 @@ fn composed_modules_share_one_runtime_and_panics_are_request_errors() {
     let first = make("first");
     let second = make("second");
     let ids = [(first.id(), first.digest()), (second.id(), second.digest())];
+    let args = [first.build_digest(), second.build_digest()]
+        .map(|digest| encode_native_request(digest, &()).unwrap());
     let registry = NativeModules::new(vec![first, second]);
     let modules = ids.map(|(id, digest)| registry.native_module(id, digest).unwrap());
-    for module in &modules {
+    for (module, args) in modules.iter().zip(&args) {
         assert_eq!(
-            module.invoke(1, b"null").unwrap_err(),
+            module.invoke(1, args).unwrap_err(),
             "native command panicked: async failure"
         );
         assert_eq!(
-            module.invoke(3, b"null").unwrap_err(),
+            module.invoke(3, args).unwrap_err(),
             "native command panicked: sync failure"
         );
     }
     assert_eq!(
-        modules[0].invoke(2, b"null").unwrap(),
-        modules[1].invoke(2, b"null").unwrap()
+        modules[0].invoke(2, &args[0]).unwrap(),
+        modules[1].invoke(2, &args[1]).unwrap()
     );
 }

@@ -58,6 +58,7 @@ fn change(mode: ThemeMode, window: &mut Window, cx: &mut App) -> Result<ThemeSta
 pub(super) fn native_module() -> ModuleDefinition {
     ModuleDefinition::new(
         "theme",
+        "1.0.0",
         vec![],
         vec![
             CommandDefinition::foreground("getMotionPreference", |(): (), _, cx| {
@@ -72,7 +73,7 @@ pub(super) fn native_module() -> ModuleDefinition {
             CommandDefinition::foreground("setApplicationTheme", set_application),
         ],
     )
-    .with_contract(include_str!("theme.rs"))
+    .with_implementation(include_str!("theme.rs"))
 }
 
 /// Application-wide overrides of the linked native component theme.

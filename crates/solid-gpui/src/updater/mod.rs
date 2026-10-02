@@ -237,6 +237,7 @@ pub fn native_module(service: Option<Arc<SignedUpdater>>) -> ModuleDefinition {
     let rollback = service.clone();
     ModuleDefinition::new(
         "signed-updater",
+        "1.0.0",
         vec![],
         vec![
             status,
@@ -266,5 +267,9 @@ pub fn native_module(service: Option<Arc<SignedUpdater>>) -> ModuleDefinition {
             }),
         ],
     )
-    .with_contract("signed-updater-v1")
+    .with_implementation(concat!(
+        include_str!("mod.rs"),
+        include_str!("acquisition.rs"),
+        include_str!("installation.rs")
+    ))
 }

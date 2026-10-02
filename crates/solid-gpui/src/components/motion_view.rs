@@ -295,12 +295,12 @@ impl Render for NativePresence {
 }
 pub(super) fn definitions() -> Vec<ComponentDefinition> {
     vec![
-        ComponentDefinition::view::<Motion>("Motion").with_contract(concat!(
+        ComponentDefinition::view::<Motion>("Motion").with_implementation(concat!(
             include_str!("motion_types.rs"),
             include_str!("motion_view.rs")
         )),
         ComponentDefinition::view::<NativePresence>("NativePresence")
-            .with_contract(include_str!("motion_view.rs")),
+            .with_implementation(include_str!("motion_view.rs")),
     ]
 }
 

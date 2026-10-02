@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 static CALLS: AtomicU32 = AtomicU32::new(0);
 
-#[native_module(name = "desktop")]
+#[native_module(name = "desktop", version = "1.0.0")]
 mod services {
     use super::*;
     #[command]

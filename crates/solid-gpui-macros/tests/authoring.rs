@@ -59,7 +59,7 @@ pub mod native {
         pub fn view<T: NativeView>(_: &'static str) -> Self {
             Self(String::new(), false)
         }
-        pub fn with_contract(self, contract: &'static str) -> Self {
+        pub fn with_implementation(self, contract: &'static str) -> Self {
             assert!(!contract.is_empty());
             self
         }
@@ -87,21 +87,26 @@ pub mod native {
     }
     pub struct ModuleDefinition(pub Vec<ComponentDefinition>, pub Vec<CommandDefinition>);
     impl ModuleDefinition {
+        pub fn with_semantic_version(self, version: &'static str) -> Self {
+            assert_eq!(version, "1.0.0");
+            self
+        }
         pub fn new(
             _: &str,
+            _: &'static str,
             components: Vec<ComponentDefinition>,
             commands: Vec<CommandDefinition>,
         ) -> Self {
             Self(components, commands)
         }
-        pub fn with_contract(self, contract: &'static str) -> Self {
+        pub fn with_implementation(self, contract: &'static str) -> Self {
             assert!(!contract.is_empty());
             self
         }
     }
 }
 
-#[native_module(name = "test")]
+#[native_module(name = "test", version = "1.0.0")]
 mod app {
     use super::{gpui, native::*, native_type};
 

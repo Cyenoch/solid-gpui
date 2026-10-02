@@ -53,7 +53,13 @@ mod tests {
             entry_version: 1,
             fields: vec![ExtensionField {
                 id: 1,
-                value: ExtensionValue::Bytes(json.as_bytes().to_vec()),
+                value: ExtensionValue::Bytes(
+                    crate::native::encode_native_request(
+                        m.build_digest(),
+                        &serde_json::from_str::<serde_json::Value>(json).unwrap(),
+                    )
+                    .unwrap(),
+                ),
             }],
             event_ids: Arc::from([]),
         }));

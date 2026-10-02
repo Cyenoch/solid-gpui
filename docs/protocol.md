@@ -1,5 +1,14 @@
 # Solid GPUI protocol v6
 
+Rust-owned native module props and invocation arguments carry a separate `SGN`
+format-2 envelope inside existing byte fields: four header bytes (`53 47 4e 02`),
+32 build-digest bytes, then the strict JSON DTO. Events and results remain JSON.
+The envelope counts toward the existing byte budget. Catalog/module digests name
+the canonical exported contract plus explicit semantic versions; build admission
+checks normalized selected implementation and exact SDK provenance. Missing or
+mismatched build envelopes fail closed. This native adapter format does not add
+Bebop fields or a historical decoder. See [Rust integration](rust-bridge.md#native-contract-and-build-identities).
+
 This is the implemented wire contract between the TypeScript renderer and the
 Rust/GPUI host. Protocol v6 is a lockstep Bebop contract with explicit layout
 subscriptions and identity-aware virtual-list edits. Rebuild both peers together;

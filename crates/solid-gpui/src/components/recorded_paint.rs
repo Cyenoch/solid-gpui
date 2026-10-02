@@ -494,7 +494,8 @@ impl Render for RecordedPaint {
 }
 pub(super) fn definition() -> ComponentDefinition {
     ComponentDefinition::view::<RecordedPaint>("RecordedPaint")
-        .with_contract(include_str!("recorded_paint.rs"))
+        .with_semantic_version("1.0.0")
+        .with_implementation(include_str!("recorded_paint.rs"))
 }
 
 #[cfg(test)]

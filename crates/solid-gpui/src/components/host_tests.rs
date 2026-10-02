@@ -24,7 +24,13 @@ fn provider_button_snapshot() -> Snapshot {
                     entry_version: 1,
                     fields: vec![ExtensionField {
                         id: 1,
-                        value: ExtensionValue::Bytes(br#"{"label":"Provider button"}"#.to_vec()),
+                        value: ExtensionValue::Bytes(
+                            crate::native::encode_native_request(
+                                super::super::native_module().build_digest(),
+                                &serde_json::json!({"label":"Provider button"}),
+                            )
+                            .unwrap(),
+                        ),
                     }],
                     event_ids: Arc::from([]),
                 }));
@@ -292,7 +298,10 @@ fn scroll_shadow_composes_with_windowed_virtual_list(cx: &mut TestAppContext) {
         entry_version: 1,
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(b"{}".to_vec()),
+            value: ExtensionValue::Bytes(
+                crate::native::encode_native_request(module.build_digest(), &serde_json::json!({}))
+                    .unwrap(),
+            ),
         }],
         event_ids: Arc::from([]),
     }));
@@ -445,7 +454,11 @@ fn scroll_shadow_composes_with_windowed_virtual_list(cx: &mut TestAppContext) {
         module_id: module.id(),
         module_digest: module.digest(),
         function_id,
-        args: args.to_vec(),
+        args: crate::native::encode_native_request(
+            module.build_digest(),
+            &serde_json::from_slice::<serde_json::Value>(args).unwrap(),
+        )
+        .unwrap(),
     };
     command(2, 1, shadow_command(2, br#"{"x":0,"y":150}"#), cx);
     assert_eq!(
@@ -583,7 +596,13 @@ fn scroll_shadow_native_list_decoration_follows_reparenting(cx: &mut TestAppCont
             entry_version: 1,
             fields: vec![ExtensionField {
                 id: 1,
-                value: ExtensionValue::Bytes(props.to_vec()),
+                value: ExtensionValue::Bytes(
+                    crate::native::encode_native_request(
+                        module.build_digest(),
+                        &serde_json::from_slice::<serde_json::Value>(props).unwrap(),
+                    )
+                    .unwrap(),
+                ),
             }],
             event_ids: Arc::from([]),
         }));

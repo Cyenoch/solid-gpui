@@ -96,6 +96,7 @@ impl CommandDefinition {
 struct Commands {
     id: [u8; 16],
     digest: [u8; 32],
+    build_digest: [u8; 32],
     entries: Vec<CommandDefinition>,
     executor: Arc<NativeExecutor>,
 }
@@ -114,7 +115,10 @@ impl NativeModule for Commands {
         cx: &mut gpui::App,
     ) -> Option<Result<Vec<u8>, String>> {
         match &self.entries.get(id.wrapping_sub(1) as usize)?.handler {
-            CommandHandler::Foreground(handler) => Some(handler(args, window, cx)),
+            CommandHandler::Foreground(handler) => Some(
+                super::identity::request_json(args, self.build_digest)
+                    .and_then(|json| handler(json, window, cx)),
+            ),
             CommandHandler::Worker(_) => None,
         }
     }
@@ -128,6 +132,10 @@ impl NativeModule for Commands {
         futures::executor::block_on(self.invoke_async(id, args.to_vec()))
     }
     fn invoke_async(&self, id: u32, args: Vec<u8>) -> BoxFuture<'_, Result<Vec<u8>, String>> {
+        let args = match super::identity::request_json(&args, self.build_digest) {
+            Ok(json) => json.to_vec(),
+            Err(error) => return Box::pin(async move { Err(error) }),
+        };
         match self.entries.get(id.wrapping_sub(1) as usize) {
             Some(command) => match &command.handler {
                 CommandHandler::Worker(handler) => handler(args, &self.executor),
@@ -147,14 +155,19 @@ pub struct ModuleDefinition {
     digest: [u8; 32],
     components: Vec<ComponentDefinition>,
     commands: Arc<Commands>,
-    source: &'static str,
+    semantic_version: &'static str,
+    included_versions: BTreeSet<(String, String)>,
+    implementations: BTreeSet<[u8; 32]>,
+    build_digest: [u8; 32],
 }
 impl ModuleDefinition {
     pub fn new(
         name: &str,
+        version: &'static str,
         mut components: Vec<ComponentDefinition>,
         mut commands: Vec<CommandDefinition>,
     ) -> Self {
+        super::identity::semantic_version(version);
         components.sort_by_key(|c| c.name);
         commands.sort_by_key(|c| c.name);
         assert_eq!(
@@ -186,25 +199,46 @@ impl ModuleDefinition {
             commands: Arc::new(Commands {
                 id,
                 digest: [0; 32],
+                build_digest: [0; 32],
                 entries: commands,
                 executor: Arc::new(NativeExecutor::default()),
             }),
-            source: "",
+            semantic_version: version,
+            included_versions: BTreeSet::new(),
+            implementations: BTreeSet::new(),
+            build_digest: [0; 32],
         };
         module.refresh_digest();
         module
     }
-    pub fn with_contract(mut self, source: &'static str) -> Self {
-        self.source = source;
+    pub fn with_implementation(mut self, source: &'static str) -> Self {
+        self.implementations
+            .insert(super::identity::source_digest(source));
+        self.refresh_digest();
+        self
+    }
+    /// Explicit version for behavior not expressed by DTOs or component metadata.
+    pub fn with_semantic_version(mut self, version: &'static str) -> Self {
+        super::identity::semantic_version(version);
+        self.semantic_version = version;
         self.refresh_digest();
         self
     }
     /// Combine Rust source modules into one public JS/native catalog.
     pub fn include(mut self, other: Self) -> Self {
+        self.included_versions.extend(other.included_versions);
+        self.included_versions
+            .insert((other.name, other.semantic_version.into()));
+        self.implementations.extend(other.implementations);
         self.components.extend(other.components);
         let mut commands = self.commands.entries.clone();
         commands.extend(other.commands.entries.iter().cloned());
-        Self::new(&self.name, self.components, commands).with_contract(self.source)
+        let mut combined = Self::new(&self.name, self.semantic_version, self.components, commands);
+        combined.semantic_version = self.semantic_version;
+        combined.included_versions = self.included_versions;
+        combined.implementations = self.implementations;
+        combined.refresh_digest();
+        combined
     }
     pub fn with_component(mut self, component: ComponentDefinition) -> Self {
         assert!(
@@ -238,13 +272,38 @@ impl ModuleDefinition {
     pub fn digest(&self) -> [u8; 32] {
         self.digest
     }
+    pub fn build_digest(&self) -> [u8; 32] {
+        self.build_digest
+    }
+    /// Check build provenance without mounting or evaluating component children.
+    pub fn validate_build(&self, bytes: &[u8]) -> Result<(), String> {
+        super::identity::request_json(bytes, self.build_digest).map(|_| ())
+    }
+    /// Exported interface only. Implementation provenance is available separately.
+    pub fn contract(&self) -> serde_json::Value {
+        let (_, mut value) = self.description();
+        for declaration in value["types"].as_object_mut().unwrap().values_mut() {
+            *declaration = serde_json::json!(super::identity::canonical_type(
+                declaration.as_str().unwrap()
+            ));
+        }
+        value
+    }
+    pub fn build_identity(&self) -> serde_json::Value {
+        let components = self
+            .components
+            .iter()
+            .map(|component| (component.name, &component.implementations))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        serde_json::json!({"format":2,"sdkVersion":env!("CARGO_PKG_VERSION"),"sdkSourceDigest":env!("SOLID_GPUI_SDK_SOURCE_DIGEST"),"selectedSources":self.implementations,"selectedComponents":components,"contractDigest":self.digest})
+    }
     fn description(&self) -> (Types, serde_json::Value) {
         let mut types = Types::default();
         let components=self.components.iter().enumerate().map(|(i,c)| {
             let props=(c.props)(&mut types);
             let events=c.events.iter().enumerate().map(|(i,e)|serde_json::json!({"id":i+1,"name":e.name,"prop":format!("on{}",pascal(e.name)),"type":(e.describe)(&mut types)})).collect::<Vec<_>>();
             let commands=c.commands.iter().enumerate().map(|(i,(name,describe))|{let(input,output)=describe(&mut types);serde_json::json!({"id":i+1,"name":name,"input":input,"output":output})}).collect::<Vec<_>>();
-            serde_json::json!({"entryId":i+1,"entryVersion":1,"name":c.name,"propsType":props,"props":c.prop_names,"events":events,"commands":commands,"children":c.children,"slots":c.slots,"nativeStyle":c.native_style,"requiresTypedParent":c.requires_typed_parent,"childComponents":c.child_type.map(|expected|self.components.iter().filter(|child|child.element_type==Some(expected)).map(|child|child.name).collect::<Vec<_>>()),"controlled":c.controlled,"source":c.source})
+            serde_json::json!({"entryId":i+1,"entryVersion":1,"semanticVersion":c.semantic_version,"name":c.name,"propsType":props,"props":c.prop_names,"events":events,"commands":commands,"children":c.children,"slots":c.slots,"nativeStyle":c.native_style,"requiresTypedParent":c.requires_typed_parent,"childComponents":c.child_type.map(|expected|self.components.iter().filter(|child|child.element_type==Some(expected)).map(|child|child.name).collect::<Vec<_>>()),"controlled":c.controlled})
         }).collect::<Vec<_>>();
         let commands = self
             .commands
@@ -256,15 +315,19 @@ impl ModuleDefinition {
                 serde_json::json!({"id":i+1,"name":c.name,"input":input,"output":output})
             })
             .collect::<Vec<_>>();
-        let value = serde_json::json!({"format":1,"module":self.name,"source":self.source,"types":types.declarations,"components":components,"commands":commands});
+        let value = serde_json::json!({"format":2,"module":self.name,"semanticVersion":self.semantic_version,"includedVersions":self.included_versions,"types":types.declarations,"components":components,"commands":commands});
         (types, value)
     }
     fn refresh_digest(&mut self) {
-        let (_, description) = self.description();
-        self.digest = Sha256::digest(serde_json::to_vec(&description).unwrap()).into();
-        Arc::get_mut(&mut self.commands)
-            .expect("module is frozen after sharing")
-            .digest = self.digest;
+        self.digest = Sha256::digest(serde_json::to_vec(&self.contract()).unwrap()).into();
+        self.build_digest =
+            Sha256::digest(serde_json::to_vec(&self.build_identity()).unwrap()).into();
+        for component in &mut self.components {
+            component.build_digest = self.build_digest;
+        }
+        let commands = Arc::get_mut(&mut self.commands).expect("module is frozen after sharing");
+        commands.digest = self.digest;
+        commands.build_digest = self.build_digest;
     }
     pub fn typescript(&self) -> Result<String, String> {
         self.typescript_named("", true)
@@ -313,7 +376,6 @@ impl ModuleDefinition {
             let mut descriptor = component.clone();
             let object = descriptor.as_object_mut().unwrap();
             for key in [
-                "source",
                 "name",
                 "propsType",
                 "nativeStyle",
@@ -332,9 +394,11 @@ impl ModuleDefinition {
             }
             descriptor["providerId"] = serde_json::json!(self.id);
             descriptor["catalogDigest"] = serde_json::json!(self.digest);
+            descriptor["buildDigest"] = serde_json::json!(self.build_digest);
             out.push_str(&format!("export const {name} = createNativeComponent<{props}, {{ {events} }}, {name}Ref, {slots}>({descriptor});\n"));
         }
-        let descriptor = serde_json::json!({"moduleId":self.id,"moduleDigest":self.digest,"commands":value["commands"]});
+        let descriptor = serde_json::json!({"moduleId":self.id,"moduleDigest":self.digest,"buildDigest":self.build_digest,"semanticVersion":self.semantic_version,"commands":value["commands"]});
+        out.push_str(&format!("export const nativeIdentity{suffix} = {} as const;\n", serde_json::json!({"contractDigest":self.digest,"semanticVersion":self.semantic_version,"build":self.build_identity(),"buildDigest":self.build_digest})));
         out.push_str(&format!(
             "export interface NativeClient{suffix} {{ {} }}\n",
             methods_type(&value["commands"])
@@ -464,6 +528,13 @@ impl NativeModules {
             .iter()
             .map(|m| Ok((m.name.as_str(), m.typescript()?)))
             .collect()
+    }
+    pub fn validate_build(&self, provider: [u8; 16], bytes: &[u8]) -> Result<(), String> {
+        self.modules
+            .iter()
+            .find(|module| module.id == provider)
+            .ok_or_else(|| "native build provider is not registered".to_owned())?
+            .validate_build(bytes)
     }
     pub fn typescript(&self) -> Result<String, String> {
         let mut names = BTreeSet::new();

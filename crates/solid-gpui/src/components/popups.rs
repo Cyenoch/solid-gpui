@@ -75,7 +75,7 @@ impl RenderOnce for PopupTrigger {
             .child(self.content)
     }
 }
-#[crate::native_module(name = "gpui-component")]
+#[crate::native_module(name = "gpui-component", version = "1.0.0")]
 mod exports {
     use super::*;
     use crate::native::{ElementContext, Event};

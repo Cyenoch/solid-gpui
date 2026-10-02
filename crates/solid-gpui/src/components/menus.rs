@@ -638,7 +638,7 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<AppMenuBar>("AppMenuBar"),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("menus.rs")))
+    .map(|d| d.with_implementation(include_str!("menus.rs")))
     .collect()
 }
 

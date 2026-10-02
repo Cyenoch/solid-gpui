@@ -261,7 +261,7 @@ impl Render for NativeMenu {
 }
 pub(super) fn definition() -> ComponentDefinition {
     ComponentDefinition::view::<NativeMenu>("NativeMenu")
-        .with_contract(include_str!("native_menu.rs"))
+        .with_implementation(include_str!("native_menu.rs"))
 }
 #[cfg(test)]
 mod tests {

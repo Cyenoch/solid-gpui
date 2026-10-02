@@ -878,7 +878,7 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<MessageScroller>("MessageScroller"),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("scroll_views.rs")))
+    .map(|d| d.with_implementation(include_str!("scroll_views.rs")))
     .collect()
 }
 
