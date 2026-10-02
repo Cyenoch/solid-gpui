@@ -124,9 +124,10 @@ export function mountPopupSurface(
     stopWaiting();
     context.children.delete(dispose);
     if (requestId !== undefined && !context.container.unmounted) {
+      // Teardown must enqueue native closure before retiring the parent owner.
       void context.container
-        .submitSurfaceCommand(COMMAND_CLOSE_POPUP, { type: "close-popup", requestId })
-        .catch((error) => {
+        .beginSurfaceCommand(COMMAND_CLOSE_POPUP, { type: "close-popup", requestId })
+        .result.catch((error) => {
           if (!(error instanceof SurfaceClosedError) && !tree.isDisposed()) failed(error);
         });
     }

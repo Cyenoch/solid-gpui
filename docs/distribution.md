@@ -53,11 +53,16 @@ The default notice inputs are the application's `LICENSE` and
 `THIRD-PARTY-NOTICES.md`. Complete their license texts before redistribution.
 No build, download, signing, release creation or publication occurs here.
 
+Portable tar.gz creation and extraction use Bun's archive API and preserve
+executable modes, empty resource directories and long Unicode paths. No external
+`tar` command is required for this ordinary packaging path.
+
 The archive is extracted into a separate temporary directory. Every file is
 checked, then the copied host's version/catalog and `--check-app <bun|quickjs>
 <bundle>` are executed outside the project. QuickJS checks use an empty PATH;
 Bun checks expose only the selected Bun executable directory. The actual runtime
-must publish nonempty validated content with admitted native identities, then
+must publish nonempty validated content with admitted native identities, strict
+build envelopes, DTOs and component composition, then
 shut down within the bounded check. This is a headless runtime/contract check;
 it does not validate geometry, physical input, foreground native services,
 application-specific asynchronous loading, or destination graphics drivers.

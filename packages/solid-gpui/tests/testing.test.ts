@@ -10,7 +10,8 @@ import {
   type VirtualListHandle,
   type StyleProp,
 } from "@solid-gpui/core";
-import { createComponent, createSignal, For, onCleanup } from "@solid-gpui/core/runtime";
+import { batch, createComponent, createSignal, For, onCleanup } from "@solid-gpui/core/runtime";
+import { Envelope } from "../src/protocol/generated/protocol";
 import {
   createNativeClient,
   createNativeComponent,
@@ -21,6 +22,50 @@ import {
 import { TestHost, type TestSurface } from "@solid-gpui/core/testing";
 
 const texts = (surface: TestSurface) => surface.nodes.flatMap((node) => (node.text === null ? [] : [node.text]));
+test("surface commands follow the final commit of a synchronous Solid batch", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  const [value, setValue] = createSignal("initial");
+  let pending: Promise<unknown> | undefined;
+  try {
+    root.render(() =>
+      Text({
+        get children() {
+          return value();
+        },
+      }),
+    );
+    batch(() => {
+      setValue("updated");
+      pending = root.resize(400, 300).catch((error) => error);
+      setValue("final");
+    });
+    await Promise.resolve();
+    const bodies = transport.submitted.map((frame) => Envelope.decode(frame.subarray(4)).body!);
+    expect(bodies.map((body) => body.tag)).toEqual([1, 3, 4]);
+    const patch = bodies[1]!;
+    const command = bodies[2]!;
+    if (patch.tag !== 3 || command.tag !== 4) throw new Error("Expected patch followed by command");
+    expect(command.value.afterRevision).toBe(patch.value.revision);
+  } finally {
+    root.unmount();
+    await pending;
+  }
+});
+test("surface commands reject before the first committed render without publishing an invalid request", async () => {
+  const transport = new MemoryTransport();
+  const root = createRoot(transport);
+  try {
+    await expect(root.resize(400, 300)).rejects.toThrow("initial committed render");
+    await expect(root.setTitle("Loading")).rejects.toThrow("initial committed render");
+    expect(transport.submitted).toHaveLength(0);
+    root.render(() => Text({ children: "Ready" }));
+    expect(transport.submitted).toHaveLength(1);
+  } finally {
+    root.unmount();
+  }
+});
+
 const clientDescriptor: NativeClientDescriptor = {
   buildDigest: Array(32).fill(11),
   semanticVersion: "1.0.0",

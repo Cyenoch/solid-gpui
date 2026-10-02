@@ -52,7 +52,7 @@ pub(super) struct DocumentText {
 
 impl DocumentText {
     pub(super) fn requires_live_geometry(&self) -> bool {
-        !self.runs.is_empty()
+        self.dragging || !self.selected.is_empty() || !self.search_ranges.is_empty()
     }
 }
 
@@ -90,6 +90,15 @@ fn span(selected: &Selected) -> TextSpan {
 }
 
 impl SolidRoot {
+    #[cfg(feature = "native-acceptance")]
+    pub(super) fn selected_document_text(&self, node_id: u32) -> Option<String> {
+        self.document_text
+            .selected
+            .iter()
+            .find(|selected| selected.run.id == node_id)
+            .map(|selected| selected.run.text[selected.range.clone()].to_owned())
+    }
+
     pub(super) fn reconcile_document_text(&mut self) {
         self.document_text_clips.retain(|id, _| {
             self.store

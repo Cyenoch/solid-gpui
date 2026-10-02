@@ -32,7 +32,10 @@ fn surface_selection_observer_routes_revisions_and_unmount_retires_subscription(
         event_ids: vec![1].into(),
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(crate::native::encode_native_request(module.build_digest(), &serde_json::json!({})).unwrap()),
+            value: ExtensionValue::Bytes(
+                crate::native::encode_native_request(module.build_digest(), &serde_json::json!({}))
+                    .unwrap(),
+            ),
         }],
     }));
     let root = cx.new(|_| SolidRoot::with_extensions(runtime.clone(), Rc::new(module)));
@@ -117,6 +120,27 @@ fn surface_text_service_rejects_stale_unicode_ranges_and_search_and_releases_epo
     })
     .unwrap();
     let contract = crate::native::text::native_module();
+    let service = contract
+        .native_module(contract.id(), contract.digest())
+        .unwrap();
+    cx.update_window(window.into(), |_, window, cx| {
+        root.update(cx, |root, cx| {
+            let command = contract.command_id("getTextSelection").unwrap();
+            for bytes in [
+                b"null".to_vec(),
+                crate::native::encode_native_request([0; 32], &()).unwrap(),
+            ] {
+                assert!(
+                    service
+                        .invoke_renderer(command, &bytes, root, window, cx)
+                        .unwrap()
+                        .is_err()
+                );
+            }
+            assert!(root.text_selection_snapshot().unwrap().text.is_empty());
+        })
+    })
+    .unwrap();
     let call = |cx: &mut gpui::TestAppContext, name: &str, args: serde_json::Value, request_id| {
         cx.update_window(window.into(), |_, window, cx| {
             root.update(cx, |root, cx| {
@@ -133,7 +157,11 @@ fn surface_text_service_rejects_stale_unicode_ranges_and_search_and_releases_epo
                             module_id: id,
                             module_digest: digest,
                             function_id: contract.command_id(name).unwrap(),
-                            args: crate::native::encode_native_request(contract.build_digest(), &args).unwrap(),
+                            args: crate::native::encode_native_request(
+                                contract.build_digest(),
+                                &args,
+                            )
+                            .unwrap(),
                         },
                     )),
                     cx,
@@ -409,7 +437,11 @@ fn surface_selection_virtual_eviction_retains_copy_and_data_replacement_clears(
                     crate::native::text::native_module()
                         .command_id("copyTextSelection")
                         .unwrap(),
-                    &crate::native::encode_native_request(crate::native::text::native_module().build_digest(), &()).unwrap(),
+                    &crate::native::encode_native_request(
+                        crate::native::text::native_module().build_digest(),
+                        &(),
+                    )
+                    .unwrap(),
                     root,
                     window,
                     cx,

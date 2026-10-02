@@ -80,7 +80,7 @@ fn snapshot_with_style_code(field: u8, value: u32) -> Vec<u8> {
     node.extend_from_slice(&[4, 1, 5]);
     node.extend_from_slice(&message(&style));
     node.extend_from_slice(&[7, 0, 0, 0, 0]);
-    node.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 0]);
+    node.extend_from_slice(&[10, 0, 11, 0, 13, 0, 14, 0, 15, 0, 0]);
     snapshot_with_node(message(&node))
 }
 fn patch_with_update(

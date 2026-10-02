@@ -1,5 +1,11 @@
 # 原生验收测试
 
+每次验收绘制都会执行 GPUI 排队的下一帧回调。窗口 resize 反馈来自原生 bounds
+变化后的生产 viewport observer，不会根据提交的树合成。
+Surface 和节点命令会等待当前同步 Solid batch 完成，并在确定 `afterRevision`
+前提交该 batch 的 host 变更。
+GPU action 还会在确认排队的 AppKit 窗口操作之前驱动 macOS 主 run loop。
+
 保留原生基础区域重放同一绘制场景代次的观察结果。缓存 miss 记录新的文字和裁剪
 几何，hit 恢复已经绘制的事实，不把当前 store 文字作为绘制证据。移除区域后下一帧
 移除观察数据。因此无关提交后定位器和几何仍可用，内容检查仍能发现区域更新停滞。
@@ -61,11 +67,17 @@ try {
 `solid-gpui test` runner 运行；本仓库源码测试使用 Bun 的 `browser` 和
 `solid-gpui-source` conditions。不要与其他 checkout 共享可写的 package dist。
 
+发出应用 root 命令前需提交首屏；异步 router 应先完成首个路由加载，再 flush。
+等待中的路由尚未建立原生树，提前 root 命令会明确拒绝。命令回复（包括拒绝）
+保留请求的 Surface 与 epoch，旧请求不会结算新 epoch 的同编号请求。
+`resize(width, height, surfaceId = 1)` 发送原生尺寸事件与生产 bounds 反馈：
+deterministic 使用 GPUI 平台 resize 事件，GPU 调整真实窗口。
+
 ## 公开接口
 
 | 接口                                                           | 行为                                                                                                                                                |
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NativeAcceptance.launch({ command, mode, cwd?, timeoutMs? })` | 拥有 Bun 子进程，显式选 mode；启动、请求和清理默认超时 30 秒；启动失败会 reject。                                                                   |
+| `NativeAcceptance.launch({ command, mode, cwd?, timeoutMs? })` | 拥有 Bun 子进程，显式选 mode 与 v2 验收契约；启动、请求和清理默认超时 30 秒；启动失败会 reject。                                                                   |
 | `transport`                                                    | 传给 `createRoot(host.transport, { surfaceId: 1 })`；使用真实原生 admission/event 路径，其他 Surface 使用普通 host 命令。                           |
 | `capabilities`                                                 | 验收版本、mode、平台、截图和时钟支持。                                                                                                              |
 | `flush()`                                                      | 提交、绘制、向 Solid 分发事件并绘制受控确认；32 个反馈轮次仍不稳定则报错。                                                                          |

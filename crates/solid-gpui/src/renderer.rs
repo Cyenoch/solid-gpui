@@ -112,7 +112,7 @@ fn protocol_window_appearance(appearance: GpuiWindowAppearance) -> WindowAppeara
     }
 }
 impl SolidRoot {
-    fn validate_extension_nodes<'a>(
+    pub(crate) fn validate_extension_nodes<'a>(
         registry: &dyn ExtensionRegistry,
         store: &'a NodeStore,
         nodes: impl Iterator<Item = &'a StoredNode>,
@@ -517,9 +517,13 @@ impl SolidRoot {
         value: Option<CommandValue>,
     ) {
         let event = Event::command_result(
-            self.store.surface_id(),
-            self.store.epoch(),
-            self.store.revision(),
+            meta.surface_id,
+            meta.epoch,
+            if meta.surface_id == self.store.surface_id() && meta.epoch == self.store.epoch() {
+                self.store.revision()
+            } else {
+                meta.after_revision
+            },
             self.next_sequence.fetch_add(1, Ordering::Relaxed),
             CommandResult {
                 request_id: meta.request_id,

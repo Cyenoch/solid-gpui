@@ -53,7 +53,7 @@ frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
-native-acceptance = ["test-support"]
+native-acceptance = ["test-support", "dep:core-foundation"]
 signed-updater = ["host", "dep:ed25519-dalek", "dep:tar", "dep:tempfile", "tokio/macros"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -61,6 +61,7 @@ ashpd = { version = "0.13.13", default-features = false, features = ["async-io",
 gpui-platform = { workspace = true, features = ["font-kit", "wayland", "x11"], optional = true }
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
+tempfile = "3"
 
 gpui = { workspace = true, features = ["test-support"] }
 
@@ -112,6 +113,7 @@ web-sys = { version = "0.3", features = ["Window", "MediaQueryList", "MediaQuery
 tokio = { version = "1.53", features = ["sync"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = { version = "0.10.1", optional = true }
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSAccessibility"] }
 objc2-foundation = { version = "0.3", features = ["NSNotification", "NSOperation", "NSString", "block2"] }

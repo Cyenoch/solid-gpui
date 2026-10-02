@@ -76,8 +76,10 @@ export function cancelScheduledCommit(tree: HostTree): boolean {
 }
 
 /** Commands cross the same root transaction seam as renderer mutations. */
-export function afterRootCommit<T>(tree: HostTree, submit: () => Promise<T>): Promise<T> {
-  if (transactionDepths.has(tree)) return Promise.resolve().then(() => afterRootCommit(tree, submit));
+export async function afterRootCommit<T>(tree: HostTree, submit: () => Promise<T>): Promise<T> {
+  // Solid batches publish their host mutations when the synchronous turn ends.
+  await Promise.resolve();
+  if (transactionDepths.has(tree)) return afterRootCommit(tree, submit);
   try {
     if (cancelScheduledCommit(tree)) tree.commit();
     if (tree.invalid || tree.validationError)

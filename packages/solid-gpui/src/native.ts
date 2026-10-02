@@ -3,7 +3,7 @@ import { validateCallOptions, type NativeCallOptions } from "./native-call";
 export type { NativeCallOptions } from "./native-call";
 import { createMemo, createSignal, onCleanup } from "solid-js";
 import { createHostElement, type SolidElement } from "./renderer";
-import { afterRootCommit, resolveTree } from "./renderer/host-config";
+import { resolveTree } from "./renderer/host-config";
 import type { ExtensionDescriptor, ExtensionEvent } from "./renderer/extension";
 import { assertExtensionId } from "./renderer/extension";
 import type { HostProps, SolidChild } from "./renderer/types";
@@ -188,8 +188,6 @@ export function createNativeClient<T>(invoker: NativeInvoker, descriptor: Native
   const buildDigest = buildIdentity(descriptor);
   return commandProxy<T>(descriptor.commands, async (id, request, options) => {
     const bytes = encodeNativeRequest(buildDigest, request);
-    // Finish Solid's synchronous batch before asking the bound root to flush.
-    await Promise.resolve();
     return decodeJson(await invoker.invokeNative(moduleId.slice(), digest.slice(), id, bytes, options));
   });
 }
@@ -348,33 +346,29 @@ export function createNativeComponent<P extends object, E extends object, R, S e
     const pending = new Set<(error: Error) => void>();
     const ref = commandProxy<R>(descriptor.commands, async (id, request, options) => {
       const args = encodeNativeRequest(buildDigest, request);
-      await Promise.resolve();
-      return afterRootCommit(tree, () => {
-        if (disposed || tree.isDisposed() || !node.attached)
-          return Promise.reject(new Error("Native component is unmounted"));
-        return new Promise((resolve, reject) => {
-          pending.add(reject);
-          void tree
-            .submitCommandValue(
-              node,
-              COMMAND_INVOKE_NATIVE,
-              {
-                type: "invoke-native",
-                moduleId: providerId.slice(),
-                moduleDigest: catalogDigest.slice(),
-                functionId: id,
-                args,
-              },
-              options,
-            )
-            .then((result) => {
-              if (disposed || !node.attached) throw new Error("Native component is unmounted");
-              if (result?.type !== "bytes") throw new TypeError("Native command returned invalid bytes");
-              resolve(decodeJson(result.value));
-            })
-            .catch(reject)
-            .finally(() => pending.delete(reject));
-        });
+      if (disposed || tree.isDisposed()) return Promise.reject(new Error("Native component is unmounted"));
+      return new Promise((resolve, reject) => {
+        pending.add(reject);
+        void tree
+          .submitCommandValue(
+            node,
+            COMMAND_INVOKE_NATIVE,
+            {
+              type: "invoke-native",
+              moduleId: providerId.slice(),
+              moduleDigest: catalogDigest.slice(),
+              functionId: id,
+              args,
+            },
+            options,
+          )
+          .then((result) => {
+            if (disposed || !node.attached) throw new Error("Native component is unmounted");
+            if (result?.type !== "bytes") throw new TypeError("Native command returned invalid bytes");
+            resolve(decodeJson(result.value));
+          })
+          .catch(reject)
+          .finally(() => pending.delete(reject));
       });
     });
     const refCallback = props.ref;

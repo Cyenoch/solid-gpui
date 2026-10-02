@@ -127,7 +127,9 @@ await frame.presentFrame(2);
 | `dispose`         | Permanently closes this mounted owner, releases pixels, and rejects subsequent uploads. Idempotent. Remount to create another owner.                                |
 | `getState`        | Returns disposed status, last accepted sequence, current dimensions, and reserved/retained CPU bytes for this owner.                                                |
 
-Frame dimensions are 1..4,096, with at most 16 MiB per decoded frame. There is one
+Frame dimensions are 1..4,096, with at most 16 MiB per decoded frame. Dimensions
+are rejected before byte-size arithmetic or allocation; even maximal u32 values
+return an error without changing the visible frame. There is one
 visible frame and one staging frame per component, and a 64 MiB host-wide budget
 covering staging reservations and all live pixel owners, including scene references
 awaiting release. Budget exhaustion rejects acquisition without dropping the

@@ -2,9 +2,72 @@ import { expect, test } from "bun:test";
 import { createRoot, Pressable, Text, TextInput, View, VirtualList } from "@solid-gpui/core";
 import { createSignal } from "@solid-gpui/core/runtime";
 import { NativeAcceptance } from "@solid-gpui/core/testing";
+import { COMMAND_RESIZE_WINDOW, encodeFrame } from "../src/protocol";
 
 const binary = process.env.SOLID_GPUI_ACCEPTANCE_BINARY;
 const native = binary ? test : test.skip;
+
+async function checkResizeFeedback(mode: "deterministic" | "gpu") {
+  const host = await NativeAcceptance.launch({ command: [binary!], mode });
+  let viewport: number[] = [];
+  let scale: number | undefined;
+  const root = createRoot(host.transport, {
+    surfaceId: 1,
+    onWindowResize: (width, height, scaleFactor) => {
+      viewport = [width, height];
+      scale = scaleFactor;
+    },
+  });
+  try {
+    root.render(() => View({ children: Text({ children: "Resize feedback" }) }));
+    await host.flush();
+    await host.resize(400, 300);
+    expect(viewport).toEqual([400, 300]);
+    expect((await host.locate({ text: "Resize feedback" })).bounds.x).toBeGreaterThanOrEqual(0);
+    if (mode === "gpu") {
+      if (scale === undefined) throw new Error("Native resize feedback omitted the display scale");
+      const screenshot = await host.screenshot();
+      expect(screenshot.width).toBe(400 * scale);
+      expect(screenshot.height).toBe(300 * scale);
+    }
+  } finally {
+    root.unmount();
+    await host.close();
+  }
+}
+native("native resize publishes production viewport feedback", () => checkResizeFeedback("deterministic"));
+const gpu = binary && process.env.SOLID_GPUI_ACCEPTANCE_GPU === "1" ? test : test.skip;
+gpu("macOS GPU resize completes the native bounds change before acknowledgement", () => checkResizeFeedback("gpu"));
+
+native("a retired command reply cannot settle a new epoch request with the same ID", async () => {
+  const host = await NativeAcceptance.launch({ command: [binary!], mode: "deterministic" });
+  let root = createRoot(host.transport, { surfaceId: 1 });
+  try {
+    root.render(() => Text({ children: "Old epoch" }));
+    await host.flush();
+    root.unmount();
+    root = createRoot(host.transport, { surfaceId: 1, epoch: 2 });
+    root.render(() => Text({ children: "New epoch" }));
+    host.transport.submit(
+      encodeFrame({
+        type: "command",
+        surfaceId: 1,
+        epoch: 1,
+        afterRevision: 1,
+        requestId: 1,
+        nodeId: 1,
+        command: COMMAND_RESIZE_WINDOW,
+        payload: { type: "window-size", width: 400, height: 300 },
+      }),
+    );
+    const current = root.resize(600, 400);
+    await host.flush();
+    await current;
+  } finally {
+    root.unmount();
+    await host.close();
+  }
+});
 
 native("public acceptance drives native paint, hit testing, Unicode edits, drag, wheel and teardown", async () => {
   const host = await NativeAcceptance.launch({ command: [binary!], mode: "deterministic" });
@@ -157,7 +220,6 @@ native("native clicks on painted text reach their Pressable ancestor through hit
   }
 });
 
-const gpu = binary && process.env.SOLID_GPUI_ACCEPTANCE_GPU === "1" ? test : test.skip;
 gpu("macOS GPU acceptance captures changed production pixels", async () => {
   const host = await NativeAcceptance.launch({ command: [binary!], mode: "gpu" });
   const root = createRoot(host.transport, { surfaceId: 1 });

@@ -57,7 +57,7 @@ export interface NativeSnapshot {
   readonly nodes: readonly NativeTarget[];
 }
 export interface NativeAcceptanceCapabilities {
-  readonly version: 1;
+  readonly version: 2;
   readonly mode: "deterministic" | "gpu";
   readonly platform: string;
   readonly screenshots: boolean;
@@ -183,7 +183,7 @@ export class NativeAcceptance {
     try {
       const hello = (await deadline(readPacket(), timeoutMs)) as NativeAcceptanceCapabilities;
       if (
-        hello.version !== 1 ||
+        hello.version !== 2 ||
         hello.mode !== options.mode ||
         typeof hello.screenshots !== "boolean" ||
         typeof hello.clock !== "boolean"
@@ -266,6 +266,12 @@ export class NativeAcceptance {
   }
   async wheel(target: NativeTarget, delta: { x: number; y: number }): Promise<void> {
     await this.action("wheel", target, { delta });
+  }
+  /** Deliver a native window resize, including actual platform viewport feedback. */
+  async resize(width: number, height: number, surfaceId = 1): Promise<void> {
+    if (![width, height].every((value) => Number.isInteger(value) && value >= 1 && value <= 16_384))
+      throw new RangeError("Native acceptance resize requires dimensions from 1 to 16384");
+    await this.operation("resize", { width, height, surfaceId });
   }
   /** Types into the native focused editor after a hit-tested click. */
   async type(text: string, surfaceId = 1): Promise<void> {

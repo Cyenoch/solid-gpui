@@ -13,6 +13,12 @@ Snapshot/Patch decoder, production `NativeStateRegistry`, `SolidRoot`, GPUI
 layout/paint, and native input handlers. Solid owns application state and callback
 generations; GPUI owns editing, hit testing, selection, scrolling, and rendering.
 
+Each acceptance draw delivers GPUI's queued next-frame callbacks. Window resize
+feedback therefore comes from the production viewport observer after native
+bounds change; it is not synthesized from the submitted tree.
+GPU actions also service the macOS main run loop before acknowledging queued
+AppKit window operations.
+
 `TestHost` remains a semantic protocol helper over `MemoryTransport`. It inspects
 submitted styles and injects semantic events without native geometry. Use native
 acceptance when an assertion depends on layout, paint, or native input routing.
@@ -70,11 +76,20 @@ tests share their compiler and Solid runtime. Direct source tests in this repo
 use Bun's `browser` and `solid-gpui-source` conditions. Build output is owned by
 the selected checkout; do not share mutable package `dist` directories.
 
+Before issuing application root commands, commit the first render. An async
+router must finish loading its first route; rendering a still-pending route does
+not establish a native tree. Use the application's readiness promise, then
+`flush()`. Root commands before a committed tree reject explicitly. Native
+command replies retain the request's Surface and epoch, including rejections,
+so a retired request cannot settle a new epoch's reused request ID.
+Surface and node commands wait until the current synchronous Solid batch finishes,
+then flush its host changes before choosing the command's `afterRevision`.
+
 ## Public interface
 
 | Interface                                                      | Behavior                                                                                                                                                                                                                                                   |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NativeAcceptance.launch({ command, mode, cwd?, timeoutMs? })` | Owns one Bun subprocess; requires an explicit mode. Default request/startup/cleanup timeout is 30 seconds. Startup failures reject.                                                                                                                        |
+| `NativeAcceptance.launch({ command, mode, cwd?, timeoutMs? })` | Owns one Bun subprocess; requires an explicit mode and acceptance contract v2. Default request/startup/cleanup timeout is 30 seconds. Startup failures reject.                                                                                                                        |
 | `transport`                                                    | Pass to `createRoot(host.transport, { surfaceId: 1 })`. Uses real native admission and event dispatch. Additional surfaces use normal root/host commands.                                                                                                  |
 | `capabilities`                                                 | Acceptance contract version, selected mode, platform, screenshot and clock support.                                                                                                                                                                        |
 | `flush()`                                                      | Submit queued commits, draw native frames, route events back to Solid, and paint controlled acknowledgements. Non-settling application work fails after 32 feedback turns.                                                                                 |
@@ -85,6 +100,7 @@ the selected checkout; do not share mutable package `dist` directories.
 | `key(keystroke, surfaceId = 1)`                                | Dispatch one GPUI keystroke, for example `secondary-a`, `backspace`, or `enter`.                                                                                                                                                                           |
 | `drag(target, { x, y }, { from? }?)`                           | Left down at the target center or explicit `from` inside its painted bounds, eight native pointer moves, then left up at the destination. Coordinates are logical pixels in that Surface.                                                                  |
 | `wheel(target, { x, y })`                                      | Native pixel scroll delta at the target center. Negative `y` moves content upwards.                                                                                                                                                                        |
+| `resize(width, height, surfaceId = 1)`                         | Deliver a native viewport resize and production bounds feedback. Deterministic mode uses GPUI's platform resize event; GPU mode resizes the real window. |
 | `advanceClock(milliseconds)`                                   | Advance the owned GPUI test clock and draw; at most 60 seconds per action. Does not control Bun timers or real network/OS services.                                                                                                                        |
 | `screenshot(surfaceId = 1)`                                    | `{ width, height, png: Uint8Array }` from the native rendered scene, in physical pixels. Requires supported GPU mode.                                                                                                                                      |
 | `clipboardText()`                                              | Read the owned GPUI test clipboard after a native copy action; returns text or `null`. Both modes isolate copy assertions from the user's desktop clipboard.                                                                                               |

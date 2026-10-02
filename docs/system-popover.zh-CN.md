@@ -1,5 +1,8 @@
 # 系统弹层
 
+父节点卸载会在父命令 owner 仍有效时排队关闭 popup，再终止子 Surface。
+普通应用命令会等待当前 Solid batch 提交。
+
 `SystemPopover` 将内容挂载到有明确父窗口的原生窗口，因此可以超出父窗口边界。
 从 `@solid-gpui/core` 导入。`@solid-gpui/core/components` 中的 `Popover`
 仍在当前窗口内呈现，也适用于 Web。

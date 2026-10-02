@@ -27,7 +27,14 @@ export default defineConfig({
         : {
             // This host is built separately; Vite exports its catalog before loading the application.
             host: {
-              command: resolve(root, "target/debug/solid-gpui-host"),
+              command:
+                process.env.SOLID_GPUI_FIXTURE_HOST ??
+                resolve(
+                  root,
+                  process.env.CARGO_TARGET_DIR ?? "target",
+                  "debug",
+                  process.platform === "win32" ? "solid-gpui-host.exe" : "solid-gpui-host",
+                ),
               output: resolve(root, ".scratch/vite-fixture/native-bun.ts"),
             },
           }),

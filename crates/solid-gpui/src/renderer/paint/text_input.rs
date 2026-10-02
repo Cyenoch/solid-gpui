@@ -1213,18 +1213,16 @@ pub(super) fn render_selectable(
         {
             app.write_to_clipboard(ClipboardItem::new_string(selection.text));
             app.stop_propagation();
-        } else if (modifiers.platform || modifiers.control)
+        } else if ((modifiers.platform || modifiers.control)
             && !modifiers.alt
             && event.keystroke.key.eq_ignore_ascii_case("a")
-            && key_entity.update(app, |root, cx| root.select_document_all(cx))
-        {
-            app.stop_propagation();
-        } else if !modifiers.platform
-            && !modifiers.control
-            && !modifiers.alt
-            && key_entity.update(app, |root, cx| {
-                root.navigate_document_selection(&event.keystroke.key, modifiers.shift, cx)
-            })
+            && key_entity.update(app, |root, cx| root.select_document_all(cx)))
+            || (!modifiers.platform
+                && !modifiers.control
+                && !modifiers.alt
+                && key_entity.update(app, |root, cx| {
+                    root.navigate_document_selection(&event.keystroke.key, modifiers.shift, cx)
+                }))
         {
             app.stop_propagation();
         } else if event.keystroke.key == "escape" {

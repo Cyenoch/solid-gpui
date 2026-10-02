@@ -204,7 +204,7 @@ pub(super) fn observe(
                 .virtual_lists
                 .get(&node.id)
                 .map(|state| -state.scroll_px_offset_for_scrollbar().y.as_f32()),
-            selected_text: root.selected_selectable_text(node.id),
+            selected_text: root.selected_document_text(node.id),
             bounds: PaintedBounds {
                 x: 0.,
                 y: 0.,

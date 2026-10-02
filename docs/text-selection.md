@@ -23,6 +23,11 @@ client (for example `#native`), or the stock component host's client from
 Surfaces. Custom ExtensionRegistry implementations must register the module
 returned by `solid_gpui::native::text::native_module()`.
 
+The service and observer declare behavioral version `1.0.0`. Generated props
+and renderer commands include the selected host's strict build envelope. Direct
+Rust fixtures use `encode_native_request(module.build_digest(), &dto)`;
+missing or stale envelopes reject before reading or mutating document state.
+
 ```tsx
 import { Text, View } from "@solid-gpui/core";
 import { createSignal } from "@solid-gpui/core/runtime";

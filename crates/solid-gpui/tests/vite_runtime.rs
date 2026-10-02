@@ -11,6 +11,10 @@ fn rust_starts_a_vite_project_and_owns_its_shutdown() {
         .unwrap();
     command
         .env("SOLID_GPUI_FIXTURE_RUNTIME", "bun")
+        .env(
+            "SOLID_GPUI_FIXTURE_HOST",
+            env!("CARGO_BIN_EXE_solid-gpui-host"),
+        )
         .env("SOLID_GPUI_FIXTURE", "fixtures/vite-counter.tsx");
     let runtime = solid_gpui::ProcessAdapter::spawn(command).unwrap();
     let reader = runtime.clone();

@@ -1,5 +1,9 @@
 # System popovers
 
+Parent teardown enqueues popup closure while the parent's command owner is still
+live, then retires the child Surface. Ordinary application commands wait for the
+current Solid batch to commit.
+
 `SystemPopover` mounts its content in an owned native window, so it can extend
 past its owner's window boundary. Import it from `@solid-gpui/core`.
 The generated `Popover` in `@solid-gpui/core/components` remains an in-window

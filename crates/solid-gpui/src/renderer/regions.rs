@@ -74,6 +74,8 @@ impl Render for Region {
             style.right = None;
             style.bottom = None;
             style.align_self = None;
+            style.flex_basis = None;
+            style.aspect_ratio = None;
             style.grid_column_span = None;
             style.grid_row_span = None;
             root_state.render_node_direct(&content, &root)
@@ -110,13 +112,21 @@ fn definite_region(node: &StoredNode) -> bool {
         && node.style.as_ref().is_some_and(|style| {
             style.width.is_some()
                 && style.height.is_some()
-                && style.width_unit.unwrap_or(crate::protocol::LengthUnit::Pixels)
+                && style
+                    .width_unit
+                    .unwrap_or(crate::protocol::LengthUnit::Pixels)
                     == crate::protocol::LengthUnit::Pixels
-                && style.height_unit.unwrap_or(crate::protocol::LengthUnit::Pixels)
+                && style
+                    .height_unit
+                    .unwrap_or(crate::protocol::LengthUnit::Pixels)
                     == crate::protocol::LengthUnit::Pixels
                 && style.overflow == Some(OverflowCode::Hidden)
-                && style.overflow_x.is_none_or(|axis| axis == OverflowCode::Hidden)
-                && style.overflow_y.is_none_or(|axis| axis == OverflowCode::Hidden)
+                && style
+                    .overflow_x
+                    .is_none_or(|axis| axis == OverflowCode::Hidden)
+                && style
+                    .overflow_y
+                    .is_none_or(|axis| axis == OverflowCode::Hidden)
                 && style.flex_shrink == Some(0.0)
                 && style.flex_grow.is_none_or(|grow| grow == 0.0)
                 && style.min_width.is_none()
@@ -297,6 +307,8 @@ impl Regions {
             position: full.position,
             inset: full.inset,
             flex_shrink: Some(0.0),
+            flex_basis: full.flex_basis,
+            aspect_ratio: full.aspect_ratio,
             align_self: full.align_self,
             grid_location: full.grid_location,
             ..StyleRefinement::default()

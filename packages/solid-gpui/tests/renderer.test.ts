@@ -57,6 +57,7 @@ test("invokeNative returns opaque bytes through the surface command lifecycle", 
   const moduleDigest = new Uint8Array(32).fill(9);
   const args = Uint8Array.of(0, 255, 128);
   const result = root.invokeNative(moduleId, moduleDigest, 0xffff_ffff, args);
+  await Promise.resolve();
   const command = body(transport.submitted[1]!);
   expect(command.tag).toBe(4);
   if (command.tag !== 4) throw new Error("expected command");
@@ -192,6 +193,7 @@ test("native invocation cancellation is isolated, ordered, and settles only once
     root.invokeNative(new Uint8Array(16), new Uint8Array(32), 1, new Uint8Array(), options);
   const cancelled = invoke({ signal: controller.signal }).catch((error: unknown) => error);
   const adjacent = invoke();
+  await Promise.resolve();
   controller.abort(reason);
   expect(await cancelled).toBe(reason);
   const cancellation = body(transport.submitted.at(-1)!);
@@ -1518,13 +1520,15 @@ test("transport disposal rejects pending commands and notifies termination once"
       notifications += 1;
     },
   });
+  root.render(() => Text({ children: "Ready" }));
   const pending = root.setTitle("pending");
+  await Promise.resolve();
   const error = new TransportTerminatedError("terminated", { kind: "shutdown" });
   notify?.(error);
   await expect(pending).rejects.toBe(error);
   notify?.(error);
   expect(notifications).toBe(1);
-  expect(() => root.setTitle("after")).toThrow();
+  await expect(root.setTitle("after")).rejects.toThrow("closed");
 });
 
 test("HostTree is the only host-config owner and RootContainer hides tree bookkeeping", () => {

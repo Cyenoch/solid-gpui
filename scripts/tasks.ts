@@ -425,6 +425,8 @@ class Tasks {
         "scripts/api-surface.test.ts",
         "scripts/application-build.test.ts",
         "scripts/compiler.test.ts",
+        "scripts/portable-archive.test.ts",
+        "scripts/delivery.test.ts",
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
         "scripts/dev-session.test.ts",

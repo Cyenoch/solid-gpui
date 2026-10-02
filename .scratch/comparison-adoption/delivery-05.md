@@ -100,8 +100,7 @@ Use acceptance seam for painted content; wire assertions alone cannot qualify.
 Synchronized performance guide and explicit Chinese copy, native composition
 and Chinese copy, docs index, website README and Signals chapter/translation.
 Website consumes authoritative guides directly. No generated contract output.
-Maintained content describes current functionality, without comparative learning
-narrative. Retain legal/provenance metadata.
+Maintained content describes current functionality. Retain legal/provenance metadata.
 
 Merge notes: reconcile acceptance observations across region replay; never clear
 the shared observations before cached content skips paint. Media/extensions stay

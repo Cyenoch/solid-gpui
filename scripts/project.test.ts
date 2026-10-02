@@ -586,7 +586,9 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 const args = Bun.argv.slice(2);
 appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
-if (args[0] === "metadata") {
+if (args[0] === "locate-project") {
+  console.log(JSON.stringify({ root: ${JSON.stringify(join(directory, "Cargo.toml"))} }));
+} else if (args[0] === "metadata") {
   console.log(JSON.stringify({ workspace_root: ${JSON.stringify(directory)}, target_directory: ${JSON.stringify(targetDirectory)}, workspace_default_members: [], packages: [], resolve: { root: null, nodes: [] } }));
 } else {
   const executable = join(${JSON.stringify(targetDirectory)}, ${JSON.stringify(foreign)}, "debug", "native-project-host");

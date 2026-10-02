@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 export interface NativeCommandOptions {
+  readonly env?: NodeJS.ProcessEnv;
   /**
    * Report Cargo's status and diagnostic output while it is produced. Without this the caller
    * receives the full stderr buffer on completion, which hides multi-minute compiles.
@@ -20,6 +21,7 @@ export function runNativeCommand(
   const { promise, resolve, reject } = Promise.withResolvers<{ stdout: string; stderr: string }>();
   const child = spawn(command, args, {
     cwd,
+    env: { ...process.env, ...options.env },
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });

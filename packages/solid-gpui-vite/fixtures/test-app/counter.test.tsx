@@ -1,7 +1,7 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import { createSignal } from "solid-js";
 import { MemoryTransport, createRoot } from "@solid-gpui/core";
-import { encodeJson, type NativeInvoker } from "@solid-gpui/core/native";
+import { decodeNativeRequest, encodeJson, type NativeInvoker } from "@solid-gpui/core/native";
 import { counterDescriptor, createCounterClient } from "#native";
 import pixel from "./src/pixel.svg?inline";
 import { Counter } from "./src/counter";
@@ -31,7 +31,9 @@ const invokeNative = mock((moduleId: Uint8Array, moduleDigest: Uint8Array, funct
   expect(moduleId).toHaveLength(16);
   expect(moduleDigest).toHaveLength(32);
   expect(functionId).toBe(1);
-  expect(new TextDecoder().decode(args)).toBe("1");
+  const request = decodeNativeRequest(args);
+  expect(Array.from(request.buildDigest)).toEqual(counterDescriptor.buildDigest);
+  expect(request.value).toBe(1);
   return Promise.resolve(encodeJson(42));
 });
 

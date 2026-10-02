@@ -52,6 +52,7 @@ pub(super) fn update(id: u32, text: &str) -> PatchOperation {
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     }
 }
 
@@ -161,6 +162,54 @@ fn retained_content_and_inherited_layout_update_then_release_on_removal(cx: &mut
     draw(cx, window.into());
     root.read_with(cx, |root, _| assert_eq!(root.regions.len(), 0));
     assert!(visual.debug_bounds("solid-gpui-primitive-10").is_none());
+}
+
+#[gpui::test]
+fn retained_flex_basis_matches_the_live_parent_allocation(cx: &mut TestAppContext) {
+    let window = cx.open_window(gpui::size(px(800.0), px(600.0)), |_, _| {
+        SolidRoot::new(InMemoryAdapter::new())
+    });
+    let root = window.root(cx).unwrap();
+    let mut snapshot = fixture(10);
+    snapshot.nodes[1].style.as_mut().unwrap().flex_basis = Some(crate::protocol::StyleLength {
+        unit: crate::protocol::LengthUnit::Pixels,
+        value: 320.0,
+    });
+    root.update(cx, |root, cx| {
+        root.apply_decoded_message(DecodedMessage::Snapshot(snapshot), cx)
+    })
+    .unwrap();
+    draw(cx, window.into());
+    let mut visual = gpui::VisualTestContext::from_window(window.into(), cx);
+    let cached = visual.debug_bounds("solid-gpui-primitive-2").unwrap();
+    assert_eq!(cached.size.width, px(320.0));
+    let mut operation = update(2, "unused");
+    if let PatchOperation::Update {
+        mask,
+        text,
+        listener_id,
+        observes_layout,
+        ..
+    } = &mut operation
+    {
+        *mask = crate::protocol::UPDATE_LAYOUT | crate::protocol::UPDATE_LISTENER;
+        *text = None;
+        *listener_id = 9;
+        *observes_layout = true;
+    }
+    root.update(cx, |root, cx| {
+        root.apply_decoded_message(
+            DecodedMessage::Patch(Patch::new(7, 3, 1, 2, vec![operation])),
+            cx,
+        )
+    })
+    .unwrap();
+    draw(cx, window.into());
+    assert_eq!(
+        visual.debug_bounds("solid-gpui-primitive-2").unwrap(),
+        cached
+    );
+    root.read_with(cx, |root, _| assert!(!root.regions.contains(2)));
 }
 
 #[gpui::test]

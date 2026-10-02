@@ -42,7 +42,7 @@ Focused checks performed before integration merge:
 
 All Cargo checks use `CARGO_BUILD_JOBS=2` and the requested shared `CARGO_TARGET_DIR`. A shared-target stale macro artifact was observed and resolved by rebuilding the changed macro producer; no source fallback was introduced.
 
-Documentation synchronized: CONTEXT, ADR0016, Rust integration, protocol native-adapter envelope, distribution, CI, troubleshooting, explicit Chinese guide copies, and website README statements. Website loads those authoritative guide files directly. Maintained prose describes our own interfaces and behavior; comparative learning prose is removed from the touched domain entry. Historical research is left to parent relocation.
+Documentation synchronized: CONTEXT, ADR0016, Rust integration, protocol native-adapter envelope, distribution, CI, troubleshooting, explicit Chinese guide copies, and website README statements. Website loads those authoritative guide files directly. Maintained prose describes the current interfaces and behavior.
 
 Qualification limits: no full workspace tests, full website/WASM build, physical GPU/IME acceptance, extracted release packaging or cross-platform release runs in this owner task. The extracted-bundle code path now checks build provenance but its full production rehearsal remains an integration check. Linux/Windows builds were not run. SDK version is still the already published `0.5.2`; source-build identity differentiates this local candidate.
 

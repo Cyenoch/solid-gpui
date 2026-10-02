@@ -139,6 +139,8 @@ pub(super) fn check<P: HostProfile>(profile: P, args: &[OsString]) -> Result<(),
                     continue;
                 }
             };
+            crate::SolidRoot::validate_extension_nodes(registry.as_ref(), tree, tree.iter())
+                .map_err(|error| error.to_string())?;
             let mut content = false;
             for node in tree.iter() {
                 content |= node.text.as_ref().is_some_and(|text| {
@@ -146,18 +148,10 @@ pub(super) fn check<P: HostProfile>(profile: P, args: &[OsString]) -> Result<(),
                         text.as_ref() == expected.to_string_lossy().as_ref()
                     })
                 });
-                if let Some(HostProperties::Extension(properties)) = &node.host_properties {
-                    registry
-                        .resolve(
-                            properties.provider_id,
-                            properties.catalog_digest,
-                            properties.entry_id,
-                            properties.entry_version,
-                        )
-                        .map_err(|e| e.to_string())?;
-                    if args.len() == 3 {
-                        content = true;
-                    }
+                if args.len() == 3
+                    && matches!(node.host_properties, Some(HostProperties::Extension(_)))
+                {
+                    content = true;
                 }
             }
             if content {

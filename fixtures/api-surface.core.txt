@@ -53,6 +53,7 @@ IconProps	type
 Image	value
 ImageObjectFit	type
 ImageProps	type
+InteractionStyle	type
 JustifyContent	type
 KeyAction	type
 Keybinding	type
@@ -60,6 +61,7 @@ KeyEvent	type
 KeyHandler	type
 LayoutFrame	type
 LayoutHandler	type
+Length	type
 LinearGradient	type
 MemoryTransport	both
 MenuDefinition	type

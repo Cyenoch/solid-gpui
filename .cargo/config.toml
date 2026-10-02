@@ -1,0 +1,2 @@
+[env]
+SOLID_GPUI_BUILD_LOCKFILE = { value = "Cargo.lock", relative = true }

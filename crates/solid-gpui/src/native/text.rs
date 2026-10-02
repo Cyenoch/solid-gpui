@@ -79,35 +79,60 @@ pub struct TextSelectionChange {
 }
 
 pub fn native_module() -> ModuleDefinition {
-    ModuleDefinition::new("solid-gpui-text", "1.0.0", vec![
-        ComponentDefinition::element::<TextSelectionObserverProps, _>("TextSelectionObserver", vec![EventDefinition::new::<TextSelectionChange>("selectionChange")], |_, _| gpui::div().w(gpui::px(0.)).h(gpui::px(0.)))
-            .with_props(&[]).with_semantic_version("1.0.0"),
-    ], vec![
-        CommandDefinition::renderer("getTextSelection", |(): (), root, _, _| root.text_selection_snapshot()),
-        CommandDefinition::renderer("setTextSelection", |request: TextSelectionRequest, root, _, cx| {
-            root.set_text_selection(request)?;
-            cx.notify();
-            root.text_selection_snapshot()
-        }),
-        CommandDefinition::renderer("clearTextSelection", |(): (), root, _, cx| {
-            root.clear_text_selection();
-            cx.notify();
-            root.text_selection_snapshot()
-        }),
-        CommandDefinition::renderer("copyTextSelection", |(): (), root, _, cx| {
-            let snapshot = root.text_selection_snapshot()?;
-            if !snapshot.text.is_empty() { cx.write_to_clipboard(ClipboardItem::new_string(snapshot.text.clone())); }
-            Ok(snapshot)
-        }),
-        CommandDefinition::renderer("searchText", |request: TextSearchRequest, root, _, cx| {
-            let result = root.search_text(request)?;
-            cx.notify();
-            Ok(result)
-        }),
-        CommandDefinition::renderer("getTextSearch", |(): (), root, _, _| root.text_search_snapshot()),
-        CommandDefinition::renderer("selectTextSearchMatch", |request: TextSearchSelection, root, window, cx| {
-            root.select_text_search_match(request, window, cx)
-        }),
-    ]).with_implementation(include_str!("text.rs"))
-        .with_implementation(include_str!("../renderer/selection.rs"))
+    ModuleDefinition::new(
+        "solid-gpui-text",
+        "1.0.0",
+        vec![
+            ComponentDefinition::element::<TextSelectionObserverProps, _>(
+                "TextSelectionObserver",
+                vec![EventDefinition::new::<TextSelectionChange>(
+                    "selectionChange",
+                )],
+                |_, _| gpui::div().w(gpui::px(0.)).h(gpui::px(0.)),
+            )
+            .with_props(&[])
+            .with_semantic_version("1.0.0"),
+        ],
+        vec![
+            CommandDefinition::renderer("getTextSelection", |(): (), root, _, _| {
+                root.text_selection_snapshot()
+            }),
+            CommandDefinition::renderer(
+                "setTextSelection",
+                |request: TextSelectionRequest, root, _, cx| {
+                    root.set_text_selection(request)?;
+                    cx.notify();
+                    root.text_selection_snapshot()
+                },
+            ),
+            CommandDefinition::renderer("clearTextSelection", |(): (), root, _, cx| {
+                root.clear_text_selection();
+                cx.notify();
+                root.text_selection_snapshot()
+            }),
+            CommandDefinition::renderer("copyTextSelection", |(): (), root, _, cx| {
+                let snapshot = root.text_selection_snapshot()?;
+                if !snapshot.text.is_empty() {
+                    cx.write_to_clipboard(ClipboardItem::new_string(snapshot.text.clone()));
+                }
+                Ok(snapshot)
+            }),
+            CommandDefinition::renderer("searchText", |request: TextSearchRequest, root, _, cx| {
+                let result = root.search_text(request)?;
+                cx.notify();
+                Ok(result)
+            }),
+            CommandDefinition::renderer("getTextSearch", |(): (), root, _, _| {
+                root.text_search_snapshot()
+            }),
+            CommandDefinition::renderer(
+                "selectTextSearchMatch",
+                |request: TextSearchSelection, root, window, cx| {
+                    root.select_text_search_match(request, window, cx)
+                },
+            ),
+        ],
+    )
+    .with_implementation(include_str!("text.rs"))
+    .with_implementation(include_str!("../renderer/selection.rs"))
 }

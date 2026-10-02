@@ -346,6 +346,16 @@ popup anchors use live construction: linked GPUI 0.3.7 does not replay AccessKit
 nodes in cached prepaint, and popup geometry must be current. First modality
 switches, display changes and explicit window refreshes may rebuild all content.
 
+Native hover, active and focus-visible refinements keep nodes and their
+descendants live even without JavaScript listeners. Per-axis scrolling also
+prevents retention. Regions require pixel dimensions; rem, percent and auto
+dimensions stay live. A Surface with an active document selection, drag or
+search highlight rebuilds its geometry each frame instead of retaining scenes.
+
+The parent-facing retained box owns flex basis and aspect ratio as well as its
+dimensions, margins and placement. Its inner drawing fills that allocation;
+switching between retained and live rendering preserves sibling layout.
+
 Native input, async resources and animations inside a candidate View make it
 live before its next draw. Removing them can restore a region. This is a
 conservative correctness boundary, not a general intrinsic layout cache or a

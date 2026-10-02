@@ -20,6 +20,22 @@ export interface HistoryEntry {
   readonly subject: string;
   readonly paragraphs: readonly string[];
 }
+/** Pack overlapping clips into separate native hit-test lanes. */
+export function clipLanes(
+  clips: readonly Clip[],
+  scale: number,
+): { lanes: ReadonlyMap<string, number>; count: number } {
+  const ends: number[] = [];
+  const lanes = new Map<string, number>();
+  for (const clip of [...clips].sort((a, b) => a.start - b.start)) {
+    const start = clip.start * scale;
+    let lane = ends.findIndex((end) => end <= start);
+    if (lane < 0) lane = ends.length;
+    ends[lane] = start + Math.max(24, clip.duration * scale);
+    lanes.set(clip.id, lane);
+  }
+  return { lanes, count: ends.length };
+}
 export function createStudioProject(count = 240): StudioProject {
   return {
     duration: 120,

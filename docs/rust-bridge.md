@@ -300,6 +300,12 @@ Use `createClient(root)` outside a component. Do not call `useNative()` inside
 an asynchronous callback: it must capture the Solid owner during component
 initialization. Diagnostics go to stderr; stdout carries protocol frames.
 
+Surface commands require the first committed native tree. Await an async router's
+initial load before window or module calls. Root commands flush their pending
+render transaction before capturing its revision. Before the first render, they
+reject explicitly instead of sending a request to an uninitialized Surface.
+Rejected native replies preserve the request's Surface/epoch identity.
+
 ## Native contract and build identities
 
 Every `#[native_module]` requires an explicit `version = "major.minor.patch"`.
@@ -317,12 +323,27 @@ and implementation text do not enter contract identity. LF/CRLF checkout differe
 affect neither lock. Use `with_implementation(include_str!("service.rs"))` for
 additional source inputs outside an annotated module.
 
+Build provenance includes the consuming Cargo workspace's resolved `Cargo.lock`
+and the SDK's Embedded Bun runtime, producer, configuration and patch inputs.
+Vite derives the effective workspace from Cargo and supplies its lockfile.
+For direct Cargo builds, configure the consuming workspace:
+
+```toml
+# .cargo/config.toml
+[env]
+SOLID_GPUI_BUILD_LOCKFILE = { value = "Cargo.lock", relative = true }
+```
+
+The repository and native scaffold already carry this configuration. Missing
+or unreadable effective lockfiles reject the build. Lock changes invalidate the
+producer; paths and CRLF checkout differences do not change its identity.
+
 Generated components and clients carry both locks automatically. Rust callers
 constructing native props or invocation arguments directly use
 `encode_native_request(module.build_digest(), &dto)`. Missing envelopes, wrong
 builds, and wrong contracts are rejected before mutation or dispatch. Results
 and events remain strict JSON. This portable source-build identity does not hash
-the executable or every application dependency; package the exact selected host
+the executable, toolchain or unlisted application source; package the exact selected host
 and bundle and preserve release/artifact verification.
 
 ## Custom Rust components

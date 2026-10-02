@@ -66,13 +66,11 @@ impl PixelsOwner {
     }
 }
 fn frame_bytes(width: u32, height: u32) -> Result<usize, String> {
+    if width == 0 || height == 0 || width > MAX_DIMENSION || height > MAX_DIMENSION {
+        return Err("CPU frames need dimensions from 1 to 4096 and at most 16 MiB of RGBA".into());
+    }
     let bytes = width as u64 * height as u64 * 4;
-    if width == 0
-        || height == 0
-        || width > MAX_DIMENSION
-        || height > MAX_DIMENSION
-        || bytes > MAX_FRAME_BYTES as u64
-    {
+    if bytes > MAX_FRAME_BYTES as u64 {
         return Err("CPU frames need dimensions from 1 to 4096 and at most 16 MiB of RGBA".into());
     }
     Ok(bytes as usize)
@@ -695,6 +693,34 @@ mod tests {
                     .is_err()
             );
             assert_eq!(resource.state(), state);
+            for (width, height) in [(1 << 31, 1 << 31), (u32::MAX, u32::MAX)] {
+                assert!(
+                    resource
+                        .begin(
+                            FrameUpload {
+                                sequence: 2,
+                                width,
+                                height
+                            },
+                            cx
+                        )
+                        .is_err()
+                );
+                assert!(
+                    resource
+                        .replace(
+                            CpuFrame {
+                                sequence: 2,
+                                width,
+                                height,
+                                rgba: vec![]
+                            },
+                            cx
+                        )
+                        .is_err()
+                );
+                assert_eq!(resource.state(), state);
+            }
             let latest = resource
                 .replace(
                     CpuFrame {

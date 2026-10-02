@@ -72,7 +72,7 @@ and website bindings. Source comments and canonical documentation are English.
 
 Public guides describe our ownership, behavior, and usage only. Removed the
 native-composition learning/source-guide narrative and public links into temporary
-comparative delivery records; retained native dependencies and legal provenance.
+capability delivery records; retained native dependencies and legal provenance.
 
 Environment: macOS arm64 desktop session, linked vendored `gpui-pre 0.3.7`, GPUI Kit
 0.7.0. Debug native correctness build, 320×240 logical raster acceptance window

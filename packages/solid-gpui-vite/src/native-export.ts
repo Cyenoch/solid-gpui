@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { NativeHostOptions } from "./environment.ts";
 import { runNativeCommand } from "./native-process.ts";
 import {
@@ -101,7 +101,19 @@ export async function buildNativeHost(
   let stdout: string;
   let stderr: string;
   try {
-    ({ stdout, stderr } = await runNativeCommand("cargo", args, cwd, signal, report ? { onStderrLine: report } : {}));
+    const workspace = await runNativeCommand(
+      "cargo",
+      ["locate-project", "--workspace", "--manifest-path", resolve(cwd, options.manifestPath)],
+      cwd,
+      signal,
+    );
+    const manifest: unknown = JSON.parse(workspace.stdout);
+    if (!manifest || typeof manifest !== "object" || !("root" in manifest) || typeof manifest.root !== "string")
+      throw new Error("Cargo did not identify the consuming workspace manifest");
+    ({ stdout, stderr } = await runNativeCommand("cargo", args, cwd, signal, {
+      onStderrLine: report,
+      env: { SOLID_GPUI_BUILD_LOCKFILE: join(dirname(manifest.root), "Cargo.lock") },
+    }));
   } catch (error) {
     throw describeFailure(error);
   }

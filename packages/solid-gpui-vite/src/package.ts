@@ -5,6 +5,7 @@ import { createPublicKey, verify } from "node:crypto";
 import { readNativeArtifacts, recordedHostExecutable, targetRunsOnHost } from "./artifacts.ts";
 import { deliveryHash, deliveryRun } from "./delivery.ts";
 import { assertRecordedConfiguration, loadProject, type ProjectOptions } from "./project.ts";
+import { writePortableArchive } from "./portable-archive.ts";
 
 export interface PackageApplicationOptions extends ProjectOptions {
   readonly name: string;
@@ -165,10 +166,10 @@ export async function packageApplication(options: PackageApplicationOptions): Pr
     const sums = await Promise.all(contents.map(async (file) => `${await deliveryHash(join(stage, file))}  ${file}`));
     await writeFile(join(stage, "SHA256SUMS"), sums.join("\n") + "\n");
     const archive = join(temporary, `${options.name}.tar.gz`);
-    await deliveryRun(["tar", "-czf", archive, "-C", temporary, options.name], project.root);
+    await writePortableArchive(stage, options.name, archive);
     const checkParent = process.env.SOLID_GPUI_CONSUMER_TEMP ?? tmpdir();
     extracted = await mkdtemp(join(checkParent, "solid-gpui-consumer-"));
-    await deliveryRun(["tar", "-xzf", archive, "-C", extracted], extracted);
+    await new Bun.Archive(await Bun.file(archive).bytes()).extract(extracted);
     const extractedRoot = join(extracted, options.name);
     const actual = await inventory(extractedRoot);
     if (JSON.stringify(actual) !== JSON.stringify([...contents, "SHA256SUMS"].sort()))

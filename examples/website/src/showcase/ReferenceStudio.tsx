@@ -8,9 +8,9 @@ import {
   type Style,
   type VirtualListHandle,
 } from "@solid-gpui/core";
-import { For, onCleanup } from "@solid-gpui/core/runtime";
+import { createMemo, For, onCleanup } from "@solid-gpui/core/runtime";
 import { createReferenceStudioState, type ReferenceStudioState } from "./reference/state";
-import type { HistoryEntry, Track } from "./reference/model";
+import { clipLanes, type HistoryEntry, type Track } from "./reference/model";
 
 export { createReferenceStudioState };
 export interface StudioPalette {
@@ -132,12 +132,20 @@ export function ReferenceStudio(props: ReferenceStudioProps) {
     onCleanup(() => props.onRowLifetime?.("track", row.track.id, false, owner));
     const gridWidth = () => Math.max(80, timelineWidth() - 100);
     const scale = () => (gridWidth() / 120) * s.zoom();
+    const placement = createMemo(() => clipLanes(row.track.clips, scale()));
+    const rowHeight = () => Math.max(64, 20 + placement().count * 46);
     return (
       <View
         accessibilityLabel={`studio.track.${row.track.id}`}
         accessibilityRole="listitem"
         onDrop={(type) => s.drop(type, row.track.id)}
-        style={{ height: 64, flexShrink: 0, flexDirection: "row", borderBottomWidth: 1, borderColor: p().border }}
+        style={{
+          height: rowHeight(),
+          flexShrink: 0,
+          flexDirection: "row",
+          borderBottomWidth: 1,
+          borderColor: p().border,
+        }}
       >
         <Pressable
           accessibilityLabel={`studio.reorder.${row.track.id}`}
@@ -147,7 +155,7 @@ export function ReferenceStudio(props: ReferenceStudioProps) {
           <Text style={{ color: p().text, fontSize: 11, lineHeight: 16 }}>{row.track.name}</Text>
           <Text style={{ color: p().muted, fontSize: 10, lineHeight: 14 }}>Drag to reorder</Text>
         </Pressable>
-        <View style={{ width: gridWidth(), height: 64, position: "relative", overflow: "hidden" }}>
+        <View style={{ width: gridWidth(), height: rowHeight(), position: "relative", overflow: "hidden" }}>
           <For each={row.track.clips}>
             {(clip) => (
               <Pressable
@@ -158,7 +166,7 @@ export function ReferenceStudio(props: ReferenceStudioProps) {
                 style={{
                   position: "absolute",
                   left: (clip.start - s.pan()) * scale(),
-                  top: 10,
+                  top: 10 + placement().lanes.get(clip.id)! * 46,
                   width: Math.max(24, clip.duration * scale()),
                   height: 42,
                   padding: 4,

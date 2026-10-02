@@ -1,5 +1,19 @@
 # 参考应用
 
+重叠 clip 在同一条测量过的 track row 内使用独立 lane，拖放到相同时间范围后
+仍保留各自的原生命中区域。
+Lane 计算包含 24 像素的最小命中宽度，并在 viewport 或 zoom 变化时重新计算。
+原生 workload 在关闭前启动部分上传、取消 staging、保留当前帧并清空帧，
+通过原生 `getState` 确认各步骤的 retained bytes。关闭结果只报告真实的 row owner、
+Surface、窗口与 popup 数量；独立资源回收由原生 owner 生命周期测试覆盖。
+Preview 卸载时会取消尚未完成的调用。
+
+原生驱动需要 Bun 的 `browser` condition，确保外部 Solid 导入使用客户端响应式 runtime：
+
+```sh
+bun --conditions=browser examples/website/scripts/qualify-reference.ts /absolute/path/to/website-acceptance deterministic .scratch/reference-acceptance
+```
+
 Reference Studio 是网站 Showcase 与桌面示例共用的原生应用工作负载。
 Gallery Desktop 路由为 `/showcase/reference-studio` 和
 `/showcase/reference-studio-history`；桌面示例的 Studio 链接打开
@@ -57,3 +71,10 @@ Timeline 和 History 仅改变保留窗格的比例。窄窗口将非活动窗�
 以及窗口关闭后的清理。平台支持时保存原生窗口截图；不支持的截图或输入
 需明确记录。原生测试渲染与操作系统物理输入属于不同证据类别，不据此
 宣称显示 FPS 或延迟。
+
+工作负载读取生成选区服务并与原生剪贴板文本比较，搜索已提交文本、选择匹配
+revision，再清除高亮。Preview 验证绘制 recording/frame 边界，以及推进帧后
+原生确认保留的 CPU 像素。
+
+`mountReferenceStudio()` 的 ready 在首个 router load 后完成，窗口/root 命令先
+等待它。原生验收通过 resize 事件同步改变真实几何与应用尺寸 store。

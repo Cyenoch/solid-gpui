@@ -55,7 +55,7 @@ export async function generateDeliveryRelease(options: {
     const version = deliveryVersion();
     const target = stockTarget();
     const sourceManifest = await deliveryRun(["git", "show", `${revision}:Cargo.toml`], root);
-    if (Bun.TOML.parse(sourceManifest).workspace && !sourceManifest.includes(`version = "${version}"`))
+    if ("workspace" in Bun.TOML.parse(sourceManifest) && !sourceManifest.includes(`version = "${version}"`))
       throw new Error("Source and npm delivery versions differ");
     const lock = JSON.parse(
       await deliveryRun(["git", "show", `${revision}:packages/solid-gpui/src/protocol/schema-lock.json`], root),
@@ -72,10 +72,22 @@ export async function generateDeliveryRelease(options: {
     const bindings = join(output, `solid-gpui-native-${version}-${target}.ts`);
     await writeFile(bindings, await deliveryRun([binary, "--export-native"], temporary));
     const probe = join(temporary, "capability.js");
-    await writeFile(probe, 'globalThis.__solidGpui.submit(new ArrayBuffer(0));\n');
-    const capability = Bun.spawn([binary, "--check-app", "quickjs", probe], { cwd: temporary, stdout: "pipe", stderr: "pipe" });
-    const [capabilityError, capabilityStatus] = await Promise.all([new Response(capability.stderr).text(), capability.exited]);
-    if (capabilityStatus === 0 || capabilityError.includes("unknown host option") || capabilityError.includes("QuickJS runtime is not compiled")) throw new Error("Delivery host lacks the required QuickJS/application-check capability");
+    await writeFile(probe, "globalThis.__solidGpui.submit(new ArrayBuffer(0));\n");
+    const capability = Bun.spawn([binary, "--check-app", "quickjs", probe], {
+      cwd: temporary,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [capabilityError, capabilityStatus] = await Promise.all([
+      new Response(capability.stderr).text(),
+      capability.exited,
+    ]);
+    if (
+      capabilityStatus === 0 ||
+      capabilityError.includes("unknown host option") ||
+      capabilityError.includes("QuickJS runtime is not compiled")
+    )
+      throw new Error("Delivery host lacks the required QuickJS/application-check capability");
     const tar = join(temporary, "source.tar");
     await deliveryRun(
       [
@@ -85,6 +97,7 @@ export async function generateDeliveryRelease(options: {
         "--prefix=sdk/",
         `--output=${tar}`,
         revision,
+        ".cargo",
         "Cargo.toml",
         "Cargo.lock",
         "rust-toolchain.toml",

@@ -71,7 +71,8 @@ u8，不编码图像或 data URL。`replaceFrame` 最多 240 KiB，即使每字�
 重挂载。`getState()` 返回 disposed、最后 sequence、当前尺寸与保留/预留 CPU 字节。
 成功 `replaceFrame` 会取消旧暂存。
 
-单边尺寸 1..4,096，每帧最多 16 MiB。每组件仅一个可见帧、一个暂存帧，整个 host
+单边尺寸 1..4,096，每帧最多 16 MiB。尺寸在字节乘法或分配前校验，即使 u32
+最大值也返回错误并保留可见帧。每组件仅一个可见帧、一个暂存帧，整个 host
 共 64 MiB 预算，包括暂存预留以及等待 scene 释放的像素所有者。预算不足拒绝获取，
 不会删除可见内容。替换期间可能同时占用新旧帧。GPUI 在 update 结束时释放实体及
 atlas；clear/dispose 不保证 GPU 驱动立即回收内存。

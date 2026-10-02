@@ -31,6 +31,10 @@ Clip editing uses controlled title/start/duration fields, native drag/drop,
 explicit time-window and zoom controls, and GPUI-owned vertical scroll. Every
 track header and clip grid shares one virtualized row. The history is a
 deterministic in-memory review dataset with variable paragraph counts.
+Overlapping clips occupy separate lanes inside a measured track row, so moving
+a clip onto another clip's time range preserves individual pointer targets.
+Lane packing includes the 24-pixel minimum hit target and recomputes when
+viewport width or zoom changes.
 Recorded paint and host-owned media compose through the `preview` slot using
 generated NativeView contracts; that component owns cancellation and release.
 
@@ -82,3 +86,24 @@ separate paragraphs, and cleanup after surface closure. Capture the same native
 window where supported. Record unsupported capture or platform input explicitly.
 Native test rendering and OS-injected physical input are separate evidence
 categories. No display FPS or latency claim follows from semantic tests or builds.
+
+The workload also reads the generated selection service and compares its text
+with the native clipboard, searches committed text and selects a matching
+revision, then clears highlights. Preview checks require painted recording/frame
+bounds and acknowledged retained CPU pixels after advancing the native frame.
+Before closing, it starts a partial native upload, cancels staging while retaining
+the displayed frame, and clears the frame. Native `getState` acknowledgements
+check retained bytes at each transition. Cleanup reports actual row-owner,
+Surface, window, and popup counts; per-resource teardown is covered by the native
+owner lifecycle tests. The preview aborts any in-flight call when it unmounts.
+
+`mountReferenceStudio()` exposes `ready`, resolved after the first router load.
+Await it before window/root commands. Native qualification uses the acceptance
+resize event so window geometry and the application size store change together.
+
+Run the driver with Bun's `browser` condition so external Solid imports use the
+client reactive runtime:
+
+```sh
+bun --conditions=browser examples/website/scripts/qualify-reference.ts /absolute/path/to/website-acceptance deterministic .scratch/reference-acceptance
+```

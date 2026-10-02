@@ -234,6 +234,14 @@ export class RootContainer implements DispatchContext {
     payload: CommandPayload,
     options?: NativeCallOptions,
   ): Promise<CommandValue | null> {
+    return afterRootCommit(this.tree, () => this.beginNodeCommand(node, kind, payload, options));
+  }
+  private beginNodeCommand(
+    node: HostNodeInternal,
+    kind: CommandKind,
+    payload: CommandPayload,
+    options?: NativeCallOptions,
+  ): Promise<CommandValue | null> {
     if (this.transportTerminated) {
       return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
     }
@@ -307,30 +315,10 @@ export class RootContainer implements DispatchContext {
     return this.commandClient.submit(command, options);
   }
   setTitle(title: string): Promise<void> {
-    if (this.transportTerminated) {
-      return Promise.reject(this.terminationError ?? new TransportTerminatedError("transport is terminated"));
-    }
-    if (this.unmounted) return Promise.reject(new SurfaceClosedError(this.surfaceId));
     if (typeof title !== "string" || title.length === 0 || [...title].length > 256) {
       return Promise.reject(new TypeError("title must be a non-empty string of at most 256 characters"));
     }
-    let requestId: number;
-    try {
-      requestId = this.commandClient.allocateRequestId(nextU32);
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    const command: Command = {
-      type: "command",
-      surfaceId: this.surfaceId,
-      epoch: this.epoch,
-      afterRevision: this.revision,
-      requestId,
-      nodeId: 1,
-      command: COMMAND_SET_TITLE,
-      payload: { type: "text", value: title },
-    };
-    return this.commandClient.submit(command).then(() => undefined);
+    return this.submitSurfaceCommand(COMMAND_SET_TITLE, { type: "text", value: title });
   }
   submitSurfaceCommand(kind: CommandKind, payload: CommandPayload): Promise<void> {
     return this.submitSurfaceCommandValue(kind, payload).then(() => undefined);
@@ -341,10 +329,19 @@ export class RootContainer implements DispatchContext {
     options?: NativeCallOptions,
   ): Promise<CommandValue | null> {
     try {
-      return this.beginSurfaceCommand(kind, payload, options).result;
+      this.assertCommandOwner();
+      if (this.revision === 0 && this.tree.syntheticRoot.firstChild === null && !this.tree.graph.inTransaction)
+        throw new Error("Surface commands require an initial committed render");
+      return afterRootCommit(this.tree, () => this.beginSurfaceCommand(kind, payload, options).result);
     } catch (error) {
       return Promise.reject(error);
     }
+  }
+
+  private assertCommandOwner(): void {
+    if (this.transportTerminated)
+      throw this.terminationError ?? new TransportTerminatedError("transport is terminated");
+    if (this.unmounted) throw new SurfaceClosedError(this.surfaceId);
   }
 
   beginSurfaceCommand(
@@ -355,9 +352,8 @@ export class RootContainer implements DispatchContext {
     requestId: number;
     result: Promise<CommandValue | null>;
   } {
-    if (this.transportTerminated)
-      throw this.terminationError ?? new TransportTerminatedError("transport is terminated");
-    if (this.unmounted) throw new SurfaceClosedError(this.surfaceId);
+    this.assertCommandOwner();
+    if (this.revision === 0) throw new Error("Surface commands require an initial committed render");
     const requestId = this.commandClient.allocateRequestId(nextU32);
     const command: Command = {
       type: "command",
@@ -412,18 +408,16 @@ export class RootContainer implements DispatchContext {
     if (!(args instanceof Uint8Array)) return Promise.reject(new TypeError("native arguments must be a Uint8Array"));
     if (args.byteLength > MAX_NATIVE_CALL_BYTES)
       return Promise.reject(new RangeError("native arguments exceed the supported size"));
-    return afterRootCommit(this.tree, () =>
-      this.submitSurfaceCommandValue(
-        COMMAND_INVOKE_NATIVE,
-        {
-          type: "invoke-native",
-          moduleId,
-          moduleDigest,
-          functionId,
-          args,
-        },
-        options,
-      ),
+    return this.submitSurfaceCommandValue(
+      COMMAND_INVOKE_NATIVE,
+      {
+        type: "invoke-native",
+        moduleId,
+        moduleDigest,
+        functionId,
+        args,
+      },
+      options,
     ).then((value) => {
       if (
         value === null ||

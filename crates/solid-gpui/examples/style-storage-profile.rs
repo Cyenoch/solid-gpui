@@ -95,6 +95,7 @@ fn operation(id: u32, mask: u32, style: Option<Style>, text: Option<String>) -> 
         tooltip: None,
         accepts_pointer_move: false,
         observes_layout: false,
+        observes_hover: false,
     }
 }
 

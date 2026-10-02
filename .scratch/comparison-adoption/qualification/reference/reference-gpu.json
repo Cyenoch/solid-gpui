@@ -1,0 +1,21 @@
+{
+  "evidenceKind": "native-test-rendering",
+  "screenshot": "/Users/jgbingzi/workspace/sp/solid-gpui/.scratch/comparison-adoption/qualification/reference/reference-studio-complete.png",
+  "rowOwners": {
+    "live": 20,
+    "peak": 20
+  },
+  "previewResources": {
+    "retainedBefore": 9216,
+    "retainedDuring": 18432,
+    "retainedAfter": 9216,
+    "released": 0
+  },
+  "resources": {
+    "rowOwners": 0,
+    "surfaces": 0,
+    "windows": 0,
+    "popups": 0
+  },
+  "elapsedMs": 4414
+}

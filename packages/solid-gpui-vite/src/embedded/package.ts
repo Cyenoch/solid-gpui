@@ -417,6 +417,7 @@ export async function packageEmbeddedApplication(options: EmbeddedPackagingOptio
     RUSTUP_TOOLCHAIN: pin.toolchain,
     CARGO_ENCODED_RUSTFLAGS: nativeManifest.rustFlags.join("\x1f"),
     SOLID_GPUI_BUN_LINK_MANIFEST: nativeManifestPath,
+    SOLID_GPUI_BUILD_LOCKFILE: join(artifacts.applicationDirectory, "Cargo.lock"),
   };
   const cargoContext: CommandContext = {
     cwd: artifacts.applicationDirectory,

@@ -59,6 +59,9 @@ Reference Studio and Studio History share retained editing panes, 240 tracks, an
 source provenance, explicit adaptations, and the executable native acceptance
 workload. `bun scripts/check-reference-provenance.ts` checks immutable source
 identity; native interaction checks run serially after compilation.
+From the repository root, run
+`bun --conditions=browser examples/website/scripts/qualify-reference.ts /absolute/path/to/website-acceptance deterministic .scratch/reference-acceptance`.
+Use `gpu` for the separate macOS Metal capture run.
 
 The Low-level drawing group includes an interactive RecordedPaint workflow diagram
 and an acknowledged LiveFrame CPU stream. Their executable source lives in

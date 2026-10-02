@@ -16,6 +16,10 @@ Escape 清除。双击选择单词，三击选择段落。单段落内容更新�
 导入 useNative。命令只操作发起调用的 Surface，包括弹出 Surface。自定义
 ExtensionRegistry 需注册 `solid_gpui::native::text::native_module()`。
 
+服务与观察者声明行为版本 `1.0.0`。生成 props 与 renderer 命令包含所选 host 的
+严格构建信封。Rust 测试使用 `encode_native_request(module.build_digest(), &dto)`；
+缺失或过期信封在读取或修改文档状态前拒绝。
+
 ```tsx
 const native = useNative();
 const result = await native.searchText({ query: "searchable" });

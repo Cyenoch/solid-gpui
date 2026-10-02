@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import schema from "../packages/solid-gpui/src/protocol/schema-lock.json";
 import {
   deliveryHash,
   deliveryVersion,
@@ -36,8 +37,8 @@ test("stock acquisition rejects a corrupt host before attempting to execute or s
         version: deliveryVersion(),
         revision: "a".repeat(40),
         target: stockTarget(),
-        protocolVersion: 6,
-        schemaDigest: "b".repeat(64),
+        protocolVersion: schema.protocolVersion,
+        schemaDigest: schema.sha256,
         runtimes: ["bun", "quickjs"],
         host: { file: "host.bin", bytes: 15, sha256: "c".repeat(64) },
         bindings: { file: "native.ts", bytes: 11, sha256: await deliveryHash(bindings) },

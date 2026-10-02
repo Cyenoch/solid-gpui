@@ -3,14 +3,16 @@ import { paintMediaExamples } from "./component-recipes/paint-media.ts";
 type Example = { names: string[]; description: string; descriptionChinese: string; source: string };
 export const componentExamples: Example[] = [...paintMediaExamples];
 function add(names: string, description: string, descriptionChinese: string, jsx: string, setup = "") {
-  componentExamples.push({
+  const example = {
     names: names.split(" "),
     description,
     descriptionChinese,
     source: `import * as N from "@solid-gpui/core/components";\nimport { View } from "@solid-gpui/core";\n${setup.includes("createSignal") ? 'import { createSignal } from "@solid-gpui/core/runtime";\n' : ""}\nexport default function Example() {\n${setup ? `  ${setup}\n` : ""}  return (\n    ${jsx}\n  );\n}`,
-  });
+  };
+  componentExamples.push(example);
+  return example;
 }
-add(
+const selectionExample = add(
   "TextSelectionObserver",
   "Observe native cross-paragraph selection revisions and search committed selectable text without mirroring native ranges in JavaScript.",
   componentDescriptionsChinese[
@@ -19,7 +21,7 @@ add(
   '<View style={{ gap: 12 }}><N.TextSelectionObserver onSelectionChange={event => setStatus(`${event.selectedParagraphs} selected paragraphs`)} /><CoreText selectable>Hello <CoreText style={{ color: "#5271ff" }}>🙂 新值</CoreText></CoreText><CoreText selectable>A second searchable paragraph with é.</CoreText><N.Button label="Find searchable" onPress={async () => { const result = await native.searchText({ query: "searchable" }); if (result.matches.length) await native.selectTextSearchMatch({ textRevision: result.textRevision, searchRevision: result.searchRevision, matchIndex: 0 }); }} /><N.Label text={status()} /></View>',
   'const native = N.useNative(); const [status, setStatus] = createSignal("Drag across paragraphs, then copy.");',
 );
-componentExamples[0].source = 'import { Text as CoreText } from "@solid-gpui/core";\n' + componentExamples[0].source;
+selectionExample.source = 'import { Text as CoreText } from "@solid-gpui/core";\n' + selectionExample.source;
 add(
   "Button",
   "A button for actions, with variants, loading and disabled states.",

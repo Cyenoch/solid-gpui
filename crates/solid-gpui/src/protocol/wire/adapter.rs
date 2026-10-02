@@ -332,17 +332,16 @@ fn validate_style_value(value: &generated::Style<'_>) -> Result<(), ProtocolErro
             return Err(ProtocolError::InvalidStyle);
         }
     }
-    if let Some(length) = &value.flex_basis {
-        if length.value.is_none()
+    if let Some(length) = &value.flex_basis
+        && (length.value.is_none()
             || length.unit.is_none()
             || !(StyleLength {
                 unit: decode_length_unit(length.unit).unwrap(),
                 value: length.value.unwrap(),
             })
-            .is_valid()
-        {
-            return Err(ProtocolError::InvalidStyle);
-        }
+            .is_valid())
+    {
+        return Err(ProtocolError::InvalidStyle);
     }
     for refinement in [&value.hover, &value.active, &value.focus_visible]
         .into_iter()

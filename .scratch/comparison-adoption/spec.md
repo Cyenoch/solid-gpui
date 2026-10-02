@@ -1,10 +1,10 @@
-# Implement the complete comparative assessment
+# Complete native capability and application delivery
 
 Status: ready-for-agent
 
-User authorization (2026-10-02): delegate agents to implement every recommendation from `.scratch/project-comparison-2026-10-01/README.md`, without dividing delivery into phases; solve/clean/refactor our mistakes at high quality and adopt the other projects' useful designs.
+User authorization (2026-10-02): implement all required outcomes in one integrated delivery, with parallel agents, high-quality fixes, cleanup and refactoring.
 
-This is one integrated delivery. Independent work runs concurrently; integration dependencies do not reduce scope. Baseline: `e9bc4389c5394e5de1fecb6758d2d06e48877fdb`. Preserve existing research notes as historical evidence.
+This is one integrated delivery. Independent work runs concurrently; integration dependencies do not reduce scope. Baseline: `e9bc4389c5394e5de1fecb6758d2d06e48877fdb`. Historical research is archived outside the repository.
 
 ## Required outcomes
 

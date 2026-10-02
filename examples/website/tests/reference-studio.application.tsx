@@ -9,6 +9,7 @@ import {
 import { createRootRoute, createRoute, createRouter, RouterProvider, useLocation, useRouter } from "@solid-gpui/router";
 import { ReferenceStudio, createReferenceStudioState } from "../src/showcase/ReferenceStudio";
 import { StudioPreview } from "../src/showcase/StudioPreview.native";
+import type { LiveFrameRef } from "@solid-gpui/core/components";
 
 /** Production controls and router, isolated from documentation virtualization for native qualification. */
 export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
@@ -16,6 +17,7 @@ export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
   const live = new Set<object>();
   let peak = 0;
   let root: Root;
+  let previewFrame: LiveFrameRef | undefined;
   const lists = new Map<"track" | "history", VirtualListHandle>();
   const route = createRootRoute({
     component: () => {
@@ -30,8 +32,15 @@ export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
           height={dimensions().height}
           view={location().pathname === "/studio/history" ? "history" : "timeline"}
           navigate={(view) => void router.navigate({ to: `/studio/${view}` })}
-      copyText={(text) => root.setClipboardText(text)}
-      preview={() => <StudioPreview title={state.selectedClip().label} />}
+          copyText={(text) => root.setClipboardText(text)}
+          preview={() => (
+            <StudioPreview
+              title={state.selectedClip().label}
+              onFrame={(frame) => {
+                previewFrame = frame;
+              }}
+            />
+          )}
           onListHandle={(kind, handle) => {
             if (handle) lists.set(kind, handle);
             else lists.delete(kind);
@@ -56,7 +65,12 @@ export function mountReferenceStudio(transport: Transport, surfaceId = 1) {
   return {
     root,
     router,
+    ready: router.load(),
     rowOwners: () => ({ live: live.size, peak }),
+    preview: () => {
+      if (!previewFrame) throw new Error("Studio preview is not mounted");
+      return previewFrame;
+    },
     list: (kind: "track" | "history") => {
       const handle = lists.get(kind);
       if (!handle) throw new Error(`Studio ${kind} list is not mounted`);

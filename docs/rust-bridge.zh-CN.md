@@ -4,6 +4,19 @@
 
 导出的 `nativeIdentity`（组合模块使用带编号的名称）分别记录规范接口与构建来源。构建摘要锁定精确 SDK 版本、规范化的 SDK 源码/依赖输入及选定实现。源码注释改变构建来源，不改变契约；DTO 文档仍导出但不进入契约摘要。LF/CRLF 换行被规范化。注解模块之外的实现输入应通过 `with_implementation(include_str!("service.rs"))` 加入。
 
+来源包含消费应用 Cargo workspace 实际解析的 Cargo.lock，以及 SDK 的 Embedded
+Bun runtime、producer、配置与 patch。Vite 从 Cargo 查询 workspace 并自动传入锁。
+直接运行 Cargo 时，在消费 workspace 的 `.cargo/config.toml` 配置：
+
+```toml
+[env]
+SOLID_GPUI_BUILD_LOCKFILE = { value = "Cargo.lock", relative = true }
+```
+
+本仓库和 native scaffold 已包含配置。缺失或不可读的实际锁文件使构建失败；
+锁变化使 producer 重建，绝对路径和 CRLF 差异不改变身份。该身份不替代可执行文件、
+工具链或未声明的应用实现源码验证。
+
 生成组件和客户端自动携带两种锁。直接构造原生 props 或调用参数的 Rust 代码使用 `encode_native_request(module.build_digest(), &dto)`。缺失封装、构建或契约不匹配会在发布/执行前拒绝；结果和事件保持严格 JSON。该可移植源码构建身份不等于可执行文件或全部应用依赖哈希，分发仍需精确配对宿主和 bundle，并验证发布产物。
 需要捕获应用服务状态时，可注册 `CommandDefinition::blocking(name, closure)`
 或 `CommandDefinition::asynchronous`。`blocking` 与 `sync` 共享执行许可和
@@ -291,3 +304,7 @@ Window/App 边界。
 可运行示例 `examples/website/native/src/lib.rs` 声明 BuildBadge 和 analyze_workspace，website TSX 使用生成组件与 Promise 客户端。设计依据见 [ADR-0016](adr/0016-rust-owned-native-modules.md)。
 
 `@solid-gpui/vite` 从 Cargo 的实际可执行文件导出 bindings。由 Rust 启动 Vite 时使用当前宿主；直接 Bun JS 也能导入生成文件，无需打包器，Native Contract 不变。配置与生命周期见 [Vite 集成](vite.zh-CN.md)。
+
+Surface 命令要求首个已提交原生树，异步 router 先等待首屏加载。root 命令在
+捕获 revision 前完成待提交事务；首屏前明确拒绝，不发往未初始化 Surface。
+拒绝回复保留请求的 Surface/epoch 身份。

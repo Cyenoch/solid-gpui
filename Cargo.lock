@@ -6639,6 +6639,7 @@ dependencies = [
  "bebop",
  "block2 0.6.2",
  "chrono",
+ "core-foundation 0.10.1",
  "data-url",
  "ed25519-dalek",
  "futures",

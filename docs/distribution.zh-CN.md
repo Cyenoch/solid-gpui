@@ -20,6 +20,10 @@ website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust �
 
 ## 通用应用打包
 
+普通 tar.gz 的创建和解压使用 Bun archive API，保留执行权限、空资源目录和长
+Unicode 路径，无需外部 tar。提取检查复用完整原生组件准入，包括构建信封、DTO
+和组件组合。
+
 ```sh
 bun run build
 solid-gpui package --name my-app

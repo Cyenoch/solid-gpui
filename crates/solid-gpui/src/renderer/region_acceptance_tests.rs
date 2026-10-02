@@ -57,6 +57,39 @@ fn acceptance_replays_only_painted_region_content_and_bounds(cx: &mut TestAppCon
         assert!(root.primitive_constructions.get() <= 4);
     });
     root.update(cx, |root, cx| {
+        root.set_text_selection(crate::native::text::TextSelectionRequest {
+            text_revision: root.text_selection_snapshot().unwrap().text_revision,
+            anchor: crate::native::text::TextPosition {
+                node_id: 3,
+                offset: 0,
+            },
+            head: crate::native::text::TextPosition {
+                node_id: 3,
+                offset: 9,
+            },
+        })
+        .unwrap();
+        root.primitive_constructions.set(0);
+        cx.notify();
+    });
+    region_tests::draw(cx, window.into());
+    root.read_with(cx, |root, _| {
+        assert!(root.primitive_constructions.get() > 10);
+        assert_eq!(
+            root.acceptance_nodes()
+                .into_iter()
+                .find(|node| node.id == 3)
+                .unwrap()
+                .selected_text
+                .as_deref(),
+            Some("Count: 12")
+        );
+    });
+    root.update(cx, |root, cx| {
+        root.clear_text_selection();
+        cx.notify();
+    });
+    root.update(cx, |root, cx| {
         root.apply_decoded_message(
             DecodedMessage::Patch(Patch::new(
                 7,

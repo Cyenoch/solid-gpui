@@ -775,7 +775,7 @@ impl NodeStore {
             if mask & UPDATE_STYLE != 0 {
                 style.as_ref()
             } else {
-                node.style.as_ref()
+                node.style.as_deref()
             },
         )
         .map_err(|_| TreeError::InvalidPatchOperation {

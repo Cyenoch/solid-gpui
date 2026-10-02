@@ -351,12 +351,16 @@ export async function scaffoldApplication(options: ScaffoldOptions): Promise<voi
       );
       await write("rust-toolchain.toml", await readFile(join(root, ".solid-gpui/sdk/rust-toolchain.toml"), "utf8"));
       await write(
+        ".cargo/config.toml",
+        '[env]\nSOLID_GPUI_BUILD_LOCKFILE = { value = "Cargo.lock", relative = true }\n',
+      );
+      await write(
         "native/Cargo.toml",
         `[package]\nname = "${name}"\nversion = "0.1.0"\nedition = "2024"\n\n[dependencies]\nsolid-gpui = { path = "../.solid-gpui/sdk/crates/solid-gpui", features = ["gpui-component", "quickjs"] }\n`,
       );
       await write(
         "native/src/main.rs",
-        `use solid_gpui::native_module;\n\n#[native_module(name = "app")]\nmod app {\n    #[command]\n    pub fn greeting() -> String { "Hello from Rust".into() }\n}\n\nfn main() {\n    solid_gpui::host::run(app::native_module);\n}\n`,
+        `use solid_gpui::native_module;\n\n#[native_module(name = "app", version = "1.0.0")]\nmod app {\n    #[command]\n    pub fn greeting() -> String { "Hello from Rust".into() }\n}\n\nfn main() {\n    solid_gpui::host::run(app::native_module);\n}\n`,
       );
     } finally {
       await rm(stage, { recursive: true, force: true });
@@ -446,7 +450,7 @@ export async function scaffoldApplication(options: ScaffoldOptions): Promise<voi
   );
   await write(
     "src/app.tsx",
-    `import { mountApplication } from "@solid-gpui/core";\nimport { ${runtime === "quickjs" ? "EmbeddedTransport" : "StdioTransport"} } from "@solid-gpui/core/${runtime === "quickjs" ? "embedded" : "stdio"}";\nimport { Counter } from "./counter.tsx";\n${options.native ? 'import { useNative } from "#native";\nimport { onMount } from "@solid-gpui/core/runtime";\n' : ""}\nmountApplication({\n  transport: () => new ${runtime === "quickjs" ? "EmbeddedTransport" : "StdioTransport"}(),\n  setup: () => ({ render: () => { ${options.native ? "const native = useNative(); onMount(async () => console.log(await native.greeting())); " : ""}return <Counter />; } }),\n});\n`,
+    `import { mountApplication${options.native ? ", Text, View" : ""} } from "@solid-gpui/core";\nimport { ${runtime === "quickjs" ? "EmbeddedTransport" : "StdioTransport"} } from "@solid-gpui/core/${runtime === "quickjs" ? "embedded" : "stdio"}";\nimport { Counter } from "./counter.tsx";\n${options.native ? 'import { useNative } from "#native";\nimport { createSignal, onMount } from "@solid-gpui/core/runtime";\n' : ""}\nmountApplication({\n  transport: () => new ${runtime === "quickjs" ? "EmbeddedTransport" : "StdioTransport"}(),\n  setup: () => ({ render: () => { ${options.native ? 'const native = useNative(); const [greeting, setGreeting] = createSignal("Connecting to Rust..."); onMount(async () => setGreeting(await native.greeting())); ' : ""}${options.native ? "return <View><Text>{greeting()}</Text><Counter /></View>;" : "return <Counter />;"} } }),\n});\n`,
   );
   await write(
     "README.md",

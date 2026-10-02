@@ -32,6 +32,8 @@ struct Request {
     delta: Option<Position>,
     text: Option<String>,
     milliseconds: Option<u64>,
+    width: Option<u32>,
+    height: Option<u32>,
 }
 fn initial_surface() -> u32 {
     1
@@ -46,6 +48,7 @@ enum Action {
     Key,
     Drag,
     Wheel,
+    Resize,
     AdvanceClock,
     Screenshot,
     ClipboardText,
@@ -134,6 +137,20 @@ enum NativeContext {
     Gpu(gpui::VisualTestAppContext),
 }
 impl NativeContext {
+    fn resize(
+        &mut self,
+        handle: AnyWindowHandle,
+        viewport: gpui::Size<gpui::Pixels>,
+    ) -> Result<(), String> {
+        match self {
+            Self::Deterministic(cx) => cx.simulate_window_resize(handle, viewport),
+            #[cfg(target_os = "macos")]
+            Self::Gpu(cx) => cx
+                .update(|cx| cx.update_window(handle, |_, window, _| window.resize(viewport)))
+                .map_err(|error| error.to_string())?,
+        }
+        Ok(())
+    }
     fn update<R>(&mut self, f: impl FnOnce(&mut App) -> R) -> R {
         match self {
             Self::Deterministic(cx) => cx.update(f),
@@ -145,7 +162,16 @@ impl NativeContext {
         match self {
             Self::Deterministic(cx) => cx.run_until_parked(),
             #[cfg(target_os = "macos")]
-            Self::Gpu(cx) => cx.run_until_parked(),
+            Self::Gpu(cx) => {
+                cx.run_until_parked();
+                // AppKit window operations use the platform's main dispatch queue.
+                core_foundation::runloop::CFRunLoop::run_in_mode(
+                    unsafe { core_foundation::runloop::kCFRunLoopDefaultMode },
+                    Duration::from_millis(1),
+                    false,
+                );
+                cx.run_until_parked();
+            }
         }
     }
     fn advance(&self, duration: Duration) {
@@ -182,6 +208,8 @@ impl AcceptanceSession {
                 });
                 cx.update_window(handle, |_, window, cx| {
                     window.draw(cx).clear(cx);
+                    // Manual draws must also deliver production frame observers.
+                    window.simulate_next_frame(cx);
                 })
                 .map_err(|e| e.to_string())?;
             }
@@ -257,6 +285,15 @@ impl AcceptanceSession {
         let mut result = serde_json::Value::Null;
         match request.action {
             Action::Flush => {}
+            Action::Resize => {
+                let width = request.width.ok_or("resize requires width")?;
+                let height = request.height.ok_or("resize requires height")?;
+                if width == 0 || height == 0 || width > 16_384 || height > 16_384 {
+                    return Err("acceptance resize requires dimensions from 1 to 16384".into());
+                }
+                self.cx
+                    .resize(handle, gpui::size(px(width as f32), px(height as f32)))?;
+            }
             Action::Snapshot => {
                 result = self.cx.update(|cx| {
                     let root = self.registry.read(cx).surfaces[&request.surface_id].root.read(cx);
@@ -598,7 +635,7 @@ pub fn run(profile: impl HostProfile) -> Result<(), String> {
 fn serve(session: &mut AcceptanceSession) -> Result<(), String> {
     let mut input = std::io::stdin().lock();
     let mut output = std::io::stdout().lock();
-    let hello = serde_json::json!({ "version": 1, "mode": if session.gpu { "gpu" } else { "deterministic" }, "platform": std::env::consts::OS, "screenshots": session.gpu, "clock": true });
+    let hello = serde_json::json!({ "version": 2, "mode": if session.gpu { "gpu" } else { "deterministic" }, "platform": std::env::consts::OS, "screenshots": session.gpu, "clock": true });
     write_packet(&mut output, &hello)?;
     loop {
         let mut header = [0; 4];

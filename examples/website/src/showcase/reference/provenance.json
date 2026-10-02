@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "mode": "idea-based-original-implementation",
+  "mode": "original-implementation-with-pinned-fixtures",
   "fixtures": [
     {
       "repository": "remorses/gpuix",
@@ -45,7 +45,7 @@
     {
       "reference": "timeline.tsx:468-513,583-710",
       "target": "ReferenceStudio.tsx",
-      "adaptation": "Native drag/drop types identify business clips/tracks; GPUI owns drag lifetime. Fixed track header and clip grid share one virtualized row; no pointer capture emulation."
+      "adaptation": "Native drag/drop types identify business clips/tracks; GPUI owns drag lifetime. Fixed track header and clip grid share one measured virtualized row. Clip lanes include rendered minimum target widths; no pointer capture emulation."
     },
     {
       "reference": "timeline.tsx:12-24,798-1100",
