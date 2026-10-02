@@ -29,6 +29,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./compiler": {
+      "solid-gpui-source": "./src/compiler.ts",
+      "types": "./dist/compiler.d.ts",
+      "import": "./dist/compiler.js"
+    },
     "./dev": {
       "solid-gpui-source": "./src/dev.ts",
       "types": "./dist/dev.d.ts",
@@ -93,6 +98,9 @@
   },
   "peerDependenciesMeta": {
     "@solid-gpui/core": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   }

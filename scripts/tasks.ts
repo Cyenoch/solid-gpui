@@ -424,6 +424,7 @@ class Tasks {
         "test",
         "scripts/api-surface.test.ts",
         "scripts/application-build.test.ts",
+        "scripts/compiler.test.ts",
         "scripts/hot-reload.test.ts",
         "scripts/native-export.test.ts",
         "scripts/dev-session.test.ts",
@@ -440,6 +441,7 @@ class Tasks {
 
   async packagePackSmoke(): Promise<void> {
     await this.packageBuild();
+    await run(["bun", "scripts/compiler-pack-smoke.ts"]);
     await run(["bun", "scripts/package-pack-smoke.ts"]);
   }
   async websitePackage(outputPath?: string): Promise<void> {

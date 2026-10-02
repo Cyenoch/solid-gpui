@@ -19,3 +19,10 @@ recursively building or launching another host.
 This refines [ADR-0015](0015-vite-bun-native-hot-reload.md) and
 [ADR-0017](0017-runtime-engines.md). See [Vite integration](../vite.md) for the
 supported configuration and process lifetimes.
+
+Amendment, 2026-10-02: `@solid-gpui/vite/compiler` exposes `compile(source,
+filename)` and `CompileResult` independently of Vite lifecycle. It is the one
+universal JSX/TSX implementation consumed directly by Vite, with composed source
+maps and the stable core runtime ABI. It does not introduce another application
+bundler, launcher, native-binding resolver, or runtime. Vite remains responsible
+for application project resolution and bundling.

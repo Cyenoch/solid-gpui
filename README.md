@@ -22,19 +22,22 @@ The shared website brings together interactive guides, a component catalog, and
 Showcase apps. It runs on desktop and in the browser through an experimental
 Rust WebAssembly host.
 
-> Early-stage software: APIs may change. GitHub Pages is awaiting its first
-> deployment; you can run the website locally with the commands below.
+> Early-stage software: APIs may change. The [live website](https://cyenoch.github.io/solid-gpui/)
+> provides guides and previews; [distribution](docs/distribution.md) records native
+> delivery status and platform qualification.
 
 ## What you get
 
 - **Familiar Solid.** Signals, components, and reactive TSX with the
   [Solid GPUI renderer](packages/solid-gpui).
 - **Native building blocks.** Text editing, virtual lists, themes, and optional
-  [gpui-component controls](docs/gpui-components.md), from buttons to docking panels.
+  [gpui-component controls](docs/gpui-components.md), from buttons to docking panels,
+  retained Markdown TextView, editors, charts, and tables.
 - **Typed Rust integration.** Export Rust functions and components with
   [generated TypeScript bindings](docs/rust-bridge.md).
 - **Tools for complete apps.** [Routing](packages/solid-gpui-router),
-  [code highlighting](docs/shiki.md), and [Vite development and builds](docs/vite.md).
+  [code highlighting](docs/shiki.md), [Vite development and builds](docs/vite.md),
+  and a [compiler-only API](docs/vite.md#compiler-only-api) for custom tooling.
 
 ## Build an application
 
