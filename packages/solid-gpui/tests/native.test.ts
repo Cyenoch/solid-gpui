@@ -7,12 +7,15 @@ import {
   useNativeClient,
   encodeJson,
   decodeJson,
+  encodeNativeRequest,
   type NativeComponentDescriptor,
 } from "../src/native";
 import { Envelope, type Command } from "../src/protocol/generated/protocol";
 import { COMMAND_INVOKE_NATIVE, encodeFrame } from "../src/protocol";
 
 const descriptor: NativeComponentDescriptor = {
+  buildDigest: Array(32).fill(11),
+  semanticVersion: "1.0.0",
   providerId: Array(16).fill(7),
   catalogDigest: Array(32).fill(9),
   entryId: 1,
@@ -25,6 +28,8 @@ const descriptor: NativeComponentDescriptor = {
   controlled: null,
 };
 const clientDescriptor = {
+  buildDigest: descriptor.buildDigest,
+  semanticVersion: descriptor.semanticVersion,
   moduleId: descriptor.providerId,
   moduleDigest: descriptor.catalogDigest,
   commands: [{ id: 1, name: "greet" }],
@@ -135,7 +140,10 @@ test("native components preserve getters and callback generations while subscrib
   if (update.tag !== 2 || update.value.hostProperties?.tag !== 5) throw new Error("expected extension update");
   const field = update.value.hostProperties.value.fields![0]!.value!;
   if (field.tag !== 6) throw new Error("expected byte field");
-  expect(decodeJson(field.value.value!)).toEqual({ label: "after" });
+  expect(field.value.value!.subarray(0, 36)).toEqual(
+    encodeNativeRequest(Uint8Array.from(descriptor.buildDigest), null).subarray(0, 36),
+  );
+  expect(decodeJson(field.value.value!.subarray(36))).toEqual({ label: "after" });
   const event = (revision: number, sequence: number) =>
     transport.push(
       encodeFrame({
@@ -246,7 +254,7 @@ test("controlled native echo commits its value and internal acknowledgement toge
   const node = first.value.nodes!.find((node) => node.kind === 8)!;
   const initial = node.hostProperties?.tag === 5 ? node.hostProperties.value.fields![0]!.value : undefined;
   if (initial?.tag !== 6) throw new Error("expected native JSON");
-  expect(decodeJson(initial.value.value!)).toEqual({ value: "initial", ackEditSeq: 0 });
+  expect(decodeJson(initial.value.value!.subarray(36))).toEqual({ value: "initial", ackEditSeq: 0 });
   const emit = (editSeq: number, value: string, revision: number, sequence: number) =>
     transport.push(
       encodeFrame({
@@ -274,7 +282,7 @@ test("controlled native echo commits its value and internal acknowledgement toge
       ? update.value.hostProperties.value.fields![0]!.value
       : undefined;
   if (bytes?.tag !== 6) throw new Error("expected native JSON update");
-  expect(decodeJson(bytes.value.value!)).toEqual({ value: "typed", ackEditSeq: 3 });
+  expect(decodeJson(bytes.value.value!.subarray(36))).toEqual({ value: "typed", ackEditSeq: 3 });
   emit(2, "stale", 2, 2);
   expect(edits).toEqual(["typed"]);
   expect(transport.submitted).toHaveLength(2);
@@ -336,7 +344,7 @@ test("controlled values keep their internal subscription without a handler and u
   };
   const acknowledged = latestProperties().fields![0]!.value!;
   if (acknowledged.tag !== 6) throw new Error("expected JSON bytes");
-  expect(decodeJson(acknowledged.value.value!)).toEqual({ value: "locked", ackEditSeq: 1 });
+  expect(decodeJson(acknowledged.value.value!.subarray(36))).toEqual({ value: "locked", ackEditSeq: 1 });
   setValue(undefined);
   await Promise.resolve();
   expect(latestProperties().eventIds).toEqual([]);
@@ -437,7 +445,7 @@ test("named native slots stay in the host tree, out of JSON, and keep stable gro
   if (payload.tag !== 5) throw new Error("expected extension");
   const bytes = payload.value.fields![0]!.value!;
   if (bytes.tag !== 6) throw new Error("expected JSON");
-  expect(decodeJson(bytes.value.value!)).toEqual({ label: "panel" });
+  expect(decodeJson(bytes.value.value!.subarray(36))).toEqual({ label: "panel" });
   setHeader("updated");
   await Promise.resolve();
   const patch = body(transport.submitted.at(-1)!);

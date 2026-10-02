@@ -125,11 +125,12 @@ fn configure(request: EditorLanguageConfig, cx: &mut App) -> Result<(), String> 
 pub(super) fn native_module() -> ModuleDefinition {
     ModuleDefinition::new(
         "editor-language",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::foreground(
             "configureEditorLanguage",
             |request: EditorLanguageConfig, _, cx| configure(request, cx),
         )],
     )
-    .with_contract(include_str!("input_language.rs"))
+    .with_implementation(include_str!("input_language.rs"))
 }

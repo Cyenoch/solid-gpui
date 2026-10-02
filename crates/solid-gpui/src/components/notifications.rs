@@ -270,7 +270,7 @@ impl Render for Notification {
 }
 pub(super) fn definition() -> ComponentDefinition {
     ComponentDefinition::view::<Notification>("Notification")
-        .with_contract(include_str!("notifications.rs"))
+        .with_implementation(include_str!("notifications.rs"))
 }
 
 #[cfg(test)]

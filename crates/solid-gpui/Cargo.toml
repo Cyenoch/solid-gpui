@@ -41,6 +41,9 @@ gpui-fps = { workspace = true, optional = true }
 solid-gpui-bun-sys = { path = "../solid-gpui-bun-sys", optional = true }
 rquickjs = { version = "=0.12.2", features = ["array-buffer"], optional = true }
 
+[build-dependencies]
+sha2 = "0.11"
+
 [features]
 default = ["host"]
 host = ["dep:gpui-platform", "dep:reqwest-client"]

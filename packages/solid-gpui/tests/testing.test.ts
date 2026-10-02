@@ -14,7 +14,7 @@ import { createComponent, createSignal, For, onCleanup } from "@solid-gpui/core/
 import {
   createNativeClient,
   createNativeComponent,
-  decodeJson,
+  decodeNativeRequest,
   encodeJson,
   type NativeClientDescriptor,
 } from "@solid-gpui/core/native";
@@ -22,6 +22,8 @@ import { TestHost, type TestSurface } from "@solid-gpui/core/testing";
 
 const texts = (surface: TestSurface) => surface.nodes.flatMap((node) => (node.text === null ? [] : [node.text]));
 const clientDescriptor: NativeClientDescriptor = {
+  buildDigest: Array(32).fill(11),
+  semanticVersion: "1.0.0",
   moduleId: Array(16).fill(7),
   moduleDigest: Array(32).fill(9),
   commands: [{ id: 1, name: "echo" }],
@@ -240,6 +242,8 @@ test("TestHost inspects native DTO props and sends subscribed native events", ()
   const Badge = createNativeComponent<{ label: string }, { onPress: (value: string) => void }, {}>({
     providerId: clientDescriptor.moduleId,
     catalogDigest: clientDescriptor.moduleDigest,
+    buildDigest: clientDescriptor.buildDigest,
+    semanticVersion: clientDescriptor.semanticVersion,
     entryId: 1,
     entryVersion: 1,
     props: ["label"],
@@ -287,8 +291,8 @@ test("TestHost correlates native replies and errors across Surfaces without prot
     const calls = host.nativeCalls;
     const firstCall = calls.find((call) => call.surfaceId === 44)!;
     const secondCall = calls.find((call) => call.surfaceId === 45)!;
-    expect(decodeJson(firstCall.args)).toEqual({ label: "one" });
-    expect(decodeJson(secondCall.args)).toEqual({ label: "two" });
+    expect(decodeNativeRequest(firstCall.args).value).toEqual({ label: "one" });
+    expect(decodeNativeRequest(secondCall.args).value).toEqual({ label: "two" });
     host.reply(secondCall, encodeJson("second result"));
     await expect(two).resolves.toBe("second result");
     host.reject(firstCall, "domain failure");

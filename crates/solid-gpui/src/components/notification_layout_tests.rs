@@ -43,7 +43,13 @@ fn notification_snapshot(message: &str) -> Snapshot {
         entry_version: 1,
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(props.into_bytes()),
+            value: ExtensionValue::Bytes(
+                crate::native::encode_native_request(
+                    super::native_module().build_digest(),
+                    &serde_json::from_str::<serde_json::Value>(&props).unwrap(),
+                )
+                .unwrap(),
+            ),
         }],
         event_ids: Arc::from([]),
     }));

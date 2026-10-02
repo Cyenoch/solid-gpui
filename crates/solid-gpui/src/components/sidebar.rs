@@ -100,7 +100,7 @@ impl Styled for SidebarEntry {
         self.0.style()
     }
 }
-#[crate::native_module(name = "gpui-component")]
+#[crate::native_module(name = "gpui-component", version = "1.0.0")]
 mod exports {
     use super::*;
     #[component]

@@ -23,11 +23,15 @@ export interface NativeCommandDescriptor {
   readonly name: string;
 }
 export interface NativeClientDescriptor {
+  readonly buildDigest: readonly number[];
+  readonly semanticVersion: string;
   readonly moduleId: readonly number[];
   readonly moduleDigest: readonly number[];
   readonly commands: readonly NativeCommandDescriptor[];
 }
 export interface NativeComponentDescriptor {
+  readonly buildDigest: readonly number[];
+  readonly semanticVersion: string;
   readonly providerId: readonly number[];
   readonly catalogDigest: readonly number[];
   readonly entryId: number;
@@ -56,6 +60,43 @@ export type NativeComponentProps<P, E, R, S extends string = never> = P & {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const MAX_DEPTH = 128;
+
+/** Native props and requests carry a strict build lock before their typed JSON. */
+export function encodeNativeRequest(buildDigest: Uint8Array, value: unknown): Uint8Array {
+  if (!(buildDigest instanceof Uint8Array) || buildDigest.length !== 32)
+    throw new TypeError("buildDigest must contain exactly 32 bytes");
+  const json = encodeJson(value);
+  if (json.length > MAX_NATIVE_CALL_BYTES - 36) throw new RangeError("Native build envelope exceeds 1 MiB");
+  const bytes = new Uint8Array(36 + json.length);
+  bytes.set([83, 71, 78, 2]);
+  bytes.set(buildDigest, 4);
+  bytes.set(json, 36);
+  return bytes;
+}
+
+/** Inspect a format-2 native request. TestHost uses this without certifying a host build. */
+export function decodeNativeRequest(bytes: Uint8Array): { readonly buildDigest: Uint8Array; readonly value: unknown } {
+  if (
+    !(bytes instanceof Uint8Array) ||
+    bytes.length < 36 ||
+    bytes.length > MAX_NATIVE_CALL_BYTES ||
+    bytes[0] !== 83 ||
+    bytes[1] !== 71 ||
+    bytes[2] !== 78 ||
+    bytes[3] !== 2
+  )
+    throw new TypeError("Native build envelope is missing or unsupported");
+  return { buildDigest: bytes.slice(4, 36), value: decodeJson(bytes.subarray(36)) };
+}
+
+function buildIdentity(descriptor: {
+  readonly buildDigest: readonly number[];
+  readonly semanticVersion: string;
+}): Uint8Array {
+  if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(descriptor.semanticVersion))
+    throw new TypeError("Native semanticVersion must be major.minor.patch");
+  return identity(descriptor.buildDigest, 32, "buildDigest");
+}
 
 function jsonValue(value: unknown, depth: number, ancestors: Set<object>): unknown {
   if (depth > MAX_DEPTH) throw new RangeError("Native JSON exceeds depth 128");
@@ -144,8 +185,9 @@ function commandProxy<T>(
 export function createNativeClient<T>(invoker: NativeInvoker, descriptor: NativeClientDescriptor): T {
   const moduleId = identity(descriptor.moduleId, 16, "moduleId");
   const digest = identity(descriptor.moduleDigest, 32, "moduleDigest");
+  const buildDigest = buildIdentity(descriptor);
   return commandProxy<T>(descriptor.commands, async (id, request, options) => {
-    const bytes = encodeJson(request);
+    const bytes = encodeNativeRequest(buildDigest, request);
     // Finish Solid's synchronous batch before asking the bound root to flush.
     await Promise.resolve();
     return decodeJson(await invoker.invokeNative(moduleId.slice(), digest.slice(), id, bytes, options));
@@ -163,6 +205,7 @@ export function createNativeComponent<P extends object, E extends object, R, S e
 ): (props: NativeComponentProps<P, E, R, S>) => SolidElement {
   const providerId = identity(descriptor.providerId, 16, "providerId");
   const catalogDigest = identity(descriptor.catalogDigest, 32, "catalogDigest");
+  const buildDigest = buildIdentity(descriptor);
   assertExtensionId(descriptor.entryId, "entryId");
   if (descriptor.entryVersion !== 1) throw new TypeError("Native component entryVersion must be 1");
   const eventProps = new Set<string>();
@@ -222,7 +265,7 @@ export function createNativeComponent<P extends object, E extends object, R, S e
       const subscribed = events
         .filter((event) => callbacks.has(event.id) || event.id === internalEvent)
         .map((event) => event.id);
-      const bytes = encodeJson(dto);
+      const bytes = encodeNativeRequest(buildDigest, dto);
       const extension: ExtensionDescriptor = {
         providerId,
         catalogDigest,
@@ -304,7 +347,7 @@ export function createNativeComponent<P extends object, E extends object, R, S e
     const tree = resolveTree(node);
     const pending = new Set<(error: Error) => void>();
     const ref = commandProxy<R>(descriptor.commands, async (id, request, options) => {
-      const args = encodeJson(request);
+      const args = encodeNativeRequest(buildDigest, request);
       await Promise.resolve();
       return afterRootCommit(tree, () => {
         if (disposed || tree.isDisposed() || !node.attached)

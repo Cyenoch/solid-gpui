@@ -107,6 +107,7 @@ impl Render for TypedGroup {
 fn module() -> ModuleDefinition {
     ModuleDefinition::new(
         "children-test",
+        "1.0.0",
         vec![
             ComponentDefinition::element::<Props, _>("Group", vec![], |_, cx| {
                 gpui::div().children(cx.typed_children::<Item>())
@@ -131,7 +132,9 @@ fn props(module: &ModuleDefinition, entry_id: u32, text: &str) -> HostProperties
         entry_version: 1,
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(encode_json(&Props { text: text.into() }).unwrap()),
+            value: ExtensionValue::Bytes(
+                encode_native_request(module.build_digest(), &Props { text: text.into() }).unwrap(),
+            ),
         }],
         event_ids: Arc::from([]),
     })

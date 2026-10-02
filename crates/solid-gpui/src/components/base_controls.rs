@@ -26,7 +26,7 @@ impl From<gpui_base::CheckboxState> for BaseCheckState {
         }
     }
 }
-#[crate::native_module(name = "gpui-base")]
+#[crate::native_module(name = "gpui-base", version = "1.0.0")]
 mod controls {
     use super::*;
     use crate::native::{ElementContext, Event};

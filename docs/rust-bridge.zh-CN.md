@@ -1,5 +1,11 @@
 # Rust 组件与 JavaScript 调用
 
+每个 `#[native_module]` 必须显式声明 `version = "major.minor.patch"`。直接注册使用 `ModuleDefinition::new(name, version, components, commands)`。默认值、校验、生命周期等可观察行为改变时必须提高版本；DTO、slot、事件和方法变化会自动改变规范契约摘要。组件还可用 `with_semantic_version` 声明自身行为版本。
+
+导出的 `nativeIdentity`（组合模块使用带编号的名称）分别记录规范接口与构建来源。构建摘要锁定精确 SDK 版本、规范化的 SDK 源码/依赖输入及选定实现。源码注释改变构建来源，不改变契约；DTO 文档仍导出但不进入契约摘要。LF/CRLF 换行被规范化。注解模块之外的实现输入应通过 `with_implementation(include_str!("service.rs"))` 加入。
+
+生成组件和客户端自动携带两种锁。直接构造原生 props 或调用参数的 Rust 代码使用 `encode_native_request(module.build_digest(), &dto)`。缺失封装、构建或契约不匹配会在发布/执行前拒绝；结果和事件保持严格 JSON。该可移植源码构建身份不等于可执行文件或全部应用依赖哈希，分发仍需精确配对宿主和 bundle，并验证发布产物。
+
 只需 Rust 依赖 `solid-gpui` 和 npm 依赖 `@solid-gpui/core`。Rust 声明定义契约，宿主导出组件、事件、实例 ref 和 Promise 客户端。无需手写字段 ID、JSON 编解码、TypeScript 接口，也不需要独立 schema 或代码生成包。
 
 ## 进程运行时关闭
@@ -31,7 +37,8 @@ solid-gpui = { path = "path/to/solid-gpui/crates/solid-gpui", features = ["gpui-
 ```rust
 use solid_gpui::native_module;
 
-#[native_module(name = "my-app")]
+#[native_module(name = "my-app", version = "1.0.0")]
+
 mod app {
     #[command]
     fn greet(name: String) -> Result<String, String> {

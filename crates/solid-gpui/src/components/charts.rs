@@ -1260,7 +1260,7 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<Chart<SankeyChartProps>>("SankeyChart"),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("charts.rs")))
+    .map(|d| d.with_implementation(include_str!("charts.rs")))
     .collect()
 }
 

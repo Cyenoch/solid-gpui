@@ -294,9 +294,9 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
             vec![],
             slide,
         )
-        .with_contract(include_str!("carousel.rs")),
+        .with_implementation(include_str!("carousel.rs")),
         ComponentDefinition::view::<Carousel>("Carousel")
             .with_child_type::<Slide>()
-            .with_contract(include_str!("carousel.rs")),
+            .with_implementation(include_str!("carousel.rs")),
     ]
 }

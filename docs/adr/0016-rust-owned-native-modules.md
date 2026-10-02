@@ -22,11 +22,32 @@ Native inputs retain editing state, and returning the same value does not call
 upstream `set_value`. Controlled values return synchronously; asynchronous
 application processing can run separately.
 
-A module's identity comes from its namespace. Its contract digest derives from
-exported types, component/event/method metadata, and declarations visible to the
-macro. It detects differences between registered and generated contracts; it is
-not a digest of the entire executable. Rust implementation changes require a
-host rebuild. Instance methods execute after a complete Solid transaction has
+A module's identity comes from its namespace. Its canonical contract digest derives
+from exported DTO syntax, props, slots, child rules, events, methods, controlled
+bindings, and explicit behavioral semantic versions. DTO documentation is still
+exported but does not affect this digest. Every module declares an explicit
+`version = "major.minor.patch"`; direct registrations supply the same version to
+`ModuleDefinition::new`. Changes to defaults, validation, lifecycle, or other
+observable behavior require a version bump even when types stay the same.
+
+A separate build digest locks the contract to normalized selected implementation
+sources, the exact SDK version, and SDK source/dependency provenance. Generated
+native props and invocation arguments carry an `SGN` format-2 envelope containing
+the 32-byte build digest before their strict JSON DTO. Admission rejects missing
+envelopes and mismatched builds before decoding DTOs, publishing a component tree,
+or running a command. Events and results remain strict JSON. The existing Bebop
+byte fields carry this envelope; no canonical wire field or historical decoder is
+needed. LF/CRLF sources normalize to one build identity; comments can change build
+provenance without masquerading as public-contract changes. `with_implementation`
+records selected sources and replaces the old `with_contract` API.
+
+The build identity is portable source provenance, not an executable hash: it
+does not certify toolchains, target-specific artifacts, signing, or every
+application dependency. Applications must include additional implementation inputs
+when their module depends on them, and distribution still pairs exact release
+artifacts. Host exporters expose `nativeIdentity` metadata for inspection and
+release checking. Rust implementation changes require a host rebuild and binding
+regeneration. Instance methods execute after a complete Solid transaction has
 committed, with node identity, epoch, and revision validation. Unmount revokes
 event routes and rejects pending JavaScript instance calls.
 

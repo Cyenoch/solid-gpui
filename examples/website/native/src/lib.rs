@@ -28,7 +28,7 @@ pub struct WorkspaceReport {
     pub next_milestone: Option<u32>,
 }
 
-#[native_module(name = "website")]
+#[native_module(name = "website", version = "1.0.0")]
 mod app {
     use super::*;
     #[component(children = false)]

@@ -46,10 +46,20 @@ in `rust-toolchain.toml`. Run builds from the repository root; the packaging tas
 installs the committed Bun workspace lock before building. Build on the operating
 system and architecture you intend to ship.
 
-Preserve LF line endings in Rust sources. This checkout enforces them through
-`.gitattributes`; when building older tags on Windows, set
-`git config --global core.autocrlf false` before cloning. Native contract hashes
-include embedded source bytes and must match the generated JavaScript bindings.
+Native contract digests describe exported interfaces and explicit behavioral
+versions. A separate build digest locks generated bindings to the exact SDK
+version, normalized SDK source/dependency inputs, and selected implementations.
+Build envelopes must match before native props or calls are admitted; package the
+host and bundle together and regenerate bindings from the selected host. LF/CRLF
+sources normalize to the same build identity. Repository LF attributes remain a
+checkout convention; older tags still need their documented LF checkout policy.
+The source-build lock does not replace executable checksums, signing, or target
+qualification. See [native identities](rust-bridge.md#native-contract-and-build-identities).
+
+These identity changes describe the local source candidate. The version string
+remains `0.5.2`, which is already published; its SDK source digest distinguishes
+this candidate from that published build. No new release or prebuilt artifact
+availability is implied by a local build or generated binding.
 
 - **macOS:** Install Xcode and select its developer directory. The selected
   toolchain must provide the macOS SDK, C/C++ compiler, and Metal tools. Verify

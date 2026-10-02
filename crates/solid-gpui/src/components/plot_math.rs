@@ -507,6 +507,7 @@ pub(super) fn native_module() -> crate::native::ModuleDefinition {
     use crate::native::{CommandDefinition as C, ModuleDefinition};
     ModuleDefinition::new(
         "gpui-component",
+        "1.0.0",
         vec![],
         vec![
             C::sync("scaleLinear", |request, _context| linear_scale(request)),
@@ -519,7 +520,7 @@ pub(super) fn native_module() -> crate::native::ModuleDefinition {
             C::sync("sankeyLayout", |request, _context| sankey_layout(request)),
         ],
     )
-    .with_contract(include_str!("plot_math.rs"))
+    .with_implementation(include_str!("plot_math.rs"))
 }
 
 #[cfg(test)]

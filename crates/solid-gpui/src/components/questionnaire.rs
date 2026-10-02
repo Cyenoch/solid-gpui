@@ -160,7 +160,9 @@ fn decode_item_children(
             .copied()
             .flatten()
             .ok_or("expected native child props")?;
-        match decode_json::<ItemChildProps>(crate::native::property_bytes(props)?)? {
+        match decode_json::<ItemChildProps>(crate::native::validated_request_json(
+            crate::native::property_bytes(props)?,
+        )?)? {
             ItemChildProps::Choice(choice) => choices.push(choice),
             ItemChildProps::Input(child_input) => {
                 if input.replace(child_input).is_some() {
@@ -805,7 +807,7 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
     ]
     .into_iter()
     .map(|definition| {
-        definition.with_contract(concat!(
+        definition.with_implementation(concat!(
             include_str!("questionnaire.rs"),
             include_str!("questionnaire_types.rs")
         ))

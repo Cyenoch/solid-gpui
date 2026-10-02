@@ -14,7 +14,9 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **Native Component Instance**: The native state owned by one mounted Host Node. Its identity survives property updates and ends when that node is removed, replaced, or its surface epoch changes.
 
-**Native Contract**: The agreed component properties, event payloads, and callable methods used by JavaScript and its registered native module.
+**Native Contract**: The canonical exported DTOs, component properties, child/slot rules, events, methods, and explicit behavioral semantic versions agreed by JavaScript and its registered native module. Documentation and implementation source are excluded from its digest.
+
+**Native Build Identity**: The separate lock on normalized selected implementation sources, exact SDK version, SDK source/dependency provenance, and the Native Contract digest. Generated native requests carry this lock; the host rejects a different build even when the public contract matches. LF/CRLF checkout differences are normalized. This portable source-build identity does not claim to hash the executable, compiler, target, or signing bytes.
 
 **Extension Catalog Identity**: The exact provider-neutral identity tuple `(provider ID, catalog digest, entry ID, entry version)` that names an Extension contract. An identity is valid only when the host can resolve its registered adapter.
 
@@ -42,7 +44,7 @@ Solid GPUI joins SolidJS composition and reactive UI state with GPUI-owned nativ
 
 **Host-Owned Input Model**: Native text, selection, marked text, caret geometry, scrolling, and undo history. SolidJS owns controlled values and callbacks; transient editing state stays native.
 
-**Transactional Snapshot**: The host-facing description that is published only after validation succeeds. This follows the same useful ownership principle as GPUI Shell's script snapshot/materialization seam while retaining this project's cross-process protocol.
+**Transactional Snapshot**: The host-facing description that is published only after validation succeeds. Candidate state is validated before it becomes visible across the runtime boundary.
 
 **Golden Vector**: A checked fixture proving producer bytes and cross-language semantic equivalence for the canonical wire schema.
 
@@ -84,6 +86,7 @@ revision; detached focus retains the previous identity until release.
 - Solid components never receive GPUI handles.
 - Rust never receives Solid owners, signals, closures, or JavaScript values.
 - Only bounded immutable bytes cross a runtime thread or process boundary.
+- Native contract lookup and native build admission both fail closed. A matching public interface does not authorize a different implementation or SDK release.
 - Host property mutations finalize once per transaction from the coherent
   private prop set; failed validation leaves the last published tree intact.
 - Native events dispatch only to the callback generation owned by their surface,

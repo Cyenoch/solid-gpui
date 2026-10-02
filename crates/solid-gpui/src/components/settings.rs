@@ -452,6 +452,6 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("settings.rs")))
+    .map(|d| d.with_implementation(include_str!("settings.rs")))
     .collect()
 }

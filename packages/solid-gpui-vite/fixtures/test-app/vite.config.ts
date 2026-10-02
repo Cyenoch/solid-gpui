@@ -9,6 +9,6 @@ export default defineConfig({
   resolve: {
     // Exercise the published source condition against the SDK checkout.
     conditions: ["solid-gpui-source"],
-    alias: [{ find: "#native", replacement: resolve(import.meta.dirname, "generated/native.ts") }],
+    alias: [{ find: "#native", replacement: resolve(import.meta.dirname, "src/native-fixture.ts") }],
   },
 });

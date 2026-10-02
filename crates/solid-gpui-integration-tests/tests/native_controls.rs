@@ -50,7 +50,10 @@ impl Fixture {
             entry_version: 1,
             fields: vec![ExtensionField {
                 id: 1,
-                value: ExtensionValue::Bytes(serde_json::to_vec(&value).unwrap()),
+                value: ExtensionValue::Bytes(
+                    solid_gpui::native::encode_native_request(self.module.build_digest(), &value)
+                        .unwrap(),
+                ),
             }],
             event_ids: if events {
                 Arc::from([1])

@@ -7,12 +7,13 @@
     "jsxImportSource": "@solid-gpui/core",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["bun-types", "vite/client"],
     "customConditions": ["solid-gpui-source"],
     "paths": {
-      "#native": ["./generated/native.ts"]
+      "#native": ["./src/native-fixture.ts"]
     }
   },
-  "include": ["src", "generated", "counter.test.tsx", "vite.config.ts"]
+  "include": ["src", "counter.test.tsx", "vite.config.ts"]
 }

@@ -16,6 +16,7 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
     let set_application = module.command_id("setApplicationTheme").unwrap();
     let id = module.id();
     let digest = module.digest();
+    let build_digest = module.build_digest();
     let mut profile = ComponentHost::new(vec![module]);
     let extensions = profile.extension_registry();
     let (window, root) = cx.update(|app| {
@@ -70,7 +71,11 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
                 module_id: id,
                 module_digest: digest,
                 function_id,
-                args: input.as_bytes().to_vec(),
+                args: crate::native::encode_native_request(
+                    build_digest,
+                    &serde_json::from_str::<serde_json::Value>(input).unwrap(),
+                )
+                .unwrap(),
             },
         );
         window
@@ -131,11 +136,11 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
                 module_id: id,
                 module_digest: digest,
                 function_id: set_motion,
-                args: if enabled {
-                    br#""reduced""#.to_vec()
-                } else {
-                    br#""full""#.to_vec()
-                },
+                args: crate::native::encode_native_request(
+                    build_digest,
+                    &if enabled { "reduced" } else { "full" },
+                )
+                .unwrap(),
             },
         );
         window
@@ -172,7 +177,10 @@ fn foreground_theme_calls_share_contract_validation_and_update_native_base(
         .unwrap();
     assert!(
         module
-            .invoke(set_theme, br#""dark""#)
+            .invoke(
+                set_theme,
+                &crate::native::encode_native_request(build_digest, &"dark").unwrap()
+            )
             .unwrap_err()
             .contains("foreground")
     );
@@ -185,6 +193,7 @@ fn provider_dispatches_native_calls_and_correlates_errors(cx: &mut TestAppContex
     let module = fixture::native_module();
     let id = module.id();
     let digest = module.digest();
+    let build_digest = module.build_digest();
     let mut profile = ComponentHost::new(vec![module]);
     let extensions = profile.extension_registry();
     let (window, root) = cx.update(|app| {
@@ -215,11 +224,7 @@ fn provider_dispatches_native_calls_and_correlates_errors(cx: &mut TestAppContex
                 module_id: id,
                 module_digest,
                 function_id: if request_id == 4 { u32::MAX } else { 1 },
-                args: if request_id == 3 {
-                    br#"{"name":" ","readiness":true,"builds":3}"#.to_vec()
-                } else {
-                    br#"{"name":"Solid Workspace","readiness":true,"builds":3}"#.to_vec()
-                },
+                args: crate::native::encode_native_request(build_digest, &serde_json::json!({"name":if request_id == 3 { " " } else { "Solid Workspace" },"readiness":true,"builds":3})).unwrap(),
             },
         );
         root.update(cx, |root, cx| {
@@ -272,7 +277,7 @@ fn provider_dispatches_native_calls_and_correlates_errors(cx: &mut TestAppContex
     }
 }
 
-#[crate::native_module(name = "host-call-test")]
+#[crate::native_module(name = "host-call-test", version = "1.0.0")]
 mod fixture {
     #[command]
     async fn analyze_workspace(

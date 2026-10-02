@@ -610,11 +610,11 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<Modal<Sheet>>("Sheet"),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("overlays.rs")))
+    .map(|d| d.with_implementation(include_str!("overlays.rs")))
     .collect()
 }
 
-#[crate::native_module(name = "gpui-component")]
+#[crate::native_module(name = "gpui-component", version = "1.0.0")]
 mod parts {
     use crate::native::ElementContext;
     use gpui::{IntoElement, ParentElement, Styled};

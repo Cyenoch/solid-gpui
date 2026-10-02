@@ -1,2 +1,2 @@
-# Native contracts embed Rust source bytes and must match across build hosts.
+# Keep Rust source checkouts consistent; native build identities normalize CRLF.
 *.rs text eol=lf

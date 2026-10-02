@@ -879,7 +879,7 @@ impl Render for DockArea {
     }
 }
 pub(super) fn definition() -> ComponentDefinition {
-    ComponentDefinition::view::<DockArea>("DockArea").with_contract(concat!(
+    ComponentDefinition::view::<DockArea>("DockArea").with_implementation(concat!(
         include_str!("dock.rs"),
         include_str!("dock_layout.rs")
     ))

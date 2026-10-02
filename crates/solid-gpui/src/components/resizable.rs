@@ -257,9 +257,9 @@ pub(super) fn definitions() -> Vec<ComponentDefinition> {
             panel,
         )
         .with_typed_parent_required()
-        .with_contract(include_str!("resizable.rs")),
+        .with_implementation(include_str!("resizable.rs")),
         ComponentDefinition::view::<ResizablePanelGroup>("ResizablePanelGroup")
             .with_child_type::<gpui_component::ResizablePanel>()
-            .with_contract(include_str!("resizable.rs")),
+            .with_implementation(include_str!("resizable.rs")),
     ]
 }

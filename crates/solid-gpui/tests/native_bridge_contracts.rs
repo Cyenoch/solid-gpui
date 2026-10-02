@@ -2,6 +2,7 @@ use solid_gpui::{
     ExtensionRegistry,
     native::{
         CommandDefinition, MAX_NATIVE_CALL_BYTES, ModuleDefinition, decode_json, encode_json,
+        encode_native_request,
     },
     native_type,
 };
@@ -21,6 +22,7 @@ enum Choice {
 fn nested_dtos_use_strict_dispatch_and_preserve_unknown_field_errors() {
     let definition = ModuleDefinition::new(
         "echo",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::sync(
             "echo",
@@ -31,14 +33,20 @@ fn nested_dtos_use_strict_dispatch_and_preserve_unknown_field_errors() {
         .native_module(definition.id(), definition.digest())
         .unwrap();
     let input = br#"{"values":[{"Value":"hello"},null,"Empty"]}"#;
-    assert_eq!(module.invoke(1, input).unwrap(), input);
-    assert!(module.invoke(2, input).is_err());
+    let envelope = |json: &[u8]| {
+        let mut bytes = encode_native_request(definition.build_digest(), &()).unwrap();
+        bytes.truncate(36);
+        bytes.extend_from_slice(json);
+        bytes
+    };
+    assert_eq!(module.invoke(1, &envelope(input)).unwrap(), input);
+    assert!(module.invoke(2, &envelope(input)).is_err());
     for invalid in [
         br#"{"values":[],"unexpected":1}"#.as_slice(),
         br#"{"values":[]} true"#.as_slice(),
         br#"{"values":[],"values":[]}"#.as_slice(),
     ] {
-        assert!(module.invoke(1, invalid).is_err());
+        assert!(module.invoke(1, &envelope(invalid)).is_err());
     }
     assert!(
         definition
@@ -58,6 +66,7 @@ fn values_reject_json_precision_loss_and_resource_overflow() {
     assert!(decode_json::<serde_json::Value>(b"9007199254740992").is_err());
     let definition = ModuleDefinition::new(
         "errors",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::sync("fail", |(): (), _context| {
             Err::<(), _>("domain error".into())
@@ -67,7 +76,10 @@ fn values_reject_json_precision_loss_and_resource_overflow() {
         definition
             .native_module(definition.id(), definition.digest())
             .unwrap()
-            .invoke(1, b"null")
+            .invoke(
+                1,
+                &encode_native_request(definition.build_digest(), &()).unwrap()
+            )
             .unwrap_err(),
         "domain error"
     );
@@ -77,6 +89,7 @@ fn values_reject_json_precision_loss_and_resource_overflow() {
 fn exported_contract_rejects_bigint_and_digest_tracks_the_signature() {
     let large = ModuleDefinition::new(
         "large",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::sync("large", |(): (), _context| {
             Ok(u64::MAX)
@@ -85,6 +98,7 @@ fn exported_contract_rejects_bigint_and_digest_tracks_the_signature() {
     assert!(large.typescript().is_err());
     let original = ModuleDefinition::new(
         "typed",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::sync("get", |(): (), _context| {
             Ok(String::new())
@@ -92,11 +106,162 @@ fn exported_contract_rejects_bigint_and_digest_tracks_the_signature() {
     );
     let changed = ModuleDefinition::new(
         "typed",
+        "1.0.0",
         vec![],
         vec![CommandDefinition::sync("get", |(): (), _context| Ok(false))],
     );
     assert_eq!(original.id(), changed.id());
     assert_ne!(original.digest(), changed.digest());
+}
+
+#[test]
+fn source_formatting_is_not_a_contract_change_and_stale_builds_are_rejected() {
+    use solid_gpui::native::{ComponentDefinition, encode_native_request};
+    let make = |source| {
+        ModuleDefinition::new(
+            "identity",
+            "1.0.0",
+            vec![
+                ComponentDefinition::element("Panel", vec![], |_: &(), _| gpui::div())
+                    .with_implementation(source),
+            ],
+            vec![CommandDefinition::sync("echo", |value: String, _| {
+                Ok(value)
+            })],
+        )
+        .with_semantic_version("1.0.0")
+    };
+    let original = make("fn render() {}\n");
+    let commented = make("// Implementation note\nfn render() {}\n");
+    let crlf = make("fn render() {}\r\n");
+    assert_eq!(original.digest(), commented.digest());
+    assert_eq!(original.digest(), crlf.digest());
+    assert_ne!(original.build_digest(), commented.build_digest());
+    assert_eq!(original.build_digest(), crlf.build_digest());
+    let module = commented
+        .native_module(original.id(), original.digest())
+        .unwrap();
+    let stale = encode_native_request(original.build_digest(), &"ready").unwrap();
+    assert!(
+        module
+            .invoke(1, &stale)
+            .unwrap_err()
+            .contains("native build mismatch")
+    );
+    let current = encode_native_request(commented.build_digest(), &"ready").unwrap();
+    assert_eq!(module.invoke(1, &current).unwrap(), br#""ready""#);
+    assert!(
+        module
+            .invoke(1, br#""ready""#)
+            .unwrap_err()
+            .contains("native build envelope")
+    );
+    use solid_gpui::protocol::{ExtensionField, ExtensionProperties, ExtensionValue};
+    use solid_gpui::{ExtensionChildSummary, ExtensionError};
+    let props = |build| ExtensionProperties {
+        provider_id: original.id(),
+        catalog_digest: original.digest(),
+        entry_id: 1,
+        entry_version: 1,
+        fields: vec![ExtensionField {
+            id: 1,
+            value: ExtensionValue::Bytes(encode_native_request(build, &()).unwrap()),
+        }],
+        event_ids: [].into(),
+    };
+    let adapter = commented
+        .resolve(original.id(), original.digest(), 1, 1)
+        .unwrap();
+    assert!(matches!(
+        adapter.validate(
+            1,
+            &props(original.build_digest()),
+            ExtensionChildSummary::default()
+        ),
+        Err(ExtensionError::BuildMismatch { .. })
+    ));
+    adapter
+        .validate(
+            1,
+            &props(commented.build_digest()),
+            ExtensionChildSummary::default(),
+        )
+        .unwrap();
+}
+
+#[test]
+fn exported_metadata_and_behavior_versions_change_contract_identity() {
+    use solid_gpui::native::{ComponentDefinition, EventDefinition};
+    let make = |slots, events, version| {
+        ModuleDefinition::new(
+            "metadata",
+            "1.0.0",
+            vec![
+                ComponentDefinition::element("Panel", events, |_: &(), _| gpui::div())
+                    .with_slots(slots),
+            ],
+            vec![],
+        )
+        .with_semantic_version(version)
+    };
+    let original = make(&[], vec![], "1.0.0");
+    for changed in [
+        make(&["footer"], vec![], "1.0.0"),
+        make(&[], vec![EventDefinition::new::<String>("change")], "1.0.0"),
+        make(&[], vec![], "1.0.1"),
+    ] {
+        assert_ne!(original.digest(), changed.digest());
+        assert!(
+            original
+                .resolve(changed.id(), changed.digest(), 1, 1)
+                .is_err()
+        );
+    }
+    let versioned_component = ModuleDefinition::new(
+        "metadata",
+        "1.0.0",
+        vec![
+            ComponentDefinition::element("Panel", vec![], |_: &(), _| gpui::div())
+                .with_semantic_version("2.0.0"),
+        ],
+        vec![],
+    );
+    assert_ne!(original.digest(), versioned_component.digest());
+    let included = original.include(ModuleDefinition::new("behavior", "2.0.0", vec![], vec![]));
+    assert_ne!(versioned_component.digest(), included.digest());
+    assert!(included.contract().to_string().contains("2.0.0"));
+}
+
+#[test]
+fn dto_documentation_is_exported_without_changing_the_contract() {
+    #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
+    #[ts(rename = "Documented")]
+    struct First {
+        /// Original documentation.
+        text: String,
+    }
+    #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
+    #[ts(rename = "Documented")]
+    struct Revised {
+        /// Updated documentation with a literal /* marker.
+        text: String,
+    }
+    let first = ModuleDefinition::new(
+        "docs",
+        "1.0.0",
+        vec![],
+        vec![CommandDefinition::sync("echo", |value: First, _| Ok(value))],
+    );
+    let revised = ModuleDefinition::new(
+        "docs",
+        "1.0.0",
+        vec![],
+        vec![CommandDefinition::sync("echo", |value: Revised, _| {
+            Ok(value)
+        })],
+    );
+    assert_eq!(first.digest(), revised.digest());
+    assert_ne!(first.typescript().unwrap(), revised.typescript().unwrap());
 }
 
 #[test]
@@ -107,6 +272,7 @@ fn registry_distinguishes_missing_modules_from_mismatched_native_contracts() {
     };
     let definition = ModuleDefinition::new(
         "controls",
+        "1.0.0",
         vec![ComponentDefinition::element(
             "ScrollShadow",
             vec![],
@@ -164,6 +330,7 @@ fn ambiguous_type_and_command_names_cannot_form_a_contract() {
         std::panic::catch_unwind(|| {
             ModuleDefinition::new(
                 "type-conflict",
+                "1.0.0",
                 vec![],
                 vec![CommandDefinition::sync(
                     "convert",
@@ -177,6 +344,7 @@ fn ambiguous_type_and_command_names_cannot_form_a_contract() {
         std::panic::catch_unwind(|| {
             ModuleDefinition::new(
                 "command-conflict",
+                "1.0.0",
                 vec![],
                 vec![
                     CommandDefinition::sync("same", |(): (), _context| Ok(false)),
@@ -200,6 +368,7 @@ fn composed_modules_export_shared_multiline_types_as_valid_typescript() {
     let make = |namespace, command| {
         ModuleDefinition::new(
             namespace,
+            "1.0.0",
             vec![],
             vec![CommandDefinition::sync(
                 command,
@@ -243,7 +412,7 @@ fn assert_typescript_parses(source: &str) {
     );
 }
 
-#[solid_gpui::native_module]
+#[solid_gpui::native_module(version = "1.0.0")]
 mod cancellable_service {
     use solid_gpui::native::NativeCallContext;
 
@@ -264,12 +433,21 @@ fn authored_context_is_injected_without_entering_the_wire_contract() {
         .native_module(definition.id(), definition.digest())
         .unwrap();
     assert_eq!(
-        module.invoke(1, br#"{"value":"ready"}"#).unwrap(),
+        module
+            .invoke(
+                1,
+                &encode_native_request(
+                    definition.build_digest(),
+                    &serde_json::json!({"value":"ready"})
+                )
+                .unwrap()
+            )
+            .unwrap(),
         br#""ready""#
     );
 }
 
-#[solid_gpui::native_module]
+#[solid_gpui::native_module(version = "1.0.0")]
 mod documented_dtos {
     use solid_gpui::native_type;
 
@@ -295,7 +473,7 @@ mod documented_dtos {
     }
 }
 
-#[solid_gpui::native_module]
+#[solid_gpui::native_module(version = "1.0.0")]
 mod unsupported_any_dtos {
     use solid_gpui::native::{Deserialize, Serialize, TS};
     use solid_gpui::native_type;
@@ -315,7 +493,7 @@ mod unsupported_any_dtos {
     }
 }
 
-#[solid_gpui::native_module]
+#[solid_gpui::native_module(version = "1.0.0")]
 mod unsupported_bigint_dtos {
     use solid_gpui::native_type;
 

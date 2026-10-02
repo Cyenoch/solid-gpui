@@ -31,7 +31,13 @@ fn popup_menu_snapshot() -> Snapshot {
         entry_version: 1,
         fields: vec![ExtensionField {
             id: 1,
-            value: ExtensionValue::Bytes(POPUP_MENU_PROPS.as_bytes().to_vec()),
+            value: ExtensionValue::Bytes(
+                crate::native::encode_native_request(
+                    super::native_module().build_digest(),
+                    &serde_json::from_str::<serde_json::Value>(POPUP_MENU_PROPS).unwrap(),
+                )
+                .unwrap(),
+            ),
         }],
         event_ids: Arc::from([]),
     }));

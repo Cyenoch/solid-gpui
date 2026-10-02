@@ -1570,7 +1570,7 @@ pub(crate) fn definitions() -> Vec<ComponentDefinition> {
         ComponentDefinition::view::<TextControl<Code>>("Editor"),
     ]
     .into_iter()
-    .map(|d| d.with_contract(include_str!("input.rs")))
+    .map(|d| d.with_implementation(include_str!("input.rs")))
     .collect()
 }
 

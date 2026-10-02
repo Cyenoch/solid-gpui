@@ -1,4 +1,4 @@
-import { decodeJson, encodeJson } from "./native";
+import { decodeNativeRequest, encodeJson } from "./native";
 import {
   COMMAND_INVOKE_NATIVE,
   COMMAND_GET_SCROLL_OFFSET,
@@ -91,7 +91,7 @@ export class TestHost {
     const properties = this.target(node).node.hostProperties;
     const field = properties?.tag === 5 ? properties.value.fields?.find((entry) => entry.id === 1) : undefined;
     if (field?.value?.tag !== 6) throw new TypeError("TestNode does not contain native JSON props");
-    return decodeJson(required(field.value.value.value, "native props bytes"));
+    return decodeNativeRequest(required(field.value.value.value, "native props bytes")).value;
   }
 
   /** Deliver to the captured revision, preserving the renderer's stale-listener/epoch checks. */

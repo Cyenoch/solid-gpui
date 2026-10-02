@@ -98,9 +98,32 @@ fn qualify_component_attribute(attr: &mut Attribute) -> syn::Result<()> {
 
 #[proc_macro_attribute]
 pub fn native_module(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Include the complete selected source file, including comments and helpers.
+    let Some(source_path) = proc_macro::Span::call_site().local_file() else {
+        return finish(Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "native_module requires a real source file for implementation provenance",
+        )));
+    };
+    let source_path = match std::fs::canonicalize(source_path) {
+        Ok(path) => path,
+        Err(error) => {
+            return finish(Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
+                format!("native_module source provenance is unavailable: {error}"),
+            )));
+        }
+    };
+    let Some(source_path) = source_path.to_str() else {
+        return finish(Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "native_module source path must be UTF-8",
+        )));
+    };
     finish(expand_module(
         attr.into(),
         syn::parse_macro_input!(item as ItemMod),
+        quote!(include_str!(#source_path)),
     ))
 }
 
@@ -573,7 +596,7 @@ fn expand_component(
                 #(#event_bindings)*
                 #name(#(#args),*)
             }
-            ::solid_gpui::native::ComponentDefinition::#constructor::<#props, _>(#js_name, vec![#(#events),*], render).with_contract(#contract).with_props(&[#(#prop_names),*]).with_children(#children).with_slots(&[#(#slots),*]) #child_contract #validation
+            ::solid_gpui::native::ComponentDefinition::#constructor::<#props, _>(#js_name, vec![#(#events),*], render).with_implementation(#contract).with_props(&[#(#prop_names),*]).with_children(#children).with_slots(&[#(#slots),*]) #child_contract #validation
         }
     })
 }
@@ -627,7 +650,7 @@ fn expand_view(implementation: ItemImpl) -> syn::Result<Tokens> {
         #implementation
         #[allow(non_snake_case)]
         fn #definition() -> ::solid_gpui::native::ComponentDefinition {
-            ::solid_gpui::native::ComponentDefinition::view::<#ty>(#js_name).with_contract(#contract)
+            ::solid_gpui::native::ComponentDefinition::view::<#ty>(#js_name).with_implementation(#contract)
         }
     })
 }
@@ -713,12 +736,20 @@ fn expand_command(function: &mut ItemFn) -> syn::Result<(Tokens, Tokens)> {
     ))
 }
 
-fn expand_module(options: Tokens, mut module: ItemMod) -> syn::Result<Tokens> {
+fn expand_module(options: Tokens, mut module: ItemMod, source: Tokens) -> syn::Result<Tokens> {
     let contract = quote!(#options #module).to_string();
     let mut namespace: Option<LitStr> = None;
+    let mut version: Option<LitStr> = None;
     let parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("version") {
+            if version.is_some() {
+                return Err(meta.error("duplicate native_module version"));
+            }
+            version = Some(meta.value()?.parse()?);
+            return Ok(());
+        }
         if !meta.path.is_ident("name") {
-            return Err(meta.error("unknown native_module option; expected name"));
+            return Err(meta.error("unknown native_module option; expected name or version"));
         }
         if namespace.is_some() {
             return Err(meta.error("duplicate native_module name"));
@@ -727,6 +758,21 @@ fn expand_module(options: Tokens, mut module: ItemMod) -> syn::Result<Tokens> {
         Ok(())
     });
     syn::parse::Parser::parse2(parser, options)?;
+    let version = version.ok_or_else(|| syn::Error::new_spanned(&module.ident, "native_module requires an explicit version = \"major.minor.patch\" behavioral contract version"))?;
+    let version_text = version.value();
+    if version_text.split('.').count() != 3
+        || !version_text.split('.').all(|part| {
+            !part.is_empty()
+                && (part == "0" || !part.starts_with('0'))
+                && part.parse::<u32>().is_ok()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+        })
+    {
+        return Err(syn::Error::new_spanned(
+            version,
+            "native_module version must be major.minor.patch",
+        ));
+    }
     let Some((_, items)) = &mut module.content else {
         return Err(syn::Error::new_spanned(
             module,
@@ -828,7 +874,7 @@ fn expand_module(options: Tokens, mut module: ItemMod) -> syn::Result<Tokens> {
     let registration = quote! {
         #(#generated)*
         pub fn native_module() -> ::solid_gpui::native::ModuleDefinition {
-            ::solid_gpui::native::ModuleDefinition::new(#namespace, vec![#(#components),*], vec![#(#commands),*]).with_contract(#contract)
+            ::solid_gpui::native::ModuleDefinition::new(#namespace, #version, vec![#(#components),*], vec![#(#commands),*]).with_implementation(concat!(env!("CARGO_PKG_NAME"), "@", env!("CARGO_PKG_VERSION"), ":", #contract)).with_implementation(#source)
         }
     };
     let generated: syn::File = syn::parse2(registration)?;
@@ -925,9 +971,13 @@ mod tests {
                 }
             }
         );
-        let result = expand_module(quote!(name = "app"), module)
-            .unwrap()
-            .to_string();
+        let result = expand_module(
+            quote!(name = "app", version = "1.0.0"),
+            module,
+            quote!("fixture source"),
+        )
+        .unwrap()
+        .to_string();
         assert!(result.contains("asynchronous ::"));
         assert!(result.contains("__native_component_Editor ()"));
         let file = syn::parse2::<syn::File>(result.parse().unwrap()).unwrap();
