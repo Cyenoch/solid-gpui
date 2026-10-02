@@ -66,6 +66,7 @@ const referenceLabels: Record<string, string> = {
   router: "Router",
   "keyboard-and-menus": "Keyboard & menus",
   "native-composition": "Native UI composition",
+  "native-acceptance": "Native acceptance",
   distribution: "Distribution",
   web: "Web setup",
   "rust-bridge": "Rust integration",

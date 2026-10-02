@@ -147,9 +147,20 @@ requests without importing the generated protocol. Previous tree views retain
 their revision and epoch for stale-event tests. Unmount roots after each test.
 
 Inspect submitted styles, accessibility/disabled state and virtual-list ranges.
+Input selections use UTF-16 code units and default to `text.length`; `inputState`
+exposes the committed edit acknowledgement and selection. Input dispatch emits
+change followed by selection, matching native editing order.
 Inject explicit visible-range, layout and pointer observations through `dispatch`.
 `scrollCommands` and `replyScroll` expose offset queries and scroll actions;
 unanswered requests stay pending. These observations do not simulate GPUI layout.
+
+Use the opt-in `NativeAcceptance` export for real native paint/geometry and
+hit-tested input. It owns an explicitly launched native executable, supports
+click/type/drag/wheel and stable captured targets, and provides Metal PNG
+screenshots on macOS. Deterministic mode uses GPUI's native test platform; GPU
+mode and physical input have distinct qualification limits. See the
+[native acceptance guide](../../docs/native-acceptance.md) for build commands,
+custom production HostProfiles, cleanup, and supported platforms.
 
 Run TSX tests through `solid-gpui test` so they share the application's Vite
 configuration and one Solid runtime. The test process keeps Bun's environment

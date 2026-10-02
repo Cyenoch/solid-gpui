@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Correct TestHost input selections to UTF-16 code units and mirror native change/selection order; expose committed controlled edit acknowledgements.
+- Add opt-in public NativeAcceptance over production native host/tree/layout/paint/input, captured locators, click/type/drag/wheel, bounded feedback, owned cleanup and macOS Metal PNG screenshots. Deterministic native tests and GPU capture remain distinct from physical input qualification.
+
 ## [0.5.2]
 
 ### Fixed

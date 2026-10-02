@@ -9,6 +9,8 @@ export interface TestNode {
   readonly children: readonly number[];
   readonly text: string | null;
   readonly inputValue: string | null;
+  /** Committed controlled echo; selection offsets are UTF-16 code units. */
+  readonly inputState: Readonly<{ ackEditSeq: number; selectionStart: number; selectionEnd: number }> | null;
   readonly placeholder: string | null;
   readonly accessibilityLabel: string | null;
   readonly tooltip: string | null;
@@ -61,6 +63,7 @@ export type TestEvent =
       readonly type: "input";
       readonly text: string;
       /** UTF-8 byte offsets; omitted selection places the caret at the end. */
+      /** UTF-16 code units; omitted offsets default to text.length. */
       readonly selectionStart?: number;
       readonly selectionEnd?: number;
     }
