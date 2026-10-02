@@ -8,7 +8,6 @@ import {
   FrameDecoder,
   PROTOCOL_VERSION,
   encodeFrame,
-  utf8ByteLength,
   type EventPayload,
   type CommandValue,
 } from "./protocol";
@@ -19,6 +18,17 @@ import { TestTree, required } from "./testing/tree";
 import type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface, TestScrollCommand } from "./testing/types";
 
 export type { TestCommit, TestEvent, TestNativeCall, TestNode, TestSurface, TestScrollCommand } from "./testing/types";
+export { NativeAcceptance } from "./testing/native-acceptance";
+export type {
+  NativeAcceptanceCapabilities,
+  NativeAcceptanceOptions,
+  NativeBounds,
+  NativeCleanup,
+  NativeLocator,
+  NativeScreenshot,
+  NativeSnapshot,
+  NativeTarget,
+} from "./testing/native-acceptance";
 
 interface Target {
   readonly surfaceId: number;
@@ -131,7 +141,7 @@ export class TestHost {
         const acknowledged = input?.tag === 1 ? (input.value.ackEditSeq ?? 0) : 0;
         const editSeq = Math.max(this.edits.get(key) ?? 0, acknowledged) + 1;
         this.edits.set(key, editSeq);
-        const start = event.selectionStart ?? utf8ByteLength(event.text);
+        const start = event.selectionStart ?? event.text.length;
         payload = {
           type: "change",
           data: {
@@ -161,6 +171,12 @@ export class TestHost {
         payload = { type: event.type };
     }
     this.send(target.surfaceId, target.epoch, target.revision, node.id, listenerId, payload);
+    if (payload.type === "change") {
+      this.send(target.surfaceId, target.epoch, target.revision, node.id, listenerId, {
+        type: "selection",
+        data: payload.data,
+      });
+    }
   }
 
   /** Reply with opaque bytes; generated JSON DTO clients use encodeJson(value). */

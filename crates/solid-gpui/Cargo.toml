@@ -50,6 +50,7 @@ frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
+native-acceptance = ["test-support"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13.13", default-features = false, features = ["async-io", "settings"] }
@@ -80,6 +81,10 @@ required-features = ["embedded-bun"]
 [[bin]]
 name = "solid-gpui-host"
 required-features = ["host"]
+
+[[bin]]
+name = "solid-gpui-acceptance"
+required-features = ["native-acceptance"]
 
 [[bin]]
 name = "solid-gpui-profile"
