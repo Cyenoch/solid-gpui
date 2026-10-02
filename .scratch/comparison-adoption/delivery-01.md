@@ -5,6 +5,15 @@ was verified as HEAD and an ancestor before changes. This delivery modifies only
 the testing seam, opt-in native runner/paint observation hook, and related guides.
 No canonical renderer wire/schema/style fields changed; ticket 04 owns those.
 
+Implementation commit: `e3620cdf`. Merged integration tip `91a63761` into this
+branch as `579b7e89`; resolved only the changelog conflict by preserving both
+ticket entries. Post-merge core typechecking passed; combined focused
+core/native suites passed 53 tests/1400 assertions, including GPU capture, and
+website content/Markdown/catalog suites passed 5 tests/3137 assertions. No native
+source changed in the integration merge, so the previously built binary matches
+the merged native source. Ticket 09 received the committed interface through its
+explicitly authorized session. The integration branch was not mutated by this owner.
+
 ## Exact public interface for ticket 09
 
 Import `NativeAcceptance` from `@solid-gpui/core/testing` (existing package export).
