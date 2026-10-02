@@ -18,6 +18,8 @@ bun run website
 `build` 由两步组合而成，本地构建始终保持全自动：`build:host` 从当前 Rust 源码重新生成 SDK 绑定与 WASM 宿主，`build:frontend` 依次执行路由生成、类型检查和 Vite 打包。`dev` 以同样方式准备宿主后再启动 Vite。没有任何脚本会复用旧的宿主产物或下载宿主，每次本地构建都会基于工作区重新生成绑定与 WASM 模块。
 `build:bindings` 运行原生目录导出器，`build:wasm` 运行 `scripts/build-web-wasm.sh`；Pages 可以分别执行这两个生产步骤。
 
+WASM 绑定步骤读取 Cargo 实际解析的 target 目录，包括 `CARGO_TARGET_DIR` 或 Cargo 配置覆盖，从而使用本次构建生成的二进制，而不是假定产物总在仓库的 `target/` 中。
+
 默认 wasm-bindgen 版本不匹配时，用 `WASM_BINDGEN` 指定匹配的可执行文件。CLI 必须与 `Cargo.lock` 中的 `wasm-bindgen` 版本完全一致，较新的 CLI 不能替代。替换已安装版本时执行：
 
 ```sh
