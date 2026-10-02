@@ -8,10 +8,8 @@ Gallery Desktop 路由为 `/showcase/reference-studio` 和
 
 ## 来源与适配
 
-实现是原创代码，参考了固定提交中的 GPUIX timeline、infinite-chat 和
-jhomra21/gpuix-solid timeline 示例。没有复制上游源码、资源或数据。
-`src/showcase/reference/provenance.json` 记录提交、Git blob、SHA-256、源码映射
-与明确的适配。固定来源证明所检查文件的身份，不代表与上游应用完全一致。
+`src/showcase/reference/provenance.json` 记录固定来源提交、Git blob、SHA-256、
+源码映射与适配。应用代码和数据为原创；来源身份校验和原生交互验收分别执行。
 
 ```sh
 bun examples/website/scripts/check-reference-provenance.ts
@@ -21,10 +19,9 @@ bun --conditions=browser test examples/website/tests
 离线校验可依次传入 GPUIX 和 gpuix-solid 仓库路径，读取固定提交的 Git 对象。
 HTTP 校验使用不可变提交 URL、有限超时，并拒绝任何哈希不匹配。
 
-指针裁剪、吸附、框选、播放和 JS 滚动偏移适配为标题/起点/时长受控输入、
-原生拖放、时间窗口和缩放按钮，以及 GPUI 拥有的垂直滚动。轨道标题与片段
-共用一个虚拟行，避免独立滚动流。历史使用确定性的内存评审数据和不同段落
-数量，不宣称具备上游网络分页 MDX 聊天能力。`preview` 插槽可组合生成的
+片段编辑使用标题/起点/时长受控输入、原生拖放、时间窗口和缩放按钮，
+以及 GPUI 拥有的垂直滚动。轨道标题与片段共用一个虚拟行。历史使用
+确定性的内存评审数据和不同段落数量。`preview` 插槽可组合生成的
 NativeView 绘制和媒体组件，资源由该组件负责取消与释放。
 
 ## 交互与所有权

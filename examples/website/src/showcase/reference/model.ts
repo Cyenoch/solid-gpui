@@ -1,4 +1,4 @@
-// Original implementation; the inspected reference and adaptations are in provenance.json.
+// Immutable application data and bounded timeline edits.
 export interface Clip {
   readonly id: string;
   readonly label: string;

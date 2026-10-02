@@ -3,8 +3,9 @@
 The SDK exposes generated native components, descriptors, and commands from
 `@solid-gpui/core/components`. The implementation comes from [GPUI Kit](https://github.com/longbridge/gpui-kit)
 at `17b2c6a269c3de51a2f0dc97d49f87f0dd9d6571` (0.7.0 plus subsequent changes), with GPUI pinned to 0.3.7.
-Local native state and lifecycle seams are recorded in
-[`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md).
+The [GPUI source inventory](../vendor/GPUI-SOURCES.md) records actual crate
+archive digests and local patch paths. The [GPUI Kit inventory](../vendor/gpui-kit/SOLID-GPUI.md)
+records component adaptations, local native state, and lifecycle seams.
 
 Solid owns application data, routing, and child composition. Native entities own
 focus, editing, scrolling, menus, docking, animation, and in-flight native work.
@@ -270,6 +271,15 @@ apply any desired text with the input commands; there is no synchronous JS
 accept/reject callback. With no subscriber, native paste keeps its usual behavior.
 
 ### Markdown metadata and icon sources
+
+`TextView format="markdown" text={source}` is the existing native Markdown
+component. Rust owns asynchronous parsing, highlighting, retained paragraph
+shaping, selection, and content caches. Solid supplies the document and reacts
+to semantic events; it does not allocate one host node per parsed Markdown token.
+Use TextView for document content, Editor/Input for editing, and the generated
+Table, Tree, Chart, and Dock controls for their retained native domains. The
+website's TextView examples use this capability; the documentation site composes
+its own navigable sections and tables separately.
 
 `TextView format="markdown" frontmatter` enables top-level YAML metadata rendering.
 Simple supported scalars render as a description list; compound or unsupported

@@ -10,7 +10,7 @@ import { format } from "oxfmt";
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 import { readdirSync } from "node:fs";
-import { transformJsx } from "../../packages/solid-gpui-vite/src/transform.ts";
+import { compile } from "../../packages/solid-gpui-vite/src/compiler.ts";
 export function websiteConfig(desktop = false, embedded = false) {
   return defineConfig({
     root: import.meta.dirname,
@@ -68,7 +68,7 @@ export function websiteConfig(desktop = false, embedded = false) {
               componentVariants.find((example) => example.id === name) ??
               componentExamples.find((example) => example.names.includes(name));
             if (!example) throw new Error(`Missing preview example: ${name}`);
-            return transformJsx(example.source, resolve(import.meta.dirname, `src/preview-${name}.tsx`));
+            return compile(example.source, resolve(import.meta.dirname, `src/preview-${name}.tsx`));
           }
           if (id !== "\0component-catalog") return;
           this.addWatchFile(resolve(import.meta.dirname, "../../packages/solid-gpui/src/components.ts"));

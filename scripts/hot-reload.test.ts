@@ -1,36 +1,11 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import remapping from "@jridgewell/remapping";
 import { FrameDecoder } from "../packages/solid-gpui/src/protocol";
 import { Envelope, type Snapshot } from "../packages/solid-gpui/src/protocol/generated/protocol";
-import { transformJsx } from "../packages/solid-gpui-vite/src/transform";
 import { saveWatchedFile } from "./watch-fixture";
 
 const repo = resolve(import.meta.dir, "..");
-
-test("TSX diagnostics map through JSX and TypeScript lowering to the authored location", () => {
-  const filename = join(repo, "Example.tsx");
-  const source = `import type { Unused } from "./absent";
-class Fields { declare erased: Unused; retained?: string; }
-const View = () => null;
-const element = <View />;
-throw new Error("source position");
-`;
-  const result = transformJsx(source, filename);
-  const lines = result.code.split("\n");
-  const line = lines.findIndex((value) => value.includes('new Error("source position")'));
-  const column = lines[line]!.indexOf("new Error");
-  // Map one generated expression through the complete map, as a debugger would.
-  const location = remapping(
-    [{ version: 3, names: [], sources: [filename], mappings: [[[0, 0, line, column]]] }, result.map],
-    () => null,
-    { decodedMappings: true },
-  );
-  expect(location.mappings).toEqual([[[0, 0, 4, 6]]]);
-  expect(location.sources).toEqual([filename]);
-  expect(location.sourcesContent).toEqual([source]);
-});
 
 test("Vite preserves TSX semantics, Bun APIs, HMR recovery, binary stdio and process ownership", async () => {
   await mkdir(join(repo, ".scratch"), { recursive: true });

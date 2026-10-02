@@ -10,15 +10,10 @@ those same modules through Vite's raw imports.
 
 ## Source identity and adaptations
 
-The implementation is original and based on ideas inspected in
-[GPUIX's timeline](https://github.com/remorses/gpuix/blob/4ecca30f68057b4d9830d32675ba4ed999eeeaaa/examples/timeline.tsx),
-its [infinite history](https://github.com/remorses/gpuix/blob/4ecca30f68057b4d9830d32675ba4ed999eeeaaa/examples/infinite-chat.tsx),
-and [jhomra21's Solid timeline port](https://github.com/jhomra21/gpuix-solid/blob/ad384ff3755761269902dcd7db26ef6163fa722c/examples/counter/src/timeline/app.tsx).
-No upstream source, assets, or data are copied. The manifest
-`src/showcase/reference/provenance.json` pins commits, Git blob hashes, SHA-256
-hashes, source-to-implementation mappings, and the explicit adaptations. Pinning
-an inspected source proves reference identity; it does not imply complete
-behavioral or visual parity with the upstream app.
+The fixture manifest `src/showcase/reference/provenance.json` records immutable
+source commits, Git blob and SHA-256 hashes, source mappings, and adaptations.
+The app code and data are original. Source identity checks and native interaction
+qualification are separate checks.
 
 Run from the repository root:
 
@@ -32,12 +27,10 @@ order. The checker reads the pinned Git objects rather than mutable checkout
 files. HTTP verification fetches only immutable commit URLs, with a bounded
 timeout, and rejects either hash mismatch.
 
-The reference's pointer trim, snapping, marquee, playback, and JS-owned pan
-offsets are adapted to controlled title/start/duration fields, native drag/drop,
+Clip editing uses controlled title/start/duration fields, native drag/drop,
 explicit time-window and zoom controls, and GPUI-owned vertical scroll. Every
-track header and clip grid shares one virtualized row; there is no separate JS
-scroll stream to synchronize. The history is a deterministic in-memory review
-dataset with variable paragraph counts rather than a network-paginated MDX chat.
+track header and clip grid shares one virtualized row. The history is a
+deterministic in-memory review dataset with variable paragraph counts.
 Recorded paint and host-owned media compose through the `preview` slot using
 generated NativeView contracts; that component owns cancellation and release.
 

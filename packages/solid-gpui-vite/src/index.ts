@@ -8,7 +8,7 @@ import {
   type StdioConfig,
 } from "./environment.ts";
 import type { NativeBuildReporter } from "./native-export.ts";
-import { transformJsx } from "./transform.ts";
+import { compile } from "./compiler.ts";
 import { quickJsBuild, quickJsEntry } from "./quickjs-build.ts";
 import { QuickJsDevEnvironment } from "./quickjs-dev.ts";
 import {
@@ -220,7 +220,7 @@ export function solidGpui(options: SolidGpuiOptions | { readonly target: "web" }
         const filename = normalizePath(id.split("?")[0]!);
         let map;
         if (/\.[jt]sx$/.test(filename)) {
-          const result = transformJsx(code, filename);
+          const result = compile(code, filename);
           code = result.code;
           map = result.map;
         } else if (filename !== entry) return;
