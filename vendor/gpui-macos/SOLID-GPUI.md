@@ -1,7 +1,9 @@
 # GPUI macos provider
 
 Vendored from gpui-pre-macos 0.3.7, Zed snapshot
-`1a28cff`.
+`1a28cff4b409169bac058bca40dfbfeb7621d19b` as declared by the published manifest.
+The [source inventory](../GPUI-SOURCES.md) records the actual 0.3.7 archive digest
+and changed paths, compared on 2026-10-02.
 
 Local changes implement owner-attached popup windows and live anchor positioning.
 Keep the upstream license and package metadata when updating this provider.

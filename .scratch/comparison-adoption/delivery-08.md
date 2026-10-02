@@ -148,3 +148,13 @@ Reconcile Cargo manifest/lock and regenerate notices after all dependency merges
 Commit branch work before merging `integrate/comparison-adoption` into this
 branch. Do not merge this branch into integration here; the parent owns that
 operation and final combined qualification/review.
+
+Implementation commit: `182db31`. The requested inbound integration merge uses
+`91a63761` (ticket 10 compiler/docs plus integration tracking). Its only conflict
+was the parallel Unreleased changelog additions; both entries were preserved.
+This branch has not been merged back into integration.
+After the inbound merge: rebuilt JavaScript packages, then compiler + website
+tests passed (10 tests), and website typecheck/frontend build passed. The
+incoming upstream `.patch` has intentional space-prefixed blank context lines
+reported by `git diff --check --cached`; patch bytes were preserved. Ticket 08
+files and the resolved changelog pass whitespace checks.

@@ -9,7 +9,7 @@ Use this order:
 1. [`../README.md`](../README.md) — project overview and a small TSX example.
 2. [`getting-started.md`](getting-started.md) — the authoritative external-consumer sequence: install from npm, prepare, typecheck, develop, test, build, preview, plus the matching native source and Cargo requirements your workspace root must carry.
 3. [`../CONTEXT.md`](../CONTEXT.md) — shared domain vocabulary and invariants.
-4. [`vite.md`](vite.md) — plugin options, artifact lookup, the published test runner, source consumption, and native module generation.
+4. [`vite.md`](vite.md) — plugin options, the compiler-only API, artifact lookup, the published test runner, source consumption, and native module generation.
 5. [`protocol.md`](protocol.md) — authoritative framed Bebop v6 contract, bounded decoding, and generated binding workflow.
 6. [`troubleshooting.md`](troubleshooting.md) — stale bindings, install-hook mistakes, cross-target refusals, and runtime failures.
 7. [`rust-bridge.md`](rust-bridge.md) — export Rust logic and native components, configure desktop hosts, windows, and titlebars.
@@ -51,4 +51,5 @@ References:
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
 - [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source used for implementation comparison.
+- [Vendored GPUI inventory](../vendor/GPUI-SOURCES.md) — actual 0.3.7 crate archive provenance, local changed paths, and patch ownership.
 - [Zed GPUI source](../references/zed/crates/gpui/) — pinned GPUI implementation reference.
