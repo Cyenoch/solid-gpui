@@ -89,7 +89,27 @@ pub(super) fn check<P: HostProfile>(profile: P, args: &[OsString]) -> Result<(),
                             let module = registry
                                 .native_module(module_id, module_digest)
                                 .ok_or("Native service contract is not registered")?;
-                            module.invoke(function_id, &args).map(CommandValue::Bytes)
+                            let remaining = deadline
+                                .checked_duration_since(Instant::now())
+                                .ok_or("Application service check exceeded its deadline")?;
+                            let bytes = futures::executor::block_on(async {
+                                let call = module.invoke_async(function_id, args);
+                                let timeout = async {
+                                    let (sender, receiver) = futures::channel::oneshot::channel();
+                                    std::thread::spawn(move || {
+                                        std::thread::sleep(remaining);
+                                        let _ = sender.send(());
+                                    });
+                                    let _ = receiver.await;
+                                };
+                                match futures::future::select(call, Box::pin(timeout)).await {
+                                    futures::future::Either::Left((result, _)) => result,
+                                    futures::future::Either::Right(_) => {
+                                        Err("Application native service timed out".into())
+                                    }
+                                }
+                            });
+                            bytes.map(CommandValue::Bytes)
                         }
                         CommandOperation::CancelNative { .. } => continue,
                         _ => Err("Application check has no foreground window services".into()),
