@@ -82,6 +82,10 @@ integrity relative to that manifest; publisher trust comes from the authenticate
 release endpoint or an application-controlled offline manifest. A missing asset
 is an error and never starts a Rust source build.
 
+The current `0.5.2` candidate requires an explicit manifest and installs its paired
+package tarballs. Stock selection validates exact package source identities, so
+the old public `0.5.2` release cannot substitute for these unpublished APIs.
+
 Platform capability follows the same split: this repository verifies the QuickJS
 website package on the targets recorded below, while the Embedded Bun static
 packager remains experimental and claims no supported or verified target. A passing

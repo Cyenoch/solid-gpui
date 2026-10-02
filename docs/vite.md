@@ -139,7 +139,7 @@ is callback composition, not an array of assignment targets. The runtime exports
 
 ## Project setup
 
-Use `solid-gpui create <directory> --runtime quickjs` for the exact-version stock
+Use `solid-gpui create <directory> --runtime quickjs --manifest <candidate.json>` for the exact-version stock
 template, or add `--native` for the paired SDK source and application-owned Rust
 host. The stock template calls `stockHost(import.meta.dirname)` from
 `@solid-gpui/vite/delivery`. Run `solid-gpui host install` explicitly first;

@@ -4,7 +4,7 @@
 并采用独立的 `app-tar-v1` 打包合同。支持 macOS 原子 bundle 交换和回滚，
 重启由应用管理；不会自动启用或修改开发中的应用。
 
-运行时策略将内嵌 Bun 用于依赖 Bun 服务的生产应用，QuickJS 用于主要能力由 Rust 实现的应用，外部 Bun 用于快速开发。本指南第一部分记录 QuickJS website 打包，这是仓库目前唯一交付并验证的流水线。第二部分记录实验性的内嵌 Bun 静态打包流程，它把 Bun/JSC 运行时与应用模块图链接进单个可执行文件；目前只有有限的运行时验证，不构成发布支持。输入与当前验证门槛见[内嵌 Bun 静态应用](#内嵌-bun-静态应用)，预期职责见[运行时策略](runtime-strategy.zh-CN.md)。
+运行时策略将内嵌 Bun 用于依赖 Bun 服务的生产应用，QuickJS 用于主要能力由 Rust 实现的应用，外部 Bun 用于快速开发。本指南第一部分记录 QuickJS website 和通用应用打包。第二部分记录实验性的内嵌 Bun 静态打包流程，它把 Bun/JSC 运行时与应用模块图链接进单个可执行文件；目前只有有限的运行时验证，不构成发布支持。输入与当前验证门槛见[内嵌 Bun 静态应用](#内嵌-bun-静态应用)，预期职责见[运行时策略](runtime-strategy.zh-CN.md)。
 
 website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust 可执行文件并由 QuickJS 执行，生产包不带内联 source map。用户无需 Bun、Node、仓库 checkout 或旁置 JavaScript bundle。Rust 拥有原生服务和渲染，同一界面组合也可在开发时通过 Bun 执行。
 
@@ -14,11 +14,9 @@ website 是参考应用包：Solid UI 编译为一个 ESM 模块，嵌入 Rust �
 
 - **bundle** —— `bun --bun vite build` 的产物：供宿主执行的单个 JavaScript 入口模块，不含原生代码，也不是安装包。
 - **原生可执行文件** —— Cargo 按目标与 profile 构建的 GPUI 宿主。`bun run generate`（`solid-gpui prepare`）与 Vite 构建都会为构建机生成一个；交叉目标可执行文件由同一 manifest 显式指定 `target` 得到。`.solid-gpui/artifacts.json` 记录可执行文件与 bundle 路径，`solid-gpui preview` 在构建机上把两者一起运行。
-- **可分发包** —— 可执行文件加 bundle、资源、元数据、许可与签名，由你自己的打包脚本组装。本指南中没有任何构建命令会产出它。
+- **可分发包** —— 可执行文件加 bundle、资源、元数据、许可与签名，由 `solid-gpui package` 或应用自己的打包脚本组装。
 
 平台能力同样如此区分：本仓库在下方记录的目标上验证 QuickJS website 包，而内嵌 Bun 静态打包器仍是实验性的，不声明任何受支持或已验证的目标。你自己应用在本地构建成功，只能说明你的应用，不代表其他平台已通过验证。
-
-## 构建环境
 
 ## 通用应用打包
 
@@ -34,6 +32,10 @@ solid-gpui package --name my-app
 QuickJS 便携包无需另装 Bun/Node。Bun 应用保留显式运行时选择，目标 PATH 需有 Bun 1.4.2+，不自动转换成 QuickJS 或声明内嵌 Bun 已验证。macOS 拒绝未打包的非系统动态库；Linux 记录动态依赖；Windows 仍需 DLL 与干净机器验证。归档未签名，原生安装器、品牌、签名和公证由应用负责。
 
 手动 Standalone Delivery Candidates workflow 从单个准确 commit 生成配对 stock host、原始导出绑定、SDK 源码归档、checksum 与 manifest，构建 macOS ARM64/x64、Linux x64、Windows x64 候选，验证仓库外的 packed stock QuickJS、stock Bun 与自有 Rust consumer。仅上传 workflow candidate，不发布 release。获取路径固定为安装版本的 v<version>，或显式本地 manifest/HTTPS URL；SHA-256 相对于可信 manifest 检查完整性。缺失产物直接失败，无源码回退。
+
+当前 0.5.2 为未发布 candidate，必须使用显式 manifest。模板会获取其准确 tarball，选择器验证源码摘要，旧公开 0.5.2 无法替代。未来新的正式版本才使用其固定 release endpoint。
+
+## 构建环境
 
 Rust 源码需保持 LF 换行，当前仓库通过 `.gitattributes` 保证。Windows 构建旧 tag 时，请在 clone 前设置 `git config --global core.autocrlf false`；原生契约摘要包含嵌入源码字节，必须与生成的 JavaScript 绑定一致。
 

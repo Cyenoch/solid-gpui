@@ -4,6 +4,7 @@ DeliveryFile	type
 deliveryHash	value
 DeliveryManifest	type
 deliveryRun	value
+deliverySourceDigest	value
 deliveryVersion	value
 installStockHost	value
 InstallStockHostOptions	type
