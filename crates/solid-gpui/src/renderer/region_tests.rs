@@ -6,7 +6,7 @@ use crate::transport::InMemoryAdapter;
 use crate::tree::KIND_RAW_TEXT;
 use gpui::{AppContext as _, TestAppContext};
 
-fn fixture(rows: u32) -> Snapshot {
+pub(super) fn fixture(rows: u32) -> Snapshot {
     let mut shell = Node::new(1, 0, 0, KIND_VIEW);
     shell.style = Some(Style {
         flex_direction: Some(FlexDirectionCode::Row),
@@ -38,7 +38,7 @@ fn fixture(rows: u32) -> Snapshot {
     Snapshot::new(7, 3, 0, 1, nodes)
 }
 
-fn update(id: u32, text: &str) -> PatchOperation {
+pub(super) fn update(id: u32, text: &str) -> PatchOperation {
     PatchOperation::Update {
         id,
         mask: UPDATE_TEXT,
@@ -55,7 +55,7 @@ fn update(id: u32, text: &str) -> PatchOperation {
     }
 }
 
-fn draw(cx: &mut TestAppContext, handle: gpui::AnyWindowHandle) {
+pub(super) fn draw(cx: &mut TestAppContext, handle: gpui::AnyWindowHandle) {
     cx.update_window(handle, |_, window, cx| window.draw(cx).clear(cx))
         .unwrap();
     cx.run_until_parked();

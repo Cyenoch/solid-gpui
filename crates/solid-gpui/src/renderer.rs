@@ -32,6 +32,8 @@ use crate::tree::{
     TreeError,
 };
 
+#[cfg(feature = "native-acceptance")]
+pub(crate) mod acceptance;
 mod animation;
 mod commands;
 mod events;
@@ -41,6 +43,8 @@ mod input;
 mod native_call_lifecycle_tests;
 mod native_calls;
 pub(crate) mod paint;
+#[cfg(all(test, feature = "native-acceptance"))]
+mod region_acceptance_tests;
 #[cfg(test)]
 mod region_tests;
 mod regions;
@@ -206,6 +210,8 @@ pub(crate) type PopupObserver = Rc<dyn Fn(&mut App)>;
 pub(crate) type PopupInput = Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>;
 
 pub struct SolidRoot {
+    #[cfg(feature = "native-acceptance")]
+    pub(crate) acceptance: Option<acceptance::Observations>,
     pub(crate) popup_anchors: std::collections::HashSet<u32>,
     pub(crate) popup_observer: Option<PopupObserver>,
     pub(crate) popup_input: Option<PopupInput>,
@@ -293,6 +299,8 @@ impl SolidRoot {
         let extension_event_state =
             new_event_state(Arc::clone(&runtime), Arc::clone(&next_sequence));
         Self {
+            #[cfg(feature = "native-acceptance")]
+            acceptance: None,
             popup_anchors: HashSet::new(),
             popup_observer: None,
             popup_input: None,
@@ -1293,6 +1301,10 @@ impl Render for SolidRoot {
         // Popup anchors also need current renderer-owned geometry each frame.
         self.retain_regions_this_frame = !window.is_a11y_active() && self.popup_anchors.is_empty();
         self.rendered_bounds.borrow_mut().clear();
+        #[cfg(feature = "native-acceptance")]
+        if let Some(nodes) = &self.acceptance {
+            nodes.borrow_mut().clear();
+        }
         let viewport = window.viewport_size();
         // Record what this paint corresponds to so a later bounds change can
         // tell a passive owner move (painted geometry still current) from a

@@ -75,8 +75,12 @@ custom conditions in `bunfig.toml`.
 ## Runtime selection
 
 External Bun is the rapid development runtime. Embedded Bun is the intended
-production packaging runtime for Bun-based applications; its current embedding
-is macOS-only and its release pipeline remains separate work. QuickJS targets
+production packaging runtime for Bun-based applications. The direct Rust
+`embedded-bun` library feature supports macOS only; the separate static packager
+also reaches experimental Windows targets. Its build and runtime evidence does
+not establish supported Windows delivery. The authoritative
+[distribution matrix](../../docs/distribution.md#platform-status-and-current-evidence)
+records target qualification. QuickJS targets
 applications whose main capabilities live in Rust, with JSX/TSX responsible for
 UI composition and reactive presentation state. Rust owns GPUI rendering in
 every mode. See [runtime strategy](../../docs/runtime-strategy.md).
@@ -147,9 +151,20 @@ requests without importing the generated protocol. Previous tree views retain
 their revision and epoch for stale-event tests. Unmount roots after each test.
 
 Inspect submitted styles, accessibility/disabled state and virtual-list ranges.
+Input selections use UTF-16 code units and default to `text.length`; `inputState`
+exposes the committed edit acknowledgement and selection. Input dispatch emits
+change followed by selection, matching native editing order.
 Inject explicit visible-range, layout and pointer observations through `dispatch`.
 `scrollCommands` and `replyScroll` expose offset queries and scroll actions;
 unanswered requests stay pending. These observations do not simulate GPUI layout.
+
+Use the opt-in `NativeAcceptance` export for real native paint/geometry and
+hit-tested input. It owns an explicitly launched native executable, supports
+click/type/drag/wheel and stable captured targets, and provides Metal PNG
+screenshots on macOS. Deterministic mode uses GPUI's native test platform; GPU
+mode and physical input have distinct qualification limits. See the
+[native acceptance guide](../../docs/native-acceptance.md) for build commands,
+custom production HostProfiles, cleanup, and supported platforms.
 
 Run TSX tests through `solid-gpui test` so they share the application's Vite
 configuration and one Solid runtime. The test process keeps Bun's environment

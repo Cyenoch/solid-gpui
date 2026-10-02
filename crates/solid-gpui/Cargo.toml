@@ -50,6 +50,8 @@ frame-profile = ["gpui-component", "gpui/profiler"]
 embedded-bun = ["dep:solid-gpui-bun-sys", "solid-gpui-bun-sys/embedded-bun"]
 quickjs = ["dep:rquickjs"]
 test-support = ["host", "gpui/test-support", "gpui-platform/test-support"]
+native-acceptance = ["test-support"]
+signed-updater = ["host", "dep:ed25519-dalek", "dep:tar", "dep:tempfile", "tokio/macros"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13.13", default-features = false, features = ["async-io", "settings"] }
@@ -82,12 +84,19 @@ name = "solid-gpui-host"
 required-features = ["host"]
 
 [[bin]]
+name = "solid-gpui-acceptance"
+required-features = ["native-acceptance"]
+
+[[bin]]
 name = "solid-gpui-profile"
 required-features = ["frame-profile"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 reqwest-client = { package = "gpui-pre-reqwest-client", version = "0.3.3", optional = true }
 tokio = { version = "1.53", features = ["rt-multi-thread", "time", "net", "io-util", "sync"] }
+ed25519-dalek = { version = "2.2", optional = true }
+tar = { version = "0.4.44", optional = true }
+tempfile = { version = "3", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 wasm-bindgen = "=0.2.121"

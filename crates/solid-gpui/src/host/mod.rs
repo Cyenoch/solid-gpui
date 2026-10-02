@@ -1,3 +1,5 @@
+#[cfg(feature = "native-acceptance")]
+pub mod acceptance;
 mod application_lifecycle;
 mod popup;
 use crate::motion;

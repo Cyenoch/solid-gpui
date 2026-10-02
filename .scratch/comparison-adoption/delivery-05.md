@@ -109,3 +109,11 @@ live by capability classification. Ticket04 pseudo-style refinements must make
 stateful styled nodes/ancestors live; axis-scroll fields must participate in
 capability summaries. Ticket06 renderer-wide selection must disable scene reuse
 for its live selection/search geometry. Focused combined checks follow merge.
+
+Merged integration `5205bb4f` into this branch, resolving the one paint seam
+conflict by retaining both test paint probes and production acceptance observe.
+Added scene-generation-owned observation replay; the existing per-frame clear
+remains and each cached region replays its captured painted nodes. Cache misses
+replace captures from actual paint; deletion releases captures. The combined
+`native-acceptance` regression passes painted text/bounds reuse, fresh edits,
+bounded primitive construction and removal.

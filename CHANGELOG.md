@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- Add opt-in public NativeAcceptance over production native host/tree/layout/paint/input, captured locators, click/type/drag/wheel, bounded feedback, owned cleanup and macOS Metal PNG screenshots. Deterministic native tests and GPU capture remain distinct from physical input qualification.
+- Add the opt-in application-owned `signed-updater` native service with generated clients, a pinned Ed25519 feed/key and exact release identities, bounded cancellable downloads, strict USTAR extraction, atomic macOS bundle exchange, persistent rollback, and explicit application-managed restart. Default hosts keep updates disabled; other native platforms reject installation authority.
+- Export `compile(source, filename)` and `CompileResult` from `@solid-gpui/vite/compiler`, using the canonical universal JSX/TSX transform and composed authored source maps. Vite and website preview compilation share this implementation; compiler-only tools can install it without Vite or a native host.
+
+### Fixed
+
+- Correct TestHost input selections to UTF-16 code units and mirror native change/selection order; expose committed controlled edit acknowledgements.
+- Correct live website status, distinguish direct macOS Embedded Bun library builds from experimental Windows static packaging, and document existing native Markdown/domain components. Verify vendored GPUI 0.3.7 provenance against actual crate archives, complete the patch inventory, and prepare an isolated line-clamp cache fix as a local upstream review artifact.
+
 ## [0.5.2]
 
 ### Fixed

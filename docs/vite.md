@@ -11,7 +11,10 @@ TSX launcher, built-in bundler, or Bun compile path.
 `@solid-gpui/vite/project` helpers. [Getting started](getting-started.md) walks the
 full sequence; this guide covers the option surface and the advanced paths.
 
-Three different things are produced along the way, and only the third is a
+The [compiler-only API](#compiler-only-api) exposes the same JSX/TSX transform
+independently of Vite's lifecycle.
+
+Four different things are produced along the way, and only the fourth is a
 deliverable:
 
 | Artifact              | Produced by                                         | Contains                                                                                                                                                                                            |
@@ -57,6 +60,46 @@ ES module: it cannot resolve npm packages or external imports. Direct execution
 does not compile or silently bundle that input. Use Vite when dependencies need
 bundling. QuickJS entries use `EmbeddedTransport` and a `quickjs`-enabled host.
 
+## Compiler-only API
+
+For editors, source processors, and custom tooling, import the small public
+compiler subpath. Vite uses this exact implementation too:
+
+```ts
+import { compile, type CompileResult } from "@solid-gpui/vite/compiler";
+
+const source = `import { Text } from "@solid-gpui/core";
+export const greeting = <Text>Hello</Text>;`;
+const result: CompileResult = compile(source, "src/Greeting.tsx");
+// Write result.code as an ES module and result.map as its .map file.
+```
+
+| Interface | Contract |
+| --- | --- |
+| `compile(source: string, filename: string): CompileResult` | Synchronous compilation of one `.jsx` or `.tsx` module. Pass the authored filename without a query or fragment. Unsupported extensions and invalid source throw. |
+| `CompileResult.code: string` | JavaScript ES module using universal JSX helpers from `@solid-gpui/core/runtime`. Imports remain for the caller to resolve. |
+| `CompileResult.map: string` | JSON source map with the original filename and source content. TSX composes JSX lowering and TypeScript erasure back to the authored locations. |
+
+The pinned Solid compiler emits universal code for the stable Solid 1.9 runtime;
+it does not change application runtime versions. TypeScript erasure removes
+explicit type imports and `declare` fields while preserving runtime imports and
+JavaScript class fields. Control-flow components such as `Show` and `For` must be
+imported explicitly from `@solid-gpui/core/runtime`; compiler auto-imports for
+Solid 2 are disabled. The existing [ref ABI](#jsx-refs) is shared with Vite.
+
+Importing this subpath loads no Vite lifecycle, renderer, or Rust host. Core and
+Vite are optional peers so a compiler-only tool can install just
+`@solid-gpui/vite`. Its pinned compiler/native binding dependencies still run on
+the build machine; see [Windows ARM64 compiler builds](hot-reload.md#windows-arm64-native-compiler).
+Install matching core and Solid packages when executing compiled code, and use
+the client `browser` resolution condition with one Solid instance.
+
+This operation adds no HMR acceptance, resolves no aliases or `#native` imports,
+does not bundle or typecheck, and does not select Bun/QuickJS or prepare native
+bindings. Vite remains the supported application bundler and owns those project
+operations. For an additional transform, compose its map with `result.map` so
+diagnostics keep pointing to the authored JSX/TSX.
+
 ## JSX refs
 
 The pinned JSX compiler and `@solid-gpui/core/runtime` share a ref ABI, including
@@ -69,13 +112,15 @@ release; 0.5.1 fixes the missing `applyRef` export in 0.5.0.
 import { Text, VirtualList, type VirtualListHandle } from "@solid-gpui/core";
 
 let list!: VirtualListHandle;
-const content = <VirtualList
-  ref={list}
-  data={["First", "Second"]}
-  itemKey={item => item}
-  estimatedItemSize={24}
-  renderItem={item => <Text>{item}</Text>}
-/>;
+const content = (
+  <VirtualList
+    ref={list}
+    data={["First", "Second"]}
+    itemKey={(item) => item}
+    estimatedItemSize={24}
+    renderItem={(item) => <Text>{item}</Text>}
+  />
+);
 // Call list methods after the content has mounted in a Surface.
 ```
 
@@ -410,7 +455,7 @@ test("press updates the committed text", () => {
 | `new TestHost(transport?)`                     | Uses the supplied `MemoryTransport`, including already-submitted frames, or creates one.                                                                                                                                                                                              |
 | `surface(id)`                                  | Returns the latest committed Surface, or `undefined` before its first Snapshot. `nodes` is preorder, including the synthetic root; each node exposes kind, parent/ordered child IDs, text, input value, placeholder, accessibility label and tooltip. Previous views are not mutated. |
 | `commits`                                      | Ordered Snapshot/Patch metadata: type, Surface, epoch and revision. Wire tags and update masks stay private.                                                                                                                                                                          |
-| `dispatch(node, event)`                        | Sends `press`, `focus`, `blur`, `input` (`text`, optional UTF-8-byte selection offsets), or `native` (`eventId`, JSON `value`). The captured node's revision and epoch are retained, so stale-event behavior remains testable.                                                        |
+| `dispatch(node, event)`                        | Sends `press`, `focus`, `blur`, `input` (`text`, optional UTF-16 code-unit selection offsets), or `native` (`eventId`, JSON `value`). Input defaults to `text.length` and emits native-order change then selection. Captured revision and epoch remain intact.                        |
 | `nativeProps(node)`                            | Decodes the JSON DTO props of a `createNativeComponent` node.                                                                                                                                                                                                                         |
 | `nativeCalls`                                  | Observed module-function and component-method requests: Surface, epoch, node/request IDs, module identity, function ID and opaque `args`. Use the public `decodeJson` from `@solid-gpui/core/native` for generated DTO calls.                                                         |
 | `reply(call, bytes)` / `reject(call, message)` | Settles that exact request through the real event path; JSON DTO replies use `encodeJson(value)`. Responses can arrive out of order; a request cannot be answered twice or through another TestHost.                                                                                  |
@@ -423,6 +468,14 @@ event sequences; do not mix it with manually encoded events or clear
 `transport.submitted`. Use a fresh host per test and unmount roots in cleanup.
 It does not calculate native styles/layout, paint pixels, execute Rust handlers,
 or emulate platform services; those still require a real host.
+
+TextInput nodes expose `inputState` (`ackEditSeq`, `selectionStart`,
+`selectionEnd`) for inspecting the committed controlled acknowledgement.
+Selections use UTF-16 code units: `新值🙂` ends at 4. Use
+[`NativeAcceptance`](native-acceptance.md) from the same testing export for real
+native painted geometry, hit-tested click/type/drag/wheel, owned clock/cleanup,
+and macOS GPU screenshots. Its explicitly launched executable reuses the
+production native paths and reports unsupported capabilities.
 
 #### Virtual viewports, layout and scrolling
 

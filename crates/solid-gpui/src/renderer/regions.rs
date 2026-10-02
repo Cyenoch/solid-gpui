@@ -15,6 +15,8 @@ pub(super) struct Regions {
     subtrees: HashMap<u32, Subtree>,
     candidates: HashSet<u32>,
     owners: HashMap<u32, Entity<Region>>,
+    #[cfg(feature = "native-acceptance")]
+    observation_states: HashMap<u32, Rc<RefCell<super::acceptance::RetainedObservations>>>,
     animated_ancestors: HashSet<u32>,
     animating: HashSet<u32>,
 }
@@ -22,6 +24,8 @@ pub(super) struct Regions {
 struct Region {
     root: WeakEntity<SolidRoot>,
     node_id: u32,
+    #[cfg(feature = "native-acceptance")]
+    observations: Rc<RefCell<super::acceptance::RetainedObservations>>,
 }
 
 impl Render for Region {
@@ -34,6 +38,24 @@ impl Render for Region {
             let Some(node) = root_state.store.get(self.node_id) else {
                 return div().into_any();
             };
+            #[cfg(feature = "native-acceptance")]
+            if root_state.acceptance.is_some() {
+                let mut observations = self.observations.borrow_mut();
+                observations.generation = observations.generation.wrapping_add(1);
+                observations.ids.clear();
+                let mut pending = vec![self.node_id];
+                while let Some(id) = pending.pop() {
+                    observations.ids.push(id);
+                    pending.extend(
+                        root_state
+                            .store
+                            .get(id)
+                            .unwrap()
+                            .children(&root_state.store)
+                            .map(|node| node.id),
+                    );
+                }
+            }
             // The parent-facing box owns margins and placement. The rendered
             // box fills that allocation and applies padding/paint exactly once.
             let mut content = node.clone();
@@ -117,6 +139,8 @@ fn ancestors_allow_retention(store: &NodeStore, node: &StoredNode) -> bool {
 impl Regions {
     pub(super) fn clear(&mut self) {
         self.owners.clear();
+        #[cfg(feature = "native-acceptance")]
+        self.observation_states.clear();
         self.subtrees.clear();
         self.candidates.clear();
         self.animated_ancestors.clear();
@@ -133,6 +157,8 @@ impl Regions {
             for id in &changes.removed {
                 self.subtrees.remove(id);
                 self.owners.remove(id);
+                #[cfg(feature = "native-acceptance")]
+                self.observation_states.remove(id);
                 self.candidates.remove(id);
             }
             // A semantic content edit with unchanged capabilities stops summary
@@ -175,6 +201,8 @@ impl Regions {
                 .collect();
             for id in invalid {
                 self.owners.remove(&id);
+                #[cfg(feature = "native-acceptance")]
+                self.observation_states.remove(&id);
             }
         } else {
             self.clear();
@@ -197,11 +225,17 @@ impl Regions {
         let root = cx.weak_entity();
         for &id in &self.candidates {
             if self.eligible(store, id) && !self.owners.contains_key(&id) {
+                #[cfg(feature = "native-acceptance")]
+                let observations = Rc::default();
+                #[cfg(feature = "native-acceptance")]
+                self.observation_states.insert(id, Rc::clone(&observations));
                 self.owners.insert(
                     id,
                     cx.new(|_| Region {
                         root: root.clone(),
                         node_id: id,
+                        #[cfg(feature = "native-acceptance")]
+                        observations,
                     }),
                 );
             }
@@ -235,7 +269,9 @@ impl Regions {
         })
     }
 
-    pub(super) fn element(&self, node: &StoredNode) -> Option<AnyElement> {
+    pub(super) fn element(&self, node: &StoredNode, root: &SolidRoot) -> Option<AnyElement> {
+        #[cfg(not(feature = "native-acceptance"))]
+        let _ = root;
         if self.animated_ancestors.contains(&node.id) {
             return None;
         }
@@ -252,7 +288,18 @@ impl Regions {
             grid_location: full.grid_location,
             ..StyleRefinement::default()
         };
-        Some(owner.clone().cached(outer).into_any())
+        let element = owner.clone().cached(outer).into_any();
+        #[cfg(feature = "native-acceptance")]
+        let element = if let Some(observations) = &root.acceptance {
+            super::acceptance::retained(
+                element,
+                observations.clone(),
+                self.observation_states[&node.id].clone(),
+            )
+        } else {
+            element
+        };
+        Some(element)
     }
 
     pub(super) fn prepare_frame(&mut self, store: &NodeStore, animation: &AnimationBook) {

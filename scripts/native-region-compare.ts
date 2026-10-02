@@ -15,7 +15,7 @@ const identities = await Promise.all(
   [baseline, candidate].map(async (path) => ({
     path: resolve(path),
     sha256: createHash("sha256")
-      .update(await Bun.file(path).arrayBuffer())
+      .update(new Uint8Array(await Bun.file(path).arrayBuffer()))
       .digest("hex"),
   })),
 );
