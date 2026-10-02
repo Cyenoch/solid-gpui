@@ -1300,9 +1300,48 @@ export type TableValue =
 export type TagVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info";
 export type TextByteRange = { startByte: number; endByte: number };
 export type TextHighlightsRequest = { revision: number; highlights: Array<TextRangeHighlight> };
+export type TextPosition = {
+  nodeId: number;
+  /**
+   * UTF-16 offset, required to be a grapheme boundary.
+   */
+  offset: number;
+};
 export type TextRangeHighlight = { range: TextByteRange; background: Color };
 export type TextRevealRequest = { revision: number; range: TextByteRange };
+export type TextSearchRequest = { query: string };
+export type TextSearchSelection = { textRevision: number; searchRevision: number; matchIndex: number };
+export type TextSearchSnapshot = {
+  textRevision: number;
+  searchRevision: number;
+  query: string;
+  matches: Array<Array<TextSpan>>;
+  activeMatch: number | null;
+  truncated: boolean;
+};
+export type TextSelectionChange = {
+  textRevision: number;
+  selectionRevision: number;
+  searchRevision: number;
+  selectedParagraphs: number;
+  detached: boolean;
+};
 export type TextSelectionFormat = "plain" | "source";
+export type TextSelectionObserverProps = Record<symbol, never>;
+export type TextSelectionRequest = { textRevision: number; anchor: TextPosition; head: TextPosition };
+export type TextSelectionSnapshot = {
+  textRevision: number;
+  selectionRevision: number;
+  anchor: TextPosition | null;
+  head: TextPosition | null;
+  spans: Array<TextSpan>;
+  text: string;
+  /**
+   * Selected virtual rows have left the committed materialization window.
+   */
+  detached: boolean;
+};
+export type TextSpan = { nodeId: number; start: number; end: number };
 export type TextStreamFadeConfig = boolean | { durationMs: number; staggerMs?: number; easing?: MotionEasing };
 export type TextViewProps = {
   text?: string;
@@ -5393,8 +5432,58 @@ const descriptor0 = {
 export const useNative0 = () => useNativeClient<NativeClient0>(descriptor0);
 export const createClient0 = (root: Parameters<typeof createNativeClient>[0]) =>
   createNativeClient<NativeClient0>(root, descriptor0);
-export type NativeClient = NativeClient0;
-export const useNative = (): NativeClient => ({ ...useNative0() });
+export type TextSelectionObserverRef = {};
+export const TextSelectionObserver = createNativeComponent<
+  TextSelectionObserverProps,
+  { onSelectionChange?: (value: TextSelectionChange) => void },
+  TextSelectionObserverRef,
+  never
+>({
+  entryId: 1,
+  entryVersion: 1,
+  controlled: null,
+  slots: [],
+  props: [],
+  events: [{ id: 1, name: "selectionChange", prop: "onSelectionChange" }],
+  commands: [],
+  children: true,
+  providerId: [173, 14, 78, 44, 14, 219, 29, 20, 99, 207, 135, 9, 185, 4, 198, 223],
+  catalogDigest: [
+    74, 59, 168, 231, 233, 46, 198, 8, 210, 142, 177, 6, 33, 184, 221, 145, 188, 211, 33, 249, 135, 4, 63, 197, 151,
+    243, 164, 112, 219, 114, 242, 152,
+  ],
+});
+export interface NativeClient1 {
+  clearTextSelection(request?: undefined, options?: NativeCallOptions): Promise<TextSelectionSnapshot>;
+  copyTextSelection(request?: undefined, options?: NativeCallOptions): Promise<TextSelectionSnapshot>;
+  getTextSearch(request?: undefined, options?: NativeCallOptions): Promise<TextSearchSnapshot>;
+  getTextSelection(request?: undefined, options?: NativeCallOptions): Promise<TextSelectionSnapshot>;
+  searchText(request: TextSearchRequest, options?: NativeCallOptions): Promise<TextSearchSnapshot>;
+  selectTextSearchMatch(request: TextSearchSelection, options?: NativeCallOptions): Promise<TextSelectionSnapshot>;
+  setTextSelection(request: TextSelectionRequest, options?: NativeCallOptions): Promise<TextSelectionSnapshot>;
+}
+const descriptor1 = {
+  moduleId: [173, 14, 78, 44, 14, 219, 29, 20, 99, 207, 135, 9, 185, 4, 198, 223],
+  moduleDigest: [
+    74, 59, 168, 231, 233, 46, 198, 8, 210, 142, 177, 6, 33, 184, 221, 145, 188, 211, 33, 249, 135, 4, 63, 197, 151,
+    243, 164, 112, 219, 114, 242, 152,
+  ],
+  commands: [
+    { id: 1, name: "clearTextSelection", input: "null", output: "TextSelectionSnapshot" },
+    { id: 2, name: "copyTextSelection", input: "null", output: "TextSelectionSnapshot" },
+    { id: 3, name: "getTextSearch", input: "null", output: "TextSearchSnapshot" },
+    { id: 4, name: "getTextSelection", input: "null", output: "TextSelectionSnapshot" },
+    { id: 5, name: "searchText", input: "TextSearchRequest", output: "TextSearchSnapshot" },
+    { id: 6, name: "selectTextSearchMatch", input: "TextSearchSelection", output: "TextSelectionSnapshot" },
+    { id: 7, name: "setTextSelection", input: "TextSelectionRequest", output: "TextSelectionSnapshot" },
+  ],
+};
+export const useNative1 = () => useNativeClient<NativeClient1>(descriptor1);
+export const createClient1 = (root: Parameters<typeof createNativeClient>[0]) =>
+  createNativeClient<NativeClient1>(root, descriptor1);
+export type NativeClient = NativeClient0 & NativeClient1;
+export const useNative = (): NativeClient => ({ ...useNative0(), ...useNative1() });
 export const createClient = (root: Parameters<typeof createNativeClient>[0]): NativeClient => ({
   ...createClient0(root),
+  ...createClient1(root),
 });

@@ -41,6 +41,9 @@ mod input;
 mod native_call_lifecycle_tests;
 mod native_calls;
 pub(crate) mod paint;
+mod selection;
+#[cfg(test)]
+mod selection_tests;
 mod virtual_lists;
 use crate::profile;
 
@@ -229,6 +232,8 @@ pub struct SolidRoot {
     selectable_text_layouts: HashMap<u32, TextInputLayout>,
     rich_text_parts_cache: RefCell<HashMap<u32, Rc<paint::RichTextParts>>>,
     selectable_text_selections: HashMap<u32, Range<usize>>,
+    document_text: selection::DocumentText,
+    document_text_clips: HashMap<u32, gpui::Bounds<gpui::Pixels>>,
     #[cfg(test)]
     rich_text_assembly_count: Cell<usize>,
     #[cfg(test)]
@@ -247,7 +252,6 @@ pub struct SolidRoot {
     focused_node: Option<(u32, u32)>,
     active_input: Option<u32>,
     text_input_drag_anchor: Option<(u32, usize)>,
-    selectable_text_drag_anchor: Option<(u32, usize)>,
     commands: Vec<Command>,
     pending_native_calls: HashMap<u32, gpui::Task<()>>,
     virtual_lists: HashMap<u32, ListState>,
@@ -303,6 +307,8 @@ impl SolidRoot {
             text_input_layouts: HashMap::new(),
             selectable_text_layouts: HashMap::new(),
             selectable_text_selections: HashMap::new(),
+            document_text: selection::DocumentText::default(),
+            document_text_clips: HashMap::new(),
             #[cfg(test)]
             rich_text_assembly_count: Cell::new(0),
             #[cfg(test)]
@@ -321,7 +327,6 @@ impl SolidRoot {
             focused_node: None,
             active_input: None,
             text_input_drag_anchor: None,
-            selectable_text_drag_anchor: None,
             virtual_lists: HashMap::new(),
             virtual_ranges: HashMap::new(),
             virtual_item_sizes: HashMap::new(),
@@ -465,9 +470,6 @@ impl SolidRoot {
         if let Some((id, _)) = self.text_input_drag_anchor {
             singleton_ids.insert(id);
         }
-        if let Some((id, _)) = self.selectable_text_drag_anchor {
-            singleton_ids.insert(id);
-        }
         ids.push(("singleton_state", singleton_ids));
         ids
     }
@@ -511,6 +513,10 @@ impl SolidRoot {
         self.pending_native_calls.clear();
         extensions::revoke_all_events(&self.extension_event_state);
         self.extension_instances.clear();
+        self.document_text = selection::DocumentText::default();
+        self.selectable_text_layouts.clear();
+        self.selectable_text_selections.clear();
+        self.document_text_clips.clear();
         let event = Event::surface_closed(
             self.store.surface_id(),
             self.store.epoch(),
@@ -715,6 +721,8 @@ impl SolidRoot {
             &self.store,
             changes.as_ref().map(|changes| &changes.changed),
         );
+        self.reconcile_document_text();
+        self.emit_document_selection_change();
         let identities: Vec<_> = match &changes {
             Some(changes) => changes.changed.iter().copied().collect(),
             None => self.extension_instances.keys().copied().collect(),
@@ -855,6 +863,7 @@ impl SolidRoot {
             self.input_states.remove(id);
             self.text_input_layouts.remove(id);
             self.selectable_text_layouts.remove(id);
+            self.document_text_clips.remove(id);
             self.selectable_text_selections.remove(id);
             self.focus_handles.remove(id);
             self.focus_observers.remove(id);
@@ -883,12 +892,6 @@ impl SolidRoot {
         {
             self.text_input_drag_anchor = None;
         }
-        if self
-            .selectable_text_drag_anchor
-            .is_some_and(|(id, _)| deleted_ids.contains(&id))
-        {
-            self.selectable_text_drag_anchor = None;
-        }
     }
 
     fn reset_native_state(&mut self) {
@@ -901,7 +904,8 @@ impl SolidRoot {
         self.text_input_layouts.clear();
         self.selectable_text_layouts.clear();
         self.selectable_text_selections.clear();
-        self.selectable_text_drag_anchor = None;
+        self.document_text = selection::DocumentText::default();
+        self.document_text_clips.clear();
         self.focus_handles.clear();
         self.focus_observers.clear();
         self.focus_observer_dirty.clear();
@@ -1269,6 +1273,8 @@ impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _profile = profile::span(profile::Stage::Render);
         self.rendered_bounds.borrow_mut().clear();
+        self.selectable_text_layouts.clear();
+        self.document_text_clips.clear();
         let viewport = window.viewport_size();
         // Record what this paint corresponds to so a later bounds change can
         // tell a passive owner move (painted geometry still current) from a
@@ -1282,6 +1288,7 @@ impl Render for SolidRoot {
         self.ensure_window_observers(window, cx);
         self.ensure_focus_observers(window, cx);
         self.process_commands(window, cx);
+        self.restore_document_selection_focus(window, cx);
         self.prepare_animation_frame(window, cx);
         let entity = cx.entity();
         let content = self
@@ -1289,7 +1296,7 @@ impl Render for SolidRoot {
             .root()
             .map(|root| self.render_node(root, &entity))
             .unwrap_or_else(|| div().size_full().into_any());
-        paint::presentation(content, self.popup_input.clone())
+        paint::presentation(content, self.popup_input.clone(), entity)
     }
 }
 

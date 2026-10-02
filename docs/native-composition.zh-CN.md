@@ -1,5 +1,8 @@
 # 原生界面组合
 
+核心可选 Text 段落参与各 Surface 独立的原生文档选区与搜索。复制、Unicode offset、
+富文本、生成服务及虚拟行清理见[文本选择与搜索](text-selection.zh-CN.md)。
+
 ## 所有权与交互设计
 
 以下规则吸收了 GPUI Kit 0.7 的 [Design Guides](https://gpui-kit.com/docs/design-guides)、[Coding Guides](https://gpui-kit.com/docs/coding-guides)、[View Cache](https://gpui-kit.com/docs/view-cache) 与 [Images](https://gpui-kit.com/docs/image)。Rust 示例需要结合生成的 Solid 契约使用，不能逐个方法照搬。

@@ -2,6 +2,10 @@
 
 ## Ownership and interaction design
 
+Core selectable Text paragraphs participate in one native document selection and
+search per Surface. See [text selection and search](text-selection.md) for copy,
+Unicode offsets, styled runs, generated services and virtual row cleanup.
+
 The GPUI Kit 0.7 guides on [design](https://gpui-kit.com/docs/design-guides),
 [coding](https://gpui-kit.com/docs/coding-guides),
 [view caches](https://gpui-kit.com/docs/view-cache), and

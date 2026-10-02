@@ -5,9 +5,8 @@ use crate::motion;
 use crate::runtime::embedded::EmbeddedBunAdapter;
 use crate::{
     Command, CommandKind, CommandMeta, CommandOperation, CommandValue, DecodedMessage,
-    ExtensionRegistry, KeybindingDefinition, MenuAction, NoExtensions, PROTOCOL_VERSION,
-    ProcessAdapter, RuntimeAdapter, SolidRoot, WindowOpenOptions, decode_message,
-    fatal_runtime_failure,
+    ExtensionRegistry, KeybindingDefinition, MenuAction, PROTOCOL_VERSION, ProcessAdapter,
+    RuntimeAdapter, SolidRoot, WindowOpenOptions, decode_message, fatal_runtime_failure,
 };
 use crate::{Event, send_event_or_exit};
 use application_lifecycle::ApplicationLifecycle;
@@ -97,12 +96,15 @@ pub trait HostProfile: 'static {
     }
 }
 
-/// The default host profile: no extension adapters and a direct SolidRoot
-/// window root. This preserves the existing host behavior.
+/// The default host profile: core text services and a direct SolidRoot window
+/// root. Provider and application modules use an explicit custom registry.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DefaultHostProfile;
 
 impl HostProfile for DefaultHostProfile {
+    fn native_bindings(&self) -> Result<String, String> {
+        crate::native::text::native_module().typescript()
+    }
     fn capabilities(&self) -> HostCapabilities {
         HostCapabilities {
             notification_responses: true,
@@ -111,7 +113,7 @@ impl HostProfile for DefaultHostProfile {
     }
 
     fn extension_registry(&self) -> Rc<dyn ExtensionRegistry> {
-        Rc::new(NoExtensions)
+        Rc::new(crate::native::text::native_module())
     }
 
     fn initialize(&mut self, _: &mut App) {}

@@ -154,6 +154,7 @@ export const chinese: Record<string, string> = {
   "Low-level drawing": "底层绘图",
   "Motion and presence": "动画与 Presence",
   "Browse documentation": "浏览文档",
+  "Text selection & search": "文本选择与搜索",
   "Close navigation": "收起导航",
   "View on GitHub": "在 GitHub 查看",
   Installation: "安装",
