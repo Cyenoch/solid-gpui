@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add generated `RecordedPaint` native quads, convex paths, and text with bounded retained geometry, resize/DPI feedback, theme colors, clipping, and scale/translation. Add `LiveFrame` with owned RGBA CPU frame replacement, chunked uploads, atomic presentation, clear/dispose, epoch release, and a shared host memory budget. The website includes executable diagram and frame-stream consumers with bilingual guides.
 - Add opt-in public NativeAcceptance over production native host/tree/layout/paint/input, captured locators, click/type/drag/wheel, bounded feedback, owned cleanup and macOS Metal PNG screenshots. Deterministic native tests and GPU capture remain distinct from physical input qualification.
 - Add the opt-in application-owned `signed-updater` native service with generated clients, a pinned Ed25519 feed/key and exact release identities, bounded cancellable downloads, strict USTAR extraction, atomic macOS bundle exchange, persistent rollback, and explicit application-managed restart. Default hosts keep updates disabled; other native platforms reject installation authority.
 - Export `compile(source, filename)` and `CompileResult` from `@solid-gpui/vite/compiler`, using the canonical universal JSX/TSX transform and composed authored source maps. Vite and website preview compilation share this implementation; compiler-only tools can install it without Vite or a native host.

@@ -18,6 +18,7 @@ mod icon_source;
 mod input;
 mod input_group;
 mod input_language;
+mod live_frame;
 #[cfg(test)]
 mod menu_icon_tests;
 mod menus;
@@ -36,6 +37,7 @@ mod plot_math;
 mod popups;
 mod primitives;
 mod questionnaire;
+mod recorded_paint;
 mod resizable;
 mod rich_text;
 mod scroll_views;
@@ -325,6 +327,7 @@ pub fn native_module() -> crate::native::ModuleDefinition {
         .chain(settings::definitions())
         .chain(charts::definitions())
         .chain(plot::definitions())
+        .chain([recorded_paint::definition(), live_frame::definition()])
         .fold(
             controls::native_module()
                 .include(base_controls::native_module())

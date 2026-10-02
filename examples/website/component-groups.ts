@@ -135,7 +135,7 @@ export const componentGroups = [
   },
   {
     label: "Low-level drawing",
-    members: ["Plot"],
+    members: ["LiveFrame", "Plot", "RecordedPaint"],
   },
   {
     label: "Motion and presence",

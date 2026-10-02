@@ -2,11 +2,9 @@
 
 ## Ownership and interaction design
 
-The GPUI Kit 0.7 guides on [design](https://gpui-kit.com/docs/design-guides),
-[coding](https://gpui-kit.com/docs/coding-guides),
-[view caches](https://gpui-kit.com/docs/view-cache), and
-[images](https://gpui-kit.com/docs/image) inform these rules. Adapt their Rust
-examples to the generated Solid contracts rather than translating method names.
+Solid owns application composition and reactive state. The native host owns
+rendering, transient interaction state, and bounded resources. Use the generated
+Solid contracts to configure native behavior.
 
 - Start with the task, its object, and its result. Keep frequent commands visible;
   use native menus for secondary actions. Share one application command between
@@ -36,11 +34,11 @@ examples to the generated Solid contracts rather than translating method names.
 An Entity retains state; RenderOnce describes a consumed component value. Neither
 promises that layout or paint is skipped. Distinguish three mechanisms:
 
-| Mechanism | Saves | Required ownership |
-| --- | --- | --- |
-| Native view cache | Rebuilding an unchanged subtree | Stable entity/path, definite outer layout, notifications for external dependencies |
-| Geometry/text cache | Recomputing paths, shaping, or measurements | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
-| Core VirtualList | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle |
+| Mechanism           | Saves                                            | Required ownership                                                                                               |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Native view cache   | Rebuilding an unchanged subtree                  | Stable entity/path, definite outer layout, notifications for external dependencies                               |
+| Geometry/text cache | Recomputing paths, shaping, or measurements      | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
+| Core VirtualList    | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle                                                     |
 
 A parent update cannot repair a missing notification inside a cached view. Check
 external-model and theme changes, resize, clipping, and controls in replayed frames.
@@ -48,12 +46,14 @@ Scene reuse can miss when the origin moves while a zero-origin path cache still
 hits. See [performance analysis](performance-analysis.md) before adding a cache.
 
 Reserve an image's layout box before decoding. Use Image for multicolor artwork
-and Icon for theme-colored glyphs. Upstream `img("relative-key")` resolves an
-AssetSource key, whereas Solid core Image resolves relative filesystem paths
-against the host working directory. Core Image owns bounded fetch/decode and
-decoded-image lifetimes; upstream's default application-wide cache and retry
-policy do not describe this provider. Decoded-pixel reuse and HTTP response
-caching are separate layers. See [Images](#images) and [Iconify](iconify.md).
+and Icon for theme-colored glyphs. Core Image resolves relative filesystem paths
+against the host working directory and owns bounded fetch/decode and decoded-image
+lifetimes. Decoded-pixel reuse and HTTP response caching are separate layers.
+See [Images](#images) and [Iconify](iconify.md).
+
+Use [RecordedPaint and LiveFrame](paint-media.md) for retained diagrams or decoded
+CPU frame streams. They own bounded geometry/pixels on a mounted native view;
+the generated ref scopes frame replacement and disposal to its Surface epoch.
 
 Review keyboard operation, focus restoration, narrow/wide layouts, both themes,
 and longer labels. Headless state/geometry checks establish deterministic behavior;
