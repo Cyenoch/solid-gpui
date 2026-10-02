@@ -1,5 +1,13 @@
 # 桌面应用示例
 
+## 显式更新服务
+
+宿主注册 `solid_gpui::updater::native_module(None)`，生成真实命令但禁用安装。
+Home 的 **Inspect update service** 按钮查询状态，页面销毁时取消请求。
+示例不配置 feed、密钥、安装路径或重启权限。应用完成打包后从 Rust 显式启用；
+参见[签名应用更新](../../docs/signed-updates.zh-CN.md)了解签名格式、临时测试、
+macOS 原子安装与回滚、平台限制以及应用管理的重启策略。
+
 一个完整的 Solid GPUI 桌面应用：SolidJS 页面与布局、拥有窗口的 Rust 宿主，以及 Vite 打包器。它可以作为普通桌面应用的起点。[文档](../../docs/README.md)分别说明各项 API，本示例展示如何把它们组合成一个应用。
 
 [English](README.md)
@@ -62,18 +70,18 @@ Settings 路由由固定表头、可滚动的 14 行表单和固定表尾组成�
 
 ## 文件职责
 
-| 路径                            | 职责                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------------ |
-| `src/main.tsx`                  | 应用入口：主题、路由器、标题栏外壳、Home 与 Settings 路由、`mountApplication` 配置。 |
-| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应运行 `bun run generate`。                             |
-| `src/integration.test.tsx`      | 在 `bun run test` 下渲染真实应用树，覆盖内联封面资源与已注册图标。                     |
+| 路径                            | 职责                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/main.tsx`                  | 应用入口：主题、路由器、标题栏外壳、Home 与 Settings 路由、`mountApplication` 配置。                                                        |
+| `src/native.ts`                 | 由构建后的宿主生成。不要手改，应运行 `bun run generate`。                                                                                   |
+| `src/integration.test.tsx`      | 在 `bun run test` 下渲染真实应用树，覆盖内联封面资源与已注册图标。                                                                          |
 | `native/src/main.rs`            | Rust 宿主：窗口配置与标题栏、内嵌图标、`desktop` 原生模块，以及 `dev:rust` 与 `preview` 共用的 `solid_gpui::runtime::vite::Vite` 启动路径。 |
-| `native/Cargo.toml`             | `desktop-app-host` crate 清单，workspace 成员。                                      |
-| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及 `solidGpuiSource()` 的工作区源码别名。        |
-| `.solid-gpui/`                  | 生成的 TypeScript 工程与产物记录。不提交；由 `generate` 与 `build` 重新生成。          |
-| `assets/cover.png`              | 以 `?inline` 导入的封面图，由 Vite 内联进 bundle，无需运行时文件。                    |
-| `assets/brand.svg`              | 编译进可执行文件的品牌图标。                                                         |
-| `tsconfig.json`、`package.json` | 类型检查、生成工程的 `extends` 与上面的脚本。                                        |
+| `native/Cargo.toml`             | `desktop-app-host` crate 清单，workspace 成员。                                                                                             |
+| `vite.config.ts`                | Vite 根目录、`solidGpui` 插件选项，以及 `solidGpuiSource()` 的工作区源码别名。                                                              |
+| `.solid-gpui/`                  | 生成的 TypeScript 工程与产物记录。不提交；由 `generate` 与 `build` 重新生成。                                                               |
+| `assets/cover.png`              | 以 `?inline` 导入的封面图，由 Vite 内联进 bundle，无需运行时文件。                                                                          |
+| `assets/brand.svg`              | 编译进可执行文件的品牌图标。                                                                                                                |
+| `tsconfig.json`、`package.json` | 类型检查、生成工程的 `extends` 与上面的脚本。                                                                                               |
 
 Vite 每次准备会话都会导出 `src/native.ts`；单独生成用 `bun run generate`，用
 `bun run check:generated` 可在文件过期时失败而不是写入。

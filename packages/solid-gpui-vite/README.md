@@ -18,6 +18,30 @@ separately built local native compiler package through upstream's explicit
 The package is not published, is not selected automatically, and is not needed
 by an already compiled application.
 
+## Compiler-only API
+
+```ts
+import { compile, type CompileResult } from "@solid-gpui/vite/compiler";
+
+const result: CompileResult = compile(source, "src/Counter.tsx");
+// result.code is an ES module; result.map is a JSON source map.
+```
+
+`compile(source, filename)` synchronously compiles one `.jsx` or `.tsx` module.
+It uses the same implementation as the Vite plugin: universal JSX targeting
+`@solid-gpui/core/runtime`, stable Solid 1.9 reactivity and refs, and TypeScript
+erasure with composed source maps pointing to authored code. Explicit type
+imports and `declare` fields are erased; runtime imports and JavaScript class
+fields remain. Import control flow explicitly from the runtime entry.
+
+This subpath loads no Vite lifecycle, Rust host, or renderer. Vite and core are
+optional peers for compiler-only tools; applications install them as needed.
+The compiler still requires its pinned native compiler dependencies on the build
+machine. It returns imports unchanged, adds no HMR acceptance, and performs no
+bundling, type checking, native-binding resolution, runtime selection, or host
+startup. Invalid source and unsupported filenames throw. Pass the actual filename
+without a query or fragment; see the [compiler guide](../../docs/vite.md#compiler-only-api).
+
 ## Project
 
 ```ts

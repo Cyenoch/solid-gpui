@@ -8,6 +8,8 @@ pub mod host;
 pub mod motion;
 pub mod native;
 pub mod runtime;
+#[cfg(all(feature = "signed-updater", not(target_family = "wasm")))]
+pub mod updater;
 #[cfg(feature = "quickjs")]
 pub use runtime::quickjs::{QuickJsAdapter, QuickJsError};
 pub use solid_gpui_macros::{component, native_module, native_type};

@@ -51,6 +51,13 @@ that has already started cannot be forcibly interrupted and occupies capacity
 until it finishes. Long tasks that require cancellation must cooperate;
 detached child tasks are not automatically cancelled with their parent call.
 
+For a reusable service that captures application-owned state, register
+`CommandDefinition::blocking(name, closure)` or `CommandDefinition::asynchronous`.
+The blocking form keeps the same admission and cooperative `NativeCallContext`
+cancellation semantics as `sync`, while accepting an `Arc` captured by the closure.
+The opt-in [signed updater](signed-updates.md) uses this seam to keep trusted
+configuration and filesystem resources native while exporting generated clients.
+
 ## Desktop host configuration
 
 ### Process runtime shutdown

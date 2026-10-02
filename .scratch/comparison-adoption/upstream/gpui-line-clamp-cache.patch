@@ -1,0 +1,95 @@
+--- a/src/text_system/line_layout.rs
++++ b/src/text_system/line_layout.rs
+@@ -1,3 +1,4 @@
++// Modified by solid-gpui: include line limits in wrapped-layout cache identity.
+ use crate::{FontId, GlyphId, Pixels, PlatformTextSystem, Point, SharedString, Size, point, px};
+ use collections::FxHashMap;
+ use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
+@@ -617,6 +618,7 @@
+             font_size,
+             runs,
+             wrap_width,
++            max_lines,
+             force_width: None,
+         } as &dyn AsCacheKeyRef;
+ 
+@@ -652,6 +654,7 @@
+                 font_size,
+                 runs: SmallVec::from(runs),
+                 wrap_width,
++                max_lines,
+                 force_width: None,
+             });
+ 
+@@ -682,6 +685,7 @@
+             font_size,
+             runs,
+             wrap_width: None,
++            max_lines: None,
+             force_width,
+         } as &dyn AsCacheKeyRef;
+ 
+@@ -710,6 +714,7 @@
+                 font_size,
+                 runs: SmallVec::from(runs),
+                 wrap_width: None,
++                max_lines: None,
+                 force_width,
+             });
+             let layout = Arc::new(layout);
+@@ -939,6 +944,7 @@
+     font_size: Pixels,
+     runs: SmallVec<[FontRun; 1]>,
+     wrap_width: Option<Pixels>,
++    max_lines: Option<usize>,
+     force_width: Option<Pixels>,
+ }
+ 
+@@ -948,6 +954,7 @@
+     font_size: Pixels,
+     runs: &'a [FontRun],
+     wrap_width: Option<Pixels>,
++    max_lines: Option<usize>,
+     force_width: Option<Pixels>,
+ }
+ 
+@@ -1040,6 +1047,7 @@
+             font_size: self.font_size,
+             runs: self.runs.as_slice(),
+             wrap_width: self.wrap_width,
++            max_lines: self.max_lines,
+             force_width: self.force_width,
+         }
+     }
+@@ -1073,6 +1081,31 @@
+ mod tests {
+     use super::*;
+     use crate::GlyphId;
++
++    #[test]
++    fn changing_line_clamp_relayouts_within_and_across_frames() {
++        let cache = LineLayoutCache::new(
++            Arc::new(crate::NoopTextSystem),
++            Arc::new(AtomicUsize::new(0)),
++        );
++        let text = "one two three four five six seven eight";
++        let runs = [FontRun {
++            len: text.len(),
++            font_id: FontId(0),
++        }];
++        let shape = |limit| cache.layout_wrapped_line(text, px(16.), &runs, Some(px(45.)), limit);
++        let one = shape(Some(1));
++        let three = shape(Some(3));
++        let all = shape(None);
++        assert_eq!(one.wrap_boundaries.len(), 0);
++        assert_eq!(three.wrap_boundaries.len(), 2);
++        assert!(all.wrap_boundaries.len() > 2);
++        assert!(Arc::ptr_eq(&three, &shape(Some(3))));
++        cache.finish_frame();
++        assert!(Arc::ptr_eq(&one, &shape(Some(1))));
++        assert!(Arc::ptr_eq(&all, &shape(None)));
++        assert_eq!(shape(Some(2)).wrap_boundaries.len(), 1);
++    }
+ 
+     fn glyph_at(x: f32, index: usize) -> ShapedGlyph {
+         ShapedGlyph {

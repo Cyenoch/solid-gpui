@@ -29,10 +29,23 @@ impl CommandDefinition {
         name: &'static str,
         function: fn(I, NativeCallContext) -> Result<O, String>,
     ) -> Self {
+        Self::blocking(name, function)
+    }
+
+    /// Like `sync`, with captured application-owned service state. Admission is
+    /// retained until cooperative blocking work exits, including after cancellation.
+    pub fn blocking<I, O, F>(name: &'static str, function: F) -> Self
+    where
+        I: DeserializeOwned + TS + Send + 'static,
+        O: Serialize + TS + 'static,
+        F: Fn(I, NativeCallContext) -> Result<O, String> + Send + Sync + 'static,
+    {
+        let function = Arc::new(function);
         Self {
             name,
             describe: |types| (types.collect::<I>(), types.collect::<O>()),
             handler: CommandHandler::Worker(Arc::new(move |bytes, executor| {
+                let function = Arc::clone(&function);
                 executor.blocking(move |context| {
                     let request = decode_json(&bytes)?;
                     encode_json(&function(request, context)?)
@@ -277,11 +290,12 @@ impl ModuleDefinition {
         value
     }
     pub fn build_identity(&self) -> serde_json::Value {
-        let mut sources = self.implementations.clone();
-        for component in &self.components {
-            sources.extend(&component.implementations);
-        }
-        serde_json::json!({"format":2,"sdkVersion":env!("CARGO_PKG_VERSION"),"sdkSourceDigest":env!("SOLID_GPUI_SDK_SOURCE_DIGEST"),"selectedSources":sources,"contractDigest":self.digest})
+        let components = self
+            .components
+            .iter()
+            .map(|component| (component.name, &component.implementations))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        serde_json::json!({"format":2,"sdkVersion":env!("CARGO_PKG_VERSION"),"sdkSourceDigest":env!("SOLID_GPUI_SDK_SOURCE_DIGEST"),"selectedSources":self.implementations,"selectedComponents":components,"contractDigest":self.digest})
     }
     fn description(&self) -> (Types, serde_json::Value) {
         let mut types = Types::default();

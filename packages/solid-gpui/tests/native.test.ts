@@ -7,7 +7,6 @@ import {
   useNativeClient,
   encodeJson,
   decodeJson,
-  encodeNativeRequest,
   type NativeComponentDescriptor,
 } from "../src/native";
 import { Envelope, type Command } from "../src/protocol/generated/protocol";
@@ -140,9 +139,7 @@ test("native components preserve getters and callback generations while subscrib
   if (update.tag !== 2 || update.value.hostProperties?.tag !== 5) throw new Error("expected extension update");
   const field = update.value.hostProperties.value.fields![0]!.value!;
   if (field.tag !== 6) throw new Error("expected byte field");
-  expect(field.value.value!.subarray(0, 36)).toEqual(
-    encodeNativeRequest(Uint8Array.from(descriptor.buildDigest), null).subarray(0, 36),
-  );
+  expect(field.value.value!.subarray(0, 36)).toEqual(Uint8Array.from([83, 71, 78, 2, ...Array(32).fill(11)]));
   expect(decodeJson(field.value.value!.subarray(36))).toEqual({ label: "after" });
   const event = (revision: number, sequence: number) =>
     transport.push(

@@ -32,7 +32,7 @@ Focused checks performed before integration merge:
 
 - TDD first slice failed on missing build/identity APIs, then passed after implementation.
 - `cargo test -p solid-gpui --no-default-features --test native_bridge_contracts --test native_executor`: 12 contract tests + 2 executor tests pass. Covers source comment edits, LF/CRLF, wrong-build and missing-envelope commands, wrong-build component props, DTO signature change, slots/events and module/component behavioral version changes, retained DTO documentation, strict JSON and executor ownership.
-- `cargo test -p solid-gpui-macros`: 3 macro tests + 1 compiled authoring test pass.
+- `cargo test -p solid-gpui-macros`: 4 macro tests + 1 compiled authoring test pass, including explicit version rejection.
 - `cargo test -p solid-gpui --features gpui-component --lib native_call_tests`: 2 native foreground/worker call tests pass.
 - `cargo test -p solid-gpui --features gpui-component --lib native::children_tests`: retained typed children/slot lifecycle case passes.
 - Native JS tests: 8 pass. TestHost semantic suite: 7 pass with browser + source conditions. Website content/runtime/example suites: 7 pass; combined native/website run reports 15 passing.
@@ -47,3 +47,9 @@ Documentation synchronized: CONTEXT, ADR0016, Rust integration, protocol native-
 Qualification limits: no full workspace tests, full website/WASM build, physical GPU/IME acceptance, extracted release packaging or cross-platform release runs in this owner task. The extracted-bundle code path now checks build provenance but its full production rehearsal remains an integration check. Linux/Windows builds were not run. SDK version is still the already published `0.5.2`; source-build identity differentiates this local candidate.
 
 Before final integrated delivery: re-run combined generation + `--check`, focused typechecks/website content tests, required protocol checks, final full suite and package qualification in the parent session. Regenerate only after all source changes and format passes, since source provenance intentionally tracks those changes.
+
+## Integration merge
+
+Implementation committed as `b4ff0a1`, then integration `f1c3835b` merged into this owner branch. Preserved compiler exports, NativeAcceptance/TestHost Unicode behavior, and signed updater closure ownership. Updater registration migrated mechanically to semantic version `1.0.0`, selected implementation sources and strict request-envelope fixtures; install/rollback behavior is not modified here. Chinese guide conflict preserves both identity guidance and updater registration guidance. Conflicted desktop bindings are regenerated from merged Rust sources, not manually edited.
+
+Post-merge contract/executor tests: 14 pass; macro/authoring: 5 pass; signed updater local sandbox suite: 8 pass. Core + Vite fixture typechecks pass. Native/TestHost/website/native-acceptance JS run: 22 pass, 4 opt-in live-host cases skipped. SDK/website generation `--check` passes after merged generation; desktop bindings also regenerated including disabled updater service. Component implementation digests retain the component-name association rather than collapsing selected sources into an unordered module set. The inherited upstream `.patch` artifact has intentionally space-prefixed blank context lines; cached `git diff --check` flags these patch contents, while owner source/docs diff passes.

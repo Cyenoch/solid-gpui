@@ -37,6 +37,9 @@ fn profile() -> solid_gpui::components::host::ComponentHost {
     solid_gpui::components::host::ComponentHost::new(vec![
         solid_gpui::components::native_module(),
         services::native_module(),
+        // Demonstrate the generated updater contract without granting feed,
+        // installation, or relaunch authority to this development example.
+        solid_gpui::updater::native_module(None),
     ])
     .with_window_options(|_, cx| {
         let mut options = gpui_component::TitleBar::window_options();

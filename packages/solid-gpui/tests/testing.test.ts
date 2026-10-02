@@ -194,10 +194,11 @@ test("TestHost replays creation, moves and subtree deletion without mutating pre
   }
 });
 
-test("TestHost delivers press and Unicode input through real listener revisions", () => {
+test("TestHost delivers press and UTF-16 Unicode selection with controlled acknowledgements", () => {
   const host = new TestHost();
   const root = createRoot(host.transport, { surfaceId: 42 });
   const [value, setValue] = createSignal("before");
+  const selections: { start: number; end: number }[] = [];
   try {
     root.render(() =>
       createComponent(View, {
@@ -211,6 +212,7 @@ test("TestHost delivers press and Unicode input through real listener revisions"
               return value();
             },
             onChangeText: setValue,
+            onSelectionChange: (selection) => selections.push(selection),
           }),
           createComponent(Text, {
             get children() {
@@ -228,10 +230,13 @@ test("TestHost delivers press and Unicode input through real listener revisions"
     expect(texts(host.surface(42)!)).toContain("pressed");
     host.dispatch(
       host.surface(42)!.nodes.find((node) => node.kind === "TextInput")!,
-      { type: "input", text: "新值" },
+      { type: "input", text: "新值🙂" },
     );
-    expect(value()).toBe("新值");
-    expect(host.surface(42)!.nodes.find((node) => node.kind === "TextInput")!.inputValue).toBe("新值");
+    expect(value()).toBe("新值🙂");
+    const input = host.surface(42)!.nodes.find((node) => node.kind === "TextInput")!;
+    expect(input.inputValue).toBe("新值🙂");
+    expect(selections).toMatchObject([{ start: 4, end: 4 }]);
+    expect(input.inputState).toEqual({ ackEditSeq: 1, selectionStart: 4, selectionEnd: 4 });
     expect(texts(initial)).toContain("before");
   } finally {
     root.unmount();

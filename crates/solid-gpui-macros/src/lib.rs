@@ -887,6 +887,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn modules_require_explicit_behavioral_versions() {
+        for options in [
+            quote!(name = "app"),
+            quote!(version = "1"),
+            quote!(version = "01.0.0"),
+            quote!(version = "1.0.0", version = "2.0.0"),
+        ] {
+            assert!(
+                expand_module(
+                    options,
+                    parse_quote!(
+                        mod app {}
+                    ),
+                    quote!("source")
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            expand_module(
+                quote!(version = "1.0.0"),
+                parse_quote!(
+                    mod app {}
+                ),
+                quote!("source")
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
     fn wire_contract_rejects_serde_divergence() {
         for attribute in [
             quote!(#[serde(flatten)]),

@@ -230,6 +230,37 @@ fn exported_metadata_and_behavior_versions_change_contract_identity() {
     let included = original.include(ModuleDefinition::new("behavior", "2.0.0", vec![], vec![]));
     assert_ne!(versioned_component.digest(), included.digest());
     assert!(included.contract().to_string().contains("2.0.0"));
+    let text_event = make(&[], vec![EventDefinition::new::<String>("change")], "1.0.0");
+    let bool_event = make(&[], vec![EventDefinition::new::<bool>("change")], "1.0.0");
+    assert_ne!(text_event.digest(), bool_event.digest());
+
+    #[derive(serde::Deserialize, serde::Serialize, ts_rs::TS)]
+    #[ts(rename = "State")]
+    struct TextState {
+        value: String,
+    }
+    #[derive(serde::Deserialize, serde::Serialize, ts_rs::TS)]
+    #[ts(rename = "State")]
+    struct BoolState {
+        value: bool,
+    }
+    let text_dto = ModuleDefinition::new(
+        "dto",
+        "1.0.0",
+        vec![],
+        vec![CommandDefinition::sync("echo", |value: TextState, _| {
+            Ok(value)
+        })],
+    );
+    let bool_dto = ModuleDefinition::new(
+        "dto",
+        "1.0.0",
+        vec![],
+        vec![CommandDefinition::sync("echo", |value: BoolState, _| {
+            Ok(value)
+        })],
+    );
+    assert_ne!(text_dto.digest(), bool_dto.digest());
 }
 
 #[test]
