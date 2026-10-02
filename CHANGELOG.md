@@ -12,6 +12,7 @@
 ### Fixed
 
 - Correct TestHost input selections to UTF-16 code units and mirror native change/selection order; expose committed controlled edit acknowledgements.
+- Serialize updater status with installation state, and persist explicit restoring/cleanup phases so filesystem deletion or synchronization failures retain deterministic rollback and restart recovery.
 - Correct live website status, distinguish direct macOS Embedded Bun library builds from experimental Windows static packaging, and document existing native Markdown/domain components. Verify vendored GPUI 0.3.7 provenance against actual crate archives, complete the patch inventory, and prepare an isolated line-clamp cache fix as a local upstream review artifact.
 
 ## [0.5.2]
