@@ -59,6 +59,14 @@ translate those in `src/locale.zh-CN.ts`. Both languages load the authoritative
 Markdown directly, including their highlighted code. Keep runtime instructions
 in those guides and link to them from examples.
 
+The Vite reference includes the public `@solid-gpui/vite/compiler` API in both
+languages. Virtual component previews compile through that same canonical source
+module; Vite project transforms and preview snippets must never carry separate
+compiler implementations. `build-highlights.ts` reads guide code directly, so
+compiler examples need no copied website snippet. TextView's retained native
+Markdown examples remain in the component catalog; the documentation site's
+section/table presentation is composed separately for navigation.
+
 Topic ownership is indexed in [docs/README.md](../../docs/README.md): host/window
 configuration belongs in Rust integration, themes in GPUI components, layout in
 native composition, scrolling in scroll performance, and icon registration in
