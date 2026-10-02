@@ -149,9 +149,16 @@ export async function packageApplication(options: PackageApplicationOptions): Pr
       if (`${await deliveryHash(join(extractedRoot, file))}  ${file}` !== sums[index])
         throw new Error(`Extracted content changed: ${file}`);
     }
+    const runtimeDirectory = join(extracted, "runtime");
+    if (artifacts.runtime === "bun") {
+      await mkdir(runtimeDirectory);
+      const bun = join(runtimeDirectory, process.platform === "win32" ? "bun.exe" : "bun");
+      await copyFile(process.execPath, bun);
+      if (process.platform !== "win32") await chmod(bun, 0o755);
+    }
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      PATH: artifacts.runtime === "quickjs" ? "" : dirname(process.execPath),
+      PATH: artifacts.runtime === "quickjs" ? "" : runtimeDirectory,
     };
     for (const key of Object.keys(env))
       if (key.startsWith("SOLID_GPUI_") || key === "NODE_PATH" || key === "BUN_OPTIONS") delete env[key];

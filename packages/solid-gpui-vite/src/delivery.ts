@@ -347,7 +347,7 @@ export async function scaffoldApplication(options: ScaffoldOptions): Promise<voi
       await rename(join(stage, "sdk"), join(root, ".solid-gpui/sdk"));
       await write(
         "Cargo.toml",
-        `[workspace]\nresolver = "2"\nmembers = ["native"]\n\n${await readFile(join(root, ".solid-gpui/sdk/consumer-cargo.toml"), "utf8")}`,
+        `[workspace]\nresolver = "2"\nmembers = ["native"]\nexclude = [".solid-gpui/sdk"]\n\n${await readFile(join(root, ".solid-gpui/sdk/consumer-cargo.toml"), "utf8")}`,
       );
       await write("rust-toolchain.toml", await readFile(join(root, ".solid-gpui/sdk/rust-toolchain.toml"), "utf8"));
       await write(
