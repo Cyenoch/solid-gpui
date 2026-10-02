@@ -368,15 +368,15 @@ test("press updates the committed text", () => {
 });
 ```
 
-| 接口                                           | 行为                                                                                                                                                                                                             |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `new TestHost(transport?)`                     | 使用传入的 `MemoryTransport`（包括已有帧），或新建一个。                                                                                                                                                         |
-| `surface(id)`                                  | 返回最新提交的 Surface；首个 Snapshot 之前返回 `undefined`。`nodes` 按前序排列，包含合成根节点；节点提供 kind、父节点/有序子节点 ID、文本、输入值、placeholder、无障碍标签和 tooltip。旧视图不会随后续提交变化。 |
-| `commits`                                      | 按提交顺序返回 Snapshot/Patch 的类型、Surface、epoch 和 revision；wire tag 与更新掩码保持私有。                                                                                                                  |
-| `dispatch(node, event)`                        | 发送 `press`、`focus`、`blur`、`input`（`text` 及可选的 UTF-8 字节选区偏移），或 `native`（`eventId`、JSON `value`）。保留所捕获节点的 revision/epoch，可验证过期事件处理。                                      |
-| `nativeProps(node)`                            | 解码 `createNativeComponent` 节点的 JSON DTO props。                                                                                                                                                             |
-| `nativeCalls`                                  | 查看模块函数与组件方法请求：Surface、epoch、节点/请求 ID、模块身份、函数 ID 和原始 `args` 字节。生成的 DTO 调用用 `@solid-gpui/core/native` 的公开 `decodeJson` 解码。                                           |
-| `reply(call, bytes)` / `reject(call, message)` | 经真实事件路径完成对应请求；JSON DTO 回复使用 `encodeJson(value)`。允许乱序回复，但不能重复回复或交给另一 TestHost 回复。                                                                                        |
+| 接口                                           | 行为                                                                                                                                                                                                                         |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new TestHost(transport?)`                     | 使用传入的 `MemoryTransport`（包括已有帧），或新建一个。                                                                                                                                                                     |
+| `surface(id)`                                  | 返回最新提交的 Surface；首个 Snapshot 之前返回 `undefined`。`nodes` 按前序排列，包含合成根节点；节点提供 kind、父节点/有序子节点 ID、文本、输入值、placeholder、无障碍标签和 tooltip。旧视图不会随后续提交变化。             |
+| `commits`                                      | 按提交顺序返回 Snapshot/Patch 的类型、Surface、epoch 和 revision；wire tag 与更新掩码保持私有。                                                                                                                              |
+| `dispatch(node, event)`                        | 发送 `press`、`focus`、`blur`、`input`（`text` 及可选的 UTF-16 code unit 选区偏移），或 `native`（`eventId`、JSON `value`）。input 默认偏移为 `text.length`，按原生顺序发送 change 和 selection；保留捕获的 revision/epoch。 |
+| `nativeProps(node)`                            | 解码 `createNativeComponent` 节点的 JSON DTO props。                                                                                                                                                                         |
+| `nativeCalls`                                  | 查看模块函数与组件方法请求：Surface、epoch、节点/请求 ID、模块身份、函数 ID 和原始 `args` 字节。生成的 DTO 调用用 `@solid-gpui/core/native` 的公开 `decodeJson` 解码。                                                       |
+| `reply(call, bytes)` / `reject(call, message)` | 经真实事件路径完成对应请求；JSON DTO 回复使用 `encodeJson(value)`。允许乱序回复，但不能重复回复或交给另一 TestHost 回复。                                                                                                    |
 
 读取只消费已提交的帧。应用有调度任务时，先等待任务再检查新提交；事件分发之外的
 同步 signal 修改通常需要 `await Promise.resolve()`。Native client 也会等当前
@@ -384,6 +384,12 @@ Solid batch 完成后才提交请求。该辅助接口管理注入事件的序�
 事件或清空 `transport.submitted`。每个测试使用独立 host，并在清理时卸载 root。
 它不计算原生样式/布局、不绘制像素、不执行 Rust handler，也不模拟平台服务；
 这些行为仍须用真实宿主验证。
+
+TextInput 节点还提供 `inputState`（`ackEditSeq`、`selectionStart`、`selectionEnd`），
+可检查已提交的受控确认。选区使用 UTF-16 code unit：`新值🙂` 的末尾是 4。
+同一 testing export 的 [`NativeAcceptance`](native-acceptance.zh-CN.md)
+提供真实原生绘制几何、命中测试 click/type/drag/wheel、拥有的时钟/清理和 macOS
+GPU 截图；显式启动的执行文件复用生产原生路径，不支持的能力会报错。
 
 #### 虚拟视口、布局与滚动
 
