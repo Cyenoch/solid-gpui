@@ -32,6 +32,10 @@ both the bindings and the WASM module from the working tree.
 `build:bindings` runs the native catalog exporter; `build:wasm` runs
 `scripts/build-web-wasm.sh`. Pages can execute these producers independently.
 
+The WASM binding step reads Cargo's resolved target directory, including
+`CARGO_TARGET_DIR` or Cargo configuration overrides, so it consumes the binary
+produced by that build instead of assuming a repository-local `target/` directory.
+
 Set `WASM_BINDGEN` to a matching executable if your default wasm-bindgen version
 differs. The CLI must match the `wasm-bindgen` version in `Cargo.lock` exactly;
 a newer CLI is not interchangeable. To replace an already installed version, run:

@@ -18,7 +18,7 @@ All worktrees are below `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/
 | 04 | `04-style-contract` | `ses_f05081949ffd2btrvc76HWGHTa` | Implementing |
 | 05 | `05-native-performance` | `ses_f05081948ffexDinEwHi4cp7io` | Implementing |
 | 06 | `06-selection-search` | `ses_f05059a58ffesWtaKj9ntSXmgY` | Implementing |
-| 07 | `07-paint-media` | `ses_f05059a57ffeHzvbUN55kpP7mi` | Implementing |
+| 07 | `07-paint-media` | `ses_f05059a57ffeHzvbUN55kpP7mi` | Merged `3a0ab99`; independent lifecycle review running |
 | 08 | `08-signed-updater` | `ses_f05059a57ffdT9YjVlSHhDM0CB` | Merged `f1c3835`; owner fixing two review findings |
 | 09 | `09-reference-application` | `ses_f05059a4fffeVoD8VDxsQpVOpq` | Implementing |
 | 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Merged `91a6376`; focused compiler and website checks passed |
@@ -73,3 +73,9 @@ Ticket 03 must migrate updater `with_contract` to its canonical semantic-version
 ### Project wording constraint
 
 The user requested no project copy about learning from comparator projects. All active agents received this constraint. Public comments/docs/UI should describe this project's capabilities and design only; legal source attribution and concise fixture provenance remain. The historical research is archived outside the repository at `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-research-20261001`. Remove the in-repository research after final agents finish using it, and neutralize internal implementation notes that retain comparison narrative.
+
+### Ticket 07 — recorded painting and live frames
+
+Merged pinned tip `4222e41a` with `3a0ab997e172a1d75e9cab53ee3d8889366b20cf`, no conflicts. Website typecheck and five focused catalog/example/highlight/Markdown checks passed. The feature owner verified five resource/correctness tests, native macOS pixel assertions, actual WASM build and website production build. Independent resource/lifecycle review is running. Full integrated host catalogs will be regenerated after identity/style/selection land.
+
+Two feature worktrees found the WASM script assumed `target/` despite custom Cargo target directories. Integration corrects the wasm-bindgen input to use Cargo metadata's actual target directory and synchronizes both Web guides. Final WASM build will exercise this through the shared target directory rather than a hand-invoked bindgen workaround.
