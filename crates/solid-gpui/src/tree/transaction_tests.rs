@@ -36,6 +36,87 @@ fn text_update() -> PatchOperation {
     }
 }
 
+#[test]
+fn immutable_styles_share_journals_and_equal_writes_then_release_after_collapse() {
+    let mut snapshot = vec![Node::new(1, 0, 0, KIND_VIEW)];
+    for id in 2..=3 {
+        let mut node = Node::new(id, 1, id - 2, KIND_VIEW);
+        node.style = Some(Style {
+            width: Some(100.0),
+            font_family: Some("System UI".into()),
+            ..Style::default()
+        });
+        snapshot.push(node);
+    }
+    let mut store = NodeStore::empty();
+    store
+        .apply_snapshot(Snapshot::new(1, 1, 0, 1, snapshot))
+        .unwrap();
+    let style = store.get(2).unwrap().style.as_ref().unwrap();
+    let retained = store.get(2).unwrap().clone();
+    assert!(Arc::ptr_eq(style, retained.style.as_ref().unwrap()));
+    let weak = Arc::downgrade(style);
+    let original = style.clone();
+    let mut operation = text_update();
+    if let PatchOperation::Update {
+        id,
+        mask,
+        style,
+        text,
+        ..
+    } = &mut operation
+    {
+        *id = 2;
+        *mask = UPDATE_STYLE;
+        *text = None;
+        *style = Some(original.as_ref().clone());
+    }
+    store
+        .apply_patch(Patch::new(1, 1, 1, 2, vec![operation]))
+        .unwrap();
+    assert!(Arc::ptr_eq(
+        &original,
+        store.get(2).unwrap().style.as_ref().unwrap()
+    ));
+    // A failed transaction cannot change retained data or style ownership.
+    assert!(
+        store
+            .apply_patch(Patch::new(
+                1,
+                1,
+                2,
+                3,
+                vec![
+                    PatchOperation::Delete { id: 2 },
+                    PatchOperation::Delete { id: 99 }
+                ]
+            ))
+            .is_err()
+    );
+    assert!(Arc::ptr_eq(
+        &original,
+        store.get(2).unwrap().style.as_ref().unwrap()
+    ));
+    store
+        .apply_patch(Patch::new(
+            1,
+            1,
+            2,
+            3,
+            vec![
+                PatchOperation::Delete { id: 2 },
+                PatchOperation::Delete { id: 3 },
+            ],
+        ))
+        .unwrap();
+    drop(original);
+    drop(retained);
+    assert!(
+        weak.upgrade().is_none(),
+        "removed styles must have no retained native owner"
+    );
+}
+
 fn raw_text_update(id: u32, text: &str) -> PatchOperation {
     PatchOperation::Update {
         id,

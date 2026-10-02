@@ -8,6 +8,7 @@ import { Envelope } from "../packages/solid-gpui/src/protocol/generated/protocol
 
 const native = process.argv.includes("--native");
 const hold = process.argv.includes("--hold");
+const regions = process.argv.includes("--regions");
 const percentile = (values: number[], p: number) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.floor((sorted.length - 1) * p)]!;
@@ -66,15 +67,23 @@ for (const rows of native ? [500] : [500, 2_500, 10_000]) {
         }),
         createComponent(View, {
           style: { height: 0, flexGrow: 1, minHeight: 0, overflow: "scroll" },
-          children: Array.from({ length: rows }, (_, index) =>
-            createComponent(Text, {
-              style: { color: "#d8e4f2", fontSize: 14, lineHeight: 24 },
-              children: `Unchanged row ${index + 1}`,
-            }),
-          ),
+          children: regions
+            ? createComponent(View, {
+                style: { width: 480, height: rows * 24, flexShrink: 0, overflow: "hidden" },
+                children: staticRows(),
+              })
+            : staticRows(),
         }),
       ],
     });
+    function staticRows() {
+      return Array.from({ length: rows }, (_, index) =>
+        createComponent(Text, {
+          style: { color: "#d8e4f2", fontSize: 14, lineHeight: 24 },
+          children: `Unchanged row ${index + 1}`,
+        }),
+      );
+    }
   }
   const application = mountApplication({
     transport: () => transport,
@@ -121,6 +130,7 @@ for (const rows of native ? [500] : [500, 2_500, 10_000]) {
     JSON.stringify({
       mode: native ? "native-stdio" : "memory",
       rows,
+      regions,
       viewport,
       updates: iterations,
       appRuns,

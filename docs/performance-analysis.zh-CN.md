@@ -180,6 +180,59 @@ Patch 记录修改节点，并推导原始/最终祖先与类型化子节点的�
 
 提交变小不保证布局变便宜。缓存 GPUI Entity 需要原生状态 owner 显式失效。在共享根的面板实验中，只增加 `.cached(style)` 会同时跳过静态面板和变化的计数器：存储已到 Count: 12，渲染内容仍为 Count: 0，因此该实验被撤回。后续区域设计必须连接提交及纯原生输入、滚动、动画和异步内容的失效路径，并验证实际渲染内容后再接受性能收益。尺寸、裁剪和继承文字样式同样属于缓存依赖。
 
+### 原生基础区域的保留归属
+
+宿主根据树的原生能力自动建立区域，不提供公开缓存开关。View 需要固定像素宽高、
+`flexShrink: 0`、无增长和 intrinsic min/max 约束、`overflow: "hidden"`，且只含静态
+View/Text/raw-text 后代。裁剪保证缓存布局盒与可见范围一致。每个区域有稳定 GPUI
+Entity；原子提交成功后按统一变化集合通知。删除、能力变化、epoch 替换释放 owner；
+Snapshot 重建摘要，Patch 只沿变化与祖先更新摘要，能力相同则停止传播。
+owner/candidate 检查随区域数量和祖先深度增长，不随静态后代数量增长。
+
+监听器、原生输入、选区、滚动、扩展、图片、图标、工具提示与过渡保持实时路径，
+其纯原生通知可重绘旁边内容，同时复用未变化静态区域。事件 handler 使用本帧的
+revision/listener，不把旧事件改投新回调。intrinsic 文字继续测量并使邻居重排。
+GPUI 按位置/尺寸、继承文字、裁剪和窗口 refresh 失效；有动画、交互属性或非 1
+透明度祖先时不保留。启用辅助功能或 popup anchor 时保持实时构造：GPUI 0.3.7
+缓存 prepaint 不重放 AccessKit 节点，popup 几何也需要本帧更新。首个输入模式切换、
+显示器变化与显式 refresh 可能重建全部内容。
+
+候选 View 新增输入、异步资源或动画后在下一帧前恢复实时路径；移除后可重新成为
+区域。测试覆盖绘制文字、命中测试后的监听 revision、连续原生编辑、释放/恢复、
+反复缩放，以及 intrinsic 文字变宽使邻居移动的反例，不代表真实屏幕性能。
+
+先分别构建并复制启用 frame-profile 的生产基线/候选，确认无 test-support；结束
+所有编译后串行执行同一 `--regions` 负载：
+
+```sh
+bun scripts/native-region-compare.ts /absolute/baseline-profile /absolute/candidate-profile .scratch/native-region-comparison
+```
+
+runner 保存二进制哈希、关闭 HUD、A/B/B/A 日志，每次最多 60 秒。360 次计数提交、
+500 行、800/560/1280/800×600 缩放；480 像素裁剪区域放在实时滚动容器中。
+另用 `--hold` 验证 Count: 360、输入、按钮、末行可达与真实位移；原生验收 seam
+检查截图/绘制文字，编码帧正确不足以排除内容冻结。分别报告 CPU draw、构造与
+input-to-present，记录缩放、刷新率和机器负载，不把合成输入称为物理触控板延迟。
+
+### 原生样式的不可变共享
+
+StoredNode.style 使用 `Option<Arc<Style>>`，wire DTO 仍是完整 Style。journal 与
+动画源共享不可变值，相同写入保留分配，变化时替换；最后一个节点/journal/动画
+owner 释放，无全局 interner 或历史缓存。采样帧样式仍独立可变。
+
+```sh
+cargo build --locked -p solid-gpui --example style-storage-profile
+target/debug/examples/style-storage-profile > .scratch/style-storage.jsonl
+```
+
+探针使用真实 NodeStore/原子事务，计数前准备输入，collapse 前验证 revision/text/style。
+2026 年 10 月基线 Style 496 字节、StoredNode 784 字节；共享后 StoredNode 296 字节。
+10,000 个段落加 raw text 的 mount 分配 30.0→19.1 MB，1,000 个 text journal
+3.59→1.64 MB。堆字段不再随 journal 复制；compact drag 每次变化多一个分配，
+但总字节减少。弱跨节点 interner 虽进一步节省 mount，独特 drag 增加查询工作，
+因此生产代码撤回；原始结果保存在 `.scratch/comparison-adoption/`。并行编译期间
+elapsed 仅诊断，集成后串行重测，不作 CPU 或端到端验收。
+
 ### 批量工作与保留几何
 
 - JavaScript 立即更新兄弟链，每个变化父节点在提交时统一生成索引；LIS 规划器按顺序 wire 索引发出最少同父移动，左右旋转都只需一个 Move。链和已发布属性一起回滚。

@@ -81,6 +81,8 @@ pub(super) use presentation::presentation;
 mod style;
 mod text_input;
 pub(super) use text_input::RichTextParts;
+#[cfg(test)]
+mod text_probe;
 mod virtual_list;
 
 #[cfg(test)]
@@ -283,7 +285,32 @@ pub(crate) fn apply_style_to_extension<E: gpui::Styled>(
 
 impl SolidRoot {
     pub(super) fn render_node(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
+        if self.retain_regions_this_frame
+            && let Some(region) = self.regions.element(node)
+        {
+            return region;
+        }
+        self.render_node_direct(node, entity)
+    }
+
+    pub(super) fn render_node_direct(
+        &self,
+        node: &StoredNode,
+        entity: &Entity<Self>,
+    ) -> AnyElement {
         let element = self.render_node_content(node, entity);
+        #[cfg(test)]
+        let element = if node.kind == KIND_TEXT && !node.selectable {
+            text_probe::PaintedText {
+                element,
+                node_id: node.id,
+                text: node.text_content.as_deref().unwrap_or_default().to_owned(),
+                painted: self.painted_text.clone(),
+            }
+            .into_any()
+        } else {
+            element
+        };
         match self.style_for_node(node) {
             Some(style) if border::has_edge_colors(style) => {
                 border::BorderElement::new(element, style).into_any()
@@ -293,6 +320,9 @@ impl SolidRoot {
     }
 
     fn render_node_content(&self, node: &StoredNode, entity: &Entity<Self>) -> AnyElement {
+        #[cfg(test)]
+        self.primitive_constructions
+            .set(self.primitive_constructions.get() + 1);
         let style = self.style_for_node(node);
         if node.kind == KIND_EXTENSION {
             return super::extensions::render(self, node, entity, style);
@@ -311,6 +341,11 @@ impl SolidRoot {
         }
 
         let mut element = div().id(ElementId::Integer(node.id as u64));
+        #[cfg(test)]
+        {
+            let node_id = node.id;
+            element = element.debug_selector(move || format!("solid-gpui-primitive-{node_id}"));
+        }
         if node.id == 1 {
             element = element.size_full().flex().flex_col();
         }

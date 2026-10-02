@@ -2,7 +2,7 @@
 
 ## 所有权与交互设计
 
-以下规则吸收了 GPUI Kit 0.7 的 [Design Guides](https://gpui-kit.com/docs/design-guides)、[Coding Guides](https://gpui-kit.com/docs/coding-guides)、[View Cache](https://gpui-kit.com/docs/view-cache) 与 [Images](https://gpui-kit.com/docs/image)。Rust 示例需要结合生成的 Solid 契约使用，不能逐个方法照搬。
+使用生成的 Solid 契约组合原生界面；每个原生资源需要明确的所有者与释放条件。
 
 - 先明确任务、操作对象和结果。常用操作保持可见，次要操作放入原生菜单。工具栏、菜单项与快捷键共享应用命令，确保启用状态与结果一致。
 - 内容切换时保留外壳、导航与原生编辑器。Solid 管理业务数据和组合；原生实体管理焦点、选区、撤销、滚动与弹出层会话。使用稳定数据键，避免翻译标签或可变位置作为标识。受控值回传是同步，不应再次触发用户编辑事件。
@@ -16,6 +16,11 @@
 Entity 保留状态，RenderOnce 描述被消费的组件值，均不保证跳过布局或绘制。原生视图缓存需要稳定实体/路径、明确外层布局及外部依赖通知；几何/文本缓存键需覆盖内容、字体/rem、尺寸、缩放等几何输入，纯绘制颜色可在路径键之外；Core VirtualList 通过稳定数据身份与视口生命周期避免创建屏外 Solid owner 和原生节点。
 
 父更新不能修复缓存视图缺失的依赖通知。检查外部模型、主题、尺寸、裁剪变化和回放帧中的交互。位置移动会使场景缓存失效，但零原点路径缓存仍可复用。添加缓存前参阅 [Performance analysis](performance-analysis.md)。
+
+Core View 有固定像素宽高、`flexShrink: 0`、hidden overflow 且只包含静态原生能力
+时可自动拥有保留区域。输入、监听器、选区、异步资源、动画保持实时路径；intrinsic
+文字继续测量并可重排相邻内容。参阅[区域契约](performance-analysis.zh-CN.md#原生基础区域的保留归属)
+了解归属、失效、辅助功能和 popup 行为，应用无需缓存开关。
 
 解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。上游 `img("relative-key")` 查询 AssetSource，而 Solid core Image 相对路径基于宿主工作目录。Core Image 有自己的有界请求、解码与像素生命周期，不能套用上游默认的应用级缓存或重试策略。解码像素复用与 HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。
 

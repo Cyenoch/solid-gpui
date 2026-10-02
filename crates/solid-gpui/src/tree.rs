@@ -125,7 +125,7 @@ pub struct StoredNode {
     pub parent_id: u32,
     pub index: u32,
     pub kind: u32,
-    pub style: Option<Style>,
+    pub style: Option<Arc<Style>>,
     pub text: Option<Arc<str>>,
     pub text_content: Option<Arc<str>>,
     pub listener_id: u32,
@@ -322,7 +322,7 @@ impl NodeStore {
                     parent_id: node.parent_id,
                     index: node.index,
                     kind: node.kind,
-                    style: node.style,
+                    style: node.style.map(Arc::new),
                     text: node.text.map(Arc::<str>::from),
                     text_content: None,
                     listener_id: node.listener_id,
@@ -548,7 +548,7 @@ impl NodeStore {
             parent_id: node.parent_id,
             index: node.index,
             kind: node.kind,
-            style: node.style.clone(),
+            style: node.style.clone().map(Arc::new),
             text: node.text.clone().map(Arc::<str>::from),
             text_content: None,
             listener_id: node.listener_id,
@@ -684,7 +684,7 @@ impl NodeStore {
         let resulting_style = if mask & UPDATE_STYLE != 0 {
             style.as_ref()
         } else {
-            node.style.as_ref()
+            node.style.as_deref()
         };
         if resulting_listener != 0 && !supports_listener(node.kind, resulting_style) {
             return Err(TreeError::InvalidPatchOperation {
@@ -753,8 +753,16 @@ impl NodeStore {
             })?;
         }
         undo.capture_node(self, id);
+        let replacement_style =
+            if mask & UPDATE_STYLE != 0 && node.style.as_deref() != style.as_ref() {
+                Some(style.map(Arc::new))
+            } else {
+                None
+            };
         let target = self.nodes.get_mut(&id).expect("validated node");
-        if mask & UPDATE_STYLE != 0 {
+        if let Some(style) = replacement_style {
+            // Keep the allocation on equal writes; journals and animation
+            // sources share the immutable value without copying its heap fields.
             target.style = style;
         }
         if mask & UPDATE_FOCUSABLE != 0 {
@@ -854,7 +862,7 @@ impl NodeStore {
             &parent,
             id,
             node.kind,
-            node.style.as_ref(),
+            node.style.as_deref(),
             node.selectable,
             parent_is_nested_text,
         )

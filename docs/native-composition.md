@@ -2,11 +2,8 @@
 
 ## Ownership and interaction design
 
-The GPUI Kit 0.7 guides on [design](https://gpui-kit.com/docs/design-guides),
-[coding](https://gpui-kit.com/docs/coding-guides),
-[view caches](https://gpui-kit.com/docs/view-cache), and
-[images](https://gpui-kit.com/docs/image) inform these rules. Adapt their Rust
-examples to the generated Solid contracts rather than translating method names.
+Use the generated Solid contracts for native composition and give each native
+resource one owner and a defined release condition.
 
 - Start with the task, its object, and its result. Keep frequent commands visible;
   use native menus for secondary actions. Share one application command between
@@ -36,16 +33,24 @@ examples to the generated Solid contracts rather than translating method names.
 An Entity retains state; RenderOnce describes a consumed component value. Neither
 promises that layout or paint is skipped. Distinguish three mechanisms:
 
-| Mechanism | Saves | Required ownership |
-| --- | --- | --- |
-| Native view cache | Rebuilding an unchanged subtree | Stable entity/path, definite outer layout, notifications for external dependencies |
-| Geometry/text cache | Recomputing paths, shaping, or measurements | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
-| Core VirtualList | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle |
+| Mechanism           | Saves                                            | Required ownership                                                                                               |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Native view cache   | Rebuilding an unchanged subtree                  | Stable entity/path, definite outer layout, notifications for external dependencies                               |
+| Geometry/text cache | Recomputing paths, shaping, or measurements      | Keys covering content, font/rem, bounds, scale and geometry inputs; paint-only color can stay outside a path key |
+| Core VirtualList    | Creating offscreen Solid owners and native nodes | Retained data identity, viewport and visible-range lifecycle                                                     |
 
 A parent update cannot repair a missing notification inside a cached view. Check
 external-model and theme changes, resize, clipping, and controls in replayed frames.
 Scene reuse can miss when the origin moves while a zero-origin path cache still
 hits. See [performance analysis](performance-analysis.md) before adding a cache.
+
+Core Views with definite pixel width/height, `flexShrink: 0` and hidden overflow
+can own automatic retained regions when all descendants have static native
+capabilities. Inputs, listeners, selection, async resources and animations remain
+live. Intrinsic text still measures and can reflow adjacent content. See the
+[region contract](performance-analysis.md#retained-native-primitive-regions) for
+ownership, invalidation, accessibility and popup behavior; applications do not
+need a cache flag.
 
 Reserve an image's layout box before decoding. Use Image for multicolor artwork
 and Icon for theme-colored glyphs. Upstream `img("relative-key")` resolves an

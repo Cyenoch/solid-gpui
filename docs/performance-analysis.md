@@ -266,7 +266,7 @@ but excludes decode and subsequent window-owned Extension instance updates.
 Its count also includes command admission; command execution is outside this
 span. Filter the workload when comparing Snapshot/Patch commit costs.
 `extensions` measures those instance updates. `render` measures SolidRoot's
-preparation and GPUI element construction, not the later layout, paint, GPU, or
+preparation and GPUI element construction (including retained-region misses), not the later layout, paint, GPU, or
 presentation stages. Nested stages must not be added to their containing stage.
 The intervals are aggregates, not per-commit traces or end-to-end latency.
 
@@ -319,6 +319,85 @@ region design must connect commits **and** native-only input, scrolling,
 animations, and asynchronous content to region invalidation, and verify actual
 rendered content before accepting timing improvements. Bounds, clipping, and
 inherited text styles are additional cache dependencies.
+
+### Retained native primitive regions
+
+The host derives region ownership from the retained tree without public cache
+flags. A View qualifies when it has pixel width and height, `flexShrink: 0`, no
+growth or intrinsic min/max constraints, `overflow: "hidden"`, and only static
+View/Text/raw-text descendants. The clipping requirement keeps the cached
+layout box equivalent to its visible extent. Each region owns a stable GPUI
+Entity; accepted changes notify owners through the same atomic change set.
+Deletion, capability changes and epoch replacement release owners. Snapshots
+rebuild the summaries; patches update changed summaries and ancestors, stopping
+when capability summaries are equal. Owner/candidate reconciliation is bounded
+by region count and ancestor depth, independently of static descendant count.
+
+Listeners, native input, selection, scrolling, extensions, images, icons,
+tooltips and transitions use live paths. Their native-only notifications can
+redraw adjacent content while an unchanged static region reuses its scene.
+Handlers remain freshly constructed with the current revision and listener;
+no cached event is redirected to a newer callback. Intrinsic-sized text keeps
+measuring and may reflow its neighbors. GPUI invalidates retained scenes for
+bounds (including origin), inherited text style, clipping and window refresh.
+Ancestor animation, interactive host properties and non-unit opacity prevent
+retention because they have additional dependencies. Active accessibility and
+popup anchors use live construction: linked GPUI 0.3.7 does not replay AccessKit
+nodes in cached prepaint, and popup geometry must be current. First modality
+switches, display changes and explicit window refreshes may rebuild all content.
+
+Native input, async resources and animations inside a candidate View make it
+live before its next draw. Removing them can restore a region. This is a
+conservative correctness boundary, not a general intrinsic layout cache or a
+claim that all primitive redraws are local. Deterministic regressions verify
+painted text, hit-tested listener revisions, sustained native editing, region
+release/recovery, repeated resize and an intrinsic-width counterexample. These
+are work/geometry tests, not physical display performance measurements.
+
+Use the same fixture with `--regions` against separately copied production
+baseline and candidate binaries. Build each with `frame-profile`, verify its
+feature graph excludes `test-support`, and finish all compilation first:
+
+```sh
+bun scripts/native-region-compare.ts /absolute/baseline-profile /absolute/candidate-profile .scratch/native-region-comparison
+```
+
+The runner hashes both executables, disables the HUD, preserves A/B/B/A logs,
+and bounds each run to 60 seconds. It performs 360 verified counter commits,
+500 rows and repeated narrow/wide resizing with a 480-pixel clipped region
+inside a live scroll pane. Inspect `Count: 360`, edit the input, press the button,
+reach the final row and verify actual displacement with a separate `--hold`
+run. Confirm screenshots/rendered text through the native acceptance seam;
+encoded commit assertions alone cannot reject frozen painted content. Retain
+CPU draw, construction and input-to-present separately, record scale/display
+rate and load, and do not infer physical trackpad latency from synthetic input.
+
+### Immutable native style ownership
+
+`StoredNode.style` is `Option<Arc<Style>>`; the wire DTO remains a complete Style.
+Journals and animation source styles share immutable values. Equal writes keep
+the existing allocation; changed values replace it. The final node/journal/
+animation owner releases the style, with no global interner or retired cache.
+Mutable sampled frame styles remain separately owned.
+
+The allocation probe uses the actual NodeStore and atomic transaction, prepares
+inputs outside counting, and checks final revision/text/style before collapse:
+
+```sh
+cargo build --locked -p solid-gpui --example style-storage-profile
+target/debug/examples/style-storage-profile > .scratch/style-storage.jsonl
+```
+
+At the October 2026 baseline, Style occupied 496 bytes and StoredNode 784;
+shared storage reduces StoredNode to 296. For 10,000 styled paragraphs plus raw
+text, mount allocation bytes decreased 30.0 → 19.1 MB; 1,000 text journals
+decreased 3.59 → 1.64 MB. Heap styles avoid journal font/shadow copies. Compact
+drag updates add one allocation per changed Style while reducing total bytes.
+A bounded weak cross-node interner saved more mount memory but added unique
+drag lookup work and was rejected; no interning code ships. Raw allocation
+results and the experiment decision live under `.scratch/comparison-adoption/`.
+Elapsed values collected during concurrent builds are diagnostic, not accepted
+CPU or end-to-end performance evidence. Re-run serially after integration.
 
 ### Batched work and retained geometry
 

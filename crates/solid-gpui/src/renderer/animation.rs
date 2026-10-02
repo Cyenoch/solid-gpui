@@ -210,7 +210,7 @@ impl AnimationState {
 /// changes, the node disappears, or the book is reset.
 pub(super) struct AnimationBook {
     pub(super) states: HashMap<u32, AnimationState>,
-    pub(super) styles: HashMap<u32, Option<Style>>,
+    pub(super) styles: HashMap<u32, Option<std::sync::Arc<Style>>>,
     pub(super) frame_styles: HashMap<u32, Style>,
     frame_requested: bool,
     animating: HashSet<u32>,
@@ -221,6 +221,10 @@ pub(super) struct AnimationBook {
 }
 
 impl AnimationBook {
+    pub(super) fn in_flight(&self) -> impl Iterator<Item = u32> + '_ {
+        self.animating.iter().copied()
+    }
+
     pub(super) fn new() -> Self {
         Self {
             states: HashMap::new(),
@@ -618,7 +622,7 @@ impl SolidRoot {
             let Some(node_style) = self
                 .store
                 .get(node_id)
-                .and_then(|node| node.style.as_ref())
+                .and_then(|node| node.style.as_deref())
                 .cloned()
             else {
                 self.animation.remove_node(node_id);
@@ -669,7 +673,7 @@ impl SolidRoot {
         self.animation
             .frame_styles
             .get(&node.id)
-            .or(node.style.as_ref())
+            .or(node.style.as_deref())
     }
 }
 
