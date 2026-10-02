@@ -79,6 +79,10 @@ function Home() {
   const native = useNative();
   const [calls, setCalls] = createSignal(0);
   const [detailsOpen, setDetailsOpen] = createSignal(false);
+  const [updateStatus, setUpdateStatus] = createSignal("Update service has not been queried.");
+  const [updateBusy, setUpdateBusy] = createSignal(false);
+  let updateRequest: AbortController | undefined;
+  onCleanup(() => updateRequest?.abort());
   return (
     <Column style={{ padding: 24, gap: 20 }}>
       <View style={{ height: 230, position: "relative", borderRadius: 12, overflow: "hidden" }}>
@@ -128,6 +132,27 @@ function Home() {
         </Button>
       </Row>
       <Text>Rust service calls: {calls()}</Text>
+      <Button
+        label="Inspect update service"
+        disabled={updateBusy()}
+        onPress={async () => {
+          updateRequest = new AbortController();
+          setUpdateBusy(true);
+          try {
+            const status = await native.updateStatus(undefined, { signal: updateRequest.signal });
+            setUpdateStatus(
+              status.enabled
+                ? `Updates configured for ${status.platform}. Restart is application-managed.`
+                : "Updates are disabled in this example. The application must configure its trusted feed and key in Rust.",
+            );
+          } catch (error) {
+            setUpdateStatus(String(error));
+          } finally {
+            setUpdateBusy(false);
+          }
+        }}
+      />
+      <Text>{updateStatus()}</Text>
       <Button label="Show build details" onPress={() => setDetailsOpen(true)} />
       <Show when={detailsOpen()}>
         <Dialog open title="Native DX" showFooter={false} onOpenChange={(event) => setDetailsOpen(event.open)}>

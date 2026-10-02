@@ -9,7 +9,9 @@ Solid GPUI 支持两种编写方式：直接写 JavaScript 并运行，或者写
 `@solid-gpui/vite/artifacts`、`@solid-gpui/vite/project` 辅助模块。
 完整流程见[入门](getting-started.zh-CN.md)；本篇讲选项面与进阶路径。
 
-过程中会产出三类不同的东西，只有第三类是交付物：
+[独立编译器 API](#独立编译器-api) 将同一 JSX/TSX transform 暴露给 Vite 生命周期以外的工具。
+
+过程中会产出四类不同的东西，只有第四类是交付物：
 
 | 产物               | 产出方式                                    | 内容                                                                                                                                        |
 | ------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -17,6 +19,39 @@ Solid GPUI 支持两种编写方式：直接写 JavaScript 并运行，或者写
 | **bundle**         | `bun --bun vite build`                      | 供宿主执行的单个 JavaScript 入口模块。构建同时会 prepare 所配置的原生宿主（增量 Cargo 构建），但不会把原生代码写进 bundle，也不产出安装包。 |
 | **原生可执行文件** | Cargo（由插件 `native` 或你自己的构建触发） | 渲染 bundle 的 GPUI 宿主。                                                                                                                  |
 | **可分发包**       | 你自己的打包脚本                            | 可执行文件加 bundle、资源、许可与签名。见[分发](distribution.zh-CN.md)。                                                                    |
+
+## 独立编译器 API
+
+编辑器、源码处理器与自定义工具可以导入公开编译器子路径。Vite 也直接使用这份实现：
+
+```ts
+import { compile, type CompileResult } from "@solid-gpui/vite/compiler";
+
+const source = `import { Text } from "@solid-gpui/core";
+export const greeting = <Text>Hello</Text>;`;
+const result: CompileResult = compile(source, "src/Greeting.tsx");
+// Write result.code as an ES module and result.map as its .map file.
+```
+
+`compile(source, filename)` 同步编译单个 `.jsx` 或 `.tsx` 模块；请传入不含 query
+或 fragment 的原始文件名。无效源码与不支持的扩展名会抛出错误。`CompileResult.code`
+是引用 `@solid-gpui/core/runtime` universal helper 的 JavaScript ES 模块，导入保持原样。
+`CompileResult.map` 是 JSON source map，包含原始文件名与源码；TSX 将 JSX lowering
+和 TypeScript 擦除的映射组合回原始位置。
+
+固定版本的 Solid 编译器面向稳定 Solid 1.9 runtime，不会替换应用 runtime。
+显式 type import 与 `declare` 字段会被擦除，运行时导入与 JavaScript class field 保留。
+`Show`、`For` 等控制流需从 `@solid-gpui/core/runtime` 显式导入；已禁用 Solid 2
+默认自动导入，并与 Vite 共享[ref ABI](#jsx-ref)。
+
+该子路径不会加载 Vite 生命周期、renderer 或 Rust 宿主；core 和 Vite 是可选 peer，
+独立编译工具可以只安装 `@solid-gpui/vite`。固定的原生编译器依赖仍在构建机运行，
+见 [Windows ARM64 编译器构建](hot-reload.zh-CN.md#windows-arm64-native-compiler)。
+执行产物时安装配套 core 与 Solid，通过 `browser` condition 选择同一个客户端 Solid 实例。
+
+编译器不添加 HMR acceptance、不解析 alias 或 `#native`、不打包或类型检查、
+不选择 Bun/QuickJS，也不准备原生绑定。Vite 仍是支持的应用打包器，并拥有这些工程操作。
+后续 transform 应组合 `result.map`，以保持诊断指向原始 JSX/TSX。
 
 ## JSX ref
 
@@ -331,15 +366,15 @@ test("press updates the committed text", () => {
 });
 ```
 
-| 接口                                           | 行为                                                                                                                                                                                                             |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `new TestHost(transport?)`                     | 使用传入的 `MemoryTransport`（包括已有帧），或新建一个。                                                                                                                                                         |
-| `surface(id)`                                  | 返回最新提交的 Surface；首个 Snapshot 之前返回 `undefined`。`nodes` 按前序排列，包含合成根节点；节点提供 kind、父节点/有序子节点 ID、文本、输入值、placeholder、无障碍标签和 tooltip。旧视图不会随后续提交变化。 |
-| `commits`                                      | 按提交顺序返回 Snapshot/Patch 的类型、Surface、epoch 和 revision；wire tag 与更新掩码保持私有。                                                                                                                  |
-| `dispatch(node, event)`                        | 发送 `press`、`focus`、`blur`、`input`（`text` 及可选的 UTF-8 字节选区偏移），或 `native`（`eventId`、JSON `value`）。保留所捕获节点的 revision/epoch，可验证过期事件处理。                                      |
-| `nativeProps(node)`                            | 解码 `createNativeComponent` 节点的 JSON DTO props。                                                                                                                                                             |
-| `nativeCalls`                                  | 查看模块函数与组件方法请求：Surface、epoch、节点/请求 ID、模块身份、函数 ID 和原始 `args` 字节。生成的 DTO 调用用 `@solid-gpui/core/native` 的公开 `decodeJson` 解码。                                           |
-| `reply(call, bytes)` / `reject(call, message)` | 经真实事件路径完成对应请求；JSON DTO 回复使用 `encodeJson(value)`。允许乱序回复，但不能重复回复或交给另一 TestHost 回复。                                                                                        |
+| 接口                                           | 行为                                                                                                                                                                                                                         |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new TestHost(transport?)`                     | 使用传入的 `MemoryTransport`（包括已有帧），或新建一个。                                                                                                                                                                     |
+| `surface(id)`                                  | 返回最新提交的 Surface；首个 Snapshot 之前返回 `undefined`。`nodes` 按前序排列，包含合成根节点；节点提供 kind、父节点/有序子节点 ID、文本、输入值、placeholder、无障碍标签和 tooltip。旧视图不会随后续提交变化。             |
+| `commits`                                      | 按提交顺序返回 Snapshot/Patch 的类型、Surface、epoch 和 revision；wire tag 与更新掩码保持私有。                                                                                                                              |
+| `dispatch(node, event)`                        | 发送 `press`、`focus`、`blur`、`input`（`text` 及可选的 UTF-16 code unit 选区偏移），或 `native`（`eventId`、JSON `value`）。input 默认偏移为 `text.length`，按原生顺序发送 change 和 selection；保留捕获的 revision/epoch。 |
+| `nativeProps(node)`                            | 解码 `createNativeComponent` 节点的 JSON DTO props。                                                                                                                                                                         |
+| `nativeCalls`                                  | 查看模块函数与组件方法请求：Surface、epoch、节点/请求 ID、模块身份、函数 ID 和原始 `args` 字节。生成的 DTO 调用用 `@solid-gpui/core/native` 的公开 `decodeJson` 解码。                                                       |
+| `reply(call, bytes)` / `reject(call, message)` | 经真实事件路径完成对应请求；JSON DTO 回复使用 `encodeJson(value)`。允许乱序回复，但不能重复回复或交给另一 TestHost 回复。                                                                                                    |
 
 读取只消费已提交的帧。应用有调度任务时，先等待任务再检查新提交；事件分发之外的
 同步 signal 修改通常需要 `await Promise.resolve()`。Native client 也会等当前
@@ -347,6 +382,12 @@ Solid batch 完成后才提交请求。该辅助接口管理注入事件的序�
 事件或清空 `transport.submitted`。每个测试使用独立 host，并在清理时卸载 root。
 它不计算原生样式/布局、不绘制像素、不执行 Rust handler，也不模拟平台服务；
 这些行为仍须用真实宿主验证。
+
+TextInput 节点还提供 `inputState`（`ackEditSeq`、`selectionStart`、`selectionEnd`），
+可检查已提交的受控确认。选区使用 UTF-16 code unit：`新值🙂` 的末尾是 4。
+同一 testing export 的 [`NativeAcceptance`](native-acceptance.zh-CN.md)
+提供真实原生绘制几何、命中测试 click/type/drag/wheel、拥有的时钟/清理和 macOS
+GPU 截图；显式启动的执行文件复用生产原生路径，不支持的能力会报错。
 
 #### 虚拟视口、布局与滚动
 

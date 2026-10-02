@@ -92,6 +92,16 @@ depending on registration order. Registration happens before the window opens,
 so the icon needs no file at runtime. See
 [Add application icons](../../docs/iconify.md#add-application-icons).
 
+### Explicit update service
+
+The host registers `solid_gpui::updater::native_module(None)` and generates the
+real updater commands with installation disabled. Home's **Inspect update service**
+button queries status and cancels its request when the page owner ends. The
+example has no trusted feed, key, install path, or relaunch authority. Applications
+opt in from Rust after packaging; see [Signed application updates](../../docs/signed-updates.md)
+for the signed release format, local fixture qualification, atomic macOS install,
+rollback, platform limits, and explicit restart policy.
+
 ## File roles
 
 | Path                            | Role                                                                                                                                                             |

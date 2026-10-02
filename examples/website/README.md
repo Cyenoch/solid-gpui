@@ -36,28 +36,41 @@ startup classification, and retained navigation without DOM globals. Follow the
 
 ## Content ownership
 
-| Content | Source |
-| --- | --- |
-| Reference guides | `../../docs/*.md` and explicit `.zh-CN.md` translations, loaded by `src/documentation.ts` |
-| Component API | Generated `../../packages/solid-gpui/src/components.ts`, read by `component-catalog.ts` |
-| Component examples | `component-examples.ts`, `component-variants.ts`, and `component-recipes/` |
-| Component translations | `component-examples.zh-CN.ts`, recipe translations, and `src/locale.zh-CN.ts` |
-| Preview availability | `component-previews.ts`; only the active compiled example mounts |
-| Navigation | `component-groups.ts` for page groups; `component-families.ts` for compound parts |
-| Showcase | `src/showcase`; displayed source and running previews share modules |
-| Routes | `src/routes`; regenerate and commit `src/routeTree.gen.ts` with `bun run routes:generate` |
-| Static code highlighting | `src/snippets.ts` and `build-highlights.ts` |
-| Branding | [Approved assets](../../assets/branding/README.md) |
+| Content                  | Source                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| Reference guides         | `../../docs/*.md` and explicit `.zh-CN.md` translations, loaded by `src/documentation.ts` |
+| Component API            | Generated `../../packages/solid-gpui/src/components.ts`, read by `component-catalog.ts`   |
+| Component examples       | `component-examples.ts`, `component-variants.ts`, and `component-recipes/`                |
+| Component translations   | `component-examples.zh-CN.ts`, recipe translations, and `src/locale.zh-CN.ts`             |
+| Preview availability     | `component-previews.ts`; only the active compiled example mounts                          |
+| Navigation               | `component-groups.ts` for page groups; `component-families.ts` for compound parts         |
+| Showcase                 | `src/showcase`; displayed source and running previews share modules                       |
+| Routes                   | `src/routes`; regenerate and commit `src/routeTree.gen.ts` with `bun run routes:generate` |
+| Static code highlighting | `src/snippets.ts` and `build-highlights.ts`                                               |
+| Branding                 | [Approved assets](../../assets/branding/README.md)                                        |
 
 The catalog requires an example for every generated component and exactly one
 navigation group per page. Tests type-check examples against the SDK. Release
 changes belong in [CHANGELOG.md](../../CHANGELOG.md).
+
+The Low-level drawing group includes an interactive RecordedPaint workflow diagram
+and an acknowledged LiveFrame CPU stream. Their executable source lives in
+`component-recipes/paint-media.ts`; both use the generated native contracts. See
+[paint and frame ownership](../../docs/paint-media.md) for budgets and platform limits.
 
 English guides are authoritative. Website guides require a `.zh-CN.md` copy with
 a localized level-one heading. `src/Docs.tsx` owns shortened navigation labels;
 translate those in `src/locale.zh-CN.ts`. Both languages load the authoritative
 Markdown directly, including their highlighted code. Keep runtime instructions
 in those guides and link to them from examples.
+
+The Vite reference includes the public `@solid-gpui/vite/compiler` API in both
+languages. Virtual component previews compile through that same canonical source
+module; Vite project transforms and preview snippets must never carry separate
+compiler implementations. `build-highlights.ts` reads guide code directly, so
+compiler examples need no copied website snippet. TextView's retained native
+Markdown examples remain in the component catalog; the documentation site's
+section/table presentation is composed separately for navigation.
 
 Topic ownership is indexed in [docs/README.md](../../docs/README.md): host/window
 configuration belongs in Rust integration, themes in GPUI components, layout in

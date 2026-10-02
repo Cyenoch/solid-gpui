@@ -2,8 +2,9 @@
 
 SDK 从 `@solid-gpui/core/components` 暴露生成的原生组件、描述符与命令。
 实现来自 [GPUI Kit](https://github.com/longbridge/gpui-kit)，固定提交
-`17b2c6a269c3de51a2f0dc97d49f87f0dd9d6571`（0.7.0 及后续变更），GPUI 固定为 0.3.7。本地状态与生命周期接入点记录在
-[`vendor/gpui-kit/SOLID-GPUI.md`](../vendor/gpui-kit/SOLID-GPUI.md)。
+`17b2c6a269c3de51a2f0dc97d49f87f0dd9d6571`（0.7.0 及后续变更），GPUI 固定为 0.3.7。
+[GPUI 来源清单](../vendor/GPUI-SOURCES.md) 记录实际 crate archive 摘要与本地 patch 路径；
+[GPUI Kit 清单](../vendor/gpui-kit/SOLID-GPUI.md) 记录控件适配、本地原生状态与生命周期接入点。
 
 Solid 拥有应用数据、路由与子内容组合。原生 Entity 拥有焦点、编辑、滚动、菜单、停靠、动画和在途工作。
 原生回调排队事件，不同步执行 Solid JS。
@@ -190,6 +191,12 @@ token 文档预留事件容量：UTF-8 正文最多 32 KiB，token 标识/文本
 
 ### Markdown 元数据与图标来源
 
+`TextView format="markdown" text={source}` 是已有的原生 Markdown 组件。
+Rust 拥有异步解析、高亮、保留的段落塑形、选择与内容缓存；Solid 提供文档并响应语义事件，
+不会为每个 Markdown token 创建一个宿主节点。文档内容使用 TextView，编辑使用 Editor/Input；
+Table、Tree、Chart、Dock 等生成控件保留各自的原生领域状态。网站的 TextView 示例使用同一能力；
+文档站点单独组合可导航的章节与表格。
+
 `TextView format="markdown" frontmatter` 启用顶部 YAML 元数据渲染。
 支持的简单标量显示为描述列表，复合或不支持的 YAML 显示为原生代码块。
 此能力必须显式开启且仅适用于 Markdown；它不是通用 YAML 解析器。
@@ -282,7 +289,7 @@ import {
 | 覆盖层          | Dialog/AlertDialog 与 DialogContent/Description/Footer/Close/Action/Header/Title、Sheet、Popover、HoverCard、Tooltip、PopupMenu、ContextMenu、DropdownMenu、DropdownButton、AppMenuBar、NativeMenu、Notification                                                                                                                                            |
 | 停靠            | DockArea，布局描述符创建真实原生标签组容器                                                                                                                                                                                                                                                                                                                  |
 | 图表            | LineChart、AreaChart、BarChart、CandlestickChart、PieChart、RadarChart、SankeyChart                                                                                                                                                                                                                                                                         |
-| 底层绘图        | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot                                                                                                                                                                                                                                                             |
+| 底层绘图        | Plot 的 axis/grid/labels/line/area/bar/radialLine/arc 原语；PlotTooltip、PlotCrossLine、PlotDot；RecordedPaint 保留矩形/路径/文本；LiveFrame 有界 CPU 像素（[指南](paint-media.zh-CN.md)）                                                                                                                                                                  |
 | 动画与 Presence | Motion、NativePresence                                                                                                                                                                                                                                                                                                                                      |
 | 外观            | useNative().getTheme/setTheme、setApplicationTheme、getMotionPreference/setMotionPreference；应用主题令牌与动效偏好                                                                                                                                                                                                                                         |
 | 计算            | useNative().scaleLinear/scalePoint/scaleBand/scaleOrdinal、pieArcs、arcCentroid、stackSeries、sankeyLayout                                                                                                                                                                                                                                                  |

@@ -133,6 +133,13 @@ export class TestTree {
         children,
         text: node.text ?? null,
         inputValue: input?.value ?? null,
+        inputState: input
+          ? Object.freeze({
+              ackEditSeq: input.ackEditSeq ?? 0,
+              selectionStart: input.selectionStart ?? 0,
+              selectionEnd: input.selectionEnd ?? 0,
+            })
+          : null,
         placeholder: input?.placeholder ?? null,
         accessibilityLabel: node.accessibility?.label ?? null,
         tooltip: node.tooltip ?? null,

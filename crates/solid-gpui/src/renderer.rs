@@ -32,6 +32,8 @@ use crate::tree::{
     TreeError,
 };
 
+#[cfg(feature = "native-acceptance")]
+pub(crate) mod acceptance;
 mod animation;
 mod commands;
 mod events;
@@ -205,6 +207,8 @@ pub(crate) type PopupObserver = Rc<dyn Fn(&mut App)>;
 pub(crate) type PopupInput = Rc<dyn Fn(Option<gpui::Point<gpui::Pixels>>, &mut App)>;
 
 pub struct SolidRoot {
+    #[cfg(feature = "native-acceptance")]
+    pub(crate) acceptance: Option<acceptance::Observations>,
     pub(crate) popup_anchors: std::collections::HashSet<u32>,
     pub(crate) popup_observer: Option<PopupObserver>,
     pub(crate) popup_input: Option<PopupInput>,
@@ -286,6 +290,8 @@ impl SolidRoot {
         let extension_event_state =
             new_event_state(Arc::clone(&runtime), Arc::clone(&next_sequence));
         Self {
+            #[cfg(feature = "native-acceptance")]
+            acceptance: None,
             popup_anchors: HashSet::new(),
             popup_observer: None,
             popup_input: None,
@@ -1271,6 +1277,10 @@ impl Render for SolidRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let _profile = profile::span(profile::Stage::Render);
         self.rendered_bounds.borrow_mut().clear();
+        #[cfg(feature = "native-acceptance")]
+        if let Some(nodes) = &self.acceptance {
+            nodes.borrow_mut().clear();
+        }
         let viewport = window.viewport_size();
         // Record what this paint corresponds to so a later bounds change can
         // tell a passive owner move (painted geometry still current) from a

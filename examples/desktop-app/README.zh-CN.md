@@ -1,5 +1,13 @@
 # 桌面应用示例
 
+## 显式更新服务
+
+宿主注册 `solid_gpui::updater::native_module(None)`，生成真实命令但禁用安装。
+Home 的 **Inspect update service** 按钮查询状态，页面销毁时取消请求。
+示例不配置 feed、密钥、安装路径或重启权限。应用完成打包后从 Rust 显式启用；
+参见[签名应用更新](../../docs/signed-updates.zh-CN.md)了解签名格式、临时测试、
+macOS 原子安装与回滚、平台限制以及应用管理的重启策略。
+
 一个完整的 Solid GPUI 桌面应用：SolidJS 页面与布局、拥有窗口的 Rust 宿主，以及 Vite 打包器。它可以作为普通桌面应用的起点。[文档](../../docs/README.md)分别说明各项 API，本示例展示如何把它们组合成一个应用。
 
 [English](README.md)
