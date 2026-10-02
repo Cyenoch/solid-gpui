@@ -67,7 +67,19 @@ try {
     if (native) {
       const artifacts = JSON.parse(await readFile(join(root, ".solid-gpui/artifacts.json"), "utf8"));
       const binary = artifacts.native.executable;
-      await run([process.execPath, consumerCli, "preview", "--mode", mode, "--", "--help"], root);
+      if (process.platform === "darwin") {
+        const preview = Bun.spawn([process.execPath, consumerCli, "preview", "--mode", mode], {
+          cwd: root,
+          env: process.env,
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const timer = setTimeout(() => preview.kill("SIGTERM"), 2500);
+        const started = Date.now();
+        const [stderr] = await Promise.all([new Response(preview.stderr).text(), preview.exited]);
+        clearTimeout(timer);
+        if (Date.now() - started < 2000) throw new Error(`Production preview exited early: ${stderr}`);
+      }
       await writeFile(
         join(root, "src/service.tsx"),
         `import { mountApplication, Text } from "@solid-gpui/core";\nimport { EmbeddedTransport } from "@solid-gpui/core/embedded";\nimport { createSignal, onMount } from "@solid-gpui/core/runtime";\nimport { useNative } from "#native";\nmountApplication({ transport: () => new EmbeddedTransport(), setup: () => ({ render: () => {\n  const native = useNative(); const [message, setMessage] = createSignal("pending");\n  onMount(async () => setMessage(await native.greeting()));\n  return <Text>{message()}</Text>;\n} }) });\n`,

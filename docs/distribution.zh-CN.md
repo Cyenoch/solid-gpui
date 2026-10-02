@@ -37,6 +37,8 @@ QuickJS 便携包无需另装 Bun/Node。Bun 应用保留显式运行时选择�
 
 ## 构建环境
 
+macOS 通用归档包含真实 `.app`、相对 launcher 和已验证 Info.plist；`application: { id, version }` 指定身份。应用完成签名/公证策略及 native release sequence 后，`@solid-gpui/vite/package` 的 `packageSignedUpdate({ bundle, executable, appId, channel, sequence, version, url, output, publicKey, sign })` 生成额外未压缩 USTAR 与准确 Ed25519 feed。它检查最终 bundle metadata、拒绝链接和特殊文件、验证解压字节与 QuickJS 内容，并用 publicKey 验证应用 signer 的结果。`sign(payload)` 由应用发布工具拥有，packager 不接收/存储私钥，也不安装或发布。当前仅 macOS 自包含 QuickJS app；Windows/Linux 安装明确不支持。见[签名更新](signed-updates.zh-CN.md)。
+
 Rust 源码需保持 LF 换行，当前仓库通过 `.gitattributes` 保证。Windows 构建旧 tag 时，请在 clone 前设置 `git config --global core.autocrlf false`；原生契约摘要包含嵌入源码字节，必须与生成的 JavaScript 绑定一致。
 
 安装 `.bun-version` 固定的 Bun 和 `rust-toolchain.toml` 指定的 rustup 工具链。从仓库根目录构建，打包任务在构建前按提交的工作区锁安装依赖。在准备发布的操作系统与架构上构建。
