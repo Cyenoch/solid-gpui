@@ -4,10 +4,15 @@ import { doctor, formatDoctorReport } from "./doctor.ts";
 import { EMBEDDED_USAGE, runEmbeddedCommand } from "./embedded/command.ts";
 import { checkProject, prepareProject, previewApplication, type PreparedProject } from "./project.ts";
 import { runTests } from "./test.ts";
+import { installStockHost, scaffoldApplication } from "./delivery.ts";
+import { packageApplication } from "./package.ts";
 
 const USAGE = `solid-gpui <command> [options]
 
 Commands
+  create <directory>   Scaffold this exact SDK version (--runtime bun|quickjs; --native for Rust)
+  host install         Acquire/verify the paired stock host (--manifest local-file|https-url)
+  package --name <name> Package and verify this application's already-built artifacts
   prepare              Build the native host, publish its bindings and write the prepared
                        TypeScript config and artifact record under .solid-gpui/
   doctor               Report package, Cargo and runtime prerequisites of this application
@@ -30,7 +35,7 @@ command, which keeps its own flag grammar either way.
 Every command reads the same vite.config.ts the application uses, so no path is maintained twice.`;
 
 /** Flags that take a value; everything else is a boolean switch. */
-const VALUED_OPTIONS = ["root", "config", "mode"];
+const VALUED_OPTIONS = ["root", "config", "mode", "runtime", "manifest", "name", "out"];
 
 interface ParsedArguments {
   readonly command?: string;
@@ -163,6 +168,35 @@ async function main(argv: readonly string[]): Promise<number> {
     mode: option(arguments_, "mode"),
   };
   switch (arguments_.command) {
+    case "create":
+      if (!arguments_.rest[0]) throw new Error("create requires an empty destination directory");
+      await scaffoldApplication({
+        directory: arguments_.rest[0],
+        runtime: option(arguments_, "runtime") as "bun" | "quickjs" | undefined,
+        native: arguments_.options.native === true,
+        manifest: option(arguments_, "manifest"),
+      });
+      write(`Created ${arguments_.rest[0]}; follow its README to install, acquire the host, prepare and build.`);
+      return 0;
+    case "host":
+      if (arguments_.rest[0] !== "install")
+        throw new Error("Usage: solid-gpui host install [--manifest <file-or-url>]");
+      write(await installStockHost({ root: project.root, manifest: option(arguments_, "manifest") }));
+      return 0;
+    case "package":
+      if (!option(arguments_, "name")) throw new Error("package requires --name <application-name>");
+      write(
+        JSON.stringify(
+          await packageApplication({
+            ...project,
+            name: option(arguments_, "name")!,
+            output: option(arguments_, "out"),
+          }),
+          null,
+          2,
+        ),
+      );
+      return 0;
     case "prepare":
       return runPrepare(arguments_);
     case "doctor":

@@ -128,6 +128,17 @@ tags whose combined identities still depended on raw source bytes.
 The other qualification workflows upload candidates without publishing releases.
 Already compressed archives are uploaded without another compression pass.
 
+[Standalone Delivery Candidates](../.github/workflows/delivery-candidates.yml)
+is manual and read-only. It builds the exact stock Bun/QuickJS host, captures the
+Cargo-reported executable, and pairs exported bindings, packed core/tooling
+tarballs, source archive and checksums under one target/version/commit manifest.
+Clean external stock and Rust consumers run install, prepare, typecheck, tests,
+Vite build and extracted runtime/contract checks. The matrix contains macOS
+ARM64/x64, Ubuntu 24.04 x64 and Windows MSVC x64; a workflow definition alone
+does not qualify those targets. Current 0.5.2 candidates require the explicit
+local manifest so old public 0.5.2 packages cannot replace unpublished APIs.
+No release upload, npm publishing, signer secrets or write token is configured.
+
 ### Automatic npm publication
 
 [Publish npm packages](../.github/workflows/npm-publish.yml) runs on pushed `v*`

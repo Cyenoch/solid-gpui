@@ -602,9 +602,8 @@ fn serve(session: &mut AcceptanceSession) -> Result<(), String> {
     write_packet(&mut output, &hello)?;
     loop {
         let mut header = [0; 4];
-        match input.read(&mut header[..1]).map_err(|e| e.to_string())? {
-            0 => return Ok(()),
-            _ => {}
+        if input.read(&mut header[..1]).map_err(|e| e.to_string())? == 0 {
+            return Ok(());
         }
         input
             .read_exact(&mut header[1..])

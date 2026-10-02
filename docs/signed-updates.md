@@ -116,8 +116,9 @@ file. Package self-contained bundles without framework symlinks for this format.
 Generic packaging must finish bundling, code signing, notarization policy,
 extracted-artifact verification, and release identity assignment **before**
 creating the updater archive and signed manifest. A normal distributable ZIP is
-not this update archive. Application packagers emit this additional format;
-archive checksum JSON is not a signed updater feed. Changing
+not this update archive. `packageSignedUpdate()` from `@solid-gpui/vite/package`
+emits the additional USTAR and verifies an application-owned Ed25519 signer;
+it never treats archive checksum JSON as a signed updater feed. Changing
 archive format requires a new explicit contract, not an extraction fallback.
 
 ## Installation and restart policy

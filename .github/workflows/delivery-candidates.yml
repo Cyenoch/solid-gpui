@@ -1,0 +1,53 @@
+name: Standalone Delivery Candidates
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version-file: .bun-version
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libfontconfig1-dev libfreetype6-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev pkg-config
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: delivery-${{ matrix.os }}
+      - run: bun install --frozen-lockfile
+      - run: bun run task package-build
+      - name: Build paired native host and capture Cargo artifact
+        shell: bash
+        run: |
+          cargo build --locked --release -p solid-gpui --bin solid-gpui-host --features gpui-component,quickjs --message-format=json > delivery-cargo.jsonl
+          bun scripts/delivery-candidate.ts
+      - name: Build package artifacts and qualify clean stock/Rust consumers
+        env:
+          TMPDIR: ${{ runner.temp }}/
+        run: |
+          bun scripts/delivery-consumer.ts --manifest dist/delivery/manifest-path.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: delivery-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          path: dist/delivery/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

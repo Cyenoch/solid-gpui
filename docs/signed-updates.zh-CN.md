@@ -70,7 +70,7 @@ xattrs 或特权权限位；普通文件为 0644 或 0755。配置的可执行�
 
 通用打包器必须先完成 bundle、代码签名、公证策略、提取产物验证和 release
 identity，再生成额外的更新 tar 与签名 manifest。普通 ZIP 和校验和 JSON
-不是更新 feed。应用打包器通过该显式接口集成；新格式需要新合同，没有解包回退。
+不是更新 feed。`@solid-gpui/vite/package` 的 `packageSignedUpdate()` 生成额外 USTAR，并验证应用拥有的 Ed25519 signer；新格式需要新合同，没有解包回退。
 
 ## 安装、恢复与平台限制
 

@@ -564,7 +564,7 @@ export async function previewApplication(options: PreviewOptions = {}): Promise<
  * name: a pattern, a nested pattern or an output function decides where the entry lands, and the
  * recorded bundle is the file that really exists inside that directory.
  */
-function assertRecordedConfiguration(project: SolidGpuiProject, artifacts: NativeArtifacts): void {
+export function assertRecordedConfiguration(project: SolidGpuiProject, artifacts: NativeArtifacts): void {
   const differences: string[] = [];
   const compare = (label: string, recorded: unknown, configured: unknown): void => {
     if (recorded !== undefined && configured !== undefined && recorded !== configured) {
@@ -581,6 +581,10 @@ function assertRecordedConfiguration(project: SolidGpuiProject, artifacts: Nativ
   compare("host binary", artifacts.native?.bin, project.artifacts.native?.bin);
   compare("Cargo profile", artifacts.native?.profile, project.artifacts.native?.profile);
   compare("Cargo target", artifacts.native?.target, project.artifacts.native?.target);
+  if (project.host) {
+    compare("host executable", artifacts.host?.command, project.host.command);
+    compare("host arguments", JSON.stringify(artifacts.host?.args ?? []), JSON.stringify(project.host.args ?? []));
+  }
   if (differences.length > 0) {
     throw new Error(
       `The recorded artifacts do not match this configuration (${differences.join("; ")}).\n` +

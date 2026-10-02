@@ -29,7 +29,7 @@ const specs: readonly PackageSpec[] = [
     runtime: "packages/solid-gpui-vite/dist/dev.js",
     output: "fixtures/api-surface.vite-dev.txt",
   },
-  ...["compiler", "project", "artifacts", "test", "source", "doctor", "embedded"].map((entry) => ({
+  ...["compiler", "project", "artifacts", "test", "source", "doctor", "embedded", "delivery", "package"].map((entry) => ({
     name: `vite-${entry}`,
     dts: `packages/solid-gpui-vite/dist/${entry}.d.ts`,
     runtime: `packages/solid-gpui-vite/dist/${entry}.js`,

@@ -96,6 +96,13 @@ Iconify. Investigation records belong in `.scratch/`.
 
 ## Desktop development and packaging
 
+The website loads the authoritative English and zh-CN getting-started, Vite and
+distribution guides directly. Those guides also cover the versioned standalone
+template, explicit stock-host acquisition and generic consumer packaging; the
+gallery's embedded executable remains its separate application-specific package.
+The manual `Standalone Delivery Candidates` workflow creates paired SDK/host
+artifacts and clean-consumer evidence without publishing releases.
+
 Download **Gallery Desktop** from [GitHub Releases](https://github.com/Cyenoch/solid-gpui/releases):
 macOS Apple Silicon (`.zip`), Linux x86-64 (`.tar.gz`, Ubuntu 24.04 baseline), and
 Windows x86-64 (`.zip`). No Bun or Node installation is required. Release tags

@@ -1,6 +1,7 @@
 #[cfg(feature = "native-acceptance")]
 pub mod acceptance;
 mod application_lifecycle;
+mod delivery;
 mod popup;
 use crate::motion;
 #[cfg(feature = "embedded-bun")]
@@ -1139,6 +1140,14 @@ where
     P: HostProfile,
     F: FnOnce() -> P + Send + 'static,
 {
+    let args: Vec<OsString> = env::args_os().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--check-app") {
+        if let Err(error) = delivery::check(profile(), &args) {
+            eprintln!("Application check failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if env::args_os()
         .skip(1)
         .eq([OsString::from("--export-native")])

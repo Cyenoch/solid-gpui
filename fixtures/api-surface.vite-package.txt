@@ -1,0 +1,7 @@
+# api-surface-v1
+# name	kind
+ApplicationPackage	type
+packageApplication	value
+PackageApplicationOptions	type
+packageSignedUpdate	value
+SignedUpdatePackageOptions	type

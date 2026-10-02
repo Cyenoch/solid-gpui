@@ -48,7 +48,7 @@ struct PixelsOwner {
 impl PixelsOwner {
     fn new(width: u32, height: u32, mut rgba: Vec<u8>, lease: Lease, cx: &mut App) -> Entity<Self> {
         // GPUI's RenderImage consumes BGRA, whereas the public frame contract is RGBA.
-        for pixel in rgba.chunks_exact_mut(4) {
+        for pixel in rgba.as_chunks_mut::<4>().0 {
             pixel.swap(0, 2);
         }
         let pixels = image::RgbaImage::from_raw(width, height, rgba).expect("validated frame size");

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+protocol_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["protocolVersion"])' "$repo_root/packages/solid-gpui/src/protocol/schema-lock.json")"
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/solid-gpui-host-embedded-smoke.XXXXXX")"
 trap 'rm -rf -- "$smoke_root"' EXIT
 
@@ -186,11 +187,11 @@ if [[ "$status" -ne 124 ]]; then
   exit 1
 fi
 
-python3 - "$stderr_file" <<'PY'
+python3 - "$stderr_file" "$protocol_version" <<'PY'
 import re
 import sys
 text = open(sys.argv[1], encoding="utf-8").read()
-if re.search(r"solid-gpui-host: starting mode=Embedded protocol=v5 entry=.* pid=\d+", text) is None:
+if re.search(r"solid-gpui-host: starting mode=Embedded protocol=v" + re.escape(sys.argv[2]) + r" entry=.* pid=\d+", text) is None:
     print(text, file=sys.stderr)
     raise SystemExit("missing embedded info startup diagnostic with entry/pid")
 match = re.search(r"embedded smoke press sent=true, commits=(\d+), status=", text)
@@ -201,7 +202,7 @@ PY
 
 version_output="$($binary --version)"
 help_output="$($binary --help)"
-[[ "$version_output" == "solid-gpui-host $metadata protocol=v5" ]] || { printf 'unexpected version output: %s\n' "$version_output" >&2; exit 1; }
+[[ "$version_output" == "solid-gpui-host $metadata protocol=v$protocol_version" ]] || { printf 'unexpected version output: %s\n' "$version_output" >&2; exit 1; }
 case "$help_output" in
   *"--runtime embedded"*"--version"*) ;;
   *) printf 'embedded candidate help output is incomplete\n' >&2; exit 1 ;;

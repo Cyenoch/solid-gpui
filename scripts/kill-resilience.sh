@@ -29,6 +29,7 @@ binary="$repo_root/target/release/solid-gpui-host"
 entries="${KILL_RESILIENCE_ENTRIES:-press-roundtrip.ts}"
 python3 - "$binary" "$repo_root" "$run_root" "$startup_timeout" "$kill_timeout" "$entries" <<'PY'
 import os
+import json
 import re
 import shutil
 import signal
@@ -63,7 +64,8 @@ for entry_text in entries_text.split(","):
 if not entry_paths:
     raise SystemExit("kill-resilience: no example entries selected")
 
-startup_pattern = re.compile(rb"solid-gpui-host: starting mode=Process protocol=v5 entry=bun pid=(\d+)")
+protocol_version = json.loads((repo_root / "packages/solid-gpui/src/protocol/schema-lock.json").read_text())["protocolVersion"]
+startup_pattern = re.compile(rb"solid-gpui-host: starting mode=Process protocol=v" + str(protocol_version).encode() + rb" entry=bun pid=(\d+)")
 
 
 def read_tail(path: Path, lines: int = 80) -> str:

@@ -3,8 +3,7 @@
 The runtime strategy assigns Embedded Bun to production packaging for Bun-based
 applications and QuickJS to applications whose main capabilities live in Rust.
 External Bun serves rapid development. The first part of this guide documents
-the QuickJS website package, which is the only pipeline this repository ships and
-verifies. The second part documents an experimental Embedded Bun workflow that
+the QuickJS website package and the generic application packager. The second part documents an experimental Embedded Bun workflow that
 links a Bun/JSC runtime and the application's module graph into one executable;
 it has limited runtime verification today, not release support. See
 [Embedded Bun static applications](#embedded-bun-static-applications) for its
@@ -30,8 +29,76 @@ Three artifacts have three owners, and only the last one is a deliverable:
   explicit `target`. `.solid-gpui/artifacts.json` records the executable and bundle
   paths, and `solid-gpui preview` runs the two together on the build host.
 - **Distributable** — executable plus bundle plus assets, metadata, licences, and a
-  signature, assembled by your own packaging script. No build command in this guide
-  produces one.
+  signature, assembled by `solid-gpui package` or an application packaging script.
+
+## Generic application packaging
+
+Build using the application's own Vite config, then package its recorded artifacts:
+
+```sh
+bun run build
+solid-gpui package --name my-app
+```
+
+The public `packageApplication({ name, root?, configFile?, mode?, output?, assets?, licenses? })`
+API from `@solid-gpui/vite/package` reads `.solid-gpui/artifacts.json`, checks it
+against the same resolved project, and copies the recorded host and complete Vite
+output. It creates a portable `.tar.gz` and SHA-256 file under `packages/` with
+relative macOS/Linux/Windows launchers, application metadata, exported catalog,
+licenses and a file inventory. macOS archives contain a real `.app` with relative
+bundle launchers and validated Info.plist metadata; `application: { id, version }`
+sets its identity. `assets` names directories copied under
+`assets/<basename>`; application code must resolve those as packaged resources.
+The default notice inputs are the application's `LICENSE` and
+`THIRD-PARTY-NOTICES.md`. Complete their license texts before redistribution.
+No build, download, signing, release creation or publication occurs here.
+
+The archive is extracted into a separate temporary directory. Every file is
+checked, then the copied host's version/catalog and `--check-app <bun|quickjs>
+<bundle>` are executed outside the project. QuickJS checks use an empty PATH;
+Bun checks expose only the selected Bun executable directory. The actual runtime
+must publish nonempty validated content with admitted native identities, then
+shut down within the bounded check. This is a headless runtime/contract check;
+it does not validate geometry, physical input, foreground native services,
+application-specific asynchronous loading, or destination graphics drivers.
+Select the same `--mode` as the build. Foreign targets and interpreted host
+commands are refused because extraction must be qualified on the destination.
+
+QuickJS portable applications include the runtime inside the host and require
+no installed Bun/Node. Bun applications keep their runtime explicitly and require
+Bun 1.4.2+ on destination PATH; this command does not convert them into QuickJS or
+claim Embedded Bun qualification. macOS non-system library dependencies are refused;
+Linux dynamic dependencies are inspected and recorded. Windows still requires
+destination DLL inspection and clean-machine qualification. These portable archives
+are unsigned; platform-native installers, app branding, notarization and signing
+remain application responsibilities.
+
+The `Standalone Delivery Candidates` manual workflow generates exact-version
+stock hosts, their raw exported bindings, a paired SDK source archive, checksums
+and a target-specific manifest from one immutable commit. It builds macOS ARM64/x64,
+Linux x64 and Windows x64 candidates and exercises packed stock QuickJS, stock Bun
+and custom Rust consumers. It only uploads workflow candidates; it never publishes
+release assets. Manifest acquisition uses the exact `v<installed-version>` release
+URL, or an explicitly supplied local manifest/HTTPS URL. SHA-256 proves content
+integrity relative to that manifest; publisher trust comes from the authenticated
+release endpoint or an application-controlled offline manifest. A missing asset
+is an error and never starts a Rust source build.
+
+The current `0.5.2` candidate requires an explicit manifest and installs its paired
+package tarballs. Stock selection validates exact package source identities, so
+the old public `0.5.2` release cannot substitute for these unpublished APIs.
+
+After application-owned signing/notarization and release identity assignment,
+`packageSignedUpdate({ bundle, executable, appId, channel, sequence, version, url,
+output, publicKey, sign })` from `@solid-gpui/vite/package` creates the updater's
+additional uncompressed USTAR artifact and exact Ed25519 feed. It checks the final
+bundle metadata, rejects links/special files, verifies extracted bytes and QuickJS
+content, and verifies the caller's signature against the supplied public key.
+`sign(payload)` is application release tooling; private keys are never accepted,
+stored or generated by the packager. The sequence must match the application-owned
+native updater configuration. No installation or publication occurs. This seam
+currently requires macOS and a self-contained QuickJS `.app`; Windows/Linux
+installation remains explicitly unsupported. See [signed updates](signed-updates.md).
 
 Platform capability follows the same split: this repository verifies the QuickJS
 website package on the targets recorded below, while the Embedded Bun static

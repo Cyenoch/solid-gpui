@@ -83,6 +83,8 @@ bun run task website-package
 
 ## 缓存与验证
 
+手动 [Standalone Delivery Candidates](../.github/workflows/delivery-candidates.yml) 仅使用只读权限。它捕获 Cargo 实际 executable，将 stock Bun/QuickJS host、原始绑定、packed core/tooling tarball、源码归档及 checksum 配对到准确版本/目标/commit manifest。仓库外 stock 和 Rust consumer 执行安装、prepare、类型检查、测试、Vite build 和解压 runtime/contract 检查。矩阵含 macOS ARM64/x64、Ubuntu 24.04 x64、Windows MSVC x64；仅定义 workflow 不表示目标已验证。当前未发布 0.5.2 candidate 必须显式本地 manifest，不能替代成旧公开包。不配置发布、signer secret 或写 token。
+
 共享的 [Rust 设置 action](../.github/actions/setup-rust/action.yml) 先选择固定工具链，再恢复 Rust 依赖缓存。键包含 runner 镜像、架构、构建用途、已安装编译器、Cargo 配置及清单/锁文件。Pages 任一产物未命中时均先安装固定 Web nightly，包括仅绑定未命中的情况，保持 Cargo 缓存的工具链身份一致。依赖缓存不按源码提交生成新条目。
 
 保存前清理本地工作区/vendor 构建产物和增量状态，CI 禁用 Cargo 增量编译。PR 只恢复缓存；成功的 push/手动运行才保存。精确命中不可修改，失败或仅检查的构建不能占据测试/链接图缓存。因此原生 check、原生 test 和 Embedded Bun 使用独立缓存用途；审计只缓存 registry，候选缓存与开发/WASM 隔离。

@@ -64,6 +64,16 @@
       "types": "./dist/source.d.ts",
       "import": "./dist/source.js"
     },
+    "./package": {
+      "solid-gpui-source": "./src/package.ts",
+      "types": "./dist/package.d.ts",
+      "import": "./dist/package.js"
+    },
+    "./delivery": {
+      "solid-gpui-source": "./src/delivery.ts",
+      "types": "./dist/delivery.d.ts",
+      "import": "./dist/delivery.js"
+    },
     "./doctor": {
       "solid-gpui-source": "./src/doctor.ts",
       "types": "./dist/doctor.d.ts",
