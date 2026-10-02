@@ -1,6 +1,6 @@
 # Complete native capability and application delivery
 
-Status: ready-for-agent
+Status: resolved
 
 User authorization (2026-10-02): implement all required outcomes in one integrated delivery, with parallel agents, high-quality fixes, cleanup and refactoring.
 
@@ -49,3 +49,9 @@ Each ticket may start now. If another ticket's interface is needed, implement ag
 ## Delivery and verification
 
 Use one integration branch with isolated worktrees. Commit implementation work before merging. Each owner records focused checks, behavior evidence, documentation synchronized, limitations and merge instructions under `.scratch/comparison-adoption/` in its own delivery note. Final integration runs generated protocol/native checks, relevant package checks, full tests once, website checks/build, native acceptance/performance checks serially, and a parallel standards/spec code review. Fix review findings before final delivery. No network publication/release deployment is implied.
+
+## Integrated completion
+
+All required outcomes are integrated and locally qualified. See `integration.md`
+for final source identity, measured counterexamples, checks, documentation
+synchronization and explicit release/platform/physical verification limits.

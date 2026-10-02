@@ -1,0 +1,41 @@
+{
+  "mode": "original-implementation-with-pinned-fixtures",
+  "fixtures": [
+    {
+      "repository": "remorses/gpuix",
+      "commit": "4ecca30f68057b4d9830d32675ba4ed999eeeaaa",
+      "path": "examples/timeline.tsx",
+      "gitBlob": "0ec029157b39efeac1bb88617938e7d142c4be88",
+      "sha256": "231c1212fb1ed9d6a2e3c5f2d84d73978c1ebce1223149ad7724501a3fdb9d3f",
+      "license": "Apache-2.0",
+      "verified": true
+    },
+    {
+      "repository": "remorses/gpuix",
+      "commit": "4ecca30f68057b4d9830d32675ba4ed999eeeaaa",
+      "path": "examples/infinite-chat.tsx",
+      "gitBlob": "b41762e95ab57fb7959ee41ff57521857c338f93",
+      "sha256": "8b975b40e8b23abd698fef12331b1ce31bdd3e599ea4de0f40466515362b0f4d",
+      "license": "Apache-2.0",
+      "verified": true
+    },
+    {
+      "repository": "jhomra21/gpuix-solid",
+      "commit": "ad384ff3755761269902dcd7db26ef6163fa722c",
+      "path": "examples/counter/src/timeline/app.tsx",
+      "gitBlob": "c8882ef77b1b8954937a38dfece21b96e06ce63c",
+      "sha256": "8619b11e12769cc5079374772bbdb78742c9f04cfa73b2ac9b68e9bffce8f736",
+      "license": "MIT",
+      "verified": true
+    },
+    {
+      "repository": "jhomra21/gpuix-solid",
+      "commit": "ad384ff3755761269902dcd7db26ef6163fa722c",
+      "path": "examples/counter/upstream/gpuix/source-main-surface-lock.json",
+      "gitBlob": "f5259723aaa4a7f4a4e58a894996e1c9d1afac21",
+      "sha256": "31b802fe81305ce2341e63dec3547c2ef25cdde572e99b79fcfbe27c23e05cfe",
+      "license": "MIT",
+      "verified": true
+    }
+  ]
+}

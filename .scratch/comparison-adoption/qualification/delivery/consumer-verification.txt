@@ -1,0 +1,287 @@
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /Users/jgbingzi/workspace/sp/solid-gpui/packages/solid-gpui-vite/dist/cli.js create /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs --runtime quickjs --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json
+Created /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs; follow its README to install, acquire the host, prepare and build.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native install
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [26]
+Saved lockfile
+
++ @solid-gpui/vite@./.solid-gpui/packages/solid-gpui-vite-0.5.2.tgz
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@./.solid-gpui/packages/solid-gpui-core-0.5.2.tgz
++ solid-js@1.9.15
+
+49 packages installed [1224.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/node_modules/@solid-gpui/vite/dist/cli.js host install --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json
+/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/.solid-gpui/hosts/0.5.2-aarch64-apple-darwin/solid-gpui-host
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/node_modules/@solid-gpui/vite/dist/cli.js prepare --mode development
+wrote /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/.solid-gpui/tsconfig.json
+host /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/.solid-gpui/hosts/0.5.2-aarch64-apple-darwin/solid-gpui-host
+bundle /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/dist/app.js (produced by `vite build`; preview runs it with quickjs)
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run typecheck
+$ tsc --noEmit && tsc --noEmit -p tsconfig.test.json
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/node_modules/@solid-gpui/vite/dist/cli.js test src/counter.test.tsx
+bun test v1.4.2 (744846f84)
+
+src/counter.test.tsx:
+(pass) counter and Unicode edits publish reactive content [4.73ms]
+
+ 1 pass
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file. [55.00ms]
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development
+$ bun --bun vite build --mode development
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 163 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app.js  774.02 kB │ gzip: 131.48 kB
+
+✓ built in 84ms
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/node_modules/@solid-gpui/vite/dist/cli.js package --name stock-quickjs --mode development
+{
+  "archive": "/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-quickjs/packages/stock-quickjs-darwin-arm64.tar.gz",
+  "sha256": "b5e309c437d0de8541a98ecba7b051c65df857392bb665c4f774ffb0cb98bd84",
+  "runtime": "quickjs",
+  "verification": "extracted-runtime-contract"
+}
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /Users/jgbingzi/workspace/sp/solid-gpui/packages/solid-gpui-vite/dist/cli.js create /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun --runtime bun --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json
+Created /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun; follow its README to install, acquire the host, prepare and build.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native install
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [2]
+Saved lockfile
+
++ @solid-gpui/vite@./.solid-gpui/packages/solid-gpui-vite-0.5.2.tgz
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@./.solid-gpui/packages/solid-gpui-core-0.5.2.tgz
++ solid-js@1.9.15
+
+49 packages installed [73.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/node_modules/@solid-gpui/vite/dist/cli.js host install --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json
+/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/.solid-gpui/hosts/0.5.2-aarch64-apple-darwin/solid-gpui-host
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/node_modules/@solid-gpui/vite/dist/cli.js prepare --mode development
+wrote /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/.solid-gpui/tsconfig.json
+host /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/.solid-gpui/hosts/0.5.2-aarch64-apple-darwin/solid-gpui-host
+bundle /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/dist/app.js (produced by `vite build`; preview runs it with bun)
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run typecheck
+$ tsc --noEmit && tsc --noEmit -p tsconfig.test.json
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/node_modules/@solid-gpui/vite/dist/cli.js test src/counter.test.tsx
+bun test v1.4.2 (744846f84)
+
+src/counter.test.tsx:
+(pass) counter and Unicode edits publish reactive content [4.77ms]
+
+ 1 pass
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file. [55.00ms]
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development
+$ bun --bun vite build --mode development
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app.js  592.10 kB │ gzip: 91.96 kB
+
+✓ built in 32ms
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/node_modules/@solid-gpui/vite/dist/cli.js package --name stock-bun --mode development
+{
+  "archive": "/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/stock-bun/packages/stock-bun-darwin-arm64.tar.gz",
+  "sha256": "f60f7d9e2f8d3fb7082c577608b234da27e9515368cf9ff72e216a3e18d7f11a",
+  "runtime": "bun",
+  "verification": "extracted-runtime-contract"
+}
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /Users/jgbingzi/workspace/sp/solid-gpui/packages/solid-gpui-vite/dist/cli.js create /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs --runtime quickjs --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json --native
+Created /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs; follow its README to install, acquire the host, prepare and build.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native install
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [2]
+Saved lockfile
+
++ @solid-gpui/vite@./.solid-gpui/packages/solid-gpui-vite-0.5.2.tgz
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@./.solid-gpui/packages/solid-gpui-core-0.5.2.tgz
++ solid-js@1.9.15
+
+49 packages installed [70.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/node_modules/@solid-gpui/vite/dist/cli.js prepare --mode development
+    Updating crates.io index
+     Locking 879 packages to latest compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding js-sys v0.3.98 (available: v0.3.106)
+      Adding wasm-bindgen v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-futures v0.4.71 (available: v0.4.79)
+      Adding wasm-bindgen-macro v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-macro-support v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-shared v0.2.121 (available: v0.2.129)
+      Adding web-sys v0.3.98 (available: v0.3.106)
+   Compiling gpui-pre v0.3.7 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui)
+   Compiling gpui-kit-assets v0.7.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-kit/crates/assets)
+   Compiling gpui-iconify v0.0.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/crates/gpui-iconify)
+   Compiling gpui-component v0.7.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-kit/crates/component)
+   Compiling solid-gpui v0.5.2 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/crates/solid-gpui)
+   Compiling gpui-component-macros v0.7.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-kit/crates/component-macros)
+   Compiling gpui-pre-reqwest-client v0.3.7 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-reqwest-client)
+   Compiling solid-gpui-macros v0.5.2 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/crates/solid-gpui-macros)
+   Compiling gpui-pre-apple v0.3.7
+   Compiling gpui-base v0.7.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-kit/crates/base)
+   Compiling gpui-pre-macos v0.3.7 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-macos)
+   Compiling gpui-pre-platform v0.3.7
+   Compiling gpui-fps v0.7.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/sdk/vendor/gpui-kit/crates/fps)
+   Compiling rust-quickjs v0.1.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 54.41s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+wrote /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/.solid-gpui/tsconfig.json
+host /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-adoption-target/debug/rust-quickjs
+bundle /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/dist/app.js (produced by `vite build`; preview runs it with quickjs)
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run typecheck
+$ tsc --noEmit && tsc --noEmit -p tsconfig.test.json
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/node_modules/@solid-gpui/vite/dist/cli.js test src/counter.test.tsx
+bun test v1.4.2 (744846f84)
+
+src/counter.test.tsx:
+(pass) counter and Unicode edits publish reactive content [4.91ms]
+
+ 1 pass
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file. [55.00ms]
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development
+$ bun --bun vite build --mode development
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 165 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app.js  943.33 kB │ gzip: 142.30 kB
+
+✓ built in 90ms
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/node_modules/@solid-gpui/vite/dist/cli.js package --name rust-quickjs --mode development
+{
+  "archive": "/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/packages/rust-quickjs-darwin-arm64.tar.gz",
+  "sha256": "1f9372e714cc5f27e66456148720424b2f05bc4a43de83194f8261e457d78d55",
+  "runtime": "quickjs",
+  "verification": "extracted-runtime-contract"
+}
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development --config vite.service.config.ts
+$ bun --bun vite build --mode development --config vite.service.config.ts
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 164 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app.js  942.28 kB │ gzip: 142.00 kB
+
+✓ built in 87ms
+$ /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-adoption-target/debug/rust-quickjs --check-app quickjs /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-quickjs/dist/app.js Hello from Rust
+Application runtime, tree and native contracts verified; runtime shut down cleanly
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /Users/jgbingzi/workspace/sp/solid-gpui/packages/solid-gpui-vite/dist/cli.js create /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun --runtime bun --manifest /Users/jgbingzi/workspace/sp/solid-gpui/dist/delivery-final/solid-gpui-delivery-0.5.2-aarch64-apple-darwin.json --native
+Created /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun; follow its README to install, acquire the host, prepare and build.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native install
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [2]
+Saved lockfile
+
++ @solid-gpui/vite@./.solid-gpui/packages/solid-gpui-vite-0.5.2.tgz
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@./.solid-gpui/packages/solid-gpui-core-0.5.2.tgz
++ solid-js@1.9.15
+
+49 packages installed [71.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/node_modules/@solid-gpui/vite/dist/cli.js prepare --mode development
+    Updating crates.io index
+     Locking 879 packages to latest compatible versions
+      Adding generic-array v0.14.7 (available: v0.14.9)
+      Adding js-sys v0.3.98 (available: v0.3.106)
+      Adding wasm-bindgen v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-futures v0.4.71 (available: v0.4.79)
+      Adding wasm-bindgen-macro v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-macro-support v0.2.121 (available: v0.2.129)
+      Adding wasm-bindgen-shared v0.2.121 (available: v0.2.129)
+      Adding web-sys v0.3.98 (available: v0.3.106)
+   Compiling solid-gpui v0.5.2 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/.solid-gpui/sdk/crates/solid-gpui)
+   Compiling rust-bun v0.1.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 21.75s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+wrote /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/.solid-gpui/tsconfig.json
+host /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-adoption-target/debug/rust-bun
+bundle /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/dist/app.js (produced by `vite build`; preview runs it with bun)
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run typecheck
+$ tsc --noEmit && tsc --noEmit -p tsconfig.test.json
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/node_modules/@solid-gpui/vite/dist/cli.js test src/counter.test.tsx
+bun test v1.4.2 (744846f84)
+
+src/counter.test.tsx:
+(pass) counter and Unicode edits publish reactive content [4.76ms]
+
+ 1 pass
+ 0 fail
+ 2 expect() calls
+Ran 1 test across 1 file. [54.00ms]
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development
+$ bun --bun vite build --mode development
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 15 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/app.js  761.76 kB │ gzip: 102.73 kB
+
+✓ built in 36ms
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/node_modules/@solid-gpui/vite/dist/cli.js package --name rust-bun --mode development
+{
+  "archive": "/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/packages/rust-bun-darwin-arm64.tar.gz",
+  "sha256": "b2bee848d47ce2eaa803da4a01049235775c5f7601e50f93a64908fad2537dbb",
+  "runtime": "bun",
+  "verification": "extracted-runtime-contract"
+}
+$ /Users/jgbingzi/.vite-plus/package_manager/bun/1.4.2/bun/bin/bun.native run build --mode development --config vite.service.config.ts
+$ bun --bun vite build --mode development --config vite.service.config.ts
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+vite v8.2.2 building ssr environment for development...
+transforming...
+✓ 14 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/service.js  760.71 kB │ gzip: 102.42 kB
+
+✓ built in 29ms
+$ /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-adoption-target/debug/rust-bun --check-app bun /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs/rust-bun/dist/service.js Hello from Rust
+Application runtime, tree and native contracts verified; runtime shut down cleanly
+Clean consumer delivery verified outside the SDK: /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs

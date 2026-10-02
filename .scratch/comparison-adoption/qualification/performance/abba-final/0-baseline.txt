@@ -1,0 +1,50 @@
+sandbox_extension_issue_file_to_process failed for /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-region-measure-n7ExXf/0.app: 1 (Operation not permitted)
+solid_commit_stages: interval_ms=1170 commit=1.244ms queue=1025.231ms decode=0.866ms dependencies=0.012ms tree=0.579ms validate=0.012ms reconcile=0.644ms extensions=0.017ms render=1.746ms counts=[13, 15, 15, 5, 6, 6, 12, 5, 5]
+solid_commit_stages: interval_ms=525 commit=0.865ms queue=975.164ms decode=0.152ms dependencies=0.033ms tree=0.110ms validate=0.002ms reconcile=0.733ms extensions=0.009ms render=4.718ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+solid_commit_stages: interval_ms=527 commit=0.839ms queue=1.109ms decode=0.142ms dependencies=0.035ms tree=0.108ms validate=0.001ms reconcile=0.710ms extensions=0.007ms render=5.049ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=529 commit=0.808ms queue=1.049ms decode=0.141ms dependencies=0.032ms tree=0.107ms validate=0.002ms reconcile=0.681ms extensions=0.008ms render=4.894ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=528 commit=0.820ms queue=1.126ms decode=0.132ms dependencies=0.032ms tree=0.105ms validate=0.002ms reconcile=0.695ms extensions=0.008ms render=4.495ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+solid_commit_stages: interval_ms=526 commit=0.860ms queue=1.111ms decode=0.142ms dependencies=0.034ms tree=0.114ms validate=0.002ms reconcile=0.726ms extensions=0.008ms render=4.958ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+{"phase":"resize","width":560}
+solid_commit_stages: interval_ms=529 commit=0.824ms queue=5.037ms decode=0.140ms dependencies=0.033ms tree=0.108ms validate=0.002ms reconcile=0.693ms extensions=0.007ms render=4.842ms counts=[31, 31, 31, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=527 commit=0.872ms queue=1.156ms decode=0.149ms dependencies=0.035ms tree=0.115ms validate=0.001ms reconcile=0.736ms extensions=0.007ms render=4.737ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=523 commit=0.845ms queue=1.095ms decode=0.134ms dependencies=0.034ms tree=0.114ms validate=0.002ms reconcile=0.710ms extensions=0.007ms render=4.279ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+solid_commit_stages: interval_ms=526 commit=1.270ms queue=1.430ms decode=0.188ms dependencies=0.044ms tree=0.170ms validate=0.002ms reconcile=1.069ms extensions=0.011ms render=7.516ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=529 commit=1.312ms queue=1.465ms decode=0.215ms dependencies=0.052ms tree=0.171ms validate=0.003ms reconcile=1.108ms extensions=0.013ms render=8.016ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=526 commit=1.182ms queue=1.558ms decode=0.181ms dependencies=0.044ms tree=0.148ms validate=0.003ms reconcile=1.006ms extensions=0.013ms render=8.218ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+{"phase":"resize","width":1280}
+solid_commit_stages: interval_ms=501 commit=1.496ms queue=8.317ms decode=0.251ms dependencies=0.058ms tree=0.185ms validate=0.004ms reconcile=1.267ms extensions=0.013ms render=7.247ms counts=[29, 29, 29, 14, 14, 14, 28, 14, 12]
+solid_commit_stages: interval_ms=530 commit=1.490ms queue=1.863ms decode=0.241ms dependencies=0.053ms tree=0.178ms validate=0.003ms reconcile=1.273ms extensions=0.014ms render=8.025ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=531 commit=1.555ms queue=1.823ms decode=0.243ms dependencies=0.061ms tree=0.200ms validate=0.003ms reconcile=1.314ms extensions=0.016ms render=8.136ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=530 commit=1.397ms queue=1.748ms decode=0.223ms dependencies=0.057ms tree=0.186ms validate=0.003ms reconcile=1.177ms extensions=0.014ms render=8.181ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=522 commit=1.254ms queue=1.522ms decode=0.183ms dependencies=0.043ms tree=0.147ms validate=0.003ms reconcile=1.074ms extensions=0.012ms render=7.413ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+solid_commit_stages: interval_ms=529 commit=1.494ms queue=1.823ms decode=0.232ms dependencies=0.056ms tree=0.190ms validate=0.005ms reconcile=1.266ms extensions=0.016ms render=8.211ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+{"phase":"resize","width":800}
+solid_commit_stages: interval_ms=532 commit=1.423ms queue=7.017ms decode=0.231ms dependencies=0.057ms tree=0.189ms validate=0.003ms reconcile=1.197ms extensions=0.014ms render=8.344ms counts=[31, 31, 31, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=530 commit=1.426ms queue=1.858ms decode=0.226ms dependencies=0.053ms tree=0.181ms validate=0.003ms reconcile=1.206ms extensions=0.013ms render=8.144ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=528 commit=1.363ms queue=1.621ms decode=0.209ms dependencies=0.054ms tree=0.174ms validate=0.005ms reconcile=1.154ms extensions=0.013ms render=8.398ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=527 commit=1.293ms queue=1.638ms decode=0.197ms dependencies=0.052ms tree=0.173ms validate=0.003ms reconcile=1.089ms extensions=0.014ms render=7.221ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 15]
+solid_commit_stages: interval_ms=526 commit=1.148ms queue=1.505ms decode=0.189ms dependencies=0.055ms tree=0.165ms validate=0.002ms reconcile=0.955ms extensions=0.011ms render=6.221ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+solid_commit_stages: interval_ms=529 commit=1.550ms queue=1.946ms decode=0.239ms dependencies=0.058ms tree=0.198ms validate=0.004ms reconcile=1.315ms extensions=0.015ms render=7.892ms counts=[30, 30, 30, 15, 15, 15, 30, 15, 14]
+84 |   if (native) {
+85 |     if (resizeEachUpdate) await root.resize(800, 600);
+86 |     const [width, height] = await root.getWindowSize();
+87 |     // An occluded window may postpone observers; query its actual content viewport.
+88 |     assert.equal(width, 800, "The platform changed the benchmark viewport; discard this run");
+89 |     assert.equal(height, 600, "The platform changed the benchmark viewport; discard this run");
+                ^
+AssertionError: The platform changed the benchmark viewport; discard this run
+
+632 !== 600
+
+ generatedMessage: false,
+     actual: 632,
+   expected: 600,
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /Users/jgbingzi/workspace/sp/solid-gpui/scripts/native-commit-profile.ts:89:12
+
+Bun v1.4.2 (macOS arm64)
+solid-gpui-host: renderer runtime terminated unexpectedly: exited with status 1

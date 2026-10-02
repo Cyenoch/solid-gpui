@@ -1,0 +1,14 @@
+   Compiling solid-gpui v0.5.2 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui)
+warning: field `stdout` is never read
+  --> crates/solid-gpui/src/transport/process_reader.rs:10:5
+   |
+ 9 | pub(super) struct ProcessReader {
+   |                   ------------- field in this struct
+10 |     stdout: ChildStdout,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `solid-gpui` (lib) generated 1 warning
+   Compiling solid-gpui-web v0.5.2 (/Users/jgbingzi/workspace/sp/solid-gpui/crates/solid-gpui-web)
+    Finished `release` profile [optimized] target(s) in 1m 58s

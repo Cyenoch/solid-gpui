@@ -1,0 +1,26 @@
+bun test v1.4.2 (744846f84)
+
+examples/website/tests/content.test.ts:
+(pass) build-time Shiki covers documentation, examples, excerpts and related types without changing code [872.33ms]
+
+examples/website/tests/reference-studio.test.ts:
+(pass) timeline edits keep clip identity, clamp placement, and reorder tracks without losing clips [1.53ms]
+
+examples/website/tests/startup.test.ts:
+(pass) only exhausted graphics backends are reported as unsupported [0.04ms]
+
+examples/website/tests/markdown.test.ts:
+(pass) GFM tables preserve inline code, escaped pipes, alignment and missing cells [0.09ms]
+(pass) table-looking fenced code remains code and ordinary pipes remain prose [0.03ms]
+
+examples/website/tests/components.test.ts:
+(pass) every exported component has a usage example that type-checks against the SDK [996.82ms]
+(pass) component pages are ordered by navigation group [79.00ms]
+
+examples/website/tests/runtime.test.ts:
+(pass) documented previews render without DOM globals and component navigation retains the sidebar [2775.58ms]
+
+ 8 pass
+ 0 fail
+ 3213 expect() calls
+Ran 8 tests across 6 files. [4.92s]

@@ -1,0 +1,16 @@
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-compiler-consumer-UrxUrT/vite.tgz
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-compiler-consumer-UrxUrT/core.tgz
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [14]
+Saved lockfile
+
++ bun-types@1.4.2
++ @solid-gpui/core@./core.tgz
++ @solid-gpui/vite@./vite.tgz
++ solid-js@1.9.15
+
+31 packages installed [918.00ms]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+Packed compiler exports, declarations, source resolution, reactivity and refs passed without Vite

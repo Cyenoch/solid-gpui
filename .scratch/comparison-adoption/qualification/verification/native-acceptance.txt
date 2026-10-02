@@ -1,0 +1,15 @@
+bun test v1.4.2 (744846f84)
+
+packages/solid-gpui/tests/native-acceptance.test.ts:
+(pass) native resize publishes production viewport feedback [49.32ms]
+(pass) macOS GPU resize completes the native bounds change before acknowledgement [192.01ms]
+(pass) a retired command reply cannot settle a new epoch request with the same ID [10.72ms]
+(pass) public acceptance drives native paint, hit testing, Unicode edits, drag, wheel and teardown [50.52ms]
+(pass) native clicks on painted text reach their Pressable ancestor through hit testing [9.51ms]
+(pass) macOS GPU acceptance captures changed production pixels [428.01ms]
+(pass) acceptance executable requires explicit mode and rejects unsupported modes [10.70ms]
+
+ 7 pass
+ 0 fail
+ 37 expect() calls
+Ran 7 tests across 1 file. [806.00ms]

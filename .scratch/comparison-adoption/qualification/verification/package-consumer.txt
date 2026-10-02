@@ -1,0 +1,171 @@
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-core-0.5.2.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-core.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-core.tgz
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-vite-0.5.2.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-vite.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-vite.tgz
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-router-0.5.2.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-router.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-router.tgz
+
+$ bun pm pack --dry-run --quiet
+solid-gpui-shiki-0.5.2.tgz
+
+$ bun pm pack --filename /var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-shiki.tgz --quiet
+/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-shiki.tgz
+
+$ bun install --no-progress
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [117]
+Saved lockfile
+
++ bun-types@1.4.2
++ typescript@7.0.2
++ vite@8.2.2
++ @solid-gpui/core@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-core.tgz
++ @solid-gpui/router@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-router.tgz
++ @solid-gpui/shiki@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-shiki.tgz
++ @solid-gpui/vite@/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/solid-gpui-vite.tgz
++ solid-js@1.9.15
+
+146 packages installed [1.74s]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+
+$ cargo generate-lockfile --offline --manifest-path native-host/Cargo.toml
+
+$ bun --conditions=browser run core-runtime.js
+
+$ bun --conditions=browser run router.ts
+
+$ bun --conditions=browser run generate-routes.ts
+
+$ bun --conditions=browser run file-router.ts
+
+$ bun --conditions=browser run shiki.ts
+
+$ bun --conditions=browser run native.ts
+   Compiling packed-native-host v0.0.0 (/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/consumer/native-host)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 11 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/bun-app.js  158.54 kB │ gzip: 24.66 kB
+
+✓ built in 30ms
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 161 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/quickjs-app.js  350.47 kB │ gzip: 66.70 kB
+
+✓ built in 45ms
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/jsx-refs.js  600.10 kB │ gzip: 94.72 kB
+
+✓ built in 32ms
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 163 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/quickjs-refs.js  792.14 kB │ gzip: 136.70 kB
+
+✓ built in 81ms
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 48 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/bundled-router.js  724.41 kB │ gzip: 125.77 kB
+
+✓ built in 32ms
+
+$ bun --bun vite build
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 14 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/bundled-shiki.js  577.44 kB │ gzip: 88.61 kB
+
+✓ built in 27ms
+
+$ bun dist/bundled-router.js
+
+$ bun dist/jsx-refs.js
+
+$ bun dist/quickjs-refs.js
+
+$ bun dist/bundled-shiki.js
+
+$ bunx --no-install tsc --noEmit --strict --allowJs --checkJs --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types core-runtime.js
+
+$ bunx --no-install tsc --noEmit --strict --allowJs --checkJs --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types router.ts
+
+$ bunx --no-install tsc --noEmit --strict --allowJs --checkJs --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types shiki.ts
+
+$ bunx --no-install tsc --noEmit --strict --allowJs --checkJs --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types native.ts
+
+$ bunx --no-install tsc --noEmit --strict --allowJs --checkJs --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types bun-types --jsx preserve core-runtime.js view.tsx
+
+$ bun run solid-gpui prepare --config dx.config.ts
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.00s
+wrote /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/consumer/.solid-gpui/tsconfig.json
+host /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/opencode/solid-gpui-adoption-target/debug/packed-native-host
+bundle /private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-pack-smoke-d4nf9B/consumer/dist/dx-app.js (produced by `vite build`; preview runs it with bun)
+
+$ bun run solid-gpui prepare --check --config dx.config.ts
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.00s
+Generated files match their hosts (1 checked).
+
+$ bunx --no-install tsc --project tsconfig.json
+
+$ bun run solid-gpui test --config dx.config.ts dx.test.tsx
+bun test v1.4.2 (744846f84)
+
+dx.test.tsx:
+(pass) installed tooling preserves JSX, assets, native imports and shared reactivity [3.28ms]
+
+ 1 pass
+ 0 fail
+ 5 expect() calls
+Ran 1 test across 1 file. [46.00ms]
+
+$ bun run solid-gpui test --config dx.config.ts jsx-refs.test.tsx
+bun test v1.4.2 (744846f84)
+
+jsx-refs.test.tsx:
+(pass) published JSX ref ABI [32.21ms]
+
+ 1 pass
+ 0 fail
+Ran 1 test across 1 file. [48.00ms]
+core, Vite, router and Shiki package tarball consumer smoke passed

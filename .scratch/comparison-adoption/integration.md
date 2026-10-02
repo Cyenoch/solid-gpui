@@ -12,16 +12,16 @@ All worktrees are below `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/
 
 | Ticket | Branch/worktree suffix | Agent session | State |
 | --- | --- | --- | --- |
-| 01 | `01-native-acceptance` | `ses_f05081953ffeN4aQ8DSP0ruwr5` | Merged `67e8c37`; public deterministic/GPU acceptance: 4 passed |
-| 02 | `02-delivery` | `ses_f05081953ffdcg3qfb1jmdkR5L` | Merged `a03db0fc`; source fixes and standalone qualification in progress |
+| 01 | `01-native-acceptance` | `ses_f05081953ffeN4aQ8DSP0ruwr5` | Merged `67e8c37`; public deterministic/GPU acceptance: 7 passed |
+| 02 | `02-delivery` | `ses_f05081953ffdcg3qfb1jmdkR5L` | Merged `a03db0fc`; four final standalone consumers passed in development mode |
 | 03 | `03-contract-identity` | `ses_f05081949ffe0gqOTtORiGOJUl` | Merged `d6f36b09`; effective-lock and embedded-input review fixes verified |
 | 04 | `04-style-contract` | `ses_f05081949ffd2btrvc76HWGHTa` | Merged `89ff7889`; protocol v7 and style/native tests passed |
 | 05 | `05-native-performance` | `ses_f05081948ffexDinEwHi4cp7io` | Merged `9ed85d73`; observation replay and flex-basis equivalence passed |
 | 06 | `06-selection-search` | `ses_f05059a58ffesWtaKj9ntSXmgY` | Merged `5e19326c`; renderer envelope and selection lifecycle passed |
 | 07 | `07-paint-media` | `ses_f05059a57ffeHzvbUN55kpP7mi` | Merged `3a0ab99`; overflow review fix and native raster tests passed |
 | 08 | `08-signed-updater` | `ses_f05059a57ffdT9YjVlSHhDM0CB` | Recovery fixes merged `f513899d`; signed fixtures and restart tests passed |
-| 09 | `09-reference-application` | `ses_f05059a4fffeVoD8VDxsQpVOpq` | Merged `3a02bd19`; combined native workload qualification in progress |
-| 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Merged `91a6376`; compiler tarball qualification pending combined gate |
+| 09 | `09-reference-application` | `ses_f05059a4fffeVoD8VDxsQpVOpq` | Merged `3a02bd19`; deterministic/Metal workload passed with bounded owners |
+| 10 | `10-compiler-docs` | `ses_f05059a4fffdW434fUJ42kofBR` | Merged `91a6376`; compiler and full package tarball consumers passed |
 
 Implementation branches are prefixed `adopt/`. Agents must commit focused changes, update their delivery note, and merge the integration tip before reporting. Integration merges are serialized. No agents write implementation files in the main workspace.
 
@@ -37,18 +37,18 @@ Implementation branches are prefixed `adopt/`. Agents must commit focused change
 
 ## Final gate checklist
 
-- [ ] All tickets have working implementations or an explicitly measured rejected optimization with preserved scope and evidence.
-- [ ] Integration and public compiler/package typechecks, focused changed-path tests.
-- [ ] Canonical wire/native generation checks and cross-language golden fixtures.
-- [ ] Full workspace test gate once after integration; repeat only for new changes/failures.
-- [ ] Standalone stock/custom consumer and extracted generic application checks.
-- [ ] Native acceptance against real painted/hit-tested behavior, explicit unsupported-platform outputs.
-- [ ] Recorded paint, live frame, cross-element selection/search resource/lifecycle checks.
-- [ ] Signed update fixture verification, tamper/replay/platform rejection, cancellation, install/rollback in temporary app paths.
-- [ ] Performance measurements serially after compilation, content verified before timing, exact binary/profile/features/viewport/monitor recorded.
-- [ ] Website guide/canonical API/example/navigation synchronization, browser/content checks and native/WASM build where relevant.
-- [ ] Standards and spec code review on integration branch; fixes integrated and checked.
-- [ ] Tickets resolved with actual checks and platform limitations; clean commits and final delivery record.
+- [x] All tickets have working implementations or an explicitly measured rejected optimization with preserved scope and evidence.
+- [x] Integration and public compiler/package typechecks, focused changed-path tests.
+- [x] Canonical wire/native generation checks and cross-language golden fixtures.
+- [x] Full workspace test gate once after integration; repeat only for new changes/failures.
+- [x] Standalone stock/custom consumer and extracted generic application checks.
+- [x] Native acceptance against real painted/hit-tested behavior, explicit unsupported-platform outputs.
+- [x] Recorded paint, live frame, cross-element selection/search resource/lifecycle checks.
+- [x] Signed update fixture verification, tamper/replay/platform rejection, cancellation, install/rollback in temporary app paths.
+- [x] Performance measurements serially after compilation, content verified before timing, exact binary/profile/features/viewport/monitor recorded.
+- [x] Website guide/canonical API/example/navigation synchronization, browser/content checks and native/WASM build where relevant.
+- [x] Standards and spec code review on integration branch; fixes integrated and checked.
+- [x] Tickets resolved with actual checks and platform limitations; clean commits and final delivery record.
 
 Network publication, upstream messages, public release creation and modification of the user's running installed app are not part of this integration task. Release tooling and update behavior are made concrete and locally reviewable.
 
@@ -149,3 +149,51 @@ allocation evidence is in `qualification/performance/`; see `delivery-05.md`.
 There is no accepted resize speed gain or display FPS/physical-latency claim.
 Remaining work is regeneration/rechecks, refreshed paired artifacts for this
 native policy, final documentation/status commit and clean checkout.
+
+## Final delivery record
+
+Final implementation checkpoint: `c8a966932dcd592d16f56cd477b6c2f9b60a015c`.
+The subsequent evidence/status commit changes no native/package inputs.
+All ten tickets are resolved as one integrated delivery. Each checked gate means
+its supported local checks ran, with the following boundaries; it does not erase
+unqualified release/platform/physical behavior.
+
+- Rust workspace: 459 passed, zero failed, two existing ignored cases; all-target
+  Clippy passed including acceptance bins. Final measured-policy region tests:
+  eight passed. Formatting, package/tool types and whitespace passed.
+- Canonical protocol generation and cross-language goldens passed. SDK, website
+  and desktop generated native bindings agree with their hosts. Dependency notices
+  regenerated byte-identically; four pinned reference fixtures verified offline.
+- JavaScript package gate passed: core 130 (seven opt-in cases separately run),
+  router 19, Shiki eight, tooling 64, and isolated runner fixtures. Final
+  focused tool/async checks: five passed. Website: eight passed, 3,213 assertions.
+  Compiler-only tarball and core/Vite/router/Shiki consumer smoke passed.
+- Public native acceptance: seven passed including epoch/request isolation,
+  production viewport observer, exact Metal resize pixels and changed paint.
+  Final shared 500-row Metal correctness and reference Metal workload passed.
+  Reference peak owners 20; staging cancellation/release 9216->18432->9216->0;
+  row owners, Surfaces, windows and popups all zero after close.
+- Final WASM release and frontend builds passed. Browser Showcase and authoritative
+  reference guide rendered with no console errors. Existing WASM dead-field,
+  generated eval/chunk-size and `block 0.1.6` future-compatibility notices remain.
+- Refreshed paired artifacts from final implementation are in ignored
+  `dist/delivery-final/`. All four clean consumers passed in **development**
+  profile: stock/custom Rust × Bun/QuickJS; each built, typechecked, ran its
+  counter test and extracted-runtime-contract packaging gate. Custom hosts also
+  passed Rust greeting and owned preview. Retained projects:
+  `/private/var/folders/sl/42r5kc756mj96rlxkglrpr900000gn/T/solid-gpui-delivery-consumer-Jq1LYs`.
+  Manifest/hashes and full evidence are in `qualification/delivery/`.
+- Production construction A/B/B/A and allocation attribution were serialized
+  after builds. Rejected idle/occluded attempts and accepted continuous-resize
+  construction logs are preserved as `.txt` under `qualification/performance/`.
+  No resize speed improvement is claimed; see `delivery-05.md`. GPU correctness
+  is separate from production timing, and root/region costs are separately counted.
+- Standards and Spec reviews ran with at most two read-only agents. All concrete
+  findings were fixed and verified; final measurement cleanup review has no
+  remaining findings. Shared Cargo builds were serialized.
+
+Windows/Linux physical/release qualification, notarization, real IME/trackpad,
+display cadence/latency and updater power-loss/physical relaunch qualification
+remain unestablished. macOS updater fixtures use temporary bundles; no running
+installed app was modified. No releases, pushes, upstream messages or publication
+occurred. Four original handoff stashes remain intact.

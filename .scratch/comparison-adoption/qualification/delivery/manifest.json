@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "version": "0.5.2",
+  "revision": "c8a966932dcd592d16f56cd477b6c2f9b60a015c",
+  "target": "aarch64-apple-darwin",
+  "protocolVersion": 7,
+  "schemaDigest": "de5fe6c96c85953d91bc06d40e6353f65c2c071e78d696dc1c1a55ed8d344d59",
+  "runtimes": [
+    "bun",
+    "quickjs"
+  ],
+  "host": {
+    "file": "solid-gpui-host-0.5.2-aarch64-apple-darwin",
+    "sha256": "5bb22c2b74339adb9bbe2c85f873ced7b46c0fdd201a0ab0b57716ab724396fe",
+    "bytes": 229614976
+  },
+  "bindings": {
+    "file": "solid-gpui-native-0.5.2-aarch64-apple-darwin.ts",
+    "sha256": "621be5f53cc9ca8fe5de0ed7b2e6189095333e5538d9de61c172085a0bc6919e",
+    "bytes": 233260
+  },
+  "source": {
+    "file": "solid-gpui-sdk-0.5.2-aarch64-apple-darwin.tar.gz",
+    "sha256": "fefc4e10f20a27b30dec139615b6381aebc8cde1625ee966484539f16c8b1fd6",
+    "bytes": 15757219
+  },
+  "packages": {
+    "core": {
+      "file": "solid-gpui-core-0.5.2.tgz",
+      "sha256": "cec73a65b161ffcb955be967cbbf514c2432755cf895f497eacca6f1e745b863",
+      "bytes": 386123
+    },
+    "vite": {
+      "file": "solid-gpui-vite-0.5.2.tgz",
+      "sha256": "a55ed6bdd28039cdbf5bddc825f7edee7867282471de73387c6e2a6ed3c3f473",
+      "bytes": 196752
+    }
+  },
+  "javascript": {
+    "core": "63aa0d619e8d523314e387ebb2e1af4bb5d33552684d434151083063ab5838ce",
+    "vite": "1649855f73f2ffa6009450c44b47834bfad43fe06506e5ae8c40060c7577aca7"
+  }
+}
