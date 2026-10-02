@@ -158,3 +158,44 @@ tests passed (10 tests), and website typecheck/frontend build passed. The
 incoming upstream `.patch` has intentional space-prefixed blank context lines
 reported by `git diff --check --cached`; patch bytes were preserved. Ticket 08
 files and the resolved changelog pass whitespace checks.
+
+## Updater recovery fixes
+
+Follow-up work is confined to `adopt/08-signed-updater`; it does not merge or
+modify integration. `updateStatus` now acquires the service state mutex before
+filesystem inspection. Installation/rollback/confirmation replies use the same
+locked state, and restart tracking is owned by `State` rather than a separate
+atomic. A paused pre-swap installation test verifies status cannot observe the
+staged record/candidate window and returns the committed state after release.
+
+The persistent record now has explicit `staged`, `restoring`, and `cleaning`
+phases. Rollback intent is synchronized before exchanging bundles. Cleanup
+synchronizes its retained installation identity and signed release before any
+recursive candidate deletion, retains that metadata through deletion and its
+directory barrier, then unlinks the record. Restart recovery resumes restoring
+or cleaning with exact directory identities; cleaning accepts an already absent
+candidate. Final record-unlink synchronization failure permits an absent record
+or a cleaning record with no candidate, both corresponding to the same durable
+retained installation. Confirmation cannot supersede recorded rollback intent.
+
+Four focused service/restart tests inject: cleanup phase synchronization failure,
+candidate removal failure, partial recursive candidate deletion, deletion barrier
+failure, record removal failure, final record-unlink barrier failure, post-swap
+rollback exchange/synchronization failures, and precommit record synchronization
+failure. Fault injection is invocation-thread-local and compiled only into Rust
+unit tests; production hosts expose no injection control. Existing local HTTP,
+signature/archive/cancellation and generated-dispatcher tests remain in place.
+
+Technical English/Chinese updater guides document serialization and restart
+semantics; ticket-planning phrasing was removed from those public guides. Legal
+attribution and dependency notices are preserved. No contract DTO changed, so
+native binding regeneration is unnecessary for this fix.
+
+Fix validation: 4 new concurrency/recovery tests, 8 existing signed updater
+tests, and 2 native executor tests pass. `cargo clippy -p solid-gpui --locked
+--features signed-updater --lib --tests -- -D warnings` passes. Website content
+tests pass (7), and website typecheck/frontend build pass using the previously
+generated WASM host. Changed Rust formatting and whitespace checks pass.
+No current installation, credentials, external process, or release publication
+was accessed. New tests inject deterministic operation failures into temporary
+app directories; they do not establish physical power-loss durability.

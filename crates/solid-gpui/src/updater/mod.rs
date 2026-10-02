@@ -4,10 +4,7 @@ use crate::native::{CommandDefinition, ModuleDefinition, NativeCallContext};
 use serde::{Deserialize, Serialize};
 use std::{
     path::PathBuf,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
     time::Duration,
 };
 use ts_rs::TS;
@@ -57,18 +54,22 @@ pub struct UpdateStatus {
 
 mod acquisition;
 mod installation;
+#[cfg(all(test, target_os = "macos"))]
+mod recovery_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod test_io;
 use acquisition::{Manifest, SignedFeed};
 
 struct State {
     offer: Option<(UpdateOffer, Manifest, SignedFeed)>,
     sequence: u32,
+    disk_changed: bool,
 }
 
 pub struct SignedUpdater {
     config: UpdaterConfig,
     client: Arc<dyn gpui::http_client::HttpClient>,
     state: Mutex<State>,
-    disk_changed: AtomicBool,
     _lock: std::fs::File,
 }
 
@@ -90,18 +91,26 @@ impl SignedUpdater {
             state: Mutex::new(State {
                 offer: None,
                 sequence,
+                disk_changed: false,
             }),
-            disk_changed: AtomicBool::new(false),
             _lock: lock,
         })
     }
 
     pub fn status(&self) -> Result<UpdateStatus, String> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|_| "signed updater state is poisoned")?;
+        self.status_locked(&state)
+    }
+
+    fn status_locked(&self, state: &State) -> Result<UpdateStatus, String> {
         let pending = installation::pending(&self.config)?;
         Ok(UpdateStatus {
             enabled: true,
             platform: acquisition::platform(),
-            pending_restart: pending || self.disk_changed.load(Ordering::Acquire),
+            pending_restart: pending || state.disk_changed,
             rollback_available: pending,
             relaunch_policy: "application-managed".into(),
         })
@@ -174,9 +183,9 @@ impl SignedUpdater {
         signed.verify(&self.config)?;
         context.check_cancelled()?;
         installation::install(&self.config, manifest, signed, &bytes, &context)?;
-        self.disk_changed.store(true, Ordering::Release);
+        state.disk_changed = true;
         state.offer = None;
-        self.status()
+        self.status_locked(&state)
     }
 
     pub fn rollback(&self, context: NativeCallContext) -> Result<UpdateStatus, String> {
@@ -185,10 +194,12 @@ impl SignedUpdater {
             .try_lock()
             .map_err(|_| "signed updater is busy")?;
         context.check_cancelled()?;
+        if installation::pending(&self.config)? {
+            state.disk_changed = true;
+        }
         installation::rollback(&self.config)?;
-        self.disk_changed.store(true, Ordering::Release);
         state.offer = None;
-        self.status()
+        self.status_locked(&state)
     }
 
     /// Call only after the application has restarted and completed its health check.
@@ -200,8 +211,8 @@ impl SignedUpdater {
             .map_err(|_| "signed updater is busy")?;
         context.check_cancelled()?;
         state.sequence = installation::confirm(&self.config)?;
-        self.disk_changed.store(false, Ordering::Release);
-        self.status()
+        state.disk_changed = false;
+        self.status_locked(&state)
     }
 }
 

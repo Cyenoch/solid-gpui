@@ -11,6 +11,16 @@ fn err(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
 
+fn checkpoint(point: &str) -> Result<(), String> {
+    #[cfg(all(test, target_os = "macos"))]
+    return super::test_io::checkpoint(point);
+    #[cfg(not(all(test, target_os = "macos")))]
+    {
+        let _ = point;
+        Ok(())
+    }
+}
+
 pub(super) fn relative_path(text: &str) -> Result<PathBuf, String> {
     if text.is_empty()
         || text.len() > 1024
@@ -129,12 +139,28 @@ fn identity(path: &Path) -> Result<Identity, String> {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum RetainedBundle {
+    Old,
+    New,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+enum Phase {
+    Staged,
+    Restoring,
+    Cleaning { keep: RetainedBundle },
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Record {
     old: Identity,
     new: Identity,
     signed: SignedFeed,
+    phase: Phase,
 }
 
 fn read_record(config: &UpdaterConfig) -> Result<Option<Record>, String> {
@@ -172,17 +198,115 @@ fn remove_candidate(config: &UpdaterConfig) -> Result<(), String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(err(e)),
         Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+            #[cfg(all(test, target_os = "macos"))]
+            if let Err(error) = checkpoint("partial-candidate-remove") {
+                // Reproduce a recursive removal that deleted files before its
+                // final directory removal failed. Directory identity survives.
+                let executable = path.join(&config.executable);
+                if executable.is_file() {
+                    fs::remove_file(executable).map_err(err)?;
+                }
+                return Err(error);
+            }
             fs::remove_dir_all(path).map_err(err)
         }
         Ok(_) => Err("unsafe update candidate path".into()),
     }
 }
 
-fn clear(config: &UpdaterConfig) -> Result<(), String> {
-    // Remove the recovery record first only after the installation is known good.
-    fs::remove_file(transaction(config).join("record.json")).map_err(err)?;
+fn write_record(config: &UpdaterConfig, record: &Record) -> Result<(), String> {
+    let root = transaction(config);
+    let mut file = tempfile::Builder::new()
+        .prefix("record-")
+        .tempfile_in(&root)
+        .map_err(err)?;
+    file.write_all(&serde_json::to_vec(record).map_err(err)?)
+        .map_err(err)?;
+    file.as_file().sync_all().map_err(err)?;
+    file.persist(root.join("record.json")).map_err(err)?;
+    checkpoint("record-write-sync")?;
+    if matches!(record.phase, Phase::Cleaning { .. }) {
+        checkpoint("cleanup-phase-sync")?;
+    }
+    sync_dir(&root)
+}
+
+fn candidate_identity(config: &UpdaterConfig) -> Result<Option<Identity>, String> {
+    let candidate = transaction(config).join("candidate");
+    match fs::symlink_metadata(&candidate) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(err(e)),
+        Ok(_) => identity(&candidate).map(Some),
+    }
+}
+
+fn validate_cleanup(
+    config: &UpdaterConfig,
+    record: &Record,
+    keep: RetainedBundle,
+) -> Result<(), String> {
+    let (retained, discarded) = match keep {
+        RetainedBundle::Old => (&record.old, &record.new),
+        RetainedBundle::New => (&record.new, &record.old),
+    };
+    if &identity(&config.install_path)? != retained
+        || candidate_identity(config)?.is_some_and(|candidate| &candidate != discarded)
+    {
+        return Err("cleanup found unexpected bundle identities; transaction retained".into());
+    }
+    Ok(())
+}
+
+fn finish_cleanup(
+    config: &UpdaterConfig,
+    record: &Record,
+    keep: RetainedBundle,
+) -> Result<(), String> {
+    validate_cleanup(config, record, keep)?;
+    // Repeat both directory barriers before deleting the discarded bundle. A
+    // restart may have observed Cleaning before its prior barrier succeeded.
+    sync_dir(config.install_path.parent().unwrap())?;
     sync_dir(&transaction(config))?;
-    remove_candidate(config)
+    checkpoint("remove-candidate")?;
+    remove_candidate(config)?;
+    checkpoint("cleanup-sync")?;
+    sync_dir(&transaction(config))?;
+    // The installed bundle and candidate deletion are now durable. A crash or
+    // sync failure after unlink may leave either no record or Cleaning with no
+    // candidate; both represent the same completed filesystem transaction.
+    checkpoint("remove-record")?;
+    fs::remove_file(transaction(config).join("record.json")).map_err(err)?;
+    checkpoint("record-remove-sync")?;
+    sync_dir(&transaction(config))
+}
+
+fn begin_cleanup(
+    config: &UpdaterConfig,
+    mut record: Record,
+    keep: RetainedBundle,
+) -> Result<(), String> {
+    validate_cleanup(config, &record, keep)?;
+    record.phase = Phase::Cleaning { keep };
+    write_record(config, &record)?;
+    finish_cleanup(config, &record, keep)
+}
+
+fn restore(config: &UpdaterConfig, mut record: Record) -> Result<(), String> {
+    let current = identity(&config.install_path)?;
+    let candidate =
+        candidate_identity(config)?.ok_or("rollback candidate is missing; transaction retained")?;
+    if current == record.new && candidate == record.old {
+        record.phase = Phase::Restoring;
+        write_record(config, &record)?;
+        checkpoint("restore-exchange")?;
+        exchange(&config.install_path, &transaction(config).join("candidate"))?;
+    } else if current != record.old || candidate != record.new {
+        return Err("rollback found unexpected bundle identities; transaction retained".into());
+    }
+    checkpoint("restore-sync")?;
+    sync_dir(config.install_path.parent().unwrap())?;
+    sync_dir(&transaction(config))?;
+    begin_cleanup(config, record, RetainedBundle::Old)
 }
 
 pub(super) fn recover(config: &UpdaterConfig) -> Result<(), String> {
@@ -190,13 +314,19 @@ pub(super) fn recover(config: &UpdaterConfig) -> Result<(), String> {
     let Some(record) = read_record(config)? else {
         return remove_candidate(config);
     };
+    match record.phase {
+        Phase::Cleaning { keep } => return finish_cleanup(config, &record, keep),
+        Phase::Restoring => return restore(config, record),
+        Phase::Staged => {}
+    }
     let current = identity(&config.install_path)?;
-    let candidate = identity(&transaction(config).join("candidate"))?;
+    let candidate =
+        candidate_identity(config)?.ok_or("staged candidate is missing; transaction retained")?;
     if current == record.new && candidate == record.old {
         return Ok(());
     }
     if current == record.old && candidate == record.new {
-        return clear(config);
+        return begin_cleanup(config, record, RetainedBundle::Old);
     }
     Err("update recovery found unexpected bundle identities; preserve transaction for manual recovery".into())
 }
@@ -217,12 +347,20 @@ fn cleanup_staging(config: &UpdaterConfig) -> Result<(), String> {
 
 pub(super) fn pending(config: &UpdaterConfig) -> Result<bool, String> {
     if let Some(record) = read_record(config)? {
-        if identity(&config.install_path)? != record.new
-            || identity(&transaction(config).join("candidate"))? != record.old
-        {
-            return Err("pending update bundle identities changed".into());
+        if let Phase::Cleaning { keep } = record.phase {
+            validate_cleanup(config, &record, keep)?;
+            return Ok(false);
         }
-        Ok(true)
+        let current = identity(&config.install_path)?;
+        let candidate = candidate_identity(config)?
+            .ok_or("update candidate is missing; transaction retained")?;
+        if current == record.new && candidate == record.old {
+            return Ok(true);
+        }
+        if current == record.old && candidate == record.new {
+            return Ok(false);
+        }
+        Err("pending update bundle identities changed; transaction retained".into())
     } else {
         Ok(false)
     }
@@ -390,40 +528,35 @@ pub(super) fn install(
         old: identity(&config.install_path)?,
         new: identity(&bundle)?,
         signed: signed.clone(),
+        phase: Phase::Staged,
     };
     fs::rename(bundle, &candidate).map_err(err)?;
-    let mut file = tempfile::Builder::new()
-        .prefix("record-")
-        .tempfile_in(&root)
-        .map_err(err)?;
-    file.write_all(&serde_json::to_vec(&record).map_err(err)?)
-        .map_err(err)?;
-    file.as_file().sync_all().map_err(err)?;
-    file.persist_noclobber(root.join("record.json"))
-        .map_err(err)?;
-    sync_dir(&root)?;
+    write_record(config, &record)?;
     if let Err(error) = context
         .check_cancelled()
+        .and_then(|_| checkpoint("before-exchange"))
         .and_then(|_| exchange(&config.install_path, &candidate))
     {
-        clear(config)?;
-        return Err(error);
+        return match begin_cleanup(config, record, RetainedBundle::Old) {
+            Ok(()) => Err(error),
+            Err(cleanup) => Err(format!(
+                "{error}; cleanup failed: {cleanup}; transaction retained"
+            )),
+        };
     }
     // No await after the commit boundary. Cancellation and durability failures
     // restore the prior bundle synchronously; a crash is recovered using inode IDs.
-    if let Err(error) = sync_dir(config.install_path.parent().unwrap())
+    if let Err(error) = checkpoint("post-exchange-sync")
+        .and_then(|_| sync_dir(config.install_path.parent().unwrap()))
         .and_then(|_| sync_dir(&root))
         .and_then(|_| context.check_cancelled())
     {
-        exchange(&config.install_path, &candidate)
-            .map_err(|e| format!("{error}; rollback failed: {e}; transaction retained"))?;
-        sync_dir(config.install_path.parent().unwrap())
-            .and_then(|_| sync_dir(&root))
-            .map_err(|e| {
-                format!("{error}; rollback synchronization failed: {e}; transaction retained")
-            })?;
-        clear(config)?;
-        return Err(error);
+        return match restore(config, record) {
+            Ok(()) => Err(error),
+            Err(rollback) => Err(format!(
+                "{error}; rollback failed: {rollback}; transaction retained"
+            )),
+        };
     }
     Ok(())
 }
@@ -432,22 +565,25 @@ pub(super) fn rollback(config: &UpdaterConfig) -> Result<(), String> {
     if !pending(config)? {
         return Err("no pending update to roll back".into());
     }
-    exchange(&config.install_path, &transaction(config).join("candidate"))?;
-    sync_dir(config.install_path.parent().unwrap())?;
-    sync_dir(&transaction(config))?;
-    clear(config)
+    restore(config, read_record(config)?.unwrap())
 }
 
 pub(super) fn confirm(config: &UpdaterConfig) -> Result<u32, String> {
     if !pending(config)? {
         return Err("no pending update to confirm".into());
     }
-    let manifest = read_record(config)?.unwrap().signed.verify(config)?;
+    let record = read_record(config)?.unwrap();
+    if !matches!(record.phase, Phase::Staged) {
+        return Err(
+            "update has a recorded rollback decision; complete recovery before confirmation".into(),
+        );
+    }
+    let manifest = record.signed.verify(config)?;
     if config.current_sequence != manifest.sequence {
         return Err(
             "confirmation requires the newly restarted application's release sequence".into(),
         );
     }
-    clear(config)?;
+    begin_cleanup(config, record, RetainedBundle::New)?;
     Ok(manifest.sequence)
 }

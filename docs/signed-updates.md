@@ -32,6 +32,9 @@ cancellation between chunks, and retains admission until the worker exits.
 Stalled HTTP headers/body are interruptible through `NativeCallContext`.
 At most one operation per updater can own acquisition/installation state.
 An OS advisory lock prevents a second updater instance owning the same bundle.
+Status queries wait for the service operation mutex and inspect a complete
+transaction state. They do not inspect staging files while installation owns
+that mutex. Installation, rollback, confirmation, and their replies share it.
 
 ## Generated JavaScript commands
 
@@ -97,8 +100,7 @@ The artifact must share the pinned feed's exact origin. Redirects are rejected.
 The signed hash and byte count are checked against the entire bounded downloaded
 archive, then the manifest signature is checked again before staging. The feed
 is capped at 32 KiB; the decoded payload is capped at 12 KiB. This authenticates
-the artifact and all routing/identity metadata, rather than trusting an unsigned
-version or channel alongside an artifact signature. Replay of releases at or
+the artifact and all routing/identity metadata. Replay of releases at or
 below `current_sequence` produces no offer. Publishing uses one increasing
 sequence per application/channel/platform; version strings are display labels.
 
@@ -114,8 +116,8 @@ file. Package self-contained bundles without framework symlinks for this format.
 Generic packaging must finish bundling, code signing, notarization policy,
 extracted-artifact verification, and release identity assignment **before**
 creating the updater archive and signed manifest. A normal distributable ZIP is
-not this update archive. Ticket 02's packager can emit this additional format;
-it must not treat its archive checksum JSON as a signed updater feed. Changing
+not this update archive. Application packagers emit this additional format;
+archive checksum JSON is not a signed updater feed. Changing
 archive format requires a new explicit contract, not an extraction fallback.
 
 ## Installation and restart policy
@@ -130,9 +132,25 @@ the transaction and reports the failure. No installer shell scripts run.
 
 The sibling `.Bundle.app.solid-update` holds an advisory lock, atomic recovery
 record, and previous bundle until explicit confirmation. Reopening the service
-recognizes old/new directory identities: an uncommitted exchange is cleaned up;
-a committed exchange retains rollback. Unexpected identities stop recovery for
-manual inspection. The installer does not use `current_exe` or discover an
+recognizes old/new directory identities and an explicit phase:
+
+| Phase | Restart behavior |
+| --- | --- |
+| `staged` | Old bundle still installed: clean the candidate. New bundle installed: retain the previous bundle for confirmation or rollback. |
+| `restoring` | Complete the recorded rollback if the new bundle is installed, or synchronize the already restored old bundle; then clean the rejected candidate. |
+| `cleaning` | Validate the recorded retained installation; resume candidate deletion, accepting an already absent candidate. |
+
+Cleanup first writes and synchronizes the `cleaning` phase with the retained
+bundle identity and signed release. It keeps this record through candidate
+removal and directory synchronization. Only after those steps are durable does
+it unlink the record and synchronize the directory again. A failure before the
+last unlink retains recovery metadata. A failure after unlink permits either
+an absent record or a recovered `cleaning` record with an absent candidate;
+both lead to the same retained installation. Partial recursive deletion is
+resumed only for the recorded candidate directory identity.
+
+Unexpected identities stop recovery for manual inspection. The installer does
+not use `current_exe` or discover an
 installation directory automatically. The app explicitly grants the install path.
 
 There is **no automatic exit, process spawn, or relaunch**. The application saves
