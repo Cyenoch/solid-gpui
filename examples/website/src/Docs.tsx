@@ -68,6 +68,7 @@ const referenceLabels: Record<string, string> = {
   "native-composition": "Native UI composition",
   "native-acceptance": "Native acceptance",
   distribution: "Distribution",
+  "signed-updates": "Signed updates",
   web: "Web setup",
   "rust-bridge": "Rust integration",
   shiki: "Syntax highlighting",

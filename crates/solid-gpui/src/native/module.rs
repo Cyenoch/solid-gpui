@@ -29,10 +29,23 @@ impl CommandDefinition {
         name: &'static str,
         function: fn(I, NativeCallContext) -> Result<O, String>,
     ) -> Self {
+        Self::blocking(name, function)
+    }
+
+    /// Like `sync`, with captured application-owned service state. Admission is
+    /// retained until cooperative blocking work exits, including after cancellation.
+    pub fn blocking<I, O, F>(name: &'static str, function: F) -> Self
+    where
+        I: DeserializeOwned + TS + Send + 'static,
+        O: Serialize + TS + 'static,
+        F: Fn(I, NativeCallContext) -> Result<O, String> + Send + Sync + 'static,
+    {
+        let function = Arc::new(function);
         Self {
             name,
             describe: |types| (types.collect::<I>(), types.collect::<O>()),
             handler: CommandHandler::Worker(Arc::new(move |bytes, executor| {
+                let function = Arc::clone(&function);
                 executor.blocking(move |context| {
                     let request = decode_json(&bytes)?;
                     encode_json(&function(request, context)?)
