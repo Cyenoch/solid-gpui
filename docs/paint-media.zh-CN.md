@@ -91,5 +91,7 @@ CPU 资源与 GPUI 图像路径由 macOS、Linux、Windows、WASM 共用。本�
 
 原生改动后运行 `bun scripts/native-codegen.ts` 与
 `bun scripts/native-codegen.ts --check`，网站检查为
-`bun --conditions=browser test examples/website/tests`。聚焦验收与限制记录在
-[ticket 07 delivery](../.scratch/comparison-adoption/delivery-07.md)。
+`bun --conditions=browser test examples/website/tests`。
+原生资源/scene 检查运行 `cargo test -p solid-gpui --features gpui-component,test-support --lib paint_media`。
+在桌面会话运行 `cargo test -p solid-gpui --features gpui-component,test-support --test host_paint_media_platform`
+验证矩形、路径、文本、帧及 clear/dispose 的真实原生像素。

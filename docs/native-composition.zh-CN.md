@@ -2,7 +2,8 @@
 
 ## 所有权与交互设计
 
-以下规则吸收了 GPUI Kit 0.7 的 [Design Guides](https://gpui-kit.com/docs/design-guides)、[Coding Guides](https://gpui-kit.com/docs/coding-guides)、[View Cache](https://gpui-kit.com/docs/view-cache) 与 [Images](https://gpui-kit.com/docs/image)。Rust 示例需要结合生成的 Solid 契约使用，不能逐个方法照搬。
+Solid 管理应用组合与响应式状态，原生 host 管理渲染、瞬态交互状态及有界资源。
+使用生成的 Solid 契约配置原生行为。
 
 - 先明确任务、操作对象和结果。常用操作保持可见，次要操作放入原生菜单。工具栏、菜单项与快捷键共享应用命令，确保启用状态与结果一致。
 - 内容切换时保留外壳、导航与原生编辑器。Solid 管理业务数据和组合；原生实体管理焦点、选区、撤销、滚动与弹出层会话。使用稳定数据键，避免翻译标签或可变位置作为标识。受控值回传是同步，不应再次触发用户编辑事件。
@@ -17,7 +18,9 @@ Entity 保留状态，RenderOnce 描述被消费的组件值，均不保证跳�
 
 父更新不能修复缓存视图缺失的依赖通知。检查外部模型、主题、尺寸、裁剪变化和回放帧中的交互。位置移动会使场景缓存失效，但零原点路径缓存仍可复用。添加缓存前参阅 [Performance analysis](performance-analysis.md)。
 
-解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。上游 `img("relative-key")` 查询 AssetSource，而 Solid core Image 相对路径基于宿主工作目录。Core Image 有自己的有界请求、解码与像素生命周期，不能套用上游默认的应用级缓存或重试策略。解码像素复用与 HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。
+解码前预留图片布局空间；多色图像使用 Image，主题单色图形使用 Icon。Core Image
+相对路径基于宿主工作目录，并拥有有界请求、解码与像素生命周期。解码像素复用与
+HTTP 响应缓存是不同层次，具体契约见本页图片章节与 [Iconify](iconify.md)。
 
 保留图表或已解码 CPU 帧流使用 [RecordedPaint 与 LiveFrame](paint-media.zh-CN.md)。
 几何与像素由挂载原生视图持有并受预算约束；生成 ref 将帧替换与释放限定在所属 Surface epoch。

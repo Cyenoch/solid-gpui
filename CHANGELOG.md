@@ -5,6 +5,11 @@
 ### Added
 
 - Add generated `RecordedPaint` native quads, convex paths, and text with bounded retained geometry, resize/DPI feedback, theme colors, clipping, and scale/translation. Add `LiveFrame` with owned RGBA CPU frame replacement, chunked uploads, atomic presentation, clear/dispose, epoch release, and a shared host memory budget. The website includes executable diagram and frame-stream consumers with bilingual guides.
+- Export `compile(source, filename)` and `CompileResult` from `@solid-gpui/vite/compiler`, using the canonical universal JSX/TSX transform and composed authored source maps. Vite and website preview compilation share this implementation; compiler-only tools can install it without Vite or a native host.
+
+### Fixed
+
+- Correct live website status, distinguish direct macOS Embedded Bun library builds from experimental Windows static packaging, and document existing native Markdown/domain components. Verify vendored GPUI 0.3.7 provenance against actual crate archives, complete the patch inventory, and prepare an isolated line-clamp cache fix as a local upstream review artifact.
 
 ## [0.5.2]
 

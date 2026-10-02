@@ -2,8 +2,21 @@ import remapping from "@jridgewell/remapping";
 import { transform } from "@solidjs/compiler";
 import { transformSync } from "oxc-transform";
 
-/** Compile universal JSX with source locations in authored code. */
-export function transformJsx(source: string, filename: string): { code: string; map: string } {
+/** JavaScript module and a JSON source map pointing to the authored JSX/TSX. */
+export interface CompileResult {
+  readonly code: string;
+  readonly map: string;
+}
+
+/**
+ * Compile one .jsx or .tsx module to the Solid GPUI universal runtime.
+ * Does not bundle imports, resolve native bindings, or start a host.
+ * Throws for unsupported filenames or invalid source.
+ */
+export function compile(source: string, filename: string): CompileResult {
+  if (!/\.[jt]sx$/.test(filename)) {
+    throw new Error(`solid-gpui: compiler requires a .jsx or .tsx filename: ${filename}`);
+  }
   const jsx = transform(source, {
     filename,
     generate: "universal",

@@ -161,5 +161,7 @@ bun scripts/native-codegen.ts --check
 bun --conditions=browser test examples/website/tests
 ```
 
-The focused native tests and native pixel acceptance command are recorded in
-[ticket 07 delivery](../.scratch/comparison-adoption/delivery-07.md).
+Run native resource/scene checks with
+`cargo test -p solid-gpui --features gpui-component,test-support --lib paint_media`.
+On a desktop session, `cargo test -p solid-gpui --features gpui-component,test-support --test host_paint_media_platform`
+checks actual native pixels for quads, paths, text, frames, and clear/dispose.

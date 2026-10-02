@@ -70,6 +70,10 @@ and website bindings. Source comments and canonical documentation are English.
 
 ## Verification
 
+Public guides describe our ownership, behavior, and usage only. Removed the
+native-composition learning/source-guide narrative and public links into temporary
+comparative delivery records; retained native dependencies and legal provenance.
+
 Environment: macOS arm64 desktop session, linked vendored `gpui-pre 0.3.7`, GPUI Kit
 0.7.0. Debug native correctness build, 320×240 logical raster acceptance window
 at native 2× scale, monitor disabled. No FPS or input latency claim. TestAppContext
@@ -128,5 +132,12 @@ Integration must regenerate combined bindings after merging all native modules,
 particularly ticket 03's contract identity changes. Catalog IDs/digests are
 generated; consumers must use component names/refs, never hard-code entry IDs.
 The native acceptance fixtures resolve their component IDs from the same module.
-The requested integration branch will be merged into this branch before reporting;
-this branch does not merge itself into integration and publishes nothing.
+Implementation commit: `c1d3ee3`. Merged integration tip `91a63761` into this branch
+before reporting. The single changelog conflict preserved both paint/media and
+compiler/provenance entries. Combined website typecheck/production build and all
+seven website tests passed; three compiler tests passed with the source condition.
+The final-source WASM host was rebuilt and wasm-bindgen/frontend output regenerated
+so the source-derived native catalog matches the final generated bindings. The
+build retains the existing generated wasm-bindgen eval/chunk-size warnings and
+existing WASM ProcessReader dead-field warning. This branch does not merge itself
+into integration and publishes nothing.
