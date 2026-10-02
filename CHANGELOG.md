@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Add the opt-in application-owned `signed-updater` native service with generated clients, a pinned Ed25519 feed/key and exact release identities, bounded cancellable downloads, strict USTAR extraction, atomic macOS bundle exchange, persistent rollback, and explicit application-managed restart. Default hosts keep updates disabled; other native platforms reject installation authority.
+
 ## [0.5.2]
 
 ### Fixed

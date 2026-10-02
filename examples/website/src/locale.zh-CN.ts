@@ -167,6 +167,7 @@ export const chinese: Record<string, string> = {
   Distribution: "分发应用",
   "Web setup": "Web 配置",
   "Rust integration": "Rust 集成",
+  "Signed updates": "签名更新",
   Protocol: "通信协议",
   "Performance analysis": "性能分析",
   "Scroll performance": "滚动性能",

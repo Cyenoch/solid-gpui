@@ -7,6 +7,8 @@ pub mod host;
 #[cfg(any(feature = "host", feature = "component-runtime"))]
 pub mod motion;
 pub mod native;
+#[cfg(all(feature = "signed-updater", not(target_family = "wasm")))]
+pub mod updater;
 pub mod runtime;
 #[cfg(feature = "quickjs")]
 pub use runtime::quickjs::{QuickJsAdapter, QuickJsError};

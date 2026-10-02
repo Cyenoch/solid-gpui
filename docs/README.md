@@ -47,6 +47,7 @@ References:
 - [Shiki syntax highlighting](shiki.md) — Bun-backed native code blocks and build-time highlighting.
 - [Iconify](iconify.md) — embedded icons, size and color, reactive usage, and application icon registration.
 - [System popovers](system-popover.md) — owned native popup Surfaces, shared context, lifecycle, multi-display placement, and platform qualification limits.
+- [Signed application updates](signed-updates.md) — opt-in trusted native service, signed feed/archive contract, macOS atomic exchange, rollback, and application-managed restart.
 - [Native presentation research](../.scratch/native-presentation/spec.md) — design baseline and remaining SwiftUI/AppKit embedding stages; current delivery evidence is tracked separately.
 
 - [GPUI Kit source](../references/gpui-kit/) — pinned [upstream](https://github.com/longbridge/gpui-kit) source used for implementation comparison.
