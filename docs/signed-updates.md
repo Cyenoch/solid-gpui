@@ -32,6 +32,9 @@ cancellation between chunks, and retains admission until the worker exits.
 Stalled HTTP headers/body are interruptible through `NativeCallContext`.
 At most one operation per updater can own acquisition/installation state.
 An OS advisory lock prevents a second updater instance owning the same bundle.
+Dropping the last updater owner explicitly releases that lock before closing its
+file handle, so a shared descriptor retained by a child process cannot delay
+reopening the service.
 Status queries wait for the service operation mutex and inspect a complete
 transaction state. They do not inspect staging files while installation owns
 that mutex. Installation, rollback, confirmation, and their replies share it.

@@ -111,6 +111,20 @@ fn install(service: &SignedUpdater) -> Result<UpdateStatus, String> {
 }
 
 #[test]
+fn dropping_an_updater_releases_ownership_with_a_shared_file_descriptor() {
+    let fixture = Fixture::new();
+    let service = fixture.open();
+    let shared = service._lock.file.try_clone().unwrap();
+    assert!(SignedUpdater::new(fixture.config.clone(), fixture.client.clone()).is_err());
+    drop(service);
+    let reopened = fixture.open();
+    drop(shared);
+    assert!(SignedUpdater::new(fixture.config.clone(), fixture.client.clone()).is_err());
+    drop(reopened);
+    fixture.open();
+}
+
+#[test]
 fn status_waits_for_a_staged_install_instead_of_reading_incomplete_bundle_identities() {
     let fixture = Fixture::new();
     let service = fixture.open();

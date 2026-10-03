@@ -70,7 +70,7 @@ pub struct SignedUpdater {
     config: UpdaterConfig,
     client: Arc<dyn gpui::http_client::HttpClient>,
     state: Mutex<State>,
-    _lock: std::fs::File,
+    _lock: installation::InstallationLock,
 }
 
 impl SignedUpdater {

@@ -59,7 +59,23 @@ fn transaction(config: &UpdaterConfig) -> PathBuf {
     ))
 }
 
-pub(super) fn lock(config: &UpdaterConfig) -> Result<File, String> {
+pub(super) struct InstallationLock {
+    pub(super) file: File,
+}
+
+impl Drop for InstallationLock {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        {
+            use std::os::fd::AsRawFd;
+            // A forked child can retain the shared descriptor until exec.
+            // Release ownership before closing our handle.
+            unsafe { libc::flock(self.file.as_raw_fd(), libc::LOCK_UN) };
+        }
+    }
+}
+
+pub(super) fn lock(config: &UpdaterConfig) -> Result<InstallationLock, String> {
     if !config.install_path.is_absolute()
         || config.install_path.extension().is_none_or(|s| s != "app")
         || !config.install_path.is_dir()
@@ -110,7 +126,7 @@ pub(super) fn lock(config: &UpdaterConfig) -> Result<File, String> {
             return Err("another signed updater owns this installation".into());
         }
     }
-    Ok(lock)
+    Ok(InstallationLock { file: lock })
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
