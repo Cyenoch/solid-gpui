@@ -398,9 +398,14 @@ mountApplication<string>({
       rootOptions: { onWindowResize: (width, height, scaleFactor) => size.set(width, height, scaleFactor) },
       onMount(root) {
         mountedRoot = root;
-        void root.getWindowSize().then(([width, height]) => {
-          if (active) size.set(width, height);
-        }).catch((error) => { if (active) console.error("Window size failed:", error); });
+        void root
+          .getWindowSize()
+          .then(([width, height]) => {
+            if (active) size.set(width, height);
+          })
+          .catch((error) => {
+            if (active) console.error("Window size failed:", error);
+          });
         const native = createClient(root);
         void native
           .setTheme("dark")

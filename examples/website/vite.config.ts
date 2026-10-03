@@ -101,7 +101,10 @@ export function websiteConfig(desktop = false, embedded = false) {
         ...(desktop
           ? [
               { find: "./HeroVisual", replacement: resolve(import.meta.dirname, "src/HeroVisual.native.tsx") },
-              { find: "./showcase/StudioPreview", replacement: resolve(import.meta.dirname, "src/showcase/StudioPreview.native.tsx") },
+              {
+                find: "./showcase/StudioPreview",
+                replacement: resolve(import.meta.dirname, "src/showcase/StudioPreview.native.tsx"),
+              },
             ]
           : []),
         { find: "assert", replacement: "assert/" },

@@ -92,8 +92,8 @@ export function Showcase(props: { width: number; height: number; route: string; 
                 height={Math.max(480, props.height - (mobile() ? menuHeight() : 0) - 68)}
                 view={current().id === "reference-studio-history" ? "history" : "timeline"}
                 navigate={(view) => props.navigate(`/showcase/reference-studio${view === "history" ? "-history" : ""}`)}
-              copyText={copyText}
-              preview={() => <StudioPreview title={studio.selectedClip().label} />}
+                copyText={copyText}
+                preview={() => <StudioPreview title={studio.selectedClip().label} />}
               />
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <Button compact ghost onPress={() => props.navigate("/docs/reference/reference-application")}>

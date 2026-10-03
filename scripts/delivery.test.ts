@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import schema from "../packages/solid-gpui/src/protocol/schema-lock.json";
 import {
@@ -11,7 +12,7 @@ import {
 } from "../packages/solid-gpui-vite/src/delivery.ts";
 
 test("an unpublished scaffold refuses to install old public packages under the same version", async () => {
-  const root = await mkdtemp(join(process.env.TMPDIR!, "delivery-scaffold-"));
+  const root = await mkdtemp(join(tmpdir(), "delivery-scaffold-"));
   try {
     await expect(scaffoldApplication({ directory: join(root, "counter"), runtime: "quickjs" })).rejects.toThrow(
       "unpublished scaffold requires --manifest",
@@ -23,7 +24,7 @@ test("an unpublished scaffold refuses to install old public packages under the s
 });
 
 test("stock acquisition rejects a corrupt host before attempting to execute or select it", async () => {
-  const root = await mkdtemp(join(process.env.TMPDIR!, "delivery-corrupt-"));
+  const root = await mkdtemp(join(tmpdir(), "delivery-corrupt-"));
   try {
     const host = join(root, "host.bin");
     await writeFile(host, "untrusted bytes");
